@@ -23,10 +23,12 @@ Suggests:
     cobalt,
     MatchIt,
     mgcv,
+    quarto,
     survival,
     WeightIt,
     tinyplot,
     testthat (>= 3.0.0)
+VignetteBuilder: quarto
 Config/testthat/edition: 3
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
