@@ -16,6 +16,8 @@ knitr::opts_chunk$set(
 # causatr
 
 <!-- badges: start -->
+[![R-CMD-check](https://github.com/etverse/causatr/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/etverse/causatr/actions/workflows/R-CMD-check.yaml)
+[![Codecov test coverage](https://codecov.io/gh/etverse/causatr/graph/badge.svg)](https://app.codecov.io/gh/etverse/causatr)
 <!-- badges: end -->
 
 The goal of causatr is to ...

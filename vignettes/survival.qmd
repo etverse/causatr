@@ -1,0 +1,16 @@
+---
+title: "Causal survival analysis (Chapter 17)"
+vignette: >
+  %\VignetteIndexEntry{Causal survival analysis}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r}
+#| include: false
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+<!-- TODO: write survival vignette -->
+<!-- Cover: causat_survival(), pooled logistic regression, survival curves -->
+<!-- under intervention, competing risks, replicating Chapter 17 estimates -->

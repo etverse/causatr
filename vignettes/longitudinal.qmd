@@ -1,0 +1,16 @@
+---
+title: "Longitudinal treatments: ICE g-computation (Chapter 21)"
+vignette: >
+  %\VignetteIndexEntry{Longitudinal treatments: ICE g-computation}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r}
+#| include: false
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+<!-- TODO: write longitudinal vignette -->
+<!-- Cover: ICE g-computation (Zivich et al. 2024), to_person_period(),   -->
+<!-- causat(id=, time=), static vs dynamic interventions, sandwich variance -->

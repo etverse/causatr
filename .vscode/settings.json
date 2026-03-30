@@ -1,0 +1,43 @@
+{
+    "[r]": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "Posit.air-vscode"
+    },
+    "[quarto]": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "quarto.quarto"
+    },
+    "files.exclude": {
+        ".adal": true,
+        ".agents": true,
+        ".augment": true,
+        ".claude": true,
+        ".codebuddy": true,
+        ".commandcode": true,
+        ".continue": true,
+        ".cortex": true,
+        ".crush": true,
+        ".factory": true,
+        ".goose": true,
+        ".iflow": true,
+        ".junie": true,
+        ".kilocode": true,
+        ".kiro": true,
+        ".kode": true,
+        ".mcpjam": true,
+        ".mux": true,
+        ".neovate": true,
+        ".openhands": true,
+        ".pi": true,
+        ".pochi": true,
+        ".qoder": true,
+        ".qwen": true,
+        ".roo": true,
+        ".trae": true,
+        ".vibe": true,
+        ".windsurf": true,
+        ".zencoder": true,
+        "skills": true,
+        "skills-lock.json": true
+    }
+}
