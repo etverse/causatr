@@ -1,0 +1,16 @@
+---
+title: "Methodological triangulation: g-computation, IPW, and matching"
+vignette: >
+  %\VignetteIndexEntry{Methodological triangulation}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r}
+#| include: false
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+<!-- TODO: write triangulation vignette -->
+<!-- Goal: compare gcomp (~3.5 kg), IPW (~3.4 kg), matching on NHEFS -->
+<!-- Cover: diagnose(), Love plots, when methods agree/disagree -->

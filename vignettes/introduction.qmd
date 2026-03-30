@@ -1,0 +1,15 @@
+---
+title: "Introduction to causatr"
+vignette: >
+  %\VignetteIndexEntry{Introduction to causatr}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r}
+#| include: false
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+<!-- TODO: write introduction vignette -->
+<!-- Cover: two-step API, three methods, intervention types, triangulation -->

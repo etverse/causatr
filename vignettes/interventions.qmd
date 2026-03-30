@@ -1,0 +1,16 @@
+---
+title: "Intervention types: static, dynamic, MTP, and IPSI"
+vignette: >
+  %\VignetteIndexEntry{Intervention types}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r}
+#| include: false
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+<!-- TODO: write interventions vignette -->
+<!-- Cover: static(), shift(), scale(), threshold(), dynamic(), ipsi() -->
+<!-- Examples: continuous treatment (smokeintensity), dose-response curves -->

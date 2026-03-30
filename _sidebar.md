@@ -1,0 +1,11 @@
+* [Home](/)
+* Articles: 
+  - [Intervention types: static, dynamic, MTP, and IPSI](vignettes/interventions.md)
+  - [Introduction to causatr](vignettes/introduction.md)
+  - [Longitudinal treatments: ICE g-computation (Chapter 21)](vignettes/longitudinal.md)
+  - [Point-treatment g-computation: replicating Hernán & Robins Chapter 13](vignettes/point-treatment.md)
+  - [Causal survival analysis (Chapter 17)](vignettes/survival.md)
+  - [Methodological triangulation: g-computation, IPW, and matching](vignettes/triangulation.md)
+* [News](NEWS.md)
+* [License](LICENSE.md)
+* [Citation](CITATION.md)
