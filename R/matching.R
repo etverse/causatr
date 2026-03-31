@@ -4,6 +4,7 @@ fit_matching <- function(
   outcome,
   treatment,
   confounders,
+  estimand,
   type,
   weights,
   call,

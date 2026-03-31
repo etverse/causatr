@@ -4,7 +4,10 @@ fit_ice <- function(
   outcome,
   treatment,
   confounders,
+  confounders_tv,
   family,
+  estimand,
+  history,
   weights,
   call,
   ...

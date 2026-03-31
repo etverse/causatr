@@ -8,6 +8,9 @@ contrast(
   fit,
   interventions,
   type = c("difference", "ratio", "or"),
+  estimand = NULL,
+  subset = NULL,
+  reference = NULL,
   ci_method = c("sandwich", "bootstrap", "delta"),
   n_boot = 500L,
   conf_level = 0.95,
@@ -17,19 +20,48 @@ contrast(
 \arguments{
 \item{fit}{A \code{causatr_fit} object returned by \code{\link[=causat]{causat()}}.}
 
-\item{interventions}{A named list of \code{causatr_intervention} objects created
-by \code{\link[=static]{static()}}, \code{\link[data.table:shift]{data.table::shift()}}, \code{\link[=dynamic]{dynamic()}}, \code{\link[=scale]{scale()}}, \code{\link[=threshold]{threshold()}}, or
-\code{\link[=ipsi]{ipsi()}}. At least one element is required.
+\item{interventions}{A named list of interventions. Each element must be
+one of:
+\itemize{
+\item A \code{causatr_intervention} object created by \code{\link[=static]{static()}}, \code{\link[=shift]{shift()}},
+\code{\link[=dynamic]{dynamic()}}, \code{\link[=scale]{scale()}}, \code{\link[=threshold]{threshold()}}, or \code{\link[=ipsi]{ipsi()}}.
+\item \code{NULL}, meaning the natural course (observed treatment values are used
+as-is). This is the reference for modified treatment policies. Note: for
+binary treatments, the natural-course mean is the observed mean, not a
+counterfactual — a warning is issued.
+\item A named list of \code{causatr_intervention} objects, one per treatment
+variable, for multivariate (joint) treatments. Each sub-list must name
+every treatment variable specified in \code{causat()}.
+}
 
 \strong{Note:} Non-static interventions (\code{shift()}, \code{scale()}, \code{threshold()},
 \code{dynamic()}, \code{ipsi()}) are only supported for \code{method = "gcomp"}.
 For IPW and matching, the weights/matched sets were estimated under the
 observed treatment distribution; applying a different regime requires
-re-calling \code{\link[=causat]{causat()}} with updated data. This restriction applies
-regardless of treatment type (binary, categorical, or continuous).}
+re-calling \code{\link[=causat]{causat()}} with updated data.}
 
 \item{type}{Character. The contrast scale: \code{"difference"} (default),
 \code{"ratio"}, or \code{"or"} (odds ratio). All pairwise contrasts are reported.}
+
+\item{estimand}{Character or \code{NULL}. The target estimand: \code{"ATE"},
+\code{"ATT"}, or \code{"ATC"}. For \code{method = "gcomp"}, overrides the estimand
+stored in \code{fit} (allowing one fit to produce multiple estimands). For
+\code{method = "ipw"} or \code{"matching"}, must match the estimand used at fitting
+time — changing it aborts with an informative message. If \code{NULL},
+defaults to \code{fit$estimand}. Mutually exclusive with \code{subset}.}
+
+\item{subset}{A quoted expression (\code{quote(...)}) defining a subgroup to
+average over instead of an estimand. Evaluated in the context of the
+fitted data. Works for any treatment type. For example,
+\code{subset = quote(age > 50)} or \code{subset = quote(A == 1)} (the latter
+is equivalent to \code{estimand = "ATT"} for binary treatments). Mutually
+exclusive with \code{estimand}.}
+
+\item{reference}{Character or \code{NULL}. Name of the reference intervention
+(the denominator/subtracted value for pairwise contrasts). Default: the
+first intervention in the list. Only relevant when \code{type = "difference"}
+or \code{"ratio"} and there are more than two interventions. For categorical
+treatments, use this to specify the reference level.}
 
 \item{ci_method}{Character. The variance/CI method: \code{"sandwich"} (default,
 valid for GLM-based fits), \code{"bootstrap"}, or \code{"delta"}.}
@@ -51,9 +83,11 @@ A \code{causatr_result} object with slots:
 \item{\code{contrasts}}{data.table with one row per pairwise comparison:
 \code{comparison}, \code{estimate}, \code{se}, \code{ci_lower}, \code{ci_upper}.}
 \item{\code{type}}{Contrast scale.}
+\item{\code{estimand}}{\code{"ATE"}, \code{"ATT"}, \code{"ATC"}, or \code{"subset"}.}
 \item{\code{ci_method}}{Inference method.}
+\item{\code{reference}}{Name of the reference intervention.}
 \item{\code{interventions}}{The intervention list.}
-\item{\code{n}}{Sample size.}
+\item{\code{n}}{Number of individuals averaged over.}
 \item{\code{method}}{Estimation method from the fit.}
 \item{\code{vcov}}{Full variance-covariance matrix for all E[Y^a].}
 \item{\code{call}}{The original call.}
@@ -66,8 +100,9 @@ with uncertainty estimates.
 
 For all three estimation methods, \code{contrast()} computes E[Y^a] by setting
 each individual's treatment to the intervened value and averaging the fitted
-outcome model predictions over the target population. The methods differ in
-how the outcome model was fitted and how the variance is estimated:
+outcome model predictions over the target population. The target population
+is controlled by \code{estimand} (or \code{subset} for subgroup effects). The methods
+differ in how the outcome model was fitted and how the variance is estimated:
 \itemize{
 \item \code{"gcomp"}: standard \code{glm}/\code{gam} on the full data; sandwich SE via stacked
 estimating equations.
@@ -79,24 +114,43 @@ for pair membership.
 }
 }
 \details{
-\subsection{Standardisation}{
+\subsection{Estimands and standardisation}{
 
 For each intervention \code{a}, \code{contrast()} evaluates the intervention function
-on the observed data to obtain the intervened treatment vector \code{a(Lᵢ)},
-then computes:
+on the target rows to obtain the intervened treatment vector \code{a(Lᵢ)}, then
+computes:
 
-\if{html}{\out{<div class="sourceCode">}}\preformatted{E[Y^a] = (1/n) Σᵢ Ê[Y | A = a(Lᵢ), Lᵢ]
+\if{html}{\out{<div class="sourceCode">}}\preformatted{E[Y^a] = (1/|S|) Σᵢ∈S Ê[Y | A = a(Lᵢ), Lᵢ]
 }\if{html}{\out{</div>}}
 
-This operation is the same for all three methods — the difference is in
-the outcome model stored in \code{fit$model} (standard \code{glm}/\code{gam} for gcomp;
-\code{glm_weightit()} for IPW; \code{glm()} on the matched sample for matching)
-and how uncertainty propagates to the variance estimate.
+where \code{S} is the set of rows determined by the estimand:
+\itemize{
+\item \code{"ATE"}: all rows (full population)
+\item \code{"ATT"}: rows where \code{A == 1} (observed treated)
+\item \code{"ATC"}: rows where \code{A == 0} (observed controls)
+\item \code{subset}: rows satisfying the quoted expression
 }
 
-\subsection{Supported treatment and intervention types by method}{\tabular{lll}{
+For \code{"gcomp"}, one fit supports multiple estimands because the outcome
+model is the same — only the rows averaged over change. For \code{"ipw"} and
+\code{"matching"}, the estimand is baked into the weights/matching and cannot
+be changed after fitting.
+}
+
+\subsection{Estimand applicability}{\tabular{llll}{
+   Treatment type \tab ATE \tab ATT/ATC \tab subset \cr
+   Binary point \tab Yes \tab Yes \tab Yes \cr
+   Continuous point \tab Yes \tab No (abort) \tab Yes \cr
+   Categorical point \tab Yes \tab No (abort) \tab Yes \cr
+   Multivariate point \tab Yes \tab No (abort) \tab Yes \cr
+   Longitudinal \tab Yes \tab No (abort) \tab Yes \cr
+}
+
+}
+
+\subsection{Treatment types and intervention support}{\tabular{lll}{
    Method \tab Treatment types \tab Intervention types \cr
-   \code{"gcomp"} \tab binary, categorical, continuous \tab all \cr
+   \code{"gcomp"} \tab binary, categorical, continuous, multivariate \tab all \cr
    \code{"ipw"} \tab binary, categorical, continuous (WeightIt) \tab \code{static()} only \cr
    \code{"matching"} \tab binary, categorical, continuous \tab \code{static()} only \cr
 }
@@ -106,15 +160,11 @@ and how uncertainty propagates to the variance estimate.
 \subsection{Variance estimation}{
 \itemize{
 \item \code{"sandwich"}: Stacked estimating equations propagate outcome model
-uncertainty through to the marginal mean. For IPW fits, M-estimation
-includes the propensity score estimating equations so weight uncertainty
-is accounted for. For matching fits, cluster-robust standard errors
-cluster on matched pair (\code{subclass}).
+uncertainty through to the marginal mean.
 \item \code{"bootstrap"}: Resamples individuals (entire pipeline refitted \code{n_boot}
-times). Respects cluster structure for clustered data. Parallelisable
-via a \code{future} plan.
-\item \code{"delta"}: Explicit delta method for contrast transformations (applied
-internally for ratio/OR contrasts when \code{ci_method = "sandwich"}).
+times). Respects cluster structure for longitudinal data.
+\item \code{"delta"}: Explicit delta method for ratio/OR contrasts (applied
+internally when \code{ci_method = "sandwich"}).
 }
 }
 }
@@ -124,19 +174,39 @@ data("nhefs", package = "causatr")
 fit <- causat(nhefs, outcome = "wt82_71", treatment = "qsmk",
               confounders = ~ sex + age + wt71)
 
-# Mean difference with sandwich SE
+# ATE: mean difference with sandwich SE
 result <- contrast(fit,
   interventions = list(quit = static(1), continue = static(0)),
   type = "difference"
 )
-print(result)
 
-# Risk ratio with bootstrap CI
-contrast(fit,
+# ATT: override estimand in contrast() (gcomp only)
+result_att <- contrast(fit,
   interventions = list(quit = static(1), continue = static(0)),
-  type = "ratio",
-  ci_method = "bootstrap",
-  n_boot = 500
+  estimand = "ATT"
+)
+
+# Subgroup effect: age > 50
+result_sub <- contrast(fit,
+  interventions = list(quit = static(1), continue = static(0)),
+  subset = quote(age > 50)
+)
+
+# Continuous treatment: shift with NULL reference
+fit_cont <- causat(nhefs, outcome = "wt82_71",
+                   treatment = "smokeintensity",
+                   confounders = ~ sex + age + wt71)
+contrast(fit_cont,
+  interventions = list(reduce10 = shift(-10), observed = NULL),
+  type = "difference"
+)
+
+# Categorical treatment: three arms, reference = "radio"
+contrast(fit_cat,
+  interventions = list(chemo = static("A"), radio = static("B"),
+                       combo = static("C")),
+  type = "difference",
+  reference = "radio"
 )
 }
 
@@ -157,6 +227,6 @@ sandwich variance estimator for iterated conditional expectation
 g-computation. \emph{Statistics in Medicine} 43:5562–5572.
 }
 \seealso{
-\code{\link[=causat]{causat()}}, \code{\link[=static]{static()}}, \code{\link[data.table:shift]{data.table::shift()}}, \code{\link[=dynamic]{dynamic()}},
+\code{\link[=causat]{causat()}}, \code{\link[=static]{static()}}, \code{\link[=shift]{shift()}}, \code{\link[=dynamic]{dynamic()}},
 \code{\link[=coef.causatr_result]{coef.causatr_result()}}, \code{\link[=confint.causatr_result]{confint.causatr_result()}}
 }

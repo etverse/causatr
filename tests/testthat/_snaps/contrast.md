@@ -30,3 +30,60 @@
       Error in `contrast()`:
       ! Non-static interventions (shift, dynamic, scale, threshold, ipsi) are not supported for method = 'matching'. The weights/matched sets were estimated under the original treatment regime and are not valid under a different intervention. Use method = 'gcomp' instead.
 
+# contrast() rejects estimand and subset together
+
+    Code
+      contrast(fit, list(a1 = static(1), a0 = static(0)), estimand = "ATT", subset = quote(
+        A == 1))
+    Condition
+      Error in `contrast()`:
+      ! Specify either 'estimand' or 'subset', not both.
+
+# contrast() aborts when IPW estimand is changed
+
+    Code
+      contrast(fit, list(a1 = static(1), a0 = static(0)), estimand = "ATT")
+    Condition
+      Error in `contrast()`:
+      ! For method = 'ipw', the estimand is fixed at fitting time because it determines the weights. Refit with causat(estimand = 'ATT').
+
+# contrast() aborts when matching estimand is changed
+
+    Code
+      contrast(fit, list(a1 = static(1), a0 = static(0)), estimand = "ATE")
+    Condition
+      Error in `contrast()`:
+      ! For method = 'matching', the estimand is fixed at fitting time because it determines the weights. Refit with causat(estimand = 'ATE').
+
+# contrast() rejects ATT for longitudinal fit
+
+    Code
+      contrast(fit, list(a1 = static(1), a0 = static(0)), estimand = "ATT")
+    Condition
+      Error in `contrast()`:
+      ! estimand = 'ATT' is only defined for binary point treatments. Use estimand = 'ATE' or subset = quote(...) for subgroup effects.
+
+# contrast() rejects reference not in interventions
+
+    Code
+      contrast(fit, list(a1 = static(1), a0 = static(0)), reference = "a2")
+    Condition
+      Error in `contrast()`:
+      ! `reference` ('a2') must be the name of one of the interventions.
+
+# contrast() allows NULL intervention (natural course)
+
+    Code
+      contrast(fit, list(shifted = shift(-5), observed = NULL))
+    Condition
+      Error in `compute_contrast()`:
+      ! contrast() is not yet implemented.
+
+# contrast() rejects multivariate intervention with missing treatment var
+
+    Code
+      contrast(fit, list(a1 = list(static(1), static(0))))
+    Condition
+      Error in `contrast()`:
+      ! `interventions$a1` is a list but not all elements are named. For multivariate treatment, supply a named list with one entry per treatment variable.
+

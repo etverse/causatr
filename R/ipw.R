@@ -4,7 +4,11 @@ fit_ipw <- function(
   outcome,
   treatment,
   confounders,
+  confounders_tv,
+  estimand,
   type,
+  history,
+  numerator,
   weights,
   call,
   ...

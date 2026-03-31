@@ -23,6 +23,7 @@ Suggests:
     cobalt,
     MatchIt,
     mgcv,
+    mice,
     quarto,
     survival,
     WeightIt,

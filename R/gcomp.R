@@ -4,14 +4,29 @@ fit_gcomp <- function(
   outcome,
   treatment,
   confounders,
+  confounders_tv,
   family,
+  estimand,
   type,
+  history,
   weights,
   call,
   ...
 ) {
   if (type == "longitudinal") {
-    fit_ice(data, outcome, treatment, confounders, family, weights, call, ...)
+    fit_ice(
+      data,
+      outcome,
+      treatment,
+      confounders,
+      confounders_tv,
+      family,
+      estimand,
+      history,
+      weights,
+      call,
+      ...
+    )
   } else {
     fit_gcomp_point(
       data,
@@ -19,6 +34,7 @@ fit_gcomp <- function(
       treatment,
       confounders,
       family,
+      estimand,
       weights,
       call,
       ...
@@ -33,6 +49,7 @@ fit_gcomp_point <- function(
   treatment,
   confounders,
   family,
+  estimand,
   weights,
   call,
   ...

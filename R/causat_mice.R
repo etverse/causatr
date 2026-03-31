@@ -1,0 +1,101 @@
+#' Fit causal models across multiply-imputed datasets
+#'
+#' @description
+#' Applies [causat()] and [contrast()] across all imputed datasets in a
+#' `mids` object (from `mice::mice()`), then pools point estimates and
+#' variances using Rubin's rules. This handles missing treatment values (or
+#' any other missing data) via multiple imputation.
+#'
+#' Rubin's rules pool m point estimates and their within-imputation variances:
+#' - **Pooled estimate**: mean of per-imputation estimates.
+#' - **Total variance**: within-imputation variance + between-imputation
+#'   variance + between-imputation correction.
+#' - **CIs**: normal approximation on the pooled estimate.
+#'
+#' @param imp A `mids` object returned by `mice::mice()`.
+#' @param outcome Character. Passed to [causat()].
+#' @param treatment Character. Passed to [causat()].
+#' @param confounders A one-sided formula. Passed to [causat()].
+#' @param interventions A named list of interventions. Passed to [contrast()].
+#' @param method Character. Passed to [causat()]. Default `"gcomp"`.
+#' @param family Character or family object. Passed to [causat()].
+#' @param estimand Character. Passed to [causat()].
+#' @param type Character. Contrast scale. Passed to [contrast()].
+#' @param ci_method Character. Variance method. Passed to [contrast()].
+#' @param conf_level Numeric. Confidence level. Default `0.95`.
+#' @param ... Additional arguments passed to [causat()].
+#'
+#' @return A `causatr_result` with pooled estimates and variances following
+#'   Rubin's rules.
+#'
+#' @details
+#' ## Rubin's rules
+#' Let `Q̂_i` be the estimate from imputation `i` and `U_i` its variance.
+#' The pooled estimate is `Q̄ = (1/m) Σ Q̂_i`. The total variance is:
+#' ```
+#' T = Ū + B + B/m
+#' ```
+#' where `Ū = (1/m) Σ U_i` (within-imputation variance) and
+#' `B = (1/(m-1)) Σ (Q̂_i - Q̄)²` (between-imputation variance).
+#'
+#' Degrees of freedom follow the standard Barnard–Rubin approximation.
+#'
+#' @references
+#' Rubin DB (1987). *Multiple Imputation for Nonresponse in Surveys*.
+#' Wiley.
+#'
+#' van Buuren S, Groothuis-Oudshoorn K (2011). mice: Multivariate Imputation
+#' by Chained Equations in R. *Journal of Statistical Software* 45(3):1–67.
+#'
+#' @examples
+#' \dontrun{
+#' library(mice)
+#'
+#' # Step 1: impute
+#' imp <- mice(data, m = 20, method = "pmm")
+#'
+#' # Step 2: fit + contrast across imputations
+#' result <- causat_mice(
+#'   imp,
+#'   outcome = "Y",
+#'   treatment = "A",
+#'   confounders = ~ L1 + L2,
+#'   interventions = list(treat_all = static(1), treat_none = static(0)),
+#'   type = "difference"
+#' )
+#' }
+#'
+#' @seealso [causat()], [contrast()]
+#' @export
+causat_mice <- function(
+  imp,
+  outcome,
+  treatment,
+  confounders,
+  interventions,
+  method = "gcomp",
+  family = "gaussian",
+  estimand = "ATE",
+  type = "difference",
+  ci_method = "sandwich",
+  conf_level = 0.95,
+  ...
+) {
+  check_pkg("mice")
+
+  if (!inherits(imp, "mids")) {
+    rlang::abort(
+      paste0(
+        "`imp` must be a `mids` object returned by `mice::mice()`. ",
+        "Got an object of class: ",
+        paste(class(imp), collapse = ", ")
+      ),
+      .call = FALSE
+    )
+  }
+
+  rlang::abort(
+    "causat_mice() is not yet implemented.",
+    .call = FALSE
+  )
+}
