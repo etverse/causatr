@@ -79,7 +79,7 @@
       Error in `compute_contrast()`:
       ! contrast() is not yet implemented.
 
-# contrast() rejects multivariate intervention with missing treatment var
+# contrast() rejects multivariate intervention, missing trt var
 
     Code
       contrast(fit, list(a1 = list(static(1), static(0))))

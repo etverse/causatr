@@ -237,7 +237,7 @@ causat <- function(
 
   type <- if (!is.null(id) && !is.null(time)) "longitudinal" else "point"
 
-  check_causat_inputs(
+  check_causat_inputs( # nolint: object_usage_linter
     data,
     outcome = outcome,
     treatment = treatment,
@@ -250,9 +250,7 @@ causat <- function(
     history = history
   )
 
-  check_estimand_treatment_compat(estimand, treatment, type)
-
-  data <- prepare_data(
+  data <- prepare_data( # nolint: object_usage_linter
     data,
     outcome = outcome,
     treatment = treatment,

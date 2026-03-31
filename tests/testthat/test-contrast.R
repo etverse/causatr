@@ -27,11 +27,18 @@ test_that("contrast() rejects non-static interventions for matching", {
 })
 
 test_that("contrast() rejects estimand and subset together", {
-  fit <- structure(list(method = "gcomp", estimand = "ATE"), class = "causatr_fit")
+  fit <- structure(
+    list(method = "gcomp", estimand = "ATE"),
+    class = "causatr_fit"
+  )
   expect_snapshot(
     error = TRUE,
-    contrast(fit, list(a1 = static(1), a0 = static(0)),
-             estimand = "ATT", subset = quote(A == 1))
+    contrast(
+      fit,
+      list(a1 = static(1), a0 = static(0)),
+      estimand = "ATT",
+      subset = quote(A == 1)
+    )
   )
 })
 
@@ -48,7 +55,12 @@ test_that("contrast() aborts when IPW estimand is changed", {
 
 test_that("contrast() aborts when matching estimand is changed", {
   fit <- structure(
-    list(method = "matching", estimand = "ATT", treatment = "A", type = "point"),
+    list(
+      method = "matching",
+      estimand = "ATT",
+      treatment = "A",
+      type = "point"
+    ),
     class = "causatr_fit"
   )
   expect_snapshot(
@@ -59,7 +71,12 @@ test_that("contrast() aborts when matching estimand is changed", {
 
 test_that("contrast() rejects ATT for longitudinal fit", {
   fit <- structure(
-    list(method = "gcomp", estimand = "ATE", treatment = "A", type = "longitudinal"),
+    list(
+      method = "gcomp",
+      estimand = "ATE",
+      treatment = "A",
+      type = "longitudinal"
+    ),
     class = "causatr_fit"
   )
   expect_snapshot(
@@ -90,7 +107,7 @@ test_that("contrast() allows NULL intervention (natural course)", {
   )
 })
 
-test_that("contrast() rejects multivariate intervention with missing treatment var", {
+test_that("contrast() rejects multivariate intervention, missing trt var", {
   fit <- structure(
     list(method = "gcomp", estimand = "ATE", treatment = "A", type = "point"),
     class = "causatr_fit"

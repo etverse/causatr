@@ -212,7 +212,7 @@ contrast <- function(
   if (!is.null(estimand)) {
     estimand <- rlang::arg_match(estimand, c("ATE", "ATT", "ATC"))
     check_estimand_compat(estimand, fit$method, fit$estimand)
-    check_estimand_treatment_compat(
+    check_estimand_trt_compat(
       estimand,
       fit$treatment,
       fit$type
@@ -257,9 +257,15 @@ check_interventions_compat <- function(
     non_static <- vapply(
       interventions,
       function(iv) {
-        if (is.null(iv)) return(FALSE)
+        if (is.null(iv)) {
+          return(FALSE)
+        }
         if (is.list(iv) && !inherits(iv, "causatr_intervention")) {
-          return(any(vapply(iv, function(sub) sub$type != "static", logical(1))))
+          return(any(vapply(
+            iv,
+            function(sub) sub$type != "static",
+            logical(1)
+          )))
         }
         iv$type != "static"
       },

@@ -15,7 +15,11 @@ prepare_data <- function(
     data <- data.table::as.data.table(data)
   }
 
-  tv_vars <- if (!is.null(confounders_tv)) all.vars(confounders_tv) else character(0)
+  tv_vars <- if (!is.null(confounders_tv)) {
+    all.vars(confounders_tv)
+  } else {
+    character(0)
+  }
 
   keep_cols <- unique(c(
     outcome,
@@ -53,7 +57,10 @@ create_lag_vars <- function(data, treatment, tv_vars, id, time, history) {
   for (v in lag_vars) {
     for (k in seq_len(max_lag)) {
       lag_col <- paste0("lag", k, "_", v)
-      data[, (lag_col) := data.table::shift(get(v), n = k, type = "lag"), by = c(id)]
+      data[,
+        (lag_col) := data.table::shift(get(v), n = k, type = "lag"), # nolint: object_usage_linter
+        by = c(id)
+      ]
     }
   }
 
@@ -63,7 +70,11 @@ create_lag_vars <- function(data, treatment, tv_vars, id, time, history) {
 #' @noRd
 warn_confounder_variation <- function(data, confounders, confounders_tv, id) {
   baseline_vars <- all.vars(confounders)
-  tv_vars <- if (!is.null(confounders_tv)) all.vars(confounders_tv) else character(0)
+  tv_vars <- if (!is.null(confounders_tv)) {
+    all.vars(confounders_tv)
+  } else {
+    character(0)
+  }
 
   for (v in tv_vars) {
     if (v %in% names(data)) {

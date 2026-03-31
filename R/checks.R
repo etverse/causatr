@@ -67,7 +67,8 @@ check_intervention_list <- function(x, call = rlang::caller_env()) {
             "`interventions$",
             nm,
             "` is a list but not all elements are named. ",
-            "For multivariate treatment, supply a named list with one entry per treatment variable."
+            "For multivariate treatment, supply a named list with one ",
+            "entry per treatment variable."
           ),
           call = call
         )
@@ -92,8 +93,8 @@ check_intervention_list <- function(x, call = rlang::caller_env()) {
         paste0(
           "`interventions$",
           nm,
-          "` must be a `causatr_intervention` object or `NULL` (natural course). ",
-          "Use `static()`, `shift()`, `dynamic()`, etc."
+          "` must be a `causatr_intervention` object or `NULL` (natural ",
+          "course). Use `static()`, `shift()`, `dynamic()`, etc."
         ),
         call = call
       )
@@ -108,7 +109,9 @@ check_estimand_compat <- function(
   fit_estimand,
   call = rlang::caller_env()
 ) {
-  if (is.null(estimand)) return(invisible(NULL))
+  if (is.null(estimand)) {
+    return(invisible(NULL))
+  }
 
   if (fit_method %in% c("ipw", "matching") && estimand != fit_estimand) {
     rlang::abort(
@@ -126,13 +129,15 @@ check_estimand_compat <- function(
 }
 
 #' @noRd
-check_estimand_treatment_compat <- function(
+check_estimand_trt_compat <- function(
   estimand,
   treatment,
   type,
   call = rlang::caller_env()
 ) {
-  if (estimand == "ATE") return(invisible(NULL))
+  if (estimand == "ATE") {
+    return(invisible(NULL))
+  }
 
   if (type == "longitudinal") {
     rlang::abort(
@@ -181,8 +186,14 @@ check_treatment_nas <- function(
             if (n_na == 1) "" else "s",
             "."
           ),
-          i = "Use `censoring = '...'` for inverse probability of censoring weights.",
-          i = "Use `causat_mice()` with a mice `mids` object for multiple imputation.",
+          i = paste0(
+            "Use `censoring = '...'` for inverse probability of ",
+            "censoring weights."
+          ),
+          i = paste0(
+            "Use `causat_mice()` with a mice `mids` object for ",
+            "multiple imputation."
+          ),
           i = "Or remove incomplete cases before calling `causat()`."
         ),
         call = call
@@ -205,6 +216,21 @@ check_causat_inputs <- function(
   history,
   call = rlang::caller_env()
 ) {
+  type <- if (!is.null(id) && !is.null(time)) "longitudinal" else "point"
+
+  if (type == "longitudinal" && method %in% c("ipw", "matching")) {
+    rlang::abort(
+      paste0(
+        "method = '",
+        method,
+        "' does not support longitudinal data. Use method = 'gcomp'."
+      ),
+      call = call
+    )
+  }
+
+  check_estimand_trt_compat(estimand, treatment, type, call = call)
+
   check_string(outcome, call = call)
 
   if (!is.character(treatment) || length(treatment) == 0L) {
