@@ -71,14 +71,6 @@
       Error in `contrast()`:
       ! `reference` ('a2') must be the name of one of the interventions.
 
-# contrast() allows NULL intervention (natural course)
-
-    Code
-      contrast(fit, list(shifted = shift(-5), observed = NULL))
-    Condition
-      Error in `compute_contrast()`:
-      ! contrast() is not yet implemented.
-
 # contrast() rejects multivariate intervention, missing trt var
 
     Code

@@ -19,12 +19,13 @@ causat_survival(
 )
 }
 \arguments{
-\item{data}{A data frame or data.table in either wide format (one row per
-individual, with separate time-to-event and event indicator columns) or
-long (person-period) format.}
+\item{data}{A data frame or data.table.  Can be in wide format (one row
+per individual with a time-to-event column) or long person-period format
+(one row per person per time interval).  If wide, the data is
+auto-converted using \code{\link[=to_person_period]{to_person_period()}}.}
 
-\item{outcome}{Character. Name of the binary event indicator (1 = event,
-0 = censored or no event at that interval).}
+\item{outcome}{Character. Name of the binary event indicator (1 = event
+occurred in this interval, 0 = survived / censored).}
 
 \item{treatment}{Character. Name of the treatment variable.}
 
@@ -34,7 +35,9 @@ long (person-period) format.}
 
 \item{time}{Character. Name of the time variable (interval index).}
 
-\item{censoring}{Character or \code{NULL}. Name of the censoring indicator.}
+\item{censoring}{Character or \code{NULL}. Name of the censoring indicator.
+If provided, rows where \code{censoring == 1} are excluded from fitting,
+and subsequent rows for that individual are also dropped.}
 
 \item{competing}{Character or \code{NULL}. Name of a variable indicating the
 type of competing event (for competing risks analysis).}
@@ -50,22 +53,27 @@ weights.}
 }
 \value{
 A \code{causatr_fit} object (with \code{type = "survival"}) suitable for
-use with \code{\link[=contrast]{contrast()}}. When passed to \code{contrast()}, estimates are
-survival curves at each time point and risk/survival differences at
-user-specified times.
+use with \code{\link[=contrast]{contrast()}}.
 }
 \description{
 Convenience wrapper for causal survival analysis using pooled logistic
-regression as a discrete-time hazard model. Converts the data to
-person-period format if needed, fits one logistic model per time point
-(or a single model with a flexible time function), and returns a
-\code{causatr_fit} that \code{\link[=contrast]{contrast()}} uses to compute survival curves and risk
-differences under each intervention.
+regression as a discrete-time hazard model (Hernán & Robins Ch. 17).
+\subsection{Algorithm}{
+\enumerate{
+\item Convert data to person-period format if not already long (using
+\code{\link[=to_person_period]{to_person_period()}}).
+\item Fit a pooled logistic regression for the discrete hazard:
+\eqn{logit Pr[D_{k+1} = 1 | survived to k, A, L]} =
+\code{time_formula + A + confounders}.
+\item For each intervention, predict individual-level hazards, compute
+survival as the cumulative product S_i(k) = prod(1 - h_i(m), m <= k),
+and average across individuals.
+\item Risk difference at time t = \eqn{(1 - S^{a1}(t)) - (1 - S^{a0}(t))}.
+}
 
-Censoring is handled within the model (restrict to uncensored at each
-time) or via inverse probability of censoring weighting (IPCW) supplied
-through the \code{weights} argument. For competing risks, a separate
-cause-specific hazard model is fitted per event type.
+When the per-interval hazard is small (< 0.1), the pooled logistic model
+closely approximates a continuous-time Cox model (Technical Point 17.1).
+}
 }
 \examples{
 \dontrun{

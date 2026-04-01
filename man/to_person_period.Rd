@@ -36,11 +36,13 @@ Reshapes individual-level data in wide format (one row per person, with
 columns for each time-varying variable at each time point) into long
 person-period format (one row per person per time interval), as required
 by \code{\link[=causat]{causat()}} for longitudinal analyses and by \code{\link[=causat_survival]{causat_survival()}} for
-survival analyses.
+discrete-time survival analyses.
+
+For survival data the event indicator \eqn{D_{k+1} = 1} means the individual
+experienced the event during interval k+1 (Hernán & Robins Ch. 17).
 }
 \examples{
 \dontrun{
-# Toy wide dataset
 wide <- data.table::data.table(
   id  = 1:3,
   sex = c(0, 1, 0),

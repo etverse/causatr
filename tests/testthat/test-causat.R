@@ -38,12 +38,15 @@ test_that("causat() rejects time without id", {
   )
 })
 
-test_that("causat() errors on unimplemented gcomp", {
-  df <- data.frame(Y = c(0, 1), A = c(0, 1), L = c(1, 2))
-  expect_snapshot(
-    error = TRUE,
-    causat(df, outcome = "Y", treatment = "A", confounders = ~L)
+test_that("causat() successfully fits a gcomp model", {
+  df <- data.frame(
+    Y = c(1, 2, 3, 4, 5, 6, 7, 8),
+    A = c(0, 0, 0, 0, 1, 1, 1, 1),
+    L = c(1, 2, 3, 4, 1, 2, 3, 4)
   )
+  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L)
+  expect_s3_class(fit, "causatr_fit")
+  expect_equal(fit$method, "gcomp")
 })
 
 test_that("causat() rejects ATT for continuous treatment", {

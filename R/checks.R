@@ -133,34 +133,33 @@ check_estimand_trt_compat <- function(
   estimand,
   treatment,
   type,
+  data = NULL,
   call = rlang::caller_env()
 ) {
   if (estimand == "ATE") {
     return(invisible(NULL))
   }
 
+  msg <- paste0(
+    "estimand = '",
+    estimand,
+    "' is only defined for binary point treatments. ",
+    "Use estimand = 'ATE' or subset = quote(...) for subgroup effects."
+  )
+
   if (type == "longitudinal") {
-    rlang::abort(
-      paste0(
-        "estimand = '",
-        estimand,
-        "' is only defined for binary point treatments. ",
-        "Use estimand = 'ATE' or subset = quote(...) for subgroup effects."
-      ),
-      call = call
-    )
+    rlang::abort(msg, call = call)
   }
 
   if (length(treatment) > 1L) {
-    rlang::abort(
-      paste0(
-        "estimand = '",
-        estimand,
-        "' is only defined for binary point treatments. ",
-        "Use estimand = 'ATE' or subset = quote(...) for subgroup effects."
-      ),
-      call = call
-    )
+    rlang::abort(msg, call = call)
+  }
+
+  if (!is.null(data)) {
+    trt_vals <- unique(stats::na.omit(data[[treatment]]))
+    if (!all(trt_vals %in% c(0, 1))) {
+      rlang::abort(msg, call = call)
+    }
   }
 }
 
@@ -229,7 +228,7 @@ check_causat_inputs <- function(
     )
   }
 
-  check_estimand_trt_compat(estimand, treatment, type, call = call)
+  check_estimand_trt_compat(estimand, treatment, type, data = data, call = call)
 
   check_string(outcome, call = call)
 

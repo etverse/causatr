@@ -201,3 +201,98 @@ print.causatr_intervention <- function(x, ...) {
   }
   invisible(x)
 }
+
+#' Apply a causal intervention to a copy of the data
+#'
+#' @description
+#' Copies `data` and overwrites the treatment column(s) with the values
+#' implied by the intervention.  For a scalar treatment `iv` is a single
+#' `causatr_intervention`; for a multivariate treatment `iv` is a named list
+#' with one element per treatment variable.
+#'
+#' Called once per intervention inside `compute_contrast()` and
+#' `variance_bootstrap()` to create counterfactual datasets.
+#'
+#' @param data A data.table containing all model variables.
+#' @param treatment Character scalar or vector. Treatment column name(s).
+#' @param iv A `causatr_intervention`, a named list of them, or `NULL`
+#'   (natural course — data returned unchanged).
+#'
+#' @return A modified *copy* of `data` (original is never mutated).
+#'
+#' @noRd
+apply_intervention <- function(data, treatment, iv) {
+  # Always work on a copy so the original data is never mutated.
+  data_a <- data.table::copy(data)
+  if (is.null(iv)) {
+    return(data_a)
+  }
+  if (length(treatment) == 1L) {
+    # Scalar treatment: iv is a single causatr_intervention.
+    apply_single_intervention(data_a, treatment, iv)
+  } else {
+    # Multivariate treatment: iv is a named list with one entry per variable.
+    for (trt_nm in names(iv)) {
+      apply_single_intervention(data_a, trt_nm, iv[[trt_nm]])
+    }
+    data_a
+  }
+}
+
+#' Apply one intervention rule to a single treatment column (in-place)
+#'
+#' @description
+#' Modifies `data` in-place (via data.table `:=`) by transforming `trt_col`
+#' according to the intervention type:
+#'
+#' | Type | Transformation |
+#' |---|---|
+#' | `static` | Set every value to `iv$value` |
+#' | `shift` | Add `iv$delta` to each observed value |
+#' | `scale` | Multiply each observed value by `iv$factor` |
+#' | `threshold` | Clamp each value to `[iv$lower, iv$upper]` |
+#' | `dynamic` | Apply user function `iv$rule(data, treatment_vector)` |
+#'
+#' @param data A data.table (modified by reference).
+#' @param trt_col Character. Name of the treatment column to modify.
+#' @param iv A `causatr_intervention` object.
+#'
+#' @return `data` invisibly (the mutation happens in place).
+#'
+#' @noRd
+apply_single_intervention <- function(data, trt_col, iv) {
+  switch(
+    iv$type,
+    static = {
+      # Set every individual's treatment to the fixed value.
+      data[, (trt_col) := iv$value]
+    },
+    shift = {
+      # Shift each individual's observed treatment by a constant delta.
+      data[, (trt_col) := get(trt_col) + iv$delta]
+    },
+    scale = {
+      # Scale each individual's observed treatment by a constant factor.
+      data[, (trt_col) := get(trt_col) * iv$factor]
+    },
+    threshold = {
+      # Clamp each individual's treatment to [lower, upper].
+      data[, (trt_col) := pmax(pmin(get(trt_col), iv$upper), iv$lower)]
+    },
+    dynamic = {
+      # Evaluate the user-supplied rule function and assign the result.
+      new_trt <- iv$rule(data, data[[trt_col]])
+      data[, (trt_col) := new_trt]
+    },
+    ipsi = {
+      rlang::abort(
+        paste0(
+          "IPSI interventions require a propensity model and are not yet ",
+          "supported in contrast()."
+        ),
+        .call = FALSE
+      )
+    }
+  )
+  data
+}

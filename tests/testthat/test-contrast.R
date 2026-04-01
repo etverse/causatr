@@ -96,15 +96,20 @@ test_that("contrast() rejects reference not in interventions", {
   )
 })
 
-test_that("contrast() allows NULL intervention (natural course)", {
-  fit <- structure(
-    list(method = "gcomp", estimand = "ATE", treatment = "A", type = "point"),
-    class = "causatr_fit"
+test_that("contrast() handles NULL intervention (natural course)", {
+  df <- data.frame(
+    Y = rnorm(50),
+    A = rnorm(50),
+    L = rnorm(50)
   )
-  expect_snapshot(
-    error = TRUE,
-    contrast(fit, list(shifted = shift(-5), observed = NULL))
+  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L)
+  result <- contrast(
+    fit,
+    list(shifted = shift(-1), observed = NULL),
+    ci_method = "sandwich"
   )
+  expect_s3_class(result, "causatr_result")
+  expect_equal(nrow(result$estimates), 2L)
 })
 
 test_that("contrast() rejects multivariate intervention, missing trt var", {

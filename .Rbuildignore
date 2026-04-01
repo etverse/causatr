@@ -1,4 +1,5 @@
 ^causatr\.Rproj$
+^\.lintr$
 ^\.Rproj\.user$
 ^LICENSE\.md$
 ^README\.Rmd$
@@ -8,6 +9,8 @@
 ^docs$
 ^altdoc$
 ^CLAUDE\.md$
+^CAUSATR_SCAFFOLD\.md$
+^PHASE_.*\.md$
 ^Makefile$
 ^skills$
 ^skills-lock\.json$

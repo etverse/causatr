@@ -61,6 +61,10 @@
 #'   (e.g. survey weights or externally computed IPCW). For `"gcomp"`,
 #'   passed to `glm()`. For `"ipw"`, multiplied with the estimated propensity
 #'   weights.
+#' @param model_fn Function. The fitting function for the outcome model in
+#'   g-computation. Must accept `(formula, data, family, weights, ...)`.
+#'   Default `stats::glm`; pass `mgcv::gam` for GAMs, `MASS::glm.nb` for
+#'   negative-binomial, etc. Ignored for `"ipw"` and `"matching"`.
 #' @param ... Additional arguments passed to the underlying estimation
 #'   function: `WeightIt::weightit()` for `method = "ipw"` (e.g.
 #'   `method = "glm"`); `MatchIt::matchit()` for `method = "matching"` (e.g.
@@ -229,6 +233,7 @@ causat <- function(
   history = 1L,
   numerator = NULL,
   weights = NULL,
+  model_fn = stats::glm,
   ...
 ) {
   call <- match.call()
@@ -237,7 +242,8 @@ causat <- function(
 
   type <- if (!is.null(id) && !is.null(time)) "longitudinal" else "point"
 
-  check_causat_inputs( # nolint: object_usage_linter
+  check_causat_inputs(
+    # nolint: object_usage_linter
     data,
     outcome = outcome,
     treatment = treatment,
@@ -250,7 +256,8 @@ causat <- function(
     history = history
   )
 
-  data <- prepare_data( # nolint: object_usage_linter
+  data <- prepare_data(
+    # nolint: object_usage_linter
     data,
     outcome = outcome,
     treatment = treatment,
@@ -276,7 +283,9 @@ causat <- function(
       estimand,
       type,
       history,
+      censoring,
       weights,
+      model_fn,
       call,
       ...
     ),

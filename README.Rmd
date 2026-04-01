@@ -20,37 +20,144 @@ knitr::opts_chunk$set(
 [![Codecov test coverage](https://codecov.io/gh/etverse/causatr/graph/badge.svg)](https://app.codecov.io/gh/etverse/causatr)
 <!-- badges: end -->
 
-The goal of causatr is to ...
+**causatr** provides a unified interface for causal effect estimation via three
+complementary methods: g-computation (parametric g-formula), inverse probability
+weighting (IPW), and propensity score matching. When all three methods agree,
+you can be more confident in your findings — this is called
+**methodological triangulation**.
+
+The package implements the methods described in Hernán & Robins (2025)
+*Causal Inference: What If* with a simple two-step API:
+
+1. **Fit** the causal model with `causat()`
+2. **Contrast** interventions with `contrast()`
 
 ## Installation
 
-You can install the development version of causatr like so:
+Install the development version from GitHub:
 
-``` r
-# FILL THIS IN! HOW CAN PEOPLE INSTALL YOUR DEV PACKAGE?
+```r
+# install.packages("pak")
+pak::pak("etverse/causatr")
 ```
 
-## Example
+## Quick example
 
-This is a basic example which shows you how to solve a common problem:
+Estimate the average causal effect of quitting smoking on weight gain
+using the NHEFS dataset from Hernán & Robins (2025):
 
 ```{r example}
 library(causatr)
-## basic example code
+data("nhefs")
+
+# Step 1: Fit the outcome model via g-computation
+fit <- causat(
+  nhefs,
+  outcome = "wt82_71",
+  treatment = "qsmk",
+  confounders = ~ sex + age + I(age^2) + race + factor(education) +
+    smokeintensity + I(smokeintensity^2) + smokeyrs + I(smokeyrs^2) +
+    factor(exercise) + factor(active) + wt71 + I(wt71^2) +
+    qsmk:smokeintensity,
+  censoring = "censored"
+)
+
+# Step 2: Contrast interventions
+result <- contrast(
+  fit,
+  interventions = list(quit = static(1), continue = static(0)),
+  reference = "continue"
+)
+result
 ```
 
-What is special about using `README.Rmd` instead of just `README.md`? You can include R chunks like so:
+## Methodological triangulation
 
-```{r cars}
-summary(cars)
+Compare g-computation, IPW, and matching on the same data:
+
+```{r triangulation}
+# G-computation (outcome model)
+fit_gc <- causat(nhefs, outcome = "wt82_71", treatment = "qsmk",
+  confounders = ~ sex + age + race + smokeintensity + smokeyrs +
+    factor(exercise) + factor(active) + wt71,
+  censoring = "censored")
+
+# IPW (treatment model)
+fit_ipw <- causat(nhefs, outcome = "wt82_71", treatment = "qsmk",
+  confounders = ~ sex + age + race + smokeintensity + smokeyrs +
+    factor(exercise) + factor(active) + wt71,
+  method = "ipw")
+
+# Matching (propensity score)
+fit_m <- causat(nhefs, outcome = "wt82_71", treatment = "qsmk",
+  confounders = ~ sex + age + race + smokeintensity + smokeyrs +
+    factor(exercise) + factor(active) + wt71,
+  method = "matching", estimand = "ATT")
+
+# All three estimates
+rbind(
+  data.frame(method = "gcomp", contrast(fit_gc,
+    list(quit = static(1), cont = static(0)), reference = "cont")$contrasts),
+  data.frame(method = "ipw", contrast(fit_ipw,
+    list(quit = static(1), cont = static(0)), reference = "cont")$contrasts),
+  data.frame(method = "matching", contrast(fit_m,
+    list(quit = static(1), cont = static(0)), reference = "cont")$contrasts)
+)
 ```
 
-You'll still need to render `README.Rmd` regularly, to keep `README.md` up-to-date. `devtools::build_readme()` is handy for this.
+## Intervention types
 
-You can also embed plots, for example:
+Beyond static interventions, g-computation supports modified treatment policies:
 
-```{r pressure, echo = FALSE}
-plot(pressure)
+```{r interventions}
+fit_cont <- causat(nhefs, outcome = "wt82_71",
+  treatment = "smokeintensity",
+  confounders = ~ sex + age + race + wt71,
+  censoring = "censored")
+
+contrast(fit_cont,
+  interventions = list(
+    reduce10 = shift(-10),
+    halved = scale(0.5),
+    cap20 = threshold(0, 20),
+    observed = NULL
+  ),
+  reference = "observed"
+)
 ```
 
-In that case, don't forget to commit and push the resulting figure files, so they display on GitHub and CRAN.
+## Diagnostics
+
+Check covariate balance and positivity after fitting:
+
+```{r diagnostics, eval = FALSE}
+diag <- diagnose(fit_ipw)
+diag          # positivity + balance summary
+plot(diag)    # Love plot (requires cobalt)
+```
+
+## Features
+
+- **Three estimation methods**: g-computation, IPW (via
+  [WeightIt](https://ngreifer.github.io/WeightIt/)), matching (via
+  [MatchIt](https://kosukeimai.github.io/MatchIt/))
+- **Built-in diagnostics**: positivity checks, covariate balance via
+  [cobalt](https://ngreifer.github.io/cobalt/), weight summaries, Love plots
+- **Flexible interventions**: `static()`, `shift()`, `scale()`, `threshold()`,
+  `dynamic()` for modified treatment policies
+- **Robust inference**: sandwich SE (default) or nonparametric bootstrap
+- **Any outcome type**: continuous, binary, count (via `family` parameter)
+- **Pluggable models**: pass `stats::glm`, `mgcv::gam`, or any compatible
+  fitting function via `model_fn`
+- **Contrast types**: risk difference, risk ratio, odds ratio
+- **Estimands**: ATE, ATT, ATC, or custom subgroups via `subset`
+
+## Learn more
+
+- [G-computation vignette](https://etverse.github.io/causatr/vignettes/gcomp.html)
+- [IPW vignette](https://etverse.github.io/causatr/vignettes/ipw.html)
+- [Matching vignette](https://etverse.github.io/causatr/vignettes/matching.html)
+
+## References
+
+Hernán MA, Robins JM (2025). *Causal Inference: What If*. Chapman & Hall/CRC.

@@ -19,6 +19,7 @@ causat(
   history = 1L,
   numerator = NULL,
   weights = NULL,
+  model_fn = stats::glm,
   ...
 )
 }
@@ -84,6 +85,11 @@ data.}
 (e.g. survey weights or externally computed IPCW). For \code{"gcomp"},
 passed to \code{glm()}. For \code{"ipw"}, multiplied with the estimated propensity
 weights.}
+
+\item{model_fn}{Function. The fitting function for the outcome model in
+g-computation. Must accept \verb{(formula, data, family, weights, ...)}.
+Default \code{stats::glm}; pass \code{mgcv::gam} for GAMs, \code{MASS::glm.nb} for
+negative-binomial, etc. Ignored for \code{"ipw"} and \code{"matching"}.}
 
 \item{...}{Additional arguments passed to the underlying estimation
 function: \code{WeightIt::weightit()} for \code{method = "ipw"} (e.g.

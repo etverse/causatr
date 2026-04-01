@@ -4,23 +4,40 @@
 \alias{diagnose}
 \title{Diagnostics for a fitted causal model}
 \usage{
-diagnose(fit)
+diagnose(
+  fit,
+  stats = c("m", "v"),
+  thresholds = c(m = 0.1),
+  ps_bounds = c(0.025, 0.975)
+)
 }
 \arguments{
 \item{fit}{A \code{causatr_fit} object returned by \code{\link[=causat]{causat()}}.}
+
+\item{stats}{Character vector. Balance statistics to compute. Passed to
+\code{cobalt::bal.tab()}. For binary treatments, valid options include \code{"m"}
+(standardised mean differences), \code{"v"} (variance ratios), and \code{"ks"}
+(Kolmogorov-Smirnov). Default \code{c("m", "v")}.}
+
+\item{thresholds}{Named numeric vector. Balance thresholds for flagging
+imbalance, e.g. \code{c(m = 0.1, v = 2)}. Default \code{c(m = 0.1)}.}
+
+\item{ps_bounds}{Numeric vector of length 2. Lower and upper bounds for
+flagging positivity violations. Default \code{c(0.025, 0.975)}.}
 }
 \value{
 A \code{causatr_diag} object with slots:
 \describe{
-\item{\code{balance}}{data.table or \code{cobalt::bal.tab} object: covariate
-balance summary.}
-\item{\code{positivity}}{data.table: treatment probability by covariate
-strata, flagging near-violations.}
-\item{\code{weights}}{list or \code{NULL}: weight distribution summary
+\item{\code{balance}}{\code{cobalt::bal.tab} object (if cobalt installed) or a
+data.table of SMDs. Covariate balance summary.}
+\item{\code{positivity}}{data.table: propensity score summary and count of
+near-violations.}
+\item{\code{weights}}{data.table or \code{NULL}: weight distribution summary
 (IPW only).}
-\item{\code{match_quality}}{list or \code{NULL}: match quality summary
+\item{\code{match_quality}}{data.table or \code{NULL}: match quality summary
 (matching only).}
 \item{\code{method}}{Character: the estimation method.}
+\item{\code{fit}}{The original \code{causatr_fit} (stored for \code{plot()}).}
 }
 }
 \description{
@@ -38,18 +55,31 @@ match quality summary (\% matched, caliper info).
 \details{
 \subsection{Positivity}{
 
-For binary treatment, flags strata where the estimated propensity score
-is below 0.025 or above 0.975 (configurable). For continuous treatment,
-flags regions of the covariate space with very low treatment density.
+For binary treatment, fits a logistic regression of the treatment on the
+confounders and flags individuals whose estimated propensity score falls
+outside \code{ps_bounds}. The returned \code{positivity} table summarises the
+propensity score distribution and the number/fraction of near-violations.
 }
 
 \subsection{Balance (IPW and matching)}{
 
 If the \code{cobalt} package is installed, balance is computed via
 \code{cobalt::bal.tab()} on the internal \code{weightit} or \code{matchit} object. This
-provides standardised mean differences (SMD) and KS statistics before and
-after adjustment. If \code{cobalt} is not installed, a simpler summary is
-returned.
+provides standardised mean differences (SMD), variance ratios, and KS
+statistics before and after adjustment. If \code{cobalt} is not installed, a
+simpler data.table-based SMD comparison is returned.
+}
+
+\subsection{Weight distribution (IPW only)}{
+
+Summarises the IPW weights: mean, SD, min, max, and the effective sample
+size (ESS) for the treated and control groups.
+}
+
+\subsection{Match quality (matching only)}{
+
+Reports the number matched, number discarded, and the fraction of the
+original sample retained.
 }
 }
 \examples{

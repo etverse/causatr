@@ -11,7 +11,7 @@ contrast(
   estimand = NULL,
   subset = NULL,
   reference = NULL,
-  ci_method = c("sandwich", "bootstrap", "delta"),
+  ci_method = c("sandwich", "bootstrap"),
   n_boot = 500L,
   conf_level = 0.95,
   by = NULL
@@ -63,8 +63,8 @@ first intervention in the list. Only relevant when \code{type = "difference"}
 or \code{"ratio"} and there are more than two interventions. For categorical
 treatments, use this to specify the reference level.}
 
-\item{ci_method}{Character. The variance/CI method: \code{"sandwich"} (default,
-valid for GLM-based fits), \code{"bootstrap"}, or \code{"delta"}.}
+\item{ci_method}{Character. The variance/CI method: \code{"sandwich"} (default)
+or \code{"bootstrap"}.}
 
 \item{n_boot}{Integer. Number of bootstrap replications when
 \code{ci_method = "bootstrap"}. Default \code{500}.}
@@ -120,7 +120,7 @@ For each intervention \code{a}, \code{contrast()} evaluates the intervention fun
 on the target rows to obtain the intervened treatment vector \code{a(Lᵢ)}, then
 computes:
 
-\if{html}{\out{<div class="sourceCode">}}\preformatted{E[Y^a] = (1/|S|) Σᵢ∈S Ê[Y | A = a(Lᵢ), Lᵢ]
+\if{html}{\out{<div class="sourceCode">}}\preformatted{E\[Y^a\] = (1/|S|) Σᵢ∈S Ê\[Y | A = a(Lᵢ), Lᵢ\]
 }\if{html}{\out{</div>}}
 
 where \code{S} is the set of rows determined by the estimand:

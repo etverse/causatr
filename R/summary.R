@@ -1,3 +1,9 @@
+#' Summarise a causatr fit
+#'
+#' @param object A `causatr_fit` object.
+#' @param ... Currently unused.
+#' @return Invisibly returns `object`.
+#' @seealso [print.causatr_fit()], [causat()]
 #' @export
 summary.causatr_fit <- function(object, ...) {
   cat(
@@ -43,6 +49,12 @@ summary.causatr_fit <- function(object, ...) {
   invisible(object)
 }
 
+#' Summarise a causatr result
+#'
+#' @param object A `causatr_result` object.
+#' @param ... Currently unused.
+#' @return Invisibly returns `object`.
+#' @seealso [print.causatr_result()], [contrast()]
 #' @export
 summary.causatr_result <- function(object, ...) {
   cat(
@@ -68,6 +80,12 @@ summary.causatr_result <- function(object, ...) {
   invisible(object)
 }
 
+#' Summarise causatr diagnostics
+#'
+#' @param object A `causatr_diag` object.
+#' @param ... Currently unused.
+#' @return Invisibly returns `object`.
+#' @seealso [print.causatr_diag()], [diagnose()]
 #' @export
 summary.causatr_diag <- function(object, ...) {
   print(object)

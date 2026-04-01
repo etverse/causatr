@@ -38,21 +38,13 @@
       Error in `causat()`:
       ! Both `id` and `time` must be provided together for longitudinal data.
 
-# causat() errors on unimplemented gcomp
-
-    Code
-      causat(df, outcome = "Y", treatment = "A", confounders = ~L)
-    Condition
-      Error in `fit_gcomp_point()`:
-      ! G-computation for point treatments is not yet implemented.
-
 # causat() rejects ATT for continuous treatment
 
     Code
       causat(df, outcome = "Y", treatment = "A", confounders = ~L, estimand = "ATT")
     Condition
-      Error in `fit_gcomp_point()`:
-      ! G-computation for point treatments is not yet implemented.
+      Error in `causat()`:
+      ! estimand = 'ATT' is only defined for binary point treatments. Use estimand = 'ATE' or subset = quote(...) for subgroup effects.
 
 # causat() rejects ATT for multivariate treatment
 

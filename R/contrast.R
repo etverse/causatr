@@ -55,8 +55,8 @@
 #'   first intervention in the list. Only relevant when `type = "difference"`
 #'   or `"ratio"` and there are more than two interventions. For categorical
 #'   treatments, use this to specify the reference level.
-#' @param ci_method Character. The variance/CI method: `"sandwich"` (default,
-#'   valid for GLM-based fits), `"bootstrap"`, or `"delta"`.
+#' @param ci_method Character. The variance/CI method: `"sandwich"` (default)
+#'   or `"bootstrap"`.
 #' @param n_boot Integer. Number of bootstrap replications when
 #'   `ci_method = "bootstrap"`. Default `500`.
 #' @param conf_level Numeric. Confidence level for intervals. Default `0.95`.
@@ -87,7 +87,7 @@
 #' on the target rows to obtain the intervened treatment vector `a(Lᵢ)`, then
 #' computes:
 #' ```
-#' E[Y^a] = (1/|S|) Σᵢ∈S Ê[Y | A = a(Lᵢ), Lᵢ]
+#' E\[Y^a\] = (1/|S|) Σᵢ∈S Ê\[Y | A = a(Lᵢ), Lᵢ\]
 #' ```
 #' where `S` is the set of rows determined by the estimand:
 #' - `"ATE"`: all rows (full population)
@@ -191,7 +191,7 @@ contrast <- function(
   estimand = NULL,
   subset = NULL,
   reference = NULL,
-  ci_method = c("sandwich", "bootstrap", "delta"),
+  ci_method = c("sandwich", "bootstrap"),
   n_boot = 500L,
   conf_level = 0.95,
   by = NULL
@@ -288,6 +288,32 @@ check_interventions_compat <- function(
   }
 }
 
+#' Core standardisation engine for causal contrasts
+#'
+#' @description
+#' Implements the g-formula standardisation algorithm (Hernán & Robins Ch. 13):
+#' for each named intervention, sets each individual's treatment to the
+#' intervened value (via `apply_intervention()`), predicts outcomes from the
+#' fitted model, averages over the target population, then computes pairwise
+#' contrasts with uncertainty estimates.
+#'
+#' For each intervention a, computes \eqn{E[Y^a]} by averaging model
+#' predictions over the target population rows.
+#'
+#' @param fit A `causatr_fit` object.
+#' @param interventions Named list of `causatr_intervention` objects (or `NULL`).
+#' @param type Contrast scale: `"difference"`, `"ratio"`, or `"or"`.
+#' @param estimand Character or `NULL`. `"ATE"`, `"ATT"`, or `"ATC"`.
+#' @param subset Quoted expression or `NULL`. Rows to average over.
+#' @param reference Character or `NULL`. Name of the reference intervention.
+#' @param ci_method Character. `"sandwich"`, `"bootstrap"`, or `"delta"`.
+#' @param n_boot Integer. Bootstrap replications (for `ci_method = "bootstrap"`).
+#' @param conf_level Numeric. Confidence level (e.g. 0.95).
+#' @param by Character or `NULL`. Stratification variable (not yet implemented).
+#' @param call The original `contrast()` call.
+#'
+#' @return A `causatr_result` object.
+#'
 #' @noRd
 compute_contrast <- function(
   fit,
@@ -302,5 +328,174 @@ compute_contrast <- function(
   by,
   call
 ) {
-  rlang::abort("contrast() is not yet implemented.", .call = FALSE)
+  data <- fit$data
+  model <- fit$model
+  int_names <- names(interventions)
+
+  # Resolve estimand: use the caller's override when provided, otherwise fall
+  # back to the one stored at fitting time.
+  est <- if (!is.null(estimand)) estimand else fit$estimand
+
+  # Logical vector (length n) that flags the target population rows.
+  target_idx <- get_target_idx(data, fit$treatment, est, subset)
+  n_target <- sum(target_idx)
+
+  # Create one counterfactual dataset per intervention:
+  # copy `data` and set each individual's treatment to the intervened value.
+  data_a_list <- lapply(interventions, function(iv) {
+    apply_intervention(data, fit$treatment, iv)
+  })
+
+  # Predict E[Y | A = a(L_i), L_i] for every individual under each intervention.
+  preds_list <- lapply(data_a_list, function(da) {
+    predict(model, newdata = da, type = "response")
+  })
+
+  # Restrict target population to rows with valid (non-NA) predictions.
+  # Rows with missing confounders produce NA predictions and must be excluded
+  # from both the standardisation average and the variance computation.
+  valid_preds <- !is.na(preds_list[[1]])
+  target_idx <- target_idx & valid_preds
+  n_target <- sum(target_idx)
+
+  # Marginal mean under intervention a = average predictions over target rows.
+  mu_hat <- vapply(preds_list, function(p) mean(p[target_idx]), numeric(1))
+  names(mu_hat) <- int_names
+
+  # Variance–covariance matrix of the k marginal means (k × k).
+  # "delta" ci_method also uses the sandwich vcov of means and then applies
+  # the delta method to the contrast function — so variance_sandwich() is
+  # called in that case too.
+  vcov_mat <- switch(
+    ci_method,
+    sandwich = variance_sandwich(fit, data_a_list, preds_list, target_idx),
+    bootstrap = variance_bootstrap(
+      fit,
+      interventions,
+      n_boot,
+      target_idx,
+      est,
+      subset
+    )
+  )
+  rownames(vcov_mat) <- int_names
+  colnames(vcov_mat) <- int_names
+
+  # SE for each marginal mean from the diagonal of the vcov matrix.
+  se_means <- sqrt(pmax(diag(vcov_mat), 0))
+  z <- stats::qnorm((1 + conf_level) / 2)
+
+  estimates_dt <- data.table::data.table(
+    intervention = int_names,
+    estimate = mu_hat,
+    se = se_means,
+    ci_lower = mu_hat - z * se_means,
+    ci_upper = mu_hat + z * se_means
+  )
+
+  # Reference intervention defaults to the first one in the list.
+  ref_name <- if (!is.null(reference)) reference else int_names[1]
+  non_ref <- setdiff(int_names, ref_name)
+  mu_ref <- mu_hat[ref_name]
+  idx_ref <- which(int_names == ref_name)
+
+  # Pairwise contrasts vs. the reference, with SE via delta method on the vcov.
+  contrasts_list <- lapply(non_ref, function(nm) {
+    mu_a <- mu_hat[nm]
+    idx_a <- which(int_names == nm)
+
+    if (type == "difference") {
+      # Risk difference = mu_a - mu_ref; variance by linearity.
+      est_c <- mu_a - mu_ref
+      var_c <- vcov_mat[idx_a, idx_a] +
+        vcov_mat[idx_ref, idx_ref] -
+        2 * vcov_mat[idx_a, idx_ref]
+      se_c <- sqrt(max(var_c, 0))
+    } else if (type == "ratio") {
+      # Risk ratio = mu_a / mu_ref.
+      # Delta method gradient w.r.t. (mu_a, mu_ref): [1/mu_ref, -mu_a/mu_ref^2].
+      est_c <- mu_a / mu_ref
+      grad <- c(1 / mu_ref, -mu_a / mu_ref^2)
+      sub_v <- vcov_mat[c(idx_a, idx_ref), c(idx_a, idx_ref)]
+      se_c <- sqrt(max(as.numeric(t(grad) %*% sub_v %*% grad), 0))
+    } else {
+      # Odds ratio = [mu_a/(1-mu_a)] / [mu_ref/(1-mu_ref)].
+      # Delta method gradient: OR × reciprocal Bernoulli variance at each prob.
+      est_c <- (mu_a / (1 - mu_a)) / (mu_ref / (1 - mu_ref))
+      grad <- c(
+        est_c / (mu_a * (1 - mu_a)),
+        -est_c / (mu_ref * (1 - mu_ref))
+      )
+      sub_v <- vcov_mat[c(idx_a, idx_ref), c(idx_a, idx_ref)]
+      se_c <- sqrt(max(as.numeric(t(grad) %*% sub_v %*% grad), 0))
+    }
+
+    data.table::data.table(
+      comparison = paste0(nm, " vs ", ref_name),
+      estimate = est_c,
+      se = se_c,
+      ci_lower = est_c - z * se_c,
+      ci_upper = est_c + z * se_c
+    )
+  })
+
+  contrasts_dt <- if (length(contrasts_list) > 0) {
+    data.table::rbindlist(contrasts_list)
+  } else {
+    data.table::data.table(
+      comparison = character(0),
+      estimate = numeric(0),
+      se = numeric(0),
+      ci_lower = numeric(0),
+      ci_upper = numeric(0)
+    )
+  }
+
+  new_causatr_result(
+    estimates = estimates_dt,
+    contrasts = contrasts_dt,
+    type = type,
+    estimand = if (!is.null(subset)) "subset" else est,
+    ci_method = ci_method,
+    reference = ref_name,
+    interventions = interventions,
+    n = n_target,
+    method = fit$method,
+    vcov = vcov_mat,
+    call = call
+  )
+}
+
+#' Determine which rows of `data` belong to the target population
+#'
+#' @description
+#' Returns a logical vector of length `nrow(data)` indicating which rows
+#' should be included when averaging predictions to estimate \eqn{E[Y^a]}.
+#'
+#' @param data A data.table.
+#' @param treatment Character scalar or vector. Treatment column name(s).
+#' @param estimand Character. `"ATE"` (all rows), `"ATT"` (treated rows where
+#'   `A == 1`), or `"ATC"` (control rows where `A == 0`).
+#' @param subset A quoted expression or `NULL`. When provided, overrides
+#'   `estimand` and selects rows satisfying the expression evaluated in the
+#'   context of `data`.
+#'
+#' @return Logical vector of length `nrow(data)`.
+#'
+#' @noRd
+get_target_idx <- function(data, treatment, estimand, subset) {
+  # A quoted subset expression always takes priority over the estimand keyword.
+  if (!is.null(subset)) {
+    return(as.logical(eval(subset, envir = as.list(data))))
+  }
+  if (estimand == "ATE") {
+    # Average over all individuals in the dataset.
+    return(rep(TRUE, nrow(data)))
+  }
+  # ATT and ATC are defined on the first (or only) treatment variable.
+  trt_vals <- data[[treatment[1]]]
+  if (estimand == "ATT") {
+    return(!is.na(trt_vals) & trt_vals == 1)
+  }
+  !is.na(trt_vals) & trt_vals == 0
 }

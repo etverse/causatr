@@ -84,7 +84,8 @@ new_causatr_diag <- function(
   positivity,
   weights,
   match_quality,
-  method
+  method,
+  fit = NULL
 ) {
   structure(
     list(
@@ -92,7 +93,8 @@ new_causatr_diag <- function(
       positivity = positivity,
       weights = weights,
       match_quality = match_quality,
-      method = method
+      method = method,
+      fit = fit
     ),
     class = "causatr_diag"
   )

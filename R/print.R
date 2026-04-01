@@ -1,3 +1,9 @@
+#' Print a causatr fit
+#'
+#' @param x A `causatr_fit` object.
+#' @param ... Currently unused.
+#' @return Invisibly returns `x`.
+#' @seealso [summary.causatr_fit()], [causat()]
 #' @export
 print.causatr_fit <- function(x, ...) {
   cat(
@@ -22,6 +28,12 @@ print.causatr_fit <- function(x, ...) {
   invisible(x)
 }
 
+#' Print a causatr result
+#'
+#' @param x A `causatr_result` object.
+#' @param ... Currently unused.
+#' @return Invisibly returns `x`.
+#' @seealso [summary.causatr_result()], [contrast()]
 #' @export
 print.causatr_result <- function(x, ...) {
   cat(
@@ -47,24 +59,34 @@ print.causatr_result <- function(x, ...) {
   invisible(x)
 }
 
+#' Print causatr diagnostics
+#'
+#' @param x A `causatr_diag` object.
+#' @param ... Currently unused.
+#' @return Invisibly returns `x`.
+#' @seealso [summary.causatr_diag()], [diagnose()]
 #' @export
 print.causatr_diag <- function(x, ...) {
-  cat("<causatr_diag>\n Method:", x$method, "\n\n")
+  cat("<causatr_diag>\n", " Method:", x$method, "\n\n", sep = "")
   if (!is.null(x$positivity)) {
-    cat("Positivity:\n")
-    print(x$positivity)
+    cat("Positivity (propensity score):\n")
+    print(x$positivity, row.names = FALSE)
+    cat("\n")
   }
   if (!is.null(x$balance)) {
-    cat("\nBalance:\n")
+    cat("Covariate balance:\n")
     print(x$balance)
+    cat("\n")
   }
   if (!is.null(x$weights)) {
-    cat("\nWeight distribution:\n")
-    print(x$weights)
+    cat("Weight distribution:\n")
+    print(x$weights, row.names = FALSE)
+    cat("\n")
   }
   if (!is.null(x$match_quality)) {
-    cat("\nMatch quality:\n")
-    print(x$match_quality)
+    cat("Match quality:\n")
+    print(x$match_quality, row.names = FALSE)
+    cat("\n")
   }
   invisible(x)
 }

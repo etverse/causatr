@@ -19,17 +19,68 @@ plot.causatr_result <- function(x, ...) {
 #' Plot diagnostics for a causatr fit
 #'
 #' @description
-#' Produces a Love plot (covariate balance) for IPW and matching fits, or a
-#' positivity plot for g-computation fits. Uses `cobalt::love.plot()` if
-#' the `cobalt` package is available, otherwise `tinyplot`.
+#' Produces a Love plot showing covariate balance before and after adjustment.
+#' Uses `cobalt::love.plot()` if the `cobalt` package is available.
+#'
+#' For IPW fits, the plot shows balance before and after weighting. For
+#' matching fits, it shows balance before and after matching. For g-computation
+#' fits, it shows unadjusted balance only.
 #'
 #' @param x A `causatr_diag` object returned by [diagnose()].
-#' @param ... Additional arguments passed to the underlying plot function.
+#' @param stats Character. Which balance statistic(s) to plot. Default `"m"`
+#'   (standardised mean differences). See `cobalt::love.plot()` for options.
+#' @param abs Logical. Whether to plot absolute values. Default `TRUE`.
+#' @param thresholds Named numeric vector. Threshold lines to draw on the
+#'   plot. Default `c(m = 0.1)`.
+#' @param ... Additional arguments passed to `cobalt::love.plot()`.
 #'
-#' @return Invisibly returns `x`.
+#' @return A `ggplot` object (invisibly).
 #'
 #' @seealso [diagnose()], [print.causatr_diag()]
 #' @export
-plot.causatr_diag <- function(x, ...) {
-  rlang::abort("plot.causatr_diag() is not yet implemented.", .call = FALSE)
+plot.causatr_diag <- function(
+  x,
+  stats = "m",
+  abs = TRUE,
+  thresholds = c(m = 0.1),
+  ...
+) {
+  check_pkg("cobalt")
+
+  obj <- get_cobalt_object(x)
+  if (is.null(obj)) {
+    rlang::abort(
+      "Love plot requires an IPW or matching fit with a stored weightit/matchit object.",
+      .call = FALSE
+    )
+  }
+
+  p <- cobalt::love.plot(
+    obj,
+    stats = stats,
+    abs = abs,
+    thresholds = thresholds,
+    var.order = "unadjusted",
+    binary = "std",
+    ...
+  )
+
+  print(p)
+  invisible(p)
+}
+
+#' @noRd
+get_cobalt_object <- function(diag) {
+  fit <- diag$fit
+  if (is.null(fit)) {
+    return(NULL)
+  }
+
+  if (fit$method == "ipw" && !is.null(fit$weights_obj)) {
+    return(fit$weights_obj)
+  }
+  if (fit$method == "matching" && !is.null(fit$match_obj)) {
+    return(fit$match_obj)
+  }
+  NULL
 }

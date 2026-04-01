@@ -4,6 +4,21 @@ Unified causal effect estimation for methodological triangulation: g-computation
 (parametric g-formula + ICE), IPW (via WeightIt), and matching (via MatchIt).
 Part of the [etverse](https://github.com/etverse) ecosystem.
 
+## Guide files
+
+Architecture and per-phase implementation guides are stored in the project root:
+
+- `CAUSATR_SCAFFOLD.md` — master architecture reference (feature matrix, design decisions, R landscape)
+- `PHASE_1_FOUNDATION.md` — scaffolding, NHEFS, checks, interventions, S3 stubs (**done**)
+- `PHASE_2_POINT_GCOMP.md` — point-treatment g-comp + inference (Ch. 11, 13) (**done**)
+- `PHASE_3_IPW_MATCHING.md` — IPW + matching + diagnostics (Ch. 12, 15) (**partially done**)
+- `PHASE_4_INTERVENTIONS_SELF_IPW.md` — self-contained IPW for dynamic/MTP/IPSI (Ch. 12, 19)
+- `PHASE_5_LONGITUDINAL_ICE.md` — ICE g-computation for time-varying treatments (Ch. 19–21)
+- `PHASE_6_SURVIVAL.md` — causal survival analysis (Ch. 17) (**scaffolded**)
+- `PHASE_7_ADVANCED.md` — survey weights, clustering, parallel, multivariate
+
+Implementation guides for each phase will be created from claude.ai chapter summaries when that phase begins.
+
 ## Project structure
 
 This is an R package.
@@ -31,17 +46,18 @@ R/
 │
 ├── # ── Intervention constructors ────────────────────
 ├── interventions.R         # static(), shift(), scale(), threshold(), dynamic(), ipsi()
+│                           # + apply_intervention(), apply_single_intervention()
 │
 ├── # ── Estimation engines ───────────────────────────
 ├── gcomp.R                 # g-computation for point treatments
 ├── ice.R                   # ICE g-computation for longitudinal (Zivich et al. 2024)
-├── ipw.R                   # IPW (delegates weight estimation to WeightIt)
-├── matching.R              # matching (delegates to MatchIt)
+├── ipw.R                   # IPW (wraps WeightIt for static interventions)
+├── matching.R              # matching (wraps MatchIt)
 │
 ├── # ── Inference ────────────────────────────────────
-├── variance_sandwich.R     # sandwich variance via stacked estimating equations
+├── variance_sandwich.R     # sandwich variance: J V_β Jᵀ (sandwich + numDeriv)
 ├── variance_bootstrap.R    # nonparametric bootstrap via boot::boot()
-├── variance_delta.R        # delta method for contrast transformations
+├── variance_delta.R        # (empty — delta method applied internally)
 │
 ├── # ── Data utilities ───────────────────────────────
 ├── to_person_period.R      # wide → long conversion for longitudinal data
@@ -71,13 +87,14 @@ R/
 ```r
 # Step 1: fit
 fit <- causat(data, outcome = "Y", treatment = "A", confounders = ~ L1 + L2,
-              method = "gcomp")   # or "ipw" / "matching"
+              method = "gcomp",        # or "ipw" / "matching"
+              model_fn = stats::glm)   # or mgcv::gam, etc.
 
 # Step 2: contrast
 result <- contrast(fit,
   interventions = list(a1 = static(1), a0 = static(0)),
   type = "difference",            # or "ratio" / "or"
-  ci_method = "sandwich")         # or "bootstrap" / "delta"
+  ci_method = "sandwich")         # or "bootstrap"
 ```
 
 ## Development commands
@@ -120,23 +137,31 @@ Run this in the shell:
 - **ICE over forward simulation** — fewer models, sandwich variance, faster
 - **GLMs/GAMs over ML** — valid sandwich inference without debiasing
 - **Three methods** — gcomp (outcome model), IPW (treatment model), matching. Agreement → confidence.
-- **WeightIt / MatchIt integration** — delegate weight/match computation; we own estimation + inference
+- **WeightIt / MatchIt as Imports** — delegate weight/match computation; we own estimation + inference
+- **`model_fn` parameter** — user passes the fitting function (glm, gam, etc.) rather than hardcoding
 - **Sandwich default** — fast, valid for GLMs; bootstrap fallback for GAMs
 - **Intervention functions, not formulas** — maximum flexibility for MTPs, dynamic rules, IPSI
 - **`contrast()` as separate step** — fit once, contrast many interventions
+- **ci_method: sandwich or bootstrap only** — delta method is applied internally for ratio/OR contrasts; not a separate ci_method
+- **Sandwich approach** — `sandwich::sandwich()` for g-comp, `vcov(glm_weightit)` for IPW, `sandwich::vcovCL()` for matching; all propagated to marginal means via J V_β Jᵀ (numDeriv::jacobian)
+- **Future: self-contained IPW** — for Phase 4 (dynamic/MTP interventions), plan to implement IPW internally rather than wrapping WeightIt, so density ratio weights can support non-static interventions
 
 ## Implementation phases
 
 | Phase | Scope | Status |
 |---|---|---|
-| 1 | Scaffolding, NHEFS data, checks, interventions, S3 stubs | in progress |
-| 2 | Point-treatment g-comp + inference (sandwich, bootstrap, delta) | pending |
-| 3 | IPW + matching + `diagnose()` | pending |
-| 4 | Intervention types (dynamic, MTP, IPSI) + categorical treatment | pending |
+| 1 | Scaffolding, NHEFS data, checks, interventions, S3 stubs | **done** |
+| 2 | Point-treatment g-comp + inference (sandwich, bootstrap) | **done** |
+| 3 | IPW (WeightIt) + matching (MatchIt) + `diagnose()` | **done** |
+| 4 | Intervention types (dynamic, MTP, IPSI) for IPW + categorical treatment | pending |
 | 5 | Longitudinal ICE g-computation + sandwich for ICE | pending |
-| 6 | Survival (`causat_survival()`) + competing risks | pending |
+| 6 | Survival (`causat_survival()`) + competing risks | **scaffolded** (pooled logistic fit done; contrast for survival curves pending) |
 | 7 | Survey weights, clustered SE, parallel bootstrap | pending |
 
 ## Architecture notes
 
-[Add hard-won learnings and design decisions here over time]
+- The NHEFS dataset ships with 1746 rows (117 have NA education). The book uses a 1629-row pre-cleaned subset. `compute_contrast()` handles this by excluding rows with NA predictions from the target population.
+- `variance_sandwich()` dispatches different sandwich estimators per method: `sandwich::sandwich()` for g-comp (Huber–White), `stats::vcov()` for IPW (M-estimation from glm_weightit), `sandwich::vcovCL()` for matching (cluster-robust on subclass). All share the same `compute_vcov_marginal()` helper that propagates via J V_β Jᵀ using `numDeriv::jacobian()`.
+- For IPW and matching with saturated MSMs (Y ~ A), the predict-then-average approach in `compute_contrast()` gives the same result as reading off model coefficients (the Jacobian is trivial). This is correct but slightly redundant — kept for architectural consistency across methods.
+- The `model_fn` parameter (default `stats::glm`) allows users to plug in any fitting function with signature `function(formula, data, family, weights, ...)`.
+- Stacked estimating equations (Zivich et al. 2024, via `geex` package) are a more principled alternative to J V_β Jᵀ for sandwich variance. Both are asymptotically equivalent. Consider migrating to `geex` for ICE sandwich in Phase 5.

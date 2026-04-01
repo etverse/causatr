@@ -6,7 +6,7 @@
 \title{NHEFS: National Health and Nutrition Examination Survey Epidemiologic
 Follow-up Study}
 \format{
-A data.table with 1,629 rows and the following variables:
+A data.table with 1,746 rows and the following variables:
 \describe{
 \item{\code{seqn}}{Individual identifier.}
 \item{\code{qsmk}}{Quit smoking between baseline and 1982 (1 = yes, 0 = no).
@@ -34,9 +34,10 @@ nhefs
 }
 \description{
 A subset of the NHEFS dataset used throughout Hernán & Robins (2025) to
-illustrate causal effect estimation methods. Contains 1,629 cigarette
+illustrate causal effect estimation methods. Contains 1,746 cigarette
 smokers aged 25–74 who completed a baseline survey (1971–75) and a
-follow-up survey (1982).
+follow-up survey (1982). Of these, 117 have missing education values; the
+book analyses typically use the 1,629-row subset with complete education.
 }
 \details{
 The dataset is used as the running example in Hernán & Robins (2025).
