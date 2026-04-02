@@ -33,6 +33,8 @@ fit_gcomp <- function(
   censoring,
   weights,
   model_fn,
+  id,
+  time,
   call,
   ...
 ) {
@@ -46,7 +48,11 @@ fit_gcomp <- function(
       family,
       estimand,
       history,
+      censoring,
       weights,
+      model_fn,
+      id,
+      time,
       call,
       ...
     )

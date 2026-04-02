@@ -1,3 +1,41 @@
+#' Prepare a longitudinal ICE g-computation fit
+#'
+#' @description
+#' Validates the longitudinal data structure, resolves the model families
+#' for the final outcome and pseudo-outcome models, and stores all metadata
+#' needed by `ice_iterate()` and `compute_contrast_ice()` to run the
+#' backward iteration.
+#'
+#' No models are fitted at this stage — the sequential models are
+#' intervention-dependent and are fitted inside `ice_iterate()` during
+#' [contrast()].
+#'
+#' @param data data.table with lag columns already created by
+#'   `prepare_data()`.
+#' @param outcome Character. Outcome column name (observed at final time).
+#' @param treatment Character scalar or vector. Treatment column name(s).
+#' @param confounders One-sided formula of baseline (time-invariant)
+#'   confounders.
+#' @param confounders_tv One-sided formula of time-varying confounders or
+#'   `NULL`.
+#' @param family Character or family object for the final outcome model.
+#' @param estimand Character. Must be `"ATE"` for longitudinal data.
+#' @param history Positive integer or `Inf`. Markov order for lagged
+#'   predictors.
+#' @param censoring Character or `NULL`. Name of the censoring indicator
+#'   column (1 = censored, 0 = uncensored).
+#' @param weights Numeric vector or `NULL`. External observation weights
+#'   (e.g. IPCW).
+#' @param model_fn Function with signature `(formula, data, family,
+#'   weights, ...)`. Default `stats::glm`.
+#' @param id Character. Name of the individual ID column.
+#' @param time Character. Name of the time column.
+#' @param call The original `causat()` call (for error messages).
+#' @param ... Passed to `model_fn`.
+#'
+#' @return A `causatr_fit` object with `model = NULL` and all needed
+#'   metadata in `details`.
+#'
 #' @noRd
 fit_ice <- function(
   data,
@@ -8,12 +46,417 @@ fit_ice <- function(
   family,
   estimand,
   history,
+  censoring,
   weights,
+  model_fn,
+  id,
+  time,
   call,
   ...
 ) {
-  rlang::abort(
-    "ICE g-computation for longitudinal treatments is not yet implemented.",
-    .call = FALSE
+  # Sorted unique time points define the backward iteration grid.
+  time_points <- sort(unique(data[[time]]))
+  n_times <- length(time_points)
+
+  # Extract baseline confounders as formula term labels
+  # (preserves transformations like I(age^2), factor(education)).
+  baseline_terms <- attr(stats::terms(confounders), "term.labels")
+
+  # Extract plain variable names for time-varying confounders.
+  tv_vars <- if (!is.null(confounders_tv)) {
+    all.vars(confounders_tv)
+  } else {
+    character(0)
+  }
+
+  # Resolve max lag from history parameter.
+  max_lag <- if (is.infinite(history)) {
+    n_times - 1L
+  } else {
+    as.integer(history)
+  }
+
+  # Resolve the family object from character / function / family.
+  family_obj <- if (is.character(family)) {
+    get(family, mode = "function")()
+  } else if (is.function(family)) {
+    family()
+  } else {
+    family
+  }
+
+  # For binary outcomes the first model uses binomial (actual 0/1 response),
+
+  # but pseudo-outcome models use quasibinomial because the pseudo-outcomes
+  # are predicted probabilities in [0, 1], not binary (fractional logistic
+  # regression; see Zivich et al. 2024, Section 3.2).
+  family_pseudo <- if (family_obj$family == "binomial") {
+    stats::quasibinomial(link = family_obj$link)
+  } else {
+    family_obj
+  }
+
+  new_causatr_fit(
+    model = NULL,
+    data = data,
+    treatment = treatment,
+    outcome = outcome,
+    confounders = confounders,
+    confounders_tv = confounders_tv,
+    family = family,
+    method = "gcomp",
+    type = "longitudinal",
+    estimand = estimand,
+    id = id,
+    time = time,
+    censoring = censoring,
+    history = history,
+    numerator = NULL,
+    weights_obj = NULL,
+    match_obj = NULL,
+    call = call,
+    details = list(
+      time_points = time_points,
+      n_times = n_times,
+      baseline_terms = baseline_terms,
+      tv_vars = tv_vars,
+      max_lag = max_lag,
+      model_fn = model_fn,
+      family_outcome = family_obj,
+      family_pseudo = family_pseudo,
+      external_weights = weights
+    )
+  )
+}
+
+
+#' Build the outcome model formula for ICE at a given time step
+#'
+#' @description
+#' Constructs the RHS formula for the ICE model at a given time index.
+#' At time index k (0-based), available lags are `min(k, max_lag)`.
+#' Treatment and time-varying confounder columns that are entirely `NA` at
+#' the current step are dropped (handles the case where a time-varying
+#' confounder is not measured at the earliest times).
+#'
+#' Baseline confounders are always included (they are time-invariant and
+#' should never be `NA`).
+#'
+#' @param response Character. LHS variable name (`outcome` at final step,
+#'   `".pseudo_y"` at earlier steps).
+#' @param treatment Character scalar or vector. Treatment column name(s).
+#' @param baseline_terms Character vector. RHS formula terms for baseline
+#'   confounders (from `attr(terms(), "term.labels")`).
+#' @param tv_vars Character vector. Plain column names of time-varying
+#'   confounders.
+#' @param time_idx Integer, 0-based. The current time index in the
+#'   backward iteration (0 = first time, K = last time).
+#' @param max_lag Integer. Maximum lag order (from `history`).
+#' @param data_at_time data.table. Rows at the current time step,
+#'   used to check for all-`NA` columns.
+#'
+#' @return A formula object.
+#'
+#' @noRd
+ice_build_formula <- function(
+  response,
+  treatment,
+  baseline_terms,
+  tv_vars,
+  time_idx,
+  max_lag,
+  data_at_time
+) {
+  available_lags <- min(time_idx, max_lag)
+  lag_vars <- c(treatment, tv_vars)
+
+  # Build RHS terms: current treatment, current TV confounders, then lags.
+  rhs_dynamic <- c(treatment, tv_vars)
+
+  if (available_lags > 0L) {
+    for (lag_k in seq_len(available_lags)) {
+      for (v in lag_vars) {
+        rhs_dynamic <- c(rhs_dynamic, paste0("lag", lag_k, "_", v))
+      }
+    }
+  }
+
+  # Drop dynamic terms whose columns are entirely NA at this time step.
+  # This handles e.g. L not measured at t=0 or lag1_A being NA at t=0.
+  valid <- vapply(
+    rhs_dynamic,
+    function(col) {
+      col %in% names(data_at_time) && !all(is.na(data_at_time[[col]]))
+    },
+    logical(1)
+  )
+  rhs_dynamic <- rhs_dynamic[valid]
+
+  # Combine dynamic terms with baseline confounders (always included).
+  rhs_terms <- c(rhs_dynamic, baseline_terms)
+
+  stats::reformulate(rhs_terms, response = response)
+}
+
+
+#' Apply intervention and update lag columns for longitudinal data
+#'
+#' @description
+#' First applies the intervention to the treatment column via
+#' `apply_intervention()`, then recomputes the treatment lag columns
+#' (`lag1_A`, `lag2_A`, ...) from the **intervened** treatment values so
+#' that the full treatment history reflects the intervention strategy.
+#'
+#' Time-varying confounder lags are **not** modified — ICE conditions on
+#' the observed covariate history.
+#'
+#' @param data data.table. Full person-period data with lag columns.
+#' @param treatment Character. Treatment column name(s).
+#' @param intervention A `causatr_intervention` object or `NULL`.
+#' @param id_col Character. Name of the individual ID column.
+#' @param time_col Character. Name of the time column.
+#'
+#' @return A modified **copy** of `data` (original is never mutated).
+#'
+#' @noRd
+ice_apply_intervention_long <- function(
+  data,
+  treatment,
+  intervention,
+  id_col,
+  time_col
+) {
+  # Apply intervention to the treatment column (returns a copy).
+  data_iv <- apply_intervention(data, treatment, intervention)
+
+  # Force a deep copy and re-key for shift operations.
+  data_iv <- data.table::copy(data_iv)
+  data.table::setkeyv(data_iv, c(id_col, time_col))
+
+  # Recompute treatment lag columns from the intervened treatment values.
+  for (trt in treatment) {
+    lag_cols <- grep(
+      paste0("^lag[0-9]+_", trt, "$"),
+      names(data_iv),
+      value = TRUE
+    )
+    for (lc in lag_cols) {
+      lag_n <- as.integer(sub(paste0("^lag([0-9]+)_", trt, "$"), "\\1", lc))
+      data_iv[,
+        (lc) := data.table::shift(get(trt), n = lag_n, type = "lag"),
+        by = c(id_col)
+      ]
+    }
+  }
+
+  data_iv
+}
+
+
+#' Run ICE backward iteration for a single intervention
+#'
+#' @description
+#' Implements the ICE g-computation algorithm (Zivich et al. 2024):
+#'
+#' 1. Fit outcome model at the **final** time point:
+#'    `E[Y | A_K, lags, L_K, baseline]` among uncensored with observed Y.
+#' 2. Predict under intervention at final time -> pseudo-outcomes.
+#' 3. At each **earlier** time step (backward):
+#'    - Use pseudo-outcomes from the next step as the response.
+#'    - Fit `E[pseudo | A_k, lags, L_k, baseline]` among uncensored with
+#'      valid pseudo-outcomes (uses `quasibinomial` for binary outcomes).
+#'    - Predict under intervention -> new pseudo-outcomes.
+#' 4. The pseudo-outcomes at the **first** time step are the individual-level
+#'    counterfactual expectations Ŷ*_0.
+#'
+#' @param fit A `causatr_fit` of type `"longitudinal"` (from
+#'   `fit_ice()`).
+#' @param intervention A `causatr_intervention` object (or `NULL` for the
+#'   natural course).
+#'
+#' @return A list with:
+#'   \describe{
+#'     \item{`pseudo_final`}{Numeric vector of Ŷ*_0, one per individual
+#'       at the first time point (ordered as they appear in the data).}
+#'     \item{`models`}{Named list of fitted model objects, one per time
+#'       point (keyed by the time-point value as character).}
+#'     \item{`data_iv`}{data.table — the intervention-modified data.}
+#'     \item{`fit_ids`}{Named list of character vectors — individual IDs
+#'       in each model's fitting set (needed for sandwich variance).}
+#'   }
+#'
+#' @noRd
+ice_iterate <- function(fit, intervention) {
+  data <- fit$data
+  details <- fit$details
+  outcome <- fit$outcome
+  treatment <- fit$treatment
+  id_col <- fit$id
+  time_col <- fit$time
+  censoring <- fit$censoring
+
+  time_points <- details$time_points
+  n_times <- details$n_times
+  baseline_terms <- details$baseline_terms
+  tv_vars <- details$tv_vars
+  max_lag <- details$max_lag
+  model_fn <- details$model_fn
+  family_outcome <- details$family_outcome
+  family_pseudo <- details$family_pseudo
+  external_weights <- details$external_weights
+
+  # Apply intervention to treatment + recompute treatment lag columns.
+  data_iv <- ice_apply_intervention_long(
+    data,
+    treatment,
+    intervention,
+    id_col,
+    time_col
+  )
+
+  # Named vector: individual_id -> current pseudo-outcome.
+  # Updated at each backward step; ends with Ŷ*_0.
+  all_ids <- unique(data[[id_col]])
+  id_chr <- as.character(all_ids)
+  pseudo <- stats::setNames(rep(NA_real_, length(all_ids)), id_chr)
+
+  # Allocate storage for models and fitting-set IDs.
+  models <- vector("list", n_times)
+  names(models) <- as.character(time_points)
+  fit_ids <- vector("list", n_times)
+  names(fit_ids) <- as.character(time_points)
+
+  # Step 1: Fit outcome model at the final time point.
+
+  final_time <- time_points[n_times]
+  final_idx <- n_times - 1L # 0-based time index for formula construction
+
+  # Identify rows at the final time that are uncensored and have observed Y.
+  mask_final <- data[[time_col]] == final_time
+  uncens <- rep(TRUE, nrow(data))
+  if (!is.null(censoring)) {
+    uncens <- is.na(data[[censoring]]) | data[[censoring]] == 0L
+  }
+  fit_mask <- mask_final & uncens & !is.na(data[[outcome]])
+
+  fit_data <- data[fit_mask]
+  fit_ids[[n_times]] <- as.character(fit_data[[id_col]])
+
+  # Build formula: Y ~ A + lags + TV confounders + baseline confounders.
+  formula_k <- ice_build_formula(
+    outcome,
+    treatment,
+    baseline_terms,
+    tv_vars,
+    final_idx,
+    max_lag,
+    fit_data
+  )
+
+  # Fit the outcome model at the final time (intervention-independent).
+  # Use do.call() to avoid non-standard evaluation issues with the
+  # `weights` argument in glm() when weights are NULL.
+  model_args <- list(
+    formula = formula_k,
+    data = fit_data,
+    family = family_outcome
+  )
+  if (!is.null(external_weights)) {
+    model_args$weights <- external_weights[fit_mask]
+  }
+  models[[n_times]] <- do.call(model_fn, model_args)
+
+  # Predict under intervention for all uncensored at the final time.
+  pred_mask <- mask_final & uncens
+  pred_data <- data_iv[pred_mask]
+  preds <- stats::predict(
+    models[[n_times]],
+    newdata = pred_data,
+    type = "response"
+  )
+  pred_ids <- as.character(data[pred_mask][[id_col]])
+  pseudo[pred_ids] <- preds
+
+  # Steps 2+: Backward iteration (time K-1 down to time 0).
+
+  for (step_i in seq(n_times - 1L, 1L, by = -1L)) {
+    current_time <- time_points[step_i]
+    time_idx <- step_i - 1L # 0-based
+
+    # Rows at the current time that are uncensored.
+    mask_current <- data[[time_col]] == current_time
+    uncens_current <- rep(TRUE, nrow(data))
+    if (!is.null(censoring)) {
+      uncens_current <- is.na(data[[censoring]]) | data[[censoring]] == 0L
+    }
+    mask_uncens <- mask_current & uncens_current
+
+    # Look up pseudo-outcomes for uncensored individuals at this time.
+    current_ids <- as.character(data[mask_uncens][[id_col]])
+    pseudo_y <- pseudo[current_ids]
+
+    # Individuals must have a non-NA pseudo-outcome (i.e., they were
+    # uncensored at the next time step and received a prediction).
+    has_pseudo <- !is.na(pseudo_y)
+    if (sum(has_pseudo) == 0L) {
+      rlang::abort(
+        paste0(
+          "No valid pseudo-outcomes at time ",
+          current_time,
+          " for ICE backward iteration."
+        ),
+        .call = FALSE
+      )
+    }
+
+    # Attach the pseudo-outcome as a temporary column for model fitting.
+    fit_data <- data.table::copy(data[mask_uncens][has_pseudo])
+    fit_data[, .pseudo_y := pseudo_y[has_pseudo]]
+    fit_ids[[step_i]] <- as.character(fit_data[[id_col]])
+
+    # Build formula: .pseudo_y ~ A + lags + TV confounders + baseline.
+    formula_k <- ice_build_formula(
+      ".pseudo_y",
+      treatment,
+      baseline_terms,
+      tv_vars,
+      time_idx,
+      max_lag,
+      fit_data
+    )
+
+    # Fit the pseudo-outcome model. Uses quasibinomial for binary outcomes
+    # (pseudo-outcomes are predicted probabilities, not binary).
+    models[[step_i]] <- model_fn(
+      formula_k,
+      data = fit_data,
+      family = family_pseudo
+    )
+
+    # Predict under intervention for ALL individuals at the current time
+    # (not just those in the fitting set). This is the standard g-formula
+    # approach: fit on a subset, predict for the entire population.
+    pred_all <- data_iv[mask_current]
+    preds <- stats::predict(
+      models[[step_i]],
+      newdata = pred_all,
+      type = "response"
+    )
+    pred_ids_all <- as.character(data[mask_current][[id_col]])
+    pseudo[pred_ids_all] <- preds
+  }
+
+  # Extract final pseudo-outcomes at first time.
+
+  first_time <- time_points[1]
+  rows_first <- data[[time_col]] == first_time
+  first_ids <- as.character(data[rows_first][[id_col]])
+  pseudo_final <- unname(pseudo[first_ids])
+
+  list(
+    pseudo_final = pseudo_final,
+    models = models,
+    data_iv = data_iv,
+    fit_ids = fit_ids
   )
 }

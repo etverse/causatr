@@ -142,7 +142,7 @@ Suggests:
 |---|---|---|
 | **Treatment timing** | | |
 | Point treatment | Yes | Standard g-computation (Ch. 13) |
-| Longitudinal treatment | Planned (Phase 5) | ICE g-computation (Zivich et al.) |
+| Longitudinal treatment | Yes (Phase 5) | ICE g-computation (Zivich et al.) |
 | **Intervention types** | | |
 | Static intervention | Yes | Set A=a for all (e.g., "always treat") |
 | Dynamic intervention | Yes (gcomp only) | A_k = g(L̄_k) (e.g., "treat if CD4 < 200") |
@@ -242,12 +242,13 @@ result <- contrast(fit, interventions, ci_method = "bootstrap", n_boot = 500)
 19. Categorical treatment support
 20. Vignette: `interventions.Rmd`
 
-### Phase 5: Longitudinal / ICE — PENDING
-21. ICE g-computation engine (`R/ice.R`)
-22. `causat()` longitudinal path (detects `id` + `time`)
-23. Sandwich variance for ICE (stacked estimating equations via `geex`)
-24. Censoring handling (within ICE or via IPCW)
-25. Vignette: `longitudinal.Rmd`
+### Phase 5: Longitudinal / ICE — DONE
+21. ICE g-computation engine (`R/ice.R`) ✓
+22. `causat()` longitudinal path (detects `id` + `time`) ✓
+23. Sandwich variance for ICE (stacked EE, manual influence functions) ✓
+24. Censoring handling (within ICE, restrict to uncensored at each step) ✓
+25. Bootstrap for ICE (resample individuals, parallel support) ✓
+26. Vignette: `longitudinal.qmd` ✓
 
 ### Phase 6: Survival — SCAFFOLDED
 26. `causat_survival()` — pooled logistic hazard models ✓ (basic fit)

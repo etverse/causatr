@@ -286,6 +286,8 @@ causat <- function(
       censoring,
       weights,
       model_fn,
+      id,
+      time,
       call,
       ...
     ),

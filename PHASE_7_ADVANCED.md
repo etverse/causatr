@@ -10,12 +10,15 @@ Survey weights, clustered data, parallel bootstrap, multivariate treatment, docu
 
 - [ ] Survey weights: pass through to model fitting + adjust sandwich
 - [ ] Clustered data: cluster-robust sandwich via `sandwich::vcovCL()` (beyond matching subclass)
-- [ ] Parallel processing: `future` backend for bootstrap
+- [x] Parallel processing: `boot::boot(parallel=, ncpus=)` for all methods (gcomp, IPW, matching, ICE). `contrast()` accepts `parallel` and `ncpus` params.
+- [ ] Parallel processing (optional): `future` backend as alternative to `boot::boot()` built-in parallelism
 - [ ] Multivariate treatment: `treatment = c("A1", "A2")` with joint interventions
 - [ ] Continuous treatment vignette
 - [ ] `target_trial()` metadata/specification object with print method (Ch. 22)
 - [ ] Documentation: warn about colliders, stepwise/LASSO for confounder selection, point to `dagitty` (Ch. 18)
 - [ ] Documentation: ML in g-formula requires debiasing, point to `lmtp` (Ch. 18)
+- [ ] Sequential positivity warnings in `causat()` for longitudinal data (deferred from Phase 5)
+- [ ] Stratified ICE option (`causat(..., stratified = TRUE)`) (deferred from Phase 5)
 
 ## Out of scope (confirmed across all guides)
 

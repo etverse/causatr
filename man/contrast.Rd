@@ -14,7 +14,9 @@ contrast(
   ci_method = c("sandwich", "bootstrap"),
   n_boot = 500L,
   conf_level = 0.95,
-  by = NULL
+  by = NULL,
+  parallel = c("no", "multicore", "snow"),
+  ncpus = getOption("boot.ncpus", 1L)
 )
 }
 \arguments{
@@ -74,6 +76,16 @@ or \code{"bootstrap"}.}
 \item{by}{Character or \code{NULL}. Name of a variable to stratify estimates by
 (effect modification). If provided, E[Y^a] is computed within each
 level of \code{by}.}
+
+\item{parallel}{Character. Parallelisation backend for bootstrap
+(\code{ci_method = "bootstrap"} only). \code{"no"} (default) runs sequentially;
+\code{"multicore"} uses forked processes via \code{\link[parallel:mclapply]{parallel::mclapply()}} (Unix
+only); \code{"snow"} uses socket clusters via \code{\link[parallel:clusterApply]{parallel::parLapply()}}
+(cross-platform). Passed directly to \code{\link[boot:boot]{boot::boot()}}. Ignored when
+\code{ci_method = "sandwich"}.}
+
+\item{ncpus}{Integer. Number of CPU cores for parallel bootstrap. Default
+\code{getOption("boot.ncpus", 1L)}. Passed directly to \code{\link[boot:boot]{boot::boot()}}.}
 }
 \value{
 A \code{causatr_result} object with slots:

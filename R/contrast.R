@@ -63,6 +63,14 @@
 #' @param by Character or `NULL`. Name of a variable to stratify estimates by
 #'   (effect modification). If provided, E\[Y^a\] is computed within each
 #'   level of `by`.
+#' @param parallel Character. Parallelisation backend for bootstrap
+#'   (`ci_method = "bootstrap"` only). `"no"` (default) runs sequentially;
+#'   `"multicore"` uses forked processes via [parallel::mclapply()] (Unix
+#'   only); `"snow"` uses socket clusters via [parallel::parLapply()]
+#'   (cross-platform). Passed directly to [boot::boot()]. Ignored when
+#'   `ci_method = "sandwich"`.
+#' @param ncpus Integer. Number of CPU cores for parallel bootstrap. Default
+#'   `getOption("boot.ncpus", 1L)`. Passed directly to [boot::boot()].
 #'
 #' @return A `causatr_result` object with slots:
 #'   \describe{
@@ -194,7 +202,9 @@ contrast <- function(
   ci_method = c("sandwich", "bootstrap"),
   n_boot = 500L,
   conf_level = 0.95,
-  by = NULL
+  by = NULL,
+  parallel = c("no", "multicore", "snow"),
+  ncpus = getOption("boot.ncpus", 1L)
 ) {
   call <- match.call()
 
@@ -232,6 +242,8 @@ contrast <- function(
     )
   }
 
+  parallel <- rlang::arg_match(parallel)
+
   compute_contrast(
     fit,
     interventions,
@@ -243,6 +255,8 @@ contrast <- function(
     n_boot,
     conf_level,
     by,
+    parallel,
+    ncpus,
     call
   )
 }
@@ -326,58 +340,134 @@ compute_contrast <- function(
   n_boot,
   conf_level,
   by,
+  parallel,
+  ncpus,
   call
 ) {
   data <- fit$data
-  model <- fit$model
   int_names <- names(interventions)
 
   # Resolve estimand: use the caller's override when provided, otherwise fall
   # back to the one stored at fitting time.
   est <- if (!is.null(estimand)) estimand else fit$estimand
 
-  # Logical vector (length n) that flags the target population rows.
-  target_idx <- get_target_idx(data, fit$treatment, est, subset)
-  n_target <- sum(target_idx)
+  # Compute marginal means + variance.
+  #
+  # Both point-treatment and longitudinal (ICE) paths produce the same three
+  # outputs: mu_hat (named vector of marginal means), vcov_mat (k × k vcov
+  # matrix), and n_target (number of individuals averaged over).
+  #
+  # Everything downstream (SEs, estimates table, pairwise contrasts, result
+  # assembly) is shared between point and longitudinal g-computation.
 
-  # Create one counterfactual dataset per intervention:
-  # copy `data` and set each individual's treatment to the intervened value.
-  data_a_list <- lapply(interventions, function(iv) {
-    apply_intervention(data, fit$treatment, iv)
-  })
+  if (fit$type == "longitudinal") {
+    # Longitudinal ICE g-computation: run backward iteration per intervention.
+    # Run the full backward iteration per intervention.  Target population
+    # is defined over individuals at the first time point.
+    time_col <- fit$time
+    first_time <- fit$details$time_points[1]
+    rows_first <- data[[time_col]] == first_time
 
-  # Predict E[Y | A = a(L_i), L_i] for every individual under each intervention.
-  preds_list <- lapply(data_a_list, function(da) {
-    predict(model, newdata = da, type = "response")
-  })
+    if (!is.null(subset)) {
+      target_baseline <- rows_first &
+        as.logical(eval(subset, envir = as.list(data)))
+    } else {
+      target_baseline <- rows_first
+    }
+    # target_within_first: logical vector over first-time rows only.
+    target_within_first <- target_baseline[rows_first]
+    n_target <- sum(target_within_first)
 
-  # Restrict target population to rows with valid (non-NA) predictions.
-  # Rows with missing confounders produce NA predictions and must be excluded
-  # from both the standardisation average and the variance computation.
-  valid_preds <- !is.na(preds_list[[1]])
-  target_idx <- target_idx & valid_preds
-  n_target <- sum(target_idx)
-
-  # Marginal mean under intervention a = average predictions over target rows.
-  mu_hat <- vapply(preds_list, function(p) mean(p[target_idx]), numeric(1))
-  names(mu_hat) <- int_names
-
-  # Variance–covariance matrix of the k marginal means (k × k).
-  # "delta" ci_method also uses the sandwich vcov of means and then applies
-  # the delta method to the contrast function — so variance_sandwich() is
-  # called in that case too.
-  vcov_mat <- switch(
-    ci_method,
-    sandwich = variance_sandwich(fit, data_a_list, preds_list, target_idx),
-    bootstrap = variance_bootstrap(
-      fit,
-      interventions,
-      n_boot,
-      target_idx,
-      est,
-      subset
+    # Run ICE backward iteration for each intervention.
+    ice_results <- stats::setNames(
+      lapply(interventions, function(iv) ice_iterate(fit, iv)),
+      int_names
     )
-  )
+
+    # Marginal mean = average pseudo-outcomes at first time over target.
+    mu_hat <- vapply(
+      ice_results,
+      function(res) {
+        mean(res$pseudo_final[target_within_first], na.rm = TRUE)
+      },
+      numeric(1)
+    )
+    names(mu_hat) <- int_names
+
+    # Variance via ICE-specific methods (stacked EE sandwich or bootstrap).
+    vcov_mat <- switch(
+      ci_method,
+      sandwich = ice_variance_sandwich(
+        fit,
+        ice_results,
+        target_within_first
+      ),
+      bootstrap = ice_variance_bootstrap(
+        fit,
+        interventions,
+        n_boot,
+        target_within_first,
+        est,
+        subset,
+        parallel,
+        ncpus
+      )
+    )
+  } else {
+    # Point-treatment g-computation: single model, predict-then-average.
+    # Single outcome model: predict under each intervention, average over
+    # the target population (standard parametric g-formula).
+    model <- fit$model
+
+    # Logical vector (length n) that flags the target population rows.
+    target_idx <- get_target_idx(data, fit$treatment, est, subset)
+
+    # Create one counterfactual dataset per intervention:
+    # copy `data` and set each individual's treatment to the intervened value.
+    data_a_list <- lapply(interventions, function(iv) {
+      apply_intervention(data, fit$treatment, iv)
+    })
+
+    # Predict E[Y | A = a(L_i), L_i] under each intervention.
+    preds_list <- lapply(data_a_list, function(da) {
+      predict(model, newdata = da, type = "response")
+    })
+
+    # Restrict target to rows with valid (non-NA) predictions.
+    valid_preds <- !is.na(preds_list[[1]])
+    target_idx <- target_idx & valid_preds
+    n_target <- sum(target_idx)
+
+    # Marginal mean = average predictions over target rows.
+    mu_hat <- vapply(
+      preds_list,
+      function(p) mean(p[target_idx]),
+      numeric(1)
+    )
+    names(mu_hat) <- int_names
+
+    # Variance via point-treatment methods (J V_β Jᵀ sandwich or bootstrap).
+    vcov_mat <- switch(
+      ci_method,
+      sandwich = variance_sandwich(
+        fit,
+        data_a_list,
+        preds_list,
+        target_idx
+      ),
+      bootstrap = variance_bootstrap(
+        fit,
+        interventions,
+        n_boot,
+        target_idx,
+        est,
+        subset,
+        parallel,
+        ncpus
+      )
+    )
+  }
+
   rownames(vcov_mat) <- int_names
   colnames(vcov_mat) <- int_names
 

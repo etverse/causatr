@@ -154,7 +154,7 @@ Run this in the shell:
 | 2 | Point-treatment g-comp + inference (sandwich, bootstrap) | **done** |
 | 3 | IPW (WeightIt) + matching (MatchIt) + `diagnose()` | **done** |
 | 4 | Intervention types (dynamic, MTP, IPSI) for IPW + categorical treatment | pending |
-| 5 | Longitudinal ICE g-computation + sandwich for ICE | pending |
+| 5 | Longitudinal ICE g-computation + sandwich for ICE | **done** |
 | 6 | Survival (`causat_survival()`) + competing risks | **scaffolded** (pooled logistic fit done; contrast for survival curves pending) |
 | 7 | Survey weights, clustered SE, parallel bootstrap | pending |
 
@@ -164,4 +164,7 @@ Run this in the shell:
 - `variance_sandwich()` dispatches different sandwich estimators per method: `sandwich::sandwich()` for g-comp (Huber–White), `stats::vcov()` for IPW (M-estimation from glm_weightit), `sandwich::vcovCL()` for matching (cluster-robust on subclass). All share the same `compute_vcov_marginal()` helper that propagates via J V_β Jᵀ using `numDeriv::jacobian()`.
 - For IPW and matching with saturated MSMs (Y ~ A), the predict-then-average approach in `compute_contrast()` gives the same result as reading off model coefficients (the Jacobian is trivial). This is correct but slightly redundant — kept for architectural consistency across methods.
 - The `model_fn` parameter (default `stats::glm`) allows users to plug in any fitting function with signature `function(formula, data, family, weights, ...)`.
-- Stacked estimating equations (Zivich et al. 2024, via `geex` package) are a more principled alternative to J V_β Jᵀ for sandwich variance. Both are asymptotically equivalent. Consider migrating to `geex` for ICE sandwich in Phase 5.
+- ICE g-computation (`R/ice.R`) defers model fitting to `contrast()` because the sequential outcome models are intervention-dependent. `fit_ice()` stores metadata; `ice_iterate()` runs backward iteration per intervention.
+- ICE sandwich variance uses stacked estimating equations (Zivich et al. 2024) implemented via manual influence function computation — no `geex` dependency. The J V_β Jᵀ approach used for point treatments does NOT work for ICE (ignores upstream model uncertainty, can underestimate SE by 40%+).
+- ICE bootstrap resamples individuals (all person-period rows together) via `boot::boot()` with `parallel`/`ncpus` support. `contrast()` passes these through.
+- For binary outcomes, the first ICE model uses `binomial` (actual 0/1 response), but pseudo-outcome models use `quasibinomial` (fractional logistic for predicted probabilities in [0,1]).

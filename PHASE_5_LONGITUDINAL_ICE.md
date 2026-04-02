@@ -1,12 +1,10 @@
 # Phase 5 — Longitudinal ICE G-Computation
 
-> **Status: PENDING**
-> Book chapters: 19, 20, 21
-> Key paper: Zivich et al. (2024), Statistics in Medicine 43:5562–5572
+> **Status: DONE**
 
 ## Scope
 
-ICE (iterated conditional expectation) g-computation for time-varying treatments, sandwich variance via stacked estimating equations, censoring, time-varying IPW delegation.
+ICE (iterated conditional expectation) g-computation for time-varying treatments, sandwich variance via stacked estimating equations, censoring, parallel bootstrap.
 
 ## Key algorithm: ICE backward iteration
 
@@ -31,16 +29,18 @@ For strategy Ā* = (a₀*, a₁*, ..., a*_K):
 
 ## Items
 
-- [ ] `R/ice.R` — ICE g-computation engine (backward iteration)
-- [ ] `causat()` longitudinal path: detect `id` + `time`, call `fit_ice()`
-- [ ] Sandwich variance for ICE via stacked estimating equations (`geex` package)
-- [ ] Censoring handling within ICE (restrict to uncensored at each backward step)
-- [ ] External IPCW weights via `weights` argument for longitudinal
-- [ ] IPW for time-varying treatments — delegate to `WeightIt::weightitMSM()`
-- [ ] Sequential positivity warnings in `causat()`
-- [ ] Stratified ICE option (`causat(..., stratified = TRUE)`)
-- [ ] Vignette: `longitudinal.Rmd` (include Table 20.1 treatment-confounder feedback demo)
+- [x] `R/ice.R` — ICE g-computation engine (backward iteration via `fit_ice()` + `ice_iterate()`)
+- [x] `causat()` longitudinal path: detect `id` + `time`, dispatch to `fit_ice()`
+- [x] Sandwich variance for ICE via stacked estimating equations (manual influence functions, no `geex` dependency)
+- [x] Censoring handling within ICE (restrict to uncensored at each backward step)
+- [x] External IPCW weights via `weights` argument for longitudinal
+- [x] Bootstrap variance for ICE (resample individuals, parallel via `boot::boot`)
+- [x] Dynamic interventions for longitudinal data (static, shift, scale, threshold, dynamic, NULL)
+- [x] `parallel` / `ncpus` arguments for `contrast()` bootstrap
+- [x] Vignette: `longitudinal.qmd` (Table 20.1 treatment-confounder feedback demo)
 
-## Implementation guide
+## Deferred to other phases
 
-> To be created from claude.ai summarizing Ch. 19–21 when this phase begins.
+- IPW for time-varying treatments (`WeightIt::weightitMSM()`) → Phase 4
+- Sequential positivity warnings → Phase 7
+- Stratified ICE option → Phase 7

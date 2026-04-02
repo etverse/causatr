@@ -11,6 +11,192 @@ vignette: >
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 ```
 
-<!-- TODO: write longitudinal vignette -->
-<!-- Cover: ICE g-computation (Zivich et al. 2024), to_person_period(),   -->
-<!-- causat(id=, time=), static vs dynamic interventions, sandwich variance -->
+When treatment and confounders vary over time, standard regression methods give
+biased estimates even when adjusted for all confounders. G-methods solve this.
+causatr implements ICE (iterated conditional expectation) g-computation (Zivich
+et al., 2024), which requires models for the outcome only --- no models for
+time-varying confounders are needed.
+
+This vignette demonstrates ICE g-computation using the classic Table 20.1
+example from Hernán & Robins (2025), where treatment-confounder feedback
+produces a null effect that naive methods cannot recover.
+
+## The problem: treatment-confounder feedback
+
+When treatment at time 0 affects a confounder at time 1, which in turn affects
+treatment at time 1 (A_0 -> L_1 -> A_1 -> Y), neither adjusting nor not
+adjusting for L_1 gives the correct answer:
+
+- **Adjusting** for L_1 opens a collider path (selection bias)
+- **Not adjusting** leaves confounding for A_1
+- **ICE g-computation** handles both correctly
+
+## Setup: Table 20.1
+
+```{r}
+#| message: false
+library(causatr)
+```
+
+We construct the dataset from Table 20.1 of Hernán & Robins (2025), which has
+32,000 individuals observed at 2 time points with a true causal effect of zero.
+
+```{r}
+groups <- data.frame(
+  A0 = c(0, 0, 0, 0, 1, 1, 1, 1),
+  L1 = c(0, 0, 1, 1, 0, 0, 1, 1),
+  A1 = c(0, 1, 0, 1, 0, 1, 0, 1),
+  Y  = c(84, 84, 52, 52, 76, 76, 44, 44),
+  N  = c(2400, 1600, 2400, 9600, 4800, 3200, 1600, 6400)
+)
+rows <- lapply(seq_len(nrow(groups)), function(i) {
+  g <- groups[i, ]
+  off <- sum(groups$N[seq_len(i - 1)])
+  data.frame(id = seq_len(g$N) + off, A0 = g$A0, L1 = g$L1, A1 = g$A1, Y = g$Y)
+})
+wide <- do.call(rbind, rows)
+
+t0 <- data.frame(id = wide$id, time = 0L, A = wide$A0, L = NA_real_, Y = NA_real_)
+t1 <- data.frame(id = wide$id, time = 1L, A = wide$A1, L = wide$L1, Y = wide$Y)
+long <- rbind(t0, t1)
+head(long, 4)
+```
+
+The data is in **person-period (long) format**: one row per individual per
+time point. `L` is a time-varying confounder (only measured at time 1).
+
+## Demonstrating bias from naive methods
+
+A naive regression of Y on treatment adjusting for L_1 gives a biased estimate:
+
+```{r}
+wide_sub <- wide[!is.na(wide$Y), ]
+coef(lm(Y ~ A0 + A1 + L1, data = wide_sub))[c("A0", "A1")]
+```
+
+The true individual effects of A_0 and A_1 are both zero, but the naive
+regression gives non-zero estimates due to treatment-confounder feedback.
+
+## ICE g-computation: fitting
+
+With `causat()`, specify `id` and `time` to trigger longitudinal mode. Baseline
+confounders go in `confounders`, time-varying confounders in `confounders_tv`.
+
+```{r}
+fit <- causat(
+  long,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ 1,
+  confounders_tv = ~ L,
+  id = "id",
+  time = "time"
+)
+fit
+```
+
+No models are fitted at this stage. ICE defers model fitting to `contrast()`
+because the sequential outcome models depend on the intervention being
+evaluated.
+
+## ICE g-computation: contrasts
+
+Compare "always treat" (A = 1 at every time) vs "never treat" (A = 0 at every
+time):
+
+```{r}
+result <- contrast(
+  fit,
+  interventions = list(always = static(1), never = static(0)),
+  reference = "never",
+  type = "difference",
+  ci_method = "sandwich"
+)
+result
+```
+
+ICE correctly recovers **E[Y^{always}] = E[Y^{never}] = 60** and **ATE = 0**,
+as expected from the data generating process.
+
+## Variance estimation
+
+### Sandwich SE (stacked estimating equations)
+
+The default `ci_method = "sandwich"` uses the empirical sandwich estimator for
+stacked estimating equations (Zivich et al., 2024). This accounts for
+uncertainty from all K sequential outcome models, not just the final model.
+
+```{r}
+result$estimates[, c("intervention", "estimate", "se")]
+```
+
+### Bootstrap SE
+
+For robustness or when using flexible models (e.g., GAMs), bootstrap resamples
+individuals (all their time points together) and re-runs the full ICE procedure.
+The `parallel` and `ncpus` arguments enable parallel bootstrap replicates:
+
+```{r}
+#| eval: false
+result_boot <- contrast(
+  fit,
+  interventions = list(always = static(1), never = static(0)),
+  reference = "never",
+  type = "difference",
+  ci_method = "bootstrap",
+  n_boot = 500L,
+  parallel = "multicore",
+  ncpus = 4L
+)
+```
+
+## Dynamic interventions
+
+ICE supports dynamic treatment regimes where treatment depends on time-varying
+covariates. Here, individuals receive treatment only when L_1 = 1:
+
+```{r}
+result_dyn <- contrast(
+  fit,
+  interventions = list(
+    adaptive = dynamic(\(data, trt) ifelse(!is.na(data$L) & data$L > 0, 1L, 0L)),
+    never    = static(0)
+  ),
+  reference = "never",
+  ci_method = "sandwich"
+)
+result_dyn
+```
+
+## How ICE works
+
+ICE g-computation (Zivich et al., 2024) works **backward** in time:
+
+1. **Final time**: Fit E[Y | A_K, L_K, baseline] among uncensored individuals.
+   Predict under the intervention to get pseudo-outcomes.
+2. **Each earlier time**: Use pseudo-outcomes as the response. Fit
+   E[pseudo | A_k, L_k, baseline]. Predict under intervention.
+3. **First time**: The mean of the pseudo-outcomes is the marginal mean E[Y^a].
+
+This requires **only outcome models** --- unlike forward simulation
+("big g-formula"), no models for time-varying confounders are needed.
+
+## Key parameters
+
+- `confounders`: Baseline (time-invariant) confounders. Enter every outcome
+  model at every time step.
+- `confounders_tv`: Time-varying confounders. Included with their lags
+  (controlled by `history`).
+- `history`: Markov order. `history = 1` (default) includes one lag of
+  treatment and TV confounders. `history = Inf` includes full history.
+- `censoring`: Time-varying censoring indicator (1 = censored). ICE restricts
+  to uncensored at each backward step.
+
+## References
+
+Hernán MA, Robins JM (2025). *Causal Inference: What If*. Chapman & Hall/CRC.
+Chapters 19--21: Time-varying treatments.
+
+Zivich PN, Ross RK, Shook-Sa BE, Cole SR, Edwards JK (2024). Empirical
+sandwich variance estimator for iterated conditional expectation
+g-computation. *Statistics in Medicine* 43:5562--5572.

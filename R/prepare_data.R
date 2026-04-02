@@ -46,7 +46,9 @@ prepare_data <- function(
 create_lag_vars <- function(data, treatment, tv_vars, id, time, history) {
   lag_vars <- c(treatment, tv_vars)
   max_lag <- if (is.infinite(history)) {
-    data[, max(get(time) - min(get(time))), by = id]$V1 |> max()
+    time_vec <- data[[time]]
+    id_vec <- data[[id]]
+    max(tapply(time_vec, id_vec, function(x) max(x) - min(x)))
   } else {
     as.integer(history)
   }

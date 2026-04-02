@@ -36,7 +36,7 @@ library(tinyplot)
 
 data("nhefs")
 
-nhefs_complete <- nhefs[!is.na(nhefs$wt82_71), ]
+nhefs_complete <- nhefs[complete.cases(nhefs), ]
 
 nhefs_complete$gained_weight <- as.integer(nhefs_complete$wt82_71 > 0)
 ```

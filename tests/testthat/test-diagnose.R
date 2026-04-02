@@ -30,8 +30,13 @@ test_that("diagnose() returns causatr_diag for gcomp", {
 
 test_that("diagnose() returns causatr_diag for IPW", {
   df <- simulate_binary_continuous(n = 500)
-  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L,
-    method = "ipw")
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    method = "ipw"
+  )
   diag <- diagnose(fit)
 
   expect_s3_class(diag, "causatr_diag")
@@ -44,8 +49,14 @@ test_that("diagnose() returns causatr_diag for IPW", {
 
 test_that("diagnose() returns causatr_diag for matching", {
   df <- simulate_binary_continuous(n = 500)
-  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L,
-    method = "matching", estimand = "ATT")
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    method = "matching",
+    estimand = "ATT"
+  )
   diag <- diagnose(fit)
 
   expect_s3_class(diag, "causatr_diag")
@@ -76,8 +87,13 @@ test_that("positivity table has expected rows for binary treatment", {
 
 test_that("positivity uses propensity scores from weightit for IPW", {
   df <- simulate_binary_continuous(n = 500)
-  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L,
-    method = "ipw")
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    method = "ipw"
+  )
   diag <- diagnose(fit)
 
   pos <- diag$positivity
@@ -94,8 +110,13 @@ test_that("positivity uses propensity scores from weightit for IPW", {
 test_that("balance uses cobalt::bal.tab for IPW when available", {
   skip_if_not_installed("cobalt")
   df <- simulate_binary_continuous(n = 500)
-  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L,
-    method = "ipw")
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    method = "ipw"
+  )
   diag <- diagnose(fit)
 
   expect_s3_class(diag$balance, "bal.tab")
@@ -104,8 +125,14 @@ test_that("balance uses cobalt::bal.tab for IPW when available", {
 test_that("balance uses cobalt::bal.tab for matching when available", {
   skip_if_not_installed("cobalt")
   df <- simulate_binary_continuous(n = 500)
-  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L,
-    method = "matching", estimand = "ATT")
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    method = "matching",
+    estimand = "ATT"
+  )
   diag <- diagnose(fit)
 
   expect_s3_class(diag$balance, "bal.tab")
@@ -126,8 +153,13 @@ test_that("balance uses cobalt::bal.tab for gcomp (unadjusted)", {
 
 test_that("weight summary has treated/control/overall for IPW", {
   df <- simulate_binary_continuous(n = 500)
-  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L,
-    method = "ipw")
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    method = "ipw"
+  )
   diag <- diagnose(fit)
 
   w <- diag$weights
@@ -144,8 +176,14 @@ test_that("weight summary has treated/control/overall for IPW", {
 
 test_that("match_quality has expected fields for matching", {
   df <- simulate_binary_continuous(n = 500)
-  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L,
-    method = "matching", estimand = "ATT")
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    method = "matching",
+    estimand = "ATT"
+  )
   diag <- diagnose(fit)
 
   mq <- diag$match_quality
@@ -162,8 +200,13 @@ test_that("match_quality has expected fields for matching", {
 
 test_that("print.causatr_diag outputs method info", {
   df <- simulate_binary_continuous(n = 500)
-  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L,
-    method = "ipw")
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    method = "ipw"
+  )
   diag <- diagnose(fit)
 
   expect_output(print(diag), "causatr_diag")
@@ -172,8 +215,13 @@ test_that("print.causatr_diag outputs method info", {
 
 test_that("summary.causatr_diag works", {
   df <- simulate_binary_continuous(n = 500)
-  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L,
-    method = "ipw")
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    method = "ipw"
+  )
   diag <- diagnose(fit)
 
   expect_output(summary(diag), "causatr_diag")
@@ -187,8 +235,13 @@ test_that("plot.causatr_diag produces a love plot for IPW", {
   skip_if_not_installed("cobalt")
   skip_if_not_installed("ggplot2")
   df <- simulate_binary_continuous(n = 500)
-  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L,
-    method = "ipw")
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    method = "ipw"
+  )
   diag <- diagnose(fit)
 
   p <- plot(diag)
@@ -199,8 +252,14 @@ test_that("plot.causatr_diag produces a love plot for matching", {
   skip_if_not_installed("cobalt")
   skip_if_not_installed("ggplot2")
   df <- simulate_binary_continuous(n = 500)
-  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L,
-    method = "matching", estimand = "ATT")
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    method = "matching",
+    estimand = "ATT"
+  )
   diag <- diagnose(fit)
 
   p <- plot(diag)
@@ -222,8 +281,13 @@ test_that("plot.causatr_diag errors for gcomp (no love plot available)", {
 test_that("diagnose() respects custom thresholds", {
   skip_if_not_installed("cobalt")
   df <- simulate_binary_continuous(n = 500)
-  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L,
-    method = "ipw")
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    method = "ipw"
+  )
   diag <- diagnose(fit, thresholds = c(m = 0.05, v = 1.5))
 
   expect_s3_class(diag$balance, "bal.tab")

@@ -34,7 +34,9 @@ variance_bootstrap <- function(
   n_boot,
   target_idx,
   est,
-  subset
+  subset,
+  parallel = "no",
+  ncpus = 1L
 ) {
   data <- fit$data
   int_names <- names(interventions)
@@ -75,7 +77,13 @@ variance_bootstrap <- function(
     )
   }
 
-  boot_res <- boot::boot(data = data, statistic = boot_fn, R = n_boot)
+  boot_res <- boot::boot(
+    data = data,
+    statistic = boot_fn,
+    R = n_boot,
+    parallel = parallel,
+    ncpus = ncpus
+  )
 
   t_mat <- boot_res$t
   complete_rows <- stats::complete.cases(t_mat)
@@ -190,4 +198,158 @@ refit_matching <- function(fit, d_b) {
     weights = matched_b$weights,
     family = stats::gaussian()
   )
+}
+
+
+#' Bootstrap variance for longitudinal ICE g-computation
+#'
+#' @description
+#' Resamples **individuals** (all their person-period rows together) and
+#' re-runs the full ICE procedure on each bootstrap sample. This is the
+#' standard nonparametric bootstrap for longitudinal data (Hernán & Robins,
+#' Technical Point 13.1): each resample preserves complete individual
+#' trajectories.
+#'
+#' Unlike point-treatment bootstrap (which resamples rows), ICE bootstrap
+#' must resample by individual ID to maintain within-person correlation
+#' structure and treatment-confounder feedback.
+#'
+#' @param fit A `causatr_fit` of type `"longitudinal"`.
+#' @param interventions Named list of `causatr_intervention` objects.
+#' @param n_boot Positive integer. Number of bootstrap replicates.
+#' @param target_within_first Logical vector (length = individuals at
+#'   first time) flagging the target population.
+#' @param est Character. Estimand string (`"ATE"` for longitudinal).
+#' @param subset Quoted expression or `NULL`.
+#'
+#' @return A k × k variance–covariance matrix (k = number of
+#'   interventions).
+#'
+#' @noRd
+ice_variance_bootstrap <- function(
+  fit,
+  interventions,
+  n_boot,
+  target_within_first,
+  est,
+  subset,
+  parallel = "no",
+  ncpus = 1L
+) {
+  data <- fit$data
+  int_names <- names(interventions)
+  id_col <- fit$id
+  time_col <- fit$time
+  treatment <- fit$treatment
+  first_time <- fit$details$time_points[1]
+
+  all_ids <- unique(data[[id_col]])
+  n_ids <- length(all_ids)
+
+  # boot_fn: resamples individual IDs (not person-period rows).
+  # For each bootstrap sample, reconstcts the person-period data by
+  # extracting all rows for the sampled IDs, re-runs fit_ice() +
+  # ice_iterate(), and returns marginal means under each intervention.
+  boot_fn <- function(ids, indices) {
+    sampled_ids <- ids[indices]
+
+    # Handle duplicate IDs from sampling with replacement by assigning
+    # new unique IDs to each copy.
+    id_counts <- table(sampled_ids)
+    d_b_list <- vector("list", length(sampled_ids))
+    new_id <- 0L
+    for (orig_id in names(id_counts)) {
+      n_copies <- as.integer(id_counts[[orig_id]])
+      sub <- data[data[[id_col]] == orig_id]
+      for (cc in seq_len(n_copies)) {
+        new_id <- new_id + 1L
+        sub_copy <- data.table::copy(sub)
+        sub_copy[, (id_col) := new_id]
+        d_b_list[[new_id]] <- sub_copy
+      }
+    }
+    d_b <- data.table::rbindlist(d_b_list)
+
+    # Refit the ICE object on the bootstrap sample.
+    fit_b <- tryCatch(
+      suppressWarnings(
+        fit_ice(
+          data = d_b,
+          outcome = fit$outcome,
+          treatment = treatment,
+          confounders = fit$confounders,
+          confounders_tv = fit$confounders_tv,
+          family = fit$family,
+          estimand = fit$estimand,
+          history = fit$history,
+          censoring = fit$censoring,
+          weights = NULL,
+          model_fn = fit$details$model_fn,
+          id = id_col,
+          time = time_col,
+          call = fit$call
+        )
+      ),
+      error = function(e) NULL
+    )
+    if (is.null(fit_b)) {
+      return(rep(NA_real_, length(int_names)))
+    }
+
+    # Determine target population in the bootstrap sample.
+    rows_b_first <- d_b[[time_col]] == first_time
+    if (!is.null(subset)) {
+      target_b <- rows_b_first &
+        as.logical(eval(subset, envir = as.list(d_b)))
+    } else {
+      target_b <- rows_b_first
+    }
+    target_b_within <- target_b[rows_b_first]
+
+    # Run ICE for each intervention and compute marginal means.
+    vapply(
+      interventions,
+      function(iv) {
+        res_b <- tryCatch(
+          ice_iterate(fit_b, iv),
+          error = function(e) NULL
+        )
+        if (is.null(res_b)) {
+          return(NA_real_)
+        }
+        mean(res_b$pseudo_final[target_b_within], na.rm = TRUE)
+      },
+      numeric(1)
+    )
+  }
+
+  # Run bootstrap: pass individual IDs as data, boot::boot resamples them.
+  boot_res <- boot::boot(
+    data = all_ids,
+    statistic = boot_fn,
+    R = n_boot,
+    parallel = parallel,
+    ncpus = ncpus
+  )
+
+  # Compute variance from the bootstrap replicates.
+  t_mat <- boot_res$t
+  complete_rows <- stats::complete.cases(t_mat)
+
+  if (sum(complete_rows) < 2L) {
+    rlang::warn(
+      "Bootstrap produced fewer than 2 non-NA replicates; SE estimates will be NA."
+    )
+    vcov_mat <- matrix(
+      NA_real_,
+      nrow = length(int_names),
+      ncol = length(int_names)
+    )
+  } else {
+    vcov_mat <- stats::var(t_mat[complete_rows, , drop = FALSE])
+  }
+
+  rownames(vcov_mat) <- int_names
+  colnames(vcov_mat) <- int_names
+  vcov_mat
 }
