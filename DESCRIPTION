@@ -24,6 +24,8 @@ Imports:
     WeightIt
 Suggests:
     cobalt,
+    knitr,
+    MASS,
     mgcv,
     mice,
     optmatch,

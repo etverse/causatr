@@ -43,3 +43,9 @@ jobs:
         with:
           upload-snapshots: true
           build_args: 'c("--no-manual","--compact-vignettes=gs+qpdf")'
+        if: runner.os != 'Windows'
+      - uses: r-lib/actions/check-r-package@v2
+        with:
+          upload-snapshots: true
+          build_args: 'c("--no-manual","--no-build-vignettes")'
+        if: runner.os == 'Windows'

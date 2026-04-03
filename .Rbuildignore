@@ -45,3 +45,4 @@
 ^\.zencoder$
 ^skills$
 ^skills-lock\.json$
+^data-raw$

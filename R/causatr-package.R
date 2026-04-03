@@ -8,4 +8,4 @@
 ## usethis namespace: end
 NULL
 
-utils::globalVariables("prev_event")
+utils::globalVariables(c("prev_event", ".pseudo_y"))
