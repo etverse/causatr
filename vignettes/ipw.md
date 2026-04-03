@@ -102,13 +102,13 @@ res_ate_bs
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
 #>          <char>    <num>  <num>    <num>    <num>
-#> 1:         quit    5.305 0.4321    4.458    6.152
-#> 2:     continue    1.942 0.1971    1.556    2.328
+#> 1:         quit    5.305 0.4462    4.431    6.180
+#> 2:     continue    1.942 0.2116    1.527    2.357
 #> 
 #> Contrasts:
 #>          comparison estimate     se ci_lower ci_upper
 #>              <char>    <num>  <num>    <num>    <num>
-#> 1: quit vs continue    3.363 0.4571    2.467    4.259
+#> 1: quit vs continue    3.363 0.4638    2.454    4.272
 ```
 
 ### ATT estimand
@@ -219,13 +219,13 @@ res_att_bs
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
 #>          <char>    <num>  <num>    <num>    <num>
-#> 1:         quit    4.497 0.4256    3.663    5.331
-#> 2:     continue    1.400 0.3032    0.806    1.994
+#> 1:         quit    4.497 0.4256   3.6627    5.331
+#> 2:     continue    1.400 0.3048   0.8027    1.998
 #> 
 #> Contrasts:
 #>          comparison estimate     se ci_lower ci_upper
 #>              <char>    <num>  <num>    <num>    <num>
-#> 1: quit vs continue    3.097 0.5027    2.111    4.082
+#> 1: quit vs continue    3.097 0.4963    2.124    4.069
 ```
 
 ### Extracting results programmatically
@@ -308,13 +308,13 @@ res_rd_bs
 #> Intervention means:
 #>    intervention estimate      se ci_lower ci_upper
 #>          <char>    <num>   <num>    <num>    <num>
-#> 1:         quit   0.7815 0.01946   0.7434   0.8197
-#> 2:     continue   0.6500 0.01346   0.6236   0.6763
+#> 1:         quit   0.7815 0.01884   0.7446   0.8184
+#> 2:     continue   0.6500 0.01263   0.6252   0.6747
 #> 
 #> Contrasts:
 #>          comparison estimate      se ci_lower ci_upper
 #>              <char>    <num>   <num>    <num>    <num>
-#> 1: quit vs continue   0.1315 0.02371  0.08505    0.178
+#> 1: quit vs continue   0.1315 0.02193  0.08854   0.1745
 ```
 
 ### Risk ratio
@@ -396,13 +396,13 @@ res_rr_bs
 #> Intervention means:
 #>    intervention estimate      se ci_lower ci_upper
 #>          <char>    <num>   <num>    <num>    <num>
-#> 1:         quit   0.7815 0.02142   0.7395   0.8235
-#> 2:     continue   0.6500 0.01456   0.6214   0.6785
+#> 1:         quit   0.7815 0.02099   0.7404   0.8226
+#> 2:     continue   0.6500 0.01348   0.6236   0.6764
 #> 
 #> Contrasts:
-#>          comparison estimate      se ci_lower ci_upper
-#>              <char>    <num>   <num>    <num>    <num>
-#> 1: quit vs continue    1.202 0.03948    1.125     1.28
+#>          comparison estimate     se ci_lower ci_upper
+#>              <char>    <num>  <num>    <num>    <num>
+#> 1: quit vs continue    1.202 0.0422     1.12    1.285
 ```
 
 ## Comparing estimands

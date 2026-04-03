@@ -220,13 +220,13 @@ result_boot
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
 #>          <char>    <num>  <num>    <num>    <num>
-#> 1:       always       60 0.4364    59.14    60.86
-#> 2:        never       60 0.4293    59.16    60.84
+#> 1:       always       60 0.3878    59.24    60.76
+#> 2:        never       60 0.3092    59.39    60.61
 #> 
 #> Contrasts:
 #>         comparison   estimate     se ci_lower ci_upper
 #>             <char>      <num>  <num>    <num>    <num>
-#> 1: always vs never -3.553e-13 0.5565   -1.091    1.091
+#> 1: always vs never -3.553e-13 0.5215   -1.022    1.022
 ```
 
 The `parallel` and `ncpus` arguments enable parallel bootstrap

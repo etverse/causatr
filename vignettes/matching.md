@@ -103,13 +103,13 @@ res_att_bs
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
 #>          <char>    <num>  <num>    <num>    <num>
-#> 1:         quit    4.525 0.4337   3.6750    5.375
-#> 2:     continue    1.184 0.3864   0.4268    1.941
+#> 1:         quit    4.525 0.4615   3.6206     5.43
+#> 2:     continue    1.184 0.4212   0.3585     2.01
 #> 
 #> Contrasts:
 #>          comparison estimate     se ci_lower ci_upper
 #>              <char>    <num>  <num>    <num>    <num>
-#> 1: quit vs continue    3.341 0.5652    2.233    4.449
+#> 1: quit vs continue    3.341 0.6025     2.16    4.522
 ```
 
 ### ATE estimand
@@ -176,13 +176,13 @@ res_ate_bs
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
 #>          <char>    <num>  <num>    <num>    <num>
-#> 1:         quit    5.442 0.5741    4.316    6.567
-#> 2:     continue    1.831 0.2334    1.373    2.288
+#> 1:         quit    5.442 0.5679    4.328    6.555
+#> 2:     continue    1.831 0.2370    1.366    2.295
 #> 
 #> Contrasts:
 #>          comparison estimate     se ci_lower ci_upper
 #>              <char>    <num>  <num>    <num>    <num>
-#> 1: quit vs continue    3.611 0.6168    2.402     4.82
+#> 1: quit vs continue    3.611 0.6315    2.373    4.849
 ```
 
 ### ATC estimand
@@ -308,13 +308,13 @@ res_rd_bs
 #> Intervention means:
 #>    intervention estimate      se ci_lower ci_upper
 #>          <char>    <num>   <num>    <num>    <num>
-#> 1:         quit   0.7419 0.02156   0.6997   0.7842
-#> 2:     continue   0.5931 0.02679   0.5406   0.6456
+#> 1:         quit   0.7419 0.02065   0.7015   0.7824
+#> 2:     continue   0.5931 0.02545   0.5432   0.6429
 #> 
 #> Contrasts:
 #>          comparison estimate      se ci_lower ci_upper
 #>              <char>    <num>   <num>    <num>    <num>
-#> 1: quit vs continue   0.1489 0.03125  0.08764   0.2101
+#> 1: quit vs continue   0.1489 0.03295   0.0843   0.2135
 ```
 
 ### Risk ratio
@@ -396,13 +396,13 @@ res_rr_bs
 #> Intervention means:
 #>    intervention estimate      se ci_lower ci_upper
 #>          <char>    <num>   <num>    <num>    <num>
-#> 1:         quit   0.7419 0.02102   0.7007   0.7831
-#> 2:     continue   0.5931 0.02395   0.5461   0.6400
+#> 1:         quit   0.7419 0.02344   0.6960   0.7879
+#> 2:     continue   0.5931 0.02600   0.5421   0.6440
 #> 
 #> Contrasts:
 #>          comparison estimate      se ci_lower ci_upper
 #>              <char>    <num>   <num>    <num>    <num>
-#> 1: quit vs continue    1.251 0.06201     1.13    1.373
+#> 1: quit vs continue    1.251 0.06611    1.121    1.381
 ```
 
 ## Comparing estimands
