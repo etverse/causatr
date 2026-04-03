@@ -1,5 +1,10 @@
 #' Summarise a causatr fit
 #'
+#' @description
+#' Provides a detailed summary of a [causatr_fit][causat] object, including
+#' the estimation method, outcome family, confounder formula, and the
+#' underlying model (outcome model, propensity weights, or matching object).
+#'
 #' @param object A `causatr_fit` object.
 #' @param ... Currently unused.
 #' @return Invisibly returns `object`.
@@ -51,6 +56,11 @@ summary.causatr_fit <- function(object, ...) {
 
 #' Summarise a causatr result
 #'
+#' @description
+#' Displays intervention-specific marginal means and pairwise contrasts with
+#' standard errors and confidence intervals from a [causatr_result][contrast]
+#' object.
+#'
 #' @param object A `causatr_result` object.
 #' @param ... Currently unused.
 #' @return Invisibly returns `object`.
@@ -81,6 +91,10 @@ summary.causatr_result <- function(object, ...) {
 }
 
 #' Summarise causatr diagnostics
+#'
+#' @description
+#' Prints positivity, balance, weight, and match quality diagnostics from a
+#' [causatr_diag][diagnose] object.
 #'
 #' @param object A `causatr_diag` object.
 #' @param ... Currently unused.

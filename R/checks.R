@@ -1,3 +1,9 @@
+#' Check that a value is a single string
+#'
+#' @param x Value to check.
+#' @param arg Argument name for error messages.
+#' @param call Caller environment for error messages.
+#' @return `NULL` invisibly; aborts if `x` is not a scalar character.
 #' @noRd
 check_string <- function(
   x,
@@ -12,6 +18,13 @@ check_string <- function(
   }
 }
 
+#' Check that a column exists in data
+#'
+#' @param data A data.frame or data.table.
+#' @param col Character column name to look up.
+#' @param arg Argument name for error messages.
+#' @param call Caller environment for error messages.
+#' @return `NULL` invisibly; aborts if `col` is not in `names(data)`.
 #' @noRd
 check_col_exists <- function(
   data,
@@ -27,6 +40,12 @@ check_col_exists <- function(
   }
 }
 
+#' Check that a value is a formula
+#'
+#' @param x Value to check.
+#' @param arg Argument name for error messages.
+#' @param call Caller environment for error messages.
+#' @return `NULL` invisibly; aborts if `x` is not a formula.
 #' @noRd
 check_formula <- function(
   x,
@@ -41,6 +60,13 @@ check_formula <- function(
   }
 }
 
+#' Validate an interventions list
+#'
+#' @param x A named list of interventions (each `causatr_intervention`,
+#'   `NULL`, or a named list of `causatr_intervention` for multivariate
+#'   treatments).
+#' @param call Caller environment for error messages.
+#' @return `NULL` invisibly; aborts on invalid structure.
 #' @noRd
 check_intervention_list <- function(x, call = rlang::caller_env()) {
   if (!is.list(x) || length(x) == 0) {
@@ -102,6 +128,14 @@ check_intervention_list <- function(x, call = rlang::caller_env()) {
   }
 }
 
+#' Check that an estimand override is compatible with the fit method
+#'
+#' @param estimand Character estimand requested in `contrast()`, or `NULL`.
+#' @param fit_method Character estimation method (`"gcomp"`, `"ipw"`, or
+#'   `"matching"`).
+#' @param fit_estimand Character estimand that was used at fitting time.
+#' @param call Caller environment for error messages.
+#' @return `NULL` invisibly; aborts if IPW/matching estimand is changed.
 #' @noRd
 check_estimand_compat <- function(
   estimand,
@@ -128,6 +162,16 @@ check_estimand_compat <- function(
   }
 }
 
+#' Check estimand–treatment compatibility
+#'
+#' ATT/ATC are only defined for binary point treatments.
+#'
+#' @param estimand Character estimand (`"ATE"`, `"ATT"`, or `"ATC"`).
+#' @param treatment Character vector of treatment column name(s).
+#' @param type `"point"` or `"longitudinal"`.
+#' @param data Optional data.frame used to verify treatment is binary.
+#' @param call Caller environment for error messages.
+#' @return `NULL` invisibly; aborts on incompatible combinations.
 #' @noRd
 check_estimand_trt_compat <- function(
   estimand,
@@ -163,6 +207,13 @@ check_estimand_trt_compat <- function(
   }
 }
 
+#' Check for missing treatment values
+#'
+#' @param data A data.frame or data.table.
+#' @param treatment Character vector of treatment column name(s).
+#' @param censoring Character censoring column name, or `NULL`.
+#' @param call Caller environment for error messages.
+#' @return `NULL` invisibly; aborts if NAs found without censoring.
 #' @noRd
 check_treatment_nas <- function(
   data,
@@ -201,6 +252,21 @@ check_treatment_nas <- function(
   }
 }
 
+#' Validate all inputs to causat()
+#'
+#' @param data A data.frame or data.table.
+#' @param outcome Character outcome column name.
+#' @param treatment Character treatment column name(s).
+#' @param confounders One-sided formula of baseline confounders.
+#' @param confounders_tv One-sided formula of time-varying confounders, or
+#'   `NULL`.
+#' @param method Character estimation method.
+#' @param estimand Character estimand.
+#' @param id Character ID column name, or `NULL`.
+#' @param time Character time column name, or `NULL`.
+#' @param history Positive integer or `Inf`.
+#' @param call Caller environment for error messages.
+#' @return `NULL` invisibly; aborts on any validation failure.
 #' @noRd
 check_causat_inputs <- function(
   data,

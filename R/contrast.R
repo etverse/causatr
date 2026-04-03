@@ -261,6 +261,15 @@ contrast <- function(
   )
 }
 
+#' Check that interventions are compatible with the estimation method
+#'
+#' IPW and matching only support static interventions; non-static
+#' interventions require g-computation.
+#'
+#' @param method Character estimation method.
+#' @param interventions Named list of `causatr_intervention` objects.
+#' @param call Caller environment for error messages.
+#' @return `NULL` invisibly; aborts if incompatible interventions are found.
 #' @noRd
 check_interventions_compat <- function(
   method,

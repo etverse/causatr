@@ -69,6 +69,10 @@ plot.causatr_diag <- function(
   invisible(p)
 }
 
+#' Extract the cobalt-compatible object from diagnostics
+#'
+#' @param diag A `causatr_diag` object.
+#' @return A `weightit` or `matchit` object for cobalt, or `NULL`.
 #' @noRd
 get_cobalt_object <- function(diag) {
   fit <- diag$fit

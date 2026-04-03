@@ -1,5 +1,10 @@
 #' Print a causatr fit
 #'
+#' @description
+#' Displays a compact summary of a [causatr_fit][causat] object, showing the
+#' estimation method, treatment type, outcome, treatment variable, and sample
+#' size.
+#'
 #' @param x A `causatr_fit` object.
 #' @param ... Currently unused.
 #' @return Invisibly returns `x`.
@@ -29,6 +34,11 @@ print.causatr_fit <- function(x, ...) {
 }
 
 #' Print a causatr result
+#'
+#' @description
+#' Displays the estimation method, contrast type, CI method, sample size,
+#' intervention-specific marginal means, and pairwise contrasts (with SEs
+#' and confidence intervals).
 #'
 #' @param x A `causatr_result` object.
 #' @param ... Currently unused.
@@ -60,6 +70,11 @@ print.causatr_result <- function(x, ...) {
 }
 
 #' Print causatr diagnostics
+#'
+#' @description
+#' Displays positivity summaries, covariate balance tables, weight
+#' distributions (IPW), and match quality metrics (matching) from a
+#' [causatr_diag][diagnose] object.
 #'
 #' @param x A `causatr_diag` object.
 #' @param ... Currently unused.

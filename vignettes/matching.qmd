@@ -9,6 +9,7 @@ vignette: >
 ```{r}
 #| include: false
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+has_optmatch <- requireNamespace("optmatch", quietly = TRUE)
 ```
 
 Propensity score matching estimates causal effects by pairing treated and
@@ -85,7 +86,7 @@ res_att_bs <- contrast(
   reference = "continue",
   type = "difference",
   ci_method = "bootstrap",
-  n_boot = 500L
+  n_boot = 200L
 )
 res_att_bs
 ```
@@ -96,6 +97,7 @@ For the ATE, MatchIt performs full matching (each unit gets a weight) rather
 than 1:1 nearest-neighbour matching.
 
 ```{r}
+#| eval: !expr has_optmatch
 fit_m_ate <- causat(
   nhefs_complete,
   outcome = "wt82_71",
@@ -120,13 +122,14 @@ res_ate_sw
 ### ATE with bootstrap SE
 
 ```{r}
+#| eval: !expr has_optmatch
 res_ate_bs <- contrast(
   fit_m_ate,
   interventions = list(quit = static(1), continue = static(0)),
   reference = "continue",
   type = "difference",
   ci_method = "bootstrap",
-  n_boot = 500L
+  n_boot = 200L
 )
 res_ate_bs
 ```
@@ -203,7 +206,7 @@ res_rd_bs <- contrast(
   reference = "continue",
   type = "difference",
   ci_method = "bootstrap",
-  n_boot = 500L
+  n_boot = 200L
 )
 res_rd_bs
 ```
@@ -243,7 +246,7 @@ res_rr_bs <- contrast(
   reference = "continue",
   type = "ratio",
   ci_method = "bootstrap",
-  n_boot = 500L
+  n_boot = 200L
 )
 res_rr_bs
 ```
@@ -253,25 +256,30 @@ res_rr_bs
 ```{r}
 #| fig-width: 7
 #| fig-height: 4
-#| fig-alt: "Point estimates and confidence intervals for ATE, ATT, and ATC estimated by matching."
-est_df <- data.frame(
-  estimand = c("ATE", "ATT", "ATC"),
-  estimate = c(
-    res_ate_sw$contrasts$estimate[1],
-    res_att_sw$contrasts$estimate[1],
-    res_atc$contrasts$estimate[1]
+#| fig-alt: "Point estimates and confidence intervals for ATT and ATC (and ATE if optmatch is available) estimated by matching."
+results_list <- list(
+  data.frame(
+    estimand = "ATT",
+    estimate = res_att_sw$contrasts$estimate[1],
+    ci_lower = res_att_sw$contrasts$ci_lower[1],
+    ci_upper = res_att_sw$contrasts$ci_upper[1]
   ),
-  ci_lower = c(
-    res_ate_sw$contrasts$ci_lower[1],
-    res_att_sw$contrasts$ci_lower[1],
-    res_atc$contrasts$ci_lower[1]
-  ),
-  ci_upper = c(
-    res_ate_sw$contrasts$ci_upper[1],
-    res_att_sw$contrasts$ci_upper[1],
-    res_atc$contrasts$ci_upper[1]
+  data.frame(
+    estimand = "ATC",
+    estimate = res_atc$contrasts$estimate[1],
+    ci_lower = res_atc$contrasts$ci_lower[1],
+    ci_upper = res_atc$contrasts$ci_upper[1]
   )
 )
+if (has_optmatch) {
+  results_list <- c(list(data.frame(
+    estimand = "ATE",
+    estimate = res_ate_sw$contrasts$estimate[1],
+    ci_lower = res_ate_sw$contrasts$ci_lower[1],
+    ci_upper = res_ate_sw$contrasts$ci_upper[1]
+  )), results_list)
+}
+est_df <- do.call(rbind, results_list)
 
 tinyplot(
   estimate ~ estimand,

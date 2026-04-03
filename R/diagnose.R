@@ -98,6 +98,12 @@ diagnose <- function(
   )
 }
 
+#' Compute propensity score positivity diagnostics
+#'
+#' @param fit A `causatr_fit` object (binary treatment only).
+#' @param ps_bounds Numeric vector of length 2 defining violation thresholds.
+#' @return A data.table with PS quantiles and violation counts, or `NULL` for
+#'   non-binary treatments.
 #' @noRd
 compute_positivity <- function(fit, ps_bounds) {
   treatment <- fit$treatment
@@ -159,6 +165,12 @@ compute_positivity <- function(fit, ps_bounds) {
   )
 }
 
+#' Compute covariate balance (via cobalt or simple SMD fallback)
+#'
+#' @param fit A `causatr_fit` object.
+#' @param stats Character vector of balance statistics for cobalt.
+#' @param thresholds Named list of thresholds for cobalt.
+#' @return A cobalt `bal.tab` object or a data.table of SMDs.
 #' @noRd
 compute_balance <- function(fit, stats, thresholds) {
   if (!rlang::is_installed("cobalt")) {
@@ -198,6 +210,11 @@ compute_balance <- function(fit, stats, thresholds) {
   }
 }
 
+#' Compute simple SMD balance table without cobalt
+#'
+#' @param fit A `causatr_fit` object with binary treatment.
+#' @return A data.table with columns `variable`, `mean_treated`,
+#'   `mean_control`, and `smd`, or `NULL` for non-binary treatments.
 #' @noRd
 compute_balance_simple <- function(fit) {
   data <- fit$data
@@ -245,6 +262,11 @@ compute_balance_simple <- function(fit) {
   data.table::rbindlist(results[!vapply(results, is.null, logical(1))])
 }
 
+#' Compute IPW weight distribution summary
+#'
+#' @param fit A `causatr_fit` object (IPW method only).
+#' @return A data.table with mean, SD, min, max, and ESS by treatment group,
+#'   or `NULL` for non-IPW fits.
 #' @noRd
 compute_weight_summary <- function(fit) {
   if (fit$method != "ipw" || is.null(fit$weights_obj)) {
@@ -289,6 +311,11 @@ compute_weight_summary <- function(fit) {
   )
 }
 
+#' Compute matching quality metrics
+#'
+#' @param fit A `causatr_fit` object (matching method only).
+#' @return A data.table with total, matched, discarded counts and retention
+#'   percentage, or `NULL` for non-matching fits.
 #' @noRd
 compute_match_quality <- function(fit) {
   if (fit$method != "matching" || is.null(fit$match_obj)) {

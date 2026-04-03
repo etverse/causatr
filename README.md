@@ -162,11 +162,24 @@ contrast(fit_cont,
 #> 3:    cap20 vs observed -0.03488 0.07297  -0.1779   0.1081
 ```
 
+## Diagnostics
+
+Check covariate balance and positivity after fitting:
+
+``` r
+diag <- diagnose(fit_ipw)
+diag          # positivity + balance summary
+plot(diag)    # Love plot (requires cobalt)
+```
+
 ## Features
 
 - **Three estimation methods**: g-computation, IPW (via
   [WeightIt](https://ngreifer.github.io/WeightIt/)), matching (via
   [MatchIt](https://kosukeimai.github.io/MatchIt/))
+- **Built-in diagnostics**: positivity checks, covariate balance via
+  [cobalt](https://ngreifer.github.io/cobalt/), weight summaries, Love
+  plots
 - **Flexible interventions**: `static()`, `shift()`, `scale()`,
   `threshold()`, `dynamic()` for modified treatment policies
 - **Robust inference**: sandwich SE (default) or nonparametric bootstrap

@@ -147,11 +147,11 @@ Suggests:
 | Static intervention | Yes | Set A=a for all (e.g., "always treat") |
 | Dynamic intervention | Yes (gcomp only) | A_k = g(L̄_k) (e.g., "treat if CD4 < 200") |
 | Modified treatment policy | Yes (gcomp only) | d(a, l) shifts observed treatment (e.g., "reduce by 10%") |
-| Incremental propensity score | Planned (Phase 4) | Multiply treatment odds by δ |
+| Incremental propensity score | Planned (Phase 4) | Multiply treatment odds by δ; constructor exists, contrast() pending |
 | **Treatment types** | | |
-| Binary treatment | Yes | |
-| Continuous treatment | Yes | |
-| Categorical treatment | Planned (Phase 4) | |
+| Binary treatment | Yes | All methods |
+| Continuous treatment | Yes | G-comp + IPW + matching |
+| Categorical treatment | Yes (g-comp), partial (IPW/matching) | Full support in Phase 4 |
 | Multivariate treatment | Planned (Phase 7) | Multiple simultaneous treatments |
 | **Outcome types** | | |
 | Continuous outcome | Yes | family = "gaussian" |
@@ -189,7 +189,7 @@ Suggests:
 
 **Contrast SE:** For risk differences, the delta method gradient is trivial ([1, -1]). For risk ratios and odds ratios, the gradient involves the ratio/odds formula — applied automatically in `compute_contrast()`.
 
-**Future:** Stacked estimating equations via `geex` package (Zivich et al. 2024) for ICE sandwich in Phase 5.
+**ICE (longitudinal):** Stacked estimating equations sandwich (Zivich et al. 2024) implemented natively via manual influence function computation — no `geex` dependency. The J V_β Jᵀ approach used for point treatments does NOT work for ICE (ignores upstream model uncertainty).
 
 ### 6b. Nonparametric bootstrap
 

@@ -19,6 +19,7 @@ IPW estimation via WeightIt, matching via MatchIt, diagnostics (`diagnose()`), a
 
 2. `causat(method = "matching")` → `fit_matching()` in `R/matching.R`
    - Calls `MatchIt::matchit()` for matched sets
+   - Auto-selects `method = "full"` for ATE (nearest-neighbor only supports ATT/ATC); user can override via `...`
    - Extracts matched data + weights via `MatchIt::match.data()`
    - Fits `glm(Y ~ A, data = matched_data, weights = match_weights)`
    - Supports ATE, ATT, ATC estimands (fixed at fit time)

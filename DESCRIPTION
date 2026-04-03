@@ -26,6 +26,7 @@ Suggests:
     cobalt,
     mgcv,
     mice,
+    optmatch,
     quarto,
     survival,
     tinyplot,

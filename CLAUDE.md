@@ -168,3 +168,6 @@ Run this in the shell:
 - ICE sandwich variance uses stacked estimating equations (Zivich et al. 2024) implemented via manual influence function computation — no `geex` dependency. The J V_β Jᵀ approach used for point treatments does NOT work for ICE (ignores upstream model uncertainty, can underestimate SE by 40%+).
 - ICE bootstrap resamples individuals (all person-period rows together) via `boot::boot()` with `parallel`/`ncpus` support. `contrast()` passes these through.
 - For binary outcomes, the first ICE model uses `binomial` (actual 0/1 response), but pseudo-outcome models use `quasibinomial` (fractional logistic for predicted probabilities in [0,1]).
+- Matching with `estimand = "ATE"` auto-selects `method = "full"` for MatchIt (nearest-neighbor only supports ATT/ATC). User can override via `...`.
+- Bootstrap wraps the entire replicate in `tryCatch` — failed replicates (e.g. factor level mismatches in bootstrap samples) return NA and are excluded from the variance estimate (standard bootstrap practice; Davison & Hinkley 1997). A warning is issued when any replicates fail.
+- For binary outcomes, the first ICE model uses `binomial` (actual 0/1 response), but pseudo-outcome models use `quasibinomial` (fractional logistic for predicted probabilities in [0,1]).

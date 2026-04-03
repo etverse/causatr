@@ -46,34 +46,32 @@ variance_bootstrap <- function(
   censoring <- fit$censoring
 
   # boot_fn: called by boot::boot() for each replicate.
+  # The entire body is wrapped in tryCatch because bootstrap samples may
+  # cause downstream failures (e.g. factor levels absent from uncensored
+  # rows but present in prediction data).  Failed replicates return NA and
+  # are excluded from the variance calculation — this is the standard
+  # bootstrap approach (Davison & Hinkley, 1997, §2.5.3).
   boot_fn <- function(d, indices) {
-    d_b <- d[indices]
+    tryCatch(
+      {
+        d_b <- d[indices]
 
-    # Refit the full pipeline on the bootstrap sample, dispatching by method.
-    # Suppress warnings from WeightIt/MatchIt about balance/weights in
-    # edge resamples (these are expected and do not affect the bootstrap).
-    model_b <- tryCatch(
-      suppressWarnings(refit_model(fit, d_b)),
-      error = function(e) NULL
-    )
+        model_b <- suppressWarnings(refit_model(fit, d_b))
 
-    if (is.null(model_b)) {
-      return(rep(NA_real_, length(int_names)))
-    }
+        target_idx_b <- get_target_idx(d_b, treatment, est, subset)
 
-    # Recompute target-population rows on the bootstrap sample.
-    target_idx_b <- get_target_idx(d_b, treatment, est, subset)
-
-    # For each intervention, apply it and compute the marginal mean.
-    vapply(
-      interventions,
-      function(iv) {
-        data_a_b <- apply_intervention(d_b, treatment, iv)
-        pred_a_b <- predict(model_b, newdata = data_a_b, type = "response")
-        valid <- target_idx_b & !is.na(pred_a_b)
-        mean(pred_a_b[valid])
+        vapply(
+          interventions,
+          function(iv) {
+            data_a_b <- apply_intervention(d_b, treatment, iv)
+            pred_a_b <- predict(model_b, newdata = data_a_b, type = "response")
+            valid <- target_idx_b & !is.na(pred_a_b)
+            mean(pred_a_b[valid])
+          },
+          numeric(1)
+        )
       },
-      numeric(1)
+      error = function(e) rep(NA_real_, length(int_names))
     )
   }
 
@@ -87,8 +85,10 @@ variance_bootstrap <- function(
 
   t_mat <- boot_res$t
   complete_rows <- stats::complete.cases(t_mat)
+  n_ok <- sum(complete_rows)
+  n_fail <- n_boot - n_ok
 
-  if (sum(complete_rows) < 2L) {
+  if (n_ok < 2L) {
     rlang::warn(
       "Bootstrap produced fewer than 2 non-NA replicates; SE estimates will be NA."
     )
@@ -98,6 +98,20 @@ variance_bootstrap <- function(
       ncol = length(int_names)
     )
   } else {
+    if (n_fail > 0L) {
+      pct <- round(100 * n_fail / n_boot, 1)
+      rlang::warn(paste0(
+        n_fail,
+        " of ",
+        n_boot,
+        " bootstrap replicates (",
+        pct,
+        "%) failed and were discarded. ",
+        "Variance is estimated from the ",
+        n_ok,
+        " successful replicates."
+      ))
+    }
     vcov_mat <- stats::var(t_mat[complete_rows, , drop = FALSE])
   }
 
@@ -133,6 +147,11 @@ refit_model <- function(fit, d_b) {
   }
 }
 
+#' Refit g-comp outcome model on a bootstrap sample
+#'
+#' @param fit A `causatr_fit` object.
+#' @param d_b A data.table bootstrap sample.
+#' @return A fitted model object.
 #' @noRd
 refit_gcomp <- function(fit, d_b) {
   model_formula <- stats::formula(fit$model)
@@ -151,6 +170,11 @@ refit_gcomp <- function(fit, d_b) {
   model_fn(model_formula, data = d_b[fit_rows_b], family = family)
 }
 
+#' Refit IPW propensity weights and MSM on a bootstrap sample
+#'
+#' @param fit A `causatr_fit` object.
+#' @param d_b A data.table bootstrap sample.
+#' @return A `glm_weightit` model object.
 #' @noRd
 refit_ipw <- function(fit, d_b) {
   # Re-estimate propensity-score weights.
@@ -176,6 +200,11 @@ refit_ipw <- function(fit, d_b) {
   )
 }
 
+#' Re-match and refit outcome model on a bootstrap sample
+#'
+#' @param fit A `causatr_fit` object.
+#' @param d_b A data.table bootstrap sample.
+#' @return A `glm` model fit on the matched bootstrap data.
 #' @noRd
 refit_matching <- function(fit, d_b) {
   confounder_terms <- attr(stats::terms(fit$confounders), "term.labels")
@@ -184,11 +213,12 @@ refit_matching <- function(fit, d_b) {
   fit_rows_b <- !is.na(d_b[[fit$outcome]])
   fit_data_b <- as.data.frame(d_b[fit_rows_b])
 
-  m_b <- MatchIt::matchit(
-    ps_formula,
-    data = fit_data_b,
-    estimand = fit$estimand
-  )
+  match_args <- list(ps_formula, data = fit_data_b, estimand = fit$estimand)
+  if (fit$estimand == "ATE") {
+    check_pkg("optmatch")
+    match_args$method <- "full"
+  }
+  m_b <- do.call(MatchIt::matchit, match_args)
   matched_b <- MatchIt::match.data(m_b)
 
   msm_formula <- stats::reformulate(fit$treatment, response = fit$outcome)
@@ -335,8 +365,10 @@ ice_variance_bootstrap <- function(
   # Compute variance from the bootstrap replicates.
   t_mat <- boot_res$t
   complete_rows <- stats::complete.cases(t_mat)
+  n_ok <- sum(complete_rows)
+  n_fail <- n_boot - n_ok
 
-  if (sum(complete_rows) < 2L) {
+  if (n_ok < 2L) {
     rlang::warn(
       "Bootstrap produced fewer than 2 non-NA replicates; SE estimates will be NA."
     )
@@ -346,6 +378,20 @@ ice_variance_bootstrap <- function(
       ncol = length(int_names)
     )
   } else {
+    if (n_fail > 0L) {
+      pct <- round(100 * n_fail / n_boot, 1)
+      rlang::warn(paste0(
+        n_fail,
+        " of ",
+        n_boot,
+        " bootstrap replicates (",
+        pct,
+        "%) failed and were discarded. ",
+        "Variance is estimated from the ",
+        n_ok,
+        " successful replicates."
+      ))
+    }
     vcov_mat <- stats::var(t_mat[complete_rows, , drop = FALSE])
   }
 

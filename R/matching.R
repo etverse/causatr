@@ -60,13 +60,16 @@ fit_matching <- function(
   fit_data <- as.data.frame(data[fit_rows])
 
   # Step 1: Create matched sets via MatchIt.
-  # Default method is "nearest" (nearest-neighbour propensity score matching).
-  # Additional arguments (method, ratio, caliper, etc.) go via `...`.
-  m <- MatchIt::matchit(
-    ps_formula,
-    data = fit_data,
-    estimand = estimand,
-    ...
+  # For ATE, MatchIt::matchit() requires method = "full" (full matching) since
+  # nearest-neighbour only supports ATT/ATC.  Allow user override via `...`.
+  dots <- list(...)
+  if (estimand == "ATE" && is.null(dots$method)) {
+    check_pkg("optmatch")
+    dots$method <- "full"
+  }
+  m <- do.call(
+    MatchIt::matchit,
+    c(list(ps_formula, data = fit_data, estimand = estimand), dots)
   )
 
   # Step 2: Extract matched data with match weights and subclass membership.

@@ -1,3 +1,20 @@
+#' Validate inputs and prepare data for estimation
+#'
+#' Coerces to data.table, selects relevant columns, and creates lag variables
+#' for longitudinal data.
+#'
+#' @param data A data.frame or data.table.
+#' @param outcome Character outcome column name.
+#' @param treatment Character treatment column name(s).
+#' @param confounders One-sided formula of baseline confounders.
+#' @param confounders_tv One-sided formula of time-varying confounders or `NULL`.
+#' @param id Character ID column name or `NULL`.
+#' @param time Character time column name or `NULL`.
+#' @param censoring Character censoring column name or `NULL`.
+#' @param history Positive integer Markov order or `Inf`.
+#' @param call Caller environment for error messages.
+#' @return A data.table with only the needed columns (and lag columns for
+#'   longitudinal data).
 #' @noRd
 prepare_data <- function(
   data,
@@ -42,6 +59,15 @@ prepare_data <- function(
   data
 }
 
+#' Create lagged columns for treatment and time-varying confounders
+#'
+#' @param data A data.table sorted by id and time.
+#' @param treatment Character treatment column name(s).
+#' @param tv_vars Character vector of time-varying confounder column names.
+#' @param id Character ID column name.
+#' @param time Character time column name.
+#' @param history Positive integer Markov order or `Inf`.
+#' @return The data.table with added lag columns (e.g. `lag1_A`, `lag2_L`).
 #' @noRd
 create_lag_vars <- function(data, treatment, tv_vars, id, time, history) {
   lag_vars <- c(treatment, tv_vars)
@@ -69,6 +95,13 @@ create_lag_vars <- function(data, treatment, tv_vars, id, time, history) {
   data
 }
 
+#' Warn if confounders appear misclassified as baseline vs time-varying
+#'
+#' @param data A data.table of person-period data.
+#' @param confounders One-sided formula of baseline confounders.
+#' @param confounders_tv One-sided formula of time-varying confounders or `NULL`.
+#' @param id Character ID column name.
+#' @return `NULL` invisibly; issues warnings for suspected misclassifications.
 #' @noRd
 warn_confounder_variation <- function(data, confounders, confounders_tv, id) {
   baseline_vars <- all.vars(confounders)

@@ -958,3 +958,465 @@ test_that("causat_survival fits a pooled logistic model on long data", {
   expect_equal(fit$type, "survival")
   expect_true(length(fit$details$time_points) > 1)
 })
+
+
+# ============================================================
+# MATCHING × ATE ESTIMAND (full matching auto-selection)
+# ============================================================
+
+test_that("matching × binary trt × continuous outcome × ATE × sandwich ≈ 3", {
+  df <- simulate_binary_continuous(n = 2000)
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    method = "matching",
+    estimand = "ATE"
+  )
+  result <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    ci_method = "sandwich"
+  )
+  expect_equal(result$contrasts$estimate[1], 3, tolerance = 0.5)
+  expect_equal(result$estimand, "ATE")
+})
+
+test_that("matching × binary trt × continuous outcome × ATE × bootstrap", {
+  df <- simulate_binary_continuous(n = 1000)
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    method = "matching",
+    estimand = "ATE"
+  )
+  result <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    ci_method = "bootstrap",
+    n_boot = 50L
+  )
+  expect_gt(result$contrasts$se[1], 0)
+  expect_true(is.finite(result$contrasts$se[1]))
+})
+
+
+# ============================================================
+# MATCHING × ATC ESTIMAND
+# ============================================================
+
+test_that("matching × binary trt × continuous outcome × ATC × sandwich ≈ 3", {
+  df <- simulate_binary_continuous(n = 2000)
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    method = "matching",
+    estimand = "ATC"
+  )
+  result <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    ci_method = "sandwich"
+  )
+  expect_equal(result$contrasts$estimate[1], 3, tolerance = 0.5)
+  expect_equal(result$estimand, "ATC")
+})
+
+
+# ============================================================
+# IPW × ATC ESTIMAND
+# ============================================================
+
+test_that("ipw × binary trt × continuous outcome × ATC × sandwich ≈ 3", {
+  df <- simulate_binary_continuous(n = 2000)
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    method = "ipw",
+    estimand = "ATC"
+  )
+  result <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    ci_method = "sandwich"
+  )
+  expect_equal(result$contrasts$estimate[1], 3, tolerance = 0.5)
+  expect_equal(result$estimand, "ATC")
+})
+
+
+# ============================================================
+# IPW × BINARY OUTCOME × OR
+# ============================================================
+
+test_that("ipw × binary trt × binary outcome × or × sandwich", {
+  df <- simulate_binary_binary(n = 3000)
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    method = "ipw"
+  )
+  result <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "or",
+    ci_method = "sandwich"
+  )
+  or_val <- result$contrasts$estimate[1]
+  expect_gt(or_val, 1.0)
+  expect_gt(result$contrasts$se[1], 0)
+  expect_true(is.finite(result$contrasts$se[1]))
+})
+
+
+# ============================================================
+# MATCHING × BINARY OUTCOME × OR
+# ============================================================
+
+test_that("matching × binary trt × binary outcome × or × sandwich", {
+  df <- simulate_binary_binary(n = 3000)
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    method = "matching",
+    estimand = "ATT"
+  )
+  result <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "or",
+    ci_method = "sandwich"
+  )
+  or_val <- result$contrasts$estimate[1]
+  expect_gt(or_val, 1.0)
+  expect_gt(result$contrasts$se[1], 0)
+  expect_true(is.finite(result$contrasts$se[1]))
+})
+
+
+# ============================================================
+# GCOMP × BINARY OUTCOME × BOOTSTRAP SE
+# ============================================================
+
+test_that("gcomp × binary trt × binary outcome × sandwich vs bootstrap", {
+  df <- simulate_binary_binary(n = 1500)
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    family = "binomial"
+  )
+  res_sw <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  res_bs <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "bootstrap",
+    n_boot = 200L
+  )
+  ratio <- res_bs$contrasts$se[1] / res_sw$contrasts$se[1]
+  expect_gt(ratio, 0.5)
+  expect_lt(ratio, 2.0)
+})
+
+
+# ============================================================
+# ICE × BINARY OUTCOME × SANDWICH
+# ============================================================
+
+test_that("ICE × binary outcome × sandwich: SE finite and positive", {
+  set.seed(42)
+  n <- 2000
+  sim_id <- rep(seq_len(n), each = 2)
+  sim_time <- rep(0:1, n)
+  L0 <- rbinom(n, 1, 0.5)
+  A0 <- rbinom(n, 1, plogis(-0.5 + 0.5 * L0))
+  L1 <- rbinom(n, 1, plogis(-0.5 + 0.8 * A0 + 0.3 * L0))
+  A1 <- rbinom(n, 1, plogis(-0.5 + 0.5 * L1))
+  Y <- rbinom(n, 1, plogis(-0.5 + 0.5 * A0 + 0.5 * A1 + 0.3 * L1))
+
+  sim_long <- data.frame(
+    id = sim_id,
+    time = sim_time,
+    A = c(rbind(A0, A1)),
+    L = c(rbind(L0, L1)),
+    Y = c(rbind(NA_real_, Y))
+  )
+
+  fit <- causat(
+    sim_long,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~1,
+    confounders_tv = ~L,
+    family = "binomial",
+    id = "id",
+    time = "time"
+  )
+
+  result <- contrast(
+    fit,
+    interventions = list(always = static(1), never = static(0)),
+    reference = "never",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+
+  expect_true(all(result$estimates$se > 0))
+  expect_true(all(is.finite(result$estimates$se)))
+  expect_true(is.finite(result$contrasts$se[1]))
+})
+
+
+# ============================================================
+# ICE × RATIO CONTRAST
+# ============================================================
+
+test_that("ICE × continuous outcome × ratio contrast", {
+  groups <- data.frame(
+    A0 = c(0, 0, 0, 0, 1, 1, 1, 1),
+    L1 = c(0, 0, 1, 1, 0, 0, 1, 1),
+    A1 = c(0, 1, 0, 1, 0, 1, 0, 1),
+    Y = c(84, 84, 52, 52, 76, 76, 44, 44),
+    N = c(2400, 1600, 2400, 9600, 4800, 3200, 1600, 6400)
+  )
+  rows <- lapply(seq_len(nrow(groups)), function(i) {
+    g <- groups[i, ]
+    off <- sum(groups$N[seq_len(i - 1)])
+    data.frame(
+      id = seq_len(g$N) + off,
+      A0 = g$A0,
+      L1 = g$L1,
+      A1 = g$A1,
+      Y = g$Y
+    )
+  })
+  wide <- do.call(rbind, rows)
+  t0 <- data.frame(
+    id = wide$id,
+    time = 0L,
+    A = wide$A0,
+    L = NA_real_,
+    Y = NA_real_
+  )
+  t1 <- data.frame(
+    id = wide$id,
+    time = 1L,
+    A = wide$A1,
+    L = wide$L1,
+    Y = wide$Y
+  )
+  long <- rbind(t0, t1)
+
+  fit <- causat(
+    long,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~1,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time"
+  )
+
+  result <- contrast(
+    fit,
+    interventions = list(always = static(1), never = static(0)),
+    reference = "never",
+    type = "ratio",
+    ci_method = "sandwich"
+  )
+
+  expect_equal(result$contrasts$estimate[1], 1.0, tolerance = 0.01)
+  expect_gt(result$contrasts$se[1], 0)
+})
+
+
+# ============================================================
+# ICE × DYNAMIC INTERVENTION × SANDWICH SE
+# ============================================================
+
+test_that("ICE × dynamic intervention × sandwich: SE finite", {
+  groups <- data.frame(
+    A0 = c(0, 0, 0, 0, 1, 1, 1, 1),
+    L1 = c(0, 0, 1, 1, 0, 0, 1, 1),
+    A1 = c(0, 1, 0, 1, 0, 1, 0, 1),
+    Y = c(84, 84, 52, 52, 76, 76, 44, 44),
+    N = c(2400, 1600, 2400, 9600, 4800, 3200, 1600, 6400)
+  )
+  rows <- lapply(seq_len(nrow(groups)), function(i) {
+    g <- groups[i, ]
+    off <- sum(groups$N[seq_len(i - 1)])
+    data.frame(
+      id = seq_len(g$N) + off,
+      A0 = g$A0,
+      L1 = g$L1,
+      A1 = g$A1,
+      Y = g$Y
+    )
+  })
+  wide <- do.call(rbind, rows)
+  t0 <- data.frame(
+    id = wide$id,
+    time = 0L,
+    A = wide$A0,
+    L = NA_real_,
+    Y = NA_real_
+  )
+  t1 <- data.frame(
+    id = wide$id,
+    time = 1L,
+    A = wide$A1,
+    L = wide$L1,
+    Y = wide$Y
+  )
+  long <- rbind(t0, t1)
+
+  fit <- causat(
+    long,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~1,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time"
+  )
+
+  result <- contrast(
+    fit,
+    interventions = list(
+      adaptive = dynamic(\(data, trt) {
+        ifelse(!is.na(data$L) & data$L > 0, 1L, 0L)
+      }),
+      never = static(0)
+    ),
+    reference = "never",
+    ci_method = "sandwich"
+  )
+
+  expect_true(all(result$estimates$se > 0))
+  expect_true(all(is.finite(result$estimates$se)))
+  expect_true(is.finite(result$contrasts$se[1]))
+})
+
+
+# ============================================================
+# MATCHING × BINARY OUTCOME × ATE (full matching)
+# ============================================================
+
+test_that("matching × binary trt × binary outcome × ATE × sandwich", {
+  df <- simulate_binary_binary(n = 3000)
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    method = "matching",
+    estimand = "ATE"
+  )
+  result <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  expect_equal(result$contrasts$estimate[1], 0.33, tolerance = 0.15)
+  expect_equal(result$estimand, "ATE")
+})
+
+
+# ============================================================
+# IPW × BINARY OUTCOME × BOOTSTRAP
+# ============================================================
+
+test_that("ipw × binary trt × binary outcome × bootstrap SE finite", {
+  df <- simulate_binary_binary(n = 1000)
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    method = "ipw"
+  )
+  result <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "bootstrap",
+    n_boot = 50L
+  )
+  expect_gt(result$contrasts$se[1], 0)
+  expect_true(is.finite(result$contrasts$se[1]))
+})
+
+
+# ============================================================
+# MATCHING × BINARY OUTCOME × BOOTSTRAP
+# ============================================================
+
+test_that("matching × binary trt × binary outcome × bootstrap SE finite", {
+  df <- simulate_binary_binary(n = 1000)
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    method = "matching",
+    estimand = "ATT"
+  )
+  result <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "bootstrap",
+    n_boot = 50L
+  )
+  expect_gt(result$contrasts$se[1], 0)
+  expect_true(is.finite(result$contrasts$se[1]))
+})
+
+
+# ============================================================
+# GCOMP × CONTINUOUS TREATMENT × BOOTSTRAP
+# ============================================================
+
+test_that("gcomp × continuous trt × shift × bootstrap SE finite", {
+  df <- simulate_continuous_continuous(n = 1000)
+  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L)
+  result <- contrast(
+    fit,
+    interventions = list(shifted = shift(-1), observed = NULL),
+    reference = "observed",
+    ci_method = "bootstrap",
+    n_boot = 100L
+  )
+  expect_gt(result$contrasts$se[1], 0)
+  expect_true(is.finite(result$contrasts$se[1]))
+})

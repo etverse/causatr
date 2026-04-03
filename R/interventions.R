@@ -188,6 +188,14 @@ ipsi <- function(delta) {
   new_causatr_intervention("ipsi", list(delta = delta))
 }
 
+#' Print a causatr intervention
+#'
+#' @description
+#' Displays the intervention type and its parameters.
+#'
+#' @param x A `causatr_intervention` object.
+#' @param ... Currently unused.
+#' @return Invisibly returns `x`.
 #' @export
 print.causatr_intervention <- function(x, ...) {
   cat("<causatr_intervention: ", x$type, ">\n", sep = "")

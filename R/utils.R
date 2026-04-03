@@ -1,3 +1,26 @@
+#' Construct a `causatr_fit` object
+#'
+#' @param model Fitted model object (glm, gam, glm_weightit, etc.) or `NULL`
+#'   (ICE defers fitting to `contrast()`).
+#' @param data data.table of the full dataset.
+#' @param treatment Character treatment column name(s).
+#' @param outcome Character outcome column name.
+#' @param confounders One-sided formula of baseline confounders.
+#' @param confounders_tv One-sided formula of time-varying confounders or `NULL`.
+#' @param family Character or family object describing the outcome distribution.
+#' @param method Character estimation method (`"gcomp"`, `"ipw"`, `"matching"`).
+#' @param type `"point"` or `"longitudinal"`.
+#' @param estimand Character estimand (`"ATE"`, `"ATT"`, `"ATC"`).
+#' @param id Character ID column name or `NULL`.
+#' @param time Character time column name or `NULL`.
+#' @param censoring Character censoring column name or `NULL`.
+#' @param history Integer Markov order for longitudinal.
+#' @param numerator One-sided formula for stabilised weights or `NULL`.
+#' @param weights_obj A `weightit` object (IPW) or `NULL`.
+#' @param match_obj A `matchit` object (matching) or `NULL`.
+#' @param call The original `causat()` call environment.
+#' @param details Named list of method-specific metadata.
+#' @return A list with class `"causatr_fit"`.
 #' @noRd
 new_causatr_fit <- function(
   model,
@@ -46,6 +69,20 @@ new_causatr_fit <- function(
   )
 }
 
+#' Construct a `causatr_result` object
+#'
+#' @param estimates data.table of intervention-specific marginal means.
+#' @param contrasts data.table of pairwise contrasts with SEs and CIs.
+#' @param type Character contrast type (`"difference"`, `"ratio"`, `"or"`).
+#' @param estimand Character estimand used.
+#' @param ci_method Character CI method (`"sandwich"` or `"bootstrap"`).
+#' @param reference Character name of the reference intervention or `NULL`.
+#' @param interventions Named list of `causatr_intervention` objects.
+#' @param n Integer sample size used for estimation.
+#' @param method Character estimation method.
+#' @param vcov Variance-covariance matrix of marginal means.
+#' @param call The original `contrast()` call environment.
+#' @return A list with class `"causatr_result"`.
 #' @noRd
 new_causatr_result <- function(
   estimates,
@@ -78,6 +115,15 @@ new_causatr_result <- function(
   )
 }
 
+#' Construct a `causatr_diag` object
+#'
+#' @param balance Balance table (from cobalt or simple SMD computation).
+#' @param positivity data.table of propensity score summaries.
+#' @param weights data.table of weight distribution summaries (IPW) or `NULL`.
+#' @param match_quality data.table of match quality metrics or `NULL`.
+#' @param method Character estimation method.
+#' @param fit The original `causatr_fit` (stored for `plot()` method).
+#' @return A list with class `"causatr_diag"`.
 #' @noRd
 new_causatr_diag <- function(
   balance,
@@ -100,6 +146,11 @@ new_causatr_diag <- function(
   )
 }
 
+#' Construct a `causatr_intervention` object
+#'
+#' @param type Character intervention type (e.g. `"static"`, `"shift"`).
+#' @param params Named list of intervention parameters.
+#' @return A list with class `"causatr_intervention"`.
 #' @noRd
 new_causatr_intervention <- function(type, params) {
   structure(
@@ -108,6 +159,10 @@ new_causatr_intervention <- function(type, params) {
   )
 }
 
+#' Check that an optional package is installed
+#'
+#' @param pkg Character package name.
+#' @return `NULL` invisibly; aborts with installation instructions if absent.
 #' @noRd
 check_pkg <- function(pkg) {
   if (!requireNamespace(pkg, quietly = TRUE)) {

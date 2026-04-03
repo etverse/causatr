@@ -81,7 +81,7 @@ res_ate_bs <- contrast(
   reference = "continue",
   type = "difference",
   ci_method = "bootstrap",
-  n_boot = 500L
+  n_boot = 200L
 )
 res_ate_bs
 ```
@@ -146,7 +146,7 @@ res_att_bs <- contrast(
   reference = "continue",
   type = "difference",
   ci_method = "bootstrap",
-  n_boot = 500L
+  n_boot = 200L
 )
 res_att_bs
 ```
@@ -196,7 +196,7 @@ res_rd_bs <- contrast(
   reference = "continue",
   type = "difference",
   ci_method = "bootstrap",
-  n_boot = 500L
+  n_boot = 200L
 )
 res_rd_bs
 ```
@@ -236,7 +236,7 @@ res_rr_bs <- contrast(
   reference = "continue",
   type = "ratio",
   ci_method = "bootstrap",
-  n_boot = 500L
+  n_boot = 200L
 )
 res_rr_bs
 ```
