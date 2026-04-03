@@ -11,5 +11,106 @@ vignette: >
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 ```
 
-<!-- TODO: write introduction vignette -->
-<!-- Cover: two-step API, three methods, intervention types, triangulation -->
+causatr provides a unified interface for causal effect estimation via three
+complementary methods:
+
+- **G-computation** (parametric g-formula) — fits an outcome model
+  $E[Y | A, L]$ and standardises predictions over the target population.
+- **Inverse probability weighting (IPW)** — reweights the data using
+  propensity scores so that confounders are balanced across treatment groups.
+- **Propensity score matching** — pairs treated and control units with similar
+  propensity scores.
+
+When all three methods agree, you can be more confident in your findings.
+This is called **methodological triangulation**.
+
+## Two-step API
+
+All analyses follow the same two-step pattern:
+
+```r
+# Step 1: Fit
+fit <- causat(data, outcome = "Y", treatment = "A", confounders = ~ L1 + L2,
+              method = "gcomp")
+
+# Step 2: Contrast
+result <- contrast(fit,
+  interventions = list(treated = static(1), control = static(0)),
+  reference = "control")
+```
+
+## Quick example
+
+```{r}
+#| message: false
+library(causatr)
+data("nhefs")
+
+fit <- causat(
+  nhefs,
+  outcome = "wt82_71",
+  treatment = "qsmk",
+  confounders = ~ sex + age + race + smokeintensity + smokeyrs +
+    factor(exercise) + factor(active) + wt71,
+  censoring = "censored"
+)
+
+result <- contrast(
+  fit,
+  interventions = list(quit = static(1), continue = static(0)),
+  reference = "continue"
+)
+result
+```
+
+## Intervention types
+
+causatr supports several intervention types for g-computation:
+
+| Function | Description | Example |
+|---|---|---|
+| `static(value)` | Set treatment to a fixed value | `static(1)` |
+| `shift(delta)` | Add a constant to observed treatment | `shift(-10)` |
+| `scale(factor)` | Multiply observed treatment | `scale(0.5)` |
+| `threshold(lower, upper)` | Clamp treatment within bounds | `threshold(0, 20)` |
+| `dynamic(rule)` | Apply a user-defined rule | `dynamic(\(d, a) ifelse(d$L > 0, 1, 0))` |
+| `NULL` | Natural course (observed values) | — |
+
+IPW and matching currently support only `static()` interventions.
+
+## Contrast types
+
+| Type | Meaning |
+|---|---|
+| `"difference"` | Risk/mean difference (default) |
+| `"ratio"` | Risk ratio |
+| `"or"` | Odds ratio (binary outcomes) |
+
+## Inference methods
+
+| Method | Description |
+|---|---|
+| `"sandwich"` | Robust sandwich SE (default, fast) |
+| `"bootstrap"` | Nonparametric bootstrap (resamples full pipeline) |
+
+## Diagnostics
+
+Use `diagnose()` to check positivity and covariate balance after fitting:
+
+```{r}
+#| eval: false
+diag <- diagnose(fit)
+diag          # print positivity + balance summary
+plot(diag)    # Love plot (requires cobalt)
+```
+
+For IPW and matching, balance is computed via
+[cobalt](https://ngreifer.github.io/cobalt/) and includes standardised mean
+differences before and after adjustment.
+
+## Learning more
+
+- `vignette("gcomp")` — G-computation in depth
+- `vignette("ipw")` — Inverse probability weighting in depth
+- `vignette("matching")` — Propensity score matching in depth
+- `vignette("triangulation")` — Comparing all three methods
