@@ -1,0 +1,16 @@
+url: https://etverse.github.io/causatr/
+
+articles:
+  - title: Getting started
+    contents:
+      - introduction
+  - title: Estimation methods
+    contents:
+      - gcomp
+      - ipw
+      - matching
+  - title: Advanced topics
+    contents:
+      - triangulation
+      - longitudinal
+      - survival

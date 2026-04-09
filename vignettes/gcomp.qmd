@@ -31,6 +31,9 @@ data("nhefs")
 nhefs_complete <- nhefs[!is.na(nhefs$wt82_71), ]
 
 nhefs_complete$gained_weight <- as.integer(nhefs_complete$wt82_71 > 0)
+
+nhefs$sex <- factor(nhefs$sex, levels = 0:1, labels = c("Male", "Female"))
+nhefs_complete$sex <- factor(nhefs_complete$sex, levels = 0:1, labels = c("Male", "Female"))
 ```
 
 We create a binary outcome `gained_weight` (1 if weight increased, 0 otherwise)
@@ -139,6 +142,47 @@ coef(res_ate_sw)
 confint(res_ate_sw)
 ```
 
+## Comparing estimands
+
+```{r}
+#| fig-width: 7
+#| fig-height: 4
+#| fig-alt: "Point estimates and confidence intervals for ATE, ATT, ATC, and subset estimands from g-computation."
+est_df <- data.frame(
+  estimand = c("ATE", "ATT", "ATC", "Subset (age >= 50)"),
+  estimate = c(
+    res_ate_sw$contrasts$estimate[1],
+    res_att$contrasts$estimate[1],
+    res_atc$contrasts$estimate[1],
+    res_sub$contrasts$estimate[1]
+  ),
+  ci_lower = c(
+    res_ate_sw$contrasts$ci_lower[1],
+    res_att$contrasts$ci_lower[1],
+    res_atc$contrasts$ci_lower[1],
+    res_sub$contrasts$ci_lower[1]
+  ),
+  ci_upper = c(
+    res_ate_sw$contrasts$ci_upper[1],
+    res_att$contrasts$ci_upper[1],
+    res_atc$contrasts$ci_upper[1],
+    res_sub$contrasts$ci_upper[1]
+  )
+)
+
+tinyplot(
+  estimate ~ estimand,
+  data = est_df,
+  type = "pointrange",
+  ymin = est_df$ci_lower,
+  ymax = est_df$ci_upper,
+  xlab = "Estimand",
+  ylab = "Effect on weight change (kg)",
+  main = "G-computation estimates by estimand"
+)
+abline(h = 0, lty = 2, col = "grey40")
+```
+
 ## Binary treatment, binary outcome
 
 Using the `gained_weight` indicator as a binary outcome, we estimate the risk
@@ -210,9 +254,10 @@ res_or
 
 ## Continuous treatment
 
-G-computation also supports continuous treatments with modified treatment policy
-interventions. Here we use `smokeintensity` (cigarettes per day) as the
-treatment and `wt82_71` as the outcome.
+G-computation supports continuous treatments with all intervention types:
+`static()` (set to a fixed value), `shift()`, `scale()`, `threshold()`,
+`dynamic()`, and `NULL` (natural course). Here we use `smokeintensity`
+(cigarettes per day) as the treatment and `wt82_71` as the outcome.
 
 ```{r}
 fit_cont <- causat(
@@ -224,6 +269,22 @@ fit_cont <- causat(
     wt71 + I(wt71^2),
   censoring = "censored"
 )
+```
+
+### Static intervention
+
+Set smoking intensity to fixed values and compare. This answers the question:
+what would happen if everyone smoked 5 vs 40 cigarettes per day?
+
+```{r}
+res_static <- contrast(
+  fit_cont,
+  interventions = list(light = static(5), heavy = static(40)),
+  reference = "light",
+  type = "difference",
+  ci_method = "sandwich"
+)
+res_static
 ```
 
 ### Shift intervention
@@ -277,6 +338,7 @@ res_thresh
 res_multi <- contrast(
   fit_cont,
   interventions = list(
+    light    = static(5),
     reduce10 = shift(-10),
     halved   = scale(0.5),
     cap20    = threshold(0, 20),
@@ -294,7 +356,7 @@ res_multi
 ```{r}
 #| fig-width: 7
 #| fig-height: 4
-#| fig-alt: "Forest plot of mean weight change under different smoking intensity interventions."
+#| fig-alt: "Point estimates and confidence intervals for mean weight change under different smoking intensity interventions."
 est <- res_multi$contrasts
 tinyplot(
   estimate ~ comparison,
@@ -304,9 +366,28 @@ tinyplot(
   ymax = est$ci_upper,
   xlab = "Comparison",
   ylab = "Difference in weight change (kg)",
-  main = "Continuous treatment: modified treatment policies"
+  main = "Continuous treatment interventions"
 )
 abline(h = 0, lty = 2, col = "grey40")
+```
+
+### Dynamic intervention on continuous treatment
+
+A dynamic rule that depends on individual characteristics. Here, heavy smokers
+(> 20 cigarettes/day) are reduced to 20, while others keep their observed level.
+
+```{r}
+res_dyn_cont <- contrast(
+  fit_cont,
+  interventions = list(
+    capped = dynamic(\(data, trt) pmin(trt, 20)),
+    observed = NULL
+  ),
+  reference = "observed",
+  type = "difference",
+  ci_method = "sandwich"
+)
+res_dyn_cont
 ```
 
 ### Continuous treatment with bootstrap
@@ -371,14 +452,16 @@ glance(res_ate_sw)
 
 ## Forest plot
 
-The `plot()` method produces a forest plot using the `forrest` package:
+The `plot()` method produces a forest plot using the `forrest` package. Forest
+plots are most useful when displaying multiple estimates, such as effect
+modification results:
 
 ```{r}
 #| fig-width: 7
-#| fig-height: 3
-#| fig-alt: "Forest plot of the ATE from g-computation."
+#| fig-height: 4
+#| fig-alt: "Forest plot of the effect of quitting smoking on weight change, stratified by sex."
 #| eval: !expr requireNamespace("forrest", quietly = TRUE)
-plot(res_ate_sw)
+plot(res_by_sex)
 ```
 
 ## GAM model via model_fn
@@ -421,9 +504,11 @@ res_gam
 | Binary | Binary | Difference | Bootstrap | ATE | Static |
 | Binary | Binary | Ratio | Sandwich | ATE | Static |
 | Binary | Binary | OR | Sandwich | ATE | Static |
+| Continuous | Continuous | Difference | Sandwich | ATE | Static |
 | Continuous | Continuous | Difference | Sandwich | ATE | Shift |
 | Continuous | Continuous | Difference | Sandwich | ATE | Scale |
 | Continuous | Continuous | Difference | Sandwich | ATE | Threshold |
+| Continuous | Continuous | Difference | Sandwich | ATE | Dynamic |
 | Continuous | Continuous | Difference | Bootstrap | ATE | Shift |
 | Binary | Continuous | Difference | Sandwich | ATE | Dynamic |
 | Binary | Continuous | Difference | Sandwich | ATE | GAM model |

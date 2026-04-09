@@ -40,6 +40,8 @@ data("nhefs")
 nhefs_complete <- nhefs[complete.cases(nhefs), ]
 
 nhefs_complete$gained_weight <- as.integer(nhefs_complete$wt82_71 > 0)
+
+nhefs_complete$sex <- factor(nhefs_complete$sex, levels = 0:1, labels = c("Male", "Female"))
 ```
 
 ## Binary treatment, continuous outcome
@@ -295,6 +297,47 @@ tinyplot(
   main = "Matching estimates by estimand"
 )
 abline(h = 0, lty = 2, col = "grey40")
+```
+
+## Effect modification with `by`
+
+The `by` argument stratifies causal effect estimates by levels of a variable.
+Here we examine whether the matching-estimated effect of quitting smoking
+differs by sex.
+
+```{r}
+res_by_sex <- contrast(
+  fit_m,
+  interventions = list(quit = static(1), continue = static(0)),
+  reference = "continue",
+  type = "difference",
+  ci_method = "sandwich",
+  by = "sex"
+)
+res_by_sex
+```
+
+## Tidy and glance
+
+causatr results work with the broom ecosystem via `tidy()` and `glance()`:
+
+```{r}
+tidy(res_att_sw)
+glance(res_att_sw)
+```
+
+## Forest plot
+
+The `plot()` method produces a forest plot using the `forrest` package. Forest
+plots are most useful when displaying multiple estimates, such as effect
+modification results:
+
+```{r}
+#| fig-width: 7
+#| fig-height: 4
+#| fig-alt: "Forest plot of the matching-estimated effect of quitting smoking on weight change, stratified by sex."
+#| eval: !expr requireNamespace("forrest", quietly = TRUE)
+plot(res_by_sex)
 ```
 
 ## Diagnostics

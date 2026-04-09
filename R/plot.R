@@ -82,7 +82,7 @@ plot.causatr_result <- function(x, which = c("contrasts", "means"), ...) {
     header = header,
     title = default_title,
     cols = stats::setNames("ci_label", "Est (95% CI)"),
-    stripe = TRUE
+    stripe = nrow(dt) > 1L
   )
 
   if (!is.null(ref_line)) {
