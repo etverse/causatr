@@ -95,13 +95,13 @@ res_ate_bs
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
 #>          <char>    <num>  <num>    <num>    <num>
-#> 1:         quit    5.176 0.4627    4.269    6.083
-#> 2:     continue    1.660 0.2279    1.214    2.107
+#> 1:         quit    5.176 0.4475    4.299    6.053
+#> 2:     continue    1.660 0.2239    1.221    2.099
 #> 
 #> Contrasts:
 #>          comparison estimate     se ci_lower ci_upper
 #>              <char>    <num>  <num>    <num>    <num>
-#> 1: quit vs continue    3.516 0.4881    2.559    4.472
+#> 1: quit vs continue    3.516 0.4912    2.553    4.478
 ```
 
 Sandwich and bootstrap SEs should be in close agreement for correctly
@@ -287,13 +287,13 @@ res_rd_bs
 #> Intervention means:
 #>    intervention estimate      se ci_lower ci_upper
 #>          <char>    <num>   <num>    <num>    <num>
-#> 1:         quit   0.7696 0.02061   0.7292    0.810
-#> 2:     continue   0.6383 0.01415   0.6106    0.666
+#> 1:         quit   0.7696 0.02245   0.7256   0.8136
+#> 2:     continue   0.6383 0.01397   0.6109   0.6657
 #> 
 #> Contrasts:
-#>          comparison estimate      se ci_lower ci_upper
-#>              <char>    <num>   <num>    <num>    <num>
-#> 1: quit vs continue   0.1313 0.02424   0.0838   0.1788
+#>          comparison estimate     se ci_lower ci_upper
+#>              <char>    <num>  <num>    <num>    <num>
+#> 1: quit vs continue   0.1313 0.0245  0.08329   0.1793
 ```
 
 ### Risk ratio
@@ -552,13 +552,13 @@ res_shift_bs
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
 #>          <char>    <num>  <num>    <num>    <num>
-#> 1:     reduce10    2.594 0.2671    2.071    3.117
-#> 2:     observed    2.548 0.2144    2.128    2.968
+#> 1:     reduce10    2.594 0.2829     2.04    3.148
+#> 2:     observed    2.548 0.1980     2.16    2.936
 #> 
 #> Contrasts:
 #>              comparison estimate     se ci_lower ci_upper
 #>                  <char>    <num>  <num>    <num>    <num>
-#> 1: reduce10 vs observed  0.04617 0.1816  -0.3098   0.4021
+#> 1: reduce10 vs observed  0.04617 0.1938  -0.3336    0.426
 ```
 
 ## Dynamic intervention

@@ -82,7 +82,7 @@ wide_sub <- wide[!is.na(wide$Y), ]
 naive_coefs <- coef(lm(Y ~ A0 + A1 + L1, data = wide_sub))
 naive_coefs[c("A0", "A1")]
 #>            A0            A1 
-#> -8.000000e+00 -6.355287e-15
+#> -8.000000e+00 -6.724003e-15
 ```
 
 The true individual effects of A_0 and A_1 are both zero, but the naive
@@ -153,7 +153,7 @@ result
 #> Contrasts:
 #>         comparison   estimate     se ci_lower ci_upper
 #>             <char>      <num>  <num>    <num>    <num>
-#> 1: always vs never -3.553e-13 0.5292   -1.037    1.037
+#> 1: always vs never -1.634e-13 0.5292   -1.037    1.037
 ```
 
 ICE correctly recovers **E\[Y^{always}\] = E\[Y^{never}\] = 60** and
@@ -227,13 +227,13 @@ result_boot
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
 #>          <char>    <num>  <num>    <num>    <num>
-#> 1:       always       60 0.3098    59.39    60.61
-#> 2:        never       60 0.3513    59.31    60.69
+#> 1:       always       60 0.5078    59.00    61.00
+#> 2:        never       60 0.3345    59.34    60.66
 #> 
 #> Contrasts:
 #>         comparison   estimate     se ci_lower ci_upper
 #>             <char>      <num>  <num>    <num>    <num>
-#> 1: always vs never -3.553e-13 0.4498  -0.8815   0.8815
+#> 1: always vs never -1.634e-13 0.5593   -1.096    1.096
 ```
 
 The `parallel` and `ncpus` arguments enable parallel bootstrap
@@ -312,8 +312,8 @@ result_dyn
 #> Contrasts:
 #>           comparison   estimate        se   ci_lower  ci_upper
 #>               <char>      <num>     <num>      <num>     <num>
-#> 1: adaptive vs never -5.684e-14 7.451e-09 -1.460e-08 1.460e-08
-#> 2:   always vs never -3.553e-13 5.292e-01 -1.037e+00 1.037e+00
+#> 1: adaptive vs never  0.000e+00 5.268e-09 -1.033e-08 1.033e-08
+#> 2:   always vs never -1.634e-13 5.292e-01 -1.037e+00 1.037e+00
 ```
 
 ### Comparing multiple interventions
@@ -387,7 +387,7 @@ result_inf
 #> Contrasts:
 #>         comparison   estimate     se ci_lower ci_upper
 #>             <char>      <num>  <num>    <num>    <num>
-#> 1: always vs never -3.553e-13 0.5292   -1.037    1.037
+#> 1: always vs never -1.634e-13 0.5292   -1.037    1.037
 ```
 
 ## Simulation: ICE with a non-null effect
