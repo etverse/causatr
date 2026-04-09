@@ -94,6 +94,8 @@ new_causatr_result <- function(
   interventions,
   n,
   method,
+  family,
+  fit_type,
   vcov,
   call
 ) {
@@ -108,6 +110,8 @@ new_causatr_result <- function(
       interventions = interventions,
       n = n,
       method = method,
+      family = family,
+      fit_type = fit_type,
       vcov = vcov,
       call = call
     ),

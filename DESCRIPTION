@@ -16,6 +16,7 @@ License: MIT + file LICENSE
 Imports:
     boot,
     data.table (>= 1.14.0),
+    generics,
     MatchIt,
     numDeriv,
     rlang (>= 1.0.0),
@@ -24,6 +25,7 @@ Imports:
     WeightIt
 Suggests:
     cobalt,
+    forrest,
     knitr,
     MASS,
     mgcv,

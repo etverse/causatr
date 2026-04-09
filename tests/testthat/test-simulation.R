@@ -880,7 +880,7 @@ test_that("print.causatr_fit outputs method and type", {
   df <- simulate_binary_continuous(n = 100)
   fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L)
   expect_output(print(fit), "causatr_fit")
-  expect_output(print(fit), "gcomp")
+  expect_output(print(fit), "G-computation")
 })
 
 test_that("print.causatr_result outputs contrast info", {
@@ -910,7 +910,7 @@ test_that("summary.causatr_result outputs result details", {
     interventions = list(a1 = static(1), a0 = static(0)),
     reference = "a0"
   )
-  expect_output(summary(result), "causatr result")
+  expect_output(summary(result), "causatr_result")
 })
 
 

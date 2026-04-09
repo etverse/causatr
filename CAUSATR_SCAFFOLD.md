@@ -104,8 +104,7 @@ Using black-box ML (random forests, neural nets) directly in g-computation does 
 | Sandwich variance | `sandwich` | **Imports**: used for inference. |
 | Numerical derivatives | `numDeriv` | **Imports**: Jacobian for J V_β Jᵀ propagation. |
 | Bootstrap | `boot` | **Imports**: used for inference. |
-| DAGs | `dagitty` | Optional (Suggests). For adjustment set identification. |
-| Survival | `survival` | For `Surv` objects and baseline hazard utilities. |
+| Survival | `survival` | **Suggests**: for `Surv` objects and baseline hazard utilities. |
 
 ---
 
@@ -113,11 +112,12 @@ Using black-box ML (random forests, neural nets) directly in g-computation does 
 
 ```
 Package: causatr
-Title: Causal Effect Estimation via G-Computation
+Title: Unified Causal Effect Estimation for Methodological Triangulation
 Version: 0.0.0.9000
 Imports:
     boot,
     data.table (>= 1.14.0),
+    generics,
     MatchIt,
     numDeriv,
     rlang (>= 1.0.0),
@@ -126,8 +126,12 @@ Imports:
     WeightIt
 Suggests:
     cobalt,
+    forrest,
+    knitr,
+    MASS,
     mgcv,
     mice,
+    optmatch,
     quarto,
     survival,
     tinyplot,
@@ -147,17 +151,17 @@ Suggests:
 | Static intervention | Yes | Set A=a for all (e.g., "always treat") |
 | Dynamic intervention | Yes (gcomp only) | A_k = g(L̄_k) (e.g., "treat if CD4 < 200") |
 | Modified treatment policy | Yes (gcomp only) | d(a, l) shifts observed treatment (e.g., "reduce by 10%") |
-| Incremental propensity score | Planned (Phase 4) | Multiply treatment odds by δ; constructor exists, contrast() pending |
+| Incremental propensity score | Planned (Phase 4) | Multiply treatment odds by δ; constructor exists, IPW engine pending |
 | **Treatment types** | | |
 | Binary treatment | Yes | All methods |
-| Continuous treatment | Yes | G-comp + IPW + matching |
+| Continuous treatment | Yes | G-comp + IPW (GPS); not matching |
 | Categorical treatment | Yes (g-comp), partial (IPW/matching) | Full support in Phase 4 |
-| Multivariate treatment | Planned (Phase 7) | Multiple simultaneous treatments |
+| Multivariate treatment | Yes (g-comp), planned (IPW Phase 4, matching Phase 7) | G-comp supports `treatment = c("A1", "A2")` |
 | **Outcome types** | | |
 | Continuous outcome | Yes | family = "gaussian" |
 | Binary outcome | Yes | family = "binomial" |
-| Censored outcome (survival) | Scaffolded (Phase 6) | Pooled logistic / discrete hazard models |
-| Competing risks | Planned (Phase 6) | Cause-specific hazard models |
+| Censored outcome (survival) | Scaffolded (Phase 6) | Pooled logistic fit done; survival curves in contrast() pending |
+| Competing risks | Planned (Phase 6) | Cause-specific hazard models; parameter scaffolded in causat_survival() |
 | **Estimation methods** | | |
 | G-computation | Yes | Core engine; supports all intervention types |
 | IPW (via WeightIt) | Yes | Static interventions only; self-contained IPW for dynamic/MTP in Phase 4 |
@@ -168,7 +172,7 @@ Suggests:
 | **Infrastructure** | | |
 | Survey weights | Planned (Phase 7) | Pass through to outcome model fitting |
 | Clustered data | Planned (Phase 7) | Cluster-robust sandwich variance |
-| Parallel processing | Planned (Phase 7) | `future` backend for bootstrap |
+| Parallel processing | Partial | `boot::boot(parallel=, ncpus=)` done; optional `future` backend in Phase 7 |
 
 ---
 
@@ -240,7 +244,7 @@ result <- contrast(fit, interventions, ci_method = "bootstrap", n_boot = 500)
 17. Modified treatment policies (shift-based interventions) via IPW
 18. IPSI (incremental propensity score interventions)
 19. Categorical treatment support
-20. Vignette: `interventions.Rmd`
+20. Vignette: `interventions.qmd`
 
 ### Phase 5: Longitudinal / ICE — DONE
 21. ICE g-computation engine (`R/ice.R`) ✓
@@ -255,7 +259,7 @@ result <- contrast(fit, interventions, ci_method = "bootstrap", n_boot = 500)
 27. `to_person_period()` — wide → long conversion ✓
 28. Survival curves under intervention in `contrast()` — pending
 29. Competing risks (cause-specific hazards) — pending
-30. Vignette: `survival.Rmd`
+30. Vignette: `survival.qmd` ✓
 
 ### Phase 7: Advanced Features — PENDING
 31. Survey weights (pass through to model fitting + adjust sandwich)

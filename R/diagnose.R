@@ -280,35 +280,37 @@ compute_weight_summary <- function(fit) {
 
   ess <- function(wts) sum(wts)^2 / sum(wts^2)
 
-  data.table::data.table(
-    group = c("treated", "control", "overall"),
-    n = c(sum(trt == 1), sum(trt == 0), length(w)),
-    mean = c(
-      mean(w[trt == 1]),
-      mean(w[trt == 0]),
-      mean(w)
-    ),
-    sd = c(
-      stats::sd(w[trt == 1]),
-      stats::sd(w[trt == 0]),
-      stats::sd(w)
-    ),
-    min = c(
-      min(w[trt == 1]),
-      min(w[trt == 0]),
-      min(w)
-    ),
-    max = c(
-      max(w[trt == 1]),
-      max(w[trt == 0]),
-      max(w)
-    ),
-    ess = c(
-      ess(w[trt == 1]),
-      ess(w[trt == 0]),
-      ess(w)
+  treat_type <- attr(fit$weights_obj$treat, "treat.type") %||% "continuous"
+
+  if (treat_type == "binary") {
+    group_labels <- c("treated", "control", "overall")
+    group_masks <- list(trt == 1, trt == 0, rep(TRUE, length(w)))
+  } else if (treat_type == "multinomial") {
+    trt_levels <- sort(unique(stats::na.omit(trt)))
+    group_labels <- c(as.character(trt_levels), "overall")
+    group_masks <- c(
+      lapply(trt_levels, function(lev) trt == lev),
+      list(rep(TRUE, length(w)))
     )
-  )
+  } else {
+    group_labels <- "overall"
+    group_masks <- list(rep(TRUE, length(w)))
+  }
+
+  rows <- lapply(seq_along(group_labels), function(i) {
+    w_sub <- w[group_masks[[i]]]
+    data.table::data.table(
+      group = group_labels[i],
+      n = length(w_sub),
+      mean = mean(w_sub),
+      sd = stats::sd(w_sub),
+      min = min(w_sub),
+      max = max(w_sub),
+      ess = ess(w_sub)
+    )
+  })
+
+  data.table::rbindlist(rows)
 }
 
 #' Compute matching quality metrics

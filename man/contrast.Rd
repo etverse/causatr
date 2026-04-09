@@ -25,12 +25,16 @@ contrast(
 \item{interventions}{A named list of interventions. Each element must be
 one of:
 \itemize{
-\item A \code{causatr_intervention} object created by \code{\link[=static]{static()}}, \code{\link[data.table:shift]{data.table::shift()}},
+\item A \code{causatr_intervention} object created by \code{\link[=static]{static()}}, \code{\link[=shift]{shift()}},
 \code{\link[=dynamic]{dynamic()}}, \code{\link[=scale]{scale()}}, \code{\link[=threshold]{threshold()}}, or \code{\link[=ipsi]{ipsi()}}.
 \item \code{NULL}, meaning the natural course (observed treatment values are used
-as-is). This is the reference for modified treatment policies. Note: for
-binary treatments, the natural-course mean is the observed mean, not a
-counterfactual — a warning is issued.
+as-is). The natural course is the standard reference for modified
+treatment policies on continuous treatments (e.g. \code{shift(-10)} vs
+\code{NULL}; Díaz et al. 2023) and for longitudinal dynamic regimes
+(Hernán & Robins Ch. 21). For binary treatments, the
+natural-course marginal mean equals E[Y] under the observed
+treatment mechanism (by consistency); use \code{static(1)} vs
+\code{static(0)} for the conventional ATE. Supported for all methods.
 \item A named list of \code{causatr_intervention} objects, one per treatment
 variable, for multivariate (joint) treatments. Each sub-list must name
 every treatment variable specified in \code{causat()}.
@@ -239,6 +243,6 @@ sandwich variance estimator for iterated conditional expectation
 g-computation. \emph{Statistics in Medicine} 43:5562–5572.
 }
 \seealso{
-\code{\link[=causat]{causat()}}, \code{\link[=static]{static()}}, \code{\link[data.table:shift]{data.table::shift()}}, \code{\link[=dynamic]{dynamic()}},
+\code{\link[=causat]{causat()}}, \code{\link[=static]{static()}}, \code{\link[=shift]{shift()}}, \code{\link[=dynamic]{dynamic()}},
 \code{\link[=coef.causatr_result]{coef.causatr_result()}}, \code{\link[=confint.causatr_result]{confint.causatr_result()}}
 }

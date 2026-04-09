@@ -21,12 +21,14 @@ intervention.
 }
 \description{
 Returns confidence intervals for each intervention mean (E[Y^a]) from a
-\code{causatr_result} object.
+\code{causatr_result} object. By default uses the stored CIs; if \code{level} differs
+from the level used in \code{\link[=contrast]{contrast()}}, recomputes from the vcov matrix.
 }
 \examples{
 \dontrun{
 result <- contrast(fit, interventions = list(a1 = static(1), a0 = static(0)))
 confint(result)
+confint(result, level = 0.99)
 }
 
 }

@@ -20,3 +20,26 @@
 coef.causatr_result <- function(object, ...) {
   stats::setNames(object$estimates$estimate, object$estimates$intervention)
 }
+
+#' Variance-covariance matrix for a causatr result
+#'
+#' @description
+#' Returns the variance-covariance matrix of the intervention-specific
+#' marginal means (E\[Y^a\]) from a `causatr_result` object.
+#'
+#' @param object A `causatr_result` object.
+#' @param ... Currently unused.
+#'
+#' @return A named k x k matrix (k = number of interventions).
+#'
+#' @examples
+#' \dontrun{
+#' result <- contrast(fit, interventions = list(a1 = static(1), a0 = static(0)))
+#' vcov(result)
+#' }
+#'
+#' @seealso [coef.causatr_result()], [confint.causatr_result()], [contrast()]
+#' @export
+vcov.causatr_result <- function(object, ...) {
+  object$vcov
+}

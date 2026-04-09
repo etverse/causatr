@@ -156,6 +156,9 @@ res_att_bs
 ```{r}
 coef(res_ate_sw)
 confint(res_ate_sw)
+vcov(res_ate_sw)
+tidy(res_ate_sw)
+glance(res_ate_sw)
 ```
 
 ## Binary treatment, binary outcome

@@ -93,6 +93,45 @@ IPW and matching currently support only `static()` interventions.
 | `"sandwich"` | Robust sandwich SE (default, fast) |
 | `"bootstrap"` | Nonparametric bootstrap (resamples full pipeline) |
 
+## Estimands
+
+| Estimand | Population | Applicability |
+|---|---|---|
+| `"ATE"` | All individuals | Always (default) |
+| `"ATT"` | Observed treated (A = 1) | Binary point treatment only |
+| `"ATC"` | Observed controls (A = 0) | Binary point treatment only |
+| `subset = quote(...)` | Custom subgroup | Always |
+
+For g-computation, the estimand can be changed in `contrast()` without
+refitting. For IPW and matching, refit with `causat(estimand = ...)`.
+
+## Treatment types
+
+causatr supports binary, continuous, categorical, and multivariate treatments:
+
+| Treatment type | G-comp | IPW | Matching |
+|---|---|---|---|
+| Binary (0/1) | Yes | Yes | Yes |
+| Continuous | Yes | Yes (GPS) | No |
+| Categorical | Yes | Yes | Yes |
+| Multivariate | Yes | Not yet | Not yet |
+
+For multivariate treatments (e.g. `treatment = c("A1", "A2")`), supply
+interventions as named lists with one element per treatment variable.
+
+## Effect modification
+
+The `by` argument in `contrast()` stratifies estimates by levels of a
+variable, producing subgroup-specific effects:
+
+```{r}
+#| eval: false
+contrast(fit,
+  interventions = list(quit = static(1), continue = static(0)),
+  by = "sex"
+)
+```
+
 ## Diagnostics
 
 Use `diagnose()` to check positivity and covariate balance after fitting:
@@ -108,9 +147,21 @@ For IPW and matching, balance is computed via
 [cobalt](https://ngreifer.github.io/cobalt/) and includes standardised mean
 differences before and after adjustment.
 
+## Extracting results
+
+causatr result objects support standard R generics:
+
+```r
+coef(result)       # named vector of E[Y^a]
+confint(result)    # CI matrix (respects custom `level`)
+vcov(result)       # vcov of marginal means
+tidy(result)       # broom-style tidy data frame
+glance(result)     # broom-style one-row summary
+plot(result)       # forest plot (requires forrest package)
+```
+
 ## Learning more
 
-- `vignette("gcomp")` — G-computation in depth
-- `vignette("ipw")` — Inverse probability weighting in depth
-- `vignette("matching")` — Propensity score matching in depth
-- `vignette("triangulation")` — Comparing all three methods
+causatr includes detailed vignettes for each estimation method: g-computation,
+IPW, matching, longitudinal ICE, and methodological triangulation. Use
+`vignette(package = "causatr")` to see all available vignettes.

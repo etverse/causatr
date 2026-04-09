@@ -294,6 +294,18 @@ check_causat_inputs <- function(
     )
   }
 
+  if (length(treatment) > 1L && method %in% c("ipw", "matching")) {
+    rlang::abort(
+      paste0(
+        "Multivariate treatments are not yet supported for method = '",
+        method,
+        "'. Use method = 'gcomp' for joint interventions on multiple ",
+        "treatments, or fit separate models for each treatment."
+      ),
+      call = call
+    )
+  }
+
   check_estimand_trt_compat(estimand, treatment, type, data = data, call = call)
 
   check_string(outcome, call = call)

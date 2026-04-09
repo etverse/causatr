@@ -11,26 +11,53 @@
 #' @seealso [summary.causatr_fit()], [causat()]
 #' @export
 print.causatr_fit <- function(x, ...) {
-  cat(
-    "<causatr_fit>\n",
-    " Method:   ",
+  method_label <- switch(
     x$method,
-    "\n",
-    " Type:     ",
-    x$type,
-    "\n",
-    " Outcome:  ",
-    x$outcome,
-    "\n",
-    " Treatment:",
-    x$treatment,
-    "\n",
-    " N:        ",
-    nrow(x$data),
-    "\n",
-    sep = ""
+    gcomp = "G-computation",
+    ipw = "IPW (WeightIt)",
+    matching = "Matching (MatchIt)",
+    x$method
   )
+  family_label <- format_family(x$family)
+  trt_label <- paste(x$treatment, collapse = ", ")
+
+  cat("<causatr_fit>\n")
+  cat(" Method:     ", method_label, "\n", sep = "")
+  cat(" Type:       ", x$type, "\n", sep = "")
+  cat(" Outcome:    ", x$outcome, " (", family_label, ")\n", sep = "")
+  cat(" Treatment:  ", trt_label, "\n", sep = "")
+  cat(" Estimand:   ", x$estimand, "\n", sep = "")
+  cat(" Confounders:", deparse(x$confounders), "\n", sep = " ")
+  if (!is.null(x$confounders_tv)) {
+    cat(" TV conf.:  ", deparse(x$confounders_tv), "\n", sep = " ")
+  }
+  if (!is.null(x$id)) {
+    cat(" ID:         ", x$id, "\n", sep = "")
+    cat(" Time:       ", x$time, "\n", sep = "")
+  }
+  cat(" N:          ", nrow(x$data), "\n", sep = "")
   invisible(x)
+}
+
+#' Format a family object for display
+#'
+#' @param family A character string, family object, or function.
+#' @return A character string.
+#' @noRd
+format_family <- function(family) {
+  if (is.character(family)) {
+    return(family)
+  }
+  if (is.list(family) && !is.null(family$family)) {
+    return(paste0(family$family, "(", family$link, ")"))
+  }
+  if (is.function(family)) {
+    fam <- tryCatch(family(), error = function(e) NULL)
+    if (!is.null(fam) && !is.null(fam$family)) {
+      return(paste0(fam$family, "(", fam$link, ")"))
+    }
+  }
+  "<custom>"
 }
 
 #' Print a causatr result
@@ -46,25 +73,41 @@ print.causatr_fit <- function(x, ...) {
 #' @seealso [summary.causatr_result()], [contrast()]
 #' @export
 print.causatr_result <- function(x, ...) {
-  cat(
-    "<causatr_result>\n",
-    " Method:      ",
+  method_label <- switch(
     x$method,
-    "\n",
-    " Contrast:    ",
-    x$type,
-    "\n",
-    " CI method:   ",
-    x$ci_method,
-    "\n",
-    " N:           ",
-    x$n,
-    "\n\n",
-    sep = ""
+    gcomp = "G-computation",
+    ipw = "IPW",
+    matching = "Matching",
+    x$method
   )
-  cat("Intervention means:\n")
+  type_label <- switch(
+    x$type,
+    difference = "Difference",
+    ratio = "Ratio",
+    or = "Odds ratio"
+  )
+
+  cat("<causatr_result>\n")
+  cat(" Method:    ", method_label, "\n", sep = "")
+  cat(" Estimand:  ", x$estimand, "\n", sep = "")
+  cat(" Contrast:  ", type_label, "\n", sep = "")
+  cat(" CI method: ", x$ci_method, "\n", sep = "")
+  cat(" N:         ", x$n, "\n", sep = "")
+
+  has_by <- "by" %in% names(x$estimates)
+
+  if (has_by) {
+    cat("\nIntervention means (by subgroup):\n")
+  } else {
+    cat("\nIntervention means:\n")
+  }
   print(x$estimates, digits = 4)
-  cat("\nContrasts:\n")
+
+  if (has_by) {
+    cat("\nContrasts (by subgroup):\n")
+  } else {
+    cat("\nContrasts:\n")
+  }
   print(x$contrasts, digits = 4)
   invisible(x)
 }

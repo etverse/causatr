@@ -9,9 +9,10 @@ Complete `causat_survival()`, implement survival curves under intervention in `c
 
 ## What exists
 
-- `causat_survival()` fits a pooled logistic regression on person-period data
+- `causat_survival()` fits a pooled logistic regression on person-period data (with censoring + competing risks parameters)
 - `to_person_period()` converts wide → long format
 - `contrast()` can be called on survival fits but treats it as a standard binary outcome (incorrect for survival)
+- Vignette: `survival.qmd` exists (basic structure)
 
 ## What remains
 
@@ -25,7 +26,7 @@ Complete `causat_survival()`, implement survival curves under intervention in `c
 - [ ] Competing risks: cause-specific hazard models (one pooled logistic per event type), cumulative incidence under intervention
 - [ ] ICE + survival integration (Phase 5 dependency): backward iteration with hazard models
 - [ ] Variance: sandwich for survival curves (propagate through cumulative product), bootstrap
-- [ ] Vignette: `survival.Rmd`
+- [ ] Vignette: `survival.qmd` (file exists; needs full content)
 
 ## NHEFS survival replication targets (Ch. 17)
 

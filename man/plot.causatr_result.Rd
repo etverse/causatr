@@ -4,21 +4,33 @@
 \alias{plot.causatr_result}
 \title{Plot a causatr result}
 \usage{
-\method{plot}{causatr_result}(x, ...)
+\method{plot}{causatr_result}(x, which = c("contrasts", "means"), ...)
 }
 \arguments{
 \item{x}{A \code{causatr_result} object.}
 
-\item{...}{Additional arguments (currently unused).}
+\item{which}{Character. What to plot: \code{"contrasts"} (default) for pairwise
+comparisons, or \code{"means"} for intervention-specific marginal means.}
+
+\item{...}{Additional arguments passed to \code{\link[forrest:forrest]{forrest::forrest()}} (e.g.
+\code{title}, \code{stripe}, \code{dodge}, \code{cols}, \code{widths}, \code{theme}).}
 }
 \value{
 Invisibly returns \code{x}.
 }
 \description{
-Produces a forest plot of intervention means and pairwise contrasts from a
-\code{causatr_result} object (via \code{tinyplot} if available, otherwise base
-graphics).
+Produces a forest plot of intervention means or pairwise contrasts from a
+\code{causatr_result} object using the \code{forrest} package.
+
+The plot adapts to the context:
+\itemize{
+\item \strong{Contrast type}: reference line at 0 (difference) or 1 (ratio/OR);
+log scale for ratio and OR.
+\item \strong{Outcome family}: axis label uses "risk" (binomial) or "mean" (other).
+\item \strong{Effect modification (\code{by})}: sections group subgroup-specific estimates.
+\item \strong{Fit type}: title notes point vs longitudinal analysis.
+}
 }
 \seealso{
-\code{\link[=contrast]{contrast()}}, \code{\link[=print.causatr_result]{print.causatr_result()}}
+\code{\link[=contrast]{contrast()}}, \code{\link[=print.causatr_result]{print.causatr_result()}}, \code{\link[forrest:forrest]{forrest::forrest()}}
 }

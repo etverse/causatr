@@ -24,9 +24,13 @@
 #'   - A `causatr_intervention` object created by [static()], [shift()],
 #'     [dynamic()], [scale()], [threshold()], or [ipsi()].
 #'   - `NULL`, meaning the natural course (observed treatment values are used
-#'     as-is). This is the reference for modified treatment policies. Note: for
-#'     binary treatments, the natural-course mean is the observed mean, not a
-#'     counterfactual — a warning is issued.
+#'     as-is). The natural course is the standard reference for modified
+#'     treatment policies on continuous treatments (e.g. `shift(-10)` vs
+#'     `NULL`; Díaz et al. 2023) and for longitudinal dynamic regimes
+#'     (Hernán & Robins Ch. 21). For binary treatments, the
+#'     natural-course marginal mean equals E\[Y\] under the observed
+#'     treatment mechanism (by consistency); use `static(1)` vs
+#'     `static(0)` for the conventional ATE. Supported for all methods.
 #'   - A named list of `causatr_intervention` objects, one per treatment
 #'     variable, for multivariate (joint) treatments. Each sub-list must name
 #'     every treatment variable specified in `causat()`.
@@ -242,6 +246,15 @@ contrast <- function(
     )
   }
 
+  if (!is.null(by)) {
+    check_string(by)
+    if (!by %in% names(fit$data)) {
+      rlang::abort(
+        paste0("`by` variable '", by, "' not found in fitted data.")
+      )
+    }
+  }
+
   parallel <- rlang::arg_match(parallel)
 
   compute_contrast(
@@ -360,6 +373,76 @@ compute_contrast <- function(
   # back to the one stored at fitting time.
   est <- if (!is.null(estimand)) estimand else fit$estimand
 
+  if (!is.null(by)) {
+    by_vals <- sort(unique(stats::na.omit(data[[by]])))
+    results_list <- lapply(by_vals, function(lev) {
+      by_subset <- if (is.character(lev)) {
+        str2lang(paste0(by, " == '", lev, "'"))
+      } else {
+        str2lang(paste0(by, " == ", lev))
+      }
+      combined_subset <- if (!is.null(subset)) {
+        bquote(.(subset) & .(by_subset))
+      } else if (!is.null(estimand) && estimand != "ATE") {
+        by_subset
+      } else {
+        by_subset
+      }
+      compute_contrast(
+        fit,
+        interventions,
+        type,
+        estimand = NULL,
+        subset = combined_subset,
+        reference,
+        ci_method,
+        n_boot,
+        conf_level,
+        by = NULL,
+        parallel,
+        ncpus,
+        call
+      )
+    })
+    names(results_list) <- as.character(by_vals)
+
+    est_list <- lapply(names(results_list), function(lev) {
+      dt <- data.table::copy(results_list[[lev]]$estimates)
+      dt[, by := lev]
+      dt
+    })
+    con_list <- lapply(names(results_list), function(lev) {
+      dt <- data.table::copy(results_list[[lev]]$contrasts)
+      dt[, by := lev]
+      dt
+    })
+
+    combined_est <- data.table::rbindlist(est_list)
+    combined_con <- data.table::rbindlist(con_list)
+
+    return(
+      new_causatr_result(
+        estimates = combined_est,
+        contrasts = combined_con,
+        type = type,
+        estimand = if (!is.null(subset)) "subset" else est,
+        ci_method = ci_method,
+        reference = if (!is.null(reference)) reference else int_names[1],
+        interventions = interventions,
+        n = sum(vapply(
+          results_list,
+          function(r) r$n,
+          integer(1)
+        )),
+        method = fit$method,
+        family = fit$family,
+        fit_type = fit$type,
+        vcov = results_list[[1]]$vcov,
+        call = call
+      )
+    )
+  }
+
   # Compute marginal means + variance.
   #
   # Both point-treatment and longitudinal (ICE) paths produce the same three
@@ -368,6 +451,17 @@ compute_contrast <- function(
   #
   # Everything downstream (SEs, estimates table, pairwise contrasts, result
   # assembly) is shared between point and longitudinal g-computation.
+
+  if (fit$type == "survival") {
+    rlang::abort(
+      paste0(
+        "Survival curve estimation via contrast() is not yet implemented. ",
+        "causat_survival() currently fits a pooled logistic model; survival ",
+        "curve contrasts are planned for a future release."
+      ),
+      .call = FALSE
+    )
+  }
 
   if (fit$type == "longitudinal") {
     # Longitudinal ICE g-computation: run backward iteration per intervention.
@@ -560,6 +654,8 @@ compute_contrast <- function(
     interventions = interventions,
     n = n_target,
     method = fit$method,
+    family = fit$family,
+    fit_type = fit$type,
     vcov = vcov_mat,
     call = call
   )

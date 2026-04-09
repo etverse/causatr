@@ -67,26 +67,27 @@ summary.causatr_fit <- function(object, ...) {
 #' @seealso [print.causatr_result()], [contrast()]
 #' @export
 summary.causatr_result <- function(object, ...) {
-  cat(
-    "causatr result\n",
-    "Method:    ",
-    object$method,
-    "\n",
-    "Contrast:  ",
-    object$type,
-    "\n",
-    "CI method: ",
-    object$ci_method,
-    "\n",
-    "N:         ",
-    object$n,
-    "\n\n",
-    sep = ""
-  )
-  cat("Intervention means:\n")
-  print(object$estimates)
-  cat("\nContrasts:\n")
-  print(object$contrasts)
+  print(object)
+  cat("\nIntervention details:\n")
+  for (nm in names(object$interventions)) {
+    iv <- object$interventions[[nm]]
+    if (is.null(iv)) {
+      cat("  ", nm, ": natural course (NULL)\n", sep = "")
+    } else if (inherits(iv, "causatr_intervention")) {
+      cat("  ", nm, ": ", iv$type, sep = "")
+      params <- iv[names(iv) != "type"]
+      for (p in names(params)) {
+        if (!is.function(params[[p]])) {
+          cat(", ", p, " = ", params[[p]], sep = "")
+        } else {
+          cat(", ", p, " = <function>", sep = "")
+        }
+      }
+      cat("\n")
+    }
+  }
+  cat("\nVariance-covariance matrix of marginal means:\n")
+  print(object$vcov, digits = 6)
   invisible(object)
 }
 
@@ -103,5 +104,9 @@ summary.causatr_result <- function(object, ...) {
 #' @export
 summary.causatr_diag <- function(object, ...) {
   print(object)
+  if (!is.null(object$fit)) {
+    cat("Underlying fit:\n")
+    print(object$fit)
+  }
   invisible(object)
 }

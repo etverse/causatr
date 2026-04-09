@@ -101,5 +101,5 @@ The `ipsi(delta)` constructor already exists. Implementation:
 - [ ] Categorical treatment support in checks + across all methods
 - [ ] IPSI implementation using treatment density model
 - [ ] Sandwich variance for self-contained IPW (treatment model uncertainty)
-- [ ] Vignette: `interventions.Rmd` — shift, scale, threshold, dynamic, IPSI examples
+- [ ] Vignette: `interventions.qmd` — shift, scale, threshold, dynamic, IPSI examples
 - [ ] IPW for time-varying treatments — delegate to `WeightIt::weightitMSM()` (deferred from Phase 5)

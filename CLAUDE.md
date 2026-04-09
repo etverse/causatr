@@ -9,11 +9,10 @@ Part of the [etverse](https://github.com/etverse) ecosystem.
 Architecture and per-phase implementation guides are stored in the project root:
 
 - `CAUSATR_SCAFFOLD.md` — master architecture reference (feature matrix, design decisions, R landscape)
-- `PHASE_1_FOUNDATION.md` — scaffolding, NHEFS, checks, interventions, S3 stubs (**done**)
 - `PHASE_2_POINT_GCOMP.md` — point-treatment g-comp + inference (Ch. 11, 13) (**done**)
-- `PHASE_3_IPW_MATCHING.md` — IPW + matching + diagnostics (Ch. 12, 15) (**partially done**)
+- `PHASE_3_IPW_MATCHING.md` — IPW + matching + diagnostics (Ch. 12, 15) (**done**)
 - `PHASE_4_INTERVENTIONS_SELF_IPW.md` — self-contained IPW for dynamic/MTP/IPSI (Ch. 12, 19)
-- `PHASE_5_LONGITUDINAL_ICE.md` — ICE g-computation for time-varying treatments (Ch. 19–21)
+- `PHASE_5_LONGITUDINAL_ICE.md` — ICE g-computation for time-varying treatments (Ch. 19–21) (**done**)
 - `PHASE_6_SURVIVAL.md` — causal survival analysis (Ch. 17) (**scaffolded**)
 - `PHASE_7_ADVANCED.md` — survey weights, clustering, parallel, multivariate
 
@@ -41,6 +40,7 @@ R/
 ├── # ── Core API ──────────────────────────────────────
 ├── causat.R                # main fitting function (dispatches by method + type)
 ├── causat_survival.R       # survival/competing-risks convenience wrapper
+├── causat_mice.R           # multiple imputation wrapper (stubbed)
 ├── contrast.R              # causal contrasts from a causatr_fit
 ├── diagnose.R              # balance, positivity, weight diagnostics
 │
@@ -66,9 +66,10 @@ R/
 ├── # ── S3 methods ───────────────────────────────────
 ├── print.R                 # print.*
 ├── summary.R               # summary.*
-├── plot.R                  # plot.* (tinyplot or cobalt)
-├── coef.R                  # coef.causatr_result
-├── confint.R               # confint.causatr_result
+├── plot.R                  # plot.* (forrest for results, cobalt for diag)
+├── coef.R                  # coef.causatr_result + vcov.causatr_result
+├── confint.R               # confint.causatr_result (respects level arg)
+├── tidy.R                  # tidy.causatr_result + glance.causatr_result
 │
 └── # ── Helpers ──────────────────────────────────────
     ├── utils.R             # S3 class constructors + misc internals
@@ -153,10 +154,10 @@ Run this in the shell:
 | 1 | Scaffolding, NHEFS data, checks, interventions, S3 stubs | **done** |
 | 2 | Point-treatment g-comp + inference (sandwich, bootstrap) | **done** |
 | 3 | IPW (WeightIt) + matching (MatchIt) + `diagnose()` | **done** |
-| 4 | Intervention types (dynamic, MTP, IPSI) for IPW + categorical treatment | pending |
+| 4 | Intervention types (dynamic, MTP, IPSI) for IPW + categorical treatment + multivariate IPW | pending |
 | 5 | Longitudinal ICE g-computation + sandwich for ICE | **done** |
 | 6 | Survival (`causat_survival()`) + competing risks | **scaffolded** (pooled logistic fit done; contrast for survival curves pending) |
-| 7 | Survey weights, clustered SE, parallel bootstrap | pending |
+| 7 | Survey weights, clustered SE, parallel bootstrap, multivariate matching | **partial** (boot parallel done; future backend, survey weights, clustering pending) |
 
 ## Architecture notes
 
@@ -170,4 +171,11 @@ Run this in the shell:
 - For binary outcomes, the first ICE model uses `binomial` (actual 0/1 response), but pseudo-outcome models use `quasibinomial` (fractional logistic for predicted probabilities in [0,1]).
 - Matching with `estimand = "ATE"` auto-selects `method = "full"` for MatchIt (nearest-neighbor only supports ATT/ATC). User can override via `...`.
 - Bootstrap wraps the entire replicate in `tryCatch` — failed replicates (e.g. factor level mismatches in bootstrap samples) return NA and are excluded from the variance estimate (standard bootstrap practice; Davison & Hinkley 1997). A warning is issued when any replicates fail.
-- For binary outcomes, the first ICE model uses `binomial` (actual 0/1 response), but pseudo-outcome models use `quasibinomial` (fractional logistic for predicted probabilities in [0,1]).
+- The `by` parameter in `contrast()` stratifies estimates by levels of a variable (effect modification). Internally, it loops over levels, constructing a subset expression for each and delegating to the standard contrast machinery. Results include a `by` column in the estimates and contrasts data.tables.
+- `causatr_result` stores `family` and `fit_type` from the fit, enabling context-aware printing, plotting (e.g. "risk difference" vs "mean difference"), and log-scale choice for ratio/OR contrasts.
+- `plot.causatr_result()` uses the `forrest` package (Suggests) for publication-ready forest plots. Adapts reference line, log scale, and axis labels to the contrast type and outcome family.
+- `tidy.causatr_result()` and `glance.causatr_result()` provide broom-compatible outputs via `generics` (Imports).
+- `confint.causatr_result()` recomputes CIs from the stored SE and vcov, correctly respecting the `level` argument.
+- Multivariate treatments (`treatment = c("A1", "A2")`) are supported for g-computation (point and longitudinal). IPW and matching block multivariate treatment with an informative error (planned for Phase 4 / Phase 7).
+- IPW weight diagnostics (`compute_weight_summary()`) use `weightit$treat.type` to determine group labels: "treated"/"control" for binary, per-level for multinomial, "overall" for continuous.
+- IPW supports binary, categorical (multinomial), and continuous treatments via WeightIt's generalized propensity score. Matching supports binary and categorical treatments via MatchIt; continuous treatment matching is not supported.

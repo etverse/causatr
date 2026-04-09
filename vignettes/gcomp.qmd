@@ -343,6 +343,44 @@ res_dyn <- contrast(
 res_dyn
 ```
 
+## Effect modification with `by`
+
+The `by` argument stratifies causal effect estimates by levels of a variable.
+Here we examine whether the effect of quitting smoking differs by sex.
+
+```{r}
+res_by_sex <- contrast(
+  fit_gc,
+  interventions = list(quit = static(1), continue = static(0)),
+  reference = "continue",
+  type = "difference",
+  ci_method = "sandwich",
+  by = "sex"
+)
+res_by_sex
+```
+
+## Tidy and glance
+
+causatr results work with the broom ecosystem via `tidy()` and `glance()`:
+
+```{r}
+tidy(res_ate_sw)
+glance(res_ate_sw)
+```
+
+## Forest plot
+
+The `plot()` method produces a forest plot using the `forrest` package:
+
+```{r}
+#| fig-width: 7
+#| fig-height: 3
+#| fig-alt: "Forest plot of the ATE from g-computation."
+#| eval: !expr requireNamespace("forrest", quietly = TRUE)
+plot(res_ate_sw)
+```
+
 ## GAM model via model_fn
 
 Pass `mgcv::gam` instead of `stats::glm` for flexible nonlinear confounder
@@ -378,6 +416,7 @@ res_gam
 | Binary | Continuous | Difference | Sandwich | ATT | Static |
 | Binary | Continuous | Difference | Sandwich | ATC | Static |
 | Binary | Continuous | Difference | Sandwich | Subset | Static |
+| Binary | Continuous | Difference | Sandwich | ATE (by sex) | Static |
 | Binary | Binary | Difference | Sandwich | ATE | Static |
 | Binary | Binary | Difference | Bootstrap | ATE | Static |
 | Binary | Binary | Ratio | Sandwich | ATE | Static |

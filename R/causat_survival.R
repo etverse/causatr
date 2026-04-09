@@ -83,6 +83,8 @@ causat_survival <- function(
 ) {
   if (!data.table::is.data.table(data)) {
     data <- data.table::as.data.table(data)
+  } else {
+    data <- data.table::copy(data)
   }
 
   # Validate required columns exist.
