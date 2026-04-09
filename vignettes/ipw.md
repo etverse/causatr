@@ -29,6 +29,8 @@ data("nhefs")
 nhefs_complete <- nhefs[!is.na(nhefs$wt82_71), ]
 
 nhefs_complete$gained_weight <- as.integer(nhefs_complete$wt82_71 > 0)
+
+nhefs_complete$sex <- factor(nhefs_complete$sex, levels = 0:1, labels = c("Male", "Female"))
 ```
 
 ## Binary treatment, continuous outcome
@@ -104,13 +106,13 @@ res_ate_bs
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
 #>          <char>    <num>  <num>    <num>    <num>
-#> 1:         quit    5.305 0.4214    4.479    6.131
-#> 2:     continue    1.942 0.2050    1.540    2.344
+#> 1:         quit    5.305 0.4513    4.421    6.190
+#> 2:     continue    1.942 0.2280    1.495    2.389
 #> 
 #> Contrasts:
 #>          comparison estimate    se ci_lower ci_upper
 #>              <char>    <num> <num>    <num>    <num>
-#> 1: quit vs continue    3.363 0.453    2.475    4.251
+#> 1: quit vs continue    3.363 0.529    2.326      4.4
 ```
 
 ### ATT estimand
@@ -224,13 +226,13 @@ res_att_bs
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
 #>          <char>    <num>  <num>    <num>    <num>
-#> 1:         quit    4.497 0.4194   3.6748    5.319
-#> 2:     continue    1.400 0.2903   0.8313    1.969
+#> 1:         quit    4.497 0.4292   3.6557    5.338
+#> 2:     continue    1.400 0.3018   0.8088    1.992
 #> 
 #> Contrasts:
-#>          comparison estimate    se ci_lower ci_upper
-#>              <char>    <num> <num>    <num>    <num>
-#> 1: quit vs continue    3.097 0.461    2.193        4
+#>          comparison estimate     se ci_lower ci_upper
+#>              <char>    <num>  <num>    <num>    <num>
+#> 1: quit vs continue    3.097 0.5032     2.11    4.083
 ```
 
 ### Extracting results programmatically
@@ -325,13 +327,13 @@ res_rd_bs
 #> Intervention means:
 #>    intervention estimate      se ci_lower ci_upper
 #>          <char>    <num>   <num>    <num>    <num>
-#> 1:         quit   0.7815 0.01930   0.7437   0.8193
-#> 2:     continue   0.6500 0.01375   0.6230   0.6769
+#> 1:         quit   0.7815 0.02088   0.7406   0.8224
+#> 2:     continue   0.6500 0.01450   0.6216   0.6784
 #> 
 #> Contrasts:
-#>          comparison estimate      se ci_lower ci_upper
-#>              <char>    <num>   <num>    <num>    <num>
-#> 1: quit vs continue   0.1315 0.02348  0.08551   0.1776
+#>          comparison estimate     se ci_lower ci_upper
+#>              <char>    <num>  <num>    <num>    <num>
+#> 1: quit vs continue   0.1315 0.0256  0.08136   0.1817
 ```
 
 ### Risk ratio
@@ -416,13 +418,13 @@ res_rr_bs
 #> Intervention means:
 #>    intervention estimate      se ci_lower ci_upper
 #>          <char>    <num>   <num>    <num>    <num>
-#> 1:         quit   0.7815 0.02058   0.7412   0.8218
-#> 2:     continue   0.6500 0.01430   0.6220   0.6780
+#> 1:         quit   0.7815 0.02295   0.7365   0.8265
+#> 2:     continue   0.6500 0.01335   0.6238   0.6761
 #> 
 #> Contrasts:
 #>          comparison estimate      se ci_lower ci_upper
 #>              <char>    <num>   <num>    <num>    <num>
-#> 1: quit vs continue    1.202 0.03914    1.126    1.279
+#> 1: quit vs continue    1.202 0.03853    1.127    1.278
 ```
 
 ## Comparing estimands
@@ -464,6 +466,72 @@ abline(h = 0, lty = 2, col = "grey40")
 src="vignettes/ipw.markdown_strict_files/figure-markdown_strict/unnamed-chunk-14-1.png"
 data-fig-alt="Point estimates and confidence intervals for ATE, ATT, and ATC estimated by IPW." />
 
+## Effect modification with `by`
+
+The `by` argument stratifies causal effect estimates by levels of a
+variable. Here we examine whether the IPW-estimated effect of quitting
+smoking differs by sex.
+
+``` r
+res_by_sex <- contrast(
+  fit_ipw,
+  interventions = list(quit = static(1), continue = static(0)),
+  reference = "continue",
+  type = "difference",
+  ci_method = "sandwich",
+  by = "sex"
+)
+res_by_sex
+#> <causatr_result>
+#>  Method:    IPW
+#>  Estimand:  ATE
+#>  Contrast:  Difference
+#>  CI method: sandwich
+#>  N:         1679
+#> 
+#> Intervention means (by subgroup):
+#>    intervention estimate     se ci_lower ci_upper     by
+#>          <char>    <num>  <num>    <num>    <num> <char>
+#> 1:         quit    5.305 0.4230    4.476    6.134   Male
+#> 2:     continue    1.942 0.2067    1.537    2.347   Male
+#> 3:         quit    5.305 0.4230    4.476    6.134 Female
+#> 4:     continue    1.942 0.2067    1.537    2.347 Female
+#> 
+#> Contrasts (by subgroup):
+#>          comparison estimate     se ci_lower ci_upper     by
+#>              <char>    <num>  <num>    <num>    <num> <char>
+#> 1: quit vs continue    3.363 0.4637    2.454    4.272   Male
+#> 2: quit vs continue    3.363 0.4637    2.454    4.272 Female
+```
+
+## Tidy and glance
+
+causatr results work with the broom ecosystem via `tidy()` and
+`glance()`:
+
+``` r
+tidy(res_ate_sw)
+#>               term estimate std.error     type conf.low conf.high
+#> 1 quit vs continue 3.363099 0.4636908 contrast 2.454282  4.271917
+glance(res_ate_sw)
+#>   method estimand contrast_type ci_method    n n_interventions
+#> 1    ipw      ATE    difference  sandwich 1679               2
+```
+
+## Forest plot
+
+The `plot()` method produces a forest plot using the `forrest` package.
+Forest plots are most useful when displaying multiple estimates, such as
+effect modification results:
+
+``` r
+plot(res_by_sex)
+```
+
+<img
+src="vignettes/ipw.markdown_strict_files/figure-markdown_strict/unnamed-chunk-17-1.png"
+data-fig-alt="Forest plot of the IPW-estimated effect of quitting smoking on weight change, stratified by sex." />
+
 ## Diagnostics
 
 After fitting an IPW model, use `diagnose()` to assess positivity and
@@ -496,7 +564,7 @@ diag
 #> Balance Measures
 #>                    Type Diff.Un V.Ratio.Un Diff.Adj    M.Threshold V.Ratio.Adj
 #> prop.score     Distance  0.6076     1.4587   0.0139 Balanced, <0.1      0.9828
-#> sex              Binary -0.1506          .  -0.0262 Balanced, <0.1           .
+#> sex_Female       Binary -0.1506          .  -0.0262 Balanced, <0.1           .
 #> age             Contin.  0.2744     1.0892  -0.0015 Balanced, <0.1      1.0056
 #> race             Binary -0.1549          .   0.0003 Balanced, <0.1           .
 #> education       Contin.  0.0491     1.2310   0.0228 Balanced, <0.1      0.9644
@@ -513,8 +581,8 @@ diag
 #> Not Balanced, >0.1     0
 #> 
 #> Variable with the greatest mean difference
-#>  Variable Diff.Adj    M.Threshold
-#>       sex  -0.0262 Balanced, <0.1
+#>    Variable Diff.Adj    M.Threshold
+#>  sex_Female  -0.0262 Balanced, <0.1
 #> 
 #> Effective sample sizes
 #>            Control Treated
@@ -541,7 +609,7 @@ plot(diag)
 ```
 
 <img
-src="vignettes/ipw.markdown_strict_files/figure-markdown_strict/unnamed-chunk-16-1.png"
+src="vignettes/ipw.markdown_strict_files/figure-markdown_strict/unnamed-chunk-19-1.png"
 data-fig-alt="Love plot showing covariate balance before and after IPW weighting." />
 
 ### Weight distribution

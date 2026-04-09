@@ -79,10 +79,11 @@ estimate:
 
 ``` r
 wide_sub <- wide[!is.na(wide$Y), ]
-naive_coefs <- coef(lm(Y ~ A0 + A1 + L1, data = wide_sub))
+naive_fit <- lm(Y ~ A0 + A1 + L1, data = wide_sub)
+naive_coefs <- coef(naive_fit)
 naive_coefs[c("A0", "A1")]
 #>            A0            A1 
-#> -8.000000e+00 -6.724003e-15
+#> -8.000000e+00 -6.355287e-15
 ```
 
 The true individual effects of A_0 and A_1 are both zero, but the naive
@@ -153,7 +154,7 @@ result
 #> Contrasts:
 #>         comparison   estimate     se ci_lower ci_upper
 #>             <char>      <num>  <num>    <num>    <num>
-#> 1: always vs never -1.634e-13 0.5292   -1.037    1.037
+#> 1: always vs never -3.553e-13 0.5292   -1.037    1.037
 ```
 
 ICE correctly recovers **E\[Y^{always}\] = E\[Y^{never}\] = 60** and
@@ -162,15 +163,19 @@ ICE correctly recovers **E\[Y^{always}\] = E\[Y^{never}\] = 60** and
 ### Visualising the result
 
 ``` r
+naive_ci <- confint(naive_fit)
 est_df <- data.frame(
   method = c("Naive (A0)", "Naive (A1)", "ICE"),
   estimate = c(naive_coefs["A0"], naive_coefs["A1"], result$contrasts$estimate[1]),
-  stringsAsFactors = FALSE
+  ci_lower = c(naive_ci["A0", 1], naive_ci["A1", 1], result$contrasts$ci_lower[1]),
+  ci_upper = c(naive_ci["A0", 2], naive_ci["A1", 2], result$contrasts$ci_upper[1])
 )
 tinyplot(
   estimate ~ method,
   data = est_df,
-  type = "bar",
+  type = "pointrange",
+  ymin = est_df$ci_lower,
+  ymax = est_df$ci_upper,
   ylab = "Estimated treatment effect",
   xlab = "",
   main = "ICE recovers the null effect"
@@ -180,7 +185,7 @@ abline(h = 0, lty = 2, col = "grey40")
 
 <img
 src="vignettes/longitudinal.markdown_strict_files/figure-markdown_strict/unnamed-chunk-7-1.png"
-data-fig-alt="Bar plot comparing naive regression estimates to ICE g-computation estimates for the effect of treatment at times 0 and 1. ICE correctly recovers ATE = 0 while naive regression gives biased estimates." />
+data-fig-alt="Point estimates and confidence intervals comparing naive regression to ICE g-computation. Naive estimates are biased away from zero while ICE correctly recovers ATE = 0." />
 
 ## Sandwich SE: stacked estimating equations
 
@@ -227,13 +232,13 @@ result_boot
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
 #>          <char>    <num>  <num>    <num>    <num>
-#> 1:       always       60 0.5078    59.00    61.00
-#> 2:        never       60 0.3345    59.34    60.66
+#> 1:       always       60 0.4319    59.15    60.85
+#> 2:        never       60 0.3171    59.38    60.62
 #> 
 #> Contrasts:
 #>         comparison   estimate     se ci_lower ci_upper
 #>             <char>      <num>  <num>    <num>    <num>
-#> 1: always vs never -1.634e-13 0.5593   -1.096    1.096
+#> 1: always vs never -3.553e-13 0.5599   -1.097    1.097
 ```
 
 The `parallel` and `ncpus` arguments enable parallel bootstrap
@@ -312,8 +317,8 @@ result_dyn
 #> Contrasts:
 #>           comparison   estimate        se   ci_lower  ci_upper
 #>               <char>      <num>     <num>      <num>     <num>
-#> 1: adaptive vs never  0.000e+00 5.268e-09 -1.033e-08 1.033e-08
-#> 2:   always vs never -1.634e-13 5.292e-01 -1.037e+00 1.037e+00
+#> 1: adaptive vs never -5.684e-14 7.451e-09 -1.460e-08 1.460e-08
+#> 2:   always vs never -3.553e-13 5.292e-01 -1.037e+00 1.037e+00
 ```
 
 ### Comparing multiple interventions
@@ -387,7 +392,7 @@ result_inf
 #> Contrasts:
 #>         comparison   estimate     se ci_lower ci_upper
 #>             <char>      <num>  <num>    <num>    <num>
-#> 1: always vs never -1.634e-13 0.5292   -1.037    1.037
+#> 1: always vs never -3.553e-13 0.5292   -1.037    1.037
 ```
 
 ## Simulation: ICE with a non-null effect

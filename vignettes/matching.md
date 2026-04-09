@@ -28,6 +28,8 @@ data("nhefs")
 nhefs_complete <- nhefs[complete.cases(nhefs), ]
 
 nhefs_complete$gained_weight <- as.integer(nhefs_complete$wt82_71 > 0)
+
+nhefs_complete$sex <- factor(nhefs_complete$sex, levels = 0:1, labels = c("Male", "Female"))
 ```
 
 ## Binary treatment, continuous outcome
@@ -105,13 +107,13 @@ res_att_bs
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
 #>          <char>    <num>  <num>    <num>    <num>
-#> 1:         quit    4.525 0.4285   3.6853    5.365
-#> 2:     continue    1.184 0.3803   0.4386    1.929
+#> 1:         quit    4.525 0.4948   3.5554    5.495
+#> 2:     continue    1.184 0.4168   0.3672    2.001
 #> 
 #> Contrasts:
 #>          comparison estimate     se ci_lower ci_upper
 #>              <char>    <num>  <num>    <num>    <num>
-#> 1: quit vs continue    3.341 0.5473    2.268    4.414
+#> 1: quit vs continue    3.341 0.5908    2.183    4.499
 ```
 
 ### ATE estimand
@@ -180,13 +182,13 @@ res_ate_bs
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
 #>          <char>    <num>  <num>    <num>    <num>
-#> 1:         quit    5.442 0.6079    4.250    6.633
-#> 2:     continue    1.831 0.2188    1.402    2.259
+#> 1:         quit    5.442 0.5113    4.439    6.444
+#> 2:     continue    1.831 0.2201    1.399    2.262
 #> 
 #> Contrasts:
 #>          comparison estimate     se ci_lower ci_upper
 #>              <char>    <num>  <num>    <num>    <num>
-#> 1: quit vs continue    3.611 0.6299    2.376    4.846
+#> 1: quit vs continue    3.611 0.5666    2.501    4.721
 ```
 
 ### ATC estimand
@@ -325,13 +327,13 @@ res_rd_bs
 #> Intervention means:
 #>    intervention estimate      se ci_lower ci_upper
 #>          <char>    <num>   <num>    <num>    <num>
-#> 1:         quit   0.7419 0.02208   0.6987   0.7852
-#> 2:     continue   0.5931 0.02687   0.5404   0.6457
+#> 1:         quit   0.7419 0.02044   0.7019   0.7820
+#> 2:     continue   0.5931 0.02664   0.5408   0.6453
 #> 
 #> Contrasts:
 #>          comparison estimate      se ci_lower ci_upper
 #>              <char>    <num>   <num>    <num>    <num>
-#> 1: quit vs continue   0.1489 0.03333  0.08356   0.2142
+#> 1: quit vs continue   0.1489 0.03402  0.08221   0.2156
 ```
 
 ### Risk ratio
@@ -416,13 +418,13 @@ res_rr_bs
 #> Intervention means:
 #>    intervention estimate      se ci_lower ci_upper
 #>          <char>    <num>   <num>    <num>    <num>
-#> 1:         quit   0.7419 0.02030   0.7022   0.7817
-#> 2:     continue   0.5931 0.02845   0.5373   0.6488
+#> 1:         quit   0.7419 0.02191   0.6990   0.7849
+#> 2:     continue   0.5931 0.02743   0.5393   0.6468
 #> 
 #> Contrasts:
-#>          comparison estimate      se ci_lower ci_upper
-#>              <char>    <num>   <num>    <num>    <num>
-#> 1: quit vs continue    1.251 0.06748    1.119    1.383
+#>          comparison estimate     se ci_lower ci_upper
+#>              <char>    <num>  <num>    <num>    <num>
+#> 1: quit vs continue    1.251 0.0666    1.121    1.382
 ```
 
 ## Comparing estimands
@@ -469,6 +471,72 @@ abline(h = 0, lty = 2, col = "grey40")
 src="vignettes/matching.markdown_strict_files/figure-markdown_strict/unnamed-chunk-14-1.png"
 data-fig-alt="Point estimates and confidence intervals for ATT and ATC (and ATE if optmatch is available) estimated by matching." />
 
+## Effect modification with `by`
+
+The `by` argument stratifies causal effect estimates by levels of a
+variable. Here we examine whether the matching-estimated effect of
+quitting smoking differs by sex.
+
+``` r
+res_by_sex <- contrast(
+  fit_m,
+  interventions = list(quit = static(1), continue = static(0)),
+  reference = "continue",
+  type = "difference",
+  ci_method = "sandwich",
+  by = "sex"
+)
+res_by_sex
+#> <causatr_result>
+#>  Method:    Matching
+#>  Estimand:  ATT
+#>  Contrast:  Difference
+#>  CI method: sandwich
+#>  N:         1566
+#> 
+#> Intervention means (by subgroup):
+#>    intervention estimate     se ci_lower ci_upper     by
+#>          <char>    <num>  <num>    <num>    <num> <char>
+#> 1:         quit    4.525 0.4358   3.6710    5.379   Male
+#> 2:     continue    1.184 0.3837   0.4319    1.936   Male
+#> 3:         quit    4.525 0.4358   3.6710    5.379 Female
+#> 4:     continue    1.184 0.3837   0.4319    1.936 Female
+#> 
+#> Contrasts (by subgroup):
+#>          comparison estimate     se ci_lower ci_upper     by
+#>              <char>    <num>  <num>    <num>    <num> <char>
+#> 1: quit vs continue    3.341 0.5593    2.245    4.437   Male
+#> 2: quit vs continue    3.341 0.5593    2.245    4.437 Female
+```
+
+## Tidy and glance
+
+causatr results work with the broom ecosystem via `tidy()` and
+`glance()`:
+
+``` r
+tidy(res_att_sw)
+#>               term estimate std.error     type conf.low conf.high
+#> 1 quit vs continue  3.34101  0.559323 contrast 2.244757  4.437263
+glance(res_att_sw)
+#>     method estimand contrast_type ci_method   n n_interventions
+#> 1 matching      ATT    difference  sandwich 403               2
+```
+
+## Forest plot
+
+The `plot()` method produces a forest plot using the `forrest` package.
+Forest plots are most useful when displaying multiple estimates, such as
+effect modification results:
+
+``` r
+plot(res_by_sex)
+```
+
+<img
+src="vignettes/matching.markdown_strict_files/figure-markdown_strict/unnamed-chunk-17-1.png"
+data-fig-alt="Forest plot of the matching-estimated effect of quitting smoking on weight change, stratified by sex." />
+
 ## Diagnostics
 
 After fitting a matching model, use `diagnose()` to assess covariate
@@ -499,7 +567,7 @@ diag
 #> Balance Measures
 #>                          Type Diff.Un V.Ratio.Un Diff.Adj    M.Threshold
 #> distance             Distance  0.5697     1.4784   0.0468 Balanced, <0.1
-#> sex                    Binary -0.1604          .   0.0299 Balanced, <0.1
+#> sex_Female             Binary -0.1604          .   0.0299 Balanced, <0.1
 #> age                   Contin.  0.2771     1.0731  -0.0116 Balanced, <0.1
 #> I(age^2)              Contin.  0.2715     1.1632  -0.0123 Balanced, <0.1
 #> race                   Binary -0.1993          .   0.0261 Balanced, <0.1
@@ -534,7 +602,7 @@ diag
 #> I(wt71^2)             Contin.  0.1247     1.0876  -0.0139 Balanced, <0.1
 #>                      V.Ratio.Adj
 #> distance                  1.2040
-#> sex                            .
+#> sex_Female                     .
 #> age                       0.9930
 #> I(age^2)                  1.0026
 #> race                           .
@@ -599,7 +667,7 @@ plot(diag)
 ```
 
 <img
-src="vignettes/matching.markdown_strict_files/figure-markdown_strict/unnamed-chunk-16-1.png"
+src="vignettes/matching.markdown_strict_files/figure-markdown_strict/unnamed-chunk-19-1.png"
 data-fig-alt="Love plot showing covariate balance before and after propensity score matching." />
 
 ### Match quality

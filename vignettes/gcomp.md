@@ -20,6 +20,9 @@ data("nhefs")
 nhefs_complete <- nhefs[!is.na(nhefs$wt82_71), ]
 
 nhefs_complete$gained_weight <- as.integer(nhefs_complete$wt82_71 > 0)
+
+nhefs$sex <- factor(nhefs$sex, levels = 0:1, labels = c("Male", "Female"))
+nhefs_complete$sex <- factor(nhefs_complete$sex, levels = 0:1, labels = c("Male", "Female"))
 ```
 
 We create a binary outcome `gained_weight` (1 if weight increased, 0
@@ -95,13 +98,13 @@ res_ate_bs
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
 #>          <char>    <num>  <num>    <num>    <num>
-#> 1:         quit    5.176 0.4475    4.299    6.053
-#> 2:     continue    1.660 0.2239    1.221    2.099
+#> 1:         quit    5.176 0.4446    4.304    6.047
+#> 2:     continue    1.660 0.2171    1.235    2.086
 #> 
 #> Contrasts:
 #>          comparison estimate     se ci_lower ci_upper
 #>              <char>    <num>  <num>    <num>    <num>
-#> 1: quit vs continue    3.516 0.4912    2.553    4.478
+#> 1: quit vs continue    3.516 0.4977     2.54    4.491
 ```
 
 Sandwich and bootstrap SEs should be in close agreement for correctly
@@ -218,6 +221,48 @@ confint(res_ate_sw)
 #> continue 1.255834 2.064701
 ```
 
+## Comparing estimands
+
+``` r
+est_df <- data.frame(
+  estimand = c("ATE", "ATT", "ATC", "Subset (age >= 50)"),
+  estimate = c(
+    res_ate_sw$contrasts$estimate[1],
+    res_att$contrasts$estimate[1],
+    res_atc$contrasts$estimate[1],
+    res_sub$contrasts$estimate[1]
+  ),
+  ci_lower = c(
+    res_ate_sw$contrasts$ci_lower[1],
+    res_att$contrasts$ci_lower[1],
+    res_atc$contrasts$ci_lower[1],
+    res_sub$contrasts$ci_lower[1]
+  ),
+  ci_upper = c(
+    res_ate_sw$contrasts$ci_upper[1],
+    res_att$contrasts$ci_upper[1],
+    res_atc$contrasts$ci_upper[1],
+    res_sub$contrasts$ci_upper[1]
+  )
+)
+
+tinyplot(
+  estimate ~ estimand,
+  data = est_df,
+  type = "pointrange",
+  ymin = est_df$ci_lower,
+  ymax = est_df$ci_upper,
+  xlab = "Estimand",
+  ylab = "Effect on weight change (kg)",
+  main = "G-computation estimates by estimand"
+)
+abline(h = 0, lty = 2, col = "grey40")
+```
+
+<img
+src="vignettes/gcomp.markdown_strict_files/figure-markdown_strict/unnamed-chunk-9-1.png"
+data-fig-alt="Point estimates and confidence intervals for ATE, ATT, ATC, and subset estimands from g-computation." />
+
 ## Binary treatment, binary outcome
 
 Using the `gained_weight` indicator as a binary outcome, we estimate the
@@ -287,13 +332,13 @@ res_rd_bs
 #> Intervention means:
 #>    intervention estimate      se ci_lower ci_upper
 #>          <char>    <num>   <num>    <num>    <num>
-#> 1:         quit   0.7696 0.02245   0.7256   0.8136
-#> 2:     continue   0.6383 0.01397   0.6109   0.6657
+#> 1:         quit   0.7696 0.01937   0.7316   0.8076
+#> 2:     continue   0.6383 0.01389   0.6111   0.6655
 #> 
 #> Contrasts:
-#>          comparison estimate     se ci_lower ci_upper
-#>              <char>    <num>  <num>    <num>    <num>
-#> 1: quit vs continue   0.1313 0.0245  0.08329   0.1793
+#>          comparison estimate      se ci_lower ci_upper
+#>              <char>    <num>   <num>    <num>    <num>
+#> 1: quit vs continue   0.1313 0.02325  0.08575   0.1769
 ```
 
 ### Risk ratio
@@ -358,9 +403,11 @@ res_or
 
 ## Continuous treatment
 
-G-computation also supports continuous treatments with modified
-treatment policy interventions. Here we use `smokeintensity` (cigarettes
-per day) as the treatment and `wt82_71` as the outcome.
+G-computation supports continuous treatments with all intervention
+types: `static()` (set to a fixed value), `shift()`, `scale()`,
+`threshold()`, `dynamic()`, and `NULL` (natural course). Here we use
+`smokeintensity` (cigarettes per day) as the treatment and `wt82_71` as
+the outcome.
 
 ``` r
 fit_cont <- causat(
@@ -372,6 +419,40 @@ fit_cont <- causat(
     wt71 + I(wt71^2),
   censoring = "censored"
 )
+```
+
+### Static intervention
+
+Set smoking intensity to fixed values and compare. This answers the
+question: what would happen if everyone smoked 5 vs 40 cigarettes per
+day?
+
+``` r
+res_static <- contrast(
+  fit_cont,
+  interventions = list(light = static(5), heavy = static(40)),
+  reference = "light",
+  type = "difference",
+  ci_method = "sandwich"
+)
+res_static
+#> <causatr_result>
+#>  Method:    G-computation
+#>  Estimand:  ATE
+#>  Contrast:  Difference
+#>  CI method: sandwich
+#>  N:         1629
+#> 
+#> Intervention means:
+#>    intervention estimate     se ci_lower ci_upper
+#>          <char>    <num>  <num>    <num>    <num>
+#> 1:        light    2.620 0.3227    1.987    3.252
+#> 2:        heavy    2.458 0.4144    1.646    3.270
+#> 
+#> Contrasts:
+#>        comparison estimate     se ci_lower ci_upper
+#>            <char>    <num>  <num>    <num>    <num>
+#> 1: heavy vs light  -0.1616 0.6325   -1.401    1.078
 ```
 
 ### Shift intervention
@@ -476,6 +557,7 @@ res_thresh
 res_multi <- contrast(
   fit_cont,
   interventions = list(
+    light    = static(5),
     reduce10 = shift(-10),
     halved   = scale(0.5),
     cap20    = threshold(0, 20),
@@ -496,17 +578,19 @@ res_multi
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
 #>          <char>    <num>  <num>    <num>    <num>
-#> 1:     reduce10    2.594 0.2479    2.108    3.080
-#> 2:       halved    2.595 0.2512    2.103    3.088
-#> 3:        cap20    2.568 0.1974    2.181    2.955
-#> 4:     observed    2.548 0.1881    2.179    2.917
+#> 1:        light    2.620 0.3227    1.987    3.252
+#> 2:     reduce10    2.594 0.2479    2.108    3.080
+#> 3:       halved    2.595 0.2512    2.103    3.088
+#> 4:        cap20    2.568 0.1974    2.181    2.955
+#> 5:     observed    2.548 0.1881    2.179    2.917
 #> 
 #> Contrasts:
 #>              comparison estimate     se ci_lower ci_upper
 #>                  <char>    <num>  <num>    <num>    <num>
-#> 1: reduce10 vs observed  0.04617 0.1807  -0.3080   0.4003
-#> 2:   halved vs observed  0.04744 0.1857  -0.3165   0.4114
-#> 3:    cap20 vs observed  0.02064 0.0808  -0.1377   0.1790
+#> 1:    light vs observed  0.07180 0.2810  -0.4790   0.6226
+#> 2: reduce10 vs observed  0.04617 0.1807  -0.3080   0.4003
+#> 3:   halved vs observed  0.04744 0.1857  -0.3165   0.4114
+#> 4:    cap20 vs observed  0.02064 0.0808  -0.1377   0.1790
 ```
 
 ### Visualising intervention effects
@@ -521,14 +605,51 @@ tinyplot(
   ymax = est$ci_upper,
   xlab = "Comparison",
   ylab = "Difference in weight change (kg)",
-  main = "Continuous treatment: modified treatment policies"
+  main = "Continuous treatment interventions"
 )
 abline(h = 0, lty = 2, col = "grey40")
 ```
 
 <img
-src="vignettes/gcomp.markdown_strict_files/figure-markdown_strict/unnamed-chunk-18-1.png"
-data-fig-alt="Forest plot of mean weight change under different smoking intensity interventions." />
+src="vignettes/gcomp.markdown_strict_files/figure-markdown_strict/unnamed-chunk-20-1.png"
+data-fig-alt="Point estimates and confidence intervals for mean weight change under different smoking intensity interventions." />
+
+### Dynamic intervention on continuous treatment
+
+A dynamic rule that depends on individual characteristics. Here, heavy
+smokers (\> 20 cigarettes/day) are reduced to 20, while others keep
+their observed level.
+
+``` r
+res_dyn_cont <- contrast(
+  fit_cont,
+  interventions = list(
+    capped = dynamic(\(data, trt) pmin(trt, 20)),
+    observed = NULL
+  ),
+  reference = "observed",
+  type = "difference",
+  ci_method = "sandwich"
+)
+res_dyn_cont
+#> <causatr_result>
+#>  Method:    G-computation
+#>  Estimand:  ATE
+#>  Contrast:  Difference
+#>  CI method: sandwich
+#>  N:         1629
+#> 
+#> Intervention means:
+#>    intervention estimate     se ci_lower ci_upper
+#>          <char>    <num>  <num>    <num>    <num>
+#> 1:       capped    2.568 0.1974    2.181    2.955
+#> 2:     observed    2.548 0.1881    2.179    2.917
+#> 
+#> Contrasts:
+#>            comparison estimate     se ci_lower ci_upper
+#>                <char>    <num>  <num>    <num>    <num>
+#> 1: capped vs observed  0.02064 0.0808  -0.1377    0.179
+```
 
 ### Continuous treatment with bootstrap
 
@@ -552,13 +673,13 @@ res_shift_bs
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
 #>          <char>    <num>  <num>    <num>    <num>
-#> 1:     reduce10    2.594 0.2829     2.04    3.148
-#> 2:     observed    2.548 0.1980     2.16    2.936
+#> 1:     reduce10    2.594 0.2596    2.085    3.103
+#> 2:     observed    2.548 0.1962    2.163    2.932
 #> 
 #> Contrasts:
 #>              comparison estimate     se ci_lower ci_upper
 #>                  <char>    <num>  <num>    <num>    <num>
-#> 1: reduce10 vs observed  0.04617 0.1938  -0.3336    0.426
+#> 1: reduce10 vs observed  0.04617 0.1917  -0.3296   0.4219
 ```
 
 ## Dynamic intervention
@@ -624,16 +745,16 @@ res_by_sex
 #> Intervention means (by subgroup):
 #>    intervention estimate     se ci_lower ci_upper     by
 #>          <char>    <num>  <num>    <num>    <num> <char>
-#> 1:         quit    5.297 0.4864    4.344    6.251      0
-#> 2:     continue    1.659 0.2677    1.135    2.184      0
-#> 3:         quit    5.059 0.4623    4.153    5.965      1
-#> 4:     continue    1.661 0.2840    1.105    2.218      1
+#> 1:         quit    5.297 0.4864    4.344    6.251   Male
+#> 2:     continue    1.659 0.2677    1.135    2.184   Male
+#> 3:         quit    5.059 0.4623    4.153    5.965 Female
+#> 4:     continue    1.661 0.2840    1.105    2.218 Female
 #> 
 #> Contrasts (by subgroup):
 #>          comparison estimate     se ci_lower ci_upper     by
 #>              <char>    <num>  <num>    <num>    <num> <char>
-#> 1: quit vs continue    3.638 0.5207    2.618    4.659      0
-#> 2: quit vs continue    3.398 0.4605    2.495    4.300      1
+#> 1: quit vs continue    3.638 0.5207    2.618    4.659   Male
+#> 2: quit vs continue    3.398 0.4605    2.495    4.300 Female
 ```
 
 ## Tidy and glance
@@ -652,15 +773,17 @@ glance(res_ate_sw)
 
 ## Forest plot
 
-The `plot()` method produces a forest plot using the `forrest` package:
+The `plot()` method produces a forest plot using the `forrest` package.
+Forest plots are most useful when displaying multiple estimates, such as
+effect modification results:
 
 ``` r
-plot(res_ate_sw)
+plot(res_by_sex)
 ```
 
 <img
-src="vignettes/gcomp.markdown_strict_files/figure-markdown_strict/unnamed-chunk-23-1.png"
-data-fig-alt="Forest plot of the ATE from g-computation." />
+src="vignettes/gcomp.markdown_strict_files/figure-markdown_strict/unnamed-chunk-26-1.png"
+data-fig-alt="Forest plot of the effect of quitting smoking on weight change, stratified by sex." />
 
 ## GAM model via model_fn
 
@@ -805,6 +928,14 @@ res_gam
 <td>Difference</td>
 <td>Sandwich</td>
 <td>ATE</td>
+<td>Static</td>
+</tr>
+<tr>
+<td>Continuous</td>
+<td>Continuous</td>
+<td>Difference</td>
+<td>Sandwich</td>
+<td>ATE</td>
 <td>Shift</td>
 </tr>
 <tr>
@@ -822,6 +953,14 @@ res_gam
 <td>Sandwich</td>
 <td>ATE</td>
 <td>Threshold</td>
+</tr>
+<tr>
+<td>Continuous</td>
+<td>Continuous</td>
+<td>Difference</td>
+<td>Sandwich</td>
+<td>ATE</td>
+<td>Dynamic</td>
 </tr>
 <tr>
 <td>Continuous</td>

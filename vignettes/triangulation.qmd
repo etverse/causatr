@@ -25,6 +25,7 @@ data("nhefs")
 
 nhefs_complete <- nhefs[complete.cases(nhefs), ]
 nhefs_complete$gained_weight <- as.integer(nhefs_complete$wt82_71 > 0)
+nhefs_complete$sex <- factor(nhefs_complete$sex, levels = 0:1, labels = c("Male", "Female"))
 
 confounders <- ~ sex + age + I(age^2) + race + factor(education) +
   smokeintensity + I(smokeintensity^2) + smokeyrs + I(smokeyrs^2) +

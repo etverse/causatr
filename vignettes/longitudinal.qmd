@@ -81,7 +81,8 @@ A naive regression of Y on treatment adjusting for L_1 gives a biased estimate:
 
 ```{r}
 wide_sub <- wide[!is.na(wide$Y), ]
-naive_coefs <- coef(lm(Y ~ A0 + A1 + L1, data = wide_sub))
+naive_fit <- lm(Y ~ A0 + A1 + L1, data = wide_sub)
+naive_coefs <- coef(naive_fit)
 naive_coefs[c("A0", "A1")]
 ```
 
@@ -134,16 +135,20 @@ as expected from the data generating process.
 ```{r}
 #| fig-width: 5
 #| fig-height: 3.5
-#| fig-alt: "Bar plot comparing naive regression estimates to ICE g-computation estimates for the effect of treatment at times 0 and 1. ICE correctly recovers ATE = 0 while naive regression gives biased estimates."
+#| fig-alt: "Point estimates and confidence intervals comparing naive regression to ICE g-computation. Naive estimates are biased away from zero while ICE correctly recovers ATE = 0."
+naive_ci <- confint(naive_fit)
 est_df <- data.frame(
   method = c("Naive (A0)", "Naive (A1)", "ICE"),
   estimate = c(naive_coefs["A0"], naive_coefs["A1"], result$contrasts$estimate[1]),
-  stringsAsFactors = FALSE
+  ci_lower = c(naive_ci["A0", 1], naive_ci["A1", 1], result$contrasts$ci_lower[1]),
+  ci_upper = c(naive_ci["A0", 2], naive_ci["A1", 2], result$contrasts$ci_upper[1])
 )
 tinyplot(
   estimate ~ method,
   data = est_df,
-  type = "bar",
+  type = "pointrange",
+  ymin = est_df$ci_lower,
+  ymax = est_df$ci_upper,
   ylab = "Estimated treatment effect",
   xlab = "",
   main = "ICE recovers the null effect"
