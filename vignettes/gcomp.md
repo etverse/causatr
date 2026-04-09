@@ -95,13 +95,13 @@ res_ate_bs
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
 #>          <char>    <num>  <num>    <num>    <num>
-#> 1:         quit    5.176 0.4563    4.282    6.070
-#> 2:     continue    1.660 0.2200    1.229    2.092
+#> 1:         quit    5.176 0.4302    4.333    6.019
+#> 2:     continue    1.660 0.2135    1.242    2.079
 #> 
 #> Contrasts:
 #>          comparison estimate     se ci_lower ci_upper
 #>              <char>    <num>  <num>    <num>    <num>
-#> 1: quit vs continue    3.516 0.5175    2.501     4.53
+#> 1: quit vs continue    3.516 0.4759    2.583    4.448
 ```
 
 Sandwich and bootstrap SEs should be in close agreement for correctly
@@ -287,13 +287,13 @@ res_rd_bs
 #> Intervention means:
 #>    intervention estimate      se ci_lower ci_upper
 #>          <char>    <num>   <num>    <num>    <num>
-#> 1:         quit   0.7696 0.02065   0.7291   0.8101
-#> 2:     continue   0.6383 0.01494   0.6090   0.6676
+#> 1:         quit   0.7696 0.02030   0.7298   0.8094
+#> 2:     continue   0.6383 0.01439   0.6101   0.6665
 #> 
 #> Contrasts:
 #>          comparison estimate      se ci_lower ci_upper
 #>              <char>    <num>   <num>    <num>    <num>
-#> 1: quit vs continue   0.1313 0.02572   0.0809   0.1817
+#> 1: quit vs continue   0.1313 0.02582  0.08071   0.1819
 ```
 
 ### Risk ratio
@@ -552,13 +552,13 @@ res_shift_bs
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
 #>          <char>    <num>  <num>    <num>    <num>
-#> 1:     reduce10    2.594 0.2723    2.060    3.128
-#> 2:     observed    2.548 0.2067    2.143    2.953
+#> 1:     reduce10    2.594 0.2761    2.053    3.135
+#> 2:     observed    2.548 0.2165    2.123    2.972
 #> 
 #> Contrasts:
 #>              comparison estimate     se ci_lower ci_upper
 #>                  <char>    <num>  <num>    <num>    <num>
-#> 1: reduce10 vs observed  0.04617 0.1901  -0.3264   0.4187
+#> 1: reduce10 vs observed  0.04617 0.1825  -0.3115   0.4038
 ```
 
 ## Dynamic intervention

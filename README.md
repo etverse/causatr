@@ -190,14 +190,6 @@ plot(diag)    # Love plot (requires cobalt)
 - **Contrast types**: risk difference, risk ratio, odds ratio
 - **Estimands**: ATE, ATT, ATC, or custom subgroups via `subset`
 
-## Learn more
-
-- [G-computation
-  vignette](https://etverse.github.io/causatr/vignettes/gcomp.html)
-- [IPW vignette](https://etverse.github.io/causatr/vignettes/ipw.html)
-- [Matching
-  vignette](https://etverse.github.io/causatr/vignettes/matching.html)
-
 ## References
 
 Hernán MA, Robins JM (2025). *Causal Inference: What If*. Chapman &
