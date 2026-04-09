@@ -376,7 +376,7 @@ compute_contrast <- function(
   if (!is.null(by)) {
     by_vals <- sort(unique(stats::na.omit(data[[by]])))
     results_list <- lapply(by_vals, function(lev) {
-      by_subset <- if (is.character(lev)) {
+      by_subset <- if (is.character(lev) || is.factor(lev)) {
         str2lang(paste0(by, " == '", lev, "'"))
       } else {
         str2lang(paste0(by, " == ", lev))
