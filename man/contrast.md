@@ -2,7 +2,7 @@
 
 # Compute causal contrasts from a fitted model
 
-[**Source code**](https://github.com/etverse/causatr/tree/main/R/contrast.R#L195)
+[**Source code**](https://github.com/etverse/causatr/tree/main/R/contrast.R#L199)
 
 ## Description
 
@@ -82,17 +82,21 @@ A named list of interventions. Each element must be one of:
 <li>
 
 A <code>causatr_intervention</code> object created by
-<code>static()</code>, <code>data.table::shift()</code>,
-<code>dynamic()</code>, <code>scale()</code>, <code>threshold()</code>,
-or <code>ipsi()</code>.
+<code>static()</code>, <code>shift()</code>, <code>dynamic()</code>,
+<code>scale()</code>, <code>threshold()</code>, or <code>ipsi()</code>.
 
 </li>
 <li>
 
 <code>NULL</code>, meaning the natural course (observed treatment values
-are used as-is). This is the reference for modified treatment policies.
-Note: for binary treatments, the natural-course mean is the observed
-mean, not a counterfactual — a warning is issued.
+are used as-is). The natural course is the standard reference for
+modified treatment policies on continuous treatments
+(e.g. <code>shift(-10)</code> vs <code>NULL</code>; Díaz et al. 2023)
+and for longitudinal dynamic regimes (Hernán & Robins Ch. 21). For
+binary treatments, the natural-course marginal mean equals E\[Y\] under
+the observed treatment mechanism (by consistency); use
+<code>static(1)</code> vs <code>static(0)</code> for the conventional
+ATE. Supported for all methods.
 
 </li>
 <li>
@@ -527,9 +531,8 @@ g-computation. <em>Statistics in Medicine</em> 43:5562–5572.
 
 ## See Also
 
-<code>causat()</code>, <code>static()</code>,
-<code>data.table::shift()</code>, <code>dynamic()</code>,
-<code>coef.causatr_result()</code>,
+<code>causat()</code>, <code>static()</code>, <code>shift()</code>,
+<code>dynamic()</code>, <code>coef.causatr_result()</code>,
 <code>confint.causatr_result()</code>
 
 ## Examples

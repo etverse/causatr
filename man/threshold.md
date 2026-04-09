@@ -44,8 +44,8 @@ A <code>causatr_intervention</code> object.
 
 ## See Also
 
-<code>static()</code>, <code>data.table::shift()</code>,
-<code>scale()</code>, <code>dynamic()</code>, <code>ipsi()</code>
+<code>static()</code>, <code>shift()</code>, <code>scale()</code>,
+<code>dynamic()</code>, <code>ipsi()</code>
 
 ## Examples
 

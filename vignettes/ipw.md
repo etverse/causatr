@@ -62,10 +62,11 @@ res_ate_sw <- contrast(
 )
 res_ate_sw
 #> <causatr_result>
-#>  Method:      ipw
-#>  Contrast:    difference
-#>  CI method:   sandwich
-#>  N:           1679
+#>  Method:    IPW
+#>  Estimand:  ATE
+#>  Contrast:  Difference
+#>  CI method: sandwich
+#>  N:         1679
 #> 
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
@@ -94,21 +95,22 @@ res_ate_bs <- contrast(
 )
 res_ate_bs
 #> <causatr_result>
-#>  Method:      ipw
-#>  Contrast:    difference
-#>  CI method:   bootstrap
-#>  N:           1679
+#>  Method:    IPW
+#>  Estimand:  ATE
+#>  Contrast:  Difference
+#>  CI method: bootstrap
+#>  N:         1679
 #> 
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
 #>          <char>    <num>  <num>    <num>    <num>
-#> 1:         quit    5.305 0.4462    4.431    6.180
-#> 2:     continue    1.942 0.2116    1.527    2.357
+#> 1:         quit    5.305 0.4502    4.423    6.187
+#> 2:     continue    1.942 0.2146    1.521    2.363
 #> 
 #> Contrasts:
 #>          comparison estimate     se ci_lower ci_upper
 #>              <char>    <num>  <num>    <num>    <num>
-#> 1: quit vs continue    3.363 0.4638    2.454    4.272
+#> 1: quit vs continue    3.363 0.5084    2.367    4.359
 ```
 
 ### ATT estimand
@@ -139,10 +141,11 @@ res_att <- contrast(
 )
 res_att
 #> <causatr_result>
-#>  Method:      ipw
-#>  Contrast:    difference
-#>  CI method:   sandwich
-#>  N:           437
+#>  Method:    IPW
+#>  Estimand:  ATT
+#>  Contrast:  Difference
+#>  CI method: sandwich
+#>  N:         437
 #> 
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
@@ -181,10 +184,11 @@ res_atc <- contrast(
 )
 res_atc
 #> <causatr_result>
-#>  Method:      ipw
-#>  Contrast:    difference
-#>  CI method:   sandwich
-#>  N:           1242
+#>  Method:    IPW
+#>  Estimand:  ATC
+#>  Contrast:  Difference
+#>  CI method: sandwich
+#>  N:         1242
 #> 
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
@@ -211,21 +215,22 @@ res_att_bs <- contrast(
 )
 res_att_bs
 #> <causatr_result>
-#>  Method:      ipw
-#>  Contrast:    difference
-#>  CI method:   bootstrap
-#>  N:           437
+#>  Method:    IPW
+#>  Estimand:  ATT
+#>  Contrast:  Difference
+#>  CI method: bootstrap
+#>  N:         437
 #> 
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
 #>          <char>    <num>  <num>    <num>    <num>
-#> 1:         quit    4.497 0.4256   3.6627    5.331
-#> 2:     continue    1.400 0.3048   0.8027    1.998
+#> 1:         quit    4.497 0.3951   3.7224    5.271
+#> 2:     continue    1.400 0.2821   0.8473    1.953
 #> 
 #> Contrasts:
 #>          comparison estimate     se ci_lower ci_upper
 #>              <char>    <num>  <num>    <num>    <num>
-#> 1: quit vs continue    3.097 0.4963    2.124    4.069
+#> 1: quit vs continue    3.097 0.4431    2.228    3.965
 ```
 
 ### Extracting results programmatically
@@ -238,6 +243,16 @@ confint(res_ate_sw)
 #>             lower    upper
 #> quit     4.476028 6.134154
 #> continue 1.536817 2.347167
+vcov(res_ate_sw)
+#>                 quit    continue
+#> quit     0.178928248 0.003327337
+#> continue 0.003327337 0.042735593
+tidy(res_ate_sw)
+#>               term estimate std.error     type conf.low conf.high
+#> 1 quit vs continue 3.363099 0.4636908 contrast 2.454282  4.271917
+glance(res_ate_sw)
+#>   method estimand contrast_type ci_method    n n_interventions
+#> 1    ipw      ATE    difference  sandwich 1679               2
 ```
 
 ## Binary treatment, binary outcome
@@ -270,10 +285,11 @@ res_rd <- contrast(
 )
 res_rd
 #> <causatr_result>
-#>  Method:      ipw
-#>  Contrast:    difference
-#>  CI method:   sandwich
-#>  N:           1679
+#>  Method:    IPW
+#>  Estimand:  ATE
+#>  Contrast:  Difference
+#>  CI method: sandwich
+#>  N:         1679
 #> 
 #> Intervention means:
 #>    intervention estimate      se ci_lower ci_upper
@@ -300,21 +316,22 @@ res_rd_bs <- contrast(
 )
 res_rd_bs
 #> <causatr_result>
-#>  Method:      ipw
-#>  Contrast:    difference
-#>  CI method:   bootstrap
-#>  N:           1679
+#>  Method:    IPW
+#>  Estimand:  ATE
+#>  Contrast:  Difference
+#>  CI method: bootstrap
+#>  N:         1679
 #> 
 #> Intervention means:
 #>    intervention estimate      se ci_lower ci_upper
 #>          <char>    <num>   <num>    <num>    <num>
-#> 1:         quit   0.7815 0.01884   0.7446   0.8184
-#> 2:     continue   0.6500 0.01263   0.6252   0.6747
+#> 1:         quit   0.7815 0.01882   0.7446   0.8184
+#> 2:     continue   0.6500 0.01234   0.6258   0.6742
 #> 
 #> Contrasts:
 #>          comparison estimate      se ci_lower ci_upper
 #>              <char>    <num>   <num>    <num>    <num>
-#> 1: quit vs continue   0.1315 0.02193  0.08854   0.1745
+#> 1: quit vs continue   0.1315 0.02298  0.08649   0.1766
 ```
 
 ### Risk ratio
@@ -329,10 +346,11 @@ res_rr <- contrast(
 )
 res_rr
 #> <causatr_result>
-#>  Method:      ipw
-#>  Contrast:    ratio
-#>  CI method:   sandwich
-#>  N:           1679
+#>  Method:    IPW
+#>  Estimand:  ATE
+#>  Contrast:  Ratio
+#>  CI method: sandwich
+#>  N:         1679
 #> 
 #> Intervention means:
 #>    intervention estimate      se ci_lower ci_upper
@@ -358,10 +376,11 @@ res_or <- contrast(
 )
 res_or
 #> <causatr_result>
-#>  Method:      ipw
-#>  Contrast:    or
-#>  CI method:   sandwich
-#>  N:           1679
+#>  Method:    IPW
+#>  Estimand:  ATE
+#>  Contrast:  Odds ratio
+#>  CI method: sandwich
+#>  N:         1679
 #> 
 #> Intervention means:
 #>    intervention estimate      se ci_lower ci_upper
@@ -388,21 +407,22 @@ res_rr_bs <- contrast(
 )
 res_rr_bs
 #> <causatr_result>
-#>  Method:      ipw
-#>  Contrast:    ratio
-#>  CI method:   bootstrap
-#>  N:           1679
+#>  Method:    IPW
+#>  Estimand:  ATE
+#>  Contrast:  Ratio
+#>  CI method: bootstrap
+#>  N:         1679
 #> 
 #> Intervention means:
 #>    intervention estimate      se ci_lower ci_upper
 #>          <char>    <num>   <num>    <num>    <num>
-#> 1:         quit   0.7815 0.02099   0.7404   0.8226
-#> 2:     continue   0.6500 0.01348   0.6236   0.6764
+#> 1:         quit   0.7815 0.02135   0.7397   0.8234
+#> 2:     continue   0.6500 0.01330   0.6239   0.6760
 #> 
 #> Contrasts:
-#>          comparison estimate     se ci_lower ci_upper
-#>              <char>    <num>  <num>    <num>    <num>
-#> 1: quit vs continue    1.202 0.0422     1.12    1.285
+#>          comparison estimate      se ci_lower ci_upper
+#>              <char>    <num>   <num>    <num>    <num>
+#> 1: quit vs continue    1.202 0.03999    1.124    1.281
 ```
 
 ## Comparing estimands

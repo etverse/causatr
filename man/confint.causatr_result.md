@@ -2,12 +2,14 @@
 
 # Confidence intervals for a causatr result
 
-[**Source code**](https://github.com/etverse/causatr/tree/main/R/confint.R#L23)
+[**Source code**](https://github.com/etverse/causatr/tree/main/R/confint.R#L25)
 
 ## Description
 
 Returns confidence intervals for each intervention mean (E\[Y^a\]) from
-a <code>causatr_result</code> object.
+a <code>causatr_result</code> object. By default uses the stored CIs; if
+<code>level</code> differs from the level used in
+<code>contrast()</code>, recomputes from the vcov matrix.
 
 ## Usage
 
@@ -68,4 +70,5 @@ library("causatr")
 
 result <- contrast(fit, interventions = list(a1 = static(1), a0 = static(0)))
 confint(result)
+confint(result, level = 0.99)
 ```

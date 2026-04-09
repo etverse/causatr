@@ -107,11 +107,16 @@ fit <- causat(
 )
 fit
 #> <causatr_fit>
-#>  Method:   gcomp
-#>  Type:     longitudinal
-#>  Outcome:  Y
-#>  Treatment:A
-#>  N:        6400
+#>  Method:     G-computation
+#>  Type:       longitudinal
+#>  Outcome:    Y (gaussian)
+#>  Treatment:  A
+#>  Estimand:   ATE
+#>  Confounders: ~1 
+#>  TV conf.:   ~L 
+#>  ID:         id
+#>  Time:       time
+#>  N:          6400
 ```
 
 No models are fitted at this stage. ICE defers model fitting to
@@ -133,10 +138,11 @@ result <- contrast(
 )
 result
 #> <causatr_result>
-#>  Method:      gcomp
-#>  Contrast:    difference
-#>  CI method:   sandwich
-#>  N:           3200
+#>  Method:    G-computation
+#>  Estimand:  ATE
+#>  Contrast:  Difference
+#>  CI method: sandwich
+#>  N:         3200
 #> 
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
@@ -212,21 +218,22 @@ result_boot <- contrast(
 )
 result_boot
 #> <causatr_result>
-#>  Method:      gcomp
-#>  Contrast:    difference
-#>  CI method:   bootstrap
-#>  N:           3200
+#>  Method:    G-computation
+#>  Estimand:  ATE
+#>  Contrast:  Difference
+#>  CI method: bootstrap
+#>  N:         3200
 #> 
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
 #>          <char>    <num>  <num>    <num>    <num>
-#> 1:       always       60 0.3878    59.24    60.76
-#> 2:        never       60 0.3092    59.39    60.61
+#> 1:       always       60 0.4167    59.18    60.82
+#> 2:        never       60 0.2789    59.45    60.55
 #> 
 #> Contrasts:
 #>         comparison   estimate     se ci_lower ci_upper
 #>             <char>      <num>  <num>    <num>    <num>
-#> 1: always vs never -3.553e-13 0.5215   -1.022    1.022
+#> 1: always vs never -3.553e-13 0.5782   -1.133    1.133
 ```
 
 The `parallel` and `ncpus` arguments enable parallel bootstrap
@@ -289,10 +296,11 @@ result_dyn <- contrast(
 )
 result_dyn
 #> <causatr_result>
-#>  Method:      gcomp
-#>  Contrast:    difference
-#>  CI method:   sandwich
-#>  N:           3200
+#>  Method:    G-computation
+#>  Estimand:  ATE
+#>  Contrast:  Difference
+#>  CI method: sandwich
+#>  N:         3200
 #> 
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
@@ -364,10 +372,11 @@ result_inf <- contrast(
 )
 result_inf
 #> <causatr_result>
-#>  Method:      gcomp
-#>  Contrast:    difference
-#>  CI method:   sandwich
-#>  N:           3200
+#>  Method:    G-computation
+#>  Estimand:  ATE
+#>  Contrast:  Difference
+#>  CI method: sandwich
+#>  N:         3200
 #> 
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
@@ -424,10 +433,11 @@ res_sim <- contrast(
 )
 res_sim
 #> <causatr_result>
-#>  Method:      gcomp
-#>  Contrast:    difference
-#>  CI method:   sandwich
-#>  N:           2000
+#>  Method:    G-computation
+#>  Estimand:  ATE
+#>  Contrast:  Difference
+#>  CI method: sandwich
+#>  N:         2000
 #> 
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
@@ -475,10 +485,11 @@ res_bin <- contrast(
 )
 res_bin
 #> <causatr_result>
-#>  Method:      gcomp
-#>  Contrast:    difference
-#>  CI method:   sandwich
-#>  N:           2000
+#>  Method:    G-computation
+#>  Estimand:  ATE
+#>  Contrast:  Difference
+#>  CI method: sandwich
+#>  N:         2000
 #> 
 #> Intervention means:
 #>    intervention estimate      se ci_lower ci_upper
@@ -504,10 +515,11 @@ res_rr <- contrast(
 )
 res_rr
 #> <causatr_result>
-#>  Method:      gcomp
-#>  Contrast:    ratio
-#>  CI method:   sandwich
-#>  N:           2000
+#>  Method:    G-computation
+#>  Estimand:  ATE
+#>  Contrast:  Ratio
+#>  CI method: sandwich
+#>  N:         2000
 #> 
 #> Intervention means:
 #>    intervention estimate      se ci_lower ci_upper

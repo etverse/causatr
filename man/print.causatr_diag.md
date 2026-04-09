@@ -2,7 +2,7 @@
 
 # Print causatr diagnostics
 
-[**Source code**](https://github.com/etverse/causatr/tree/main/R/print.R#L84)
+[**Source code**](https://github.com/etverse/causatr/tree/main/R/print.R#L127)
 
 ## Description
 

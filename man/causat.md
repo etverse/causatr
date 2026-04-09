@@ -438,8 +438,7 @@ g-computation. <em>Statistics in Medicine</em> 43:5562–5572.
 
 <code>contrast()</code>, <code>diagnose()</code>,
 <code>causat_survival()</code>, <code>causat_mice()</code>,
-<code>static()</code>, <code>data.table::shift()</code>,
-<code>dynamic()</code>
+<code>static()</code>, <code>shift()</code>, <code>dynamic()</code>
 
 ## Examples
 

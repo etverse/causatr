@@ -2,7 +2,7 @@
 
 # Plot diagnostics for a causatr fit
 
-[**Source code**](https://github.com/etverse/causatr/tree/main/R/plot.R#L41)
+[**Source code**](https://github.com/etverse/causatr/tree/main/R/plot.R#L169)
 
 ## Description
 

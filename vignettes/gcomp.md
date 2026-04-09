@@ -53,10 +53,11 @@ res_ate_sw <- contrast(
 )
 res_ate_sw
 #> <causatr_result>
-#>  Method:      gcomp
-#>  Contrast:    difference
-#>  CI method:   sandwich
-#>  N:           1629
+#>  Method:    G-computation
+#>  Estimand:  ATE
+#>  Contrast:  Difference
+#>  CI method: sandwich
+#>  N:         1629
 #> 
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
@@ -85,21 +86,22 @@ res_ate_bs <- contrast(
 )
 res_ate_bs
 #> <causatr_result>
-#>  Method:      gcomp
-#>  Contrast:    difference
-#>  CI method:   bootstrap
-#>  N:           1629
+#>  Method:    G-computation
+#>  Estimand:  ATE
+#>  Contrast:  Difference
+#>  CI method: bootstrap
+#>  N:         1629
 #> 
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
 #>          <char>    <num>  <num>    <num>    <num>
-#> 1:         quit    5.176 0.4238    4.345    6.006
-#> 2:     continue    1.660 0.2058    1.257    2.064
+#> 1:         quit    5.176 0.4563    4.282    6.070
+#> 2:     continue    1.660 0.2200    1.229    2.092
 #> 
 #> Contrasts:
 #>          comparison estimate     se ci_lower ci_upper
 #>              <char>    <num>  <num>    <num>    <num>
-#> 1: quit vs continue    3.516 0.4721     2.59    4.441
+#> 1: quit vs continue    3.516 0.5175    2.501     4.53
 ```
 
 Sandwich and bootstrap SEs should be in close agreement for correctly
@@ -121,10 +123,11 @@ res_att <- contrast(
 )
 res_att
 #> <causatr_result>
-#>  Method:      gcomp
-#>  Contrast:    difference
-#>  CI method:   sandwich
-#>  N:           428
+#>  Method:    G-computation
+#>  Estimand:  ATT
+#>  Contrast:  Difference
+#>  CI method: sandwich
+#>  N:         428
 #> 
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
@@ -153,10 +156,11 @@ res_atc <- contrast(
 )
 res_atc
 #> <causatr_result>
-#>  Method:      gcomp
-#>  Contrast:    difference
-#>  CI method:   sandwich
-#>  N:           1201
+#>  Method:    G-computation
+#>  Estimand:  ATC
+#>  Contrast:  Difference
+#>  CI method: sandwich
+#>  N:         1201
 #> 
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
@@ -184,10 +188,11 @@ res_sub <- contrast(
 )
 res_sub
 #> <causatr_result>
-#>  Method:      gcomp
-#>  Contrast:    difference
-#>  CI method:   sandwich
-#>  N:           565
+#>  Method:    G-computation
+#>  Estimand:  subset
+#>  Contrast:  Difference
+#>  CI method: sandwich
+#>  N:         565
 #> 
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
@@ -242,10 +247,11 @@ res_rd <- contrast(
 )
 res_rd
 #> <causatr_result>
-#>  Method:      gcomp
-#>  Contrast:    difference
-#>  CI method:   sandwich
-#>  N:           1566
+#>  Method:    G-computation
+#>  Estimand:  ATE
+#>  Contrast:  Difference
+#>  CI method: sandwich
+#>  N:         1566
 #> 
 #> Intervention means:
 #>    intervention estimate      se ci_lower ci_upper
@@ -272,21 +278,22 @@ res_rd_bs <- contrast(
 )
 res_rd_bs
 #> <causatr_result>
-#>  Method:      gcomp
-#>  Contrast:    difference
-#>  CI method:   bootstrap
-#>  N:           1566
+#>  Method:    G-computation
+#>  Estimand:  ATE
+#>  Contrast:  Difference
+#>  CI method: bootstrap
+#>  N:         1566
 #> 
 #> Intervention means:
 #>    intervention estimate      se ci_lower ci_upper
 #>          <char>    <num>   <num>    <num>    <num>
-#> 1:         quit   0.7696 0.02033   0.7298   0.8094
-#> 2:     continue   0.6383 0.01339   0.6120   0.6645
+#> 1:         quit   0.7696 0.02065   0.7291   0.8101
+#> 2:     continue   0.6383 0.01494   0.6090   0.6676
 #> 
 #> Contrasts:
 #>          comparison estimate      se ci_lower ci_upper
 #>              <char>    <num>   <num>    <num>    <num>
-#> 1: quit vs continue   0.1313 0.02337  0.08551   0.1771
+#> 1: quit vs continue   0.1313 0.02572   0.0809   0.1817
 ```
 
 ### Risk ratio
@@ -301,10 +308,11 @@ res_rr <- contrast(
 )
 res_rr
 #> <causatr_result>
-#>  Method:      gcomp
-#>  Contrast:    ratio
-#>  CI method:   sandwich
-#>  N:           1566
+#>  Method:    G-computation
+#>  Estimand:  ATE
+#>  Contrast:  Ratio
+#>  CI method: sandwich
+#>  N:         1566
 #> 
 #> Intervention means:
 #>    intervention estimate      se ci_lower ci_upper
@@ -330,10 +338,11 @@ res_or <- contrast(
 )
 res_or
 #> <causatr_result>
-#>  Method:      gcomp
-#>  Contrast:    or
-#>  CI method:   sandwich
-#>  N:           1566
+#>  Method:    G-computation
+#>  Estimand:  ATE
+#>  Contrast:  Odds ratio
+#>  CI method: sandwich
+#>  N:         1566
 #> 
 #> Intervention means:
 #>    intervention estimate      se ci_lower ci_upper
@@ -379,10 +388,11 @@ res_shift <- contrast(
 )
 res_shift
 #> <causatr_result>
-#>  Method:      gcomp
-#>  Contrast:    difference
-#>  CI method:   sandwich
-#>  N:           1629
+#>  Method:    G-computation
+#>  Estimand:  ATE
+#>  Contrast:  Difference
+#>  CI method: sandwich
+#>  N:         1629
 #> 
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
@@ -410,10 +420,11 @@ res_scale <- contrast(
 )
 res_scale
 #> <causatr_result>
-#>  Method:      gcomp
-#>  Contrast:    difference
-#>  CI method:   sandwich
-#>  N:           1629
+#>  Method:    G-computation
+#>  Estimand:  ATE
+#>  Contrast:  Difference
+#>  CI method: sandwich
+#>  N:         1629
 #> 
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
@@ -441,10 +452,11 @@ res_thresh <- contrast(
 )
 res_thresh
 #> <causatr_result>
-#>  Method:      gcomp
-#>  Contrast:    difference
-#>  CI method:   sandwich
-#>  N:           1629
+#>  Method:    G-computation
+#>  Estimand:  ATE
+#>  Contrast:  Difference
+#>  CI method: sandwich
+#>  N:         1629
 #> 
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
@@ -475,10 +487,11 @@ res_multi <- contrast(
 )
 res_multi
 #> <causatr_result>
-#>  Method:      gcomp
-#>  Contrast:    difference
-#>  CI method:   sandwich
-#>  N:           1629
+#>  Method:    G-computation
+#>  Estimand:  ATE
+#>  Contrast:  Difference
+#>  CI method: sandwich
+#>  N:         1629
 #> 
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
@@ -530,21 +543,22 @@ res_shift_bs <- contrast(
 )
 res_shift_bs
 #> <causatr_result>
-#>  Method:      gcomp
-#>  Contrast:    difference
-#>  CI method:   bootstrap
-#>  N:           1629
+#>  Method:    G-computation
+#>  Estimand:  ATE
+#>  Contrast:  Difference
+#>  CI method: bootstrap
+#>  N:         1629
 #> 
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
 #>          <char>    <num>  <num>    <num>    <num>
-#> 1:     reduce10    2.594 0.2551    2.094    3.094
-#> 2:     observed    2.548 0.1949    2.166    2.930
+#> 1:     reduce10    2.594 0.2723    2.060    3.128
+#> 2:     observed    2.548 0.2067    2.143    2.953
 #> 
 #> Contrasts:
 #>              comparison estimate     se ci_lower ci_upper
 #>                  <char>    <num>  <num>    <num>    <num>
-#> 1: reduce10 vs observed  0.04617 0.1879  -0.3222   0.4145
+#> 1: reduce10 vs observed  0.04617 0.1901  -0.3264   0.4187
 ```
 
 ## Dynamic intervention
@@ -566,10 +580,11 @@ res_dyn <- contrast(
 )
 res_dyn
 #> <causatr_result>
-#>  Method:      gcomp
-#>  Contrast:    difference
-#>  CI method:   sandwich
-#>  N:           1629
+#>  Method:    G-computation
+#>  Estimand:  ATE
+#>  Contrast:  Difference
+#>  CI method: sandwich
+#>  N:         1629
 #> 
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
@@ -582,6 +597,70 @@ res_dyn
 #>              <char>    <num>  <num>    <num>    <num>
 #> 1: rule vs all_quit   -2.324 0.3388   -2.988    -1.66
 ```
+
+## Effect modification with `by`
+
+The `by` argument stratifies causal effect estimates by levels of a
+variable. Here we examine whether the effect of quitting smoking differs
+by sex.
+
+``` r
+res_by_sex <- contrast(
+  fit_gc,
+  interventions = list(quit = static(1), continue = static(0)),
+  reference = "continue",
+  type = "difference",
+  ci_method = "sandwich",
+  by = "sex"
+)
+res_by_sex
+#> <causatr_result>
+#>  Method:    G-computation
+#>  Estimand:  ATE
+#>  Contrast:  Difference
+#>  CI method: sandwich
+#>  N:         1629
+#> 
+#> Intervention means (by subgroup):
+#>    intervention estimate     se ci_lower ci_upper     by
+#>          <char>    <num>  <num>    <num>    <num> <char>
+#> 1:         quit    5.297 0.4864    4.344    6.251      0
+#> 2:     continue    1.659 0.2677    1.135    2.184      0
+#> 3:         quit    5.059 0.4623    4.153    5.965      1
+#> 4:     continue    1.661 0.2840    1.105    2.218      1
+#> 
+#> Contrasts (by subgroup):
+#>          comparison estimate     se ci_lower ci_upper     by
+#>              <char>    <num>  <num>    <num>    <num> <char>
+#> 1: quit vs continue    3.638 0.5207    2.618    4.659      0
+#> 2: quit vs continue    3.398 0.4605    2.495    4.300      1
+```
+
+## Tidy and glance
+
+causatr results work with the broom ecosystem via `tidy()` and
+`glance()`:
+
+``` r
+tidy(res_ate_sw)
+#>               term estimate std.error     type conf.low conf.high
+#> 1 quit vs continue 3.515671 0.4790529 contrast 2.576745  4.454598
+glance(res_ate_sw)
+#>   method estimand contrast_type ci_method    n n_interventions
+#> 1  gcomp      ATE    difference  sandwich 1629               2
+```
+
+## Forest plot
+
+The `plot()` method produces a forest plot using the `forrest` package:
+
+``` r
+plot(res_ate_sw)
+```
+
+<img
+src="vignettes/gcomp.markdown_strict_files/figure-markdown_strict/unnamed-chunk-23-1.png"
+data-fig-alt="Forest plot of the ATE from g-computation." />
 
 ## GAM model via model_fn
 
@@ -608,10 +687,11 @@ res_gam <- contrast(
 )
 res_gam
 #> <causatr_result>
-#>  Method:      gcomp
-#>  Contrast:    difference
-#>  CI method:   sandwich
-#>  N:           1629
+#>  Method:    G-computation
+#>  Estimand:  ATE
+#>  Contrast:  Difference
+#>  CI method: sandwich
+#>  N:         1629
 #> 
 #> Intervention means:
 #>    intervention estimate       se ci_lower ci_upper
@@ -677,6 +757,14 @@ res_gam
 <td>Difference</td>
 <td>Sandwich</td>
 <td>Subset</td>
+<td>Static</td>
+</tr>
+<tr>
+<td>Binary</td>
+<td>Continuous</td>
+<td>Difference</td>
+<td>Sandwich</td>
+<td>ATE (by sex)</td>
 <td>Static</td>
 </tr>
 <tr>

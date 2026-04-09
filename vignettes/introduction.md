@@ -53,10 +53,11 @@ result <- contrast(
 )
 result
 #> <causatr_result>
-#>  Method:      gcomp
-#>  Contrast:    difference
-#>  CI method:   sandwich
-#>  N:           1746
+#>  Method:    G-computation
+#>  Estimand:  ATE
+#>  Contrast:  Difference
+#>  CI method: sandwich
+#>  N:         1746
 #> 
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
@@ -169,6 +170,100 @@ IPW and matching currently support only `static()` interventions.
 </tbody>
 </table>
 
+## Estimands
+
+<table>
+<thead>
+<tr>
+<th>Estimand</th>
+<th>Population</th>
+<th>Applicability</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>"ATE"</code></td>
+<td>All individuals</td>
+<td>Always (default)</td>
+</tr>
+<tr>
+<td><code>"ATT"</code></td>
+<td>Observed treated (A = 1)</td>
+<td>Binary point treatment only</td>
+</tr>
+<tr>
+<td><code>"ATC"</code></td>
+<td>Observed controls (A = 0)</td>
+<td>Binary point treatment only</td>
+</tr>
+<tr>
+<td><code>subset = quote(...)</code></td>
+<td>Custom subgroup</td>
+<td>Always</td>
+</tr>
+</tbody>
+</table>
+
+For g-computation, the estimand can be changed in `contrast()` without
+refitting. For IPW and matching, refit with `causat(estimand = ...)`.
+
+## Treatment types
+
+causatr supports binary, continuous, categorical, and multivariate
+treatments:
+
+<table>
+<thead>
+<tr>
+<th>Treatment type</th>
+<th>G-comp</th>
+<th>IPW</th>
+<th>Matching</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Binary (0/1)</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Continuous</td>
+<td>Yes</td>
+<td>Yes (GPS)</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Categorical</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Multivariate</td>
+<td>Yes</td>
+<td>Not yet</td>
+<td>Not yet</td>
+</tr>
+</tbody>
+</table>
+
+For multivariate treatments (e.g. `treatment = c("A1", "A2")`), supply
+interventions as named lists with one element per treatment variable.
+
+## Effect modification
+
+The `by` argument in `contrast()` stratifies estimates by levels of a
+variable, producing subgroup-specific effects:
+
+``` r
+contrast(fit,
+  interventions = list(quit = static(1), continue = static(0)),
+  by = "sex"
+)
+```
+
 ## Diagnostics
 
 Use `diagnose()` to check positivity and covariate balance after
@@ -184,9 +279,22 @@ For IPW and matching, balance is computed via
 [cobalt](https://ngreifer.github.io/cobalt/) and includes standardised
 mean differences before and after adjustment.
 
+## Extracting results
+
+causatr result objects support standard R generics:
+
+``` r
+coef(result)       # named vector of E[Y^a]
+confint(result)    # CI matrix (respects custom `level`)
+vcov(result)       # vcov of marginal means
+tidy(result)       # broom-style tidy data frame
+glance(result)     # broom-style one-row summary
+plot(result)       # forest plot (requires forrest package)
+```
+
 ## Learning more
 
-- `vignette("gcomp")` — G-computation in depth
-- `vignette("ipw")` — Inverse probability weighting in depth
-- `vignette("matching")` — Propensity score matching in depth
-- `vignette("triangulation")` — Comparing all three methods
+causatr includes detailed vignettes for each estimation method:
+g-computation, IPW, matching, longitudinal ICE, and methodological
+triangulation. Use `vignette(package = "causatr")` to see all available
+vignettes.

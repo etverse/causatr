@@ -42,8 +42,8 @@ Association</em> 114:645–656.
 
 ## See Also
 
-<code>static()</code>, <code>data.table::shift()</code>,
-<code>dynamic()</code>, <code>scale()</code>, <code>threshold()</code>
+<code>static()</code>, <code>shift()</code>, <code>dynamic()</code>,
+<code>scale()</code>, <code>threshold()</code>
 
 ## Examples
 

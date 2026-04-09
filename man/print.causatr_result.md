@@ -2,7 +2,7 @@
 
 # Print a causatr result
 
-[**Source code**](https://github.com/etverse/causatr/tree/main/R/print.R#L48)
+[**Source code**](https://github.com/etverse/causatr/tree/main/R/print.R#L75)
 
 ## Description
 

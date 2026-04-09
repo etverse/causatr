@@ -40,9 +40,8 @@ Hernán MA, Robins JM (2025). <em>Causal Inference: What If</em>. Chapman
 
 ## See Also
 
-<code>data.table::shift()</code>, <code>dynamic()</code>,
-<code>scale()</code>, <code>threshold()</code>, <code>ipsi()</code>,
-<code>contrast()</code>
+<code>shift()</code>, <code>dynamic()</code>, <code>scale()</code>,
+<code>threshold()</code>, <code>ipsi()</code>, <code>contrast()</code>
 
 ## Examples
 

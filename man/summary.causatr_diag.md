@@ -2,7 +2,7 @@
 
 # Summarise causatr diagnostics
 
-[**Source code**](https://github.com/etverse/causatr/tree/main/R/summary.R#L104)
+[**Source code**](https://github.com/etverse/causatr/tree/main/R/summary.R#L105)
 
 ## Description
 
