@@ -35,5 +35,5 @@ effects based on longitudinal modified treatment policies. \emph{Journal of the
 American Statistical Association} 118:846–857.
 }
 \seealso{
-\code{\link[=static]{static()}}, \code{\link[=scale]{scale()}}, \code{\link[=threshold]{threshold()}}, \code{\link[=dynamic]{dynamic()}}, \code{\link[=ipsi]{ipsi()}}
+\code{\link[=static]{static()}}, \code{\link[=scale_by]{scale_by()}}, \code{\link[=threshold]{threshold()}}, \code{\link[=dynamic]{dynamic()}}, \code{\link[=ipsi]{ipsi()}}
 }

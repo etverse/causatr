@@ -221,7 +221,7 @@ result <- contrast(fit, interventions, ci_method = "bootstrap", n_boot = 500)
 1. Package scaffolding (DESCRIPTION, NAMESPACE, CLAUDE.md, Makefile, air.toml)
 2. NHEFS dataset (`data/nhefs.rda`, `R/data.R`)
 3. Input validation (`R/checks.R`, `R/prepare_data.R`)
-4. Intervention constructors (`R/interventions.R`): `static()`, `shift()`, `scale()`, `threshold()`, `dynamic()`, `ipsi()`
+4. Intervention constructors (`R/interventions.R`): `static()`, `shift()`, `scale_by()`, `threshold()`, `dynamic()`, `ipsi()`
 5. S3 class definitions + print/summary methods
 
 ### Phase 2: Point Treatment G-Computation + Inference — DONE

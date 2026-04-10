@@ -45,7 +45,7 @@ R/
 ├── diagnose.R              # balance, positivity, weight diagnostics
 │
 ├── # ── Intervention constructors ────────────────────
-├── interventions.R         # static(), shift(), scale(), threshold(), dynamic(), ipsi()
+├── interventions.R         # static(), shift(), scale_by(), threshold(), dynamic(), ipsi()
 │                           # + apply_intervention(), apply_single_intervention()
 │
 ├── # ── Estimation engines ───────────────────────────

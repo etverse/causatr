@@ -116,12 +116,12 @@ test_that("gcomp × continuous trt × scale intervention × difference × sandwi
   fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L)
   result <- contrast(
     fit,
-    interventions = list(halved = scale(0.5), observed = NULL),
+    interventions = list(halved = scale_by(0.5), observed = NULL),
     reference = "observed",
     ci_method = "sandwich"
   )
 
-  # scale(0.5) halves A; since E[A] ≈ 1, difference ≈ 2*(0.5*1 - 1) = -1.
+  # scale_by(0.5) halves A; since E[A] ≈ 1, difference ≈ 2*(0.5*1 - 1) = -1.
   # But since A varies, the exact value depends on E[A].
   diff <- result$contrasts$estimate[1]
   expect_lt(diff, 0) # halving treatment should reduce outcome
@@ -872,10 +872,6 @@ test_that("triangulation: all methods agree on binary outcome RD", {
   expect_equal(res_m$contrasts$estimate[1], 0.33, tolerance = 0.15)
 })
 
-
-# ============================================================
-# S3 METHODS: coef, confint, print, summary
-# ============================================================
 
 # ============================================================
 # SURVIVAL / PERSON-PERIOD TESTS

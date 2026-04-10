@@ -31,6 +31,6 @@ Hernán MA, Robins JM (2025). \emph{Causal Inference: What If}. Chapman &
 Hall/CRC. Chapter 1 (static interventions).
 }
 \seealso{
-\code{\link[=shift]{shift()}}, \code{\link[=dynamic]{dynamic()}}, \code{\link[=scale]{scale()}}, \code{\link[=threshold]{threshold()}}, \code{\link[=ipsi]{ipsi()}},
+\code{\link[=shift]{shift()}}, \code{\link[=dynamic]{dynamic()}}, \code{\link[=scale_by]{scale_by()}}, \code{\link[=threshold]{threshold()}}, \code{\link[=ipsi]{ipsi()}},
 \code{\link[=contrast]{contrast()}}
 }

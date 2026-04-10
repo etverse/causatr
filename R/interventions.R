@@ -21,7 +21,7 @@
 #' contrast(fit, interventions = list(quit = static(1), continue = static(0)))
 #' }
 #'
-#' @seealso [shift()], [dynamic()], [scale()], [threshold()], [ipsi()],
+#' @seealso [shift()], [dynamic()], [scale_by()], [threshold()], [ipsi()],
 #'   [contrast()]
 #' @export
 static <- function(value) {
@@ -58,7 +58,7 @@ static <- function(value) {
 #' ))
 #' }
 #'
-#' @seealso [static()], [scale()], [threshold()], [dynamic()], [ipsi()]
+#' @seealso [static()], [scale_by()], [threshold()], [dynamic()], [ipsi()]
 #' @export
 shift <- function(delta) {
   if (!(is.numeric(delta) && length(delta) == 1L && !is.na(delta))) {
@@ -83,14 +83,14 @@ shift <- function(delta) {
 #' fit <- causat(nhefs, outcome = "wt82_71", treatment = "smokeintensity",
 #'               confounders = ~ sex + age + wt71)
 #' contrast(fit, interventions = list(
-#'   halved = scale(0.5),
-#'   observed = scale(1)
+#'   halved = scale_by(0.5),
+#'   observed = scale_by(1)
 #' ))
 #' }
 #'
 #' @seealso [static()], [shift()], [threshold()], [dynamic()], [ipsi()]
 #' @export
-scale <- function(factor) {
+scale_by <- function(factor) {
   if (!(is.numeric(factor) && length(factor) == 1L && !is.na(factor))) {
     rlang::abort("`factor` must be a single non-NA number.")
   }
@@ -119,7 +119,7 @@ scale <- function(factor) {
 #' ))
 #' }
 #'
-#' @seealso [static()], [shift()], [scale()], [dynamic()], [ipsi()]
+#' @seealso [static()], [shift()], [scale_by()], [dynamic()], [ipsi()]
 #' @export
 threshold <- function(lower = -Inf, upper = Inf) {
   if (!(is.numeric(lower) && length(lower) == 1L && !is.na(lower))) {
@@ -156,7 +156,7 @@ threshold <- function(lower = -Inf, upper = Inf) {
 #' # Treat if CD4 count is below 200
 #' cd4_rule <- dynamic(\(data, trt) ifelse(data$cd4 < 200, 1, 0))
 #'
-#' @seealso [static()], [shift()], [scale()], [threshold()], [ipsi()]
+#' @seealso [static()], [shift()], [scale_by()], [threshold()], [ipsi()]
 #' @export
 dynamic <- function(rule) {
   if (!is.function(rule)) {
@@ -194,7 +194,7 @@ dynamic <- function(rule) {
 #' ))
 #' }
 #'
-#' @seealso [static()], [shift()], [dynamic()], [scale()], [threshold()]
+#' @seealso [static()], [shift()], [dynamic()], [scale_by()], [threshold()]
 #' @export
 ipsi <- function(delta) {
   if (!rlang::is_scalar_double(delta) && !rlang::is_scalar_integer(delta)) {

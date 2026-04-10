@@ -26,7 +26,7 @@ contrast(
 one of:
 \itemize{
 \item A \code{causatr_intervention} object created by \code{\link[=static]{static()}}, \code{\link[=shift]{shift()}},
-\code{\link[=dynamic]{dynamic()}}, \code{\link[=scale]{scale()}}, \code{\link[=threshold]{threshold()}}, or \code{\link[=ipsi]{ipsi()}}.
+\code{\link[=dynamic]{dynamic()}}, \code{\link[=scale_by]{scale_by()}}, \code{\link[=threshold]{threshold()}}, or \code{\link[=ipsi]{ipsi()}}.
 \item \code{NULL}, meaning the natural course (observed treatment values are used
 as-is). The natural course is the standard reference for modified
 treatment policies on continuous treatments (e.g. \code{shift(-10)} vs
@@ -40,7 +40,7 @@ variable, for multivariate (joint) treatments. Each sub-list must name
 every treatment variable specified in \code{causat()}.
 }
 
-\strong{Note:} Non-static interventions (\code{shift()}, \code{scale()}, \code{threshold()},
+\strong{Note:} Non-static interventions (\code{shift()}, \code{scale_by()}, \code{threshold()},
 \code{dynamic()}, \code{ipsi()}) are only supported for \code{method = "gcomp"}.
 For IPW and matching, the weights/matched sets were estimated under the
 observed treatment distribution; applying a different regime requires

@@ -22,7 +22,7 @@
 #' @param interventions A named list of interventions. Each element must be
 #'   one of:
 #'   - A `causatr_intervention` object created by [static()], [shift()],
-#'     [dynamic()], [scale()], [threshold()], or [ipsi()].
+#'     [dynamic()], [scale_by()], [threshold()], or [ipsi()].
 #'   - `NULL`, meaning the natural course (observed treatment values are used
 #'     as-is). The natural course is the standard reference for modified
 #'     treatment policies on continuous treatments (e.g. `shift(-10)` vs
@@ -35,7 +35,7 @@
 #'     variable, for multivariate (joint) treatments. Each sub-list must name
 #'     every treatment variable specified in `causat()`.
 #'
-#'   **Note:** Non-static interventions (`shift()`, `scale()`, `threshold()`,
+#'   **Note:** Non-static interventions (`shift()`, `scale_by()`, `threshold()`,
 #'   `dynamic()`, `ipsi()`) are only supported for `method = "gcomp"`.
 #'   For IPW and matching, the weights/matched sets were estimated under the
 #'   observed treatment distribution; applying a different regime requires
@@ -386,16 +386,24 @@ compute_contrast <- function(
 
   if (!is.null(by)) {
     by_vals <- sort(unique(stats::na.omit(data[[by]])))
+    by_sym <- as.name(by)
+
+    est_subset <- NULL
+    if (est %in% c("ATT", "ATC")) {
+      trt_sym <- as.name(fit$treatment[1])
+      trt_val <- if (est == "ATT") 1L else 0L
+      est_subset <- bquote(.(trt_sym) == .(trt_val))
+    }
+
     results_list <- lapply(by_vals, function(lev) {
-      by_subset <- if (is.character(lev) || is.factor(lev)) {
-        str2lang(paste0(by, " == '", lev, "'"))
-      } else {
-        str2lang(paste0(by, " == ", lev))
-      }
+      by_subset <- bquote(.(by_sym) == .(lev))
       combined_subset <- if (!is.null(subset)) {
         bquote(.(subset) & .(by_subset))
       } else {
         by_subset
+      }
+      if (!is.null(est_subset)) {
+        combined_subset <- bquote(.(combined_subset) & .(est_subset))
       }
       compute_contrast(
         fit,

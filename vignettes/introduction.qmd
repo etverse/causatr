@@ -71,7 +71,7 @@ causatr supports several intervention types for g-computation:
 |---|---|---|
 | `static(value)` | Set treatment to a fixed value | `static(1)` |
 | `shift(delta)` | Add a constant to observed treatment | `shift(-10)` |
-| `scale(factor)` | Multiply observed treatment | `scale(0.5)` |
+| `scale_by(factor)` | Multiply observed treatment | `scale_by(0.5)` |
 | `threshold(lower, upper)` | Clamp treatment within bounds | `threshold(0, 20)` |
 | `dynamic(rule)` | Apply a user-defined rule | `dynamic(\(d, a) ifelse(d$L > 0, 1, 0))` |
 | `NULL` | Natural course (observed values) | — |

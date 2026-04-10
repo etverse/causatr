@@ -88,19 +88,11 @@ fit_ipw <- function(
   # account for weight-estimation uncertainty.
   msm_formula <- stats::reformulate(treatment, response = outcome)
 
-  msm_family <- if (is.character(family)) {
-    get(family, mode = "function", envir = asNamespace("stats"))()
-  } else if (is.function(family)) {
-    family()
-  } else {
-    family
-  }
-
   msm_fit <- WeightIt::glm_weightit(
     msm_formula,
     data = fit_data,
     weightit = w,
-    family = msm_family
+    family = resolve_family(family)
   )
 
   new_causatr_fit(

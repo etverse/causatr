@@ -62,20 +62,20 @@
       Error in `shift()`:
       ! `delta` must be a single non-NA number.
 
-# scale() rejects invalid inputs
+# scale_by() rejects invalid inputs
 
     Code
-      scale(NA)
+      scale_by(NA)
     Condition
-      Error in `scale()`:
+      Error in `scale_by()`:
       ! `factor` must be a single non-NA number.
 
 ---
 
     Code
-      scale("a")
+      scale_by("a")
     Condition
-      Error in `scale()`:
+      Error in `scale_by()`:
       ! `factor` must be a single non-NA number.
 
 # threshold() rejects invalid inputs

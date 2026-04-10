@@ -35,5 +35,5 @@ propensity score interventions. \emph{Journal of the American Statistical
 Association} 114:645–656.
 }
 \seealso{
-\code{\link[=static]{static()}}, \code{\link[=shift]{shift()}}, \code{\link[=dynamic]{dynamic()}}, \code{\link[=scale]{scale()}}, \code{\link[=threshold]{threshold()}}
+\code{\link[=static]{static()}}, \code{\link[=shift]{shift()}}, \code{\link[=dynamic]{dynamic()}}, \code{\link[=scale_by]{scale_by()}}, \code{\link[=threshold]{threshold()}}
 }

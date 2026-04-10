@@ -89,19 +89,11 @@ fit_matching <- function(
       weights[fit_rows][as.integer(rownames(matched_data))]
   }
 
-  msm_family <- if (is.character(family)) {
-    get(family, mode = "function", envir = asNamespace("stats"))()
-  } else if (is.function(family)) {
-    family()
-  } else {
-    family
-  }
-
   model <- stats::glm(
     msm_formula,
     data = matched_data,
     weights = matched_weights,
-    family = msm_family
+    family = resolve_family(family)
   )
 
   new_causatr_fit(

@@ -165,8 +165,9 @@ new_causatr_intervention <- function(type, params) {
 
 #' Check whether rows are uncensored
 #'
-#' A row is uncensored when the censoring column is `NA` or `0` (convention:
-#' `1` = censored, `0` = observed).
+#' A row is uncensored when the censoring column is `NA` or `0`.
+#' Any other non-NA value (e.g. `1` for censored, `2` for a competing event)
+#' is treated as censored.
 #'
 #' @param data A data.table.
 #' @param censoring Character censoring column name, or `NULL`.
@@ -180,6 +181,25 @@ is_uncensored <- function(data, censoring) {
   is.na(cens) | cens == 0L
 }
 
+#' Resolve a family argument to a family object
+#'
+#' Accepts a character string (e.g. `"gaussian"`), a family function
+#' (e.g. `stats::binomial`), or an already-evaluated family object
+#' (e.g. `stats::binomial()`).
+#'
+#' @param family Character, function, or family object.
+#' @return A family object (list with `$family`, `$link`, etc.).
+#' @noRd
+resolve_family <- function(family) {
+  if (is.character(family)) {
+    return(get(family, mode = "function", envir = asNamespace("stats"))())
+  }
+  if (is.function(family)) {
+    return(family())
+  }
+  family
+}
+
 #' Check whether a family describes a binary outcome
 #'
 #' @param family A character string, family object, or function.
@@ -189,17 +209,9 @@ is_binary_family <- function(family) {
   if (is.null(family)) {
     return(FALSE)
   }
-  if (is.character(family)) {
-    return(family %in% c("binomial", "quasibinomial"))
-  }
-  if (is.function(family)) {
-    fam <- tryCatch(family(), error = function(e) NULL)
-    if (!is.null(fam) && is.character(fam$family)) {
-      return(fam$family %in% c("binomial", "quasibinomial"))
-    }
-  }
-  if (is.list(family) && !is.null(family$family)) {
-    return(family$family %in% c("binomial", "quasibinomial"))
+  fam <- tryCatch(resolve_family(family), error = function(e) NULL)
+  if (!is.null(fam) && is.character(fam$family)) {
+    return(fam$family %in% c("binomial", "quasibinomial"))
   }
   FALSE
 }

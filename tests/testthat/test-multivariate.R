@@ -164,8 +164,8 @@ test_that("mv point: scale intervention on continuous A2", {
   result <- contrast(
     fit,
     interventions = list(
-      full = list(A1 = static(1), A2 = scale(1)),
-      scaled = list(A1 = static(1), A2 = scale(0.5))
+      full = list(A1 = static(1), A2 = scale_by(1)),
+      scaled = list(A1 = static(1), A2 = scale_by(0.5))
     ),
     reference = "full"
   )

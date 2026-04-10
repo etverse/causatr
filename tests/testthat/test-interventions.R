@@ -12,8 +12,8 @@ test_that("shift() creates a causatr_intervention", {
   expect_equal(iv$delta, -10)
 })
 
-test_that("scale() creates a causatr_intervention", {
-  iv <- scale(0.5)
+test_that("scale_by() creates a causatr_intervention", {
+  iv <- scale_by(0.5)
   expect_s3_class(iv, "causatr_intervention")
   expect_equal(iv$type, "scale")
   expect_equal(iv$factor, 0.5)
@@ -62,9 +62,9 @@ test_that("shift() rejects invalid inputs", {
   expect_snapshot(error = TRUE, shift("a"))
 })
 
-test_that("scale() rejects invalid inputs", {
-  expect_snapshot(error = TRUE, scale(NA))
-  expect_snapshot(error = TRUE, scale("a"))
+test_that("scale_by() rejects invalid inputs", {
+  expect_snapshot(error = TRUE, scale_by(NA))
+  expect_snapshot(error = TRUE, scale_by("a"))
 })
 
 test_that("threshold() rejects invalid inputs", {

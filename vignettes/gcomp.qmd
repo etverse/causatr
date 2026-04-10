@@ -255,7 +255,7 @@ res_or
 ## Continuous treatment
 
 G-computation supports continuous treatments with all intervention types:
-`static()` (set to a fixed value), `shift()`, `scale()`, `threshold()`,
+`static()` (set to a fixed value), `shift()`, `scale_by()`, `threshold()`,
 `dynamic()`, and `NULL` (natural course). Here we use `smokeintensity`
 (cigarettes per day) as the treatment and `wt82_71` as the outcome.
 
@@ -309,7 +309,7 @@ Halve each individual's smoking intensity.
 ```{r}
 res_scale <- contrast(
   fit_cont,
-  interventions = list(halved = scale(0.5), observed = NULL),
+  interventions = list(halved = scale_by(0.5), observed = NULL),
   reference = "observed",
   type = "difference",
   ci_method = "sandwich"
@@ -340,7 +340,7 @@ res_multi <- contrast(
   interventions = list(
     light    = static(5),
     reduce10 = shift(-10),
-    halved   = scale(0.5),
+    halved   = scale_by(0.5),
     cap20    = threshold(0, 20),
     observed = NULL
   ),
