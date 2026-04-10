@@ -160,8 +160,11 @@ Suggests:
 | **Outcome types** | | |
 | Continuous outcome | Yes | family = "gaussian" |
 | Binary outcome | Yes | family = "binomial" |
+| Count outcome | Yes | family = "poisson" or `MASS::glm.nb` via `model_fn` |
 | Censored outcome (survival) | Scaffolded (Phase 6) | Pooled logistic fit done; survival curves in contrast() pending |
 | Competing risks | Planned (Phase 6) | Cause-specific hazard models; parameter scaffolded in causat_survival() |
+| Multinomial outcome | Planned (Phase 7) | Multi-category outcomes via `nnet::multinom()` or `VGAM`; all methods |
+| Ordinal outcome | Planned (Phase 7) | Ordered categories via `MASS::polr()` or `ordinal::clm()` |
 | **Estimation methods** | | |
 | G-computation | Yes | Core engine; supports all intervention types |
 | IPW (via WeightIt) | Yes | Static interventions only; self-contained IPW for dynamic/MTP in Phase 4 |

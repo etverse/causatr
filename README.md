@@ -180,7 +180,7 @@ plot(diag)    # Love plot (requires cobalt)
 - **Built-in diagnostics**: positivity checks, covariate balance via
   [cobalt](https://ngreifer.github.io/cobalt/), weight summaries, Love
   plots
-- **Flexible interventions**: `static()`, `shift()`, `scale()`,
+- **Flexible interventions**: `static()`, `shift()`, `scale_by()`,
   `threshold()`, `dynamic()` for modified treatment policies
 - **Robust inference**: sandwich SE (default) or nonparametric bootstrap
 - **Any outcome type**: continuous, binary, count (via `family`

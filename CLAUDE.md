@@ -145,6 +145,7 @@ Run this in the shell:
 - **`contrast()` as separate step** — fit once, contrast many interventions
 - **ci_method: sandwich or bootstrap only** — delta method is applied internally for ratio/OR contrasts; not a separate ci_method
 - **Sandwich approach** — `sandwich::sandwich()` for g-comp, `vcov(glm_weightit)` for IPW, `sandwich::vcovCL()` for matching; all propagated to marginal means via J V_β Jᵀ (numDeriv::jacobian)
+- **`type` parameter** — `causat()` accepts `type = NULL` (default, auto-detected from `id`/`time`), `"point"`, or `"longitudinal"`. Explicit `type = "longitudinal"` requires `id` and `time`.
 - **Future: self-contained IPW** — for Phase 4 (dynamic/MTP interventions), plan to implement IPW internally rather than wrapping WeightIt, so density ratio weights can support non-static interventions
 
 ## Implementation phases

@@ -19,6 +19,10 @@ Survey weights, clustered data, parallel bootstrap, multivariate treatment, docu
 - [ ] Documentation: ML in g-formula requires debiasing, point to `lmtp` (Ch. 18)
 - [ ] Sequential positivity warnings in `causat()` for longitudinal data (deferred from Phase 5)
 - [ ] Stratified ICE option (`causat(..., stratified = TRUE)`) (deferred from Phase 5)
+- [ ] Multinomial outcomes: support multi-category outcomes across all methods (g-comp, IPW, matching) via `nnet::multinom()` or `VGAM::vglm(multinomial())`. Requires generalising `compute_contrast()` to handle vector-valued predictions, per-category marginal means, and adapted sandwich/bootstrap variance. Category-specific and pairwise contrasts (risk differences, relative risks) should be supported.
+- [ ] Ordinal outcomes: support ordered categorical outcomes via `MASS::polr()` or `ordinal::clm()`. Cumulative probability contrasts and category-specific marginal means.
+- [ ] Grace period / visit process interventions: for longitudinal data, support interventions that allow missed visits (carry forward last treatment) and censor after exceeding a maximum number of consecutive missed visits (cf. gfoRmula `visitprocess`).
+- [ ] Percent intervened on: diagnostic tracking what fraction of the population has their treatment modified under each intervention (feasibility metric, cf. gfoRmula).
 
 ## Out of scope (confirmed across all guides)
 
@@ -32,3 +36,10 @@ Survey weights, clustered data, parallel bootstrap, multivariate treatment, docu
 | Causal mediation (Ch. 23) | Different estimands | `mediation`, `medflex` |
 | Heterogeneous treatment effects | Different problem | `grf` |
 | Sensitivity analysis | Planned as separate etverse package | — |
+| Regression discontinuity (RDD) | Different identification strategy | `rdrobust`, `rdd` |
+| Difference-in-differences (DiD) | Different identification strategy | `did`, `fixest` |
+| Synthetic control | Different identification strategy | `Synth`, `gsynth` |
+| Interference / spillover effects | Different assumption set (SUTVA violation) | `inferference` |
+| Dynamic treatment regimes (DTR) | Optimal policy learning, not effect estimation | `DTRreg`, `DynTxRegime` |
+| Causal discovery / DAG learning | Structure learning, not effect estimation | `pcalg`, `dagitty` |
+| Mendelian randomization | Genetic IV, different identification | `MendelianRandomization` |

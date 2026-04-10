@@ -63,6 +63,11 @@
 #'   (e.g. survey weights or externally computed IPCW). For `"gcomp"`,
 #'   passed to `glm()`. For `"ipw"`, multiplied with the estimated propensity
 #'   weights.
+#' @param type Character or `NULL`. Whether the data are `"point"` (single
+#'   time-point per individual) or `"longitudinal"` (repeated measures).
+#'   Default `NULL` auto-detects: `"longitudinal"` when both `id` and `time`
+#'   are provided, `"point"` otherwise. Passing `type = "longitudinal"`
+#'   explicitly requires `id` and `time`.
 #' @param model_fn Function. The fitting function for the outcome model in
 #'   g-computation. Must accept `(formula, data, family, weights, ...)`.
 #'   Default `stats::glm`; pass `mgcv::gam` for GAMs, `MASS::glm.nb` for
@@ -235,6 +240,7 @@ causat <- function(
   history = 1L,
   numerator = NULL,
   weights = NULL,
+  type = NULL,
   model_fn = stats::glm,
   ...
 ) {
@@ -242,7 +248,19 @@ causat <- function(
   method <- rlang::arg_match(method)
   estimand <- rlang::arg_match(estimand)
 
-  type <- if (!is.null(id) && !is.null(time)) "longitudinal" else "point"
+  has_long <- !is.null(id) && !is.null(time)
+
+  if (is.null(type)) {
+    type <- if (has_long) "longitudinal" else "point"
+  } else {
+    type <- rlang::arg_match(type, values = c("point", "longitudinal"))
+    if (type == "longitudinal" && !has_long) {
+      rlang::abort(
+        '`type = "longitudinal"` requires both `id` and `time` to be specified.',
+        call = call
+      )
+    }
+  }
 
   check_causat_inputs(
     # nolint: object_usage_linter

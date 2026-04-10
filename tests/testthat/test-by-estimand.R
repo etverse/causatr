@@ -529,16 +529,29 @@ test_that("ICE gcomp × by recovers subgroup effects", {
   A0 <- rbinom(n, 1, plogis(0.3 * L0))
   L1 <- L0 + 0.5 * A0 + rnorm(n)
   A1 <- rbinom(n, 1, plogis(0.3 * L1))
-  Y <- 2 + 1.5 * A0 + 1.5 * A1 + 0.5 * L0 + 0.5 * L1 +
-    0.8 * sex * (A0 + A1) + rnorm(n)
+  Y <- 2 +
+    1.5 * A0 +
+    1.5 * A1 +
+    0.5 * L0 +
+    0.5 * L1 +
+    0.8 * sex * (A0 + A1) +
+    rnorm(n)
 
   t0 <- data.frame(
-    id = seq_len(n), time = 0L,
-    A = A0, L = L0, sex = sex, Y = NA_real_
+    id = seq_len(n),
+    time = 0L,
+    A = A0,
+    L = L0,
+    sex = sex,
+    Y = NA_real_
   )
   t1 <- data.frame(
-    id = seq_len(n), time = 1L,
-    A = A1, L = L1, sex = sex, Y = Y
+    id = seq_len(n),
+    time = 1L,
+    A = A1,
+    L = L1,
+    sex = sex,
+    Y = Y
   )
   long <- rbind(t0, t1)
 
@@ -546,8 +559,8 @@ test_that("ICE gcomp × by recovers subgroup effects", {
     long,
     outcome = "Y",
     treatment = "A",
-    confounders = ~ sex,
-    confounders_tv = ~ L,
+    confounders = ~sex,
+    confounders_tv = ~L,
     id = "id",
     time = "time"
   )

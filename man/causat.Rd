@@ -19,6 +19,7 @@ causat(
   history = 1L,
   numerator = NULL,
   weights = NULL,
+  type = NULL,
   model_fn = stats::glm,
   ...
 )
@@ -87,6 +88,12 @@ data.}
 (e.g. survey weights or externally computed IPCW). For \code{"gcomp"},
 passed to \code{glm()}. For \code{"ipw"}, multiplied with the estimated propensity
 weights.}
+
+\item{type}{Character or \code{NULL}. Whether the data are \code{"point"} (single
+time-point per individual) or \code{"longitudinal"} (repeated measures).
+Default \code{NULL} auto-detects: \code{"longitudinal"} when both \code{id} and \code{time}
+are provided, \code{"point"} otherwise. Passing \code{type = "longitudinal"}
+explicitly requires \code{id} and \code{time}.}
 
 \item{model_fn}{Function. The fitting function for the outcome model in
 g-computation. Must accept \verb{(formula, data, family, weights, ...)}.
@@ -270,5 +277,5 @@ g-computation. \emph{Statistics in Medicine} 43:5562–5572.
 }
 \seealso{
 \code{\link[=contrast]{contrast()}}, \code{\link[=diagnose]{diagnose()}}, \code{\link[=causat_survival]{causat_survival()}}, \code{\link[=causat_mice]{causat_mice()}},
-\code{\link[=static]{static()}}, \code{\link[=shift]{shift()}}, \code{\link[=dynamic]{dynamic()}}
+\code{\link[=static]{static()}}, \code{\link[data.table:shift]{data.table::shift()}}, \code{\link[=dynamic]{dynamic()}}
 }
