@@ -39,6 +39,14 @@
       Error in `contrast()`:
       ! Specify either 'estimand' or 'subset', not both.
 
+# contrast() rejects non-language subset
+
+    Code
+      contrast(fit, list(a1 = static(1), a0 = static(0)), subset = "age > 50")
+    Condition
+      Error in `contrast()`:
+      ! `subset` must be a quoted expression (e.g. `quote(age > 50)`), not a character.
+
 # contrast() aborts when IPW estimand is changed
 
     Code

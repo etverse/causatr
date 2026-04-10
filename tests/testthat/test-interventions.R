@@ -51,6 +51,27 @@ test_that("ipsi() rejects non-positive delta", {
   expect_snapshot(error = TRUE, ipsi(-1))
 })
 
+test_that("static() rejects invalid inputs", {
+  expect_snapshot(error = TRUE, static(NA))
+  expect_snapshot(error = TRUE, static("a"))
+  expect_snapshot(error = TRUE, static(c(1, 2)))
+})
+
+test_that("shift() rejects invalid inputs", {
+  expect_snapshot(error = TRUE, shift(NA))
+  expect_snapshot(error = TRUE, shift("a"))
+})
+
+test_that("scale() rejects invalid inputs", {
+  expect_snapshot(error = TRUE, scale(NA))
+  expect_snapshot(error = TRUE, scale("a"))
+})
+
+test_that("threshold() rejects invalid inputs", {
+  expect_snapshot(error = TRUE, threshold(5, 3))
+  expect_snapshot(error = TRUE, threshold(NA, 10))
+})
+
 test_that("print.causatr_intervention() works", {
   expect_snapshot(print(static(1)))
   expect_snapshot(print(shift(-5)))

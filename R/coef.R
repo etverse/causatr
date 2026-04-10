@@ -27,10 +27,14 @@ coef.causatr_result <- function(object, ...) {
 #' Returns the variance-covariance matrix of the intervention-specific
 #' marginal means (E\[Y^a\]) from a `causatr_result` object.
 #'
+#' When `by` was used in [contrast()], returns a named list of per-stratum
+#' vcov matrices keyed by stratum level.
+#'
 #' @param object A `causatr_result` object.
 #' @param ... Currently unused.
 #'
-#' @return A named k x k matrix (k = number of interventions).
+#' @return A named k x k matrix (k = number of interventions), or a named
+#'   list of such matrices when `by` was used.
 #'
 #' @examples
 #' \dontrun{

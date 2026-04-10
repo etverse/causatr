@@ -160,12 +160,7 @@ refit_gcomp <- function(fit, d_b) {
   censoring <- fit$censoring
   outcome <- fit$outcome
 
-  fit_rows_b <- rep(TRUE, nrow(d_b))
-  if (!is.null(censoring)) {
-    cens_col <- d_b[[censoring]]
-    fit_rows_b <- fit_rows_b & !is.na(cens_col) & (cens_col == 0)
-  }
-  fit_rows_b <- fit_rows_b & !is.na(d_b[[outcome]])
+  fit_rows_b <- is_uncensored(d_b, censoring) & !is.na(d_b[[outcome]])
 
   model_fn(model_formula, data = d_b[fit_rows_b], family = family)
 }
@@ -196,7 +191,7 @@ refit_ipw <- function(fit, d_b) {
     msm_formula,
     data = fit_data_b,
     weightit = w_b,
-    family = stats::gaussian()
+    family = fit$model$family
   )
 }
 
@@ -226,7 +221,7 @@ refit_matching <- function(fit, d_b) {
     msm_formula,
     data = matched_b,
     weights = matched_b$weights,
-    family = stats::gaussian()
+    family = fit$model$family
   )
 }
 

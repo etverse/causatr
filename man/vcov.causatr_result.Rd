@@ -12,11 +12,15 @@
 \item{...}{Currently unused.}
 }
 \value{
-A named k x k matrix (k = number of interventions).
+A named k x k matrix (k = number of interventions), or a named
+list of such matrices when \code{by} was used.
 }
 \description{
 Returns the variance-covariance matrix of the intervention-specific
 marginal means (E[Y^a]) from a \code{causatr_result} object.
+
+When \code{by} was used in \code{\link[=contrast]{contrast()}}, returns a named list of per-stratum
+vcov matrices keyed by stratum level.
 }
 \examples{
 \dontrun{

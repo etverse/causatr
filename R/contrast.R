@@ -219,6 +219,17 @@ contrast <- function(
   type <- rlang::arg_match(type)
   ci_method <- rlang::arg_match(ci_method)
 
+  if (!is.null(subset) && !is.language(subset)) {
+    rlang::abort(
+      paste0(
+        "`subset` must be a quoted expression (e.g. `quote(age > 50)`), ",
+        "not a ",
+        class(subset)[1],
+        "."
+      )
+    )
+  }
+
   if (!is.null(estimand) && !is.null(subset)) {
     rlang::abort("Specify either 'estimand' or 'subset', not both.")
   }
@@ -345,7 +356,7 @@ check_interventions_compat <- function(
 #' @param ci_method Character. `"sandwich"`, `"bootstrap"`, or `"delta"`.
 #' @param n_boot Integer. Bootstrap replications (for `ci_method = "bootstrap"`).
 #' @param conf_level Numeric. Confidence level (e.g. 0.95).
-#' @param by Character or `NULL`. Stratification variable (not yet implemented).
+#' @param by Character or `NULL`. Stratification variable for effect modification.
 #' @param call The original `contrast()` call.
 #'
 #' @return A `causatr_result` object.
@@ -383,8 +394,6 @@ compute_contrast <- function(
       }
       combined_subset <- if (!is.null(subset)) {
         bquote(.(subset) & .(by_subset))
-      } else if (!is.null(estimand) && estimand != "ATE") {
-        by_subset
       } else {
         by_subset
       }
@@ -409,11 +418,13 @@ compute_contrast <- function(
     est_list <- lapply(names(results_list), function(lev) {
       dt <- data.table::copy(results_list[[lev]]$estimates)
       dt[, by := lev]
+      dt[, n_by := results_list[[lev]]$n]
       dt
     })
     con_list <- lapply(names(results_list), function(lev) {
       dt <- data.table::copy(results_list[[lev]]$contrasts)
       dt[, by := lev]
+      dt[, n_by := results_list[[lev]]$n]
       dt
     })
 
@@ -437,7 +448,7 @@ compute_contrast <- function(
         method = fit$method,
         family = fit$family,
         fit_type = fit$type,
-        vcov = results_list[[1]]$vcov,
+        vcov = lapply(results_list, function(r) r$vcov),
         call = call
       )
     )
@@ -536,8 +547,17 @@ compute_contrast <- function(
       predict(model, newdata = da, type = "response")
     })
 
-    # Restrict target to rows with valid (non-NA) predictions.
     valid_preds <- !is.na(preds_list[[1]])
+    n_dropped <- sum(!valid_preds & target_idx)
+    if (n_dropped > 0L) {
+      rlang::warn(
+        paste0(
+          n_dropped,
+          " row(s) with NA predictions excluded from the ",
+          "target population."
+        )
+      )
+    }
     target_idx <- target_idx & valid_preds
     n_target <- sum(target_idx)
 

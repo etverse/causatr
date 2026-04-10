@@ -25,6 +25,9 @@
 #'   [contrast()]
 #' @export
 static <- function(value) {
+  if (!(is.numeric(value) && length(value) == 1L && !is.na(value))) {
+    rlang::abort("`value` must be a single non-NA number.")
+  }
   new_causatr_intervention("static", list(value = value))
 }
 
@@ -58,6 +61,9 @@ static <- function(value) {
 #' @seealso [static()], [scale()], [threshold()], [dynamic()], [ipsi()]
 #' @export
 shift <- function(delta) {
+  if (!(is.numeric(delta) && length(delta) == 1L && !is.na(delta))) {
+    rlang::abort("`delta` must be a single non-NA number.")
+  }
   new_causatr_intervention("shift", list(delta = delta))
 }
 
@@ -85,6 +91,9 @@ shift <- function(delta) {
 #' @seealso [static()], [shift()], [threshold()], [dynamic()], [ipsi()]
 #' @export
 scale <- function(factor) {
+  if (!(is.numeric(factor) && length(factor) == 1L && !is.na(factor))) {
+    rlang::abort("`factor` must be a single non-NA number.")
+  }
   new_causatr_intervention("scale", list(factor = factor))
 }
 
@@ -113,6 +122,15 @@ scale <- function(factor) {
 #' @seealso [static()], [shift()], [scale()], [dynamic()], [ipsi()]
 #' @export
 threshold <- function(lower = -Inf, upper = Inf) {
+  if (!(is.numeric(lower) && length(lower) == 1L && !is.na(lower))) {
+    rlang::abort("`lower` must be a single non-NA number.")
+  }
+  if (!(is.numeric(upper) && length(upper) == 1L && !is.na(upper))) {
+    rlang::abort("`upper` must be a single non-NA number.")
+  }
+  if (lower > upper) {
+    rlang::abort("`lower` must be <= `upper`.")
+  }
   new_causatr_intervention("threshold", list(lower = lower, upper = upper))
 }
 
@@ -300,7 +318,11 @@ apply_single_intervention <- function(data, trt_col, iv) {
         ),
         .call = FALSE
       )
-    }
+    },
+    rlang::abort(
+      paste0("Unknown intervention type: '", iv$type, "'."),
+      .call = FALSE
+    )
   )
   data
 }

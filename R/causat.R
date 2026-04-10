@@ -31,9 +31,11 @@
 #' @param method Character. Estimation method: `"gcomp"` (default), `"ipw"`,
 #'   or `"matching"`. IPW requires the `WeightIt` package; matching requires
 #'   the `MatchIt` package.
-#' @param family Character or family object. The outcome model family for
-#'   `"gcomp"` (e.g. `"gaussian"`, `"binomial"`). Passed to `glm()` or
-#'   `mgcv::gam()`. Ignored for `"ipw"` and `"matching"`.
+#' @param family Character or family object. The outcome model family
+#'   (e.g. `"gaussian"`, `"binomial"`, `stats::quasibinomial()`). Used by
+#'   all methods: passed to the outcome model for `"gcomp"`, to the MSM for
+#'   `"ipw"` (via `WeightIt::glm_weightit()`), and to the outcome model on
+#'   matched data for `"matching"`.
 #' @param estimand Character. The target estimand: `"ATE"` (default),
 #'   `"ATT"`, or `"ATC"`. `"ATT"` and `"ATC"` are only defined for binary
 #'   point treatments. For `"gcomp"`, the estimand stored here is used as the
@@ -297,6 +299,7 @@ causat <- function(
       treatment,
       confounders,
       confounders_tv,
+      family,
       estimand,
       type,
       history,
@@ -310,6 +313,7 @@ causat <- function(
       outcome,
       treatment,
       confounders,
+      family,
       estimand,
       type,
       weights,

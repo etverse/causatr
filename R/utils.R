@@ -163,6 +163,47 @@ new_causatr_intervention <- function(type, params) {
   )
 }
 
+#' Check whether rows are uncensored
+#'
+#' A row is uncensored when the censoring column is `NA` or `0` (convention:
+#' `1` = censored, `0` = observed).
+#'
+#' @param data A data.table.
+#' @param censoring Character censoring column name, or `NULL`.
+#' @return Logical vector of length `nrow(data)` (`TRUE` = uncensored).
+#' @noRd
+is_uncensored <- function(data, censoring) {
+  if (is.null(censoring)) {
+    return(rep(TRUE, nrow(data)))
+  }
+  cens <- data[[censoring]]
+  is.na(cens) | cens == 0L
+}
+
+#' Check whether a family describes a binary outcome
+#'
+#' @param family A character string, family object, or function.
+#' @return Logical scalar.
+#' @noRd
+is_binary_family <- function(family) {
+  if (is.null(family)) {
+    return(FALSE)
+  }
+  if (is.character(family)) {
+    return(family %in% c("binomial", "quasibinomial"))
+  }
+  if (is.function(family)) {
+    fam <- tryCatch(family(), error = function(e) NULL)
+    if (!is.null(fam) && is.character(fam$family)) {
+      return(fam$family %in% c("binomial", "quasibinomial"))
+    }
+  }
+  if (is.list(family) && !is.null(family$family)) {
+    return(family$family %in% c("binomial", "quasibinomial"))
+  }
+  FALSE
+}
+
 #' Check that an optional package is installed
 #'
 #' @param pkg Character package name.

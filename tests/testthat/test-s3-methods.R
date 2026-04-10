@@ -1,28 +1,11 @@
-# DGP shared across bugfix tests:
-#   L ~ N(0, 1); sex ~ Bernoulli(0.5)
-#   A | L ~ Bernoulli(expit(0.5*L))
-#   Y = 2 + 3*A + 1.5*L + 1.2*sex*A + N(0, 1)
-#
-# True ATE         = 3 + 1.2*E[sex] = 3 + 0.6 = 3.6
-# True ATE|sex=0   = 3
-# True ATE|sex=1   = 3 + 1.2 = 4.2
-# True E[Y(1)]     = 2 + 3 + 0 + 0.6 = 5.6
-# True E[Y(0)]     = 2 + 0 + 0 + 0 = 2.0
-
-simulate_bugfix <- function(n = 3000, seed = 42) {
-  set.seed(seed)
-  L <- rnorm(n)
-  sex <- rbinom(n, 1, 0.5)
-  A <- rbinom(n, 1, plogis(0.5 * L))
-  Y <- 2 + 3 * A + 1.5 * L + 1.2 * sex * A + rnorm(n)
-  data.frame(Y = Y, A = A, L = L, sex = sex)
-}
+# S3 method tests for causatr_fit, causatr_result, causatr_diag.
+# DGP functions are defined in helper-dgp.R (auto-loaded by testthat).
 
 tol_bf <- 0.5
 
 
 test_that("confint() respects level argument", {
-  df <- simulate_bugfix()
+  df <- simulate_effect_mod()
   fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~ L + sex)
   result <- contrast(fit, list(a1 = static(1), a0 = static(0)))
 
@@ -41,7 +24,7 @@ test_that("confint() respects level argument", {
 })
 
 test_that("confint() returns correct structure", {
-  df <- simulate_bugfix(n = 100)
+  df <- simulate_effect_mod(n = 100)
   fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L)
   result <- contrast(fit, list(a1 = static(1), a0 = static(0)))
 
@@ -52,7 +35,7 @@ test_that("confint() returns correct structure", {
 })
 
 test_that("by parameter recovers subgroup-specific ATEs", {
-  df <- simulate_bugfix()
+  df <- simulate_effect_mod()
   fit <- causat(
     df,
     outcome = "Y",
@@ -77,10 +60,18 @@ test_that("by parameter recovers subgroup-specific ATEs", {
   ate_sex1 <- abs(result$contrasts$estimate[result$contrasts$by == "1"])
   expect_true(abs(ate_sex0 - 3.0) < tol_bf)
   expect_true(abs(ate_sex1 - 4.2) < tol_bf)
+
+  expect_true("n_by" %in% names(result$estimates))
+  expect_true("n_by" %in% names(result$contrasts))
+  expect_true(all(result$estimates$n_by > 0))
+  expect_equal(
+    sum(unique(result$estimates$n_by)),
+    result$n
+  )
 })
 
 test_that("by parameter rejects missing variable", {
-  df <- simulate_bugfix(n = 50)
+  df <- simulate_effect_mod(n = 50)
   fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L)
   expect_snapshot(
     error = TRUE,
@@ -187,6 +178,29 @@ test_that("vcov.causatr_result returns correct matrix", {
   expect_equal(rownames(v), c("a1", "a0"))
 })
 
+test_that("vcov.causatr_result returns per-stratum list when by is used", {
+  df <- simulate_effect_mod()
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L + sex + A:sex
+  )
+  result <- contrast(
+    fit,
+    list(a1 = static(1), a0 = static(0)),
+    ci_method = "sandwich",
+    by = "sex"
+  )
+
+  v <- vcov(result)
+  expect_true(is.list(v))
+  expect_equal(length(v), 2L)
+  expect_true(all(vapply(v, is.matrix, logical(1))))
+  expect_equal(nrow(v[[1]]), 2L)
+  expect_equal(ncol(v[[1]]), 2L)
+})
+
 test_that("tidy.causatr_result returns data frame", {
   df <- data.frame(
     Y = rnorm(100),
@@ -287,4 +301,57 @@ test_that("weight summary handles continuous treatment IPW", {
 
   expect_true(!is.null(diag$weights))
   expect_true(any(diag$weights$group == "overall"))
+})
+
+test_that("coef.causatr_result returns named numeric vector", {
+  df <- simulate_effect_mod(n = 200)
+  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L)
+  result <- contrast(
+    fit,
+    list(a1 = static(1), a0 = static(0)),
+    ci_method = "sandwich"
+  )
+
+  cf <- coef(result)
+  expect_true(is.numeric(cf))
+  expect_equal(length(cf), 2L)
+  expect_equal(names(cf), c("a1", "a0"))
+  expect_equal(unname(cf), result$estimates$estimate)
+})
+
+test_that("plot.causatr_result runs without error", {
+  skip_if_not_installed("forrest")
+  df <- simulate_effect_mod(n = 200)
+  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L)
+  result <- contrast(
+    fit,
+    list(a1 = static(1), a0 = static(0)),
+    ci_method = "sandwich"
+  )
+
+  expect_no_error(plot(result))
+  expect_no_error(plot(result, which = "means"))
+})
+
+test_that("summary.causatr_result includes vcov output", {
+  df <- simulate_effect_mod(n = 200)
+  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L)
+  result <- contrast(
+    fit,
+    list(a1 = static(1), a0 = static(0)),
+    ci_method = "sandwich"
+  )
+
+  out <- capture.output(summary(result))
+  expect_true(any(grepl("Variance-covariance", out)))
+})
+
+test_that("summary.causatr_fit includes model summary", {
+  df <- simulate_effect_mod(n = 200)
+  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L)
+
+  out <- capture.output(summary(fit))
+  expect_true(any(
+    grepl("Coefficients", out) | grepl("coef", out, ignore.case = TRUE)
+  ))
 })

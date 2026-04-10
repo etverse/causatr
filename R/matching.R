@@ -37,6 +37,7 @@ fit_matching <- function(
   outcome,
   treatment,
   confounders,
+  family,
   estimand,
   type,
   weights,
@@ -88,11 +89,19 @@ fit_matching <- function(
       weights[fit_rows][as.integer(rownames(matched_data))]
   }
 
+  msm_family <- if (is.character(family)) {
+    get(family, mode = "function", envir = asNamespace("stats"))()
+  } else if (is.function(family)) {
+    family()
+  } else {
+    family
+  }
+
   model <- stats::glm(
     msm_formula,
     data = matched_data,
     weights = matched_weights,
-    family = stats::gaussian()
+    family = msm_family
   )
 
   new_causatr_fit(
@@ -102,7 +111,7 @@ fit_matching <- function(
     outcome = outcome,
     confounders = confounders,
     confounders_tv = NULL,
-    family = "gaussian",
+    family = family,
     method = "matching",
     type = "point",
     estimand = estimand,

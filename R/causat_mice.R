@@ -66,6 +66,7 @@
 #' }
 #'
 #' @seealso [causat()], [contrast()]
+#' @keywords internal
 #' @export
 causat_mice <- function(
   imp,

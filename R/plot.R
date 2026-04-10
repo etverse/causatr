@@ -101,30 +101,6 @@ plot.causatr_result <- function(x, which = c("contrasts", "means"), ...) {
   invisible(x)
 }
 
-#' Check whether a family describes a binary outcome
-#'
-#' @param family A character string, family object, or function.
-#' @return Logical scalar.
-#' @noRd
-is_binary_family <- function(family) {
-  if (is.null(family)) {
-    return(FALSE)
-  }
-  if (is.character(family)) {
-    return(family %in% c("binomial", "quasibinomial"))
-  }
-  if (is.function(family)) {
-    fam <- tryCatch(family(), error = function(e) NULL)
-    if (!is.null(fam) && is.character(fam$family)) {
-      return(fam$family %in% c("binomial", "quasibinomial"))
-    }
-  }
-  if (is.list(family) && !is.null(family$family)) {
-    return(family$family %in% c("binomial", "quasibinomial"))
-  }
-  FALSE
-}
-
 #' Format a point estimate and confidence interval
 #'
 #' @param est Numeric vector of estimates.

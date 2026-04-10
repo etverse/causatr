@@ -42,6 +42,21 @@ test_that("contrast() rejects estimand and subset together", {
   )
 })
 
+test_that("contrast() rejects non-language subset", {
+  fit <- structure(
+    list(method = "gcomp", estimand = "ATE"),
+    class = "causatr_fit"
+  )
+  expect_snapshot(
+    error = TRUE,
+    contrast(
+      fit,
+      list(a1 = static(1), a0 = static(0)),
+      subset = "age > 50"
+    )
+  )
+})
+
 test_that("contrast() aborts when IPW estimand is changed", {
   fit <- structure(
     list(method = "ipw", estimand = "ATE", treatment = "A", type = "point"),

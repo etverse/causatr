@@ -48,9 +48,11 @@ for point treatments. If \code{NULL}, no time-varying confounders are used.}
 or \code{"matching"}. IPW requires the \code{WeightIt} package; matching requires
 the \code{MatchIt} package.}
 
-\item{family}{Character or family object. The outcome model family for
-\code{"gcomp"} (e.g. \code{"gaussian"}, \code{"binomial"}). Passed to \code{glm()} or
-\code{mgcv::gam()}. Ignored for \code{"ipw"} and \code{"matching"}.}
+\item{family}{Character or family object. The outcome model family
+(e.g. \code{"gaussian"}, \code{"binomial"}, \code{stats::quasibinomial()}). Used by
+all methods: passed to the outcome model for \code{"gcomp"}, to the MSM for
+\code{"ipw"} (via \code{WeightIt::glm_weightit()}), and to the outcome model on
+matched data for \code{"matching"}.}
 
 \item{estimand}{Character. The target estimand: \code{"ATE"} (default),
 \code{"ATT"}, or \code{"ATC"}. \code{"ATT"} and \code{"ATC"} are only defined for binary

@@ -1,58 +1,5 @@
 # Simulation-based tests with known true parameter values.
-#
-# DGP (data-generating process):
-#   L ~ N(0, 1)
-#   A | L ~ Bernoulli(expit(0.5 * L))       [binary treatment]
-#   Y | A, L ~ N(2 + 3*A + 1.5*L, sd = 1)   [continuous outcome]
-#
-# True ATE  = E[Y(1)] - E[Y(0)] = 3
-# True ATT  = 3 (same because treatment effect is constant in this DGP)
-# True E[Y(1)] = 2 + 3 + 1.5*E[L] = 5 (since E[L] = 0)
-# True E[Y(0)] = 2 + 1.5*E[L] = 2
-
-simulate_binary_continuous <- function(n = 2000, seed = 42) {
-  set.seed(seed)
-  L <- rnorm(n)
-  ps <- plogis(0.5 * L)
-  A <- rbinom(n, 1, ps)
-  Y <- 2 + 3 * A + 1.5 * L + rnorm(n)
-  data.frame(Y = Y, A = A, L = L)
-}
-
-# DGP for binary outcome:
-#   L ~ N(0, 1)
-#   A | L ~ Bernoulli(expit(0.5 * L))
-#   Y | A, L ~ Bernoulli(expit(-1 + 1.5*A + 0.8*L))
-#
-# True risk under A=1: E[expit(-1 + 1.5 + 0.8*L)] ≈ 0.622 (via simulation)
-# True risk under A=0: E[expit(-1 + 0.8*L)]        ≈ 0.289
-# True RD ≈ 0.333
-
-simulate_binary_binary <- function(n = 2000, seed = 42) {
-  set.seed(seed)
-  L <- rnorm(n)
-  ps <- plogis(0.5 * L)
-  A <- rbinom(n, 1, ps)
-  Y <- rbinom(n, 1, plogis(-1 + 1.5 * A + 0.8 * L))
-  data.frame(Y = Y, A = A, L = L)
-}
-
-# DGP for continuous treatment:
-#   L ~ N(0, 1)
-#   A | L ~ N(1 + 0.5*L, sd = 1)     [continuous treatment]
-#   Y | A, L ~ N(1 + 2*A + L, sd = 1)
-#
-# True E[Y(a)] = 1 + 2*a + E[L] = 1 + 2*a
-# shift(-1): E[Y(A-1)] vs E[Y(A)] → difference = -2
-
-simulate_continuous_continuous <- function(n = 2000, seed = 42) {
-  set.seed(seed)
-  L <- rnorm(n)
-  A <- 1 + 0.5 * L + rnorm(n)
-  Y <- 1 + 2 * A + L + rnorm(n)
-  data.frame(Y = Y, A = A, L = L)
-}
-
+# DGP functions are defined in helper-dgp.R (auto-loaded by testthat).
 
 # ============================================================
 # GCOMP × BINARY TREATMENT × CONTINUOUS OUTCOME × DIFFERENCE
@@ -575,6 +522,89 @@ test_that("ipw × binary trt × binary outcome × ratio × sandwich", {
 })
 
 
+test_that("ipw × binary outcome × binomial family recovers RD", {
+  df <- simulate_binary_binary(n = 3000)
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    method = "ipw",
+    family = "binomial"
+  )
+  result <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  expect_equal(result$contrasts$estimate[1], 0.33, tolerance = 0.15)
+  expect_gt(result$contrasts$se[1], 0)
+})
+
+test_that("matching × binary outcome × quasibinomial family recovers RD", {
+  df <- simulate_binary_binary(n = 3000)
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    method = "matching",
+    family = "quasibinomial"
+  )
+  result <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  expect_equal(result$contrasts$estimate[1], 0.33, tolerance = 0.15)
+  expect_gt(result$contrasts$se[1], 0)
+})
+
+test_that("ipw × continuous outcome × gaussian family (default) recovers ATE", {
+  df <- simulate_binary_continuous(n = 2000)
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    method = "ipw",
+    family = "gaussian"
+  )
+  result <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  expect_equal(result$contrasts$estimate[1], 3.0, tolerance = 0.5)
+})
+
+test_that("matching × continuous outcome × gaussian family recovers ATE", {
+  df <- simulate_binary_continuous(n = 2000)
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    method = "matching",
+    family = "gaussian"
+  )
+  result <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  expect_equal(result$contrasts$estimate[1], 3.0, tolerance = 0.5)
+})
+
+
 # ============================================================
 # IPW × BINARY TREATMENT × CONTINUOUS OUTCOME (extended)
 # ============================================================
@@ -846,73 +876,6 @@ test_that("triangulation: all methods agree on binary outcome RD", {
 # ============================================================
 # S3 METHODS: coef, confint, print, summary
 # ============================================================
-
-test_that("coef.causatr_result returns named numeric vector", {
-  df <- simulate_binary_continuous(n = 1000)
-  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L)
-  result <- contrast(
-    fit,
-    interventions = list(a1 = static(1), a0 = static(0)),
-    reference = "a0",
-    ci_method = "sandwich"
-  )
-  co <- coef(result)
-  expect_named(co, c("a1", "a0"))
-  expect_true(all(is.finite(co)))
-})
-
-test_that("confint.causatr_result returns matrix with lower/upper", {
-  df <- simulate_binary_continuous(n = 1000)
-  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L)
-  result <- contrast(
-    fit,
-    interventions = list(a1 = static(1), a0 = static(0)),
-    reference = "a0",
-    ci_method = "sandwich"
-  )
-  ci <- confint(result)
-  expect_equal(nrow(ci), 2L)
-  expect_equal(colnames(ci), c("lower", "upper"))
-  expect_true(all(ci[, "lower"] < ci[, "upper"]))
-})
-
-test_that("print.causatr_fit outputs method and type", {
-  df <- simulate_binary_continuous(n = 100)
-  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L)
-  expect_output(print(fit), "causatr_fit")
-  expect_output(print(fit), "G-computation")
-})
-
-test_that("print.causatr_result outputs contrast info", {
-  df <- simulate_binary_continuous(n = 500)
-  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L)
-  result <- contrast(
-    fit,
-    interventions = list(a1 = static(1), a0 = static(0)),
-    reference = "a0"
-  )
-  expect_output(print(result), "causatr_result")
-  expect_output(print(result), "sandwich")
-})
-
-test_that("summary.causatr_fit outputs model details", {
-  df <- simulate_binary_continuous(n = 100)
-  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L)
-  expect_output(summary(fit), "causatr fit")
-  expect_output(summary(fit), "Confounders")
-})
-
-test_that("summary.causatr_result outputs result details", {
-  df <- simulate_binary_continuous(n = 500)
-  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L)
-  result <- contrast(
-    fit,
-    interventions = list(a1 = static(1), a0 = static(0)),
-    reference = "a0"
-  )
-  expect_output(summary(result), "causatr_result")
-})
-
 
 # ============================================================
 # SURVIVAL / PERSON-PERIOD TESTS

@@ -106,3 +106,4 @@ by Chained Equations in R. \emph{Journal of Statistical Software} 45(3):1–67.
 \seealso{
 \code{\link[=causat]{causat()}}, \code{\link[=contrast]{contrast()}}
 }
+\keyword{internal}

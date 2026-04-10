@@ -131,10 +131,7 @@ causat_survival <- function(
     by = c(id)
   ]
 
-  fit_rows <- data[["prev_event"]] == 0
-  if (!is.null(censoring)) {
-    fit_rows <- fit_rows & (data[[censoring]] == 0 | is.na(data[[censoring]]))
-  }
+  fit_rows <- data[["prev_event"]] == 0 & is_uncensored(data, censoring)
   fit_data <- data[fit_rows]
 
   model_weights <- if (!is.null(weights)) weights[fit_rows] else NULL

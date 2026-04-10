@@ -41,6 +41,7 @@ fit_ipw <- function(
   treatment,
   confounders,
   confounders_tv,
+  family,
   estimand,
   type,
   history,
@@ -87,11 +88,19 @@ fit_ipw <- function(
   # account for weight-estimation uncertainty.
   msm_formula <- stats::reformulate(treatment, response = outcome)
 
+  msm_family <- if (is.character(family)) {
+    get(family, mode = "function", envir = asNamespace("stats"))()
+  } else if (is.function(family)) {
+    family()
+  } else {
+    family
+  }
+
   msm_fit <- WeightIt::glm_weightit(
     msm_formula,
     data = fit_data,
     weightit = w,
-    family = stats::gaussian()
+    family = msm_family
   )
 
   new_causatr_fit(
@@ -101,7 +110,7 @@ fit_ipw <- function(
     outcome = outcome,
     confounders = confounders,
     confounders_tv = confounders_tv,
-    family = "gaussian",
+    family = family,
     method = "ipw",
     type = "point",
     estimand = estimand,

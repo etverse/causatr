@@ -129,12 +129,7 @@ fit_gcomp_point <- function(
   # Identify fitting rows: uncensored (C == 0) AND non-missing outcome.
   # contrast() will predict for ALL rows — the g-formula standardises over
   # the full target population regardless of censoring status.
-  fit_rows <- rep(TRUE, nrow(data))
-  if (!is.null(censoring)) {
-    cens_col <- data[[censoring]]
-    fit_rows <- fit_rows & !is.na(cens_col) & (cens_col == 0)
-  }
-  fit_rows <- fit_rows & !is.na(data[[outcome]])
+  fit_rows <- is_uncensored(data, censoring) & !is.na(data[[outcome]])
   fit_data <- data[fit_rows]
 
   # Subset the user-supplied observation weights to match the fitting rows.

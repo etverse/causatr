@@ -333,10 +333,7 @@ ice_iterate <- function(fit, intervention) {
 
   # Identify rows at the final time that are uncensored and have observed Y.
   mask_final <- data[[time_col]] == final_time
-  uncens <- rep(TRUE, nrow(data))
-  if (!is.null(censoring)) {
-    uncens <- is.na(data[[censoring]]) | data[[censoring]] == 0L
-  }
+  uncens <- is_uncensored(data, censoring)
   fit_mask <- mask_final & uncens & !is.na(data[[outcome]])
 
   fit_data <- data[fit_mask]
@@ -383,13 +380,8 @@ ice_iterate <- function(fit, intervention) {
     current_time <- time_points[step_i]
     time_idx <- step_i - 1L # 0-based
 
-    # Rows at the current time that are uncensored.
     mask_current <- data[[time_col]] == current_time
-    uncens_current <- rep(TRUE, nrow(data))
-    if (!is.null(censoring)) {
-      uncens_current <- is.na(data[[censoring]]) | data[[censoring]] == 0L
-    }
-    mask_uncens <- mask_current & uncens_current
+    mask_uncens <- mask_current & uncens
 
     # Look up pseudo-outcomes for uncensored individuals at this time.
     current_ids <- as.character(data[mask_uncens][[id_col]])
