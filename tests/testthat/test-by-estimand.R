@@ -5,7 +5,7 @@
 # so that ATT ≠ ATE ≠ ATC within each sex stratum, ensuring we can distinguish
 # correct from incorrect estimand targeting.
 
-tol <- 0.6
+tol <- 0.15
 
 
 # ============================================================
@@ -511,8 +511,8 @@ test_that("gcomp × by × ATT × bootstrap works", {
 
   att_sex0 <- result$contrasts$estimate[result$contrasts$by == "0"]
   att_sex1 <- result$contrasts$estimate[result$contrasts$by == "1"]
-  expect_equal(att_sex0, 3.83, tolerance = 1.0)
-  expect_equal(att_sex1, 5.33, tolerance = 1.0)
+  expect_equal(att_sex0, 3.83, tolerance = 0.5)
+  expect_equal(att_sex1, 5.33, tolerance = 0.5)
   expect_true(all(result$contrasts$se > 0))
 })
 
@@ -674,6 +674,6 @@ test_that("gcomp × by × continuous treatment × shift", {
 
   eff_sex0 <- result$contrasts$estimate[result$contrasts$by == "0"]
   eff_sex1 <- result$contrasts$estimate[result$contrasts$by == "1"]
-  expect_equal(eff_sex0, -2.0, tolerance = 0.5)
-  expect_equal(eff_sex1, -2.5, tolerance = 0.5)
+  expect_equal(eff_sex0, -2.0, tolerance = 0.3)
+  expect_equal(eff_sex1, -2.5, tolerance = 0.3)
 })

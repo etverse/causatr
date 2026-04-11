@@ -100,24 +100,33 @@ variance_bootstrap <- function(
   } else {
     if (n_fail > 0L) {
       pct <- round(100 * n_fail / n_boot, 1)
-      rlang::warn(paste0(
-        n_fail,
-        " of ",
-        n_boot,
-        " bootstrap replicates (",
-        pct,
-        "%) failed and were discarded. ",
-        "Variance is estimated from the ",
-        n_ok,
-        " successful replicates."
-      ))
+      if (pct > 20) {
+        rlang::warn(paste0(
+          n_fail, " of ", n_boot,
+          " bootstrap replicates (", pct,
+          "%) failed. High failure rate may indicate model ",
+          "instability; variance estimates may be unreliable."
+        ))
+      } else {
+        rlang::warn(paste0(
+          n_fail, " of ", n_boot,
+          " bootstrap replicates (", pct,
+          "%) failed and were discarded. ",
+          "Variance is estimated from the ",
+          n_ok, " successful replicates."
+        ))
+      }
     }
     vcov_mat <- stats::var(t_mat[complete_rows, , drop = FALSE])
   }
 
   rownames(vcov_mat) <- int_names
   colnames(vcov_mat) <- int_names
-  vcov_mat
+
+  boot_t <- t_mat[complete_rows, , drop = FALSE]
+  colnames(boot_t) <- int_names
+
+  list(vcov = vcov_mat, boot_t = boot_t)
 }
 
 #' Refit the full estimation pipeline on a bootstrap sample
@@ -159,10 +168,15 @@ refit_gcomp <- function(fit, d_b) {
   model_fn <- fit$details$model_fn
   censoring <- fit$censoring
   outcome <- fit$outcome
+  ext_w <- fit$details$external_weights
 
   fit_rows_b <- is_uncensored(d_b, censoring) & !is.na(d_b[[outcome]])
 
-  model_fn(model_formula, data = d_b[fit_rows_b], family = family)
+  args <- list(model_formula, data = d_b[fit_rows_b], family = family)
+  if (!is.null(ext_w)) {
+    args$weights <- ext_w[fit_rows_b]
+  }
+  do.call(model_fn, args)
 }
 
 #' Refit IPW propensity weights and MSM on a bootstrap sample
@@ -172,9 +186,9 @@ refit_gcomp <- function(fit, d_b) {
 #' @return A `glm_weightit` model object.
 #' @noRd
 refit_ipw <- function(fit, d_b) {
-  # Re-estimate propensity-score weights.
   confounder_terms <- attr(stats::terms(fit$confounders), "term.labels")
   ps_formula <- stats::reformulate(confounder_terms, response = fit$treatment)
+  ext_w <- fit$details$external_weights
 
   fit_rows_b <- !is.na(d_b[[fit$outcome]])
   fit_data_b <- d_b[fit_rows_b]
@@ -185,7 +199,10 @@ refit_ipw <- function(fit, d_b) {
     estimand = fit$estimand
   )
 
-  # Refit the weighted MSM.
+  if (!is.null(ext_w)) {
+    w_b$weights <- w_b$weights * ext_w[fit_rows_b]
+  }
+
   msm_formula <- stats::reformulate(fit$treatment, response = fit$outcome)
   WeightIt::glm_weightit(
     msm_formula,
@@ -204,6 +221,7 @@ refit_ipw <- function(fit, d_b) {
 refit_matching <- function(fit, d_b) {
   confounder_terms <- attr(stats::terms(fit$confounders), "term.labels")
   ps_formula <- stats::reformulate(confounder_terms, response = fit$treatment)
+  ext_w <- fit$details$external_weights
 
   fit_rows_b <- !is.na(d_b[[fit$outcome]])
   fit_data_b <- as.data.frame(d_b[fit_rows_b])
@@ -216,11 +234,17 @@ refit_matching <- function(fit, d_b) {
   m_b <- do.call(MatchIt::matchit, match_args)
   matched_b <- MatchIt::match.data(m_b)
 
+  matched_weights <- matched_b$weights
+  if (!is.null(ext_w)) {
+    matched_weights <- matched_weights *
+      ext_w[fit_rows_b][as.integer(rownames(matched_b))]
+  }
+
   msm_formula <- stats::reformulate(fit$treatment, response = fit$outcome)
   stats::glm(
     msm_formula,
     data = matched_b,
-    weights = matched_b$weights,
+    weights = matched_weights,
     family = fit$model$family
   )
 }
@@ -375,22 +399,31 @@ ice_variance_bootstrap <- function(
   } else {
     if (n_fail > 0L) {
       pct <- round(100 * n_fail / n_boot, 1)
-      rlang::warn(paste0(
-        n_fail,
-        " of ",
-        n_boot,
-        " bootstrap replicates (",
-        pct,
-        "%) failed and were discarded. ",
-        "Variance is estimated from the ",
-        n_ok,
-        " successful replicates."
-      ))
+      if (pct > 20) {
+        rlang::warn(paste0(
+          n_fail, " of ", n_boot,
+          " bootstrap replicates (", pct,
+          "%) failed. High failure rate may indicate model ",
+          "instability; variance estimates may be unreliable."
+        ))
+      } else {
+        rlang::warn(paste0(
+          n_fail, " of ", n_boot,
+          " bootstrap replicates (", pct,
+          "%) failed and were discarded. ",
+          "Variance is estimated from the ",
+          n_ok, " successful replicates."
+        ))
+      }
     }
     vcov_mat <- stats::var(t_mat[complete_rows, , drop = FALSE])
   }
 
   rownames(vcov_mat) <- int_names
   colnames(vcov_mat) <- int_names
-  vcov_mat
+
+  boot_t <- t_mat[complete_rows, , drop = FALSE]
+  colnames(boot_t) <- int_names
+
+  list(vcov = vcov_mat, boot_t = boot_t)
 }

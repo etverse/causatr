@@ -55,7 +55,17 @@ to_person_period <- function(
     data <- data.table::as.data.table(data)
   }
 
-  # Determine the number of time points from the first time-varying variable.
+  all_tv_cols <- unlist(time_varying, use.names = FALSE)
+  missing_cols <- setdiff(all_tv_cols, names(data))
+  if (length(missing_cols) > 0L) {
+    rlang::abort(
+      paste0(
+        "Column(s) not found in data: ",
+        paste(missing_cols, collapse = ", ")
+      )
+    )
+  }
+
   n_times <- length(time_varying[[1]])
 
   # Validate that all time-varying variables have the same number of columns.

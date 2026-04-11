@@ -241,6 +241,8 @@ ice_compute_influence <- function(fit, ice_result, target) {
       # Model 0 (first time): μ̂ = (1/n_t) Σ_{target} predict(model_0, x^*).
       # g_0 = (1/n_t) Σ_{j ∈ target} dμ/dη × X^*_{0,j}.
       target_in_iv <- match(all_ids[target], iv_ids_current)
+      valid_target <- !is.na(target_in_iv)
+      target_in_iv <- target_in_iv[valid_target]
       g_k <- as.numeric(
         crossprod(
           X_star_k[target_in_iv, , drop = FALSE],

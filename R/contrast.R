@@ -240,7 +240,8 @@ contrast <- function(
     check_estimand_trt_compat(
       estimand,
       fit$treatment,
-      fit$type
+      fit$type,
+      data = fit$data
     )
   }
 
@@ -457,6 +458,7 @@ compute_contrast <- function(
         family = fit$family,
         fit_type = fit$type,
         vcov = lapply(results_list, function(r) r$vcov),
+        boot_t = lapply(results_list, function(r) r$boot_t),
         call = call
       )
     )
@@ -516,15 +518,15 @@ compute_contrast <- function(
     )
     names(mu_hat) <- int_names
 
-    # Variance via ICE-specific methods (stacked EE sandwich or bootstrap).
-    vcov_mat <- switch(
-      ci_method,
-      sandwich = ice_variance_sandwich(
+    boot_t <- NULL
+    if (ci_method == "sandwich") {
+      vcov_mat <- ice_variance_sandwich(
         fit,
         ice_results,
         target_within_first
-      ),
-      bootstrap = ice_variance_bootstrap(
+      )
+    } else {
+      boot_res <- ice_variance_bootstrap(
         fit,
         interventions,
         n_boot,
@@ -534,7 +536,9 @@ compute_contrast <- function(
         parallel,
         ncpus
       )
-    )
+      vcov_mat <- boot_res$vcov
+      boot_t <- boot_res$boot_t
+    }
   } else {
     # Point-treatment g-computation: single model, predict-then-average.
     # Single outcome model: predict under each intervention, average over
@@ -555,7 +559,7 @@ compute_contrast <- function(
       predict(model, newdata = da, type = "response")
     })
 
-    valid_preds <- !is.na(preds_list[[1]])
+    valid_preds <- Reduce(`&`, lapply(preds_list, function(p) !is.na(p)))
     n_dropped <- sum(!valid_preds & target_idx)
     if (n_dropped > 0L) {
       rlang::warn(
@@ -577,16 +581,16 @@ compute_contrast <- function(
     )
     names(mu_hat) <- int_names
 
-    # Variance via point-treatment methods (J V_β Jᵀ sandwich or bootstrap).
-    vcov_mat <- switch(
-      ci_method,
-      sandwich = variance_sandwich(
+    boot_t <- NULL
+    if (ci_method == "sandwich") {
+      vcov_mat <- variance_sandwich(
         fit,
         data_a_list,
         preds_list,
         target_idx
-      ),
-      bootstrap = variance_bootstrap(
+      )
+    } else {
+      boot_res <- variance_bootstrap(
         fit,
         interventions,
         n_boot,
@@ -596,7 +600,9 @@ compute_contrast <- function(
         parallel,
         ncpus
       )
-    )
+      vcov_mat <- boot_res$vcov
+      boot_t <- boot_res$boot_t
+    }
   }
 
   rownames(vcov_mat) <- int_names
@@ -685,6 +691,7 @@ compute_contrast <- function(
     family = fit$family,
     fit_type = fit$type,
     vcov = vcov_mat,
+    boot_t = boot_t,
     call = call
   )
 }

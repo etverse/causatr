@@ -97,6 +97,7 @@ new_causatr_result <- function(
   family,
   fit_type,
   vcov,
+  boot_t = NULL,
   call
 ) {
   structure(
@@ -113,6 +114,7 @@ new_causatr_result <- function(
       family = family,
       fit_type = fit_type,
       vcov = vcov,
+      boot_t = boot_t,
       call = call
     ),
     class = "causatr_result"
@@ -192,7 +194,13 @@ is_uncensored <- function(data, censoring) {
 #' @noRd
 resolve_family <- function(family) {
   if (is.character(family)) {
-    return(get(family, mode = "function", envir = asNamespace("stats"))())
+    fam_fn <- tryCatch(
+      get(family, mode = "function", envir = asNamespace("stats")),
+      error = function(e) {
+        rlang::abort(paste0("Unknown family: '", family, "'."))
+      }
+    )
+    return(fam_fn())
   }
   if (is.function(family)) {
     return(family())

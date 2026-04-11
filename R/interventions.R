@@ -306,8 +306,22 @@ apply_single_intervention <- function(data, trt_col, iv) {
       data[, (trt_col) := pmax(pmin(get(trt_col), iv$upper), iv$lower)]
     },
     dynamic = {
-      # Evaluate the user-supplied rule function and assign the result.
       new_trt <- iv$rule(data, data[[trt_col]])
+      if (!is.numeric(new_trt) && !is.integer(new_trt)) {
+        rlang::abort(
+          "`dynamic()` rule must return a numeric vector.",
+          .call = FALSE
+        )
+      }
+      if (length(new_trt) != nrow(data)) {
+        rlang::abort(
+          paste0(
+            "`dynamic()` rule must return a vector of length ", nrow(data),
+            " (got ", length(new_trt), ")."
+          ),
+          .call = FALSE
+        )
+      }
       data[, (trt_col) := new_trt]
     },
     ipsi = {

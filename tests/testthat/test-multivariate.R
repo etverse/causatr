@@ -102,7 +102,7 @@ simulate_mv_long <- function(n = 2000, seed = 42) {
   )
 }
 
-tol <- 0.5
+tol <- 0.3
 
 
 test_that("mv point: static, all four combinations recover truth", {

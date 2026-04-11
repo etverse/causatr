@@ -31,5 +31,5 @@ contrast(fit, interventions = list(
 
 }
 \seealso{
-\code{\link[=static]{static()}}, \code{\link[data.table:shift]{data.table::shift()}}, \code{\link[=scale_by]{scale_by()}}, \code{\link[=dynamic]{dynamic()}}, \code{\link[=ipsi]{ipsi()}}
+\code{\link[=static]{static()}}, \code{\link[=shift]{shift()}}, \code{\link[=scale_by]{scale_by()}}, \code{\link[=dynamic]{dynamic()}}, \code{\link[=ipsi]{ipsi()}}
 }

@@ -5,6 +5,7 @@
 #' @importFrom data.table .SD .N .I .GRP .BY := copy as.data.table is.data.table
 #' @importFrom data.table setkeyv uniqueN shift
 #' @importFrom generics tidy glance
+#' @importFrom rlang %||%
 #' @importFrom stats predict vcov
 ## usethis namespace: end
 NULL

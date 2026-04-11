@@ -2,8 +2,10 @@
 #'
 #' @description
 #' Returns confidence intervals for each intervention mean (E\[Y^a\]) from a
-#' `causatr_result` object. By default uses the stored CIs; if `level` differs
-#' from the level used in [contrast()], recomputes from the vcov matrix.
+#' `causatr_result` object. When the result was computed with
+#' `ci_method = "bootstrap"`, percentile-based CIs are returned from the
+#' stored bootstrap replicates. Otherwise, Wald-type CIs are computed from
+#' the standard errors.
 #'
 #' @param object A `causatr_result` object.
 #' @param parm Ignored. Intervals are returned for all interventions.
@@ -23,13 +25,23 @@
 #' @seealso [coef.causatr_result()], [contrast()]
 #' @export
 confint.causatr_result <- function(object, parm, level = 0.95, ...) {
-  est <- object$estimates$estimate
-  se <- object$estimates$se
-  z <- stats::qnorm((1 + level) / 2)
-  ci <- cbind(
-    lower = est - z * se,
-    upper = est + z * se
-  )
-  rownames(ci) <- object$estimates$intervention
+  int_names <- object$estimates$intervention
+  alpha <- (1 - level) / 2
+
+  if (!is.null(object$boot_t) && !is.list(object$boot_t)) {
+    ci <- t(apply(object$boot_t, 2, stats::quantile,
+      probs = c(alpha, 1 - alpha), na.rm = TRUE
+    ))
+    colnames(ci) <- c("lower", "upper")
+  } else {
+    est <- object$estimates$estimate
+    se <- object$estimates$se
+    z <- stats::qnorm(1 - alpha)
+    ci <- cbind(
+      lower = est - z * se,
+      upper = est + z * se
+    )
+  }
+  rownames(ci) <- int_names
   ci
 }

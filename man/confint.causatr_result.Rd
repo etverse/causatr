@@ -21,8 +21,10 @@ intervention.
 }
 \description{
 Returns confidence intervals for each intervention mean (E[Y^a]) from a
-\code{causatr_result} object. By default uses the stored CIs; if \code{level} differs
-from the level used in \code{\link[=contrast]{contrast()}}, recomputes from the vcov matrix.
+\code{causatr_result} object. When the result was computed with
+\code{ci_method = "bootstrap"}, percentile-based CIs are returned from the
+stored bootstrap replicates. Otherwise, Wald-type CIs are computed from
+the standard errors.
 }
 \examples{
 \dontrun{

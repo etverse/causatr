@@ -117,7 +117,8 @@ fit_ipw <- function(
     details = list(
       fit_rows = fit_rows,
       n_fit = sum(fit_rows),
-      n_total = nrow(data)
+      n_total = nrow(data),
+      external_weights = weights
     )
   )
 }
