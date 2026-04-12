@@ -328,9 +328,10 @@ ice_compute_influence <- function(fit, ice_result, target) {
 #' Given a parameter variance–covariance matrix `V_beta`, computes
 #' `J V_beta Jᵀ` where J is the Jacobian of the marginal means w.r.t. β.
 #'
-#' The Jacobian is computed numerically via `numDeriv::jacobian()`, which
-#' works for any model type (GLM, GAM, glm_weightit, etc.) without needing
-#' analytical gradient formulae.
+#' For GLMs with canonical links, the Jacobian is computed analytically:
+#' `J[j,] = (1/Σw) Σ w_i dμ/dη(η_i) × X_{j,i}`. This is exact and avoids
+#' the O(p) model refits that `numDeriv` requires. For non-GLMs (GAMs, custom
+#' models), falls back to `numDeriv::jacobian()` (Richardson extrapolation).
 #'
 #' @param model A fitted model object (`glm`, `gam`, `glm_weightit`, etc.).
 #' @param data_a_list Named list of counterfactual data.tables.
@@ -354,22 +355,47 @@ compute_vcov_marginal <- function(model, data_a_list, target_idx, V_beta,
   })
 
   # J is a k × p Jacobian: J[j, ] = ∂μ̂_j / ∂β.
-  # numDeriv differentiates the marginal mean via Richardson extrapolation.
-  J <- numDeriv::jacobian(
-    func = function(beta) {
-      model_tmp <- model
-      model_tmp$coefficients <- beta
-      vapply(
-        data_a_frames,
-        function(df) {
-          preds <- predict(model_tmp, newdata = df, type = "response")
-          maybe_weighted_mean(preds, weights)
-        },
-        numeric(1)
-      )
-    },
-    x = beta_hat
-  )
+  # For GLMs, compute analytically; for non-GLMs, fall back to numDeriv.
+  is_glm <- !is.null(model$family) &&
+    !is.null(model$family$mu.eta) &&
+    inherits(model, "glm") &&
+    !inherits(model, "gam")
+  if (is_glm) {
+    pred_terms <- stats::delete.response(stats::terms(model))
+    # xlev preserves original factor levels so model.matrix() works even when
+    # counterfactual data has a single treatment level (e.g. static("low")).
+    xlev <- model$xlevels
+    J <- t(vapply(
+      data_a_frames,
+      function(df) {
+        X_j <- stats::model.matrix(pred_terms, data = df, xlev = xlev)
+        eta_j <- as.numeric(X_j %*% beta_hat)
+        mu_eta_j <- model$family$mu.eta(eta_j)
+        if (!is.null(weights)) {
+          as.numeric(crossprod(X_j, weights * mu_eta_j)) / sum(weights)
+        } else {
+          as.numeric(crossprod(X_j, mu_eta_j)) / nrow(X_j)
+        }
+      },
+      numeric(length(beta_hat))
+    ))
+  } else {
+    J <- numDeriv::jacobian(
+      func = function(beta) {
+        model_tmp <- model
+        model_tmp$coefficients <- beta
+        vapply(
+          data_a_frames,
+          function(df) {
+            preds <- predict(model_tmp, newdata = df, type = "response")
+            maybe_weighted_mean(preds, weights)
+          },
+          numeric(1)
+        )
+      },
+      x = beta_hat
+    )
+  }
 
   # Propagate: Var(μ̂) = J V_β Jᵀ  (multivariate delta method).
   vcov_mat <- J %*% V_beta %*% t(J)
