@@ -1,0 +1,312 @@
+---
+title: "Variance refactor: single IF engine for all methods"
+format:
+  html:
+    embed-resources: true
+    toc: true
+    toc-depth: 3
+---
+
+## Context
+
+causatr has scattered variance code: `gcomp_variance_sandwich()` uses the
+full IF, `ice_compute_influence()` reimplements the same pattern for
+longitudinal data, and IPW/matching use a $J V_\beta J^T$ shortcut that breaks
+for non-static interventions (Phase 4). The refactor replaces everything with
+one engine.
+
+## Theory
+
+Every causal estimand $\hat\mu$ is defined by a system of estimating equations
+(model scores + mean equation). The IF is the sandwich applied to this system,
+with the block-triangular bread inverted by back-substitution:
+
+$$
+\text{IF}_i = \underbrace{(\text{pred}_i - \hat\mu)}_
+{\text{Channel 1 (1 line of code)}}
+\;+\;
+\underbrace{\sum_k \color{#31A354}{J_k}
+\;\color{#3182BD}{A_k^{-1}}
+\;\psi_{k,i}}_{\text{Channel 2 (one term per model } k\text{)}}
+$$
+
+$$
+\widehat{\text{Var}}(\hat\mu) = \frac{1}{n^2}\sum_i \text{IF}_i^2
+$$
+
+Channel 2 calls `correct_model()` once per model $k$. See
+`vignettes/variance-theory.qmd` Sections 3–4 for the full derivation.
+
+## The process
+
+```{mermaid}
+%%| fig-cap: "Architecture of variance_if(). Channel 1 is universal. Channel 2 dispatches by method. Aggregation is standard or cluster-robust."
+flowchart TB
+  subgraph "variance_if() — one entry point"
+    direction TB
+
+    CH1["<b>Channel 1</b> (universal, 1 line)<br/>IF_i = (n/n_t) × (pred_i − μ̂)"]
+
+    subgraph "Channel 2 (per method)"
+      direction LR
+      GC["<b>g-comp</b><br/>1 model<br/>correct_model()"]
+      IPW["<b>IPW</b><br/>2 models<br/>correct_model() for MSM<br/>+ correct_propensity()"]
+      MATCH["<b>matching</b><br/>1 model<br/>correct_model()"]
+      ICE["<b>ICE</b><br/>K+1 models<br/>correct_model() in a loop<br/>(sensitivities propagate)"]
+    end
+
+    CH1 --> SUM["IF = Ch.1 + Σ Ch.2 corrections"]
+    GC --> SUM
+    IPW --> SUM
+    MATCH --> SUM
+    ICE --> SUM
+
+    SUM --> AGG["<b>Aggregate</b><br/>vcov_from_if(IF_list, cluster)"]
+  end
+
+  AGG --> OUT["k × k variance–covariance matrix"]
+
+  style CH1 fill:#e8f5e9,stroke:#31A354
+  style GC fill:#f0f4ff,stroke:#3182BD
+  style IPW fill:#f0f4ff,stroke:#3182BD
+  style MATCH fill:#f0f4ff,stroke:#3182BD
+  style ICE fill:#f0f4ff,stroke:#3182BD
+  style SUM fill:#fff5eb,stroke:#E6550D
+  style AGG fill:#fff5eb,stroke:#E6550D
+  style OUT fill:#e8f5e9,stroke:#31A354
+```
+
+### What `correct_model()` does
+
+Every Channel 2 term follows the same 3-line pattern:
+
+$$
+\underset{p \times 1}{h} = \color{#3182BD}{A^{-1}} \cdot
+\color{#31A354}{g}
+\qquad
+\underset{n \times 1}{d} = X h
+\qquad
+\text{correction}_i = n \cdot d_i \cdot r_i
+$$
+
+where $\color{#31A354}{g}$ is the gradient (Jacobian),
+$\color{#3182BD}{A^{-1}} = (X^TWX)^{-1}$ is the bread inverse,
+$d_i$ is individual $i$'s sensitivity, and $r_i$ is their residual.
+This is $\color{#31A354}{J_k}\color{#3182BD}{A_k^{-1}}\psi_{k,i}$
+projected to a scalar per individual.
+
+```r
+correct_model <- function(model, gradient, fit_idx, n_total) {
+  X_fit <- model.matrix(model)
+  B_inv <- bread_inv(model, X_fit)   # (X'WX)^{-1}
+  h <- as.numeric(B_inv %*% gradient)
+  d <- as.numeric(X_fit %*% h)
+  r <- residuals(model, type = "response")
+  out <- rep(0, n_total)
+  out[fit_idx] <- n_total * d * r
+  list(correction = out, d = d)      # ICE needs d for the next model
+}
+```
+
+Point-treatment methods use `$correction`. ICE also uses `$d` to compute
+the next model's gradient.
+
+## Functions (6 total)
+
+| Function | Purpose | Status |
+|---|---|---|
+| `variance_if()` | Single entry point: Ch.1 + Ch.2 + aggregate | **New** (replaces `variance_sandwich`, `gcomp_variance_sandwich`, `ice_variance_sandwich`) |
+| `correct_model()` | Core Ch.2 operation: $A^{-1}g \to d \to n \cdot d \cdot r$ | **Renamed** from `model_if_correction`, now returns sensitivities too |
+| `correct_propensity()` | IPW-specific: propensity model correction | **New** |
+| `bread_inv()` | $(X^TWX)^{-1}$ for GLM, $V_p$ for GAM | **Renamed** from `model_bread_inv` |
+| `iv_design_matrix()` | $X^*$ under intervention (handles GAM lpmatrix) | **Renamed** from `intervention_design_matrix` |
+| `vcov_from_if()` | $(1/n^2) \sum \text{IF}_{a,i} \cdot \text{IF}_{b,i} \to k \times k$ vcov | **Extended** with optional `cluster` arg for matching |
+
+Functions **deleted**: `variance_sandwich()`, `gcomp_variance_sandwich()`,
+`ice_variance_sandwich()`, `ice_compute_influence()`,
+`compute_vcov_marginal()`.
+
+No standalone `compute_channel1()` or `compute_gradient()` — these are
+one-liners that live inline inside `variance_if()`.
+
+## How each method works inside `variance_if()`
+
+### G-comp (1 model)
+
+$$
+\text{IF}_i = \underbrace{g^{-1}(X_i^{*T}\hat\beta) - \hat\mu_a}_
+{\text{Channel 1}}
++ \underbrace{\color{#31A354}{J_a}
+\color{#3182BD}{A_\beta^{-1}}
+\psi_{\beta,i}}_{\text{1 model correction}}
+$$
+
+```r
+IF <- (n / n_t) * target * (pred - mu_hat)
+gradient <- crossprod(X_star, mu_eta_star * w) / sum_w
+IF <- IF + correct_model(fit$model, gradient, fit_idx, n)$correction
+```
+
+### IPW (2 models)
+
+$$
+\text{IF}_i = \underbrace{g^{-1}(X_i^{*T}\hat\beta) - \hat\mu_a}_
+{\text{Channel 1}}
++ \underbrace{\color{#31A354}{J}
+\color{#E6550D}{A_{\beta\beta}^{-1}}
+\psi_{\beta,i}}_{\text{MSM correction}}
++ \underbrace{\color{#31A354}{J}
+\color{#E6550D}{A_{\beta\beta}^{-1}}
+\color{#E6550D}{A_{\beta\alpha}}
+\color{#3182BD}{A_{\alpha\alpha}^{-1}}
+\psi_{\alpha,i}}_{\text{propensity correction}}
+$$
+
+```r
+IF <- (n / n_t) * target * (pred - mu_hat)
+gradient <- crossprod(X_star, mu_eta_star * w) / sum_w
+IF <- IF + correct_model(msm_model, gradient, fit_idx, n)$correction
+IF <- IF + correct_propensity(fit, gradient, fit_idx, n)
+```
+
+### Matching (1 model, cluster-robust)
+
+$$
+\text{IF}_i = \underbrace{g^{-1}(X_i^{*T}\hat\beta) - \hat\mu_a}_
+{\text{Channel 1}}
++ \underbrace{\color{#31A354}{J_a}
+\color{#3182BD}{A_\beta^{-1}}
+\psi_{\beta,i}}_{\text{1 model correction}}
+\qquad\qquad
+\widehat{\text{Var}} = \frac{1}{n^2}\sum_{c=1}^C
+\left(\sum_{i \in c} \text{IF}_i\right)^2
+$$
+
+```r
+IF <- (n / n_t) * target * (pred - mu_hat)
+gradient <- crossprod(X_star, mu_eta_star * w) / sum_w
+IF <- IF + correct_model(fit$model, gradient, fit_idx, n)$correction
+vcov_from_if(IF_list, n, names, cluster = subclass)
+```
+
+### ICE ($K\!+\!1$ models, backward recursion)
+
+$$
+\text{IF}_i = \underbrace{\frac{1}{n_t}(\tilde Y_{0,i} - \hat\mu)}_
+{\text{Channel 1}}
++ \sum_{k=0}^K
+\underbrace{n_k \cdot \color{#E6550D}{d_{k,i}} \cdot r_{k,i}}_
+{\text{model } k \text{ correction via } \texttt{correct\_model()}}
+$$
+
+```r
+IF <- (n / n_t) * target * (pseudo_final - mu_hat)
+d_vec <- rep(0, n)
+for (step in seq_len(K + 1)) {
+  gradient <- if (step == 1) {
+    crossprod(X_star, mu_eta_star * w) / sum_w       # base case
+  } else {
+    crossprod(X_star, d_prev * mu_eta_star)           # recursive
+  }
+  result <- correct_model(models[[step]], gradient, fit_ids[[step]], n)
+  IF <- IF + result$correction
+  d_vec <- result$d
+}
+```
+
+## Changes to `compute_contrast()` (`R/contrast.R`)
+
+Replace two separate call sites (lines 532–537 and 598–603) with one:
+
+```r
+if (ci_method == "sandwich") {
+  vcov_mat <- variance_if(fit, data_a_list, preds_list, mu_hat,
+                          target_idx, ice_results = ice_results)
+}
+```
+
+The longitudinal path still runs `ice_iterate()` first. The point-treatment
+path still runs `apply_intervention()` + `predict()`. But the variance call
+is one line in both cases.
+
+## `correct_propensity()` — the IPW-specific piece
+
+The one genuinely new computation. It accounts for how $\hat\mu$ depends on
+the propensity parameters $\alpha$ through the weights:
+
+$$
+\text{IF}_i \mathrel{+}=
+\color{#31A354}{J}
+\;\color{#E6550D}{A_{\beta\beta}^{-1}}
+\;\color{#E6550D}{A_{\beta\alpha}}
+\;\color{#3182BD}{A_{\alpha\alpha}^{-1}}
+\;\psi_{\alpha,i}
+$$
+
+Needs:
+
+1. Propensity model (glm inside `fit$weights_obj`) $\to$ bread
+   $\color{#3182BD}{A_{\alpha\alpha}}$, scores $\psi_{\alpha,i}$
+2. Cross-derivative $\color{#E6550D}{A_{\beta\alpha}} =
+   -\frac{1}{n}\sum_i \frac{\partial\psi_{\beta,i}}{\partial\alpha^T}$
+   (involves $\frac{\partial w_i}{\partial\alpha^T}$)
+3. Combine: adjusted gradient $= \color{#E6550D}{A_{\beta\alpha}}
+   \color{#3182BD}{A_{\alpha\alpha}^{-1}}\psi_{\alpha,i}$, then
+   `correct_model(msm, adjusted_gradient, ...)$correction`
+
+This is the only function that touches WeightIt internals.
+
+## Documentation changes
+
+### `vignettes/variance-theory.qmd`
+
+Already amended (see Sections 3.5, 4.2, 4.3, 4.4, 6). Key additions:
+
+- Section 3.5: stacked EE $\to$ block-triangular bread $\to$
+  back-substitution = IF
+- Section 4.2: full three-term IPW IF derivation
+- Section 4.3: cluster-robust IF aggregation for matching
+- Section 4.4: unified summary table (all methods use IF)
+
+### `CLAUDE.md`
+
+Update architecture notes:
+
+- Single `variance_if()` entry point
+- `correct_model()` is the shared building block
+- `correct_propensity()` for IPW
+- `vcov_from_if(cluster = ...)` for matching
+- Remove references to `compute_vcov_marginal`, method-specific dispatch
+
+### Method vignettes
+
+Light touch: update `vignettes/gcomp.qmd`, `ipw.qmd`, `matching.qmd` to say
+"influence function" instead of "sandwich + delta method".
+
+### Roxygen
+
+`variance_if()` roxygen `@description` references vignette Sections 3–4.
+`correct_model()` roxygen explains bread $\times$ gradient $\times$ score.
+
+## Step-by-step
+
+1. Rename `model_bread_inv` $\to$ `bread_inv`,
+   `intervention_design_matrix` $\to$ `iv_design_matrix`
+2. Refactor `model_if_correction` $\to$ `correct_model` (return `d` too)
+3. Write `variance_if()` with g-comp path (migrate from
+   `gcomp_variance_sandwich`)
+4. Add matching path to `variance_if()` (extend `vcov_from_if` with cluster)
+5. Add ICE path to `variance_if()` (rewrite `ice_compute_influence` using
+   `correct_model`)
+6. Write `correct_propensity()` and add IPW path
+7. Update `compute_contrast()` call sites
+8. Delete old functions
+9. Run `devtools::test()` — all existing tests must pass
+10. Update CLAUDE.md, vignette, roxygen
+11. Run `devtools::document()` and `devtools::test()` again
+
+## What does NOT change
+
+- Bootstrap code (`variance_bootstrap.R`)
+- Fitting code (`R/gcomp.R`, `R/ipw.R`, `R/matching.R`, `R/ice.R`)
+- User-facing API (`contrast()`, `causat()`)

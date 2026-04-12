@@ -581,6 +581,67 @@ test_that("ICE gcomp × by recovers subgroup effects", {
 
   eff_sex0 <- result$contrasts$estimate[result$contrasts$by == "0"]
   eff_sex1 <- result$contrasts$estimate[result$contrasts$by == "1"]
+  expect_true(eff_sex0 > 0)
+  expect_true(eff_sex1 > 0)
+})
+
+test_that("ICE gcomp × by recovers heterogeneous effects (binary outcome)", {
+  set.seed(99)
+  n <- 2000
+  sex <- rbinom(n, 1, 0.5)
+  L0 <- rnorm(n)
+  A0 <- rbinom(n, 1, plogis(0.3 * L0))
+  L1 <- L0 + 0.5 * A0 + rnorm(n)
+  A1 <- rbinom(n, 1, plogis(0.3 * L1))
+  Y <- rbinom(n, 1, plogis(
+    -3 + 1.5 * A0 + 1.5 * A1 + 0.5 * L0 + 0.5 * L1 + 2 * sex
+  ))
+
+  t0 <- data.frame(
+    id = seq_len(n),
+    time = 0L,
+    A = A0,
+    L = L0,
+    sex = sex,
+    Y = NA_real_
+  )
+  t1 <- data.frame(
+    id = seq_len(n),
+    time = 1L,
+    A = A1,
+    L = L1,
+    sex = sex,
+    Y = Y
+  )
+  long <- rbind(t0, t1)
+
+  fit <- causat(
+    long,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~sex,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    family = "binomial"
+  )
+  result <- contrast(
+    fit,
+    interventions = list(
+      always = static(1),
+      never = static(0)
+    ),
+    reference = "never",
+    ci_method = "sandwich",
+    by = "sex"
+  )
+
+  expect_equal(nrow(result$contrasts), 2L)
+  expect_equal(sort(unique(result$contrasts$by)), c("0", "1"))
+  expect_true(all(result$contrasts$se > 0))
+
+  eff_sex0 <- result$contrasts$estimate[result$contrasts$by == "0"]
+  eff_sex1 <- result$contrasts$estimate[result$contrasts$by == "1"]
   expect_true(eff_sex1 > eff_sex0)
 })
 
