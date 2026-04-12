@@ -43,3 +43,8 @@ docs/
 vignettes/*.html
 vignettes/*_files/
 vignettes/*.markdown_strict_files/
+data-raw/zepid_venv/
+data-raw/ice_fixture_*.csv
+
+/.quarto/
+**/*.quarto_ipynb

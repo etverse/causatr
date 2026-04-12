@@ -33,6 +33,7 @@ Suggests:
     mice,
     optmatch,
     quarto,
+    stdReg2,
     survival,
     tinyplot,
     testthat (>= 3.0.0)

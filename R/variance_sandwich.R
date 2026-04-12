@@ -29,6 +29,14 @@
 variance_sandwich <- function(fit, data_a_list, preds_list, target_idx) {
   model <- fit$model
 
+  has_family <- !is.null(model$family) &&
+    !is.null(model$family$mu.eta) &&
+    !is.null(model$family$variance)
+
+  if (fit$method == "gcomp" && has_family) {
+    return(gcomp_variance_sandwich(fit, data_a_list, preds_list, target_idx))
+  }
+
   # Choose the appropriate robust parameter vcov based on the estimation method.
   if (fit$method == "ipw") {
     # glm_weightit objects have a vcov() method that provides M-estimation
@@ -42,7 +50,7 @@ variance_sandwich <- function(fit, data_a_list, preds_list, target_idx) {
       cluster = matched_data[["subclass"]]
     )
   } else {
-    # g-computation: standard Huber–White sandwich.
+    # g-computation with model lacking family (rare): Huber–White + J V_β Jᵀ.
     V_beta <- sandwich::sandwich(model)
   }
 
@@ -56,6 +64,187 @@ variance_sandwich <- function(fit, data_a_list, preds_list, target_idx) {
     V_beta,
     weights = w_target
   )
+}
+
+
+#' Full IF sandwich for point-treatment g-computation
+#'
+#' @description
+#' Uses the same per-individual influence function approach as
+#' `ice_compute_influence()` but for a single outcome model (K = 1).
+#' Accounts for both parameter uncertainty and covariate sampling
+#' variability. Works with GLMs and GAMs.
+#'
+#' @noRd
+gcomp_variance_sandwich <- function(fit, data_a_list, preds_list, target_idx) {
+  model <- fit$model
+  int_names <- names(data_a_list)
+  k <- length(int_names)
+  n <- nrow(fit$data)
+
+  ext_w <- fit$details$weights
+  has_weights <- !is.null(ext_w)
+
+  if (has_weights) {
+    w_target <- ifelse(target_idx, ext_w, 0)
+    sum_w_target <- sum(w_target[target_idx])
+  } else {
+    n_target <- sum(target_idx)
+  }
+
+  fit_idx <- which(fit$details$fit_rows)
+  na_action <- model$na.action
+  if (!is.null(na_action)) {
+    fit_idx <- fit_idx[-na_action]
+  }
+  beta_hat <- stats::coef(model)
+
+  data_a_frames <- lapply(data_a_list, function(da) {
+    as.data.frame(da)[target_idx, , drop = FALSE]
+  })
+
+  IF_list <- lapply(seq_len(k), function(j) {
+    p <- preds_list[[j]]
+    if (has_weights) {
+      mu_hat <- sum(w_target * p) / sum_w_target
+      IF_vec <- n * (w_target / sum_w_target) * (p - mu_hat)
+    } else {
+      mu_hat <- mean(p[target_idx])
+      IF_vec <- (n / n_target) * ifelse(target_idx, p - mu_hat, 0)
+    }
+
+    X_star <- intervention_design_matrix(model, data_a_frames[[j]])
+    eta_star <- as.numeric(X_star %*% beta_hat)
+    mu_eta_star <- model$family$mu.eta(eta_star)
+
+    if (has_weights) {
+      w_t <- ext_w[target_idx]
+      g <- as.numeric(crossprod(X_star, w_t * mu_eta_star)) / sum_w_target
+    } else {
+      g <- as.numeric(crossprod(X_star, mu_eta_star)) / n_target
+    }
+
+    IF_vec <- IF_vec + model_if_correction(model, g, fit_idx, n)
+
+    IF_vec
+  })
+
+  vcov_from_if(IF_list, n, int_names)
+}
+
+
+#' Compute per-individual model correction for the influence function
+#'
+#' @description
+#' Shared workhorse used by both `gcomp_variance_sandwich()` (point treatment,
+#' K = 1) and `ice_compute_influence()` (longitudinal, K models in backward
+#' chain). Given a sensitivity gradient `g` (how the marginal mean depends on
+#' this model's parameters), computes the n × d × r correction term.
+#'
+#' @param model A fitted model with a `family` object (GLM or GAM).
+#' @param g Sensitivity gradient (p-vector): ∂μ̂/∂β for this model.
+#' @param fit_idx Integer vector of row indices (in 1..n) used for fitting.
+#' @param n Total number of individuals.
+#'
+#' @return A length-n numeric vector of IF corrections (zero for non-fit rows).
+#'
+#' @noRd
+model_if_correction <- function(model, g, fit_idx, n) {
+  X_fit <- stats::model.matrix(model)
+  r_fit <- stats::residuals(model, type = "response")
+  bread_inv <- model_bread_inv(model, X_fit)
+
+  h <- as.numeric(bread_inv %*% g)
+  d_fit <- as.numeric(X_fit %*% h)
+
+  correction <- rep(0, n)
+  correction[fit_idx] <- n * d_fit * r_fit
+  correction
+}
+
+
+#' Inverse of the model bread matrix
+#'
+#' @description
+#' For standard GLMs, computes (X'WX)⁻¹ from the design matrix and IWLS
+#' working weights. For GAMs, returns the penalized Bayesian covariance
+#' `model$Vp` = (X'WX + λS)⁻¹.
+#'
+#' @param model A fitted model with a `family` object.
+#' @param X_fit Design matrix from `model.matrix(model)`.
+#'
+#' @return A p × p matrix.
+#'
+#' @noRd
+model_bread_inv <- function(model, X_fit) {
+  if (inherits(model, "gam") && !is.null(model$Vp)) {
+    return(model$Vp)
+  }
+
+  eta <- model$linear.predictors
+  mu_eta <- model$family$mu.eta(eta)
+  var_mu <- model$family$variance(stats::fitted(model))
+  w <- mu_eta^2 / var_mu
+
+  XtWX <- crossprod(X_fit, X_fit * w)
+  tryCatch(
+    solve(XtWX),
+    error = function(e) MASS::ginv(XtWX)
+  )
+}
+
+
+#' Design matrix for counterfactual (intervention) data
+#'
+#' @description
+#' Constructs the model matrix for intervention data, handling differences
+#' between model classes:
+#' - **GAMs**: uses `predict(model, type = "lpmatrix")` for the smooth
+#'   basis matrix.
+#' - **GLMs** and other models: uses `model.matrix(terms, data, xlev)`.
+#'
+#' @param model A fitted model object.
+#' @param newdata Data frame of counterfactual observations.
+#'
+#' @return A design matrix (n_new × p).
+#'
+#' @noRd
+intervention_design_matrix <- function(model, newdata) {
+  if (inherits(model, "gam")) {
+    return(stats::predict(model, newdata = newdata, type = "lpmatrix"))
+  }
+  pred_terms <- stats::delete.response(stats::terms(model))
+  xlev <- model$xlevels
+  stats::model.matrix(pred_terms, data = newdata, xlev = xlev)
+}
+
+
+#' Variance–covariance matrix from per-individual influence functions
+#'
+#' @description
+#' Computes Cov(μ̂_a, μ̂_b) = (1/n²) Σ IF_{a,i} × IF_{b,i} for all pairs
+#' of interventions. Used by both `gcomp_variance_sandwich()` and
+#' `ice_variance_sandwich()`.
+#'
+#' @param IF_list Named list of length-n IF vectors (one per intervention).
+#' @param n Number of individuals.
+#' @param int_names Character vector of intervention names.
+#'
+#' @return A named k × k variance–covariance matrix.
+#'
+#' @noRd
+vcov_from_if <- function(IF_list, n, int_names) {
+  k <- length(IF_list)
+  vcov_mat <- matrix(0, k, k)
+  for (j in seq_len(k)) {
+    for (l in j:k) {
+      vcov_mat[j, l] <- sum(IF_list[[j]] * IF_list[[l]]) / n^2
+      if (j != l) vcov_mat[l, j] <- vcov_mat[j, l]
+    }
+  }
+  rownames(vcov_mat) <- int_names
+  colnames(vcov_mat) <- int_names
+  vcov_mat
 }
 
 
@@ -90,29 +279,17 @@ variance_sandwich <- function(fit, data_a_list, preds_list, target_idx) {
 #' @noRd
 ice_variance_sandwich <- function(fit, ice_results, target_within_first) {
   int_names <- names(ice_results)
-  n_int <- length(int_names)
 
-  # Number of individuals (= rows at first time).
   data <- fit$data
   first_time <- fit$details$time_points[1]
   rows_first <- data[[fit$time]] == first_time
   n <- sum(rows_first)
 
-  # Compute per-individual influence functions for each intervention.
   IF_list <- lapply(ice_results, function(res) {
     ice_compute_influence(fit, res, target_within_first)
   })
 
-  # Vcov from cross-products: Cov(μ̂_a, μ̂_b) = (1/n²) Σ IF_a,i × IF_b,i.
-  vcov_mat <- matrix(0, n_int, n_int)
-  for (j in seq_len(n_int)) {
-    for (k in j:n_int) {
-      vcov_mat[j, k] <- sum(IF_list[[j]] * IF_list[[k]]) / n^2
-      if (j != k) vcov_mat[k, j] <- vcov_mat[j, k]
-    }
-  }
-
-  vcov_mat
+  vcov_from_if(IF_list, n, int_names)
 }
 
 
@@ -212,26 +389,10 @@ ice_compute_influence <- function(fit, ice_result, target) {
       next
     }
 
-    # Extract model components.
-    # X_k: design matrix for fitting observations (n_fit × p_k).
-    # w_k: IWLS working weights = (dμ/dη)² / V(μ).
-    # r_k: response residuals (Y_k - μ̂_k) for score contributions.
     X_k <- stats::model.matrix(model_k)
     p_k <- ncol(X_k)
-    fitted_k <- stats::fitted(model_k)
     residuals_k <- stats::residuals(model_k, type = "response")
-
-    eta_k <- model_k$linear.predictors
-    mu_eta_k <- model_k$family$mu.eta(eta_k)
-    var_k <- model_k$family$variance(fitted_k)
-    w_k <- mu_eta_k^2 / var_k
-
-    # Weighted Hessian (X^T W X) and its inverse.
-    XtWX <- crossprod(X_k, X_k * w_k)
-    XtWX_inv <- tryCatch(
-      solve(XtWX),
-      error = function(e) MASS::ginv(XtWX)
-    )
+    XtWX_inv <- model_bread_inv(model_k, X_k)
 
     # Compute g_k: the sensitivity gradient.
     #

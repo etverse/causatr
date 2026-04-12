@@ -112,3 +112,136 @@ simulate_het_binary <- function(n = 5000, seed = 42) {
   Y <- rbinom(n, 1, plogis(-1 + (1.5 + L) * A + 0.8 * L + 0.5 * sex * A))
   data.frame(Y = Y, A = A, L = L, sex = sex)
 }
+
+# ── Longitudinal DGPs ───────────────────────────────────────────────────────
+
+# Table 20.1 from Hernán & Robins (2025).
+# 2 time points, true causal effect = 0.
+# Demonstrates treatment-confounder feedback where naive methods give biased
+# estimates but ICE g-computation correctly recovers ATE = 0.
+#
+# By default produces the full 32,000-individual dataset. The `scale` argument
+# shrinks it proportionally for faster bootstrap tests.
+make_table201 <- function(scale = 1) {
+  groups <- data.frame(
+    A0 = c(0, 0, 0, 0, 1, 1, 1, 1),
+    L1 = c(0, 0, 1, 1, 0, 0, 1, 1),
+    A1 = c(0, 1, 0, 1, 0, 1, 0, 1),
+    Y = c(84, 84, 52, 52, 76, 76, 44, 44),
+    N = as.integer(c(2400, 1600, 2400, 9600, 4800, 3200, 1600, 6400) * scale)
+  )
+  rows <- lapply(seq_len(nrow(groups)), function(i) {
+    g <- groups[i, ]
+    off <- sum(groups$N[seq_len(i - 1)])
+    data.frame(
+      id = seq_len(g$N) + off,
+      A0 = g$A0,
+      L1 = g$L1,
+      A1 = g$A1,
+      Y = g$Y
+    )
+  })
+  wide <- do.call(rbind, rows)
+  t0 <- data.frame(
+    id = wide$id,
+    time = 0L,
+    A = wide$A0,
+    L = NA_real_,
+    Y = NA_real_
+  )
+  t1 <- data.frame(
+    id = wide$id,
+    time = 1L,
+    A = wide$A1,
+    L = wide$L1,
+    Y = wide$Y
+  )
+  rbind(t0, t1)
+}
+
+# Linear SCM with treatment-confounder feedback and known analytical ATE.
+#
+# DGP:
+#   L0 ~ N(0, 1)                              (baseline confounder)
+#   A_0 ~ Bern(expit(0.5 * L0))               (treatment at t=0)
+#   For t > 0:
+#     L_t = A_{t-1} + 0.5 * L0 + ε_L          (treatment-confounder feedback)
+#     A_t ~ Bern(expit(0.3 * L_t + 0.2 * A_{t-1}))
+#   Y = 10 + 2 * sum(A_t) + L0 + sum(L_t) + ε_Y
+#
+# True ATE (always vs never) = 3 * n_times - 1
+# Under always: E[Y] = 10 + 2*T + (T-1) = 9 + 3T
+# Under never:  E[Y] = 10
+make_linear_scm <- function(n = 5000, n_times = 2, seed = 42) {
+  set.seed(seed)
+
+  L0 <- stats::rnorm(n)
+
+  A <- matrix(NA_real_, n, n_times)
+  L <- matrix(NA_real_, n, n_times)
+
+  for (t in seq_len(n_times)) {
+    if (t == 1) {
+      A[, t] <- stats::rbinom(n, 1, stats::plogis(0.5 * L0))
+    } else {
+      L[, t] <- A[, t - 1] + 0.5 * L0 + stats::rnorm(n, 0, 0.5)
+      A[, t] <- stats::rbinom(
+        n,
+        1,
+        stats::plogis(0.3 * L[, t] + 0.2 * A[, t - 1])
+      )
+    }
+  }
+
+  Y <- 10 + 2 * rowSums(A) + L0 + rowSums(L, na.rm = TRUE) + stats::rnorm(n)
+
+  rows <- vector("list", n_times)
+  for (t in seq_len(n_times)) {
+    rows[[t]] <- data.frame(
+      id = seq_len(n),
+      time = t - 1L,
+      A = A[, t],
+      L = L[, t],
+      L0 = L0,
+      Y = if (t == n_times) Y else NA_real_
+    )
+  }
+  do.call(rbind, rows)
+}
+
+# Continuous-treatment version of the linear SCM.
+#
+# DGP:
+#   L0 ~ N(0, 1)
+#   A_0 = 1 + 0.5 * L0 + ε_A           (continuous treatment)
+#   L_1 = A_0 + 0.5 * L0 + ε_L         (treatment-confounder feedback)
+#   A_1 = 1 + 0.3 * L_1 + 0.2 * A_0 + ε_A
+#   Y = 10 + 2 * (A_0 + A_1) + L0 + L_1 + ε_Y
+make_continuous_scm <- function(n = 5000, seed = 42) {
+  set.seed(seed)
+
+  L0 <- stats::rnorm(n)
+  A0 <- 1 + 0.5 * L0 + stats::rnorm(n, 0, 0.5)
+  L1 <- A0 + 0.5 * L0 + stats::rnorm(n, 0, 0.5)
+  A1 <- 1 + 0.3 * L1 + 0.2 * A0 + stats::rnorm(n, 0, 0.5)
+  Y <- 10 + 2 * (A0 + A1) + L0 + L1 + stats::rnorm(n)
+
+  rbind(
+    data.frame(
+      id = seq_len(n),
+      time = 0L,
+      A = A0,
+      L = NA_real_,
+      L0 = L0,
+      Y = NA_real_
+    ),
+    data.frame(
+      id = seq_len(n),
+      time = 1L,
+      A = A1,
+      L = L1,
+      L0 = L0,
+      Y = Y
+    )
+  )
+}
