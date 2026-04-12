@@ -626,28 +626,61 @@ compute_contrast <- function(
   mu_ref <- mu_hat[ref_name]
   idx_ref <- which(int_names == ref_name)
 
+  # Tolerance for boundary checks on marginal means. A predicted mean
+  # this close to 0 or 1 makes ratios / odds ratios numerically unstable.
+  tol_edge <- sqrt(.Machine$double.eps)
+
+  if (type == "ratio" && abs(mu_ref) < tol_edge) {
+    rlang::abort(paste0(
+      "Reference intervention '", ref_name, "' has a marginal mean of ",
+      mu_ref, ". The risk/mean ratio is undefined."
+    ))
+  }
+  if (type == "or" && (abs(mu_ref) < tol_edge || abs(1 - mu_ref) < tol_edge)) {
+    rlang::abort(paste0(
+      "Reference intervention '", ref_name, "' has a marginal mean of ",
+      mu_ref, ". The odds ratio is undefined when the probability is 0 or 1."
+    ))
+  }
+
   # Pairwise contrasts vs. the reference, with SE via delta method on the vcov.
   contrasts_list <- lapply(non_ref, function(nm) {
     mu_a <- mu_hat[nm]
     idx_a <- which(int_names == nm)
 
     if (type == "difference") {
-      # Risk difference = mu_a - mu_ref; variance by linearity.
       est_c <- mu_a - mu_ref
       var_c <- vcov_mat[idx_a, idx_a] +
         vcov_mat[idx_ref, idx_ref] -
         2 * vcov_mat[idx_a, idx_ref]
       se_c <- sqrt(max(var_c, 0))
+      ci_lo <- est_c - z * se_c
+      ci_hi <- est_c + z * se_c
     } else if (type == "ratio") {
-      # Risk ratio = mu_a / mu_ref.
-      # Delta method gradient w.r.t. (mu_a, mu_ref): [1/mu_ref, -mu_a/mu_ref^2].
+      if (abs(mu_a) < tol_edge) {
+        rlang::abort(paste0(
+          "Intervention '", nm, "' has a marginal mean of ", mu_a,
+          ". The risk/mean ratio is undefined (log-scale CI requires log(0))."
+        ))
+      }
+      # Delta method SE on the linear scale, then log-scale CI.
+      # Log-scale CIs respect the (0, Inf) support and have better
+      # coverage than Wald CIs, which can produce negative lower bounds.
       est_c <- mu_a / mu_ref
       grad <- c(1 / mu_ref, -mu_a / mu_ref^2)
       sub_v <- vcov_mat[c(idx_a, idx_ref), c(idx_a, idx_ref)]
       se_c <- sqrt(max(as.numeric(t(grad) %*% sub_v %*% grad), 0))
+      se_log <- se_c / est_c
+      ci_lo <- exp(log(est_c) - z * se_log)
+      ci_hi <- exp(log(est_c) + z * se_log)
     } else {
-      # Odds ratio = [mu_a/(1-mu_a)] / [mu_ref/(1-mu_ref)].
-      # Delta method gradient: OR × reciprocal Bernoulli variance at each prob.
+      if (abs(mu_a) < tol_edge || abs(1 - mu_a) < tol_edge) {
+        rlang::abort(paste0(
+          "Intervention '", nm, "' has a marginal mean of ", mu_a,
+          ". The odds ratio is undefined when the probability is 0 or 1."
+        ))
+      }
+      # OR = [mu_a/(1-mu_a)] / [mu_ref/(1-mu_ref)]. Log-scale CI.
       est_c <- (mu_a / (1 - mu_a)) / (mu_ref / (1 - mu_ref))
       grad <- c(
         est_c / (mu_a * (1 - mu_a)),
@@ -655,14 +688,17 @@ compute_contrast <- function(
       )
       sub_v <- vcov_mat[c(idx_a, idx_ref), c(idx_a, idx_ref)]
       se_c <- sqrt(max(as.numeric(t(grad) %*% sub_v %*% grad), 0))
+      se_log <- se_c / est_c
+      ci_lo <- exp(log(est_c) - z * se_log)
+      ci_hi <- exp(log(est_c) + z * se_log)
     }
 
     data.table::data.table(
       comparison = paste0(nm, " vs ", ref_name),
       estimate = est_c,
       se = se_c,
-      ci_lower = est_c - z * se_c,
-      ci_upper = est_c + z * se_c
+      ci_lower = ci_lo,
+      ci_upper = ci_hi
     )
   })
 
