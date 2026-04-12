@@ -114,8 +114,14 @@ variance_bootstrap <- function(
     tryCatch(
       {
         d_b <- d[indices]
+        # Resample weights alongside data rows.
+        w_b <- if (!is.null(fit$details$weights)) {
+          fit$details$weights[indices]
+        } else {
+          NULL
+        }
 
-        model_b <- suppressWarnings(refit_model(fit, d_b))
+        model_b <- suppressWarnings(refit_model(fit, d_b, weights = w_b))
 
         target_idx_b <- get_target_idx(d_b, treatment, est, subset)
 
@@ -125,7 +131,7 @@ variance_bootstrap <- function(
             data_a_b <- apply_intervention(d_b, treatment, iv)
             pred_a_b <- predict(model_b, newdata = data_a_b, type = "response")
             valid <- target_idx_b & !is.na(pred_a_b)
-            mean(pred_a_b[valid])
+            maybe_weighted_mean(pred_a_b[valid], if (!is.null(w_b)) w_b[valid])
           },
           numeric(1)
         )
@@ -157,13 +163,13 @@ variance_bootstrap <- function(
 #' @return A fitted model object (glm, glm_weightit, etc.) or NULL on failure.
 #'
 #' @noRd
-refit_model <- function(fit, d_b) {
+refit_model <- function(fit, d_b, weights = NULL) {
   if (fit$method == "gcomp") {
-    refit_gcomp(fit, d_b)
+    refit_gcomp(fit, d_b, weights = weights)
   } else if (fit$method == "ipw") {
-    refit_ipw(fit, d_b)
+    refit_ipw(fit, d_b, weights = weights)
   } else if (fit$method == "matching") {
-    refit_matching(fit, d_b)
+    refit_matching(fit, d_b, weights = weights)
   } else {
     rlang::abort(
       paste0("Bootstrap not yet supported for method = '", fit$method, "'."),
@@ -178,19 +184,18 @@ refit_model <- function(fit, d_b) {
 #' @param d_b A data.table bootstrap sample.
 #' @return A fitted model object.
 #' @noRd
-refit_gcomp <- function(fit, d_b) {
+refit_gcomp <- function(fit, d_b, weights = NULL) {
   model_formula <- stats::formula(fit$model)
   family <- fit$model$family
   model_fn <- fit$details$model_fn
   censoring <- fit$censoring
   outcome <- fit$outcome
-  ext_w <- fit$details$external_weights
 
   fit_rows_b <- get_fit_rows(d_b, outcome, censoring)
 
   args <- list(model_formula, data = d_b[fit_rows_b], family = family)
-  if (!is.null(ext_w)) {
-    args$weights <- ext_w[fit_rows_b]
+  if (!is.null(weights)) {
+    args$weights <- weights[fit_rows_b]
   }
   do.call(model_fn, args)
 }
@@ -201,9 +206,8 @@ refit_gcomp <- function(fit, d_b) {
 #' @param d_b A data.table bootstrap sample.
 #' @return A `glm_weightit` model object.
 #' @noRd
-refit_ipw <- function(fit, d_b) {
+refit_ipw <- function(fit, d_b, weights = NULL) {
   ps_formula <- build_ps_formula(fit$confounders, fit$treatment)
-  ext_w <- fit$details$external_weights
 
   fit_rows_b <- get_fit_rows(d_b, fit$outcome)
   fit_data_b <- d_b[fit_rows_b]
@@ -214,8 +218,8 @@ refit_ipw <- function(fit, d_b) {
     estimand = fit$estimand
   )
 
-  if (!is.null(ext_w)) {
-    w_b$weights <- w_b$weights * ext_w[fit_rows_b]
+  if (!is.null(weights)) {
+    w_b$weights <- w_b$weights * weights[fit_rows_b]
   }
 
   msm_formula <- stats::reformulate(fit$treatment, response = fit$outcome)
@@ -233,9 +237,8 @@ refit_ipw <- function(fit, d_b) {
 #' @param d_b A data.table bootstrap sample.
 #' @return A `glm` model fit on the matched bootstrap data.
 #' @noRd
-refit_matching <- function(fit, d_b) {
+refit_matching <- function(fit, d_b, weights = NULL) {
   ps_formula <- build_ps_formula(fit$confounders, fit$treatment)
-  ext_w <- fit$details$external_weights
 
   fit_rows_b <- get_fit_rows(d_b, fit$outcome)
   fit_data_b <- as.data.frame(d_b[fit_rows_b])
@@ -248,10 +251,12 @@ refit_matching <- function(fit, d_b) {
   m_b <- do.call(MatchIt::matchit, match_args)
   matched_b <- MatchIt::match.data(m_b)
 
+  # Combine match weights with external weights. MatchIt::match.data()
+  # reorders rows; use rownames (original row indices) to align.
   matched_weights <- matched_b$weights
-  if (!is.null(ext_w)) {
+  if (!is.null(weights)) {
     matched_weights <- matched_weights *
-      ext_w[fit_rows_b][as.integer(rownames(matched_b))]
+      weights[fit_rows_b][as.integer(rownames(matched_b))]
   }
 
   msm_formula <- stats::reformulate(fit$treatment, response = fit$outcome)
@@ -313,25 +318,34 @@ ice_variance_bootstrap <- function(
   # For each bootstrap sample, reconstcts the person-period data by
   # extracting all rows for the sampled IDs, re-runs fit_ice() +
   # ice_iterate(), and returns marginal means under each intervention.
+  orig_weights <- fit$details$weights
+
   boot_fn <- function(ids, indices) {
     sampled_ids <- ids[indices]
 
-    # Handle duplicate IDs from sampling with replacement by assigning
-    # new unique IDs to each copy.
+    # When an individual is sampled k > 1 times, create k copies with
+    # distinct IDs. Weights are reconstructed in lockstep.
     id_counts <- table(sampled_ids)
     d_b_list <- vector("list", length(sampled_ids))
+    w_b_list <- if (!is.null(orig_weights)) {
+      vector("list", length(sampled_ids))
+    }
     new_id <- 0L
     for (orig_id in names(id_counts)) {
       n_copies <- as.integer(id_counts[[orig_id]])
-      sub <- data[data[[id_col]] == orig_id]
+      orig_rows <- which(data[[id_col]] == orig_id)
+      sub <- data[orig_rows]
+      sub_w <- if (!is.null(orig_weights)) orig_weights[orig_rows]
       for (cc in seq_len(n_copies)) {
         new_id <- new_id + 1L
         sub_copy <- data.table::copy(sub)
         sub_copy[, (id_col) := new_id]
         d_b_list[[new_id]] <- sub_copy
+        if (!is.null(orig_weights)) w_b_list[[new_id]] <- sub_w
       }
     }
     d_b <- data.table::rbindlist(d_b_list)
+    w_b <- if (!is.null(orig_weights)) unlist(w_b_list)
 
     # Refit the ICE object on the bootstrap sample.
     fit_b <- tryCatch(
@@ -346,7 +360,7 @@ ice_variance_bootstrap <- function(
           estimand = fit$estimand,
           history = fit$history,
           censoring = fit$censoring,
-          weights = NULL,
+          weights = w_b,
           model_fn = fit$details$model_fn,
           id = id_col,
           time = time_col,
@@ -370,6 +384,7 @@ ice_variance_bootstrap <- function(
     target_b_within <- target_b[rows_b_first]
 
     # Run ICE for each intervention and compute marginal means.
+    w_b_target <- if (!is.null(w_b)) w_b[rows_b_first][target_b_within]
     vapply(
       interventions,
       function(iv) {
@@ -380,7 +395,9 @@ ice_variance_bootstrap <- function(
         if (is.null(res_b)) {
           return(NA_real_)
         }
-        mean(res_b$pseudo_final[target_b_within], na.rm = TRUE)
+        maybe_weighted_mean(
+          res_b$pseudo_final[target_b_within], w_b_target
+        )
       },
       numeric(1)
     )

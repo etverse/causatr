@@ -121,7 +121,7 @@ fit_matching <- function(
       n_matched = nrow(matched_data),
       n_unmatched = sum(fit_rows) - nrow(matched_data),
       matched_data = data.table::as.data.table(matched_data),
-      external_weights = weights
+      weights = weights
     )
   )
 }

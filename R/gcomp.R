@@ -168,7 +168,7 @@ fit_gcomp_point <- function(
       n_fit = sum(fit_rows),
       n_total = nrow(data),
       model_fn = model_fn,
-      external_weights = weights
+      weights = weights
     )
   )
 }

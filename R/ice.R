@@ -124,7 +124,7 @@ fit_ice <- function(
       model_fn = model_fn,
       family_outcome = family_obj,
       family_pseudo = family_pseudo,
-      external_weights = weights
+      weights = weights
     )
   )
 }
@@ -303,7 +303,7 @@ ice_iterate <- function(fit, intervention) {
   model_fn <- details$model_fn
   family_outcome <- details$family_outcome
   family_pseudo <- details$family_pseudo
-  external_weights <- details$external_weights
+  external_weights <- details$weights
 
   # Apply intervention to treatment + recompute treatment lag columns.
   data_iv <- ice_apply_intervention_long(

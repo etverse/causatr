@@ -47,7 +47,11 @@ variance_sandwich <- function(fit, data_a_list, preds_list, target_idx) {
   }
 
   # Propagate parameter uncertainty: J V_β Jᵀ.
-  compute_vcov_marginal(model, data_a_list, target_idx, V_beta)
+  ext_w <- fit$details$weights
+  w_target <- if (!is.null(ext_w)) ext_w[target_idx] else NULL
+  compute_vcov_marginal(model, data_a_list, target_idx, V_beta,
+    weights = w_target
+  )
 }
 
 
@@ -149,8 +153,6 @@ ice_compute_influence <- function(fit, ice_result, target) {
   data_iv <- ice_result$data_iv
   fit_ids_list <- ice_result$fit_ids
   pseudo_final <- ice_result$pseudo_final
-  n_target <- sum(target)
-  mu_hat <- mean(pseudo_final[target], na.rm = TRUE)
 
   time_points <- details$time_points
   n_times <- details$n_times
@@ -164,9 +166,20 @@ ice_compute_influence <- function(fit, ice_result, target) {
   n <- length(all_ids)
   id_to_idx <- stats::setNames(seq_len(n), all_ids)
 
-  # Direct contribution: target_i × (Ŷ*_0,i - μ̂).
-  # Non-target individuals contribute 0 (they are not in the average).
-  IF_vec <- ifelse(target, pseudo_final - mu_hat, 0)
+  # Resolve observation weights for the direct IF term.
+  ext_w <- fit$details$weights
+  has_weights <- !is.null(ext_w)
+  if (has_weights) {
+    w_first <- ext_w[rows_first]
+    w_target <- ifelse(target, w_first, 0)
+    sum_w_target <- sum(w_target)
+    mu_hat <- sum(w_target * pseudo_final) / sum_w_target
+    IF_vec <- (w_target / sum_w_target) * (pseudo_final - mu_hat)
+  } else {
+    n_target <- sum(target)
+    mu_hat <- mean(pseudo_final[target], na.rm = TRUE)
+    IF_vec <- ifelse(target, pseudo_final - mu_hat, 0)
+  }
 
   # Sensitivity vector d (length n), reused across steps.
   d_vec <- rep(0, n)
@@ -238,18 +251,28 @@ ice_compute_influence <- function(fit, ice_result, target) {
     mu_eta_star <- model_k$family$mu.eta(eta_star)
 
     if (step_i == 1L) {
-      # Model 0 (first time): μ̂ = (1/n_t) Σ_{target} predict(model_0, x^*).
-      # g_0 = (1/n_t) Σ_{j ∈ target} dμ/dη × X^*_{0,j}.
+      # Model 0 (first time): g_0 = (1/Σw_t) Σ_{target} w_j dμ/dη × X^*_{0,j}.
       target_in_iv <- match(all_ids[target], iv_ids_current)
       valid_target <- !is.na(target_in_iv)
       target_in_iv <- target_in_iv[valid_target]
-      g_k <- as.numeric(
-        crossprod(
-          X_star_k[target_in_iv, , drop = FALSE],
-          mu_eta_star[target_in_iv]
-        )
-      ) /
-        n_target
+      if (has_weights) {
+        target_w <- w_target[target][valid_target]
+        g_k <- as.numeric(
+          crossprod(
+            X_star_k[target_in_iv, , drop = FALSE],
+            target_w * mu_eta_star[target_in_iv]
+          )
+        ) /
+          sum_w_target
+      } else {
+        g_k <- as.numeric(
+          crossprod(
+            X_star_k[target_in_iv, , drop = FALSE],
+            mu_eta_star[target_in_iv]
+          )
+        ) /
+          n_target
+      }
     } else {
       # Model k > 0: β_k affects μ̂ through pseudo-outcomes of model k-1.
       # g_k = Σ_{j ∈ model_{k-1}} d_{k-1,j} × dμ/dη × X^*_{k,j}.
@@ -313,11 +336,14 @@ ice_compute_influence <- function(fit, ice_result, target) {
 #' @param data_a_list Named list of counterfactual data.tables.
 #' @param target_idx Logical vector (length n) flagging target rows.
 #' @param V_beta p × p variance–covariance matrix of the model coefficients.
+#' @param weights Numeric vector of target-population weights (already
+#'   subsetted to target rows) or `NULL` for unweighted.
 #'
 #' @return A named k × k variance–covariance matrix of marginal means.
 #'
 #' @noRd
-compute_vcov_marginal <- function(model, data_a_list, target_idx, V_beta) {
+compute_vcov_marginal <- function(model, data_a_list, target_idx, V_beta,
+                                  weights = NULL) {
   int_names <- names(data_a_list)
   beta_hat <- stats::coef(model)
 
@@ -328,8 +354,7 @@ compute_vcov_marginal <- function(model, data_a_list, target_idx, V_beta) {
   })
 
   # J is a k × p Jacobian: J[j, ] = ∂μ̂_j / ∂β.
-  # Each marginal mean μ̂_j = mean(predict(model, newdata_j)) is a smooth
-  # function of β, so numDeriv differentiates it via Richardson extrapolation.
+  # numDeriv differentiates the marginal mean via Richardson extrapolation.
   J <- numDeriv::jacobian(
     func = function(beta) {
       model_tmp <- model
@@ -337,7 +362,8 @@ compute_vcov_marginal <- function(model, data_a_list, target_idx, V_beta) {
       vapply(
         data_a_frames,
         function(df) {
-          mean(predict(model_tmp, newdata = df, type = "response"))
+          preds <- predict(model_tmp, newdata = df, type = "response")
+          maybe_weighted_mean(preds, weights)
         },
         numeric(1)
       )

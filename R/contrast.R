@@ -508,11 +508,20 @@ compute_contrast <- function(
       int_names
     )
 
-    # Marginal mean = average pseudo-outcomes at first time over target.
+    # Marginal mean = (weighted) average pseudo-outcomes at first time.
+    ext_w <- fit$details$weights
+    if (!is.null(ext_w)) {
+      w_first <- ext_w[rows_first]
+      w_target_ice <- w_first[target_within_first]
+    } else {
+      w_target_ice <- NULL
+    }
     mu_hat <- vapply(
       ice_results,
       function(res) {
-        mean(res$pseudo_final[target_within_first], na.rm = TRUE)
+        maybe_weighted_mean(
+          res$pseudo_final[target_within_first], w_target_ice
+        )
       },
       numeric(1)
     )
@@ -573,10 +582,12 @@ compute_contrast <- function(
     target_idx <- target_idx & valid_preds
     n_target <- sum(target_idx)
 
-    # Marginal mean = average predictions over target rows.
+    # Marginal mean = (weighted) average predictions over target rows.
+    ext_w <- fit$details$weights
+    w_target <- if (!is.null(ext_w)) ext_w[target_idx] else NULL
     mu_hat <- vapply(
       preds_list,
-      function(p) mean(p[target_idx]),
+      function(p) maybe_weighted_mean(p[target_idx], w_target),
       numeric(1)
     )
     names(mu_hat) <- int_names
