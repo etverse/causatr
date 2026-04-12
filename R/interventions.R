@@ -25,8 +25,11 @@
 #'   [contrast()]
 #' @export
 static <- function(value) {
-  if (!(is.numeric(value) && length(value) == 1L && !is.na(value))) {
-    rlang::abort("`value` must be a single non-NA number.")
+  ok <- (is.numeric(value) || is.character(value)) &&
+    length(value) == 1L &&
+    !is.na(value)
+  if (!ok) {
+    rlang::abort("`value` must be a single non-NA number or character string.")
   }
   new_causatr_intervention("static", list(value = value))
 }

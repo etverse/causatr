@@ -28,15 +28,7 @@
       static(NA)
     Condition
       Error in `static()`:
-      ! `value` must be a single non-NA number.
-
----
-
-    Code
-      static("a")
-    Condition
-      Error in `static()`:
-      ! `value` must be a single non-NA number.
+      ! `value` must be a single non-NA number or character string.
 
 ---
 
@@ -44,7 +36,7 @@
       static(c(1, 2))
     Condition
       Error in `static()`:
-      ! `value` must be a single non-NA number.
+      ! `value` must be a single non-NA number or character string.
 
 # shift() rejects invalid inputs
 

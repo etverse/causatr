@@ -53,8 +53,34 @@ test_that("ipsi() rejects non-positive delta", {
 
 test_that("static() rejects invalid inputs", {
   expect_snapshot(error = TRUE, static(NA))
-  expect_snapshot(error = TRUE, static("a"))
   expect_snapshot(error = TRUE, static(c(1, 2)))
+})
+
+test_that("static() accepts character values", {
+  iv <- static("A")
+  expect_s3_class(iv, "causatr_intervention")
+  expect_equal(iv$value, "A")
+})
+
+test_that("static() with character value works through full pipeline", {
+  set.seed(99)
+  n <- 500
+  L <- rnorm(n)
+  A <- sample(c("low", "med", "high"), n,
+    replace = TRUE, prob = c(0.3, 0.4, 0.3)
+  )
+  Y <- 1 + 2 * (A == "med") + 4 * (A == "high") + 0.5 * L + rnorm(n)
+  d <- data.frame(Y = Y, A = A, L = L)
+
+  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L,
+    method = "gcomp"
+  )
+  res <- contrast(fit,
+    interventions = list(low = static("low"), high = static("high")),
+    type = "difference"
+  )
+  expect_true(res$contrasts$estimate > 2)
+  expect_true(res$contrasts$se > 0)
 })
 
 test_that("shift() rejects invalid inputs", {
