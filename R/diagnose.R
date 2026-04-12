@@ -124,9 +124,8 @@ compute_positivity <- function(fit, ps_bounds) {
     ps <- fit$match_obj$distance
     if (is.null(ps) || length(ps) == 0L) return(NULL)
   } else {
-    confounder_terms <- attr(stats::terms(fit$confounders), "term.labels")
-    ps_formula <- stats::reformulate(confounder_terms, response = treatment)
-    fit_rows <- !is.na(data[[fit$outcome]])
+    ps_formula <- build_ps_formula(fit$confounders, treatment)
+    fit_rows <- get_fit_rows(data, fit$outcome)
     ps_model <- stats::glm(
       ps_formula,
       data = data[fit_rows],
@@ -194,12 +193,8 @@ compute_balance <- function(fit, stats, thresholds) {
       binary = "std"
     )
   } else {
-    confounder_terms <- attr(stats::terms(fit$confounders), "term.labels")
-    ps_formula <- stats::reformulate(
-      confounder_terms,
-      response = fit$treatment
-    )
-    fit_rows <- !is.na(fit$data[[fit$outcome]])
+    ps_formula <- build_ps_formula(fit$confounders, fit$treatment)
+    fit_rows <- get_fit_rows(fit$data, fit$outcome)
     cobalt::bal.tab(
       ps_formula,
       data = as.data.frame(fit$data[fit_rows]),

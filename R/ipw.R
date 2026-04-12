@@ -59,11 +59,10 @@ fit_ipw <- function(
 
   # Build the treatment model formula: A ~ confounders.
   # This is used by WeightIt to estimate propensity scores.
-  confounder_terms <- attr(stats::terms(confounders), "term.labels")
-  ps_formula <- stats::reformulate(confounder_terms, response = treatment)
+  ps_formula <- build_ps_formula(confounders, treatment)
 
   # Fit rows: exclude missing outcomes for the MSM.
-  fit_rows <- !is.na(data[[outcome]])
+  fit_rows <- get_fit_rows(data, outcome)
   fit_data <- data[fit_rows]
 
   # Step 1: Estimate propensity-score weights via WeightIt.

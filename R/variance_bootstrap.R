@@ -1,3 +1,62 @@
+#' Process bootstrap results into vcov matrix and boot_t
+#'
+#' Shared post-processing for `variance_bootstrap()` and
+#' `ice_variance_bootstrap()`: extracts complete replicates, warns on
+#' failures, and computes the variance-covariance matrix.
+#'
+#' @param boot_res A `boot::boot` result object.
+#' @param int_names Character vector of intervention names.
+#' @param n_boot Integer. Total number of requested replicates.
+#' @return A list with `vcov` (k x k matrix) and `boot_t` (matrix of
+#'   successful replicates).
+#' @noRd
+process_boot_results <- function(boot_res, int_names, n_boot) {
+  t_mat <- boot_res$t
+  complete_rows <- stats::complete.cases(t_mat)
+  n_ok <- sum(complete_rows)
+  n_fail <- n_boot - n_ok
+
+  if (n_ok < 2L) {
+    rlang::warn(
+      "Bootstrap produced fewer than 2 non-NA replicates; SE estimates will be NA."
+    )
+    vcov_mat <- matrix(
+      NA_real_,
+      nrow = length(int_names),
+      ncol = length(int_names)
+    )
+  } else {
+    if (n_fail > 0L) {
+      pct <- round(100 * n_fail / n_boot, 1)
+      if (pct > 20) {
+        rlang::warn(paste0(
+          n_fail, " of ", n_boot,
+          " bootstrap replicates (", pct,
+          "%) failed. High failure rate may indicate model ",
+          "instability; variance estimates may be unreliable."
+        ))
+      } else {
+        rlang::warn(paste0(
+          n_fail, " of ", n_boot,
+          " bootstrap replicates (", pct,
+          "%) failed and were discarded. ",
+          "Variance is estimated from the ",
+          n_ok, " successful replicates."
+        ))
+      }
+    }
+    vcov_mat <- stats::var(t_mat[complete_rows, , drop = FALSE])
+  }
+
+  rownames(vcov_mat) <- int_names
+  colnames(vcov_mat) <- int_names
+
+  boot_t <- t_mat[complete_rows, , drop = FALSE]
+  colnames(boot_t) <- int_names
+
+  list(vcov = vcov_mat, boot_t = boot_t)
+}
+
 #' Bootstrap variance–covariance matrix for marginal means
 #'
 #' @description
@@ -83,50 +142,7 @@ variance_bootstrap <- function(
     ncpus = ncpus
   )
 
-  t_mat <- boot_res$t
-  complete_rows <- stats::complete.cases(t_mat)
-  n_ok <- sum(complete_rows)
-  n_fail <- n_boot - n_ok
-
-  if (n_ok < 2L) {
-    rlang::warn(
-      "Bootstrap produced fewer than 2 non-NA replicates; SE estimates will be NA."
-    )
-    vcov_mat <- matrix(
-      NA_real_,
-      nrow = length(int_names),
-      ncol = length(int_names)
-    )
-  } else {
-    if (n_fail > 0L) {
-      pct <- round(100 * n_fail / n_boot, 1)
-      if (pct > 20) {
-        rlang::warn(paste0(
-          n_fail, " of ", n_boot,
-          " bootstrap replicates (", pct,
-          "%) failed. High failure rate may indicate model ",
-          "instability; variance estimates may be unreliable."
-        ))
-      } else {
-        rlang::warn(paste0(
-          n_fail, " of ", n_boot,
-          " bootstrap replicates (", pct,
-          "%) failed and were discarded. ",
-          "Variance is estimated from the ",
-          n_ok, " successful replicates."
-        ))
-      }
-    }
-    vcov_mat <- stats::var(t_mat[complete_rows, , drop = FALSE])
-  }
-
-  rownames(vcov_mat) <- int_names
-  colnames(vcov_mat) <- int_names
-
-  boot_t <- t_mat[complete_rows, , drop = FALSE]
-  colnames(boot_t) <- int_names
-
-  list(vcov = vcov_mat, boot_t = boot_t)
+  process_boot_results(boot_res, int_names, n_boot)
 }
 
 #' Refit the full estimation pipeline on a bootstrap sample
@@ -170,7 +186,7 @@ refit_gcomp <- function(fit, d_b) {
   outcome <- fit$outcome
   ext_w <- fit$details$external_weights
 
-  fit_rows_b <- is_uncensored(d_b, censoring) & !is.na(d_b[[outcome]])
+  fit_rows_b <- get_fit_rows(d_b, outcome, censoring)
 
   args <- list(model_formula, data = d_b[fit_rows_b], family = family)
   if (!is.null(ext_w)) {
@@ -186,11 +202,10 @@ refit_gcomp <- function(fit, d_b) {
 #' @return A `glm_weightit` model object.
 #' @noRd
 refit_ipw <- function(fit, d_b) {
-  confounder_terms <- attr(stats::terms(fit$confounders), "term.labels")
-  ps_formula <- stats::reformulate(confounder_terms, response = fit$treatment)
+  ps_formula <- build_ps_formula(fit$confounders, fit$treatment)
   ext_w <- fit$details$external_weights
 
-  fit_rows_b <- !is.na(d_b[[fit$outcome]])
+  fit_rows_b <- get_fit_rows(d_b, fit$outcome)
   fit_data_b <- d_b[fit_rows_b]
 
   w_b <- WeightIt::weightit(
@@ -219,11 +234,10 @@ refit_ipw <- function(fit, d_b) {
 #' @return A `glm` model fit on the matched bootstrap data.
 #' @noRd
 refit_matching <- function(fit, d_b) {
-  confounder_terms <- attr(stats::terms(fit$confounders), "term.labels")
-  ps_formula <- stats::reformulate(confounder_terms, response = fit$treatment)
+  ps_formula <- build_ps_formula(fit$confounders, fit$treatment)
   ext_w <- fit$details$external_weights
 
-  fit_rows_b <- !is.na(d_b[[fit$outcome]])
+  fit_rows_b <- get_fit_rows(d_b, fit$outcome)
   fit_data_b <- as.data.frame(d_b[fit_rows_b])
 
   match_args <- list(ps_formula, data = fit_data_b, estimand = fit$estimand)
@@ -381,49 +395,5 @@ ice_variance_bootstrap <- function(
     ncpus = ncpus
   )
 
-  # Compute variance from the bootstrap replicates.
-  t_mat <- boot_res$t
-  complete_rows <- stats::complete.cases(t_mat)
-  n_ok <- sum(complete_rows)
-  n_fail <- n_boot - n_ok
-
-  if (n_ok < 2L) {
-    rlang::warn(
-      "Bootstrap produced fewer than 2 non-NA replicates; SE estimates will be NA."
-    )
-    vcov_mat <- matrix(
-      NA_real_,
-      nrow = length(int_names),
-      ncol = length(int_names)
-    )
-  } else {
-    if (n_fail > 0L) {
-      pct <- round(100 * n_fail / n_boot, 1)
-      if (pct > 20) {
-        rlang::warn(paste0(
-          n_fail, " of ", n_boot,
-          " bootstrap replicates (", pct,
-          "%) failed. High failure rate may indicate model ",
-          "instability; variance estimates may be unreliable."
-        ))
-      } else {
-        rlang::warn(paste0(
-          n_fail, " of ", n_boot,
-          " bootstrap replicates (", pct,
-          "%) failed and were discarded. ",
-          "Variance is estimated from the ",
-          n_ok, " successful replicates."
-        ))
-      }
-    }
-    vcov_mat <- stats::var(t_mat[complete_rows, , drop = FALSE])
-  }
-
-  rownames(vcov_mat) <- int_names
-  colnames(vcov_mat) <- int_names
-
-  boot_t <- t_mat[complete_rows, , drop = FALSE]
-  colnames(boot_t) <- int_names
-
-  list(vcov = vcov_mat, boot_t = boot_t)
+  process_boot_results(boot_res, int_names, n_boot)
 }

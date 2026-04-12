@@ -224,6 +224,45 @@ is_binary_family <- function(family) {
   FALSE
 }
 
+#' Build a propensity score formula from confounders and treatment
+#'
+#' @param confounders One-sided formula of confounders.
+#' @param treatment Character treatment column name.
+#' @return A two-sided formula: `treatment ~ confounder_terms`.
+#' @noRd
+build_ps_formula <- function(confounders, treatment) {
+  confounder_terms <- attr(stats::terms(confounders), "term.labels")
+  stats::reformulate(confounder_terms, response = treatment)
+}
+
+#' Get the logical vector of fitting rows
+#'
+#' A row is eligible for model fitting when it is uncensored AND has a
+#' non-missing outcome.
+#'
+#' @param data A data.table.
+#' @param outcome Character outcome column name.
+#' @param censoring Character censoring column name, or `NULL`.
+#' @return Logical vector of length `nrow(data)`.
+#' @noRd
+get_fit_rows <- function(data, outcome, censoring = NULL) {
+  is_uncensored(data, censoring) & !is.na(data[[outcome]])
+}
+
+#' Weighted or unweighted mean
+#'
+#' @param x Numeric vector.
+#' @param w Numeric weight vector or `NULL` for unweighted mean.
+#' @return Scalar mean.
+#' @noRd
+maybe_weighted_mean <- function(x, w = NULL) {
+  if (!is.null(w)) {
+    stats::weighted.mean(x, w, na.rm = TRUE)
+  } else {
+    mean(x, na.rm = TRUE)
+  }
+}
+
 #' Check that an optional package is installed
 #'
 #' @param pkg Character package name.

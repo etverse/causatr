@@ -53,11 +53,10 @@ fit_matching <- function(
 
   # Build the treatment model formula: A ~ confounders.
   # MatchIt uses this to estimate propensity scores for matching.
-  confounder_terms <- attr(stats::terms(confounders), "term.labels")
-  ps_formula <- stats::reformulate(confounder_terms, response = treatment)
+  ps_formula <- build_ps_formula(confounders, treatment)
 
   # Fit rows: exclude missing outcomes before matching.
-  fit_rows <- !is.na(data[[outcome]])
+  fit_rows <- get_fit_rows(data, outcome)
   fit_data <- as.data.frame(data[fit_rows])
 
   # Step 1: Create matched sets via MatchIt.
