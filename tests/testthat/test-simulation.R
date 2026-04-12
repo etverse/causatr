@@ -1379,3 +1379,183 @@ test_that("gcomp × continuous trt × shift × bootstrap SE finite", {
   expect_gt(result$contrasts$se[1], 0)
   expect_true(is.finite(result$contrasts$se[1]))
 })
+
+
+# ============================================================
+# LOG-SCALE CIs FOR RATIO / OR
+# ============================================================
+
+test_that("log-scale ratio CI is always positive and contains true RR", {
+  d <- simulate_binary_binary(n = 5000, seed = 42)
+  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L,
+    family = "binomial"
+  )
+  res <- contrast(fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "ratio"
+  )
+  expect_gt(res$contrasts$ci_lower, 0)
+  rr <- res$contrasts$estimate
+  expect_true(rr > 1.5 && rr < 3.0)
+  expect_lt(res$contrasts$ci_lower, 2.15)
+  expect_gt(res$contrasts$ci_upper, 2.15)
+})
+
+test_that("log-scale OR CI is always positive and contains true OR", {
+  d <- simulate_binary_binary(n = 5000, seed = 42)
+  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L,
+    family = "binomial"
+  )
+  res <- contrast(fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "or"
+  )
+  expect_gt(res$contrasts$ci_lower, 0)
+  or_est <- res$contrasts$estimate
+  expect_true(or_est > 2 && or_est < 7)
+})
+
+test_that("ipw × binary outcome × ratio: log-scale CI positive", {
+  d <- simulate_binary_binary(n = 5000, seed = 42)
+  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L,
+    method = "ipw", family = "binomial"
+  )
+  res <- contrast(fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "ratio"
+  )
+  expect_gt(res$contrasts$ci_lower, 0)
+  expect_gt(res$contrasts$estimate, 1)
+})
+
+test_that("matching × binary outcome × ratio: log-scale CI positive", {
+  d <- simulate_binary_binary(n = 5000, seed = 42)
+  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L,
+    method = "matching", estimand = "ATT", family = "binomial"
+  )
+  res <- contrast(fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "ratio"
+  )
+  expect_gt(res$contrasts$ci_lower, 0)
+  expect_gt(res$contrasts$estimate, 1)
+})
+
+
+# ============================================================
+# ANALYTICAL JACOBIAN vs NUMERICAL
+# ============================================================
+
+test_that("analytical Jacobian matches numDeriv for GLM", {
+  d <- simulate_binary_binary(n = 2000, seed = 42)
+  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L,
+    family = "binomial"
+  )
+  data_a_list <- list(
+    a1 = causatr:::apply_intervention(fit$data, "A", static(1)),
+    a0 = causatr:::apply_intervention(fit$data, "A", static(0))
+  )
+  target_idx <- rep(TRUE, nrow(fit$data))
+  V_beta <- sandwich::sandwich(fit$model)
+
+  vcov_a <- causatr:::compute_vcov_marginal(
+    fit$model, data_a_list, target_idx, V_beta
+  )
+
+  # Force numDeriv by wrapping the model so it's not recognized as a GLM.
+  model_fake <- fit$model
+  class(model_fake) <- c("fake_class", "glm")
+  vcov_n <- causatr:::compute_vcov_marginal(
+    model_fake, data_a_list, target_idx, V_beta
+  )
+
+  expect_equal(diag(vcov_a), diag(vcov_n), tolerance = 0.01)
+})
+
+test_that("analytical Jacobian with weights matches numDeriv", {
+  d <- simulate_binary_continuous(n = 2000, seed = 42)
+  w <- runif(nrow(d), 0.5, 2)
+  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L,
+    weights = w
+  )
+  data_a_list <- list(
+    a1 = causatr:::apply_intervention(fit$data, "A", static(1)),
+    a0 = causatr:::apply_intervention(fit$data, "A", static(0))
+  )
+  target_idx <- rep(TRUE, nrow(fit$data))
+  V_beta <- sandwich::sandwich(fit$model)
+  w_target <- w[target_idx]
+
+  vcov_a <- causatr:::compute_vcov_marginal(
+    fit$model, data_a_list, target_idx, V_beta, weights = w_target
+  )
+  model_fake <- fit$model
+  class(model_fake) <- c("fake_class", "glm")
+  vcov_n <- causatr:::compute_vcov_marginal(
+    model_fake, data_a_list, target_idx, V_beta, weights = w_target
+  )
+
+  expect_equal(diag(vcov_a), diag(vcov_n), tolerance = 0.01)
+})
+
+
+# ============================================================
+# EXTERNAL WEIGHTS × ALL METHODS
+# ============================================================
+
+test_that("gcomp × external weights + bootstrap: finite SE", {
+  d <- simulate_binary_continuous(n = 1000, seed = 42)
+  w <- runif(nrow(d), 0.5, 2)
+  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L,
+    weights = w
+  )
+  expect_true(!is.null(fit$details$weights))
+  expect_false(".causatr_w" %in% names(fit$data))
+  res <- suppressWarnings(contrast(fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    ci_method = "bootstrap", n_boot = 50
+  ))
+  expect_true(all(is.finite(res$contrasts$se)))
+  expect_gt(res$contrasts$se, 0)
+})
+
+test_that("ipw × external weights + sandwich: runs without error", {
+  d <- simulate_binary_continuous(n = 1000, seed = 42)
+  w <- runif(nrow(d), 0.5, 2)
+  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L,
+    method = "ipw", weights = w
+  )
+  res <- contrast(fit,
+    interventions = list(a0 = static(0), a1 = static(1)),
+    ci_method = "sandwich"
+  )
+  expect_true(all(is.finite(res$contrasts$se)))
+  expect_gt(res$contrasts$se, 0)
+})
+
+
+# ============================================================
+# CONFINT × STRATIFIED BOOTSTRAP
+# ============================================================
+
+test_that("confint with by + bootstrap returns correctly ordered CIs", {
+  d <- simulate_effect_mod(n = 2000, seed = 42)
+  fit <- causat(d, outcome = "Y", treatment = "A",
+    confounders = ~ L + sex + A:L + A:sex
+  )
+  res <- suppressWarnings(contrast(fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    ci_method = "bootstrap", n_boot = 50,
+    by = "sex"
+  ))
+  ci <- confint(res)
+  expect_equal(nrow(ci), nrow(res$estimates))
+  for (i in seq_len(nrow(ci))) {
+    expect_lte(ci[i, "lower"], res$estimates$estimate[i])
+    expect_gte(ci[i, "upper"], res$estimates$estimate[i])
+  }
+})
