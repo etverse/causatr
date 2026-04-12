@@ -30,18 +30,25 @@ process_boot_results <- function(boot_res, int_names, n_boot) {
       pct <- round(100 * n_fail / n_boot, 1)
       if (pct > 20) {
         rlang::warn(paste0(
-          n_fail, " of ", n_boot,
-          " bootstrap replicates (", pct,
+          n_fail,
+          " of ",
+          n_boot,
+          " bootstrap replicates (",
+          pct,
           "%) failed. High failure rate may indicate model ",
           "instability; variance estimates may be unreliable."
         ))
       } else {
         rlang::warn(paste0(
-          n_fail, " of ", n_boot,
-          " bootstrap replicates (", pct,
+          n_fail,
+          " of ",
+          n_boot,
+          " bootstrap replicates (",
+          pct,
           "%) failed and were discarded. ",
           "Variance is estimated from the ",
-          n_ok, " successful replicates."
+          n_ok,
+          " successful replicates."
         ))
       }
     }
@@ -396,7 +403,8 @@ ice_variance_bootstrap <- function(
           return(NA_real_)
         }
         maybe_weighted_mean(
-          res_b$pseudo_final[target_b_within], w_b_target
+          res_b$pseudo_final[target_b_within],
+          w_b_target
         )
       },
       numeric(1)

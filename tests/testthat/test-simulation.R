@@ -1387,10 +1387,15 @@ test_that("gcomp × continuous trt × shift × bootstrap SE finite", {
 
 test_that("log-scale ratio CI is always positive and contains true RR", {
   d <- simulate_binary_binary(n = 5000, seed = 42)
-  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L,
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
     family = "binomial"
   )
-  res <- contrast(fit,
+  res <- contrast(
+    fit,
     interventions = list(a1 = static(1), a0 = static(0)),
     reference = "a0",
     type = "ratio"
@@ -1404,10 +1409,15 @@ test_that("log-scale ratio CI is always positive and contains true RR", {
 
 test_that("log-scale OR CI is always positive and contains true OR", {
   d <- simulate_binary_binary(n = 5000, seed = 42)
-  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L,
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
     family = "binomial"
   )
-  res <- contrast(fit,
+  res <- contrast(
+    fit,
     interventions = list(a1 = static(1), a0 = static(0)),
     reference = "a0",
     type = "or"
@@ -1419,10 +1429,16 @@ test_that("log-scale OR CI is always positive and contains true OR", {
 
 test_that("ipw × binary outcome × ratio: log-scale CI positive", {
   d <- simulate_binary_binary(n = 5000, seed = 42)
-  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L,
-    method = "ipw", family = "binomial"
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    method = "ipw",
+    family = "binomial"
   )
-  res <- contrast(fit,
+  res <- contrast(
+    fit,
     interventions = list(a1 = static(1), a0 = static(0)),
     reference = "a0",
     type = "ratio"
@@ -1433,10 +1449,17 @@ test_that("ipw × binary outcome × ratio: log-scale CI positive", {
 
 test_that("matching × binary outcome × ratio: log-scale CI positive", {
   d <- simulate_binary_binary(n = 5000, seed = 42)
-  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L,
-    method = "matching", estimand = "ATT", family = "binomial"
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    method = "matching",
+    estimand = "ATT",
+    family = "binomial"
   )
-  res <- contrast(fit,
+  res <- contrast(
+    fit,
     interventions = list(a1 = static(1), a0 = static(0)),
     reference = "a0",
     type = "ratio"
@@ -1452,7 +1475,11 @@ test_that("matching × binary outcome × ratio: log-scale CI positive", {
 
 test_that("analytical Jacobian matches numDeriv for GLM", {
   d <- simulate_binary_binary(n = 2000, seed = 42)
-  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L,
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
     family = "binomial"
   )
   data_a_list <- list(
@@ -1463,14 +1490,20 @@ test_that("analytical Jacobian matches numDeriv for GLM", {
   V_beta <- sandwich::sandwich(fit$model)
 
   vcov_a <- causatr:::compute_vcov_marginal(
-    fit$model, data_a_list, target_idx, V_beta
+    fit$model,
+    data_a_list,
+    target_idx,
+    V_beta
   )
 
   # Force numDeriv by wrapping the model so it's not recognized as a GLM.
   model_fake <- fit$model
   class(model_fake) <- c("fake_class", "glm")
   vcov_n <- causatr:::compute_vcov_marginal(
-    model_fake, data_a_list, target_idx, V_beta
+    model_fake,
+    data_a_list,
+    target_idx,
+    V_beta
   )
 
   expect_equal(diag(vcov_a), diag(vcov_n), tolerance = 0.01)
@@ -1479,7 +1512,11 @@ test_that("analytical Jacobian matches numDeriv for GLM", {
 test_that("analytical Jacobian with weights matches numDeriv", {
   d <- simulate_binary_continuous(n = 2000, seed = 42)
   w <- runif(nrow(d), 0.5, 2)
-  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L,
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
     weights = w
   )
   data_a_list <- list(
@@ -1491,12 +1528,20 @@ test_that("analytical Jacobian with weights matches numDeriv", {
   w_target <- w[target_idx]
 
   vcov_a <- causatr:::compute_vcov_marginal(
-    fit$model, data_a_list, target_idx, V_beta, weights = w_target
+    fit$model,
+    data_a_list,
+    target_idx,
+    V_beta,
+    weights = w_target
   )
   model_fake <- fit$model
   class(model_fake) <- c("fake_class", "glm")
   vcov_n <- causatr:::compute_vcov_marginal(
-    model_fake, data_a_list, target_idx, V_beta, weights = w_target
+    model_fake,
+    data_a_list,
+    target_idx,
+    V_beta,
+    weights = w_target
   )
 
   expect_equal(diag(vcov_a), diag(vcov_n), tolerance = 0.01)
@@ -1510,14 +1555,20 @@ test_that("analytical Jacobian with weights matches numDeriv", {
 test_that("gcomp × external weights + bootstrap: finite SE", {
   d <- simulate_binary_continuous(n = 1000, seed = 42)
   w <- runif(nrow(d), 0.5, 2)
-  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L,
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
     weights = w
   )
   expect_true(!is.null(fit$details$weights))
   expect_false(".causatr_w" %in% names(fit$data))
-  res <- suppressWarnings(contrast(fit,
+  res <- suppressWarnings(contrast(
+    fit,
     interventions = list(a1 = static(1), a0 = static(0)),
-    ci_method = "bootstrap", n_boot = 50
+    ci_method = "bootstrap",
+    n_boot = 50
   ))
   expect_true(all(is.finite(res$contrasts$se)))
   expect_gt(res$contrasts$se, 0)
@@ -1526,10 +1577,16 @@ test_that("gcomp × external weights + bootstrap: finite SE", {
 test_that("ipw × external weights + sandwich: runs without error", {
   d <- simulate_binary_continuous(n = 1000, seed = 42)
   w <- runif(nrow(d), 0.5, 2)
-  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L,
-    method = "ipw", weights = w
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    method = "ipw",
+    weights = w
   )
-  res <- contrast(fit,
+  res <- contrast(
+    fit,
     interventions = list(a0 = static(0), a1 = static(1)),
     ci_method = "sandwich"
   )
@@ -1544,12 +1601,17 @@ test_that("ipw × external weights + sandwich: runs without error", {
 
 test_that("confint with by + bootstrap returns correctly ordered CIs", {
   d <- simulate_effect_mod(n = 2000, seed = 42)
-  fit <- causat(d, outcome = "Y", treatment = "A",
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
     confounders = ~ L + sex + A:L + A:sex
   )
-  res <- suppressWarnings(contrast(fit,
+  res <- suppressWarnings(contrast(
+    fit,
     interventions = list(a1 = static(1), a0 = static(0)),
-    ci_method = "bootstrap", n_boot = 50,
+    ci_method = "bootstrap",
+    n_boot = 50,
     by = "sex"
   ))
   ci <- confint(res)

@@ -36,10 +36,14 @@ simulate_multi_confounder <- function(n = 3000, seed = 42) {
 
 test_that("gcomp × nonlinear confounding × GLM with splines recovers ATE", {
   d <- simulate_nonlinear(n = 3000, seed = 42)
-  fit <- causat(d, outcome = "Y", treatment = "A",
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
     confounders = ~ splines::ns(L, 5)
   )
-  res <- contrast(fit,
+  res <- contrast(
+    fit,
     interventions = list(a1 = static(1), a0 = static(0)),
     reference = "a0"
   )
@@ -49,7 +53,8 @@ test_that("gcomp × nonlinear confounding × GLM with splines recovers ATE", {
 test_that("gcomp × nonlinear confounding × misspecified GLM is biased", {
   d <- simulate_nonlinear(n = 3000, seed = 42)
   fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L)
-  res <- contrast(fit,
+  res <- contrast(
+    fit,
     interventions = list(a1 = static(1), a0 = static(0)),
     reference = "a0"
   )
@@ -59,11 +64,15 @@ test_that("gcomp × nonlinear confounding × misspecified GLM is biased", {
 test_that("gcomp × nonlinear confounding × GAM recovers ATE", {
   skip_if_not_installed("mgcv")
   d <- simulate_nonlinear(n = 3000, seed = 42)
-  fit <- causat(d, outcome = "Y", treatment = "A",
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
     confounders = ~ s(L),
     model_fn = mgcv::gam
   )
-  res <- contrast(fit,
+  res <- contrast(
+    fit,
     interventions = list(a1 = static(1), a0 = static(0)),
     reference = "a0"
   )
@@ -78,19 +87,25 @@ test_that("gcomp × nonlinear confounding × GAM recovers ATE", {
 test_that("gcomp × GAM × sandwich vs bootstrap SE agreement", {
   skip_if_not_installed("mgcv")
   d <- simulate_nonlinear(n = 2000, seed = 42)
-  fit <- causat(d, outcome = "Y", treatment = "A",
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
     confounders = ~ s(L),
     model_fn = mgcv::gam
   )
-  res_sw <- contrast(fit,
+  res_sw <- contrast(
+    fit,
     interventions = list(a1 = static(1), a0 = static(0)),
     reference = "a0",
     ci_method = "sandwich"
   )
-  res_bt <- suppressWarnings(contrast(fit,
+  res_bt <- suppressWarnings(contrast(
+    fit,
     interventions = list(a1 = static(1), a0 = static(0)),
     reference = "a0",
-    ci_method = "bootstrap", n_boot = 200
+    ci_method = "bootstrap",
+    n_boot = 200
   ))
   ratio <- res_sw$contrasts$se / res_bt$contrasts$se
   expect_true(ratio > 0.5 && ratio < 2.0)
@@ -98,18 +113,24 @@ test_that("gcomp × GAM × sandwich vs bootstrap SE agreement", {
 
 test_that("gcomp × GLM with splines × sandwich vs bootstrap SE agreement", {
   d <- simulate_nonlinear(n = 2000, seed = 42)
-  fit <- causat(d, outcome = "Y", treatment = "A",
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
     confounders = ~ splines::ns(L, 4)
   )
-  res_sw <- contrast(fit,
+  res_sw <- contrast(
+    fit,
     interventions = list(a1 = static(1), a0 = static(0)),
     reference = "a0",
     ci_method = "sandwich"
   )
-  res_bt <- suppressWarnings(contrast(fit,
+  res_bt <- suppressWarnings(contrast(
+    fit,
     interventions = list(a1 = static(1), a0 = static(0)),
     reference = "a0",
-    ci_method = "bootstrap", n_boot = 200
+    ci_method = "bootstrap",
+    n_boot = 200
   ))
   ratio <- res_sw$contrasts$se / res_bt$contrasts$se
   expect_true(ratio > 0.5 && ratio < 2.0)
@@ -122,10 +143,14 @@ test_that("gcomp × GLM with splines × sandwich vs bootstrap SE agreement", {
 
 test_that("gcomp × multiple confounders + interactions recovers ATE", {
   d <- simulate_multi_confounder(n = 3000, seed = 42)
-  fit <- causat(d, outcome = "Y", treatment = "A",
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
     confounders = ~ L1 + L2 + L3 + L4 + L1:L2
   )
-  res <- contrast(fit,
+  res <- contrast(
+    fit,
     interventions = list(a1 = static(1), a0 = static(0)),
     reference = "a0"
   )
@@ -134,11 +159,15 @@ test_that("gcomp × multiple confounders + interactions recovers ATE", {
 
 test_that("ipw × multiple confounders recovers ATE", {
   d <- simulate_multi_confounder(n = 3000, seed = 42)
-  fit <- causat(d, outcome = "Y", treatment = "A",
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
     confounders = ~ L1 + L2 + L3 + L4,
     method = "ipw"
   )
-  res <- contrast(fit,
+  res <- contrast(
+    fit,
     interventions = list(a1 = static(1), a0 = static(0)),
     reference = "a0"
   )
@@ -154,27 +183,39 @@ test_that("triangulation × nonlinear confounding × flexible models", {
   skip_if_not_installed("mgcv")
   d <- simulate_nonlinear(n = 3000, seed = 42)
 
-  fit_gc <- causat(d, outcome = "Y", treatment = "A",
+  fit_gc <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
     confounders = ~ splines::ns(L, 5)
   )
-  fit_ipw <- causat(d, outcome = "Y", treatment = "A",
+  fit_ipw <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
     confounders = ~ splines::ns(L, 5),
     method = "ipw"
   )
-  fit_gam <- causat(d, outcome = "Y", treatment = "A",
+  fit_gam <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
     confounders = ~ s(L),
     model_fn = mgcv::gam
   )
 
-  ate_gc <- contrast(fit_gc,
+  ate_gc <- contrast(
+    fit_gc,
     interventions = list(a1 = static(1), a0 = static(0)),
     reference = "a0"
   )$contrasts$estimate
-  ate_ipw <- contrast(fit_ipw,
+  ate_ipw <- contrast(
+    fit_ipw,
     interventions = list(a1 = static(1), a0 = static(0)),
     reference = "a0"
   )$contrasts$estimate
-  ate_gam <- contrast(fit_gam,
+  ate_gam <- contrast(
+    fit_gam,
     interventions = list(a1 = static(1), a0 = static(0)),
     reference = "a0"
   )$contrasts$estimate

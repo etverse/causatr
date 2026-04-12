@@ -66,16 +66,24 @@ test_that("static() with character value works through full pipeline", {
   set.seed(99)
   n <- 500
   L <- rnorm(n)
-  A <- sample(c("low", "med", "high"), n,
-    replace = TRUE, prob = c(0.3, 0.4, 0.3)
+  A <- sample(
+    c("low", "med", "high"),
+    n,
+    replace = TRUE,
+    prob = c(0.3, 0.4, 0.3)
   )
   Y <- 1 + 2 * (A == "med") + 4 * (A == "high") + 0.5 * L + rnorm(n)
   d <- data.frame(Y = Y, A = A, L = L)
 
-  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L,
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
     method = "gcomp"
   )
-  res <- contrast(fit,
+  res <- contrast(
+    fit,
     interventions = list(low = static("low"), high = static("high")),
     type = "difference"
   )

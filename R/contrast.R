@@ -520,7 +520,8 @@ compute_contrast <- function(
       ice_results,
       function(res) {
         maybe_weighted_mean(
-          res$pseudo_final[target_within_first], w_target_ice
+          res$pseudo_final[target_within_first],
+          w_target_ice
         )
       },
       numeric(1)
@@ -643,14 +644,20 @@ compute_contrast <- function(
 
   if (type == "ratio" && abs(mu_ref) < tol_edge) {
     rlang::abort(paste0(
-      "Reference intervention '", ref_name, "' has a marginal mean of ",
-      mu_ref, ". The risk/mean ratio is undefined."
+      "Reference intervention '",
+      ref_name,
+      "' has a marginal mean of ",
+      mu_ref,
+      ". The risk/mean ratio is undefined."
     ))
   }
   if (type == "or" && (abs(mu_ref) < tol_edge || abs(1 - mu_ref) < tol_edge)) {
     rlang::abort(paste0(
-      "Reference intervention '", ref_name, "' has a marginal mean of ",
-      mu_ref, ". The odds ratio is undefined when the probability is 0 or 1."
+      "Reference intervention '",
+      ref_name,
+      "' has a marginal mean of ",
+      mu_ref,
+      ". The odds ratio is undefined when the probability is 0 or 1."
     ))
   }
 
@@ -670,7 +677,10 @@ compute_contrast <- function(
     } else if (type == "ratio") {
       if (abs(mu_a) < tol_edge) {
         rlang::abort(paste0(
-          "Intervention '", nm, "' has a marginal mean of ", mu_a,
+          "Intervention '",
+          nm,
+          "' has a marginal mean of ",
+          mu_a,
           ". The risk/mean ratio is undefined (log-scale CI requires log(0))."
         ))
       }
@@ -687,7 +697,10 @@ compute_contrast <- function(
     } else {
       if (abs(mu_a) < tol_edge || abs(1 - mu_a) < tol_edge) {
         rlang::abort(paste0(
-          "Intervention '", nm, "' has a marginal mean of ", mu_a,
+          "Intervention '",
+          nm,
+          "' has a marginal mean of ",
+          mu_a,
           ". The odds ratio is undefined when the probability is 0 or 1."
         ))
       }

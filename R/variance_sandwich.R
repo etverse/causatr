@@ -49,7 +49,11 @@ variance_sandwich <- function(fit, data_a_list, preds_list, target_idx) {
   # Propagate parameter uncertainty: J V_β Jᵀ.
   ext_w <- fit$details$weights
   w_target <- if (!is.null(ext_w)) ext_w[target_idx] else NULL
-  compute_vcov_marginal(model, data_a_list, target_idx, V_beta,
+  compute_vcov_marginal(
+    model,
+    data_a_list,
+    target_idx,
+    V_beta,
     weights = w_target
   )
 }
@@ -349,8 +353,13 @@ ice_compute_influence <- function(fit, ice_result, target) {
 #' @return A named k × k variance–covariance matrix of marginal means.
 #'
 #' @noRd
-compute_vcov_marginal <- function(model, data_a_list, target_idx, V_beta,
-                                  weights = NULL) {
+compute_vcov_marginal <- function(
+  model,
+  data_a_list,
+  target_idx,
+  V_beta,
+  weights = NULL
+) {
   int_names <- names(data_a_list)
   beta_hat <- stats::coef(model)
 

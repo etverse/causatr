@@ -40,16 +40,24 @@ confint.causatr_result <- function(object, parm, level = 0.95, ...) {
         colnames(na_row) <- c("lower", "upper")
         return(na_row)
       }
-      ci_lev <- t(apply(bt, 2, stats::quantile,
-        probs = c(alpha, 1 - alpha), na.rm = TRUE
+      ci_lev <- t(apply(
+        bt,
+        2,
+        stats::quantile,
+        probs = c(alpha, 1 - alpha),
+        na.rm = TRUE
       ))
       colnames(ci_lev) <- c("lower", "upper")
       ci_lev
     })
     ci <- do.call(rbind, ci_list)
   } else if (!is.null(object$boot_t) && is.matrix(object$boot_t)) {
-    ci <- t(apply(object$boot_t, 2, stats::quantile,
-      probs = c(alpha, 1 - alpha), na.rm = TRUE
+    ci <- t(apply(
+      object$boot_t,
+      2,
+      stats::quantile,
+      probs = c(alpha, 1 - alpha),
+      na.rm = TRUE
     ))
     colnames(ci) <- c("lower", "upper")
   } else {

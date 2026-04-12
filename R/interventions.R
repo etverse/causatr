@@ -319,8 +319,11 @@ apply_single_intervention <- function(data, trt_col, iv) {
       if (length(new_trt) != nrow(data)) {
         rlang::abort(
           paste0(
-            "`dynamic()` rule must return a vector of length ", nrow(data),
-            " (got ", length(new_trt), ")."
+            "`dynamic()` rule must return a vector of length ",
+            nrow(data),
+            " (got ",
+            length(new_trt),
+            ")."
           ),
           .call = FALSE
         )
