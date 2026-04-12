@@ -1,0 +1,1961 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.37">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Variance estimation for causal effects: sandwich estimators and influence functions – causatr</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-7f8f88aac4f3542376d5c11b86a4c14d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-1fa89b94116c107d6ffe2fb26b06054e.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script src="../site_libs/quarto-diagram/mermaid.min.js"></script>
+<script src="../site_libs/quarto-diagram/mermaid-init.js"></script>
+<link href="../site_libs/quarto-diagram/mermaid.css" rel="stylesheet">
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-sidebar floating nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">causatr</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/etverse/causatr"> <i class="bi bi-github" role="img" aria-label="causatr GitHub">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item">Variance estimation for causal effects: sandwich estimators and influence functions</li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Home</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false">
+ <span class="menu-text">Getting started</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 ">  
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="false">
+ <span class="menu-text">Estimation methods</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../vignettes/gcomp.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">G-computation with causatr</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../vignettes/ipw.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Inverse probability weighting with causatr</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../vignettes/matching.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Propensity score matching with causatr</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false">
+ <span class="menu-text">Advanced topics</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../vignettes/triangulation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Methodological triangulation: g-computation, IPW, and matching</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../vignettes/longitudinal.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Longitudinal treatments: ICE g-computation</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../vignettes/survival.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Causal survival analysis (Chapter 17)</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false">
+ <span class="menu-text">Theory</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 ">  
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="false">
+ <span class="menu-text">Reference</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../man/causat_survival.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">causat_survival</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../man/causat.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">causat</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../man/coef.causatr_result.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">coef.causatr_result</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../man/confint.causatr_result.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">confint.causatr_result</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../man/contrast.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">contrast</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../man/diagnose.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">diagnose</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../man/dynamic.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">dynamic</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../man/glance.causatr_result.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">glance.causatr_result</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../man/ipsi.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ipsi</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../man/nhefs.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">nhefs</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../man/plot.causatr_diag.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">plot.causatr_diag</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../man/plot.causatr_result.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">plot.causatr_result</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../man/print.causatr_diag.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">print.causatr_diag</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../man/print.causatr_fit.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">print.causatr_fit</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../man/print.causatr_intervention.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">print.causatr_intervention</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../man/print.causatr_result.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">print.causatr_result</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../man/scale_by.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">scale_by</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../man/shift.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">shift</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../man/static.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">static</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../man/summary.causatr_diag.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">summary.causatr_diag</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../man/summary.causatr_fit.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">summary.causatr_fit</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../man/summary.causatr_result.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">summary.causatr_result</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../man/threshold.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">threshold</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../man/tidy.causatr_result.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">tidy.causatr_result</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../man/to_person_period.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">to_person_period</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../man/vcov.causatr_result.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">vcov.causatr_result</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../NEWS.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">News</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../LICENSE.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">License</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../CITATION.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Citation</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#setting-the-causal-effect-estimation-pipeline" id="toc-setting-the-causal-effect-estimation-pipeline" class="nav-link active" data-scroll-target="#setting-the-causal-effect-estimation-pipeline">Setting: the causal effect estimation pipeline</a></li>
+  <li><a href="#the-sandwich-estimator-for-parametric-models" id="toc-the-sandwich-estimator-for-parametric-models" class="nav-link" data-scroll-target="#the-sandwich-estimator-for-parametric-models">1. The sandwich estimator for parametric models</a>
+  <ul>
+  <li><a href="#what-is-an-estimating-equation" id="toc-what-is-an-estimating-equation" class="nav-link" data-scroll-target="#what-is-an-estimating-equation">1.1 What is an estimating equation?</a></li>
+  <li><a href="#deriving-psi-three-routes-to-the-same-place" id="toc-deriving-psi-three-routes-to-the-same-place" class="nav-link" data-scroll-target="#deriving-psi-three-routes-to-the-same-place">1.2 Deriving <span class="math inline">\(\psi\)</span>: three routes to the same place</a>
+  <ul class="collapse">
+  <li><a href="#route-1-score-equations-maximum-likelihood" id="toc-route-1-score-equations-maximum-likelihood" class="nav-link" data-scroll-target="#route-1-score-equations-maximum-likelihood">Route 1: Score equations (maximum likelihood)</a></li>
+  <li><a href="#route-2-moment-conditions-method-of-moments" id="toc-route-2-moment-conditions-method-of-moments" class="nav-link" data-scroll-target="#route-2-moment-conditions-method-of-moments">Route 2: Moment conditions (method of moments)</a></li>
+  <li><a href="#route-3-quasi-likelihood" id="toc-route-3-quasi-likelihood" class="nav-link" data-scroll-target="#route-3-quasi-likelihood">Route 3: Quasi-likelihood</a></li>
+  </ul></li>
+  <li><a href="#the-general-m-estimation-framework" id="toc-the-general-m-estimation-framework" class="nav-link" data-scroll-target="#the-general-m-estimation-framework">1.3 The general M-estimation framework</a></li>
+  <li><a href="#asymptotic-variance-of-m-estimators" id="toc-asymptotic-variance-of-m-estimators" class="nav-link" data-scroll-target="#asymptotic-variance-of-m-estimators">1.4 Asymptotic variance of M-estimators</a>
+  <ul class="collapse">
+  <li><a href="#step-1-linearise-via-taylor-expansion" id="toc-step-1-linearise-via-taylor-expansion" class="nav-link" data-scroll-target="#step-1-linearise-via-taylor-expansion">Step 1: Linearise via Taylor expansion</a></li>
+  <li><a href="#step-2-identify-the-variance" id="toc-step-2-identify-the-variance" class="nav-link" data-scroll-target="#step-2-identify-the-variance">Step 2: Identify the variance</a></li>
+  <li><a href="#step-3-estimate-from-data" id="toc-step-3-estimate-from-data" class="nav-link" data-scroll-target="#step-3-estimate-from-data">Step 3: Estimate from data</a></li>
+  </ul></li>
+  <li><a href="#pseudo-code-sandwich-variance-for-a-glm" id="toc-pseudo-code-sandwich-variance-for-a-glm" class="nav-link" data-scroll-target="#pseudo-code-sandwich-variance-for-a-glm">1.5 Pseudo-code: sandwich variance for a GLM</a></li>
+  <li><a href="#concrete-example-linear-regression" id="toc-concrete-example-linear-regression" class="nav-link" data-scroll-target="#concrete-example-linear-regression">1.6 Concrete example: linear regression</a></li>
+  </ul></li>
+  <li><a href="#the-delta-method-from-model-parameters-to-causal-effects" id="toc-the-delta-method-from-model-parameters-to-causal-effects" class="nav-link" data-scroll-target="#the-delta-method-from-model-parameters-to-causal-effects">2. The delta method: from model parameters to causal effects</a>
+  <ul>
+  <li><a href="#the-problem" id="toc-the-problem" class="nav-link" data-scroll-target="#the-problem">2.1 The problem</a></li>
+  <li><a href="#the-delta-method-statement-and-derivation" id="toc-the-delta-method-statement-and-derivation" class="nav-link" data-scroll-target="#the-delta-method-statement-and-derivation">2.2 The delta method: statement and derivation</a></li>
+  <li><a href="#deriving-the-jacobian-for-the-standardised-mean" id="toc-deriving-the-jacobian-for-the-standardised-mean" class="nav-link" data-scroll-target="#deriving-the-jacobian-for-the-standardised-mean">2.3 Deriving the Jacobian for the standardised mean</a></li>
+  <li><a href="#putting-it-together-sandwich-delta-method" id="toc-putting-it-together-sandwich-delta-method" class="nav-link" data-scroll-target="#putting-it-together-sandwich-delta-method">2.4 Putting it together: sandwich + delta method</a></li>
+  </ul></li>
+  <li><a href="#method-specific-sandwich-estimators" id="toc-method-specific-sandwich-estimators" class="nav-link" data-scroll-target="#method-specific-sandwich-estimators">3. Method-specific sandwich estimators</a>
+  <ul>
+  <li><a href="#g-computation" id="toc-g-computation" class="nav-link" data-scroll-target="#g-computation">3.1 G-computation</a></li>
+  <li><a href="#inverse-probability-weighting-ipw" id="toc-inverse-probability-weighting-ipw" class="nav-link" data-scroll-target="#inverse-probability-weighting-ipw">3.2 Inverse probability weighting (IPW)</a>
+  <ul class="collapse">
+  <li><a href="#the-two-model-setup" id="toc-the-two-model-setup" class="nav-link" data-scroll-target="#the-two-model-setup">The two-model setup</a></li>
+  <li><a href="#why-the-naive-approach-fails" id="toc-why-the-naive-approach-fails" class="nav-link" data-scroll-target="#why-the-naive-approach-fails">Why the naive approach fails</a></li>
+  <li><a href="#the-correct-approach-joint-m-estimation" id="toc-the-correct-approach-joint-m-estimation" class="nav-link" data-scroll-target="#the-correct-approach-joint-m-estimation">The correct approach: joint M-estimation</a></li>
+  </ul></li>
+  <li><a href="#matching" id="toc-matching" class="nav-link" data-scroll-target="#matching">3.3 Matching</a></li>
+  </ul></li>
+  <li><a href="#influence-functions" id="toc-influence-functions" class="nav-link" data-scroll-target="#influence-functions">4. Influence functions</a>
+  <ul>
+  <li><a href="#the-idea-how-much-does-each-observation-matter" id="toc-the-idea-how-much-does-each-observation-matter" class="nav-link" data-scroll-target="#the-idea-how-much-does-each-observation-matter">4.1 The idea: how much does each observation matter?</a></li>
+  <li><a href="#deriving-the-if-from-the-linearisation" id="toc-deriving-the-if-from-the-linearisation" class="nav-link" data-scroll-target="#deriving-the-if-from-the-linearisation">4.2 Deriving the IF from the linearisation</a></li>
+  <li><a href="#two-properties-that-make-ifs-useful" id="toc-two-properties-that-make-ifs-useful" class="nav-link" data-scroll-target="#two-properties-that-make-ifs-useful">4.3 Two properties that make IFs useful</a></li>
+  <li><a href="#example-if-for-a-sample-mean" id="toc-example-if-for-a-sample-mean" class="nav-link" data-scroll-target="#example-if-for-a-sample-mean">4.4 Example: IF for a sample mean</a></li>
+  <li><a href="#example-if-for-g-computation-the-two-channel-derivation" id="toc-example-if-for-g-computation-the-two-channel-derivation" class="nav-link" data-scroll-target="#example-if-for-g-computation-the-two-channel-derivation">4.5 Example: IF for g-computation (the two-channel derivation)</a>
+  <ul class="collapse">
+  <li><a href="#channel-1-direct-contribution" id="toc-channel-1-direct-contribution" class="nav-link" data-scroll-target="#channel-1-direct-contribution">Channel 1: Direct contribution</a></li>
+  <li><a href="#channel-2-indirect-contribution-via-hatbeta" id="toc-channel-2-indirect-contribution-via-hatbeta" class="nav-link" data-scroll-target="#channel-2-indirect-contribution-via-hatbeta">Channel 2: Indirect contribution (via <span class="math inline">\(\hat\beta\)</span>)</a></li>
+  <li><a href="#combining-both-channels" id="toc-combining-both-channels" class="nav-link" data-scroll-target="#combining-both-channels">Combining both channels</a></li>
+  </ul></li>
+  <li><a href="#why-influence-functions-matter-for-multi-model-estimators" id="toc-why-influence-functions-matter-for-multi-model-estimators" class="nav-link" data-scroll-target="#why-influence-functions-matter-for-multi-model-estimators">4.6 Why influence functions matter for multi-model estimators</a></li>
+  </ul></li>
+  <li><a href="#influence-functions-for-chained-estimators" id="toc-influence-functions-for-chained-estimators" class="nav-link" data-scroll-target="#influence-functions-for-chained-estimators">5. Influence functions for chained estimators</a>
+  <ul>
+  <li><a href="#the-chain-rule-for-influence-functions" id="toc-the-chain-rule-for-influence-functions" class="nav-link" data-scroll-target="#the-chain-rule-for-influence-functions">5.1 The chain rule for influence functions</a></li>
+  <li><a href="#ice-g-computation-the-motivating-example" id="toc-ice-g-computation-the-motivating-example" class="nav-link" data-scroll-target="#ice-g-computation-the-motivating-example">5.2 ICE g-computation: the motivating example</a></li>
+  <li><a href="#why-naive-approaches-fail" id="toc-why-naive-approaches-fail" class="nav-link" data-scroll-target="#why-naive-approaches-fail">5.3 Why naive approaches fail</a></li>
+  <li><a href="#deriving-the-if-for-chained-models" id="toc-deriving-the-if-for-chained-models" class="nav-link" data-scroll-target="#deriving-the-if-for-chained-models">5.4 Deriving the IF for chained models</a>
+  <ul class="collapse">
+  <li><a href="#the-if-decomposition" id="toc-the-if-decomposition" class="nav-link" data-scroll-target="#the-if-decomposition">The IF decomposition</a></li>
+  <li><a href="#what-the-sensitivities-measure" id="toc-what-the-sensitivities-measure" class="nav-link" data-scroll-target="#what-the-sensitivities-measure">What the sensitivities measure</a></li>
+  <li><a href="#base-case-model-0" id="toc-base-case-model-0" class="nav-link" data-scroll-target="#base-case-model-0">Base case: model 0</a></li>
+  <li><a href="#recursive-case-model-k-1-ldots-k" id="toc-recursive-case-model-k-1-ldots-k" class="nav-link" data-scroll-target="#recursive-case-model-k-1-ldots-k">Recursive case: model <span class="math inline">\(k = 1, \ldots, K\)</span></a></li>
+  </ul></li>
+  <li><a href="#scaling-the-factor-of-n" id="toc-scaling-the-factor-of-n" class="nav-link" data-scroll-target="#scaling-the-factor-of-n">5.5 Scaling: the factor of <span class="math inline">\(n\)</span></a></li>
+  <li><a href="#pseudo-code-if-for-a-chained-estimator" id="toc-pseudo-code-if-for-a-chained-estimator" class="nav-link" data-scroll-target="#pseudo-code-if-for-a-chained-estimator">5.6 Pseudo-code: IF for a chained estimator</a></li>
+  <li><a href="#from-individual-ifs-to-the-variance" id="toc-from-individual-ifs-to-the-variance" class="nav-link" data-scroll-target="#from-individual-ifs-to-the-variance">5.7 From individual IFs to the variance</a></li>
+  </ul></li>
+  <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary">6. Summary</a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
+  </ul>
+<div class="quarto-code-links"><h2>Code Links</h2><ul><li><a href="undefined"><i class="bi bi-link-45deg"></i></a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Variance estimation for causal effects: sandwich estimators and influence functions</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<style>
+mjx-container[jax="CHTML"][display="true"] {
+  overflow-x: auto;
+  overflow-y: visible;
+  padding: 0.5em 0;
+}
+</style>
+<p>This vignette develops the theory behind variance estimation for causal effect estimators — the <em>sandwich estimator</em>, the <em>delta method</em>, and <em>influence functions</em> — with a focus on the ideas rather than any specific software. We build up from first principles, use concrete examples, and include pseudo-code so that every step is reproducible.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Running example: simulated data</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">42</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">200</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>L <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>A <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="fl">0.5</span> <span class="sc">*</span> L))</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="sc">-</span><span class="dv">1</span> <span class="sc">+</span> <span class="fl">0.8</span> <span class="sc">*</span> A <span class="sc">+</span> <span class="fl">0.6</span> <span class="sc">*</span> L))</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">Y =</span> Y, <span class="at">A =</span> A, <span class="at">L =</span> L)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">glm</span>(Y <span class="sc">~</span> A <span class="sc">+</span> L, <span class="at">data =</span> dat, <span class="at">family =</span> binomial)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>beta_hat <span class="ot">&lt;-</span> <span class="fu">coef</span>(fit)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<section id="setting-the-causal-effect-estimation-pipeline" class="level2">
+<h2 class="anchored" data-anchor-id="setting-the-causal-effect-estimation-pipeline">Setting: the causal effect estimation pipeline</h2>
+<p>Most causal effect estimators follow a two-stage pattern:</p>
+<ol type="1">
+<li><strong>Fit a nuisance model</strong> <span class="math inline">\(\hat\beta\)</span> (an outcome regression, a propensity score model, or both).</li>
+<li><strong>Compute the target quantity</strong> <span class="math inline">\(\hat\mu = g(\hat\beta)\)</span> by plugging <span class="math inline">\(\hat\beta\)</span> into a functional of the data (e.g.&nbsp;a standardised mean, an inverse-probability-weighted mean, etc.).</li>
+</ol>
+<p>To construct confidence intervals for <span class="math inline">\(\hat\mu\)</span>, we need <span class="math inline">\(\text{Var}(\hat\mu)\)</span>. The bootstrap resamples the entire pipeline to get this, but it can be slow. The <em>sandwich estimator</em> gives a closed-form alternative.</p>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div id="fig-pipeline" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-pipeline-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div>
+<pre class="mermaid mermaid-js" data-label="fig-pipeline">flowchart LR
+  D["Data&lt;br/&gt;(X, Y)"] --&gt;|"fit model&lt;br/&gt;(Sec 1.1–1.3)"| B["β̂, ψ_i&lt;br/&gt;(coefficients,&lt;br/&gt;scores)"]
+  B --&gt;|"sandwich&lt;br/&gt;A⁻¹ B (A⁻¹)ᵀ&lt;br/&gt;(Sec 1.4)"| VB["V_β&lt;br/&gt;(param variance)"]
+  VB --&gt;|"delta method&lt;br/&gt;J V_β Jᵀ&lt;br/&gt;(Sec 2)"| VM["Var(μ̂)&lt;br/&gt;(estimand variance)"]
+  B --&gt;|"IF = A⁻¹ψ_i&lt;br/&gt;(Sec 4)"| IF["IF_i&lt;br/&gt;(per-individual)"]
+  IF --&gt;|"Var = Σ IF²/n²&lt;br/&gt;(Sec 4)"| VM
+
+  style D fill:#f0f4ff,stroke:#3182BD
+  style B fill:#fff5eb,stroke:#E6550D
+  style VB fill:#f0f4ff,stroke:#3182BD
+  style VM fill:#e8f5e9,stroke:#31A354
+  style IF fill:#fff5eb,stroke:#E6550D
+</pre>
+</div>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-pipeline-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1: The variance estimation pipeline. Each box is a mathematical object; each arrow is an operation covered in this vignette. The sandwich gives V_β from the fitted model; the delta method propagates V_β to the causal estimand via the Jacobian J; the influence function provides an equivalent per-individual decomposition.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="the-sandwich-estimator-for-parametric-models" class="level2">
+<h2 class="anchored" data-anchor-id="the-sandwich-estimator-for-parametric-models">1. The sandwich estimator for parametric models</h2>
+<section id="what-is-an-estimating-equation" class="level3">
+<h3 class="anchored" data-anchor-id="what-is-an-estimating-equation">1.1 What is an estimating equation?</h3>
+<p>The starting point is a simple idea: many statistical estimators can be defined as the solution to an equation of the form</p>
+<p><span class="math display">\[
+\sum_{i=1}^n \psi(O_i; \beta) = 0
+\]</span></p>
+<p>where <span class="math inline">\(O_i\)</span> is the observed data for individual <span class="math inline">\(i\)</span>, <span class="math inline">\(\beta\)</span> is the parameter we want to estimate, and <span class="math inline">\(\psi\)</span> is a function — called the <strong>estimating function</strong> — that maps each observation and a candidate parameter value to a vector. The estimator <span class="math inline">\(\hat\beta\)</span> is the value of <span class="math inline">\(\beta\)</span> that makes this sum equal to zero.</p>
+<p>But what <em>is</em> <span class="math inline">\(\psi\)</span>, concretely? And where does it come from?</p>
+</section>
+<section id="deriving-psi-three-routes-to-the-same-place" class="level3">
+<h3 class="anchored" data-anchor-id="deriving-psi-three-routes-to-the-same-place">1.2 Deriving <span class="math inline">\(\psi\)</span>: three routes to the same place</h3>
+<section id="route-1-score-equations-maximum-likelihood" class="level4">
+<h4 class="anchored" data-anchor-id="route-1-score-equations-maximum-likelihood">Route 1: Score equations (maximum likelihood)</h4>
+<p>The most familiar source of <span class="math inline">\(\psi\)</span> is maximum likelihood. If observations have log-likelihood <span class="math inline">\(\ell_i(\beta) = \log f(O_i; \beta)\)</span>, the MLE maximises <span class="math inline">\(\sum_i \ell_i(\beta)\)</span>. Setting the derivative to zero gives:</p>
+<p><span class="math display">\[
+\sum_{i=1}^n \underbrace{\frac{\partial \ell_i(\beta)}{\partial \beta}}_
+{\psi(O_i;\beta)} = 0
+\]</span></p>
+<p>So <span class="math inline">\(\psi\)</span> is the <strong>score function</strong> — the gradient of the individual log-likelihood. For a GLM with outcome <span class="math inline">\(Y_i\)</span>, covariates <span class="math inline">\(X_i\)</span>, linear predictor <span class="math inline">\(\eta_i = X_i^T\beta\)</span>, and mean function <span class="math inline">\(\mu_i = g^{-1}(\eta_i)\)</span>:</p>
+<p><span class="math display">\[
+\psi(O_i; \beta) =
+\underset{\color{#E6550D}{\text{residual}}}{\color{#E6550D}{(Y_i - \mu_i)}}
+\;\cdot\;
+\underset{\color{#3182BD}{\text{scale factor}}}
+{\color{#3182BD}{\frac{d\mu/d\eta}{V(\mu_i)}}}
+\;\cdot\;
+\underset{\color{#31A354}{\text{direction}}}{\color{#31A354}{X_i}}
+\]</span></p>
+<p>where <span class="math inline">\(V(\mu_i)\)</span> is the variance function of the exponential family (<span class="math inline">\(V(\mu) = \mu(1-\mu)\)</span> for binomial, <span class="math inline">\(V(\mu) = \mu\)</span> for Poisson, <span class="math inline">\(V(\mu) =
+1\)</span> for Gaussian — note that <span class="math inline">\(\sigma^2\)</span> enters separately as the dispersion parameter <span class="math inline">\(\phi\)</span>, not as <span class="math inline">\(V(\mu)\)</span>). Reading the three factors:</p>
+<ul>
+<li><span class="math inline">\(\color{#E6550D}{(Y_i - \mu_i)}\)</span> — <strong>Residual</strong>: how far the prediction is from the observation. This is zero on average at the truth, which is why <span class="math inline">\(E[\psi_i] = 0\)</span>.</li>
+<li><span class="math inline">\(\color{#3182BD}{(d\mu/d\eta) / V(\mu_i)}\)</span> — <strong>Scale factor</strong>: combines the link derivative (converting from <span class="math inline">\(\eta\)</span>-scale to <span class="math inline">\(\mu\)</span>-scale) with the variance weight (downweighting noisy observations). For canonical links this product simplifies (see below).</li>
+<li><span class="math inline">\(\color{#31A354}{X_i}\)</span> — <strong>Direction</strong>: the covariates tell us <em>which</em> parameters this observation informs. An observation with large <span class="math inline">\(|X_{ij}|\)</span> provides more information about <span class="math inline">\(\beta_j\)</span>.</li>
+</ul>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Example: logistic regression
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>For logistic regression, <span class="math inline">\(\mu_i = \text{expit}(\eta_i)\)</span>, so <span class="math inline">\(d\mu/d\eta =
+\mu_i(1-\mu_i)\)</span> and <span class="math inline">\(V(\mu_i) = \mu_i(1 - \mu_i)\)</span>. The scale factor cancels to <span class="math inline">\(1\)</span>, giving:</p>
+<p><span class="math display">\[\psi(O_i;\beta) = (Y_i - \mu_i) \cdot X_i\]</span></p>
+<p>The estimating equation <span class="math inline">\(\sum_i (Y_i - \mu_i) X_i = 0\)</span> says: at the MLE, the covariates are uncorrelated with the residuals.</p>
+</div>
+</div>
+</section>
+<section id="route-2-moment-conditions-method-of-moments" class="level4">
+<h4 class="anchored" data-anchor-id="route-2-moment-conditions-method-of-moments">Route 2: Moment conditions (method of moments)</h4>
+<p>Not every estimating equation comes from a likelihood. The <strong>generalised method of moments</strong> (GMM) starts from a theoretical property of the true parameter <span class="math inline">\(\beta_0\)</span> — a <em>moment condition</em> — and turns it into <span class="math inline">\(\psi\)</span>.</p>
+<p>For example, if we know that <span class="math inline">\(E[X_i(Y_i - X_i^T\beta_0)] = 0\)</span>, we can define:</p>
+<p><span class="math display">\[
+\psi(O_i; \beta) = X_i(Y_i - X_i^T\beta)
+\]</span></p>
+<p>Setting <span class="math inline">\(\sum_i \psi = 0\)</span> gives the OLS normal equations. No distributional assumption was needed — just the moment condition <span class="math inline">\(E[X_i \varepsilon_i] = 0\)</span>.</p>
+<p>This is the key insight of M-estimation: the estimating function <span class="math inline">\(\psi\)</span> does not have to be a score function. It just needs to satisfy <span class="math inline">\(E[\psi(O_i; \beta_0)] =
+0\)</span> at the true parameter value (the <strong>unbiasedness</strong> condition). This is what guarantees consistency of <span class="math inline">\(\hat\beta\)</span>.</p>
+</section>
+<section id="route-3-quasi-likelihood" class="level4">
+<h4 class="anchored" data-anchor-id="route-3-quasi-likelihood">Route 3: Quasi-likelihood</h4>
+<p>Quasi-likelihood provides a middle ground. We specify only the first two moments of <span class="math inline">\(Y_i \mid X_i\)</span> — the mean function <span class="math inline">\(\mu_i = g^{-1}(X_i^T\beta)\)</span> and a variance function <span class="math inline">\(V(\mu_i)\)</span> — without assuming a full distributional form. The quasi-score is:</p>
+<p><span class="math display">\[
+\psi(O_i; \beta) = \frac{(Y_i - \mu_i)}{V(\mu_i)} \cdot
+\frac{d\mu_i}{d\eta_i} \cdot X_i
+\]</span></p>
+<p>This looks identical to the GLM score, but now <span class="math inline">\(V(\mu)\)</span> is a <em>working</em> variance — it might be wrong. The sandwich estimator (Section 1.4) protects against this misspecification.</p>
+</section>
+</section>
+<section id="the-general-m-estimation-framework" class="level3">
+<h3 class="anchored" data-anchor-id="the-general-m-estimation-framework">1.3 The general M-estimation framework</h3>
+<p>All three routes produce estimators of the same form: find <span class="math inline">\(\hat\beta\)</span> solving <span class="math inline">\(\sum_i \psi(O_i; \hat\beta) = 0\)</span>. The M-estimation framework (Huber, 1964; Stefanski &amp; Boos, 2002) unifies them under two conditions:</p>
+<ol type="1">
+<li><strong>Unbiasedness</strong>: <span class="math inline">\(E[\psi(O_i; \beta_0)] = 0\)</span> at the true <span class="math inline">\(\beta_0\)</span>. This guarantees that the estimating equation has the right solution in expectation.</li>
+<li><strong>Regularity</strong>: <span class="math inline">\(\psi\)</span> is smooth enough in <span class="math inline">\(\beta\)</span> for a Taylor expansion.</li>
+</ol>
+<p>Given these, <span class="math inline">\(\hat\beta\)</span> is consistent and asymptotically normal, and its variance has the sandwich form — regardless of whether <span class="math inline">\(\psi\)</span> came from a likelihood, a moment condition, or a quasi-likelihood.</p>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Why “M-estimation”?
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>The “M” stands for “maximum” (as in maximum-likelihood), but the framework is much broader. Any estimator defined as the root of a sum of functions of the data and parameters is an M-estimator — this includes MLE, weighted least squares, quantile regression, robust regression (Huber loss), generalised estimating equations, and the causal estimators in Sections 3–5 (Stefanski &amp; Boos, 2002).</p>
+</div>
+</div>
+</section>
+<section id="asymptotic-variance-of-m-estimators" class="level3">
+<h3 class="anchored" data-anchor-id="asymptotic-variance-of-m-estimators">1.4 Asymptotic variance of M-estimators</h3>
+<p>We want <span class="math inline">\(\text{Var}(\hat\beta)\)</span>. The derivation has three steps: linearise <span class="math inline">\(\hat\beta\)</span> around the truth, identify the variance of the linear approximation, then estimate it from data.</p>
+<section id="step-1-linearise-via-taylor-expansion" class="level4">
+<h4 class="anchored" data-anchor-id="step-1-linearise-via-taylor-expansion">Step 1: Linearise via Taylor expansion</h4>
+<p>We know that <span class="math inline">\(\hat\beta\)</span> solves <span class="math inline">\(\sum_i \psi(O_i; \hat\beta) = 0\)</span>. We also know that the true <span class="math inline">\(\beta_0\)</span> satisfies <span class="math inline">\(E[\psi(O_i; \beta_0)] = 0\)</span>, but the finite-sample sum <span class="math inline">\(\sum_i \psi(O_i; \beta_0)\)</span> is generally <em>not</em> zero — it is a random quantity that fluctuates around zero. The idea is to relate these two facts via a Taylor expansion.</p>
+<p>Expand <span class="math inline">\(\sum_i \psi(O_i; \hat\beta)\)</span> around <span class="math inline">\(\beta_0\)</span>, keeping only the first-order term (valid for large <span class="math inline">\(n\)</span> by regularity):</p>
+<p><span class="math display">\[
+\underbrace{\sum_i \psi(O_i; \hat\beta)}_{= \, 0 \text{ (by definition)}}
+\approx \sum_i \psi(O_i; \beta_0) +
+\left[\sum_i \frac{\partial \psi(O_i;\beta_0)}
+{\partial \beta^T}\right]
+(\hat\beta - \beta_0)
+\]</span></p>
+<p>Rearranging for the estimation error <span class="math inline">\(\hat\beta - \beta_0\)</span>:</p>
+<p><span class="math display">\[
+\hat\beta - \beta_0 \approx
+-\left[\sum_i \frac{\partial \psi(O_i;
+\beta_0)}{\partial \beta^T}\right]^{-1}
+\sum_i \psi(O_i; \beta_0)
+\]</span></p>
+<p>Dividing numerator and denominator by <span class="math inline">\(n\)</span> and labelling the two factors:</p>
+<p><span class="math display">\[
+\underset{p \times 1}{\hat\beta - \beta_0}
+\;\approx\;
+\underbrace{\left[-\frac{1}{n}\sum_i \frac{\partial \psi_i}
+{\partial \beta^T}\right]^{-1}}_{\to\;
+\color{#3182BD}{A^{-1}} \;(p \times p)}
+\;\cdot\;
+\underbrace{\frac{1}{n}\sum_i \psi(O_i; \beta_0)}_{\text{mean zero,
+covariance } \color{#E6550D}{B/n}}
+\]</span></p>
+<p>This is the key linearisation: the estimation error is approximately the bread inverse times the average score. The first factor converges to the constant matrix <span class="math inline">\(\color{#3182BD}{A^{-1}}\)</span>; the second is a sum of iid mean-zero random <span class="math inline">\(p\)</span>-vectors whose covariance we call <span class="math inline">\(\color{#E6550D}{B}\)</span>.</p>
+</section>
+<section id="step-2-identify-the-variance" class="level4">
+<h4 class="anchored" data-anchor-id="step-2-identify-the-variance">Step 2: Identify the variance</h4>
+<p>Name the two matrices that appeared in Step 1:</p>
+<ul>
+<li><strong>Bread</strong> <span class="math inline">\(\color{#3182BD}{A}\)</span>: the expected negative Jacobian of the estimating function (<span class="math inline">\(p \times p\)</span>):</li>
+</ul>
+<p><span class="math display">\[
+\color{#3182BD}{A}
+\;\equiv\; -E\!\left[\frac{\partial \psi(O_i; \beta_0)}
+{\partial \beta^T}\right]
+\qquad (p \times p)
+\]</span></p>
+<p>For a GLM, <span class="math inline">\(\color{#3182BD}{A} = E[w_i X_i X_i^T]\)</span> where <span class="math inline">\(w_i =
+(d\mu/d\eta)^2 / V(\mu)\)</span> are the IWLS working weights — essentially the curvature of the (quasi-)log-likelihood.</p>
+<ul>
+<li><strong>Meat</strong> <span class="math inline">\(\color{#E6550D}{B}\)</span>: the covariance of the estimating function (<span class="math inline">\(p \times p\)</span>):</li>
+</ul>
+<p><span class="math display">\[
+\color{#E6550D}{B}
+\;\equiv\; E\!\left[\psi(O_i; \beta_0)\,\psi(O_i; \beta_0)^T\right]
+\qquad (p \times p)
+\]</span></p>
+<p>This measures how much the individual scores <span class="math inline">\(\psi_i\)</span> vary across observations. It appeared in Step 1 as the covariance of the second factor: <span class="math inline">\(\text{Var}\!
+\left(\frac{1}{n}\sum_i \psi_i\right) = \frac{1}{n}\color{#E6550D}{B}\)</span>.</p>
+<p>Now propagate through the linearisation. Taking <span class="math inline">\(\text{Var}(\cdot)\)</span> of both sides of the Step 1 equation:</p>
+<p><span class="math display">\[
+\underset{p \times p}{\text{Var}(\hat\beta)}
+\;\approx\;
+\underset{p \times p}{\color{#3182BD}{A^{-1}}}
+\;\cdot\;
+\underset{p \times p}{\frac{\color{#E6550D}{B}}{n}}
+\;\cdot\;
+\underset{p \times p}{\color{#3182BD}{(A^{-1})^T}}
+\;=\;
+\frac{1}{n}\,
+\color{#3182BD}{A^{-1}}\,
+\color{#E6550D}{B}\,
+\color{#3182BD}{(A^{-1})^T}
+\]</span></p>
+</section>
+<section id="step-3-estimate-from-data" class="level4">
+<h4 class="anchored" data-anchor-id="step-3-estimate-from-data">Step 3: Estimate from data</h4>
+<p>Replace the population expectations <span class="math inline">\(A\)</span> and <span class="math inline">\(B\)</span> with sample averages:</p>
+<p><span class="math display">\[
+\color{#3182BD}{\hat{A}}
+= -\frac{1}{n}\sum_i
+\frac{\partial \psi(O_i; \hat\beta)}{\partial \beta^T}
+\qquad (p \times p)
+\]</span></p>
+<p><span class="math display">\[
+\color{#E6550D}{\hat{B}}
+= \frac{1}{n}\sum_i
+\psi(O_i; \hat\beta)\,\psi(O_i; \hat\beta)^T
+\qquad (p \times p)
+\]</span></p>
+<p>The <strong>sandwich estimator</strong> is:</p>
+<p><span id="eq-sandwich"><span class="math display">\[
+\underset{p \times p}{\widehat{\text{Var}}(\hat\beta)}
+= \frac{1}{n}\;
+\underset{p \times p}{\color{#3182BD}{\hat{A}^{-1}}}
+\;
+\underset{p \times p}{\color{#E6550D}{\hat{B}}}
+\;
+\underset{p \times p}{\color{#3182BD}{(\hat{A}^{-1})^T}}
+\tag{1}\]</span></span></p>
+<p>so called because the meat <span class="math inline">\(\color{#E6550D}{\hat B}\)</span> is “sandwiched” between two slices of bread <span class="math inline">\(\color{#3182BD}{\hat A^{-1}}\)</span>.</p>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Important</span>Why is this robust?
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>The bread <span class="math inline">\(\color{#3182BD}{A}\)</span> and meat <span class="math inline">\(\color{#E6550D}{B}\)</span> are estimated <em>separately</em>. Under correct model specification (e.g.&nbsp;the GLM variance function is right), <span class="math inline">\(A = B\)</span> and the sandwich simplifies to <span class="math inline">\(\frac{1}{n} A^{-1}\)</span> — the usual model-based variance. But if the variance function is wrong, <span class="math inline">\(A \neq B\)</span>: the bread still captures the curvature correctly (it only depends on the mean model), while the meat captures the <em>actual</em> variability of the scores. The sandwich remains consistent regardless — this is the Huber–White robustness property (Huber, 1967; White, 1982).</p>
+</div>
+</div>
+</section>
+</section>
+<section id="pseudo-code-sandwich-variance-for-a-glm" class="level3">
+<h3 class="anchored" data-anchor-id="pseudo-code-sandwich-variance-for-a-glm">1.5 Pseudo-code: sandwich variance for a GLM</h3>
+<div class="cell">
+<details class="code-fold">
+<summary>Pseudo-code: sandwich_variance()</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>sandwich_variance <span class="ot">&lt;-</span> <span class="cf">function</span>(X, Y, beta_hat, family) {</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  n <span class="ot">&lt;-</span> <span class="fu">length</span>(Y)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  eta <span class="ot">&lt;-</span> X <span class="sc">%*%</span> beta_hat</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  mu <span class="ot">&lt;-</span> family<span class="sc">$</span><span class="fu">linkinv</span>(eta)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  mu_eta <span class="ot">&lt;-</span> family<span class="sc">$</span><span class="fu">mu.eta</span>(eta)    <span class="co"># dμ/dη</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  V <span class="ot">&lt;-</span> family<span class="sc">$</span><span class="fu">variance</span>(mu)        <span class="co"># Var(Y|X) under the model</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Bread: A = (1/n) X^T W X where W = diag((dμ/dη)² / V(μ))</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  W <span class="ot">&lt;-</span> mu_eta<span class="sc">^</span><span class="dv">2</span> <span class="sc">/</span> V</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>  A <span class="ot">&lt;-</span> (<span class="dv">1</span> <span class="sc">/</span> n) <span class="sc">*</span> <span class="fu">crossprod</span>(X, X <span class="sc">*</span> W)</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Meat: B = (1/n) Σ ψ_i ψ_i^T</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>  residuals <span class="ot">&lt;-</span> Y <span class="sc">-</span> mu</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>  score_weights <span class="ot">&lt;-</span> mu_eta <span class="sc">/</span> V</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>  psi <span class="ot">&lt;-</span> X <span class="sc">*</span> (residuals <span class="sc">*</span> score_weights)  <span class="co"># n × p matrix of score contributions</span></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>  B <span class="ot">&lt;-</span> (<span class="dv">1</span> <span class="sc">/</span> n) <span class="sc">*</span> <span class="fu">crossprod</span>(psi)</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Sandwich: (1/n) A^{-1} B (A^{-1})^T</span></span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>  A_inv <span class="ot">&lt;-</span> <span class="fu">solve</span>(A)</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>  V_beta <span class="ot">&lt;-</span> (<span class="dv">1</span> <span class="sc">/</span> n) <span class="sc">*</span> A_inv <span class="sc">%*%</span> B <span class="sc">%*%</span> <span class="fu">t</span>(A_inv)</span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>  V_beta</span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>In practice
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>You almost never code this yourself. In R, <code>sandwich::sandwich(model)</code> computes <span class="math inline">\(\hat A^{-1} \hat B (\hat A^{-1})^T\)</span> from any <code>glm</code> object. The <code>sandwich</code> package (Zeileis, 2004, 2006) provides variants for clustered data (<code>vcovCL()</code>), panel data (<code>vcovPL()</code>), and heteroscedasticity-autocorrelation (<code>vcovHAC()</code>).</p>
+</div>
+</div>
+</section>
+<section id="concrete-example-linear-regression" class="level3">
+<h3 class="anchored" data-anchor-id="concrete-example-linear-regression">1.6 Concrete example: linear regression</h3>
+<p>Let us work through the sandwich for OLS step by step.</p>
+<p><strong>Model</strong>: <span class="math inline">\(Y_i = X_i^T\beta + \varepsilon_i\)</span> where <span class="math inline">\(E[\varepsilon_i \mid X_i]
+= 0\)</span>.</p>
+<p><strong>Step 1: Write down <span class="math inline">\(\psi\)</span>.</strong> The OLS estimator minimises <span class="math inline">\(\sum_i (Y_i - X_i^T\beta)^2\)</span>. Setting the gradient to zero gives <span class="math inline">\(\sum_i X_i(Y_i - X_i^T\beta) = 0\)</span>, so:</p>
+<p><span class="math display">\[
+\psi(O_i; \beta) = X_i(Y_i - X_i^T\beta)
+\qquad (p \times 1)
+\]</span></p>
+<p>At <span class="math inline">\(\beta_0\)</span>: <span class="math inline">\(E[\psi_i] = E[X_i \varepsilon_i] = 0\)</span> by exogeneity.</p>
+<p><strong>Step 2: Compute the bread <span class="math inline">\(\color{#3182BD}{A}\)</span>.</strong></p>
+<p><span class="math display">\[
+\frac{\partial \psi(O_i; \beta)}{\partial \beta^T}
+= \frac{\partial}{\partial \beta^T}\left[X_i(Y_i - X_i^T\beta)\right]
+= -X_i X_i^T
+\qquad (p \times p)
+\]</span></p>
+<p>So <span class="math inline">\(\color{#3182BD}{A} = E[X_i X_i^T]\)</span>, estimated by <span class="math inline">\(\color{#3182BD}{\hat{A}} = \frac{1}{n} X^T X\)</span>.</p>
+<p><strong>Step 3: Compute the meat <span class="math inline">\(\color{#E6550D}{B}\)</span>.</strong> Since <span class="math inline">\(\psi_i = X_i \hat e_i\)</span>, the outer product is <span class="math inline">\(\psi_i\psi_i^T =
+\hat e_i^2 X_iX_i^T\)</span>:</p>
+<p><span class="math display">\[
+\color{#E6550D}{\hat{B}} = \frac{1}{n}\sum_i \hat{e}_i^2 \, X_i X_i^T
+\qquad (p \times p)
+\]</span></p>
+<p>The meat depends on the <em>squared residuals</em>, not on any assumed variance. This is the source of robustness.</p>
+<p><strong>Step 4: Assemble the sandwich.</strong></p>
+<p><span class="math display">\[
+\underset{p \times p}{\widehat{\text{Var}}(\hat\beta)}
+= \frac{1}{n}\,
+\color{#3182BD}{\hat{A}^{-1}}\;
+\color{#E6550D}{\hat{B}}\;
+\color{#3182BD}{(\hat{A}^{-1})^T}
+\]</span></p>
+<p>Substituting:</p>
+<p><span class="math display">\[
+= \underset{p \times p}{\color{#3182BD}{(X^TX)^{-1}}}
+\;\;
+\underset{p \times p}{\color{#E6550D}{\left[\sum_i
+\hat{e}_i^2\,X_iX_i^T\right]}}
+\;\;
+\underset{p \times p}{\color{#3182BD}{(X^TX)^{-1}}}
+\]</span></p>
+<p>This is the <em>HC0</em> heteroscedasticity-consistent estimator (White, 1980).</p>
+<p><strong>What if homoscedasticity holds?</strong> If <span class="math inline">\(\text{Var}(\varepsilon_i \mid X_i) =
+\sigma^2\)</span> for all <span class="math inline">\(i\)</span>, then <span class="math inline">\(E[\hat{e}_i^2 X_i X_i^T] = \sigma^2 E[X_i
+X_i^T]\)</span>, so <span class="math inline">\(\color{#E6550D}{B} = \sigma^2 \color{#3182BD}{A}\)</span> and the sandwich simplifies to <span class="math inline">\(\frac{\sigma^2}{n} \color{#3182BD}{A^{-1}}
+= \hat\sigma^2(X^TX)^{-1}\)</span>, the usual OLS variance.</p>
+</section>
+</section>
+<section id="the-delta-method-from-model-parameters-to-causal-effects" class="level2">
+<h2 class="anchored" data-anchor-id="the-delta-method-from-model-parameters-to-causal-effects">2. The delta method: from model parameters to causal effects</h2>
+<section id="the-problem" class="level3">
+<h3 class="anchored" data-anchor-id="the-problem">2.1 The problem</h3>
+<p>The sandwich gives us <span class="math inline">\(\widehat{\text{Var}}(\hat\beta)\)</span> — the variance of the <em>model coefficients</em>. But the causal estimand is typically a nonlinear function of <span class="math inline">\(\hat\beta\)</span>. For instance, the g-computation marginal mean is:</p>
+<p><span class="math display">\[
+\hat\mu_a = \frac{1}{n_t}\sum_{i \in \text{target}}
+g^{-1}(X_i^{*T} \hat\beta)
+\]</span></p>
+<p>where <span class="math inline">\(X_i^*\)</span> is individual <span class="math inline">\(i\)</span>’s covariate vector with treatment set to <span class="math inline">\(a\)</span>, <span class="math inline">\(g^{-1}(\cdot)\)</span> is the inverse link function, and <span class="math inline">\(n_t\)</span> is the size of the target population. We need <span class="math inline">\(\text{Var}(\hat\mu_a)\)</span>, not <span class="math inline">\(\text{Var}(\hat\beta)\)</span>.</p>
+</section>
+<section id="the-delta-method-statement-and-derivation" class="level3">
+<h3 class="anchored" data-anchor-id="the-delta-method-statement-and-derivation">2.2 The delta method: statement and derivation</h3>
+<p>The <strong>delta method</strong> propagates variance through a function. The idea: if the input is approximately normal, the output is approximately normal with a variance determined by the function’s slope.</p>
+<p><strong>Scalar version (intuition).</strong> If <span class="math inline">\(\hat\beta \sim \mathcal{N}(\beta,
+\sigma^2_\beta)\)</span> and <span class="math inline">\(\hat\mu = f(\hat\beta)\)</span>, then by a first-order Taylor expansion: <span class="math inline">\(\hat\mu \approx f(\beta) + f'(\beta)(\hat\beta - \beta)\)</span>. Taking variance: <span class="math inline">\(\text{Var}(\hat\mu) \approx [f'(\beta)]^2 \sigma^2_\beta\)</span>. The derivative <span class="math inline">\(f'\)</span> converts uncertainty in <span class="math inline">\(\beta\)</span> to uncertainty in <span class="math inline">\(\mu\)</span>.</p>
+<p><strong>Multivariate version.</strong> If <span class="math inline">\(\hat\beta\)</span> is a <span class="math inline">\(p\)</span>-vector with variance <span class="math inline">\(V_\beta\)</span> (the <span class="math inline">\(p \times p\)</span> sandwich from Section 1.4) and <span class="math inline">\(\hat\mu = f(\hat\beta)\)</span> is a <span class="math inline">\(k\)</span>-vector (<span class="math inline">\(k\)</span> = number of interventions):</p>
+<p><span id="eq-delta"><span class="math display">\[
+\underset{k \times k}{\text{Var}(\hat\mu)}
+\;=\;
+\underset{k \times p}{\color{#31A354}{J}}
+\;\;
+\underset{p \times p}{V_\beta}
+\;\;
+\underset{p \times k}{\color{#31A354}{J^T}}
+\tag{2}\]</span></span></p>
+<p>where <span class="math inline">\(\color{#31A354}{J} = \frac{\partial f}{\partial \beta^T}\)</span> is the <span class="math inline">\(k \times p\)</span> Jacobian matrix — the multivariate analogue of <span class="math inline">\(f'\)</span>. Each row <span class="math inline">\(j\)</span> of <span class="math inline">\(\color{#31A354}{J}\)</span> tells us how the <span class="math inline">\(j\)</span>-th marginal mean <span class="math inline">\(\hat\mu_j\)</span> changes as each of the <span class="math inline">\(p\)</span> model coefficients shifts.</p>
+</section>
+<section id="deriving-the-jacobian-for-the-standardised-mean" class="level3">
+<h3 class="anchored" data-anchor-id="deriving-the-jacobian-for-the-standardised-mean">2.3 Deriving the Jacobian for the standardised mean</h3>
+<p>For <span class="math inline">\(\hat\mu_a = \frac{1}{n_t}\sum_{i} g^{-1}(X_i^{*T}\beta)\)</span>, differentiate with respect to <span class="math inline">\(\beta^T\)</span>. By the chain rule, <span class="math inline">\(\frac{d}{d\beta^T}
+g^{-1}(X_i^{*T}\beta) = \frac{d\mu}{d\eta}\big|_{\eta_i^*} \cdot X_i^{*T}\)</span> (scalar <span class="math inline">\(\times\)</span> <span class="math inline">\(1 \times p\)</span> row). Summing:</p>
+<p><span class="math display">\[
+\underset{1 \times p}{\color{#31A354}{J_a}}
+= \frac{\partial \hat\mu_a}{\partial \beta^T}
+= \frac{1}{n_t} \sum_{i \in \text{target}}
+\underbrace{\frac{d\mu}{d\eta}\bigg|_{\eta_i^*}}_{\text{scalar}}
+\;\cdot\;
+\underbrace{X_i^{*T}}_{1 \times p}
+\]</span></p>
+<p>The link derivatives for common GLMs:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Family</th>
+<th>Link</th>
+<th><span class="math inline">\(d\mu/d\eta\)</span></th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Gaussian</td>
+<td>Identity</td>
+<td><span class="math inline">\(1\)</span></td>
+<td>All observations contribute equally</td>
+</tr>
+<tr class="even">
+<td>Binomial</td>
+<td>Logit</td>
+<td><span class="math inline">\(\mu(1 - \mu)\)</span></td>
+<td>Observations near <span class="math inline">\(\mu = 0.5\)</span> contribute most</td>
+</tr>
+<tr class="odd">
+<td>Poisson</td>
+<td>Log</td>
+<td><span class="math inline">\(\mu\)</span></td>
+<td>Observations with larger means contribute more</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="putting-it-together-sandwich-delta-method" class="level3">
+<h3 class="anchored" data-anchor-id="putting-it-together-sandwich-delta-method">2.4 Putting it together: sandwich + delta method</h3>
+<p>For a <strong>causal risk difference</strong> <span class="math inline">\(\hat\Delta = \hat\mu_1 - \hat\mu_0\)</span>:</p>
+<ol type="1">
+<li>Fit the outcome model → <span class="math inline">\(\hat\beta\)</span> and <span class="math inline">\(V_\beta = \frac{1}{n}\color{#3182BD}{A^{-1}}\color{#E6550D}{B}
+\color{#3182BD}{(A^{-1})^T}\)</span> (Section 1.4).</li>
+<li>Compute <span class="math inline">\(\color{#31A354}{J_1}\)</span> and <span class="math inline">\(\color{#31A354}{J_0}\)</span> (Section 2.3).</li>
+<li>Stack into <span class="math inline">\(\color{#31A354}{J} = \binom{J_1}{J_0}\)</span> (<span class="math inline">\(2 \times p\)</span>) and compute <span class="math inline">\(\text{Var}(\hat\mu_1, \hat\mu_0) = \color{#31A354}{J} V_\beta
+\color{#31A354}{J^T}\)</span> (<span class="math inline">\(2 \times 2\)</span>).</li>
+<li>The variance of the difference is <span class="math inline">\(\text{Var}(\hat\Delta) =
+\text{Var}(\hat\mu_1) + \text{Var}(\hat\mu_0) -
+2\text{Cov}(\hat\mu_1, \hat\mu_0)\)</span>, all read from the <span class="math inline">\(2 \times 2\)</span> matrix.</li>
+</ol>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Why the covariance matters
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Both <span class="math inline">\(\hat\mu_1\)</span> and <span class="math inline">\(\hat\mu_0\)</span> are functions of the <em>same</em> <span class="math inline">\(\hat\beta\)</span>, so they are correlated. This covariance typically <em>reduces</em> the variance of the difference. Ignoring it (computing variances separately and adding them) would overestimate the SE.</p>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Pseudo-code: delta_method_variance()</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>delta_method_variance <span class="ot">&lt;-</span> <span class="cf">function</span>(model, data_list, target_idx, V_beta) {</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  beta_hat <span class="ot">&lt;-</span> <span class="fu">coef</span>(model)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  pred_terms <span class="ot">&lt;-</span> <span class="fu">delete.response</span>(<span class="fu">terms</span>(model))</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Compute k × p Jacobian (k = number of interventions)</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  J <span class="ot">&lt;-</span> <span class="fu">t</span>(<span class="fu">vapply</span>(data_list, <span class="cf">function</span>(df) {</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    df_t <span class="ot">&lt;-</span> df[target_idx, ]</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    X_j <span class="ot">&lt;-</span> <span class="fu">model.matrix</span>(pred_terms, <span class="at">data =</span> df_t)</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    eta_j <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(X_j <span class="sc">%*%</span> beta_hat)</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>    mu_eta_j <span class="ot">&lt;-</span> model<span class="sc">$</span>family<span class="sc">$</span><span class="fu">mu.eta</span>(eta_j)  <span class="co"># dμ/dη at intervention</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>    <span class="fu">colMeans</span>(X_j <span class="sc">*</span> mu_eta_j)                <span class="co"># (1/n_t) Σ (dμ/dη) X_i*</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>  }, <span class="fu">numeric</span>(<span class="fu">length</span>(beta_hat))))</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Propagate: Var(μ̂) = J V_β J^T</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>  J <span class="sc">%*%</span> V_beta <span class="sc">%*%</span> <span class="fu">t</span>(J)</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+</section>
+</section>
+<section id="method-specific-sandwich-estimators" class="level2">
+<h2 class="anchored" data-anchor-id="method-specific-sandwich-estimators">3. Method-specific sandwich estimators</h2>
+<p>The plug-and-play structure above (“get <span class="math inline">\(V_\beta\)</span>, then propagate via <span class="math inline">\(\color{#31A354}{J} V_\beta \color{#31A354}{J^T}\)</span>”) works for any parametric model, but the choice of <span class="math inline">\(V_\beta\)</span> depends on the estimation method.</p>
+<section id="g-computation" class="level3">
+<h3 class="anchored" data-anchor-id="g-computation">3.1 G-computation</h3>
+<p>The outcome model is a standard GLM fitted on the observed data. The Huber–White sandwich from Section 1.4 is used directly:</p>
+<p><span class="math display">\[
+V_\beta = \frac{1}{n}\color{#3182BD}{A^{-1}} \color{#E6550D}{B}
+\color{#3182BD}{(A^{-1})^T}
+\]</span></p>
+</section>
+<section id="inverse-probability-weighting-ipw" class="level3">
+<h3 class="anchored" data-anchor-id="inverse-probability-weighting-ipw">3.2 Inverse probability weighting (IPW)</h3>
+<p>IPW is more subtle because the estimation pipeline involves <em>two</em> models, and the uncertainty from the first must propagate into the second.</p>
+<section id="the-two-model-setup" class="level4">
+<h4 class="anchored" data-anchor-id="the-two-model-setup">The two-model setup</h4>
+<ol type="1">
+<li><strong>Propensity score model</strong>: estimate <span class="math inline">\(\hat\alpha\)</span> (<span class="math inline">\(q\)</span>-vector) from <span class="math inline">\(\text{logit}[P(A_i = 1 \mid L_i)] = L_i^T \alpha\)</span>.</li>
+<li><strong>Weighted outcome model (MSM)</strong>: using the estimated weights <span class="math inline">\(w_i =
+1/\hat{P}(A_i \mid L_i; \hat\alpha)\)</span>, fit <span class="math inline">\(E[Y_i \mid A_i] =
+g^{-1}(\beta_0 + \beta_1 A_i)\)</span> by weighted regression to get <span class="math inline">\(\hat\beta\)</span> (<span class="math inline">\(p\)</span>-vector).</li>
+</ol>
+<p>The weights <span class="math inline">\(w_i\)</span> depend on <span class="math inline">\(\hat\alpha\)</span>, so <span class="math inline">\(\hat\beta\)</span> depends on <span class="math inline">\(\hat\alpha\)</span>.</p>
+</section>
+<section id="why-the-naive-approach-fails" class="level4">
+<h4 class="anchored" data-anchor-id="why-the-naive-approach-fails">Why the naive approach fails</h4>
+<p>A naive sandwich on the outcome model alone — treating the weights as <em>known constants</em> — ignores the variability in <span class="math inline">\(\hat\alpha\)</span>. Each new sample produces different <span class="math inline">\(\hat\alpha\)</span>, hence different weights, hence different <span class="math inline">\(\hat\beta\)</span>. The true variability of <span class="math inline">\(\hat\beta\)</span> has two sources:</p>
+<ul>
+<li><strong>Outcome variability</strong>: randomness in <span class="math inline">\(Y_i\)</span> given fixed weights.</li>
+<li><strong>Weight variability</strong>: randomness in <span class="math inline">\(\hat\alpha\)</span> (and hence <span class="math inline">\(w_i\)</span>).</li>
+</ul>
+<p>The naive sandwich captures only the first. The direction of the bias depends on the estimand: for the <strong>ATE</strong>, using estimated (rather than known) propensity scores actually <em>reduces</em> the asymptotic variance, so the naive sandwich is conservative — it <strong>overestimates</strong> the SE (Hirano et al., 2003; Lunceford &amp; Davidian, 2004). For the <strong>ATT</strong>, the effect can go either direction.</p>
+</section>
+<section id="the-correct-approach-joint-m-estimation" class="level4">
+<h4 class="anchored" data-anchor-id="the-correct-approach-joint-m-estimation">The correct approach: joint M-estimation</h4>
+<p>Treat both models together as a single M-estimation problem. Define the joint parameter <span class="math inline">\(\theta = (\alpha, \beta)\)</span> — a <span class="math inline">\((q+p)\)</span>-vector — and the stacked estimating function:</p>
+<p><span class="math display">\[
+\underset{(q+p) \times 1}{\Psi(O_i; \theta)} =
+\begin{pmatrix}
+\color{#3182BD}{\psi_\alpha(O_i; \alpha)} \\[4pt]
+\color{#E6550D}{\psi_\beta(O_i; \alpha, \beta)}
+\end{pmatrix}
+\]</span></p>
+<p>where <span class="math inline">\(\color{#3182BD}{\psi_\alpha}\)</span> (<span class="math inline">\(q \times 1\)</span>) is the score of the propensity model, and <span class="math inline">\(\color{#E6550D}{\psi_\beta}\)</span> (<span class="math inline">\(p \times 1\)</span>) is the <em>weighted</em> score of the outcome model (which depends on <span class="math inline">\(\alpha\)</span> through <span class="math inline">\(w_i\)</span>).</p>
+<p>The bread matrix <span class="math inline">\(\hat A = -\frac{1}{n}\sum_i
+\frac{\partial\Psi_i}{\partial\theta^T}\)</span> has a block structure:</p>
+<p><span class="math display">\[
+\underset{(q+p) \times (q+p)}{\hat{A}} =
+\begin{pmatrix}
+\underset{q \times q}{\color{#3182BD}{A_{\alpha\alpha}}} &amp;
+\underset{q \times p}{0} \\[6pt]
+\underset{p \times q}{\color{#E6550D}{A_{\beta\alpha}}} &amp;
+\underset{p \times p}{\color{#E6550D}{A_{\beta\beta}}}
+\end{pmatrix}
+\]</span></p>
+<p>Each block has a concrete meaning:</p>
+<ul>
+<li><span class="math inline">\(\color{#3182BD}{A_{\alpha\alpha}}\)</span> (<span class="math inline">\(q \times q\)</span>): the Hessian of the propensity model — how <span class="math inline">\(\psi_\alpha\)</span> changes with <span class="math inline">\(\alpha\)</span>.</li>
+<li><span class="math inline">\(\color{#E6550D}{A_{\beta\beta}}\)</span> (<span class="math inline">\(p \times p\)</span>): the weighted Hessian of the outcome model — how <span class="math inline">\(\psi_\beta\)</span> changes with <span class="math inline">\(\beta\)</span>.</li>
+<li><span class="math inline">\(\color{#E6550D}{A_{\beta\alpha}}\)</span> (<span class="math inline">\(p \times q\)</span>): the <strong>cross-term</strong> — how the weighted outcome score changes with <span class="math inline">\(\alpha\)</span>. This involves <span class="math inline">\(\frac{\partial w_i}{\partial\alpha^T}\)</span> (how the weights shift when the propensity parameters change). This is the block that captures the dependency.</li>
+<li>Upper-right = <span class="math inline">\(0\)</span> (<span class="math inline">\(q \times p\)</span>): the propensity score does not depend on <span class="math inline">\(\beta\)</span>.</li>
+</ul>
+<p>The full sandwich <span class="math inline">\(\frac{1}{n}\hat A^{-1}\hat B(\hat A^{-1})^T\)</span> applied to the stacked system correctly propagates weight uncertainty into <span class="math inline">\(\text{Var}(\hat\beta)\)</span> through the <span class="math inline">\(A_{\beta\alpha}\)</span> block.</p>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>In practice
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><code>WeightIt::glm_weightit()</code> fits the stacked system and its <code>vcov()</code> method returns the M-estimation sandwich that accounts for weight uncertainty.</p>
+</div>
+</div>
+</section>
+</section>
+<section id="matching" class="level3">
+<h3 class="anchored" data-anchor-id="matching">3.3 Matching</h3>
+<p>After matching, the outcome model is fitted on the matched sample. Matched individuals within the same subclass (pair or stratum) are correlated — they were selected together. The standard sandwich (which assumes independence) would understate the meat.</p>
+<p>The <strong>cluster-robust</strong> sandwich accounts for this. The bread <span class="math inline">\(\color{#3182BD}{A}\)</span> is unchanged, but the meat sums scores <em>within</em> each subclass before squaring:</p>
+<p><span class="math display">\[
+V_\beta = \color{#3182BD}{A^{-1}}
+\;\color{#E6550D}{B_{\text{CL}}}\;
+\color{#3182BD}{(A^{-1})^T}
+\]</span></p>
+<p>where:</p>
+<p><span class="math display">\[
+\color{#E6550D}{B_{\text{CL}}} = \frac{1}{n}\sum_{c=1}^C
+\bar\psi_c \, \bar\psi_c^T,
+\qquad \bar\psi_c = \sum_{i \in \text{subclass } c} \psi_i
+\qquad (p \times 1)
+\]</span></p>
+<p>Squaring the summed scores (rather than summing the squared scores) allows within-cluster correlations to inflate the meat.</p>
+</section>
+</section>
+<section id="influence-functions" class="level2">
+<h2 class="anchored" data-anchor-id="influence-functions">4. Influence functions</h2>
+<section id="the-idea-how-much-does-each-observation-matter" class="level3">
+<h3 class="anchored" data-anchor-id="the-idea-how-much-does-each-observation-matter">4.1 The idea: how much does each observation matter?</h3>
+<p>Imagine removing observation <span class="math inline">\(i\)</span> from the dataset and re-estimating <span class="math inline">\(\hat\theta\)</span>. The change <span class="math inline">\(\hat\theta_{(-i)} - \hat\theta\)</span> tells you how much observation <span class="math inline">\(i\)</span> “influenced” the estimate. The <strong>influence function</strong> (IF) is the first-order approximation to this quantity, scaled by <span class="math inline">\(n\)</span>:</p>
+<p><span class="math display">\[
+\text{IF}_i \approx -n(\hat\theta_{(-i)} - \hat\theta)
+\]</span></p>
+<p>But we do not need to actually refit the model <span class="math inline">\(n\)</span> times. For M-estimators, the IF can be computed in closed form.</p>
+</section>
+<section id="deriving-the-if-from-the-linearisation" class="level3">
+<h3 class="anchored" data-anchor-id="deriving-the-if-from-the-linearisation">4.2 Deriving the IF from the linearisation</h3>
+<p>In Section 1.4, Step 1, we derived the linearisation:</p>
+<p><span class="math display">\[
+\underset{p \times 1}{\hat\beta - \beta_0}
+\;\approx\;
+\frac{1}{n}\sum_{i=1}^n
+\underset{p \times p}{\color{#3182BD}{A^{-1}}}
+\;\;
+\underset{p \times 1}{\psi(O_i; \beta_0)}
+\]</span></p>
+<p>Each summand <span class="math inline">\(\color{#3182BD}{A^{-1}}\psi_i\)</span> is the contribution of observation <span class="math inline">\(i\)</span> to the total estimation error. This is exactly the <strong>influence function</strong>:</p>
+<p><span id="eq-if"><span class="math display">\[
+\underset{p \times 1}{\text{IF}_i}
+\;=\;
+\underset{p \times p}{\color{#3182BD}{A^{-1}}}
+\;\cdot\;
+\underset{p \times 1}{\psi(O_i; \hat\beta)}
+\tag{3}\]</span></span></p>
+<p>Reading each factor:</p>
+<ul>
+<li><span class="math inline">\(\psi_i\)</span> (<span class="math inline">\(p \times 1\)</span>): the score from Section 1.2 — how much observation <span class="math inline">\(i\)</span>’s data “disagrees” with the current <span class="math inline">\(\hat\beta\)</span>.</li>
+<li><span class="math inline">\(\color{#3182BD}{A^{-1}}\)</span> (<span class="math inline">\(p \times p\)</span>): the bread inverse from Section 1.4 — converts from score-space to parameter-space, accounting for curvature.</li>
+<li><span class="math inline">\(\text{IF}_i\)</span> (<span class="math inline">\(p \times 1\)</span>): the resulting shift in <span class="math inline">\(\hat\beta\)</span> attributable to observation <span class="math inline">\(i\)</span> (times <span class="math inline">\(n\)</span>).</li>
+</ul>
+<p>No new derivation is needed. The IF <em>is</em> the linearisation, read term-by-term.</p>
+</section>
+<section id="two-properties-that-make-ifs-useful" class="level3">
+<h3 class="anchored" data-anchor-id="two-properties-that-make-ifs-useful">4.3 Two properties that make IFs useful</h3>
+<p><strong>Property 1: Linearisation.</strong> The IF lets us write a complex estimator as a simple average:</p>
+<p><span class="math display">\[
+\hat\beta - \beta_0 \approx \frac{1}{n}\sum_i \text{IF}_i
+\]</span></p>
+<p><strong>Property 2: Variance recovery.</strong> Since <span class="math inline">\(E[\text{IF}_i] = 0\)</span>:</p>
+<p><span class="math display">\[
+\text{Var}(\hat\beta) \approx
+\frac{1}{n^2}\sum_i \text{IF}_i \, \text{IF}_i^T
+\]</span></p>
+<p>Expanding <span class="math inline">\(\text{IF}_i \text{IF}_i^T = \color{#3182BD}{A^{-1}} \psi_i
+\psi_i^T \color{#3182BD}{(A^{-1})^T}\)</span> and factoring:</p>
+<p><span class="math display">\[
+\frac{1}{n^2}\sum_i \color{#3182BD}{A^{-1}} \psi_i\psi_i^T
+\color{#3182BD}{(A^{-1})^T}
+= \frac{1}{n} \color{#3182BD}{A^{-1}}
+\underbrace{\frac{1}{n}\sum_i \psi_i\psi_i^T}_
+{\color{#E6550D}{B}\text{ (the meat)}}
+\color{#3182BD}{(A^{-1})^T}
+\]</span></p>
+<p>This is the sandwich from Section 1.4.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>The key equivalence
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><span id="eq-if-sandwich"><span class="math display">\[
+\underbrace{\frac{1}{n^2}\sum_i \text{IF}_i\,\text{IF}_i^T}_
+{\text{IF-based variance}}
+\;=\;
+\underbrace{\frac{1}{n}\,\color{#3182BD}{A^{-1}}\,\color{#E6550D}{B}\,
+\color{#3182BD}{(A^{-1})^T}}_{\text{sandwich variance}}
+\tag{4}\]</span></span></p>
+<p>The sandwich operates on matrices. The IF operates on per-individual vectors. Same answer, different representation.</p>
+</div>
+</div>
+</section>
+<section id="example-if-for-a-sample-mean" class="level3">
+<h3 class="anchored" data-anchor-id="example-if-for-a-sample-mean">4.4 Example: IF for a sample mean</h3>
+<p><span class="math inline">\(\hat\mu = \frac{1}{n}\sum_i Y_i\)</span>. Estimating equation: <span class="math inline">\(\psi(O_i; \mu)
+= Y_i - \mu\)</span>. Bread: <span class="math inline">\(A = 1\)</span>. IF: <span class="math inline">\(\text{IF}_i = Y_i - \hat\mu\)</span>. Variance: <span class="math inline">\(\frac{1}{n^2}\sum_i(Y_i - \hat\mu)^2 = s^2/n\)</span>.</p>
+</section>
+<section id="example-if-for-g-computation-the-two-channel-derivation" class="level3">
+<h3 class="anchored" data-anchor-id="example-if-for-g-computation-the-two-channel-derivation">4.5 Example: IF for g-computation (the two-channel derivation)</h3>
+<p>The g-computation marginal mean is a <strong>two-step</strong> estimator: first estimate <span class="math inline">\(\hat\beta\)</span>, then compute <span class="math inline">\(\hat\mu_a = \frac{1}{n}\sum_i g^{-1}(X_i^{*T}
+\hat\beta)\)</span>. Individual <span class="math inline">\(i\)</span> affects <span class="math inline">\(\hat\mu_a\)</span> through two channels.</p>
+<section id="channel-1-direct-contribution" class="level4">
+<h4 class="anchored" data-anchor-id="channel-1-direct-contribution">Channel 1: Direct contribution</h4>
+<p>Even if <span class="math inline">\(\hat\beta\)</span> were fixed, observation <span class="math inline">\(i\)</span>’s prediction <span class="math inline">\(g^{-1}(X_i^{*T}\hat\beta)\)</span> is one of the <span class="math inline">\(n\)</span> terms being averaged:</p>
+<p><span class="math display">\[
+\text{IF}_i^{\text{direct}} = g^{-1}(X_i^{*T}\hat\beta) - \hat\mu_a
+\qquad (\text{scalar})
+\]</span></p>
+</section>
+<section id="channel-2-indirect-contribution-via-hatbeta" class="level4">
+<h4 class="anchored" data-anchor-id="channel-2-indirect-contribution-via-hatbeta">Channel 2: Indirect contribution (via <span class="math inline">\(\hat\beta\)</span>)</h4>
+<p>Observation <span class="math inline">\(i\)</span> shifts <span class="math inline">\(\hat\beta\)</span> by approximately <span class="math inline">\(\frac{1}{n}
+\color{#3182BD}{A^{-1}}\psi_i\)</span> (from Section 4.2). This shift changes <span class="math inline">\(\hat\mu_a\)</span> by:</p>
+<p><span class="math display">\[
+\delta\hat\mu_a \;\approx\;
+\underset{1 \times p}{\color{#31A354}{J_a}}
+\;\cdot\;
+\underset{p \times 1}{\frac{1}{n}\color{#3182BD}{A^{-1}}\psi_i}
+\]</span></p>
+<p>where <span class="math inline">\(\color{#31A354}{J_a}\)</span> (<span class="math inline">\(1 \times p\)</span>) is the Jacobian from Section 2.3.</p>
+</section>
+<section id="combining-both-channels" class="level4">
+<h4 class="anchored" data-anchor-id="combining-both-channels">Combining both channels</h4>
+<p><span id="eq-if-gcomp"><span class="math display">\[
+\text{IF}_i(\hat\mu_a) =
+\underbrace{g^{-1}(X_i^{*T}\hat\beta) - \hat\mu_a}_
+{\text{Channel 1 (scalar)}}
+\;+\;
+\underbrace{
+\underset{1 \times p}{\color{#31A354}{J_a}}
+\;\;
+\underset{p \times p}{\color{#3182BD}{A^{-1}}}
+\;\;
+\underset{p \times 1}{\psi_i}
+}_{\text{Channel 2 (scalar)}}
+\tag{5}\]</span></span></p>
+<p><strong>Why two channels matter</strong>: Channel 1 alone would treat <span class="math inline">\(\hat\beta\)</span> as fixed — ignoring estimation uncertainty. Channel 2 adds the uncertainty propagated from the model fit. This is the <span class="math inline">\(\color{#31A354}{J} V_\beta
+\color{#31A354}{J^T}\)</span> term from Section 2, now expressed per-individual.</p>
+</section>
+</section>
+<section id="why-influence-functions-matter-for-multi-model-estimators" class="level3">
+<h3 class="anchored" data-anchor-id="why-influence-functions-matter-for-multi-model-estimators">4.6 Why influence functions matter for multi-model estimators</h3>
+<p>For a <strong>single-model</strong> estimator, the IF is equivalent to <span class="math inline">\(\color{#31A354}{J} V_\beta \color{#31A354}{J^T}\)</span> — useful but not essential. IFs become necessary for <strong>multi-model</strong> estimators:</p>
+<ol type="1">
+<li><strong>Compositional</strong>: IFs from different models can be <em>summed</em> to get the total IF. No large joint covariance matrix needed.</li>
+<li><strong>Covariance for free</strong>: <span class="math inline">\(\text{Cov}(\hat\mu_a, \hat\mu_b)
+= \frac{1}{n^2}\sum_i \text{IF}_i^{(a)} \cdot \text{IF}_i^{(b)}\)</span>.</li>
+<li><strong>Diagnostics</strong>: large <span class="math inline">\(|\text{IF}_i|\)</span> flags influential observations.</li>
+</ol>
+</section>
+</section>
+<section id="influence-functions-for-chained-estimators" class="level2">
+<h2 class="anchored" data-anchor-id="influence-functions-for-chained-estimators">5. Influence functions for chained estimators</h2>
+<section id="the-chain-rule-for-influence-functions" class="level3">
+<h3 class="anchored" data-anchor-id="the-chain-rule-for-influence-functions">5.1 The chain rule for influence functions</h3>
+<p>Section 4.5 derived the IF for a two-step estimator (fit <span class="math inline">\(\hat\beta\)</span>, then compute <span class="math inline">\(\hat\mu_a\)</span>). The result had two channels: a direct term and a model correction via <span class="math inline">\(\color{#31A354}{J_a}\color{#3182BD}{A^{-1}}\psi_i\)</span>.</p>
+<p>What happens with <strong>multiple models in a chain</strong>, where each model’s response is a prediction from the next? The same logic applies recursively. If <span class="math inline">\(\hat\mu = f(\hat\beta_0, \hat\beta_1, \ldots, \hat\beta_K)\)</span> and each <span class="math inline">\(\hat\beta_k\)</span> is an M-estimator with bread <span class="math inline">\(\color{#3182BD}{A_k}\)</span> and score <span class="math inline">\(\psi_k\)</span>, the IF of <span class="math inline">\(\hat\mu\)</span> is (Hampel et al., 1986; Huber, 1981):</p>
+<p><span id="eq-if-chain"><span class="math display">\[
+\text{IF}_i(\hat\mu)
+\;=\;
+\text{IF}_i^{\text{direct}}
+\;+\;
+\sum_{k=0}^{K}
+\frac{\partial \hat\mu}{\partial \hat\beta_k^T}
+\;\cdot\;
+\color{#3182BD}{A_k^{-1}} \; \psi_k(O_i; \hat\beta_k)
+\tag{6}\]</span></span></p>
+<p>Each term in the sum is a “Channel 2” from Section 4.5 applied to model <span class="math inline">\(k\)</span>: the Jacobian <span class="math inline">\(\partial\hat\mu/\partial\hat\beta_k^T\)</span> (how <span class="math inline">\(\hat\mu\)</span> depends on model <span class="math inline">\(k\)</span>) times the IF of model <span class="math inline">\(k\)</span>’s parameters (<span class="math inline">\(\color{#3182BD}{A_k^{-1}}\psi_{k,i}\)</span>).</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Connections to other frameworks
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>This IF-based approach is equivalent to:</p>
+<ol type="1">
+<li><strong>Stacked estimating equations</strong> (Stefanski &amp; Boos, 2002; Zivich et al., 2024): concatenate all models’ estimating equations and apply the generic sandwich to the full stack.</li>
+<li><strong>Semiparametric efficiency theory</strong> (Tsiatis, 2006): derive the efficient influence function (EIF) and project onto the parametric model.</li>
+</ol>
+<p>All yield the same variance estimate.</p>
+</div>
+</div>
+</section>
+<section id="ice-g-computation-the-motivating-example" class="level3">
+<h3 class="anchored" data-anchor-id="ice-g-computation-the-motivating-example">5.2 ICE g-computation: the motivating example</h3>
+<p>Iterated conditional expectation (ICE) g-computation estimates the counterfactual mean under a treatment strategy in longitudinal data (Robins, 1986; Bang &amp; Robins, 2005; Zivich et al., 2024). It fits <span class="math inline">\(K+1\)</span> outcome models backward in time:</p>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div id="fig-ice-chain" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-ice-chain-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div>
+<pre class="mermaid mermaid-js" data-label="fig-ice-chain">flowchart RL
+  MK["Model K (final time)&lt;br/&gt;Fit: E[Y | A_K, H_K]&lt;br/&gt;Predict → Ỹ_K"] --&gt;|"Ỹ_K becomes&lt;br/&gt;response for"| MK1["Model K-1&lt;br/&gt;Fit: E[Ỹ_K | A_{K-1}, H_{K-1}]&lt;br/&gt;Predict → Ỹ_{K-1}"]
+  MK1 --&gt;|"Ỹ_{K-1} becomes&lt;br/&gt;response for"| Mdots["⋯"]
+  Mdots --&gt;|"response for"| M0["Model 0 (baseline)&lt;br/&gt;Fit: E[Ỹ_1 | A_0, H_0]&lt;br/&gt;Predict → Ỹ_0"]
+  M0 --&gt;|"average"| MU["μ̂ = mean(Ỹ_0)"]
+
+  style MK fill:#f0f4ff,stroke:#3182BD
+  style MK1 fill:#f0f4ff,stroke:#3182BD
+  style M0 fill:#f0f4ff,stroke:#3182BD
+  style MU fill:#e8f5e9,stroke:#31A354
+</pre>
+</div>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-ice-chain-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;2: ICE backward iteration. Models are fit from final time to baseline. Each model’s predictions become the next model’s response.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>Each model’s response (<span class="math inline">\(\tilde{Y}_k\)</span>) is a <em>prediction</em> from the next model in the chain. This creates a cascade of dependencies.</p>
+</section>
+<section id="why-naive-approaches-fail" class="level3">
+<h3 class="anchored" data-anchor-id="why-naive-approaches-fail">5.3 Why naive approaches fail</h3>
+<p><strong>Naive 1: Variance of pseudo-outcomes only.</strong> Uses only Channel 1 — ignores all model correction terms.</p>
+<p><strong>Naive 2: <span class="math inline">\(\color{#31A354}{J}V_\beta\color{#31A354}{J^T}\)</span> from model 0 only.</strong> Captures Channel 2 for model 0 but ignores models <span class="math inline">\(1, \ldots, K\)</span>.</p>
+<p><strong>Correct: Full IF chain.</strong> Account for all <span class="math inline">\(K+1\)</span> models via the chain rule.</p>
+</section>
+<section id="deriving-the-if-for-chained-models" class="level3">
+<h3 class="anchored" data-anchor-id="deriving-the-if-for-chained-models">5.4 Deriving the IF for chained models</h3>
+<section id="the-if-decomposition" class="level4">
+<h4 class="anchored" data-anchor-id="the-if-decomposition">The IF decomposition</h4>
+<p>Applying the chain rule (Section 5.1):</p>
+<p><span id="eq-if-ice"><span class="math display">\[
+\text{IF}_i
+= \underbrace{\frac{1}{n_t}(\tilde{Y}_{0,i} - \hat\mu)}_{\text{Channel 1}}
++ \sum_{k=0}^{K}
+\underbrace{
+\color{#E6550D}{d_{k,i}} \cdot r_{k,i}
+}_{\text{Channel 2 for model } k}
+\tag{7}\]</span></span></p>
+<p>where <span class="math inline">\(r_{k,i} = Y_{k,i} - \hat{Y}_{k,i}\)</span> is individual <span class="math inline">\(i\)</span>’s residual at model <span class="math inline">\(k\)</span>, and <span class="math inline">\(\color{#E6550D}{d_{k,i}}\)</span> is the <strong>sensitivity</strong> — how much a perturbation at model <span class="math inline">\(k\)</span> propagates to <span class="math inline">\(\hat\mu\)</span>.</p>
+</section>
+<section id="what-the-sensitivities-measure" class="level4">
+<h4 class="anchored" data-anchor-id="what-the-sensitivities-measure">What the sensitivities measure</h4>
+<p>Each model correction requires a <strong>sensitivity</strong> <span class="math inline">\(\color{#E6550D}{d_{k,i}}\)</span>: a scalar that answers “if individual <span class="math inline">\(i\)</span>’s residual at model <span class="math inline">\(k\)</span> increased by one unit, how much would <span class="math inline">\(\hat\mu\)</span> change?” Computing <span class="math inline">\(\color{#E6550D}{d_{k,i}}\)</span> takes three steps, each with a clear role:</p>
+<ol type="1">
+<li><strong>Gradient</strong> <span class="math inline">\(g_k\)</span> (<span class="math inline">\(p_k \times 1\)</span>): the total sensitivity of <span class="math inline">\(\hat\mu\)</span> to model <span class="math inline">\(k\)</span>’s coefficient vector <span class="math inline">\(\beta_k\)</span>. This is a Jacobian — the same object as <span class="math inline">\(\color{#31A354}{J_a}\)</span> from Section 2.3, but computed recursively for <span class="math inline">\(k &gt; 0\)</span>.</li>
+<li><strong>Solve</strong> <span class="math inline">\(h_k = (X_k^T W_k X_k)^{-1} g_k\)</span> (<span class="math inline">\(p_k \times 1\)</span>): convert from “how <span class="math inline">\(\hat\mu\)</span> responds to <span class="math inline">\(\beta_k\)</span>” to “how <span class="math inline">\(\hat\mu\)</span> responds to individual score contributions.” This is the bread inverse <span class="math inline">\(\color{#3182BD}{A_k^{-1}}\)</span> applied to <span class="math inline">\(g_k\)</span>.</li>
+<li><strong>Distribute</strong> <span class="math inline">\(\color{#E6550D}{d_{k,i}} = h_k^T X_{k,i}\)</span> (scalar): project onto individual <span class="math inline">\(i\)</span>’s covariate vector to get their personal sensitivity.</li>
+</ol>
+</section>
+<section id="base-case-model-0" class="level4">
+<h4 class="anchored" data-anchor-id="base-case-model-0">Base case: model 0</h4>
+<p><span class="math inline">\(\hat\mu\)</span> is a direct average of model 0’s predictions. The gradient of <span class="math inline">\(\hat\mu\)</span> w.r.t. <span class="math inline">\(\beta_0\)</span> is therefore the Jacobian from Section 2.3:</p>
+<p><span class="math display">\[
+\underset{p_0 \times 1}{g_0}
+= \frac{1}{n_t}\sum_{j \in \text{target}}
+\frac{d\mu}{d\eta}\bigg|_{\eta_{0,j}^*}
+\;\cdot\; X_{0,j}^*
+\]</span></p>
+<p><span class="math inline">\(g_0\)</span> tells us the total sensitivity of <span class="math inline">\(\hat\mu\)</span> to <span class="math inline">\(\beta_0\)</span>, but the IF requires a per-individual quantity. We need to ask: “of the total shift in <span class="math inline">\(\hat\beta_0\)</span> caused by the data, how much came from individual <span class="math inline">\(i\)</span>?” The answer uses two facts: (a) individual <span class="math inline">\(i\)</span>’s influence on <span class="math inline">\(\hat\beta_0\)</span> is proportional to their score <span class="math inline">\(\psi_{0,i}\)</span>, which is proportional to <span class="math inline">\(r_{0,i}
+\cdot X_{0,i}\)</span>; and (b) the constant of proportionality involves the bread inverse <span class="math inline">\((X_0^T W_0 X_0)^{-1}\)</span>. Combining:</p>
+<p><span class="math display">\[
+h_0 = \underbrace{(X_0^T W_0 X_0)^{-1}}_{\text{bread inverse}} g_0,
+\qquad
+\color{#E6550D}{d_{0,i}} = h_0^T X_{0,i}
+\]</span></p>
+<p>Now <span class="math inline">\(\color{#E6550D}{d_{0,i}} \cdot r_{0,i}\)</span> gives individual <span class="math inline">\(i\)</span>’s Channel 2 contribution: their residual <span class="math inline">\(r_{0,i}\)</span> (how much their data “disagrees” with model 0) scaled by <span class="math inline">\(\color{#E6550D}{d_{0,i}}\)</span> (how much that disagreement matters for <span class="math inline">\(\hat\mu\)</span>). This is equivalent to <span class="math inline">\(\color{#31A354}{J_0}\color{#3182BD}{A_0^{-1}}\psi_{0,i}\)</span> from Section 4.5, factored into the three steps above.</p>
+</section>
+<section id="recursive-case-model-k-1-ldots-k" class="level4">
+<h4 class="anchored" data-anchor-id="recursive-case-model-k-1-ldots-k">Recursive case: model <span class="math inline">\(k = 1, \ldots, K\)</span></h4>
+<p>Model <span class="math inline">\(k\)</span> does not feed into <span class="math inline">\(\hat\mu\)</span> directly. Instead, model <span class="math inline">\(k\)</span>’s predictions become model <span class="math inline">\(k-1\)</span>’s pseudo-outcomes (response variable). We already know how sensitive <span class="math inline">\(\hat\mu\)</span> is to each of those pseudo-outcomes — that is <span class="math inline">\(\color{#E6550D}{d_{k-1,j}}\)</span> from the previous step.</p>
+<p>The gradient of <span class="math inline">\(\hat\mu\)</span> w.r.t. <span class="math inline">\(\beta_k\)</span> therefore weights each individual’s contribution by the previously-computed sensitivity:</p>
+<p><span class="math display">\[
+\underset{p_k \times 1}{g_k}
+= \sum_{j \in \text{fit}_{k-1}}
+\color{#E6550D}{d_{k-1,j}}
+\;\cdot\;
+\frac{d\mu}{d\eta}\bigg|_{\eta_{k,j}^*}
+\;\cdot\; X_{k,j}^*
+\]</span></p>
+<p>Compare this to <span class="math inline">\(g_0\)</span>: the uniform weight <span class="math inline">\(\frac{1}{n_t}\)</span> over the target population is replaced by <span class="math inline">\(\color{#E6550D}{d_{k-1,j}}\)</span> over the previous model’s fitting set. Everything else — solve and distribute — is identical:</p>
+<p><span class="math display">\[
+h_k = (X_k^T W_k X_k)^{-1} g_k,
+\qquad
+\color{#E6550D}{d_{k,i}} = h_k^T X_{k,i}
+\]</span></p>
+</section>
+</section>
+<section id="scaling-the-factor-of-n" class="level3">
+<h3 class="anchored" data-anchor-id="scaling-the-factor-of-n">5.5 Scaling: the factor of <span class="math inline">\(n\)</span></h3>
+<p>Each model correction involves <span class="math inline">\(\color{#3182BD}{A_k^{-1}}\)</span>. Since <span class="math inline">\(\color{#3182BD}{A_k} = \frac{1}{n_k} X_k^T W_k X_k\)</span>, we have <span class="math inline">\(\color{#3182BD}{A_k^{-1}} = n_k(X_k^T W_k X_k)^{-1}\)</span>. So the correction at step <span class="math inline">\(k\)</span> is:</p>
+<p><span class="math display">\[
+n_k \cdot \color{#E6550D}{d_{k,i}} \cdot r_{k,i}
+\]</span></p>
+<p>The factor <span class="math inline">\(n_k\)</span> ensures each IF contribution is <span class="math inline">\(O(1)\)</span> per individual, giving the correct <span class="math inline">\(\text{Var}(\hat\mu) = O(1/n)\)</span>.</p>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Warning</span>A common bug
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Omitting <span class="math inline">\(n_k\)</span> makes each correction <span class="math inline">\(O(1/n)\)</span>, yielding <span class="math inline">\(\text{Var} = O(1/n^3)\)</span> — confidence intervals that are much too narrow.</p>
+</div>
+</div>
+</section>
+<section id="pseudo-code-if-for-a-chained-estimator" class="level3">
+<h3 class="anchored" data-anchor-id="pseudo-code-if-for-a-chained-estimator">5.6 Pseudo-code: IF for a chained estimator</h3>
+<div class="cell">
+<details class="code-fold">
+<summary>Pseudo-code: chained_influence()</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>chained_influence <span class="ot">&lt;-</span> <span class="cf">function</span>(models, data_iv, target) {</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  n <span class="ot">&lt;-</span> number_of_individuals</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  K <span class="ot">&lt;-</span> <span class="fu">length</span>(models) <span class="sc">-</span> <span class="dv">1</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  mu_hat <span class="ot">&lt;-</span> <span class="fu">mean</span>(pseudo_final[target])</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  n_target <span class="ot">&lt;-</span> <span class="fu">sum</span>(target)</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>  IF <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">0</span>, n)</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  IF[target] <span class="ot">&lt;-</span> (pseudo_final[target] <span class="sc">-</span> mu_hat) <span class="sc">/</span> n_target  <span class="co"># Channel 1</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>  d <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">0</span>, n)  <span class="co"># sensitivities from previous step</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (step <span class="cf">in</span> <span class="dv">0</span><span class="sc">:</span>K) {</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>    model_k <span class="ot">&lt;-</span> models[[step <span class="sc">+</span> <span class="dv">1</span>]]</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    X_k <span class="ot">&lt;-</span> <span class="fu">model.matrix</span>(model_k)         <span class="co"># fitting design matrix</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>    r_k <span class="ot">&lt;-</span> <span class="fu">residuals</span>(model_k)            <span class="co"># r_{k,i}</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>    W_k <span class="ot">&lt;-</span> <span class="fu">working_weights</span>(model_k)</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>    fit_ids_k <span class="ot">&lt;-</span> model_k<span class="sc">$</span>fitting_ids</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>    n_k <span class="ot">&lt;-</span> <span class="fu">length</span>(fit_ids_k)</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Intervention design matrix and link derivatives (dμ/dη)</span></span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>    X_star_k <span class="ot">&lt;-</span> <span class="fu">model.matrix</span>(model_k, <span class="at">newdata =</span> intervention_data[[step <span class="sc">+</span> <span class="dv">1</span>]])</span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>    eta_star <span class="ot">&lt;-</span> X_star_k <span class="sc">%*%</span> <span class="fu">coef</span>(model_k)</span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>    mu_eta_star <span class="ot">&lt;-</span> model_k<span class="sc">$</span>family<span class="sc">$</span><span class="fu">mu.eta</span>(eta_star)</span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Step 1 — Gradient: g_k = ∂μ̂/∂β_k</span></span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (step <span class="sc">==</span> <span class="dv">0</span>) {</span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>      g_k <span class="ot">&lt;-</span> <span class="fu">crossprod</span>(X_star_k[target, ], mu_eta_star[target]) <span class="sc">/</span> n_target</span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>    } <span class="cf">else</span> {</span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a>      prev_ids <span class="ot">&lt;-</span> models[[step]]<span class="sc">$</span>fitting_ids</span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a>      g_k <span class="ot">&lt;-</span> <span class="fu">crossprod</span>(X_star_k[prev_ids, ], d[prev_ids] <span class="sc">*</span> mu_eta_star[prev_ids])</span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Step 2 — Solve: h_k = (X'WX)^{-1} g_k</span></span>
+<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a>    h_k <span class="ot">&lt;-</span> <span class="fu">solve</span>(<span class="fu">crossprod</span>(X_k, X_k <span class="sc">*</span> W_k)) <span class="sc">%*%</span> g_k</span>
+<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Step 3 — Distribute: d_{k,i} = h_k' X_{k,i}</span></span>
+<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a>    d <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">0</span>, n)</span>
+<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a>    d[fit_ids_k] <span class="ot">&lt;-</span> X_k <span class="sc">%*%</span> h_k</span>
+<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-40"><a href="#cb4-40" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Channel 2 for model k: n_k * d_{k,i} * r_{k,i} (Section 5.5 for n_k)</span></span>
+<span id="cb4-41"><a href="#cb4-41" aria-hidden="true" tabindex="-1"></a>    r_vec <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">0</span>, n)</span>
+<span id="cb4-42"><a href="#cb4-42" aria-hidden="true" tabindex="-1"></a>    r_vec[fit_ids_k] <span class="ot">&lt;-</span> r_k</span>
+<span id="cb4-43"><a href="#cb4-43" aria-hidden="true" tabindex="-1"></a>    IF <span class="ot">&lt;-</span> IF <span class="sc">+</span> n_k <span class="sc">*</span> d <span class="sc">*</span> r_vec</span>
+<span id="cb4-44"><a href="#cb4-44" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb4-45"><a href="#cb4-45" aria-hidden="true" tabindex="-1"></a>  IF</span>
+<span id="cb4-46"><a href="#cb4-46" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+</section>
+<section id="from-individual-ifs-to-the-variance" class="level3">
+<h3 class="anchored" data-anchor-id="from-individual-ifs-to-the-variance">5.7 From individual IFs to the variance</h3>
+<p>Once we have the per-individual <span class="math inline">\(\text{IF}_i\)</span> from the recursion above, variance estimation follows from the same identity as Section 4.3 (Property 2):</p>
+<p><span class="math display">\[
+\widehat{\text{Var}}(\hat\mu)
+= \frac{1}{n^2}\sum_{i=1}^n \text{IF}_i^2
+\]</span></p>
+<p>For two interventions <span class="math inline">\(a\)</span> and <span class="math inline">\(b\)</span> on the same data:</p>
+<p><span class="math display">\[
+\widehat{\text{Cov}}(\hat\mu_a, \hat\mu_b)
+= \frac{1}{n^2}\sum_{i=1}^n \text{IF}_i^{(a)} \cdot \text{IF}_i^{(b)}
+\]</span></p>
+<p>The full <span class="math inline">\(k \times k\)</span> covariance matrix is then used for contrasts as in Section 2.</p>
+</section>
+</section>
+<section id="summary" class="level2">
+<h2 class="anchored" data-anchor-id="summary">6. Summary</h2>
+<ol type="1">
+<li><strong>M-estimation</strong>: any root-of-sum estimator has a sandwich variance.</li>
+<li><strong>The sandwich</strong> <span class="math inline">\(\color{#3182BD}{A^{-1}}\color{#E6550D}{B}
+\color{#3182BD}{(A^{-1})^T}\)</span>: robust to variance misspecification.</li>
+<li><strong>Delta method</strong>: propagates parameter variance to functionals via <span class="math inline">\(\color{#31A354}{J}V_\beta\color{#31A354}{J^T}\)</span>.</li>
+<li><strong>Influence functions</strong>: per-individual decomposition; <span class="math inline">\(\frac{1}{n^2}\sum
+\text{IF}_i^2\)</span> = sandwich variance.</li>
+<li><strong>Chained estimators</strong>: the IF chain rule propagates uncertainty through multi-model pipelines. Ignoring upstream models underestimates variance.</li>
+<li><strong>Equivalent frameworks</strong>: direct IF, stacked estimating equations (Stefanski &amp; Boos, 2002; Zivich et al., 2024), semiparametric EIF (Tsiatis, 2006).</li>
+</ol>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<ul>
+<li>Bang H, Robins JM (2005). Doubly robust estimation in missing data and causal inference models. <em>Biometrics</em> 61:962–973.</li>
+<li>Hampel FR, Ronchetti EM, Rousseeuw PJ, Stahel WA (1986). <em>Robust Statistics: The Approach Based on Influence Functions</em>. Wiley.</li>
+<li>Hirano K, Imbens GW, Ridder G (2003). Efficient estimation of average treatment effects using the estimated propensity score. <em>Econometrica</em> 71:1161–1189.</li>
+<li>Hernán MA, Robins JM (2025). <em>Causal Inference: What If</em>. Chapman &amp; Hall/CRC.</li>
+<li>Huber PJ (1967). The behavior of maximum likelihood estimates under nonstandard conditions. <em>Proceedings of the Fifth Berkeley Symposium</em> 1:221–233.</li>
+<li>Huber PJ (1981). <em>Robust Statistics</em>. Wiley.</li>
+<li>Lunceford JK, Davidian M (2004). Stratification and weighting via the propensity score in estimation of causal treatment effects: a comparative study. <em>Statistics in Medicine</em> 23:2937–2960.</li>
+<li>Robins JM (1986). A new approach to causal inference in mortality studies with a sustained exposure period. <em>Mathematical Modelling</em> 7:1393–1512.</li>
+<li>Stefanski LA, Boos DD (2002). The calculus of M-estimation. <em>The American Statistician</em> 56:29–38.</li>
+<li>Tsiatis AA (2006). <em>Semiparametric Theory and Missing Data</em>. Springer.</li>
+<li>van der Laan MJ, Robins JM (2003). <em>Unified Methods for Censored Longitudinal Data and Causality</em>. Springer.</li>
+<li>White H (1980). A heteroskedasticity-consistent covariance matrix estimator and a direct test for heteroskedasticity. <em>Econometrica</em> 48:817–838.</li>
+<li>White H (1982). Maximum likelihood estimation of misspecified models. <em>Econometrica</em> 50:1–25.</li>
+<li>Zeileis A (2004). Econometric computing with HC and HAC covariance matrix estimators. <em>Journal of Statistical Software</em> 11(10):1–17.</li>
+<li>Zeileis A (2006). Object-oriented computation of sandwich estimators. <em>Journal of Statistical Software</em> 16(9):1–16.</li>
+<li>Zivich PN, Klose M, Cole SR, Edwards JK, Shook-Sa BE (2022). Delicatessen: a Python package for the generalized computation of the sandwich estimator. <em>arXiv preprint</em> arXiv:2203.11300.</li>
+<li>Zivich PN, Ross RK, Shook-Sa BE, Cole SR, Edwards JK (2024). Empirical sandwich variance estimator for iterated conditional expectation g-computation. <em>Statistics in Medicine</em> 43:5562–5572.</li>
+</ul>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
