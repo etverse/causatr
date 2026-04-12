@@ -38,3 +38,8 @@ altdoc/pkgdown.yml
 .zencoder
 skills
 skills-lock.json
+_quarto/
+docs/
+vignettes/*.html
+vignettes/*_files/
+vignettes/*.markdown_strict_files/

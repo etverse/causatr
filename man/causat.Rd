@@ -277,5 +277,5 @@ g-computation. \emph{Statistics in Medicine} 43:5562–5572.
 }
 \seealso{
 \code{\link[=contrast]{contrast()}}, \code{\link[=diagnose]{diagnose()}}, \code{\link[=causat_survival]{causat_survival()}}, \code{\link[=causat_mice]{causat_mice()}},
-\code{\link[=static]{static()}}, \code{\link[=shift]{shift()}}, \code{\link[=dynamic]{dynamic()}}
+\code{\link[=static]{static()}}, \code{\link[data.table:shift]{data.table::shift()}}, \code{\link[=dynamic]{dynamic()}}
 }
