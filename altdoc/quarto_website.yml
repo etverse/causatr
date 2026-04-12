@@ -1,0 +1,57 @@
+project:
+  type: website
+  output-dir: ../docs/
+
+execute:
+  freeze: auto
+
+website:
+  title: "$ALTDOC_PACKAGE_NAME"
+  code-links: true
+  navbar:
+    search: true
+    right:
+      - icon: github
+        href: $ALTDOC_PACKAGE_URL_GITHUB
+        aria-label: $ALTDOC_PACKAGE_NAME GitHub
+  sidebar:
+    collapse-level: 1
+    contents:
+      - text: Home
+        file: index.md
+      - section: Getting started
+        contents:
+          - vignettes/introduction.qmd
+      - section: Estimation methods
+        contents:
+          - vignettes/gcomp.qmd
+          - vignettes/ipw.qmd
+          - vignettes/matching.qmd
+      - section: Advanced topics
+        contents:
+          - vignettes/triangulation.qmd
+          - vignettes/longitudinal.qmd
+          - vignettes/survival.qmd
+      - section: Theory
+        contents:
+          - vignettes/variance-theory.qmd
+      - section: $ALTDOC_MAN_BLOCK
+      - text: News
+        file: $ALTDOC_NEWS
+      - text: Changelog
+        file: $ALTDOC_CHANGELOG
+      - text: License
+        file: $ALTDOC_LICENSE
+      - text: Licence
+        file: $ALTDOC_LICENCE
+      - text: Code of conduct
+        file: $ALTDOC_CODE_OF_CONDUCT
+      - text: Citation
+        file: $ALTDOC_CITATION
+
+format:
+  html:
+    code-link: true
+    theme: lumen
+    toc: true
+    toc-depth: 3

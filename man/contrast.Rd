@@ -25,7 +25,7 @@ contrast(
 \item{interventions}{A named list of interventions. Each element must be
 one of:
 \itemize{
-\item A \code{causatr_intervention} object created by \code{\link[=static]{static()}}, \code{\link[data.table:shift]{data.table::shift()}},
+\item A \code{causatr_intervention} object created by \code{\link[=static]{static()}}, \code{\link[=shift]{shift()}},
 \code{\link[=dynamic]{dynamic()}}, \code{\link[=scale_by]{scale_by()}}, \code{\link[=threshold]{threshold()}}, or \code{\link[=ipsi]{ipsi()}}.
 \item \code{NULL}, meaning the natural course (observed treatment values are used
 as-is). The natural course is the standard reference for modified
@@ -243,6 +243,6 @@ sandwich variance estimator for iterated conditional expectation
 g-computation. \emph{Statistics in Medicine} 43:5562–5572.
 }
 \seealso{
-\code{\link[=causat]{causat()}}, \code{\link[=static]{static()}}, \code{\link[data.table:shift]{data.table::shift()}}, \code{\link[=dynamic]{dynamic()}},
+\code{\link[=causat]{causat()}}, \code{\link[=static]{static()}}, \code{\link[=shift]{shift()}}, \code{\link[=dynamic]{dynamic()}},
 \code{\link[=coef.causatr_result]{coef.causatr_result()}}, \code{\link[=confint.causatr_result]{confint.causatr_result()}}
 }

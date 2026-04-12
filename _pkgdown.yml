@@ -14,3 +14,6 @@ articles:
       - triangulation
       - longitudinal
       - survival
+  - title: Theory
+    contents:
+      - variance-theory

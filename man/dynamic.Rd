@@ -30,5 +30,5 @@ Hernán MA, Robins JM (2025). \emph{Causal Inference: What If}. Chapman &
 Hall/CRC. Chapter 19 (dynamic treatment strategies).
 }
 \seealso{
-\code{\link[=static]{static()}}, \code{\link[data.table:shift]{data.table::shift()}}, \code{\link[=scale_by]{scale_by()}}, \code{\link[=threshold]{threshold()}}, \code{\link[=ipsi]{ipsi()}}
+\code{\link[=static]{static()}}, \code{\link[=shift]{shift()}}, \code{\link[=scale_by]{scale_by()}}, \code{\link[=threshold]{threshold()}}, \code{\link[=ipsi]{ipsi()}}
 }

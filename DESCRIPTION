@@ -12,6 +12,7 @@ Description: Estimates causal effects via g-computation, inverse probability
     categorical, and multivariate treatments; static, dynamic, and modified
     treatment interventions; continuous, binary, censored, and
     competing-risk outcomes; survey weights and clustered data.
+Date: 2026-04-12
 License: MIT + file LICENSE
 Imports:
     boot,

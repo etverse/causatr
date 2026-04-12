@@ -46,3 +46,4 @@
 ^skills$
 ^skills-lock\.json$
 ^data-raw$
+^_quarto$

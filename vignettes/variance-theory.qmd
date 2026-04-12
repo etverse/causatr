@@ -1,0 +1,1208 @@
+---
+title: "Variance estimation for causal effects: sandwich estimators and influence functions"
+toc-depth: 4
+vignette: >
+  %\VignetteIndexEntry{Variance estimation for causal effects: sandwich estimators and influence functions}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{=html}
+<style>
+mjx-container[jax="CHTML"][display="true"] {
+  overflow-x: auto;
+  overflow-y: visible;
+  padding: 0.5em 0;
+}
+</style>
+```
+
+```{r}
+#| include: false
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+This vignette develops the theory behind variance estimation for causal effect
+estimators — the *sandwich estimator*, the *delta method*, and *influence
+functions* — with a focus on the ideas rather than any specific software. We
+build up from first principles, use concrete examples, and include pseudo-code
+so that every step is reproducible.
+
+```{r}
+#| label: setup-data
+#| code-fold: true
+#| code-summary: "Running example: simulated data"
+set.seed(42)
+n <- 200
+L <- rnorm(n)
+A <- rbinom(n, 1, plogis(0.5 * L))
+Y <- rbinom(n, 1, plogis(-1 + 0.8 * A + 0.6 * L))
+dat <- data.frame(Y = Y, A = A, L = L)
+
+fit <- glm(Y ~ A + L, data = dat, family = binomial)
+beta_hat <- coef(fit)
+```
+
+## Setting: the causal effect estimation pipeline
+
+Most causal effect estimators follow a two-stage pattern:
+
+1. **Fit a nuisance model** $\hat\beta$ (an outcome regression, a propensity
+   score model, or both).
+2. **Compute the target quantity** $\hat\mu = g(\hat\beta)$ by plugging
+   $\hat\beta$ into a functional of the data (e.g. a standardised mean, an
+   inverse-probability-weighted mean, etc.).
+
+To construct confidence intervals for $\hat\mu$, we need $\text{Var}(\hat\mu)$.
+The bootstrap resamples the entire pipeline to get this, but it can be slow. The
+*sandwich estimator* gives a closed-form alternative.
+
+```{mermaid}
+%%| label: fig-pipeline
+%%| fig-cap: "The variance estimation pipeline. Each box is a mathematical object; each arrow is an operation covered in this vignette. The sandwich gives V_β from the fitted model; the delta method propagates V_β to the causal estimand via the Jacobian J; the influence function provides an equivalent per-individual decomposition."
+flowchart LR
+  D["Data<br/>(X, Y)"] -->|"fit model<br/>(Sec 1.1–1.3)"| B["β̂, ψ_i<br/>(coefficients,<br/>scores)"]
+  B -->|"sandwich<br/>A⁻¹ B (A⁻¹)ᵀ<br/>(Sec 1.4)"| VB["V_β<br/>(param variance)"]
+  VB -->|"delta method<br/>J V_β Jᵀ<br/>(Sec 2)"| VM["Var(μ̂)<br/>(estimand variance)"]
+  B -->|"IF = A⁻¹ψ_i<br/>(Sec 4)"| IF["IF_i<br/>(per-individual)"]
+  IF -->|"Var = Σ IF²/n²<br/>(Sec 4)"| VM
+
+  style D fill:#f0f4ff,stroke:#3182BD
+  style B fill:#fff5eb,stroke:#E6550D
+  style VB fill:#f0f4ff,stroke:#3182BD
+  style VM fill:#e8f5e9,stroke:#31A354
+  style IF fill:#fff5eb,stroke:#E6550D
+```
+
+## 1. The sandwich estimator for parametric models
+
+### 1.1 What is an estimating equation?
+
+The starting point is a simple idea: many statistical estimators can be defined
+as the solution to an equation of the form
+
+$$
+\sum_{i=1}^n \psi(O_i; \beta) = 0
+$$
+
+where $O_i$ is the observed data for individual $i$, $\beta$ is the parameter
+we want to estimate, and $\psi$ is a function — called the **estimating
+function** — that maps each observation and a candidate parameter value to a
+vector. The estimator $\hat\beta$ is the value of $\beta$ that makes this sum
+equal to zero.
+
+But what *is* $\psi$, concretely? And where does it come from?
+
+### 1.2 Deriving $\psi$: three routes to the same place
+
+#### Route 1: Score equations (maximum likelihood)
+
+The most familiar source of $\psi$ is maximum likelihood. If observations have
+log-likelihood $\ell_i(\beta) = \log f(O_i; \beta)$, the MLE maximises
+$\sum_i \ell_i(\beta)$. Setting the derivative to zero gives:
+
+$$
+\sum_{i=1}^n \underbrace{\frac{\partial \ell_i(\beta)}{\partial \beta}}_
+{\psi(O_i;\beta)} = 0
+$$
+
+So $\psi$ is the **score function** — the gradient of the individual
+log-likelihood. For a GLM with outcome $Y_i$, covariates $X_i$, linear
+predictor $\eta_i = X_i^T\beta$, and mean function $\mu_i = g^{-1}(\eta_i)$:
+
+$$
+\psi(O_i; \beta) =
+\underset{\color{#E6550D}{\text{residual}}}{\color{#E6550D}{(Y_i - \mu_i)}}
+\;\cdot\;
+\underset{\color{#3182BD}{\text{scale factor}}}
+{\color{#3182BD}{\frac{d\mu/d\eta}{V(\mu_i)}}}
+\;\cdot\;
+\underset{\color{#31A354}{\text{direction}}}{\color{#31A354}{X_i}}
+$$
+
+where $V(\mu_i)$ is the variance function of the exponential family
+($V(\mu) = \mu(1-\mu)$ for binomial, $V(\mu) = \mu$ for Poisson, $V(\mu) =
+1$ for Gaussian — note that $\sigma^2$ enters separately as the dispersion
+parameter $\phi$, not as $V(\mu)$). Reading the three factors:
+
+- $\color{#E6550D}{(Y_i - \mu_i)}$ — **Residual**: how far the prediction is
+  from the observation. This is zero on average at the truth, which is why
+  $E[\psi_i] = 0$.
+- $\color{#3182BD}{(d\mu/d\eta) / V(\mu_i)}$ — **Scale factor**: combines the
+  link derivative (converting from $\eta$-scale to $\mu$-scale) with the
+  variance weight (downweighting noisy observations). For canonical links this
+  product simplifies (see below).
+- $\color{#31A354}{X_i}$ — **Direction**: the covariates tell us *which*
+  parameters this observation informs. An observation with large $|X_{ij}|$
+  provides more information about $\beta_j$.
+
+::: {.callout-note}
+### Example: logistic regression
+For logistic regression, $\mu_i = \text{expit}(\eta_i)$, so $d\mu/d\eta =
+\mu_i(1-\mu_i)$ and $V(\mu_i) = \mu_i(1 - \mu_i)$. The scale factor cancels
+to $1$, giving:
+
+$$\psi(O_i;\beta) = (Y_i - \mu_i) \cdot X_i$$
+
+The estimating equation $\sum_i (Y_i - \mu_i) X_i = 0$ says: at the MLE, the
+covariates are uncorrelated with the residuals.
+:::
+
+#### Route 2: Moment conditions (method of moments)
+
+Not every estimating equation comes from a likelihood. The **generalised method
+of moments** (GMM) starts from a theoretical property of the true parameter
+$\beta_0$ — a *moment condition* — and turns it into $\psi$.
+
+For example, if we know that $E[X_i(Y_i - X_i^T\beta_0)] = 0$, we can define:
+
+$$
+\psi(O_i; \beta) = X_i(Y_i - X_i^T\beta)
+$$
+
+Setting $\sum_i \psi = 0$ gives the OLS normal equations. No distributional
+assumption was needed — just the moment condition $E[X_i \varepsilon_i] = 0$.
+
+This is the key insight of M-estimation: the estimating function $\psi$ does not
+have to be a score function. It just needs to satisfy $E[\psi(O_i; \beta_0)] =
+0$ at the true parameter value (the **unbiasedness** condition). This is what
+guarantees consistency of $\hat\beta$.
+
+#### Route 3: Quasi-likelihood
+
+Quasi-likelihood provides a middle ground. We specify only the first two moments
+of $Y_i \mid X_i$ — the mean function $\mu_i = g^{-1}(X_i^T\beta)$ and a
+variance function $V(\mu_i)$ — without assuming a full distributional form. The
+quasi-score is:
+
+$$
+\psi(O_i; \beta) = \frac{(Y_i - \mu_i)}{V(\mu_i)} \cdot
+\frac{d\mu_i}{d\eta_i} \cdot X_i
+$$
+
+This looks identical to the GLM score, but now $V(\mu)$ is a *working*
+variance — it might be wrong. The sandwich estimator (Section 1.4) protects
+against this misspecification.
+
+### 1.3 The general M-estimation framework
+
+All three routes produce estimators of the same form: find $\hat\beta$ solving
+$\sum_i \psi(O_i; \hat\beta) = 0$. The M-estimation framework (Huber, 1964;
+Stefanski & Boos, 2002) unifies them under two conditions:
+
+1. **Unbiasedness**: $E[\psi(O_i; \beta_0)] = 0$ at the true $\beta_0$. This
+   guarantees that the estimating equation has the right solution in
+   expectation.
+2. **Regularity**: $\psi$ is smooth enough in $\beta$ for a Taylor expansion.
+
+Given these, $\hat\beta$ is consistent and asymptotically normal, and its
+variance has the sandwich form — regardless of whether $\psi$ came from a
+likelihood, a moment condition, or a quasi-likelihood.
+
+::: {.callout-tip}
+### Why "M-estimation"?
+The "M" stands for "maximum" (as in maximum-likelihood), but the framework is
+much broader. Any estimator defined as the root of a sum of functions of the
+data and parameters is an M-estimator — this includes MLE, weighted least
+squares, quantile regression, robust regression (Huber loss), generalised
+estimating equations, and the causal estimators in Sections 3–5 (Stefanski &
+Boos, 2002).
+:::
+
+### 1.4 Asymptotic variance of M-estimators
+
+We want $\text{Var}(\hat\beta)$. The derivation has three steps: linearise
+$\hat\beta$ around the truth, identify the variance of the linear
+approximation, then estimate it from data.
+
+#### Step 1: Linearise via Taylor expansion
+
+We know that $\hat\beta$ solves $\sum_i \psi(O_i; \hat\beta) = 0$. We also
+know that the true $\beta_0$ satisfies $E[\psi(O_i; \beta_0)] = 0$, but the
+finite-sample sum $\sum_i \psi(O_i; \beta_0)$ is generally *not* zero — it is
+a random quantity that fluctuates around zero. The idea is to relate these two
+facts via a Taylor expansion.
+
+Expand $\sum_i \psi(O_i; \hat\beta)$ around $\beta_0$, keeping only the
+first-order term (valid for large $n$ by regularity):
+
+$$
+\underbrace{\sum_i \psi(O_i; \hat\beta)}_{= \, 0 \text{ (by definition)}}
+\approx \sum_i \psi(O_i; \beta_0) +
+\left[\sum_i \frac{\partial \psi(O_i;\beta_0)}
+{\partial \beta^T}\right]
+(\hat\beta - \beta_0)
+$$
+
+Rearranging for the estimation error $\hat\beta - \beta_0$:
+
+$$
+\hat\beta - \beta_0 \approx
+-\left[\sum_i \frac{\partial \psi(O_i;
+\beta_0)}{\partial \beta^T}\right]^{-1}
+\sum_i \psi(O_i; \beta_0)
+$$
+
+Dividing numerator and denominator by $n$ and labelling the two factors:
+
+$$
+\underset{p \times 1}{\hat\beta - \beta_0}
+\;\approx\;
+\underbrace{\left[-\frac{1}{n}\sum_i \frac{\partial \psi_i}
+{\partial \beta^T}\right]^{-1}}_{\to\;
+\color{#3182BD}{A^{-1}} \;(p \times p)}
+\;\cdot\;
+\underbrace{\frac{1}{n}\sum_i \psi(O_i; \beta_0)}_{\text{mean zero,
+covariance } \color{#E6550D}{B/n}}
+$$
+
+This is the key linearisation: the estimation error is approximately the bread
+inverse times the average score. The first factor converges to the constant
+matrix $\color{#3182BD}{A^{-1}}$; the second is a sum of iid mean-zero random
+$p$-vectors whose covariance we call $\color{#E6550D}{B}$.
+
+#### Step 2: Identify the variance
+
+Name the two matrices that appeared in Step 1:
+
+- **Bread** $\color{#3182BD}{A}$: the expected negative Jacobian of the
+  estimating function ($p \times p$):
+
+$$
+\color{#3182BD}{A}
+\;\equiv\; -E\!\left[\frac{\partial \psi(O_i; \beta_0)}
+{\partial \beta^T}\right]
+\qquad (p \times p)
+$$
+
+For a GLM, $\color{#3182BD}{A} = E[w_i X_i X_i^T]$ where $w_i =
+(d\mu/d\eta)^2 / V(\mu)$ are the IWLS working weights — essentially the
+curvature of the (quasi-)log-likelihood.
+
+- **Meat** $\color{#E6550D}{B}$: the covariance of the estimating function
+  ($p \times p$):
+
+$$
+\color{#E6550D}{B}
+\;\equiv\; E\!\left[\psi(O_i; \beta_0)\,\psi(O_i; \beta_0)^T\right]
+\qquad (p \times p)
+$$
+
+This measures how much the individual scores $\psi_i$ vary across observations.
+It appeared in Step 1 as the covariance of the second factor: $\text{Var}\!
+\left(\frac{1}{n}\sum_i \psi_i\right) = \frac{1}{n}\color{#E6550D}{B}$.
+
+Now propagate through the linearisation. Taking $\text{Var}(\cdot)$ of both
+sides of the Step 1 equation:
+
+$$
+\underset{p \times p}{\text{Var}(\hat\beta)}
+\;\approx\;
+\underset{p \times p}{\color{#3182BD}{A^{-1}}}
+\;\cdot\;
+\underset{p \times p}{\frac{\color{#E6550D}{B}}{n}}
+\;\cdot\;
+\underset{p \times p}{\color{#3182BD}{(A^{-1})^T}}
+\;=\;
+\frac{1}{n}\,
+\color{#3182BD}{A^{-1}}\,
+\color{#E6550D}{B}\,
+\color{#3182BD}{(A^{-1})^T}
+$$
+
+#### Step 3: Estimate from data
+
+Replace the population expectations $A$ and $B$ with sample averages:
+
+$$
+\color{#3182BD}{\hat{A}}
+= -\frac{1}{n}\sum_i
+\frac{\partial \psi(O_i; \hat\beta)}{\partial \beta^T}
+\qquad (p \times p)
+$$
+
+$$
+\color{#E6550D}{\hat{B}}
+= \frac{1}{n}\sum_i
+\psi(O_i; \hat\beta)\,\psi(O_i; \hat\beta)^T
+\qquad (p \times p)
+$$
+
+The **sandwich estimator** is:
+
+$$
+\underset{p \times p}{\widehat{\text{Var}}(\hat\beta)}
+= \frac{1}{n}\;
+\underset{p \times p}{\color{#3182BD}{\hat{A}^{-1}}}
+\;
+\underset{p \times p}{\color{#E6550D}{\hat{B}}}
+\;
+\underset{p \times p}{\color{#3182BD}{(\hat{A}^{-1})^T}}
+$$ {#eq-sandwich}
+
+so called because the meat $\color{#E6550D}{\hat B}$ is "sandwiched" between
+two slices of bread $\color{#3182BD}{\hat A^{-1}}$.
+
+::: {.callout-important}
+### Why is this robust?
+The bread $\color{#3182BD}{A}$ and meat $\color{#E6550D}{B}$ are estimated
+*separately*. Under correct model specification (e.g. the GLM variance function
+is right), $A = B$ and the sandwich simplifies to $\frac{1}{n} A^{-1}$ — the
+usual model-based variance. But if the variance function is wrong, $A \neq B$:
+the bread still captures the curvature correctly (it only depends on the mean
+model), while the meat captures the *actual* variability of the scores. The
+sandwich remains consistent regardless — this is the Huber–White robustness
+property (Huber, 1967; White, 1982).
+:::
+
+### 1.5 Pseudo-code: sandwich variance for a GLM
+
+```{r}
+#| eval: false
+#| code-fold: true
+#| code-summary: "Pseudo-code: sandwich_variance()"
+sandwich_variance <- function(X, Y, beta_hat, family) {
+  n <- length(Y)
+  eta <- X %*% beta_hat
+  mu <- family$linkinv(eta)
+  mu_eta <- family$mu.eta(eta)    # dμ/dη
+  V <- family$variance(mu)        # Var(Y|X) under the model
+
+  # Bread: A = (1/n) X^T W X where W = diag((dμ/dη)² / V(μ))
+  W <- mu_eta^2 / V
+  A <- (1 / n) * crossprod(X, X * W)
+
+  # Meat: B = (1/n) Σ ψ_i ψ_i^T
+  residuals <- Y - mu
+  score_weights <- mu_eta / V
+  psi <- X * (residuals * score_weights)  # n × p matrix of score contributions
+  B <- (1 / n) * crossprod(psi)
+
+  # Sandwich: (1/n) A^{-1} B (A^{-1})^T
+  A_inv <- solve(A)
+  V_beta <- (1 / n) * A_inv %*% B %*% t(A_inv)
+  V_beta
+}
+```
+
+::: {.callout-tip}
+### In practice
+You almost never code this yourself. In R, `sandwich::sandwich(model)` computes
+$\hat A^{-1} \hat B (\hat A^{-1})^T$ from any `glm` object. The `sandwich`
+package (Zeileis, 2004, 2006) provides variants for clustered data
+(`vcovCL()`), panel data (`vcovPL()`), and heteroscedasticity-autocorrelation
+(`vcovHAC()`).
+:::
+
+### 1.6 Concrete example: linear regression
+
+Let us work through the sandwich for OLS step by step.
+
+**Model**: $Y_i = X_i^T\beta + \varepsilon_i$ where $E[\varepsilon_i \mid X_i]
+= 0$.
+
+**Step 1: Write down $\psi$.**
+The OLS estimator minimises $\sum_i (Y_i - X_i^T\beta)^2$. Setting the
+gradient to zero gives $\sum_i X_i(Y_i - X_i^T\beta) = 0$, so:
+
+$$
+\psi(O_i; \beta) = X_i(Y_i - X_i^T\beta)
+\qquad (p \times 1)
+$$
+
+At $\beta_0$: $E[\psi_i] = E[X_i \varepsilon_i] = 0$ by exogeneity.
+
+**Step 2: Compute the bread $\color{#3182BD}{A}$.**
+
+$$
+\frac{\partial \psi(O_i; \beta)}{\partial \beta^T}
+= \frac{\partial}{\partial \beta^T}\left[X_i(Y_i - X_i^T\beta)\right]
+= -X_i X_i^T
+\qquad (p \times p)
+$$
+
+So $\color{#3182BD}{A} = E[X_i X_i^T]$, estimated by
+$\color{#3182BD}{\hat{A}} = \frac{1}{n} X^T X$.
+
+**Step 3: Compute the meat $\color{#E6550D}{B}$.**
+Since $\psi_i = X_i \hat e_i$, the outer product is $\psi_i\psi_i^T =
+\hat e_i^2 X_iX_i^T$:
+
+$$
+\color{#E6550D}{\hat{B}} = \frac{1}{n}\sum_i \hat{e}_i^2 \, X_i X_i^T
+\qquad (p \times p)
+$$
+
+The meat depends on the *squared residuals*, not on any assumed variance. This
+is the source of robustness.
+
+**Step 4: Assemble the sandwich.**
+
+$$
+\underset{p \times p}{\widehat{\text{Var}}(\hat\beta)}
+= \frac{1}{n}\,
+\color{#3182BD}{\hat{A}^{-1}}\;
+\color{#E6550D}{\hat{B}}\;
+\color{#3182BD}{(\hat{A}^{-1})^T}
+$$
+
+Substituting:
+
+$$
+= \underset{p \times p}{\color{#3182BD}{(X^TX)^{-1}}}
+\;\;
+\underset{p \times p}{\color{#E6550D}{\left[\sum_i
+\hat{e}_i^2\,X_iX_i^T\right]}}
+\;\;
+\underset{p \times p}{\color{#3182BD}{(X^TX)^{-1}}}
+$$
+
+This is the *HC0* heteroscedasticity-consistent estimator (White, 1980).
+
+**What if homoscedasticity holds?** If $\text{Var}(\varepsilon_i \mid X_i) =
+\sigma^2$ for all $i$, then $E[\hat{e}_i^2 X_i X_i^T] = \sigma^2 E[X_i
+X_i^T]$, so $\color{#E6550D}{B} = \sigma^2 \color{#3182BD}{A}$ and the
+sandwich simplifies to $\frac{\sigma^2}{n} \color{#3182BD}{A^{-1}}
+= \hat\sigma^2(X^TX)^{-1}$, the usual OLS variance.
+
+## 2. The delta method: from model parameters to causal effects
+
+### 2.1 The problem
+
+The sandwich gives us $\widehat{\text{Var}}(\hat\beta)$ — the variance of the
+*model coefficients*. But the causal estimand is typically a nonlinear function
+of $\hat\beta$. For instance, the g-computation marginal mean is:
+
+$$
+\hat\mu_a = \frac{1}{n_t}\sum_{i \in \text{target}}
+g^{-1}(X_i^{*T} \hat\beta)
+$$
+
+where $X_i^*$ is individual $i$'s covariate vector with treatment set to $a$,
+$g^{-1}(\cdot)$ is the inverse link function, and $n_t$ is the size of the
+target population. We need $\text{Var}(\hat\mu_a)$, not
+$\text{Var}(\hat\beta)$.
+
+### 2.2 The delta method: statement and derivation
+
+The **delta method** propagates variance through a function. The idea: if the
+input is approximately normal, the output is approximately normal with a
+variance determined by the function's slope.
+
+**Scalar version (intuition).** If $\hat\beta \sim \mathcal{N}(\beta,
+\sigma^2_\beta)$ and $\hat\mu = f(\hat\beta)$, then by a first-order Taylor
+expansion: $\hat\mu \approx f(\beta) + f'(\beta)(\hat\beta - \beta)$. Taking
+variance: $\text{Var}(\hat\mu) \approx [f'(\beta)]^2 \sigma^2_\beta$. The
+derivative $f'$ converts uncertainty in $\beta$ to uncertainty in $\mu$.
+
+**Multivariate version.** If $\hat\beta$ is a $p$-vector with variance
+$V_\beta$ (the $p \times p$ sandwich from Section 1.4) and
+$\hat\mu = f(\hat\beta)$ is a $k$-vector ($k$ = number of interventions):
+
+$$
+\underset{k \times k}{\text{Var}(\hat\mu)}
+\;=\;
+\underset{k \times p}{\color{#31A354}{J}}
+\;\;
+\underset{p \times p}{V_\beta}
+\;\;
+\underset{p \times k}{\color{#31A354}{J^T}}
+$$ {#eq-delta}
+
+where $\color{#31A354}{J} = \frac{\partial f}{\partial \beta^T}$ is the
+$k \times p$ Jacobian matrix — the multivariate analogue of $f'$.
+Each row $j$ of $\color{#31A354}{J}$ tells us how the $j$-th marginal mean
+$\hat\mu_j$ changes as each of the $p$ model coefficients shifts.
+
+### 2.3 Deriving the Jacobian for the standardised mean
+
+For $\hat\mu_a = \frac{1}{n_t}\sum_{i} g^{-1}(X_i^{*T}\beta)$, differentiate
+with respect to $\beta^T$. By the chain rule, $\frac{d}{d\beta^T}
+g^{-1}(X_i^{*T}\beta) = \frac{d\mu}{d\eta}\big|_{\eta_i^*} \cdot X_i^{*T}$
+(scalar $\times$ $1 \times p$ row). Summing:
+
+$$
+\underset{1 \times p}{\color{#31A354}{J_a}}
+= \frac{\partial \hat\mu_a}{\partial \beta^T}
+= \frac{1}{n_t} \sum_{i \in \text{target}}
+\underbrace{\frac{d\mu}{d\eta}\bigg|_{\eta_i^*}}_{\text{scalar}}
+\;\cdot\;
+\underbrace{X_i^{*T}}_{1 \times p}
+$$
+
+The link derivatives for common GLMs:
+
+| Family | Link | $d\mu/d\eta$ | Effect |
+|---|---|---|---|
+| Gaussian | Identity | $1$ | All observations contribute equally |
+| Binomial | Logit | $\mu(1 - \mu)$ | Observations near $\mu = 0.5$ contribute most |
+| Poisson | Log | $\mu$ | Observations with larger means contribute more |
+
+### 2.4 Putting it together: sandwich + delta method
+
+For a **causal risk difference** $\hat\Delta = \hat\mu_1 - \hat\mu_0$:
+
+1. Fit the outcome model → $\hat\beta$ and
+   $V_\beta = \frac{1}{n}\color{#3182BD}{A^{-1}}\color{#E6550D}{B}
+   \color{#3182BD}{(A^{-1})^T}$ (Section 1.4).
+2. Compute $\color{#31A354}{J_1}$ and $\color{#31A354}{J_0}$ (Section 2.3).
+3. Stack into $\color{#31A354}{J} = \binom{J_1}{J_0}$ ($2 \times p$) and
+   compute $\text{Var}(\hat\mu_1, \hat\mu_0) = \color{#31A354}{J} V_\beta
+   \color{#31A354}{J^T}$ ($2 \times 2$).
+4. The variance of the difference is $\text{Var}(\hat\Delta) =
+   \text{Var}(\hat\mu_1) + \text{Var}(\hat\mu_0) -
+   2\text{Cov}(\hat\mu_1, \hat\mu_0)$, all read from the $2 \times 2$ matrix.
+
+::: {.callout-note}
+### Why the covariance matters
+Both $\hat\mu_1$ and $\hat\mu_0$ are functions of the *same* $\hat\beta$, so
+they are correlated. This covariance typically *reduces* the variance of the
+difference. Ignoring it (computing variances separately and adding them) would
+overestimate the SE.
+:::
+
+```{r}
+#| eval: false
+#| code-fold: true
+#| code-summary: "Pseudo-code: delta_method_variance()"
+delta_method_variance <- function(model, data_list, target_idx, V_beta) {
+  beta_hat <- coef(model)
+  pred_terms <- delete.response(terms(model))
+
+  # Compute k × p Jacobian (k = number of interventions)
+  J <- t(vapply(data_list, function(df) {
+    df_t <- df[target_idx, ]
+    X_j <- model.matrix(pred_terms, data = df_t)
+    eta_j <- as.numeric(X_j %*% beta_hat)
+    mu_eta_j <- model$family$mu.eta(eta_j)  # dμ/dη at intervention
+    colMeans(X_j * mu_eta_j)                # (1/n_t) Σ (dμ/dη) X_i*
+  }, numeric(length(beta_hat))))
+
+  # Propagate: Var(μ̂) = J V_β J^T
+  J %*% V_beta %*% t(J)
+}
+```
+
+## 3. Method-specific sandwich estimators
+
+The plug-and-play structure above ("get $V_\beta$, then propagate via
+$\color{#31A354}{J} V_\beta \color{#31A354}{J^T}$") works for any parametric
+model, but the choice of $V_\beta$ depends on the estimation method.
+
+### 3.1 G-computation
+
+The outcome model is a standard GLM fitted on the observed data. The
+Huber–White sandwich from Section 1.4 is used directly:
+
+$$
+V_\beta = \frac{1}{n}\color{#3182BD}{A^{-1}} \color{#E6550D}{B}
+\color{#3182BD}{(A^{-1})^T}
+$$
+
+### 3.2 Inverse probability weighting (IPW)
+
+IPW is more subtle because the estimation pipeline involves *two* models, and
+the uncertainty from the first must propagate into the second.
+
+#### The two-model setup
+
+1. **Propensity score model**: estimate $\hat\alpha$ ($q$-vector) from
+   $\text{logit}[P(A_i = 1 \mid L_i)] = L_i^T \alpha$.
+2. **Weighted outcome model (MSM)**: using the estimated weights $w_i =
+   1/\hat{P}(A_i \mid L_i; \hat\alpha)$, fit $E[Y_i \mid A_i] =
+   g^{-1}(\beta_0 + \beta_1 A_i)$ by weighted regression to get $\hat\beta$
+   ($p$-vector).
+
+The weights $w_i$ depend on $\hat\alpha$, so $\hat\beta$ depends on
+$\hat\alpha$.
+
+#### Why the naive approach fails
+
+A naive sandwich on the outcome model alone — treating the weights as *known
+constants* — ignores the variability in $\hat\alpha$. Each new sample produces
+different $\hat\alpha$, hence different weights, hence different $\hat\beta$.
+The true variability of $\hat\beta$ has two sources:
+
+- **Outcome variability**: randomness in $Y_i$ given fixed weights.
+- **Weight variability**: randomness in $\hat\alpha$ (and hence $w_i$).
+
+The naive sandwich captures only the first. The direction of the bias depends
+on the estimand: for the **ATE**, using estimated (rather than known) propensity
+scores actually *reduces* the asymptotic variance, so the naive sandwich is
+conservative — it **overestimates** the SE (Hirano et al., 2003; Lunceford &
+Davidian, 2004). For the **ATT**, the effect can go either direction.
+
+#### The correct approach: joint M-estimation
+
+Treat both models together as a single M-estimation problem. Define the joint
+parameter $\theta = (\alpha, \beta)$ — a $(q+p)$-vector — and the stacked
+estimating function:
+
+$$
+\underset{(q+p) \times 1}{\Psi(O_i; \theta)} =
+\begin{pmatrix}
+\color{#3182BD}{\psi_\alpha(O_i; \alpha)} \\[4pt]
+\color{#E6550D}{\psi_\beta(O_i; \alpha, \beta)}
+\end{pmatrix}
+$$
+
+where $\color{#3182BD}{\psi_\alpha}$ ($q \times 1$) is the score of the
+propensity model, and $\color{#E6550D}{\psi_\beta}$ ($p \times 1$) is the
+*weighted* score of the outcome model (which depends on $\alpha$ through $w_i$).
+
+The bread matrix $\hat A = -\frac{1}{n}\sum_i
+\frac{\partial\Psi_i}{\partial\theta^T}$ has a block structure:
+
+$$
+\underset{(q+p) \times (q+p)}{\hat{A}} =
+\begin{pmatrix}
+\underset{q \times q}{\color{#3182BD}{A_{\alpha\alpha}}} &
+\underset{q \times p}{0} \\[6pt]
+\underset{p \times q}{\color{#E6550D}{A_{\beta\alpha}}} &
+\underset{p \times p}{\color{#E6550D}{A_{\beta\beta}}}
+\end{pmatrix}
+$$
+
+Each block has a concrete meaning:
+
+- $\color{#3182BD}{A_{\alpha\alpha}}$ ($q \times q$): the Hessian of the
+  propensity model — how $\psi_\alpha$ changes with $\alpha$.
+- $\color{#E6550D}{A_{\beta\beta}}$ ($p \times p$): the weighted Hessian of
+  the outcome model — how $\psi_\beta$ changes with $\beta$.
+- $\color{#E6550D}{A_{\beta\alpha}}$ ($p \times q$): the **cross-term** — how
+  the weighted outcome score changes with $\alpha$. This involves
+  $\frac{\partial w_i}{\partial\alpha^T}$ (how the weights shift when the
+  propensity parameters change). This is the block that captures the dependency.
+- Upper-right = $0$ ($q \times p$): the propensity score does not depend on
+  $\beta$.
+
+The full sandwich $\frac{1}{n}\hat A^{-1}\hat B(\hat A^{-1})^T$ applied to
+the stacked system correctly propagates weight uncertainty into
+$\text{Var}(\hat\beta)$ through the $A_{\beta\alpha}$ block.
+
+::: {.callout-tip}
+### In practice
+`WeightIt::glm_weightit()` fits the stacked system and its `vcov()` method
+returns the M-estimation sandwich that accounts for weight uncertainty.
+:::
+
+### 3.3 Matching
+
+After matching, the outcome model is fitted on the matched sample. Matched
+individuals within the same subclass (pair or stratum) are correlated — they
+were selected together. The standard sandwich (which assumes independence)
+would understate the meat.
+
+The **cluster-robust** sandwich accounts for this. The bread
+$\color{#3182BD}{A}$ is unchanged, but the meat sums scores *within* each
+subclass before squaring:
+
+$$
+V_\beta = \color{#3182BD}{A^{-1}}
+\;\color{#E6550D}{B_{\text{CL}}}\;
+\color{#3182BD}{(A^{-1})^T}
+$$
+
+where:
+
+$$
+\color{#E6550D}{B_{\text{CL}}} = \frac{1}{n}\sum_{c=1}^C
+\bar\psi_c \, \bar\psi_c^T,
+\qquad \bar\psi_c = \sum_{i \in \text{subclass } c} \psi_i
+\qquad (p \times 1)
+$$
+
+Squaring the summed scores (rather than summing the squared scores) allows
+within-cluster correlations to inflate the meat.
+
+## 4. Influence functions
+
+### 4.1 The idea: how much does each observation matter?
+
+Imagine removing observation $i$ from the dataset and re-estimating
+$\hat\theta$. The change $\hat\theta_{(-i)} - \hat\theta$ tells you how much
+observation $i$ "influenced" the estimate. The **influence function** (IF) is
+the first-order approximation to this quantity, scaled by $n$:
+
+$$
+\text{IF}_i \approx -n(\hat\theta_{(-i)} - \hat\theta)
+$$
+
+But we do not need to actually refit the model $n$ times. For M-estimators,
+the IF can be computed in closed form.
+
+### 4.2 Deriving the IF from the linearisation
+
+In Section 1.4, Step 1, we derived the linearisation:
+
+$$
+\underset{p \times 1}{\hat\beta - \beta_0}
+\;\approx\;
+\frac{1}{n}\sum_{i=1}^n
+\underset{p \times p}{\color{#3182BD}{A^{-1}}}
+\;\;
+\underset{p \times 1}{\psi(O_i; \beta_0)}
+$$
+
+Each summand $\color{#3182BD}{A^{-1}}\psi_i$ is the contribution of
+observation $i$ to the total estimation error. This is exactly the **influence
+function**:
+
+$$
+\underset{p \times 1}{\text{IF}_i}
+\;=\;
+\underset{p \times p}{\color{#3182BD}{A^{-1}}}
+\;\cdot\;
+\underset{p \times 1}{\psi(O_i; \hat\beta)}
+$$ {#eq-if}
+
+Reading each factor:
+
+- $\psi_i$ ($p \times 1$): the score from Section 1.2 — how much observation
+  $i$'s data "disagrees" with the current $\hat\beta$.
+- $\color{#3182BD}{A^{-1}}$ ($p \times p$): the bread inverse from Section
+  1.4 — converts from score-space to parameter-space, accounting for curvature.
+- $\text{IF}_i$ ($p \times 1$): the resulting shift in $\hat\beta$ attributable
+  to observation $i$ (times $n$).
+
+No new derivation is needed. The IF *is* the linearisation, read term-by-term.
+
+### 4.3 Two properties that make IFs useful
+
+**Property 1: Linearisation.** The IF lets us write a complex estimator as a
+simple average:
+
+$$
+\hat\beta - \beta_0 \approx \frac{1}{n}\sum_i \text{IF}_i
+$$
+
+**Property 2: Variance recovery.** Since $E[\text{IF}_i] = 0$:
+
+$$
+\text{Var}(\hat\beta) \approx
+\frac{1}{n^2}\sum_i \text{IF}_i \, \text{IF}_i^T
+$$
+
+Expanding $\text{IF}_i \text{IF}_i^T = \color{#3182BD}{A^{-1}} \psi_i
+\psi_i^T \color{#3182BD}{(A^{-1})^T}$ and factoring:
+
+$$
+\frac{1}{n^2}\sum_i \color{#3182BD}{A^{-1}} \psi_i\psi_i^T
+\color{#3182BD}{(A^{-1})^T}
+= \frac{1}{n} \color{#3182BD}{A^{-1}}
+\underbrace{\frac{1}{n}\sum_i \psi_i\psi_i^T}_
+{\color{#E6550D}{B}\text{ (the meat)}}
+\color{#3182BD}{(A^{-1})^T}
+$$
+
+This is the sandwich from Section 1.4.
+
+::: {.callout-note}
+### The key equivalence
+$$
+\underbrace{\frac{1}{n^2}\sum_i \text{IF}_i\,\text{IF}_i^T}_
+{\text{IF-based variance}}
+\;=\;
+\underbrace{\frac{1}{n}\,\color{#3182BD}{A^{-1}}\,\color{#E6550D}{B}\,
+\color{#3182BD}{(A^{-1})^T}}_{\text{sandwich variance}}
+$$ {#eq-if-sandwich}
+
+The sandwich operates on matrices. The IF operates on per-individual vectors.
+Same answer, different representation.
+:::
+
+### 4.4 Example: IF for a sample mean
+
+$\hat\mu = \frac{1}{n}\sum_i Y_i$. Estimating equation: $\psi(O_i; \mu)
+= Y_i - \mu$. Bread: $A = 1$. IF: $\text{IF}_i = Y_i - \hat\mu$. Variance:
+$\frac{1}{n^2}\sum_i(Y_i - \hat\mu)^2 = s^2/n$.
+
+### 4.5 Example: IF for g-computation (the two-channel derivation)
+
+The g-computation marginal mean is a **two-step** estimator: first estimate
+$\hat\beta$, then compute $\hat\mu_a = \frac{1}{n}\sum_i g^{-1}(X_i^{*T}
+\hat\beta)$. Individual $i$ affects $\hat\mu_a$ through two channels.
+
+#### Channel 1: Direct contribution
+
+Even if $\hat\beta$ were fixed, observation $i$'s prediction
+$g^{-1}(X_i^{*T}\hat\beta)$ is one of the $n$ terms being averaged:
+
+$$
+\text{IF}_i^{\text{direct}} = g^{-1}(X_i^{*T}\hat\beta) - \hat\mu_a
+\qquad (\text{scalar})
+$$
+
+#### Channel 2: Indirect contribution (via $\hat\beta$)
+
+Observation $i$ shifts $\hat\beta$ by approximately $\frac{1}{n}
+\color{#3182BD}{A^{-1}}\psi_i$ (from Section 4.2). This shift changes
+$\hat\mu_a$ by:
+
+$$
+\delta\hat\mu_a \;\approx\;
+\underset{1 \times p}{\color{#31A354}{J_a}}
+\;\cdot\;
+\underset{p \times 1}{\frac{1}{n}\color{#3182BD}{A^{-1}}\psi_i}
+$$
+
+where $\color{#31A354}{J_a}$ ($1 \times p$) is the Jacobian from Section 2.3.
+
+#### Combining both channels
+
+$$
+\text{IF}_i(\hat\mu_a) =
+\underbrace{g^{-1}(X_i^{*T}\hat\beta) - \hat\mu_a}_
+{\text{Channel 1 (scalar)}}
+\;+\;
+\underbrace{
+\underset{1 \times p}{\color{#31A354}{J_a}}
+\;\;
+\underset{p \times p}{\color{#3182BD}{A^{-1}}}
+\;\;
+\underset{p \times 1}{\psi_i}
+}_{\text{Channel 2 (scalar)}}
+$$ {#eq-if-gcomp}
+
+**Why two channels matter**: Channel 1 alone would treat $\hat\beta$ as fixed
+— ignoring estimation uncertainty. Channel 2 adds the uncertainty propagated
+from the model fit. This is the $\color{#31A354}{J} V_\beta
+\color{#31A354}{J^T}$ term from Section 2, now expressed per-individual.
+
+### 4.6 Why influence functions matter for multi-model estimators
+
+For a **single-model** estimator, the IF is equivalent to
+$\color{#31A354}{J} V_\beta \color{#31A354}{J^T}$ — useful but not essential.
+IFs become necessary for **multi-model** estimators:
+
+1. **Compositional**: IFs from different models can be *summed* to get the
+   total IF. No large joint covariance matrix needed.
+2. **Covariance for free**: $\text{Cov}(\hat\mu_a, \hat\mu_b)
+   = \frac{1}{n^2}\sum_i \text{IF}_i^{(a)} \cdot \text{IF}_i^{(b)}$.
+3. **Diagnostics**: large $|\text{IF}_i|$ flags influential observations.
+
+## 5. Influence functions for chained estimators
+
+### 5.1 The chain rule for influence functions
+
+Section 4.5 derived the IF for a two-step estimator (fit $\hat\beta$, then
+compute $\hat\mu_a$). The result had two channels: a direct term and a model
+correction via $\color{#31A354}{J_a}\color{#3182BD}{A^{-1}}\psi_i$.
+
+What happens with **multiple models in a chain**, where each model's response
+is a prediction from the next? The same logic applies recursively. If
+$\hat\mu = f(\hat\beta_0, \hat\beta_1, \ldots, \hat\beta_K)$ and each
+$\hat\beta_k$ is an M-estimator with bread $\color{#3182BD}{A_k}$ and score
+$\psi_k$, the IF of $\hat\mu$ is (Hampel et al., 1986; Huber, 1981):
+
+$$
+\text{IF}_i(\hat\mu)
+\;=\;
+\text{IF}_i^{\text{direct}}
+\;+\;
+\sum_{k=0}^{K}
+\frac{\partial \hat\mu}{\partial \hat\beta_k^T}
+\;\cdot\;
+\color{#3182BD}{A_k^{-1}} \; \psi_k(O_i; \hat\beta_k)
+$$ {#eq-if-chain}
+
+Each term in the sum is a "Channel 2" from Section 4.5 applied to model $k$:
+the Jacobian $\partial\hat\mu/\partial\hat\beta_k^T$ (how $\hat\mu$ depends on
+model $k$) times the IF of model $k$'s parameters
+($\color{#3182BD}{A_k^{-1}}\psi_{k,i}$).
+
+::: {.callout-note}
+### Connections to other frameworks
+This IF-based approach is equivalent to:
+
+1. **Stacked estimating equations** (Stefanski & Boos, 2002; Zivich et al.,
+   2024): concatenate all models' estimating equations and apply the generic
+   sandwich to the full stack.
+2. **Semiparametric efficiency theory** (Tsiatis, 2006): derive the efficient
+   influence function (EIF) and project onto the parametric model.
+
+All yield the same variance estimate.
+:::
+
+### 5.2 ICE g-computation: the motivating example
+
+Iterated conditional expectation (ICE) g-computation estimates the
+counterfactual mean under a treatment strategy in longitudinal data (Robins,
+1986; Bang & Robins, 2005; Zivich et al., 2024). It fits $K+1$ outcome models
+backward in time:
+
+```{mermaid}
+%%| label: fig-ice-chain
+%%| fig-cap: "ICE backward iteration. Models are fit from final time to baseline. Each model's predictions become the next model's response."
+flowchart RL
+  MK["Model K (final time)<br/>Fit: E[Y | A_K, H_K]<br/>Predict → Ỹ_K"] -->|"Ỹ_K becomes<br/>response for"| MK1["Model K-1<br/>Fit: E[Ỹ_K | A_{K-1}, H_{K-1}]<br/>Predict → Ỹ_{K-1}"]
+  MK1 -->|"Ỹ_{K-1} becomes<br/>response for"| Mdots["⋯"]
+  Mdots -->|"response for"| M0["Model 0 (baseline)<br/>Fit: E[Ỹ_1 | A_0, H_0]<br/>Predict → Ỹ_0"]
+  M0 -->|"average"| MU["μ̂ = mean(Ỹ_0)"]
+
+  style MK fill:#f0f4ff,stroke:#3182BD
+  style MK1 fill:#f0f4ff,stroke:#3182BD
+  style M0 fill:#f0f4ff,stroke:#3182BD
+  style MU fill:#e8f5e9,stroke:#31A354
+```
+
+Each model's response ($\tilde{Y}_k$) is a *prediction* from the next model in
+the chain. This creates a cascade of dependencies.
+
+### 5.3 Why naive approaches fail
+
+**Naive 1: Variance of pseudo-outcomes only.** Uses only Channel 1 — ignores
+all model correction terms.
+
+**Naive 2: $\color{#31A354}{J}V_\beta\color{#31A354}{J^T}$ from model 0
+only.** Captures Channel 2 for model 0 but ignores models $1, \ldots, K$.
+
+**Correct: Full IF chain.** Account for all $K+1$ models via the chain rule.
+
+### 5.4 Deriving the IF for chained models
+
+#### The IF decomposition
+
+Applying the chain rule (Section 5.1):
+
+$$
+\text{IF}_i
+= \underbrace{\frac{1}{n_t}(\tilde{Y}_{0,i} - \hat\mu)}_{\text{Channel 1}}
++ \sum_{k=0}^{K}
+\underbrace{
+\color{#E6550D}{d_{k,i}} \cdot r_{k,i}
+}_{\text{Channel 2 for model } k}
+$$ {#eq-if-ice}
+
+where $r_{k,i} = Y_{k,i} - \hat{Y}_{k,i}$ is individual $i$'s residual at
+model $k$, and $\color{#E6550D}{d_{k,i}}$ is the **sensitivity** — how much a
+perturbation at model $k$ propagates to $\hat\mu$.
+
+#### What the sensitivities measure
+
+Each model correction requires a **sensitivity** $\color{#E6550D}{d_{k,i}}$: a
+scalar that answers "if individual $i$'s residual at model $k$ increased by one
+unit, how much would $\hat\mu$ change?" Computing $\color{#E6550D}{d_{k,i}}$
+takes three steps, each with a clear role:
+
+1. **Gradient** $g_k$ ($p_k \times 1$): the total sensitivity of $\hat\mu$ to
+   model $k$'s coefficient vector $\beta_k$. This is a Jacobian — the same
+   object as $\color{#31A354}{J_a}$ from Section 2.3, but computed recursively
+   for $k > 0$.
+2. **Solve** $h_k = (X_k^T W_k X_k)^{-1} g_k$ ($p_k \times 1$): convert from
+   "how $\hat\mu$ responds to $\beta_k$" to "how $\hat\mu$ responds to
+   individual score contributions." This is the bread inverse
+   $\color{#3182BD}{A_k^{-1}}$ applied to $g_k$.
+3. **Distribute** $\color{#E6550D}{d_{k,i}} = h_k^T X_{k,i}$ (scalar): project
+   onto individual $i$'s covariate vector to get their personal sensitivity.
+
+#### Base case: model 0
+
+$\hat\mu$ is a direct average of model 0's predictions. The gradient of
+$\hat\mu$ w.r.t. $\beta_0$ is therefore the Jacobian from Section 2.3:
+
+$$
+\underset{p_0 \times 1}{g_0}
+= \frac{1}{n_t}\sum_{j \in \text{target}}
+\frac{d\mu}{d\eta}\bigg|_{\eta_{0,j}^*}
+\;\cdot\; X_{0,j}^*
+$$
+
+$g_0$ tells us the total sensitivity of $\hat\mu$ to $\beta_0$, but the IF
+requires a per-individual quantity. We need to ask: "of the total shift in
+$\hat\beta_0$ caused by the data, how much came from individual $i$?" The
+answer uses two facts: (a) individual $i$'s influence on $\hat\beta_0$ is
+proportional to their score $\psi_{0,i}$, which is proportional to $r_{0,i}
+\cdot X_{0,i}$; and (b) the constant of proportionality involves the bread
+inverse $(X_0^T W_0 X_0)^{-1}$. Combining:
+
+$$
+h_0 = \underbrace{(X_0^T W_0 X_0)^{-1}}_{\text{bread inverse}} g_0,
+\qquad
+\color{#E6550D}{d_{0,i}} = h_0^T X_{0,i}
+$$
+
+Now $\color{#E6550D}{d_{0,i}} \cdot r_{0,i}$ gives individual $i$'s Channel 2
+contribution: their residual $r_{0,i}$ (how much their data "disagrees" with
+model 0) scaled by $\color{#E6550D}{d_{0,i}}$ (how much that disagreement
+matters for $\hat\mu$). This is equivalent to
+$\color{#31A354}{J_0}\color{#3182BD}{A_0^{-1}}\psi_{0,i}$ from Section 4.5,
+factored into the three steps above.
+
+#### Recursive case: model $k = 1, \ldots, K$
+
+Model $k$ does not feed into $\hat\mu$ directly. Instead, model $k$'s
+predictions become model $k-1$'s pseudo-outcomes (response variable). We already
+know how sensitive $\hat\mu$ is to each of those pseudo-outcomes — that is
+$\color{#E6550D}{d_{k-1,j}}$ from the previous step.
+
+The gradient of $\hat\mu$ w.r.t. $\beta_k$ therefore weights each individual's
+contribution by the previously-computed sensitivity:
+
+$$
+\underset{p_k \times 1}{g_k}
+= \sum_{j \in \text{fit}_{k-1}}
+\color{#E6550D}{d_{k-1,j}}
+\;\cdot\;
+\frac{d\mu}{d\eta}\bigg|_{\eta_{k,j}^*}
+\;\cdot\; X_{k,j}^*
+$$
+
+Compare this to $g_0$: the uniform weight $\frac{1}{n_t}$ over the target
+population is replaced by $\color{#E6550D}{d_{k-1,j}}$ over the previous
+model's fitting set. Everything else — solve and distribute — is identical:
+
+$$
+h_k = (X_k^T W_k X_k)^{-1} g_k,
+\qquad
+\color{#E6550D}{d_{k,i}} = h_k^T X_{k,i}
+$$
+
+### 5.5 Scaling: the factor of $n$
+
+Each model correction involves $\color{#3182BD}{A_k^{-1}}$. Since
+$\color{#3182BD}{A_k} = \frac{1}{n_k} X_k^T W_k X_k$, we have
+$\color{#3182BD}{A_k^{-1}} = n_k(X_k^T W_k X_k)^{-1}$. So the correction at
+step $k$ is:
+
+$$
+n_k \cdot \color{#E6550D}{d_{k,i}} \cdot r_{k,i}
+$$
+
+The factor $n_k$ ensures each IF contribution is $O(1)$ per individual, giving
+the correct $\text{Var}(\hat\mu) = O(1/n)$.
+
+::: {.callout-warning}
+### A common bug
+Omitting $n_k$ makes each correction $O(1/n)$, yielding $\text{Var} = O(1/n^3)$
+— confidence intervals that are much too narrow.
+:::
+
+### 5.6 Pseudo-code: IF for a chained estimator
+
+```{r}
+#| eval: false
+#| code-fold: true
+#| code-summary: "Pseudo-code: chained_influence()"
+chained_influence <- function(models, data_iv, target) {
+  n <- number_of_individuals
+  K <- length(models) - 1
+  mu_hat <- mean(pseudo_final[target])
+  n_target <- sum(target)
+
+  IF <- rep(0, n)
+  IF[target] <- (pseudo_final[target] - mu_hat) / n_target  # Channel 1
+
+  d <- rep(0, n)  # sensitivities from previous step
+
+  for (step in 0:K) {
+    model_k <- models[[step + 1]]
+    X_k <- model.matrix(model_k)         # fitting design matrix
+    r_k <- residuals(model_k)            # r_{k,i}
+    W_k <- working_weights(model_k)
+    fit_ids_k <- model_k$fitting_ids
+    n_k <- length(fit_ids_k)
+
+    # Intervention design matrix and link derivatives (dμ/dη)
+    X_star_k <- model.matrix(model_k, newdata = intervention_data[[step + 1]])
+    eta_star <- X_star_k %*% coef(model_k)
+    mu_eta_star <- model_k$family$mu.eta(eta_star)
+
+    # Step 1 — Gradient: g_k = ∂μ̂/∂β_k
+    if (step == 0) {
+      g_k <- crossprod(X_star_k[target, ], mu_eta_star[target]) / n_target
+    } else {
+      prev_ids <- models[[step]]$fitting_ids
+      g_k <- crossprod(X_star_k[prev_ids, ], d[prev_ids] * mu_eta_star[prev_ids])
+    }
+
+    # Step 2 — Solve: h_k = (X'WX)^{-1} g_k
+    h_k <- solve(crossprod(X_k, X_k * W_k)) %*% g_k
+
+    # Step 3 — Distribute: d_{k,i} = h_k' X_{k,i}
+    d <- rep(0, n)
+    d[fit_ids_k] <- X_k %*% h_k
+
+    # Channel 2 for model k: n_k * d_{k,i} * r_{k,i} (Section 5.5 for n_k)
+    r_vec <- rep(0, n)
+    r_vec[fit_ids_k] <- r_k
+    IF <- IF + n_k * d * r_vec
+  }
+  IF
+}
+```
+
+### 5.7 From individual IFs to the variance
+
+Once we have the per-individual $\text{IF}_i$ from the recursion above, variance
+estimation follows from the same identity as Section 4.3 (Property 2):
+
+$$
+\widehat{\text{Var}}(\hat\mu)
+= \frac{1}{n^2}\sum_{i=1}^n \text{IF}_i^2
+$$
+
+For two interventions $a$ and $b$ on the same data:
+
+$$
+\widehat{\text{Cov}}(\hat\mu_a, \hat\mu_b)
+= \frac{1}{n^2}\sum_{i=1}^n \text{IF}_i^{(a)} \cdot \text{IF}_i^{(b)}
+$$
+
+The full $k \times k$ covariance matrix is then used for contrasts as in
+Section 2.
+
+## 6. Summary
+
+1. **M-estimation**: any root-of-sum estimator has a sandwich variance.
+2. **The sandwich** $\color{#3182BD}{A^{-1}}\color{#E6550D}{B}
+   \color{#3182BD}{(A^{-1})^T}$: robust to variance misspecification.
+3. **Delta method**: propagates parameter variance to functionals via
+   $\color{#31A354}{J}V_\beta\color{#31A354}{J^T}$.
+4. **Influence functions**: per-individual decomposition; $\frac{1}{n^2}\sum
+   \text{IF}_i^2$ = sandwich variance.
+5. **Chained estimators**: the IF chain rule propagates uncertainty through
+   multi-model pipelines. Ignoring upstream models underestimates variance.
+6. **Equivalent frameworks**: direct IF, stacked estimating equations
+   (Stefanski & Boos, 2002; Zivich et al., 2024), semiparametric EIF
+   (Tsiatis, 2006).
+
+## References
+
+- Bang H, Robins JM (2005). Doubly robust estimation in missing data and
+  causal inference models. *Biometrics* 61:962–973.
+- Hampel FR, Ronchetti EM, Rousseeuw PJ, Stahel WA (1986). *Robust
+  Statistics: The Approach Based on Influence Functions*. Wiley.
+- Hirano K, Imbens GW, Ridder G (2003). Efficient estimation of average
+  treatment effects using the estimated propensity score.
+  *Econometrica* 71:1161–1189.
+- Hernán MA, Robins JM (2025). *Causal Inference: What If*.
+  Chapman & Hall/CRC.
+- Huber PJ (1967). The behavior of maximum likelihood estimates under
+  nonstandard conditions. *Proceedings of the Fifth Berkeley Symposium*
+  1:221–233.
+- Huber PJ (1981). *Robust Statistics*. Wiley.
+- Lunceford JK, Davidian M (2004). Stratification and weighting via the
+  propensity score in estimation of causal treatment effects: a comparative
+  study. *Statistics in Medicine* 23:2937–2960.
+- Robins JM (1986). A new approach to causal inference in mortality studies
+  with a sustained exposure period. *Mathematical Modelling* 7:1393–1512.
+- Stefanski LA, Boos DD (2002). The calculus of M-estimation.
+  *The American Statistician* 56:29–38.
+- Tsiatis AA (2006). *Semiparametric Theory and Missing Data*. Springer.
+- van der Laan MJ, Robins JM (2003). *Unified Methods for Censored
+  Longitudinal Data and Causality*. Springer.
+- White H (1980). A heteroskedasticity-consistent covariance matrix estimator
+  and a direct test for heteroskedasticity. *Econometrica* 48:817–838.
+- White H (1982). Maximum likelihood estimation of misspecified models.
+  *Econometrica* 50:1–25.
+- Zeileis A (2004). Econometric computing with HC and HAC covariance matrix
+  estimators. *Journal of Statistical Software* 11(10):1–17.
+- Zeileis A (2006). Object-oriented computation of sandwich estimators.
+  *Journal of Statistical Software* 16(9):1–16.
+- Zivich PN, Klose M, Cole SR, Edwards JK, Shook-Sa BE (2022).
+  Delicatessen: a Python package for the generalized computation of the
+  sandwich estimator. *arXiv preprint* arXiv:2203.11300.
+- Zivich PN, Ross RK, Shook-Sa BE, Cole SR, Edwards JK (2024). Empirical
+  sandwich variance estimator for iterated conditional expectation
+  g-computation. *Statistics in Medicine* 43:5562–5572.
