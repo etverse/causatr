@@ -166,7 +166,12 @@ ice_compute_influence <- function(fit, ice_result, target) {
   n <- length(all_ids)
   id_to_idx <- stats::setNames(seq_len(n), all_ids)
 
-  # Resolve observation weights for the direct IF term.
+  # Direct IF term: IF_i = -A_mu^{-1} psi_mu,i.
+  # The n/n_target (or n/sum_w) factor arises from A_mu^{-1} = -n/n_t.
+  # This ensures the direct term has the same O(1) scaling as the model
+  # correction terms (which carry the factor via g_k and the n * d * r
+  # multiplication below). Without it, variance is underestimated by
+  # (n_target/n)^2 when target is a proper subset.
   ext_w <- fit$details$weights
   has_weights <- !is.null(ext_w)
   if (has_weights) {
@@ -174,11 +179,11 @@ ice_compute_influence <- function(fit, ice_result, target) {
     w_target <- ifelse(target, w_first, 0)
     sum_w_target <- sum(w_target)
     mu_hat <- sum(w_target * pseudo_final) / sum_w_target
-    IF_vec <- (w_target / sum_w_target) * (pseudo_final - mu_hat)
+    IF_vec <- n * (w_target / sum_w_target) * (pseudo_final - mu_hat)
   } else {
     n_target <- sum(target)
     mu_hat <- mean(pseudo_final[target], na.rm = TRUE)
-    IF_vec <- ifelse(target, pseudo_final - mu_hat, 0)
+    IF_vec <- (n / n_target) * ifelse(target, pseudo_final - mu_hat, 0)
   }
 
   # Sensitivity vector d (length n), reused across steps.
@@ -278,20 +283,21 @@ ice_compute_influence <- function(fit, ice_result, target) {
       # g_k = Σ_{j ∈ model_{k-1}} d_{k-1,j} × dμ/dη × X^*_{k,j}.
       prev_fit_ids <- fit_ids_list[[step_i - 1L]]
 
-      g_k <- rep(0, p_k)
-      for (pid in prev_fit_ids) {
-        idx_in_all <- id_to_idx[pid]
-        if (is.na(idx_in_all) || d_vec[idx_in_all] == 0) {
-          next
-        }
-        row_in_iv <- match(pid, iv_ids_current)
-        if (is.na(row_in_iv)) {
-          next
-        }
-        g_k <- g_k +
-          d_vec[idx_in_all] *
-            mu_eta_star[row_in_iv] *
-            X_star_k[row_in_iv, ]
+      idx_in_all <- id_to_idx[prev_fit_ids]
+      rows_in_iv <- match(prev_fit_ids, iv_ids_current)
+      d_prev <- d_vec[idx_in_all]
+
+      keep <- !is.na(idx_in_all) & !is.na(rows_in_iv) & d_prev != 0
+      if (any(keep)) {
+        weights_g <- d_prev[keep] * mu_eta_star[rows_in_iv[keep]]
+        g_k <- as.numeric(
+          crossprod(
+            X_star_k[rows_in_iv[keep], , drop = FALSE],
+            weights_g
+          )
+        )
+      } else {
+        g_k <- rep(0, p_k)
       }
     }
 

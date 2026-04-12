@@ -25,10 +25,29 @@
 #' @seealso [coef.causatr_result()], [contrast()]
 #' @export
 confint.causatr_result <- function(object, parm, level = 0.95, ...) {
-  int_names <- object$estimates$intervention
   alpha <- (1 - level) / 2
 
-  if (!is.null(object$boot_t) && !is.list(object$boot_t)) {
+  # Stratified bootstrap: boot_t is a named list keyed by by-level.
+  # Iterate in estimates order (not boot_t insertion order) to guarantee
+  # CI rows align with estimates rows.
+  if (!is.null(object$boot_t) && is.list(object$boot_t)) {
+    n_int <- length(unique(object$estimates$intervention))
+    by_levels <- unique(object$estimates$by)
+    ci_list <- lapply(by_levels, function(lev) {
+      bt <- object$boot_t[[as.character(lev)]]
+      if (is.null(bt) || nrow(bt) < 2L) {
+        na_row <- matrix(NA_real_, nrow = n_int, ncol = 2)
+        colnames(na_row) <- c("lower", "upper")
+        return(na_row)
+      }
+      ci_lev <- t(apply(bt, 2, stats::quantile,
+        probs = c(alpha, 1 - alpha), na.rm = TRUE
+      ))
+      colnames(ci_lev) <- c("lower", "upper")
+      ci_lev
+    })
+    ci <- do.call(rbind, ci_list)
+  } else if (!is.null(object$boot_t) && is.matrix(object$boot_t)) {
     ci <- t(apply(object$boot_t, 2, stats::quantile,
       probs = c(alpha, 1 - alpha), na.rm = TRUE
     ))
@@ -42,6 +61,6 @@ confint.causatr_result <- function(object, parm, level = 0.95, ...) {
       upper = est + z * se
     )
   }
-  rownames(ci) <- int_names
+  rownames(ci) <- object$estimates$intervention
   ci
 }
