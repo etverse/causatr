@@ -103,7 +103,7 @@ fit_gcomp <- function(
 #'   - `data`: the full (unfitted) dataset for use in `contrast()`.
 #'   - `details$fit_rows`: logical vector (length `nrow(data)`) flagging which
 #'     rows were used to fit the model. Needed by `variance_if()` /
-#'     `correct_model()` to map the `n_fit`-length score matrix back to the
+#'     `prepare_model_if()` to map the `n_fit`-length score matrix back to the
 #'     `n`-length dataset.
 #'
 #' @noRd

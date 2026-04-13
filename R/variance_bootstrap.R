@@ -11,12 +11,19 @@
 #'   successful replicates).
 #' @noRd
 process_boot_results <- function(boot_res, int_names, n_boot) {
+  # `boot_res$t` is an (R x k) matrix of statistics. Failed replicates
+  # are flagged by NA rows (each per-rep function wraps its body in
+  # tryCatch and returns `rep(NA_real_, k)` on error), so
+  # `complete.cases()` identifies the usable ones.
   t_mat <- boot_res$t
   complete_rows <- stats::complete.cases(t_mat)
   n_ok <- sum(complete_rows)
   n_fail <- n_boot - n_ok
 
   if (n_ok < 2L) {
+    # With fewer than 2 successful replicates the sample variance is
+    # undefined. Return a NA vcov so downstream `sqrt(diag(.))` yields
+    # NA SE rather than a misleading zero.
     rlang::warn(
       "Bootstrap produced fewer than 2 non-NA replicates; SE estimates will be NA."
     )
@@ -28,6 +35,12 @@ process_boot_results <- function(boot_res, int_names, n_boot) {
   } else {
     if (n_fail > 0L) {
       pct <- round(100 * n_fail / n_boot, 1)
+      # Two different warnings for the same problem — the 20%
+      # threshold is an ad-hoc "this is getting bad" line. High
+      # failure rates usually mean a fragile pipeline (e.g. factor
+      # levels absent from some resamples), and the resulting SEs
+      # are biased because the successful replicates aren't a
+      # random sample of the sampling distribution.
       if (pct > 20) {
         rlang::warn(paste0(
           n_fail,
@@ -52,6 +65,8 @@ process_boot_results <- function(boot_res, int_names, n_boot) {
         ))
       }
     }
+    # The bootstrap vcov is just the sample covariance of the
+    # successful replicates (Davison & Hinkley 1997, §2.5.3).
     vcov_mat <- stats::var(t_mat[complete_rows, , drop = FALSE])
   }
 
@@ -330,8 +345,13 @@ ice_variance_bootstrap <- function(
   boot_fn <- function(ids, indices) {
     sampled_ids <- ids[indices]
 
-    # When an individual is sampled k > 1 times, create k copies with
-    # distinct IDs. Weights are reconstructed in lockstep.
+    # Cluster bootstrap trickiness: when an individual is sampled
+    # multiple times, we can't just include k copies of their rows
+    # under the same `id` — downstream ICE code would treat them as
+    # one individual with duplicate rows at each time point. Instead
+    # we clone the rows AND assign fresh integer IDs so the ICE
+    # recursion sees them as distinct people. Weights are cloned in
+    # the same order so they align.
     id_counts <- table(sampled_ids)
     d_b_list <- vector("list", length(sampled_ids))
     w_b_list <- if (!is.null(orig_weights)) {
@@ -345,6 +365,9 @@ ice_variance_bootstrap <- function(
       sub_w <- if (!is.null(orig_weights)) orig_weights[orig_rows]
       for (cc in seq_len(n_copies)) {
         new_id <- new_id + 1L
+        # Deep copy + ID reassignment. Without `copy()` the mutation
+        # would leak into the shared `sub` across iterations of the
+        # inner loop and corrupt earlier entries of `d_b_list`.
         sub_copy <- data.table::copy(sub)
         sub_copy[, (id_col) := new_id]
         d_b_list[[new_id]] <- sub_copy

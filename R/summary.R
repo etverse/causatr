@@ -67,7 +67,16 @@ summary.causatr_fit <- function(object, ...) {
 #' @seealso [print.causatr_result()], [contrast()]
 #' @export
 summary.causatr_result <- function(object, ...) {
+  # Start with the standard print() header + estimates/contrasts tables.
   print(object)
+
+  # Then append per-intervention detail lines. Three shapes to
+  # handle, matching the constructors in R/interventions.R:
+  #   - NULL                 -> "natural course (NULL)"
+  #   - causatr_intervention -> "type, p1 = v1, p2 = v2, ..."
+  # Multivariate treatment interventions (named list of sub-interventions)
+  # are not expanded here — they'd clutter the output; users can
+  # inspect `object$interventions` directly for that detail.
   cat("\nIntervention details:\n")
   for (nm in names(object$interventions)) {
     iv <- object$interventions[[nm]]
@@ -75,6 +84,9 @@ summary.causatr_result <- function(object, ...) {
       cat("  ", nm, ": natural course (NULL)\n", sep = "")
     } else if (inherits(iv, "causatr_intervention")) {
       cat("  ", nm, ": ", iv$type, sep = "")
+      # Drop the type slot (already printed) and list remaining
+      # params. Function-valued params (dynamic rule closures) get
+      # a placeholder rather than a cryptic environment dump.
       params <- iv[names(iv) != "type"]
       for (p in names(params)) {
         if (!is.function(params[[p]])) {
@@ -86,6 +98,8 @@ summary.causatr_result <- function(object, ...) {
       cat("\n")
     }
   }
+  # Finally, the full vcov matrix — useful for hand-computing custom
+  # linear contrasts beyond the pairwise ones in `object$contrasts`.
   cat("\nVariance-covariance matrix of marginal means:\n")
   print(object$vcov, digits = 6)
   invisible(object)

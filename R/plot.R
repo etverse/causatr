@@ -25,11 +25,22 @@ plot.causatr_result <- function(x, which = c("contrasts", "means"), ...) {
   check_pkg("forrest")
   which <- rlang::arg_match(which)
 
+  # Three contextual choices drive the plot:
+  #   (a) `by` column present -> section the forest plot by subgroup
+  #   (b) binary outcome      -> label axes "Risk" instead of "Mean"
+  #   (c) contrast type       -> reference line at 0 (diff) or 1 (ratio/OR)
+  #                              and log-scale axis for ratios/ORs
+  # These are all derivable from the stored result slots rather than
+  # requiring the caller to pass format flags.
   has_by <- "by" %in% names(x$estimates)
   is_binary_outcome <- is_binary_family(x$family)
   outcome_noun <- if (is_binary_outcome) "Risk" else "Mean"
 
   if (which == "contrasts") {
+    # Contrast plot: one row per pairwise comparison. Reference
+    # line at 0 for differences, 1 for ratios/ORs — that's the
+    # "no effect" value on each scale. Log axis for ratios keeps
+    # symmetric multiplicative effects visually balanced.
     dt <- as.data.frame(x$contrasts)
     label_col <- "comparison"
     xlab <- switch(
@@ -42,6 +53,8 @@ plot.causatr_result <- function(x, which = c("contrasts", "means"), ...) {
     log_scale <- x$type %in% c("ratio", "or")
     header <- "Contrast"
   } else {
+    # Means plot: one row per intervention, on the absolute scale
+    # (no reference line, no log axis).
     dt <- as.data.frame(x$estimates)
     label_col <- "intervention"
     xlab <- paste0(outcome_noun, " (95% CI)")
@@ -71,6 +84,9 @@ plot.causatr_result <- function(x, which = c("contrasts", "means"), ...) {
   }
   default_title <- paste0(method_label, type_label, ", ", x$estimand)
 
+  # Assemble forrest() arguments. We build a named list so callers
+  # can override any default via `...` without us needing to
+  # explicitly enumerate every forrest argument here.
   forrest_args <- list(
     data = dt,
     estimate = "estimate",
@@ -85,6 +101,8 @@ plot.causatr_result <- function(x, which = c("contrasts", "means"), ...) {
     stripe = nrow(dt) > 1L
   )
 
+  # Optional params added only when relevant — adding NULL would
+  # trigger `match.arg`-style errors in some forrest versions.
   if (!is.null(ref_line)) {
     forrest_args$ref_line <- ref_line
   }
@@ -93,6 +111,9 @@ plot.causatr_result <- function(x, which = c("contrasts", "means"), ...) {
     forrest_args$section <- "by"
   }
 
+  # Late-bind user overrides. Anything passed in `...` overwrites
+  # the defaults we just set — this is the standard "plot with
+  # sensible defaults but let the user customize" pattern.
   dots <- list(...)
   forrest_args[names(dots)] <- dots
 

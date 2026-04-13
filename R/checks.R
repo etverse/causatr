@@ -69,23 +69,34 @@ check_formula <- function(
 #' @return `NULL` invisibly; aborts on invalid structure.
 #' @noRd
 check_intervention_list <- function(x, call = rlang::caller_env()) {
+  # Top-level shape: must be a non-empty named list.
   if (!is.list(x) || length(x) == 0) {
     rlang::abort(
       "`interventions` must be a named list with at least one intervention.",
       call = call
     )
   }
+  # Every element needs a name — used as row labels in the results
+  # table and as reference targets in the contrast step.
   if (is.null(names(x)) || any(names(x) == "")) {
     rlang::abort(
       "All elements of `interventions` must be named.",
       call = call
     )
   }
+  # Per-element validation. Three valid shapes:
+  #   (a) `NULL`           — natural course (observed treatment as-is)
+  #   (b) causatr_intervention — bare intervention for scalar treatment
+  #   (c) named list of causatr_intervention — for multivariate treatment,
+  #       one entry per treatment column (e.g. list(A1 = static(1), A2 = shift(-10)))
   for (nm in names(x)) {
     el <- x[[nm]]
     if (is.null(el)) {
       next
     }
+    # Case (c) detection: plain list that isn't itself a
+    # `causatr_intervention`. The class check is the discriminator —
+    # a `causatr_intervention` is technically a list under the hood.
     if (is.list(el) && !inherits(el, "causatr_intervention")) {
       if (is.null(names(el)) || any(names(el) == "")) {
         rlang::abort(
@@ -143,10 +154,18 @@ check_estimand_compat <- function(
   fit_estimand,
   call = rlang::caller_env()
 ) {
+  # No override requested — nothing to check.
   if (is.null(estimand)) {
     return(invisible(NULL))
   }
 
+  # IPW and matching can't switch estimand at contrast time because
+  # the weights / matched sets were estimated under the fit-time
+  # estimand — e.g. ATT weights upweight the control-over-treated
+  # distribution, so re-averaging over "everyone" (ATE) under ATT
+  # weights doesn't give you E[Y^a]. G-comp doesn't have this
+  # problem: the outcome model is estimand-agnostic, and the estimand
+  # only affects which rows we average predictions over.
   if (fit_method %in% c("ipw", "matching") && estimand != fit_estimand) {
     rlang::abort(
       paste0(
@@ -180,10 +199,17 @@ check_estimand_trt_compat <- function(
   data = NULL,
   call = rlang::caller_env()
 ) {
+  # ATE is well-defined for any treatment (binary, continuous,
+  # categorical, multivariate), so no check needed.
   if (estimand == "ATE") {
     return(invisible(NULL))
   }
 
+  # ATT/ATC are defined as "average effect among the treated/controls",
+  # which requires a natural binary split of the population. For
+  # continuous treatment there is no "treated group"; for longitudinal
+  # there is no single baseline treatment to condition on. Multivariate
+  # falls in the same bucket — there's no unique "treated" level.
   msg <- paste0(
     "estimand = '",
     estimand,
@@ -199,6 +225,10 @@ check_estimand_trt_compat <- function(
     rlang::abort(msg, call = call)
   }
 
+  # If we have data at this point, confirm the single treatment column
+  # is actually coded 0/1 — not just character values like "A"/"B",
+  # which would fail silently later when contrast() tries to filter
+  # on treatment == 1.
   if (!is.null(data)) {
     trt_vals <- unique(stats::na.omit(data[[treatment]]))
     if (!all(trt_vals %in% c(0, 1))) {
@@ -221,6 +251,14 @@ check_treatment_nas <- function(
   censoring,
   call = rlang::caller_env()
 ) {
+  # Missing treatment values must be handled explicitly — silently
+  # dropping them (as glm would by default via na.action) is wrong
+  # because the dropped rows may be MAR, not MCAR, and biasing the
+  # marginal mean. Three legitimate handling paths:
+  #   1. Censoring indicator -> IPCW via `censoring = "col"`
+  #   2. Multiple imputation -> `causat_mice()`
+  #   3. Manual complete-case subset -> user removes rows before calling
+  # Show all three as hints in the abort so the user can pick.
   trt_cols <- treatment
   for (col in trt_cols) {
     n_na <- sum(is.na(data[[col]]))
@@ -281,8 +319,14 @@ check_causat_inputs <- function(
   history,
   call = rlang::caller_env()
 ) {
+  # `type` is inferred from the presence of id/time (both present =>
+  # longitudinal, both absent => point). The cross-validation below
+  # catches the "only one present" mistake.
   type <- if (!is.null(id) && !is.null(time)) "longitudinal" else "point"
 
+  # Method × type compatibility: longitudinal data is ICE-only for now.
+  # IPW/matching for longitudinal would need weightitMSM/matchit for
+  # repeated measures, which is Phase 4+ territory.
   if (type == "longitudinal" && method %in% c("ipw", "matching")) {
     rlang::abort(
       paste0(
@@ -294,6 +338,9 @@ check_causat_inputs <- function(
     )
   }
 
+  # Multivariate treatments for IPW/matching are also Phase 4+; the
+  # propensity / matched-design story is more involved than simple
+  # per-component application.
   if (length(treatment) > 1L && method %in% c("ipw", "matching")) {
     rlang::abort(
       paste0(
@@ -308,6 +355,8 @@ check_causat_inputs <- function(
 
   check_estimand_trt_compat(estimand, treatment, type, data = data, call = call)
 
+  # Per-argument validation: each helper aborts on its own error
+  # message, so we just call them in sequence.
   check_string(outcome, call = call)
 
   if (!is.character(treatment) || length(treatment) == 0L) {
@@ -324,6 +373,10 @@ check_causat_inputs <- function(
     check_col_exists(data, trt, arg = "treatment", call = call)
   }
 
+  # Confounder columns must all exist. `all.vars()` extracts plain
+  # variable names from the formula's LHS/RHS, stripping transforms
+  # (`I(age^2)` -> `age`), which is what we want for column-name
+  # checking.
   confounder_vars <- all.vars(confounders)
   missing_vars <- setdiff(confounder_vars, names(data))
   if (length(missing_vars) > 0) {
@@ -336,6 +389,8 @@ check_causat_inputs <- function(
     )
   }
 
+  # Outcome and treatment must be distinct. Catches a common typo
+  # where users accidentally pass the outcome column as the treatment.
   if (any(outcome == treatment)) {
     rlang::abort(
       "`outcome` and `treatment` must be different columns.",
@@ -366,6 +421,9 @@ check_causat_inputs <- function(
     check_string(time, arg = "time", call = call)
     check_col_exists(data, time, arg = "time", call = call)
   }
+  # id and time must come as a pair. `xor` catches the "only one
+  # present" case; both NULL is fine (point treatment) and both
+  # non-NULL is fine (longitudinal).
   if (xor(is.null(id), is.null(time))) {
     rlang::abort(
       "Both `id` and `time` must be provided together for longitudinal data.",
@@ -373,6 +431,11 @@ check_causat_inputs <- function(
     )
   }
 
+  # `history` must be a positive integer or Inf. The two-step check
+  # is ugly but necessary: `is_scalar_integer` rejects `5` (which R
+  # treats as double literal), so we also accept scalar double that
+  # equals its floor. `identical(., Inf)` is the clean way to test
+  # for the special-case "all history".
   if (!is.null(history)) {
     if (
       !rlang::is_scalar_double(history) &&

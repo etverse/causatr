@@ -11,6 +11,9 @@
 #' @seealso [summary.causatr_fit()], [causat()]
 #' @export
 print.causatr_fit <- function(x, ...) {
+  # Pretty-print the method. Defaults-through the raw value if the
+  # user has somehow set an unrecognized method so print() never
+  # errors on a malformed fit object.
   method_label <- switch(
     x$method,
     gcomp = "G-computation",
@@ -19,6 +22,7 @@ print.causatr_fit <- function(x, ...) {
     x$method
   )
   family_label <- format_family(x$family)
+  # Collapse multivariate treatments into a comma-separated label.
   trt_label <- paste(x$treatment, collapse = ", ")
 
   cat("<causatr_fit>\n")
@@ -28,6 +32,8 @@ print.causatr_fit <- function(x, ...) {
   cat(" Treatment:  ", trt_label, "\n", sep = "")
   cat(" Estimand:   ", x$estimand, "\n", sep = "")
   cat(" Confounders:", deparse(x$confounders), "\n", sep = " ")
+  # TV confounders and id/time are only shown when relevant — keeping
+  # the display compact for point-treatment fits.
   if (!is.null(x$confounders_tv)) {
     cat(" TV conf.:  ", deparse(x$confounders_tv), "\n", sep = " ")
   }
@@ -45,13 +51,23 @@ print.causatr_fit <- function(x, ...) {
 #' @return A character string.
 #' @noRd
 format_family <- function(family) {
+  # Three-shape dispatch matching `resolve_family()` but producing
+  # a display string rather than a family object. Used only for
+  # print() output, so the fallback is "<custom>" rather than an
+  # abort — printing a fit should never error out.
   if (is.character(family)) {
+    # Already a string like "gaussian" — pass through.
     return(family)
   }
   if (is.list(family) && !is.null(family$family)) {
+    # Already a family object (list with $family and $link slots):
+    # format as "gaussian(identity)", matching base R's convention.
     return(paste0(family$family, "(", family$link, ")"))
   }
   if (is.function(family)) {
+    # A family closure (e.g. `stats::binomial`) — try to evaluate it.
+    # Wrapped in tryCatch in case the closure needs arguments; if it
+    # fails we fall through to "<custom>".
     fam <- tryCatch(family(), error = function(e) NULL)
     if (!is.null(fam) && !is.null(fam$family)) {
       return(paste0(fam$family, "(", fam$link, ")"))
@@ -73,6 +89,8 @@ format_family <- function(family) {
 #' @seealso [summary.causatr_result()], [contrast()]
 #' @export
 print.causatr_result <- function(x, ...) {
+  # Human-readable labels for the header block. Same defaults-through
+  # pattern as `print.causatr_fit` in case of unrecognized slot values.
   method_label <- switch(
     x$method,
     gcomp = "G-computation",
@@ -94,6 +112,9 @@ print.causatr_result <- function(x, ...) {
   cat(" CI method: ", x$ci_method, "\n", sep = "")
   cat(" N:         ", x$n, "\n", sep = "")
 
+  # When `by = ...` was used, the estimates / contrasts tables have
+  # an extra `by` column. Section headers acknowledge this so the
+  # reader knows to interpret each row as a per-stratum estimate.
   has_by <- "by" %in% names(x$estimates)
 
   if (has_by) {
@@ -126,6 +147,14 @@ print.causatr_result <- function(x, ...) {
 #' @export
 print.causatr_diag <- function(x, ...) {
   cat("<causatr_diag>\n", " Method:", x$method, "\n\n", sep = "")
+  # Each section is conditionally printed based on which diagnostics
+  # the underlying method supports:
+  #   - positivity: any method (when treatment is binary)
+  #   - balance:    always (cobalt table or simple SMD fallback)
+  #   - weights:    IPW only (NULL elsewhere)
+  #   - match_quality: matching only (NULL elsewhere)
+  # The NULL checks let us print one compact block per method
+  # without a switch() on method type.
   if (!is.null(x$positivity)) {
     cat("Positivity (propensity score):\n")
     print(x$positivity, row.names = FALSE)

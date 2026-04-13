@@ -81,12 +81,12 @@ fit_ipw <- function(
     w$weights <- w$weights * weights[fit_rows]
   }
 
-  # Mparts guardrail (D6): WeightIt methods that do not support the
+  # Mparts guardrail: WeightIt methods that do not support the
   # M-estimation correction (gbm, super, bart, optweight, energy, npcbps)
   # silently treat weights as fixed inside glm_weightit(). Sandwich SEs
   # then ignore propensity-estimation uncertainty. Warn at fit time so
   # users learn about the limitation before they call contrast() or
-  # diagnose() — see VARIANCE_REFACTOR.qmd, "Doubts D6".
+  # diagnose().
   if (is.null(attr(w, "Mparts"))) {
     rlang::warn(
       paste0(

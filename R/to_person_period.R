@@ -85,15 +85,25 @@ to_person_period <- function(
     }
   }
 
-  # Build one long data.table by stacking time points.
-  # For each time point k, extract the k-th column of every time-varying
-  # variable and bind with the time-invariant columns.
+  # Build the long table by stacking n_times copies of the data,
+  # one per time point. This is the simple/explicit reshape idiom —
+  # clearer than `data.table::melt()` when every variable has its
+  # own column-name pattern (the `time_varying` list specifies
+  # exactly which original column maps to which time point).
+  #
+  # For each time point k (0-indexed):
+  #   1. Start from a slice containing id + baseline columns.
+  #   2. Tag the slice with the time column.
+  #   3. Pull each time-varying variable's k-th column into a
+  #      canonical name (e.g. "A0" -> "A", "A1" -> "A" at t=1).
+  #
+  # The result is one row per (id, time) with a consistent column
+  # schema — exactly the shape that prepare_data() and fit_ice()
+  # expect.
   long_list <- lapply(seq_len(n_times), function(k) {
-    # Start with id + time-invariant columns.
     row_dt <- data[, c(id, time_invariant), with = FALSE]
     row_dt[, (time_name) := k - 1L] # 0-indexed time
 
-    # Add each time-varying variable at time k.
     for (nm in names(time_varying)) {
       col_name <- time_varying[[nm]][k]
       row_dt[, (nm) := data[[col_name]]]

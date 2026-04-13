@@ -121,13 +121,13 @@ is controlled by \code{estimand} (or \code{subset} for subgroup effects). The me
 differ only in how the outcome model was fitted; variance is computed by the
 \strong{unified influence-function engine} \code{variance_if()} (\code{R/variance_if.R}),
 which handles all four cases (g-comp, IPW, matching, ICE) via one entry
-point. See \code{vignettes/variance-theory.qmd} for the derivation and
-\code{VARIANCE_REFACTOR.qmd} for the architecture.
+point. See \code{vignettes/variance-theory.qmd} for the derivation and the
+\code{R/variance_if.R} roxygen header for the architecture.
 \itemize{
 \item \code{"gcomp"}: standard \code{glm}/\code{gam} on the full data; one-model IF
-correction via \code{correct_model()}.
+correction via \code{prepare_model_if()} + \code{apply_model_correction()}.
 \item \code{"ipw"}: \code{glm_weightit()} fit weighted for the target estimand (ATE/ATT);
-IF Channel 2 delegated to \code{correct_propensity()} (WeightIt shortcut via
+IF Channel 2 delegated to \code{prepare_propensity_if()} (WeightIt shortcut via
 \code{sandwich::estfun(asympt = TRUE)}), which already accounts for weight
 estimation uncertainty.
 \item \code{"matching"}: \code{glm()} on the matched sample with match weights; IF is

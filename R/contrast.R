@@ -12,13 +12,13 @@
 #' differ only in how the outcome model was fitted; variance is computed by the
 #' **unified influence-function engine** `variance_if()` (`R/variance_if.R`),
 #' which handles all four cases (g-comp, IPW, matching, ICE) via one entry
-#' point. See `vignettes/variance-theory.qmd` for the derivation and
-#' `VARIANCE_REFACTOR.qmd` for the architecture.
+#' point. See `vignettes/variance-theory.qmd` for the derivation and the
+#' `R/variance_if.R` roxygen header for the architecture.
 #'
 #' - `"gcomp"`: standard `glm`/`gam` on the full data; one-model IF
-#'   correction via `correct_model()`.
+#'   correction via `prepare_model_if()` + `apply_model_correction()`.
 #' - `"ipw"`: `glm_weightit()` fit weighted for the target estimand (ATE/ATT);
-#'   IF Channel 2 delegated to `correct_propensity()` (WeightIt shortcut via
+#'   IF Channel 2 delegated to `prepare_propensity_if()` (WeightIt shortcut via
 #'   `sandwich::estfun(asympt = TRUE)`), which already accounts for weight
 #'   estimation uncertainty.
 #' - `"matching"`: `glm()` on the matched sample with match weights; IF is
@@ -222,15 +222,26 @@ contrast <- function(
   parallel = c("no", "multicore", "snow"),
   ncpus = getOption("boot.ncpus", 1L)
 ) {
+  # Capture the original call so that the returned `causatr_result`
+  # can echo it in its `print` and `summary` methods. `match.call()`
+  # here — not at compute_contrast() — so the recorded call reflects
+  # what the *user* typed, not the internal dispatch.
   call <- match.call()
 
   if (!inherits(fit, "causatr_fit")) {
     rlang::abort("`fit` must be a `causatr_fit` object returned by `causat()`.")
   }
 
+  # Canonicalize character choices. `rlang::arg_match()` both validates
+  # and returns the single chosen element, so `type` and `ci_method`
+  # are guaranteed scalar after these lines.
   type <- rlang::arg_match(type)
   ci_method <- rlang::arg_match(ci_method)
 
+  # `subset` must be a *quoted* expression, not a logical vector. We
+  # accept language objects so the expression can be evaluated against
+  # the data inside `compute_contrast()` — this is how Hernán/Robins-
+  # style subgroup effects like `quote(age > 50)` work.
   if (!is.null(subset) && !is.language(subset)) {
     rlang::abort(
       paste0(
@@ -242,10 +253,18 @@ contrast <- function(
     )
   }
 
+  # `estimand` and `subset` are mutually exclusive: both would fight
+  # over defining the target population. An explicit `estimand` picks
+  # a pre-specified group (e.g. ATT = "treated at baseline"); a
+  # `subset` picks a user-defined expression. Pick one.
   if (!is.null(estimand) && !is.null(subset)) {
     rlang::abort("Specify either 'estimand' or 'subset', not both.")
   }
 
+  # Estimand compatibility checks: only g-comp can override the fitted
+  # estimand (one outcome model, re-average over a different target).
+  # IPW and matching bake the estimand into the weights/matching, so
+  # overriding here would silently break the inverse-weighting identity.
   if (!is.null(estimand)) {
     estimand <- rlang::arg_match(estimand, c("ATE", "ATT", "ATC"))
     check_estimand_compat(estimand, fit$method, fit$estimand)
@@ -257,9 +276,13 @@ contrast <- function(
     )
   }
 
+  # Validate the interventions list — names, types, and method
+  # compatibility (IPW/matching only accept static(), ICE accepts all).
   check_intervention_list(interventions)
   check_interventions_compat(fit$method, interventions)
 
+  # `reference` names the intervention used as the contrast denominator
+  # (pairwise a_j vs a_ref). Must exist in the named list.
   if (!is.null(reference) && !reference %in% names(interventions)) {
     rlang::abort(
       paste0(
@@ -270,6 +293,9 @@ contrast <- function(
     )
   }
 
+  # `by` stratifies results by levels of a data column — e.g.
+  # `by = "sex"` returns separate estimates per sex category. The
+  # compute_contrast() loop handles the actual stratification.
   if (!is.null(by)) {
     check_string(by)
     if (!by %in% names(fit$data)) {
@@ -281,6 +307,9 @@ contrast <- function(
 
   parallel <- rlang::arg_match(parallel)
 
+  # Hand off to the internal engine. Everything above is argument
+  # validation; the actual math lives in `compute_contrast()` and
+  # its method-specific delegates.
   compute_contrast(
     fit,
     interventions,
@@ -313,13 +342,24 @@ check_interventions_compat <- function(
   interventions,
   call = rlang::caller_env()
 ) {
+  # Only IPW and matching are restricted. G-comp supports every
+  # intervention type because it re-predicts from an outcome model
+  # that doesn't care about the treatment-assignment mechanism.
   if (method %in% c("ipw", "matching")) {
+    # For each element in the interventions list, determine whether it
+    # represents a non-static regime. Three shapes to handle:
+    #   - NULL entry         -> natural course (always allowed)
+    #   - bare intervention  -> check `$type` directly
+    #   - list of interventions (multivariate treatment) -> check every sub
     non_static <- vapply(
       interventions,
       function(iv) {
         if (is.null(iv)) {
           return(FALSE)
         }
+        # Multivariate treatment: `iv` is a plain list of sub-interventions
+        # (one per treatment component), not a `causatr_intervention`.
+        # Any non-static sub flags the whole regime as non-static.
         if (is.list(iv) && !inherits(iv, "causatr_intervention")) {
           return(any(vapply(
             iv,
@@ -332,6 +372,15 @@ check_interventions_compat <- function(
       logical(1)
     )
     if (any(non_static)) {
+      # Hard abort with a pointer to the fix. The semantic problem is
+      # that IPW weights are computed once at fit time under the
+      # observed treatment distribution; matching picks controls once
+      # against the observed treated group. Neither is valid under a
+      # shift / MTP / dynamic rule, because the density ratio or
+      # balancing property no longer holds. G-comp's outcome model is
+      # intervention-agnostic, so it handles all regimes uniformly.
+      # Phase 4 plan: self-contained IPW for non-static interventions
+      # (see PHASE_4_INTERVENTIONS_SELF_IPW.md).
       rlang::abort(
         paste0(
           "Non-static interventions (shift, dynamic, scale, threshold, ipsi) ",
@@ -394,14 +443,27 @@ compute_contrast <- function(
   data <- fit$data
   int_names <- names(interventions)
 
-  # Resolve estimand: use the caller's override when provided, otherwise fall
-  # back to the one stored at fitting time.
+  # Resolve the effective estimand: if the caller passed `estimand =`
+  # to `contrast()`, use that override (g-comp only — the check above
+  # already blocked IPW/matching). Otherwise fall back to whatever was
+  # recorded at fitting time. This is what lets a single g-comp fit
+  # produce ATE, ATT, ATC, and subgroup effects from one model.
   est <- if (!is.null(estimand)) estimand else fit$estimand
 
+  # ── `by` branch: effect modification.
+  # When `by = "sex"` is given, we recursively call compute_contrast()
+  # once per level and stitch the results into one combined table.
+  # This isn't just a user-facing convenience — it's the only way to
+  # get the variance engine to re-define the target population per
+  # level, since vcov is computed conditional on the target.
   if (!is.null(by)) {
     by_vals <- sort(unique(stats::na.omit(data[[by]])))
     by_sym <- as.name(by)
 
+    # If the caller *also* asked for ATT/ATC, that adds a
+    # treatment-value restriction on top of the by-level restriction.
+    # We build an `est_subset` expression (e.g. `A == 1` for ATT) and
+    # AND it into every level's combined subset below.
     est_subset <- NULL
     if (est %in% c("ATT", "ATC")) {
       trt_sym <- as.name(fit$treatment[1])
@@ -409,6 +471,10 @@ compute_contrast <- function(
       est_subset <- bquote(.(trt_sym) == .(trt_val))
     }
 
+    # Per-level compute_contrast() call. We pass `estimand = NULL` and
+    # a *combined* subset expression — this collapses the ATT/ATC
+    # selection and the by-level selection into a single quoted
+    # predicate, so the inner call treats it as a subgroup request.
     results_list <- lapply(by_vals, function(lev) {
       by_subset <- bquote(.(by_sym) == .(lev))
       combined_subset <- if (!is.null(subset)) {
@@ -437,6 +503,10 @@ compute_contrast <- function(
     })
     names(results_list) <- as.character(by_vals)
 
+    # Stitch per-level tables: each level contributes its `estimates`
+    # and `contrasts` data.tables, augmented with the by-level label
+    # and its target-population size. `data.table::copy()` is required
+    # because we're mutating each table in place.
     est_list <- lapply(names(results_list), function(lev) {
       dt <- data.table::copy(results_list[[lev]]$estimates)
       dt[, by := lev]
@@ -498,30 +568,44 @@ compute_contrast <- function(
   }
 
   if (fit$type == "longitudinal") {
-    # Longitudinal ICE g-computation: run backward iteration per intervention.
-    # Run the full backward iteration per intervention.  Target population
-    # is defined over individuals at the first time point.
+    # ── Longitudinal ICE g-computation.
+    # The target population for longitudinal data is defined at the
+    # FIRST time point: every unique individual shows up once at
+    # baseline, so that's where we enumerate the target. Subsetting is
+    # evaluated against `data` but then collapsed to a baseline-only
+    # logical vector (`target_within_first`) because that's what the
+    # downstream ICE variance engine expects.
     time_col <- fit$time
     first_time <- fit$details$time_points[1]
     rows_first <- data[[time_col]] == first_time
 
     if (!is.null(subset)) {
+      # Evaluate the user's subset expression in the environment of
+      # the full data.table, then AND with the baseline-row mask. This
+      # lets users write things like `quote(age > 50)` and have it
+      # interpreted over the first time point's covariates.
       target_baseline <- rows_first &
         as.logical(eval(subset, envir = as.list(data)))
     } else {
       target_baseline <- rows_first
     }
-    # target_within_first: logical vector over first-time rows only.
+    # Collapse to a length-n_first logical — the per-individual target
+    # mask used by `variance_if_ice_one()` and the mu_hat average.
     target_within_first <- target_baseline[rows_first]
     n_target <- sum(target_within_first)
 
-    # Run ICE backward iteration for each intervention.
+    # Run ICE backward iteration once per intervention. Each call
+    # returns the vector of individual pseudo-outcomes at baseline
+    # (\hat Y^*_{0,i}) along with the fitted chain of models, which
+    # the sandwich variance engine consumes directly.
     ice_results <- stats::setNames(
       lapply(interventions, function(iv) ice_iterate(fit, iv)),
       int_names
     )
 
-    # Marginal mean = (weighted) average pseudo-outcomes at first time.
+    # Marginal mean: weighted average of pseudo-outcomes over the
+    # target population. `maybe_weighted_mean()` is NA-safe and
+    # handles the NULL-weights fall-through.
     ext_w <- fit$details$weights
     if (!is.null(ext_w)) {
       w_first <- ext_w[rows_first]
@@ -541,6 +625,8 @@ compute_contrast <- function(
     )
     names(mu_hat) <- int_names
 
+    # Variance: sandwich via the IF engine (default, fast) or
+    # bootstrap via `ice_variance_bootstrap()` (clustered on `id`).
     boot_t <- NULL
     if (ci_method == "sandwich") {
       vcov_mat <- variance_if(
@@ -563,25 +649,38 @@ compute_contrast <- function(
       boot_t <- boot_res$boot_t
     }
   } else {
-    # Point-treatment g-computation: single model, predict-then-average.
-    # Single outcome model: predict under each intervention, average over
-    # the target population (standard parametric g-formula).
+    # ── Point-treatment g-computation / IPW / matching.
+    # Single outcome model, predict once per intervention, average
+    # over the target population. This is the standard parametric
+    # g-formula; IPW and matching reuse the same predict-then-average
+    # path because their weighted / matched-sample outcome model is
+    # already the marginal structural model, so marginal-mean
+    # predictions read off the MSM directly.
     model <- fit$model
 
-    # Logical vector (length n) that flags the target population rows.
+    # Logical vector (length n) flagging the target population.
+    # Determined by `est` (ATE -> everyone; ATT -> treated at baseline;
+    # ATC -> controls at baseline) and the optional `subset`.
     target_idx <- get_target_idx(data, fit$treatment, est, subset)
 
-    # Create one counterfactual dataset per intervention:
-    # copy `data` and set each individual's treatment to the intervened value.
+    # Build one counterfactual data.table per intervention. Each is a
+    # copy of `data` with the treatment column(s) overwritten according
+    # to the intervention rule (static, shift, dynamic, …).
     data_a_list <- lapply(interventions, function(iv) {
       apply_intervention(data, fit$treatment, iv)
     })
 
-    # Predict E[Y | A = a(L_i), L_i] under each intervention.
+    # Predict E[Y | A = a(L_i), L_i] under each intervention. This is
+    # the g-computation step: the outcome model was fit on observed A,
+    # but we plug in the counterfactual A value row-by-row.
     preds_list <- lapply(data_a_list, function(da) {
       predict(model, newdata = da, type = "response")
     })
 
+    # Handle NA predictions (e.g. rows with missing confounders).
+    # Intersect a "valid-across-all-interventions" mask with the target
+    # to avoid losing rows whose prediction is NA under *any* regime
+    # we care about. Warn if the drop is nontrivial.
     valid_preds <- Reduce(`&`, lapply(preds_list, function(p) !is.na(p)))
     n_dropped <- sum(!valid_preds & target_idx)
     if (n_dropped > 0L) {
@@ -596,7 +695,7 @@ compute_contrast <- function(
     target_idx <- target_idx & valid_preds
     n_target <- sum(target_idx)
 
-    # Marginal mean = (weighted) average predictions over target rows.
+    # Marginal mean: weighted or plain average over target rows.
     ext_w <- fit$details$weights
     w_target <- if (!is.null(ext_w)) ext_w[target_idx] else NULL
     mu_hat <- vapply(
@@ -606,6 +705,9 @@ compute_contrast <- function(
     )
     names(mu_hat) <- int_names
 
+    # Variance: sandwich via the IF engine (shared across gcomp / ipw
+    # / matching — the engine's dispatcher picks the right branch from
+    # `fit$method`) or nonparametric bootstrap.
     boot_t <- NULL
     if (ci_method == "sandwich") {
       vcov_mat <- variance_if(
@@ -635,10 +737,15 @@ compute_contrast <- function(
   rownames(vcov_mat) <- int_names
   colnames(vcov_mat) <- int_names
 
-  # SE for each marginal mean from the diagonal of the vcov matrix.
+  # Marginal-mean SEs come from the diagonal of vcov. `pmax(., 0)`
+  # guards against tiny negative values from floating-point roundoff
+  # in the IF aggregation — they'd otherwise become NaN under sqrt.
   se_means <- sqrt(pmax(diag(vcov_mat), 0))
+  # Two-sided normal critical value. Using qnorm(0.5 + level/2) gives
+  # the right half-width for any conf_level without hand-coding 1.96.
   z <- stats::qnorm((1 + conf_level) / 2)
 
+  # First output: per-intervention marginal-mean table.
   estimates_dt <- data.table::data.table(
     intervention = int_names,
     estimate = mu_hat,
@@ -647,14 +754,19 @@ compute_contrast <- function(
     ci_upper = mu_hat + z * se_means
   )
 
-  # Reference intervention defaults to the first one in the list.
+  # Reference for pairwise contrasts. If the user didn't name one,
+  # default to the first intervention in list order — matches how
+  # users conventionally write `list(treat, control)` with the
+  # control as the second element.
   ref_name <- if (!is.null(reference)) reference else int_names[1]
   non_ref <- setdiff(int_names, ref_name)
   mu_ref <- mu_hat[ref_name]
   idx_ref <- which(int_names == ref_name)
 
   # Tolerance for boundary checks on marginal means. A predicted mean
-  # this close to 0 or 1 makes ratios / odds ratios numerically unstable.
+  # this close to 0 or 1 makes ratios / odds ratios numerically
+  # unstable (the log-scale delta method divides by mu_ref and
+  # 1 - mu_ref), so we refuse to compute rather than return Inf / NaN.
   tol_edge <- sqrt(.Machine$double.eps)
 
   if (type == "ratio" && abs(mu_ref) < tol_edge) {
@@ -676,12 +788,19 @@ compute_contrast <- function(
     ))
   }
 
-  # Pairwise contrasts vs. the reference, with SE via delta method on the vcov.
+  # Pairwise contrasts a_j vs a_ref via the delta method on the vcov.
+  # The vcov from `variance_if()` is on the (mu_1, mu_2, ..., mu_k)
+  # scale, so for differences we can read the variance straight off;
+  # for ratios / ORs we project through the appropriate gradient.
   contrasts_list <- lapply(non_ref, function(nm) {
     mu_a <- mu_hat[nm]
     idx_a <- which(int_names == nm)
 
     if (type == "difference") {
+      # Var(mu_a - mu_ref) = Var(mu_a) + Var(mu_ref) - 2 Cov(mu_a, mu_ref).
+      # The cross term is the one dropped when people incorrectly add
+      # per-intervention SEs in quadrature — our IF engine keeps the
+      # full covariance so we use the proper formula here.
       est_c <- mu_a - mu_ref
       var_c <- vcov_mat[idx_a, idx_a] +
         vcov_mat[idx_ref, idx_ref] -
@@ -699,9 +818,13 @@ compute_contrast <- function(
           ". The risk/mean ratio is undefined (log-scale CI requires log(0))."
         ))
       }
-      # Delta method SE on the linear scale, then log-scale CI.
-      # Log-scale CIs respect the (0, Inf) support and have better
-      # coverage than Wald CIs, which can produce negative lower bounds.
+      # Delta method for R = mu_a / mu_ref:
+      #   dR/dmu_a    = 1/mu_ref
+      #   dR/dmu_ref  = -mu_a/mu_ref^2
+      # Linear-scale SE from grad^T V grad, then convert to log-scale
+      # CI: log(R) ± z * se_log, se_log = se / R. Log-scale CIs respect
+      # the (0, Inf) support of a ratio and have better coverage than
+      # Wald CIs, which can produce negative lower bounds.
       est_c <- mu_a / mu_ref
       grad <- c(1 / mu_ref, -mu_a / mu_ref^2)
       sub_v <- vcov_mat[c(idx_a, idx_ref), c(idx_a, idx_ref)]
@@ -719,7 +842,13 @@ compute_contrast <- function(
           ". The odds ratio is undefined when the probability is 0 or 1."
         ))
       }
-      # OR = [mu_a/(1-mu_a)] / [mu_ref/(1-mu_ref)]. Log-scale CI.
+      # Odds ratio:
+      #   OR = [mu_a/(1 - mu_a)] / [mu_ref/(1 - mu_ref)]
+      # Delta method gradients:
+      #   dOR/dmu_a   = OR / (mu_a * (1 - mu_a))
+      #   dOR/dmu_ref = -OR / (mu_ref * (1 - mu_ref))
+      # These come from differentiating log(OR) w.r.t. each mu and
+      # multiplying by OR. Same log-scale CI pattern as ratios.
       est_c <- (mu_a / (1 - mu_a)) / (mu_ref / (1 - mu_ref))
       grad <- c(
         est_c / (mu_a * (1 - mu_a)),

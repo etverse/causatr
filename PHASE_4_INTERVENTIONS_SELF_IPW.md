@@ -90,9 +90,9 @@ The `ipsi(delta)` constructor already exists. Implementation:
 
 ### 7. Variance for self-contained IPW
 
-The variance engine (`R/variance_if.R`) was already refactored in the Phase 2/3/4 variance pass (`VARIANCE_REFACTOR.qmd`) to plug self-contained IPW in without touching `variance_if()` itself. The dispatcher is live; only the body of `correct_propensity_self_contained()` needs to be filled in.
+The variance engine (`R/variance_if.R`) was already refactored in Phase 3 to plug self-contained IPW in without touching `variance_if()` itself. The dispatcher is live; only the body of `prepare_propensity_if_self_contained()` needs to be filled in.
 
-**Where to implement.** `R/variance_if.R`, function `correct_propensity_self_contained(fit, J, fit_idx, n_total)`. It currently aborts with a Phase 4 message. The surrounding dispatcher `correct_propensity()` already routes here when `fit$model` is not a `glm_weightit` — so the moment Phase 4's `fit_ipw()` produces a plain weighted GLM instead of calling `WeightIt::glm_weightit()`, this branch takes over automatically.
+**Where to implement.** `R/variance_if.R`, function `prepare_propensity_if_self_contained(fit, fit_idx, n_total)`. It currently aborts with a Phase 4 message. The surrounding dispatcher `prepare_propensity_if()` already routes here when `fit$model` is not a `glm_weightit` — so the moment Phase 4's `fit_ipw()` produces a plain weighted GLM instead of calling `WeightIt::glm_weightit()`, this branch takes over automatically.
 
 **What Phase 4 must add to `fit$details`.** The body needs three things beyond what Phase 3 stores:
 
@@ -102,13 +102,14 @@ The variance engine (`R/variance_if.R`) was already refactored in the Phase 2/3/
 
 Without these three slots, Branch B cannot be implemented.
 
-**Implementation steps.** (Copied verbatim from `VARIANCE_REFACTOR.qmd` — the engine side is already designed around this shape.)
+**Implementation steps.** (The engine is already designed around this shape — see the `prepare_model_if()` / `apply_model_correction()` split in `R/variance_if.R`.)
 
-1. **MSM correction term.** Call
+1. **MSM correction term.** Prepare once, apply per intervention:
    ```r
-   msm <- correct_model(fit$model, J, fit_idx, n_total)
+   msm_prep <- prepare_model_if(fit$model, fit_idx, n_total)
+   msm      <- apply_model_correction(msm_prep, J)
    ```
-   to get both `msm$correction` (the MSM Channel-2 contribution) *and* `msm$h = A_{ββ}^{-1} J`. The `$h` slot is why `correct_model()` was designed to return `h` alongside `$correction` in Phase A.
+   `msm` carries both `msm$correction` (the MSM Channel-2 contribution) *and* `msm$h = A_{ββ}^{-1} J`. The `$h` slot is why `apply_model_correction()` was designed to return `h` alongside `$correction`.
 
 2. **Cross-derivative \(A_{\beta\alpha}\) via `numDeriv::jacobian`.** Build
    ```r
@@ -133,22 +134,22 @@ Without these three slots, Branch B cannot be implemented.
    \[
    g^{\mathrm{prop}} = A_{\beta\alpha}^T h_{\mathrm{msm}}
    \]
-   (a `q`-vector) and feed it back into the same `correct_model()` primitive, this time on the **propensity** model:
+   (a `q`-vector) and feed it back into the same primitive, this time on the **propensity** model:
    ```r
-   g_prop <- as.numeric(crossprod(A_beta_alpha, msm$h))
-   prop <- correct_model(
+   g_prop    <- as.numeric(crossprod(A_beta_alpha, msm$h))
+   prop_prep <- prepare_model_if(
      fit$details$propensity_model,
-     g_prop,
      fit_idx_prop,
      n_total
    )
-   Ch2 <- msm$correction + prop$correction
+   prop      <- apply_model_correction(prop_prep, g_prop)
+   Ch2       <- msm$correction + prop$correction
    ```
    `fit_idx_prop` is the row map for the propensity fit (usually identical to `fit_idx` if the MSM and propensity share a fit frame).
 
-4. **Return.** `Ch2` is the full combined MSM + propensity correction per individual — the same shape returned by Branch A.
+4. **Return.** Wrap everything in a `prop_prep` list whose `apply_propensity_correction()` returns the combined MSM + propensity correction per individual — the same shape returned by Branch A.
 
-**Tests to add** (from `VARIANCE_REFACTOR.qmd`, "correct_propensity() tests"):
+**Tests to add:**
 
 - **T1 — Branch A ≡ Branch B** on a static binary IPW with logistic propensity. Fit the same setup two ways: (a) via `WeightIt::weightit(method = "glm")` → Branch A; (b) via a manually fitted logistic propensity + manually computed weights + weighted `stats::glm` MSM → Branch B. Both paths must yield the same `IF_mu`, SE, and vcov to `~1e-6` absolute tolerance (the `numDeriv` Richardson accuracy floor).
 - **T2 — Numerical vs analytic \(A_{\beta\alpha}\)** on the same binary static setup. Derive \(\partial\psi_{\beta,i}/\partial\alpha^T\) by hand (closed form is tractable for logistic propensity + binary static weights) and compare against `numDeriv::jacobian(psi_beta_bar, ...)` elementwise at `~1e-6`.
@@ -157,7 +158,7 @@ Without these three slots, Branch B cannot be implemented.
 
 **Why `numDeriv::jacobian` here and not analytic.** Each intervention type (`static`, `shift`, `scale_by`, `threshold`, `dynamic`, `ipsi`) has a different `weight_fn`, so the analytic derivative would be a different ~10-line block per type, all of which need to agree with the engine's expectations. One `numDeriv::jacobian` call on the closure handles every intervention shape uniformly, at Richardson-extrapolation precision (`~1e-7`). Test T2 verifies the numerical derivative against a closed form in the one case we can fully hand-derive.
 
-- **Bootstrap:** unchanged — `variance_bootstrap()` refits the whole pipeline on resampled data and never touches `variance_if()` / `correct_propensity()`.
+- **Bootstrap:** unchanged — `variance_bootstrap()` refits the whole pipeline on resampled data and never touches `variance_if()` / `prepare_propensity_if()`.
 
 ## Items
 

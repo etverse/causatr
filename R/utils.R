@@ -176,10 +176,16 @@ new_causatr_intervention <- function(type, params) {
 #' @return Logical vector of length `nrow(data)` (`TRUE` = uncensored).
 #' @noRd
 is_uncensored <- function(data, censoring) {
+  # `censoring = NULL` is the "no censoring" shortcut — every row is
+  # treated as uncensored. This is the default for cross-sectional data.
   if (is.null(censoring)) {
     return(rep(TRUE, nrow(data)))
   }
   cens <- data[[censoring]]
+  # NA censoring value is treated as uncensored: in typical
+  # longitudinal datasets, C is only defined up to the moment of
+  # dropout, and subsequent rows have NA. Treating NA as censored
+  # would silently drop everyone from the fitting set.
   is.na(cens) | cens == 0L
 }
 
@@ -193,7 +199,12 @@ is_uncensored <- function(data, censoring) {
 #' @return A family object (list with `$family`, `$link`, etc.).
 #' @noRd
 resolve_family <- function(family) {
+  # Three-way dispatch to canonicalize every input to a family object.
+  # This matches what glm/gam do internally so downstream code can
+  # assume `family$family` and `family$link` are strings.
   if (is.character(family)) {
+    # Look up in stats:: namespace explicitly — avoids picking up a
+    # user-defined function with the same name in the caller's env.
     fam_fn <- tryCatch(
       get(family, mode = "function", envir = asNamespace("stats")),
       error = function(e) {
@@ -205,6 +216,7 @@ resolve_family <- function(family) {
   if (is.function(family)) {
     return(family())
   }
+  # Already a family object (list with $family, $link, etc.).
   family
 }
 
@@ -231,6 +243,10 @@ is_binary_family <- function(family) {
 #' @return A two-sided formula: `treatment ~ confounder_terms`.
 #' @noRd
 build_ps_formula <- function(confounders, treatment) {
+  # Turn `~ L1 + L2 + I(age^2)` (confounders) and `"A"` (treatment)
+  # into `A ~ L1 + L2 + I(age^2)`. `term.labels` preserves user
+  # transformations and interactions, which `reformulate()` then
+  # reassembles verbatim into a two-sided formula.
   confounder_terms <- attr(stats::terms(confounders), "term.labels")
   stats::reformulate(confounder_terms, response = treatment)
 }

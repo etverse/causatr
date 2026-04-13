@@ -19,11 +19,21 @@
 #'
 #' This file holds:
 #'
-#' - The five primitives — `bread_inv()`, `iv_design_matrix()`,
-#'   `correct_model()`, `vcov_from_if()`, `variance_if_numeric()`.
+#' - The Channel-2 primitives — `bread_inv()`, `iv_design_matrix()`,
+#'   `prepare_model_if()` / `apply_model_correction()` (the prep/apply
+#'   split that lets g-comp, matching, and IPW pay the `p x p` bread solve
+#'   once per model and reuse it across interventions), plus the thin
+#'   single-gradient wrapper `correct_model()` that ICE uses.
+#' - The `resolve_fit_idx()` helper (maps `fit$details$fit_rows` to
+#'   model-local row indices, asserting the `na.action` invariant).
+#' - The `vcov_from_if()` aggregator and the `variance_if_numeric()`
+#'   two-tier numerical fallback.
 #' - The dispatcher `variance_if()` with branches for g-computation,
-#'   matching (cluster-robust), and ICE (chained backward recursion).
-#' - The IPW-specific `correct_propensity()` (added in Phase C).
+#'   matching (cluster-robust), ICE (chained forward sensitivity
+#'   recursion), and IPW.
+#' - The IPW-specific `prepare_propensity_if()` /
+#'   `apply_propensity_correction()` pair (Branch A: WeightIt shortcut;
+#'   Branch B: self-contained, deferred to Phase 4).
 #'
 #' @name variance_if
 #' @keywords internal
@@ -38,7 +48,7 @@ NULL
 #' penalized Bayesian covariance `model$Vp = (X'WX + \lambda S)^{-1}`.
 #'
 #' This is the building block for `correct_model()` and the `IF_\beta`
-#' construction inside `correct_propensity()` Branch B.
+#' construction inside `prepare_propensity_if()` Branch B.
 #'
 #' @param model A fitted model with a `family` object (GLM or GAM).
 #' @param X_fit Design matrix from `model.matrix(model)`.
@@ -72,7 +82,27 @@ bread_inv <- function(model, X_fit) {
   XtWX <- crossprod(X_fit, X_fit * w_iwls)
   tryCatch(
     solve(XtWX),
-    error = function(e) MASS::ginv(XtWX)
+    error = function(e) {
+      # Rate-limited: bootstrap loops can hit this error once per
+      # replicate — without throttling the console fills up. The
+      # underlying rank deficiency is the same each time.
+      rlang::warn(
+        c(
+          "`X'WX` is singular; using `MASS::ginv()` as a fallback.",
+          i = paste0(
+            "This usually means the outcome model is rank-deficient ",
+            "(collinear covariates, aliased factor levels, or a saturated ",
+            "design with too few observations per cell). The pseudo-inverse ",
+            "gives a minimum-norm solution but the resulting sandwich ",
+            "variance may be miscalibrated. Inspect `summary(fit$model)` ",
+            "for NA coefficients."
+          )
+        ),
+        .frequency = "once",
+        .frequency_id = "causatr_bread_inv_singular"
+      )
+      MASS::ginv(XtWX)
+    }
   )
 }
 
@@ -89,15 +119,32 @@ bread_inv <- function(model, X_fit) {
 #'   reusing `model$xlevels` so factor levels survive interventions
 #'   that produce single-level treatment columns (e.g. `static("low")`).
 #'
+#' `newdata` is coerced to `data.frame` up front to avoid
+#' `model.matrix()` failing on `data.table` inputs — `model.matrix()`
+#' sometimes chokes on `data.table` because of how it dispatches the
+#' `[` subset used internally when evaluating terms. The coercion is
+#' cheap (shared column pointers) and side-steps a class of
+#' environment-related edge cases that previously required callers to
+#' wrap the call in a `tryCatch`.
+#'
 #' @param model A fitted model object.
-#' @param newdata Data frame of counterfactual observations.
+#' @param newdata Data frame or data.table of counterfactual observations.
 #'
 #' @return A design matrix (`n_new x p`).
 #'
 #' @noRd
 iv_design_matrix <- function(model, newdata) {
+  # `predict(gam, ..., type = "lpmatrix")` accepts data.table directly.
   if (inherits(model, "gam")) {
     return(stats::predict(model, newdata = newdata, type = "lpmatrix"))
+  }
+  # GLM path: force data.frame so `model.matrix()` doesn't trip on
+  # data.table's `[` dispatch. Using `delete.response()` on the model's
+  # terms drops the LHS (Y) so we don't need the response column in
+  # `newdata` — important because the counterfactual frame is built
+  # from covariates alone.
+  if (data.table::is.data.table(newdata)) {
+    newdata <- as.data.frame(newdata)
   }
   pred_terms <- stats::delete.response(stats::terms(model))
   xlev <- model$xlevels
@@ -105,73 +152,80 @@ iv_design_matrix <- function(model, newdata) {
 }
 
 
-#' Channel 2 correction for one model
+#' Resolve a model's fit rows relative to the full data
 #'
 #' @description
-#' Computes the per-individual contribution of a single nuisance model
-#' \eqn{k} to the influence function of \eqn{\hat\mu}, given the gradient
-#' \eqn{g_k = \partial\hat\mu/\partial\beta_k}. Following the three-line
-#' template of vignette Section 4:
+#' Returns the integer row indices (in `1..n_total`) of the rows `model`
+#' was actually fit on, starting from `fit$details$fit_rows` and removing
+#' `model$na.action` rows dropped during fitting.
 #'
-#' \deqn{h = A_k^{-1} g_k, \qquad d_i = X_i^T h, \qquad
-#'       \mathrm{correction}_i = n \cdot d_i \cdot r^{\mathrm{score}}_i}
+#' `model$na.action` carries indices that are local to the subset passed
+#' to `glm()` (not the full `fit$data`), so `fit_idx[-na_action]` is the
+#' correct removal as long as the pipeline upstream passes pre-subsetted
+#' data. This helper wraps the calculation and asserts the invariant so a
+#' future regression in the upstream `fit_*` code paths surfaces loudly
+#' rather than silently corrupting the IF alignment.
 #'
-#' The factor of \eqn{n} arises because \eqn{A_k^{-1} = n(X^TWX)^{-1}}
-#' (see vignette Section 5.5). The score residual
-#' \eqn{r^{\mathrm{score}}_i = (Y_i - \hat\mu_i) \cdot (d\mu/d\eta)/V(\mu)}
-#' is the one that appears in the GLM score \eqn{\psi_i = X_i\,r^{\mathrm{score}}_i}.
-#' For canonical links \eqn{(d\mu/d\eta)/V(\mu) = 1} and the score
-#' residual collapses to the response residual; for non-canonical links
-#' (probit, cloglog, Gamma-log, Poisson-sqrt, ...) the link-scale factor
-#' must be applied or the IF is miscalibrated.
+#' @param fit A `causatr_fit` with a valid `$details$fit_rows` logical.
+#' @param model The fitted outcome model.
 #'
-#' Returns the correction vector along with `d` and `h` because:
-#'
-#' - **ICE** consumes `d` to build the next model's gradient via
-#'   \eqn{g_{k+1} = \sum_j d_{k,j}\,(d\mu/d\eta)\,X^*_{k+1,j}}.
-#' - **`correct_propensity()` Branch B** consumes `h` to construct the
-#'   derived gradient \eqn{g^{\mathrm{prop}} = A_{\beta\alpha}^T h_{\mathrm{msm}}}
-#'   for the propensity correction term.
-#'
-#' G-comp and matching only read `$correction` and ignore the other slots.
-#'
-#' @param model A fitted model with a `family` object (GLM or GAM).
-#' @param gradient Numeric `p`-vector. The sensitivity gradient
-#'   \eqn{g = \partial\hat\mu/\partial\beta}.
-#' @param fit_idx Integer vector of length \eqn{n_{\mathrm{fit}}}. Row indices
-#'   in `1..n_total` corresponding to the rows the model was fit on.
-#' @param n_total Integer. The total denominator used to scale the IF
-#'   (matches the length of the IF vector, not necessarily `nobs(model)`).
-#'
-#' @return A list with components:
-#'   \describe{
-#'     \item{`correction`}{Numeric vector of length `n_total`. Zero for
-#'       rows outside `fit_idx`. `n_total * d_i * r_score_i` on fit rows.}
-#'     \item{`d`}{Numeric vector of length `n_total`. The per-individual
-#'       sensitivity \eqn{d_i = X_i^T h}; zero off `fit_idx`.}
-#'     \item{`h`}{Numeric `p`-vector. The bread-projected gradient
-#'       \eqn{h = A_k^{-1} g_k}.}
-#'   }
+#' @return Integer vector of row indices in `1..nrow(fit$data)`.
 #'
 #' @noRd
-correct_model <- function(model, gradient, fit_idx, n_total) {
+resolve_fit_idx <- function(fit, model) {
+  fit_idx <- which(fit$details$fit_rows)
+  na_action <- model$na.action
+  if (is.null(na_action)) {
+    return(fit_idx)
+  }
+  if (max(na_action, 0L) > length(fit_idx)) {
+    rlang::abort(
+      paste0(
+        "resolve_fit_idx(): `model$na.action` max index (",
+        max(na_action),
+        ") exceeds `sum(fit$details$fit_rows)` (",
+        length(fit_idx),
+        "); upstream fit pipeline is not pre-subsetting data."
+      )
+    )
+  }
+  fit_idx[-na_action]
+}
+
+
+#' Precompute the gradient-independent ingredients of `correct_model()`
+#'
+#' @description
+#' `correct_model()` needs three things that depend only on the model and
+#' the fit data, not on the intervention-specific gradient: the design
+#' matrix `X_fit`, the inverse bread `B_inv`, and the GLM score residual
+#' `r_score`. Callers that apply the correction for many interventions
+#' (g-comp, IPW, matching) should call `prepare_model_if()` **once** per
+#' model and then `apply_model_correction(prep, gradient)` per intervention,
+#' avoiding `O(k)` recomputation of a `p \times p` `solve()`.
+#'
+#' The score residual
+#' \eqn{r^{\mathrm{score}}_i = (Y_i - \hat\mu_i)(d\mu/d\eta)/V(\mu)} is
+#' obtained from the GLM internals as `residuals(m, "working") *
+#' weights(m, "working")` so it matches `sandwich::estfun()` row-for-row.
+#' For canonical links it collapses to the response residual; for
+#' non-canonical links (probit, cloglog, Gamma-log, ...) the link-scale
+#' factor is essential or the IF is miscalibrated.
+#'
+#' @param model A fitted model with a `family` object (GLM or GAM).
+#' @param fit_idx Integer vector. Row indices in `1..n_total` corresponding
+#'   to the rows the model was fit on.
+#' @param n_total Integer. The total denominator used to scale the IF.
+#'
+#' @return A list with components `model`, `X_fit`, `B_inv`, `r_score`,
+#'   `fit_idx`, `n_total`, suitable for passing to
+#'   `apply_model_correction()`.
+#'
+#' @noRd
+prepare_model_if <- function(model, fit_idx, n_total) {
   X_fit <- stats::model.matrix(model)
   B_inv <- bread_inv(model, X_fit)
 
-  h <- as.numeric(B_inv %*% gradient)
-  d_fit <- as.numeric(X_fit %*% h)
-
-  # Score residual = response residual * (dmu/deta) / V(mu) * prior_w.
-  # For canonical links the factor (dmu/deta)/V is 1; for non-canonical
-  # (probit, cloglog, Gamma-log, Poisson-sqrt, ...) it is not, and using
-  # the bare response residual gives a miscalibrated IF.
-  #
-  # We obtain it directly from the GLM internals via
-  #   working_residual * working_weight = ((y-mu)/mu_eta) * (mu_eta^2/V * pw)
-  #                                     = (y-mu) * mu_eta/V * pw
-  # which matches sandwich::estfun(glm) row-for-row. Recomputing through
-  # family$mu.eta / family$variance is correct in theory but introduces
-  # ~1e-6 numerical drift relative to the IWLS internals.
   r_score <- tryCatch(
     stats::residuals(model, type = "working") *
       stats::weights(model, type = "working"),
@@ -188,13 +242,84 @@ correct_model <- function(model, gradient, fit_idx, n_total) {
     }
   )
 
+  list(
+    model = model,
+    X_fit = X_fit,
+    B_inv = B_inv,
+    r_score = r_score,
+    fit_idx = fit_idx,
+    n_total = n_total
+  )
+}
+
+
+#' Apply a prepared model correction to a single gradient
+#'
+#' @description
+#' Gradient-specific half of `correct_model()`. Consumes a `prep` list
+#' from `prepare_model_if()` and a sensitivity gradient
+#' \eqn{g = \partial\hat\mu/\partial\beta}, and returns the per-individual
+#' correction vector along with `d` and `h` (needed by ICE and by
+#' `prepare_propensity_if()` Branch B).
+#'
+#' Following the three-line template of vignette Section 4:
+#'
+#' \deqn{h = A^{-1} g, \qquad d_i = X_i^T h, \qquad
+#'       \mathrm{correction}_i = n \cdot d_i \cdot r^{\mathrm{score}}_i}
+#'
+#' The factor of \eqn{n} arises because \eqn{A^{-1} = n(X^TWX)^{-1}}
+#' (see vignette Section 5.5).
+#'
+#' @param prep Output of `prepare_model_if()`.
+#' @param gradient Numeric `p`-vector. The sensitivity gradient.
+#'
+#' @return A list with `correction`, `d`, `h` as in `correct_model()`.
+#'
+#' @noRd
+apply_model_correction <- function(prep, gradient) {
+  h <- as.numeric(prep$B_inv %*% gradient)
+  d_fit <- as.numeric(prep$X_fit %*% h)
+
+  n_total <- prep$n_total
+  fit_idx <- prep$fit_idx
+
   d_full <- rep(0, n_total)
   d_full[fit_idx] <- d_fit
 
   correction <- rep(0, n_total)
-  correction[fit_idx] <- n_total * d_fit * r_score
+  correction[fit_idx] <- n_total * d_fit * prep$r_score
 
   list(correction = correction, d = d_full, h = h)
+}
+
+
+#' Channel 2 correction for one model
+#'
+#' @description
+#' Convenience wrapper around `prepare_model_if()` + `apply_model_correction()`
+#' for callers that only need the correction for a single gradient. ICE uses
+#' this entry point because its outer loop cycles over distinct models, one
+#' per time step; g-comp / IPW / matching cycle over interventions at a
+#' fixed model and should call the two halves directly.
+#'
+#' @inheritParams prepare_model_if
+#' @param gradient Numeric `p`-vector. The sensitivity gradient
+#'   \eqn{g = \partial\hat\mu/\partial\beta}.
+#'
+#' @return A list with components:
+#'   \describe{
+#'     \item{`correction`}{Numeric vector of length `n_total`. Zero for
+#'       rows outside `fit_idx`. `n_total * d_i * r_score_i` on fit rows.}
+#'     \item{`d`}{Numeric vector of length `n_total`. The per-individual
+#'       sensitivity \eqn{d_i = X_i^T h}; zero off `fit_idx`.}
+#'     \item{`h`}{Numeric `p`-vector. The bread-projected gradient
+#'       \eqn{h = A^{-1} g}.}
+#'   }
+#'
+#' @noRd
+correct_model <- function(model, gradient, fit_idx, n_total) {
+  prep <- prepare_model_if(model, fit_idx, n_total)
+  apply_model_correction(prep, gradient)
 }
 
 
@@ -230,29 +355,18 @@ correct_model <- function(model, gradient, fit_idx, n_total) {
 #'
 #' @noRd
 vcov_from_if <- function(IF_list, n, int_names, cluster = NULL) {
-  k <- length(IF_list)
+  IF_mat <- do.call(cbind, IF_list)
 
   if (!is.null(cluster)) {
-    if (length(cluster) != length(IF_list[[1]])) {
+    if (length(cluster) != nrow(IF_mat)) {
       rlang::abort(
         "`cluster` length must match the IF vector length in `vcov_from_if()`."
       )
     }
-    cl <- as.factor(cluster)
-    IF_list <- lapply(IF_list, function(IF) {
-      as.numeric(rowsum(IF, cl, reorder = FALSE))
-    })
+    IF_mat <- rowsum(IF_mat, as.factor(cluster), reorder = FALSE)
   }
 
-  vcov_mat <- matrix(0, k, k)
-  for (j in seq_len(k)) {
-    for (l in j:k) {
-      vcov_mat[j, l] <- sum(IF_list[[j]] * IF_list[[l]]) / n^2
-      if (j != l) {
-        vcov_mat[l, j] <- vcov_mat[j, l]
-      }
-    }
-  }
+  vcov_mat <- crossprod(IF_mat) / n^2
   rownames(vcov_mat) <- int_names
   colnames(vcov_mat) <- int_names
   vcov_mat
@@ -282,11 +396,14 @@ vcov_from_if <- function(IF_list, n, int_names, cluster = NULL) {
 #' ## Tier 2 \(plain delta shortcut, with a warning\)
 #'
 #' If no `estfun` method exists, fall back to
-#' \eqn{V_1 + V_2 = (1/n^2)\sum_i \mathrm{Ch.1}_i^2 + J V_\beta J^T} and
-#' return their sum. This **drops the cross-term**
-#' \eqn{(2/n^2)\sum_i \mathrm{Ch.1}_i\,\mathrm{Ch.2}_i} from the
-#' decomposition in vignette Section 3.3, so the variance is slightly
-#' miscalibrated. A `rlang::warn()` is emitted so the user knows.
+#' \eqn{V_1 + V_2 = (1/n^2)\mathrm{Ch.1}^T\mathrm{Ch.1} + J V_\beta J^T}
+#' and return their sum, where \eqn{\mathrm{Ch.1}} is the \eqn{n \times k}
+#' matrix stacking Channel-1 vectors column-wise so that \eqn{V_1} carries
+#' full off-diagonal covariance, not just diagonal variances. This
+#' **drops the cross-term**
+#' \eqn{(1/n^2)(\mathrm{Ch.1}^T\mathrm{Ch.2} + \mathrm{Ch.2}^T\mathrm{Ch.1})}
+#' from the decomposition in vignette Section 3.3, so the variance is
+#' slightly miscalibrated. A `rlang::warn()` is emitted so the user knows.
 #'
 #' @param fit A `causatr_fit` object.
 #' @param data_a_list Named list of counterfactual data.tables.
@@ -316,13 +433,13 @@ variance_if_numeric <- function(
     as.data.frame(da)[target_idx, , drop = FALSE]
   })
 
+  target_w <- numeric(n_total)
   if (!is.null(weights)) {
     sum_w <- sum(weights)
-    target_w <- ifelse(target_idx, 0, 0)
     target_w[target_idx] <- weights / sum_w
   } else {
     n_t <- sum(target_idx)
-    target_w <- ifelse(target_idx, 1 / n_t, 0)
+    target_w[target_idx] <- 1 / n_t
   }
 
   # Channel 1 vectors per intervention (length n_total). The
@@ -367,11 +484,7 @@ variance_if_numeric <- function(
     psi <- sandwich::estfun(model)
     A_inv <- sandwich::bread(model) / stats::nobs(model)
     IF_beta <- psi %*% A_inv
-    fit_idx <- which(fit$details$fit_rows)
-    na_action <- model$na.action
-    if (!is.null(na_action)) {
-      fit_idx <- fit_idx[-na_action]
-    }
+    fit_idx <- resolve_fit_idx(fit, model)
     if (length(fit_idx) != nrow(IF_beta)) {
       rlang::warn(
         paste0(
@@ -383,10 +496,12 @@ variance_if_numeric <- function(
         )
       )
     } else {
+      # Batched Channel-2: one matrix multiply gives the (n_fit x k)
+      # per-observation Ch2 contributions across all interventions.
+      Ch2_fit <- (IF_beta %*% t(J)) * n_total
       IF_list <- lapply(seq_len(k), function(j) {
-        Ch2_fit <- as.numeric(IF_beta %*% J[j, ]) * n_total
         IF <- Ch1_list[[j]]
-        IF[fit_idx] <- IF[fit_idx] + Ch2_fit
+        IF[fit_idx] <- IF[fit_idx] + Ch2_fit[, j]
         IF
       })
       names(IF_list) <- int_names
@@ -407,18 +522,15 @@ variance_if_numeric <- function(
     )
   )
 
-  V1 <- vapply(
-    Ch1_list,
-    function(IF) sum(IF^2) / n_total^2,
-    numeric(1)
-  )
+  Ch1_mat <- do.call(cbind, Ch1_list)
+  V1 <- crossprod(Ch1_mat) / n_total^2
   V_beta <- tryCatch(stats::vcov(model), error = function(e) NULL)
   if (is.null(V_beta)) {
     V_beta <- diag(0, length(beta_hat))
   }
   V2 <- J %*% V_beta %*% t(J)
 
-  vcov_mat <- V2 + diag(V1, nrow = k)
+  vcov_mat <- V2 + V1
   rownames(vcov_mat) <- int_names
   colnames(vcov_mat) <- int_names
   vcov_mat
@@ -448,9 +560,10 @@ variance_if_numeric <- function(
 #'   mean equation downward (vignette Section 5.4 / D2).
 #' - **IPW** (`variance_if_ipw`): same Channel 1 shape as g-comp;
 #'   Channel 2 (the combined MSM correction + propensity correction)
-#'   is delegated to `correct_propensity()`, which dispatches between
-#'   Branch A (WeightIt shortcut via `sandwich::estfun(asympt = TRUE)`)
-#'   and Branch B (self-contained, deferred to Phase 4).
+#'   is delegated to `prepare_propensity_if()` / `apply_propensity_correction()`,
+#'   which dispatch between Branch A (WeightIt shortcut via
+#'   `sandwich::estfun(asympt = TRUE)`) and Branch B (self-contained,
+#'   deferred to Phase 4).
 #'
 #' Non-GLM models without `family$mu.eta` and without `$Vp` are routed to
 #' `variance_if_numeric()`.
@@ -518,6 +631,172 @@ variance_if <- function(
 }
 
 
+#' Shared Channel-1 + Jacobian builder for point-treatment branches
+#'
+#' @description
+#' Collects the per-intervention pieces that g-comp and IPW both need
+#' before their Channel-2 dispatch:
+#'
+#' - `Ch1_list`: length-`n` Channel-1 IF vectors (one per intervention),
+#'   zero off target rows; weighted or unweighted as determined by
+#'   `fit$details$weights`.
+#' - `grad_list`: length-`p` marginal-mean Jacobians
+#'   \eqn{g_j = \partial\hat\mu_j/\partial\beta} (one per intervention),
+#'   via \eqn{X^{*T}(d\mu/d\eta)} averaged over the target population.
+#' - `fit_idx`, `n`: the row-alignment scope the Channel-2 call will use.
+#'
+#' Factoring this out keeps `variance_if_gcomp()` and `variance_if_ipw()`
+#' identical up to the final Channel-2 call — they both call
+#' `build_point_channel_pieces()` and then loop over
+#' `apply_model_correction(prep, grad_list[[j]])` (g-comp) or
+#' `apply_propensity_correction(prop_prep, grad_list[[j]])` (IPW).
+#' Any future Channel-1 fix lands in one place instead of drifting
+#' between two near-duplicate loops.
+#'
+#' @param fit A `causatr_fit` object.
+#' @param data_a_list Named list of counterfactual data.tables.
+#' @param preds_list Named list of length-`n` prediction vectors.
+#' @param mu_hat Named numeric vector of marginal-mean point estimates.
+#' @param target_idx Logical vector (length `n`) flagging target rows.
+#'
+#' @return A list with components `Ch1_list`, `grad_list`, `fit_idx`, `n`.
+#'
+#' @noRd
+build_point_channel_pieces <- function(
+  fit,
+  data_a_list,
+  preds_list,
+  mu_hat,
+  target_idx
+) {
+  model <- fit$model
+  int_names <- names(data_a_list)
+  k <- length(int_names)
+  n <- nrow(fit$data)
+
+  ext_w <- fit$details$weights
+  has_weights <- !is.null(ext_w)
+
+  # Guard against an empty target population. `compute_contrast()`
+  # normally filters this out upstream, but a defensive check here
+  # converts a cryptic NaN-propagated vcov into a clear abort at the
+  # variance-engine boundary.
+  if (has_weights) {
+    sum_w_target <- sum(ext_w[target_idx])
+    if (sum_w_target <= 0) {
+      rlang::abort(
+        "build_point_channel_pieces(): target-population weights sum to 0."
+      )
+    }
+  } else {
+    n_target <- sum(target_idx)
+    if (n_target == 0L) {
+      rlang::abort(
+        "build_point_channel_pieces(): target population is empty."
+      )
+    }
+  }
+
+  fit_idx <- resolve_fit_idx(fit, model)
+  beta_hat <- stats::coef(model)
+
+  data_a_frames <- lapply(data_a_list, function(da) {
+    as.data.frame(da)[target_idx, , drop = FALSE]
+  })
+
+  Ch1_list <- vector("list", k)
+  grad_list <- vector("list", k)
+
+  # `preds_list[[j]]` is length-`n` (full data). `compute_contrast()`
+  # upstream has already masked `target_idx` so that all TRUE rows have
+  # non-NA predictions, but non-target rows may still carry NA. We must
+  # therefore index `p` by `target_idx` rather than multiplying the
+  # full-length `p` by a zero vector — `0 * NA = NA` in R, which would
+  # silently corrupt the Channel-1 contribution on non-target rows.
+  for (j in seq_len(k)) {
+    p <- preds_list[[j]]
+    ch1 <- numeric(n)
+    if (has_weights) {
+      ch1[target_idx] <- n *
+        (ext_w[target_idx] / sum_w_target) *
+        (p[target_idx] - mu_hat[j])
+    } else {
+      ch1[target_idx] <- (n / n_target) * (p[target_idx] - mu_hat[j])
+    }
+    Ch1_list[[j]] <- ch1
+
+    X_star <- iv_design_matrix(model, data_a_frames[[j]])
+    eta_star <- as.numeric(X_star %*% beta_hat)
+    mu_eta_star <- model$family$mu.eta(eta_star)
+
+    if (has_weights) {
+      w_t <- ext_w[target_idx]
+      grad_list[[j]] <- as.numeric(crossprod(X_star, w_t * mu_eta_star)) /
+        sum_w_target
+    } else {
+      grad_list[[j]] <- as.numeric(crossprod(X_star, mu_eta_star)) / n_target
+    }
+  }
+
+  names(Ch1_list) <- int_names
+  names(grad_list) <- int_names
+
+  list(
+    Ch1_list = Ch1_list,
+    grad_list = grad_list,
+    fit_idx = fit_idx,
+    n = n
+  )
+}
+
+
+#' Bundle `build_point_channel_pieces()` + `prepare_model_if()` together
+#'
+#' @description
+#' G-comp's branch follows a fixed prepare sequence: build the Channel-1
+#' / Jacobian pieces, then prepare the outcome model for repeated
+#' `apply_model_correction()` calls. Passing `pieces$fit_idx` /
+#' `pieces$n` to `prepare_model_if()` by hand leaves two ways to get out
+#' of sync — a caller could pass `resolve_fit_idx(fit, model)` and
+#' `nrow(fit$data)` independently, which would silently drift if one of
+#' them were computed differently. This helper bundles the two into one
+#' call so the alignment is structural, not by convention.
+#'
+#' **Phase 3 IPW** does *not* use this bundler because it routes its
+#' Channel 2 through `prepare_propensity_if()` (WeightIt shortcut), not
+#' through `prepare_model_if()`. **Phase 4's self-contained IPW** — which
+#' fits a plain weighted GLM as the MSM — will reuse this bundler for
+#' the MSM term alongside a parallel `prepare_propensity_if()` call for
+#' the propensity term; see `PHASE_4_INTERVENTIONS_SELF_IPW.md`.
+#'
+#' @inheritParams build_point_channel_pieces
+#' @param model The fitted outcome (or MSM) model to prepare.
+#'
+#' @return A list with components `pieces` (output of
+#'   `build_point_channel_pieces()`) and `prep` (output of
+#'   `prepare_model_if()`) sharing the same `fit_idx` / `n`.
+#'
+#' @noRd
+prepare_point_variance <- function(
+  fit,
+  model,
+  data_a_list,
+  preds_list,
+  mu_hat,
+  target_idx
+) {
+  pieces <- build_point_channel_pieces(
+    fit,
+    data_a_list,
+    preds_list,
+    mu_hat,
+    target_idx
+  )
+  prep <- prepare_model_if(model, pieces$fit_idx, pieces$n)
+  list(pieces = pieces, prep = prep)
+}
+
+
 #' G-computation branch of variance_if()
 #'
 #' @noRd
@@ -530,8 +809,6 @@ variance_if_gcomp <- function(
 ) {
   model <- fit$model
   int_names <- names(data_a_list)
-  k <- length(int_names)
-  n <- nrow(fit$data)
 
   has_family <- !is.null(model$family) &&
     !is.null(model$family$mu.eta) &&
@@ -544,55 +821,29 @@ variance_if_gcomp <- function(
       data_a_list,
       preds_list,
       mu_hat,
-      target_idx
+      target_idx,
+      weights = fit$details$weights
     ))
   }
 
-  ext_w <- fit$details$weights
-  has_weights <- !is.null(ext_w)
+  bundle <- prepare_point_variance(
+    fit,
+    model,
+    data_a_list,
+    preds_list,
+    mu_hat,
+    target_idx
+  )
+  pieces <- bundle$pieces
+  prep <- bundle$prep
 
-  if (has_weights) {
-    w_target <- ifelse(target_idx, ext_w, 0)
-    sum_w_target <- sum(w_target[target_idx])
-  } else {
-    n_target <- sum(target_idx)
-  }
-
-  fit_idx <- which(fit$details$fit_rows)
-  na_action <- model$na.action
-  if (!is.null(na_action)) {
-    fit_idx <- fit_idx[-na_action]
-  }
-  beta_hat <- stats::coef(model)
-
-  data_a_frames <- lapply(data_a_list, function(da) {
-    as.data.frame(da)[target_idx, , drop = FALSE]
-  })
-
-  IF_list <- lapply(seq_len(k), function(j) {
-    p <- preds_list[[j]]
-    if (has_weights) {
-      IF_vec <- n * (w_target / sum_w_target) * (p - mu_hat[j])
-    } else {
-      IF_vec <- (n / n_target) * ifelse(target_idx, p - mu_hat[j], 0)
-    }
-
-    X_star <- iv_design_matrix(model, data_a_frames[[j]])
-    eta_star <- as.numeric(X_star %*% beta_hat)
-    mu_eta_star <- model$family$mu.eta(eta_star)
-
-    if (has_weights) {
-      w_t <- ext_w[target_idx]
-      g <- as.numeric(crossprod(X_star, w_t * mu_eta_star)) / sum_w_target
-    } else {
-      g <- as.numeric(crossprod(X_star, mu_eta_star)) / n_target
-    }
-
-    IF_vec + correct_model(model, g, fit_idx, n)$correction
+  IF_list <- lapply(seq_along(pieces$grad_list), function(j) {
+    pieces$Ch1_list[[j]] +
+      apply_model_correction(prep, pieces$grad_list[[j]])$correction
   })
   names(IF_list) <- int_names
 
-  vcov_from_if(IF_list, n, int_names)
+  vcov_from_if(IF_list, pieces$n, int_names)
 }
 
 
@@ -610,6 +861,20 @@ variance_if_gcomp <- function(
 #' are constant within each treatment level so Channel 1 is identically
 #' zero and the result reduces to the Channel-2-only formula
 #' `J vcovCL(model) J^T`, matching the legacy implementation.
+#'
+#' **Why this branch doesn't use `build_point_channel_pieces()`.** G-comp
+#' and IPW share that helper because they both operate on the full
+#' `fit$data` with optional external weights. Matching operates on
+#' `fit$details$matched_data` (a strict subset with its own row count
+#' `n_m`), interventions are re-applied on `matched_dt` rather than
+#' `data`, and match weights play a dual role — they enter both as the
+#' outcome-model `prior.weights` (propagated through `prepare_model_if()`
+#' via IWLS working weights) and as the target-population weights for
+#' Channel 1. Forcing this into `build_point_channel_pieces()` would
+#' require a `scope = c("full", "matched")` switch whose branches would
+#' be larger than the inline construction below. The duplication here
+#' is intentional — any future Channel-1 fix must be mirrored into both
+#' places.
 #'
 #' @noRd
 variance_if_matching <- function(fit, interventions) {
@@ -632,6 +897,8 @@ variance_if_matching <- function(fit, interventions) {
   treatment <- fit$treatment
   matched_dt <- data.table::as.data.table(matched)
 
+  prep <- prepare_model_if(model, fit_idx, n_m)
+
   IF_list <- lapply(seq_len(k), function(j) {
     iv <- interventions[[j]]
     da <- apply_intervention(matched_dt, treatment, iv)
@@ -646,7 +913,7 @@ variance_if_matching <- function(fit, interventions) {
     mu_eta_star <- model$family$mu.eta(eta_star)
     g <- as.numeric(crossprod(X_star, match_w * mu_eta_star)) / sum_w
 
-    IF_vec + correct_model(model, g, fit_idx, n_m)$correction
+    IF_vec + apply_model_correction(prep, g)$correction
   })
   names(IF_list) <- int_names
 
@@ -722,18 +989,27 @@ variance_if_ice_one <- function(fit, ice_result, target) {
   n <- length(all_ids)
   id_to_idx <- stats::setNames(seq_len(n), all_ids)
 
+  # `pseudo_final` may carry NA on first-time rows that were dropped
+  # during the backward ICE iteration (e.g. intermediate covariates
+  # missing at a later time point). Indexing by `target` rather than
+  # multiplying the full-length vector by a zero mask avoids `0 * NA =
+  # NA` propagating into the IF.
   ext_w <- details$weights
   has_weights <- !is.null(ext_w)
   if (has_weights) {
     w_first <- ext_w[rows_first]
-    w_target <- ifelse(target, w_first, 0)
-    sum_w_target <- sum(w_target)
-    mu_hat <- sum(w_target * pseudo_final) / sum_w_target
-    IF_vec <- n * (w_target / sum_w_target) * (pseudo_final - mu_hat)
+    w_t <- w_first[target]
+    sum_w_target <- sum(w_t)
+    mu_hat <- sum(w_t * pseudo_final[target]) / sum_w_target
+    IF_vec <- numeric(n)
+    IF_vec[target] <- n *
+      (w_t / sum_w_target) *
+      (pseudo_final[target] - mu_hat)
   } else {
     n_target <- sum(target)
     mu_hat <- mean(pseudo_final[target], na.rm = TRUE)
-    IF_vec <- (n / n_target) * ifelse(target, pseudo_final - mu_hat, 0)
+    IF_vec <- numeric(n)
+    IF_vec[target] <- (n / n_target) * (pseudo_final[target] - mu_hat)
   }
 
   d_vec <- rep(0, n)
@@ -750,18 +1026,25 @@ variance_if_ice_one <- function(fit, ice_result, target) {
       next
     }
 
+    # Subset the (already intervention-modified) longitudinal data to
+    # the rows at the current time step, and record which individuals
+    # are present (some may have been censored out before this step).
     rows_iv_current <- data_iv[[time_col]] == current_time
     iv_data_current <- data_iv[rows_iv_current]
     iv_ids_current <- as.character(iv_data_current[[id_col]])
 
-    pred_terms <- stats::delete.response(stats::terms(model_k))
-    X_star_k <- tryCatch(
-      stats::model.matrix(pred_terms, data = iv_data_current),
-      error = function(e) {
-        stats::model.matrix(pred_terms, data = as.data.frame(iv_data_current))
-      }
-    )
+    # Build the counterfactual design matrix for this time step's
+    # model. `iv_design_matrix()` handles both GLMs (via `model.matrix`
+    # with stored xlevels) and GAMs (via `predict(..., type =
+    # "lpmatrix")`), and accepts data.table input — so ICE can run the
+    # same sandwich-variance pipeline on GAM outcome models without any
+    # special casing here.
+    X_star_k <- iv_design_matrix(model_k, iv_data_current)
 
+    # Counterfactual linear predictor and its derivative w.r.t. eta.
+    # `mu_eta_star = dmu/deta` is needed to convert the gradient of the
+    # marginal mean w.r.t. beta into the gradient of the linear
+    # predictor, which is what the Channel-2 correction operates on.
     eta_star <- as.numeric(X_star_k %*% stats::coef(model_k))
     mu_eta_star <- model_k$family$mu.eta(eta_star)
 
@@ -770,7 +1053,11 @@ variance_if_ice_one <- function(fit, ice_result, target) {
       valid_target <- !is.na(target_in_iv)
       target_in_iv <- target_in_iv[valid_target]
       if (has_weights) {
-        target_w <- w_target[target][valid_target]
+        # `w_t` is already the length-`sum(target)` vector of
+        # target-population weights from the IF setup above; align it
+        # with `valid_target` to cover cases where some target individuals
+        # are missing from the current iv frame.
+        target_w <- w_t[valid_target]
         g_k <- as.numeric(
           crossprod(
             X_star_k[target_in_iv, , drop = FALSE],
@@ -791,11 +1078,11 @@ variance_if_ice_one <- function(fit, ice_result, target) {
       prev_fit_ids <- fit_ids_list[[step_i - 1L]]
       idx_in_all <- id_to_idx[prev_fit_ids]
       rows_in_iv <- match(prev_fit_ids, iv_ids_current)
-      d_prev <- d_vec[idx_in_all]
 
-      keep <- !is.na(idx_in_all) & !is.na(rows_in_iv) & d_prev != 0
+      keep <- !is.na(idx_in_all) & !is.na(rows_in_iv)
       if (any(keep)) {
-        weights_g <- d_prev[keep] * mu_eta_star[rows_in_iv[keep]]
+        d_prev <- d_vec[idx_in_all[keep]]
+        weights_g <- d_prev * mu_eta_star[rows_in_iv[keep]]
         g_k <- as.numeric(
           crossprod(
             X_star_k[rows_in_iv[keep], , drop = FALSE],
@@ -820,18 +1107,23 @@ variance_if_ice_one <- function(fit, ice_result, target) {
 #' IPW branch of variance_if()
 #'
 #' @description
-#' Channel 1 + Channel 2 IF for IPW. Channel 1 is identical in form to the
-#' g-comp branch (a marginal-mean residual). Channel 2 is the **combined**
-#' MSM correction + propensity correction, delegated entirely to
-#' `correct_propensity()` — see its docstring for the two branches and
-#' the WeightIt vs self-contained dispatch.
+#' Channel 1 + Channel 2 IF for IPW. Shares the Channel-1 / Jacobian
+#' construction with the g-comp branch via `build_point_channel_pieces()`
+#' — the two branches differ only in whether Channel 2 routes through
+#' `apply_model_correction()` (g-comp) or `apply_propensity_correction()`
+#' (IPW, combined MSM + propensity correction). The prep step is hoisted
+#' out of the intervention loop so `sandwich::estfun()` / `sandwich::bread()`
+#' run once regardless of `k`.
 #'
 #' For a saturated MSM (`Y ~ A`) with a static intervention — the only
 #' shape supported in Phase 3 — predictions are constant within each
-#' treatment level so Channel 1 is identically zero and the entire
-#' variance comes from `correct_propensity()`. For Phase 4's non-static
-#' interventions (shift, MTP, IPSI, dynamic) Channel 1 will be nonzero
-#' and the same branch handles both.
+#' treatment level so Channel 1 is identically zero. The
+#' `build_point_channel_pieces()` call still computes `X_star` and `J_j`
+#' via `iv_design_matrix()` and `crossprod()`, which is technically
+#' redundant in the saturated case but architecturally consistent with
+#' Phase 4's non-static interventions (shift, MTP, IPSI, dynamic), where
+#' Channel 1 is nonzero and `J_j` carries real information. Keeping one
+#' code path handles both shapes without special-casing.
 #'
 #' @noRd
 variance_if_ipw <- function(
@@ -841,70 +1133,37 @@ variance_if_ipw <- function(
   mu_hat,
   target_idx
 ) {
-  model <- fit$model
   int_names <- names(data_a_list)
-  k <- length(int_names)
-  n <- nrow(fit$data)
 
-  ext_w <- fit$details$weights
-  has_weights <- !is.null(ext_w)
+  pieces <- build_point_channel_pieces(
+    fit,
+    data_a_list,
+    preds_list,
+    mu_hat,
+    target_idx
+  )
+  prop_prep <- prepare_propensity_if(fit, pieces$fit_idx, pieces$n)
 
-  if (has_weights) {
-    w_target <- ifelse(target_idx, ext_w, 0)
-    sum_w_target <- sum(w_target[target_idx])
-  } else {
-    n_target <- sum(target_idx)
-  }
-
-  fit_idx <- which(fit$details$fit_rows)
-  na_action <- model$na.action
-  if (!is.null(na_action)) {
-    fit_idx <- fit_idx[-na_action]
-  }
-  beta_hat <- stats::coef(model)
-
-  data_a_frames <- lapply(data_a_list, function(da) {
-    as.data.frame(da)[target_idx, , drop = FALSE]
-  })
-
-  IF_list <- lapply(seq_len(k), function(j) {
-    p <- preds_list[[j]]
-    if (has_weights) {
-      IF_vec <- n * (w_target / sum_w_target) * (p - mu_hat[j])
-    } else {
-      IF_vec <- (n / n_target) * ifelse(target_idx, p - mu_hat[j], 0)
-    }
-
-    X_star <- iv_design_matrix(model, data_a_frames[[j]])
-    eta_star <- as.numeric(X_star %*% beta_hat)
-    mu_eta_star <- model$family$mu.eta(eta_star)
-
-    if (has_weights) {
-      w_t <- ext_w[target_idx]
-      J_j <- as.numeric(crossprod(X_star, w_t * mu_eta_star)) / sum_w_target
-    } else {
-      J_j <- as.numeric(crossprod(X_star, mu_eta_star)) / n_target
-    }
-
-    IF_vec + correct_propensity(fit, J_j, fit_idx, n)
+  IF_list <- lapply(seq_along(pieces$grad_list), function(j) {
+    pieces$Ch1_list[[j]] +
+      apply_propensity_correction(prop_prep, pieces$grad_list[[j]])
   })
   names(IF_list) <- int_names
 
-  vcov_from_if(IF_list, n, int_names)
+  vcov_from_if(IF_list, pieces$n, int_names)
 }
 
 
-#' IPW Channel 2 (MSM + propensity correction)
+#' Precompute the gradient-independent IPW Channel 2 ingredients
 #'
 #' @description
-#' Returns the **combined** Channel 2 contribution for IPW per individual:
-#' the MSM correction term plus the propensity correction term from
-#' vignette Section 4.2:
-#'
-#' \deqn{\mathrm{Ch.2}_i =
-#'   J\,A_{\beta\beta}^{-1}\,\psi_{\beta,i}
-#'   + J\,A_{\beta\beta}^{-1}\,A_{\beta\alpha}\,A_{\alpha\alpha}^{-1}\,
-#'     \psi_{\alpha,i}}
+#' Gradient-independent half of the IPW Channel 2 computation (MSM
+#' correction + propensity correction). Builds the per-observation
+#' adjusted-score IF matrix \eqn{\mathrm{IF}_{\beta,i} = A_{\beta\beta}^{-1}
+#' (\psi_{\beta,i} + A_{\beta\alpha}A_{\alpha\alpha}^{-1}\psi_{\alpha,i})},
+#' pays the `sandwich::estfun()` / `sandwich::bread()` cost once, and
+#' returns an opaque `prop_prep` list that `apply_propensity_correction()`
+#' consumes per intervention.
 #'
 #' Two branches:
 #'
@@ -912,52 +1171,69 @@ variance_if_ipw <- function(
 #'   `glm_weightit`, `WeightIt::glm_weightit()` already implements
 #'   Wooldridge's (2010, eq. 12.41) stacked M-estimation correction
 #'   internally. `sandwich::estfun(model, asympt = TRUE)` returns the
-#'   **adjusted** score matrix
-#'   \eqn{\psi_{\beta,i} + A_{\beta\alpha}A_{\alpha\alpha}^{-1}\psi_{\alpha,i}}
-#'   in a single matrix; `sandwich::bread(model)/nobs(model)` returns
-#'   \eqn{A_{\beta\beta}^{-1}}. Their product times \eqn{J} yields both
-#'   correction terms in five lines, with no need to compute
-#'   \eqn{A_{\beta\alpha}} ourselves. Covers binary / multinomial /
-#'   continuous static IPW with any Mparts-supporting WeightIt method
-#'   (`glm`, `cbps`, `ipt`, `ebal`).
+#'   **adjusted** per-observation score matrix in a single call, and
+#'   `sandwich::bread(model)` returns \eqn{A_{\beta\beta}^{-1}}. Their
+#'   product is the full per-observation IF matrix. Covers binary /
+#'   multinomial / continuous static IPW with any Mparts-supporting
+#'   WeightIt method (`glm`, `cbps`, `ipt`, `ebal`).
 #'
 #' - **Branch B — self-contained, deferred to Phase 4.** When
 #'   `fit$model` is a plain weighted GLM (no `glm_weightit` class),
 #'   handles the non-static interventions (shift, MTP, IPSI, dynamic
-#'   rules) that WeightIt does not support. Plan: (1) call
-#'   `correct_model(msm_model, J, ...)` for the MSM term; (2) compute
-#'   \eqn{A_{\beta\alpha}} numerically via `numDeriv::jacobian()` on the
-#'   averaged weighted score (so the same code generalises across all
-#'   intervention types); (3) build the derived gradient
-#'   \eqn{g^{\mathrm{prop}} = A_{\beta\alpha}^T h_{\mathrm{msm}}} and
-#'   call `correct_model(propensity_model, g_prop, ...)` for the
-#'   propensity correction. See `PHASE_4_INTERVENTIONS_SELF_IPW.md`
-#'   (Section "Self-contained IPW influence function") for the
-#'   step-by-step plan and `VARIANCE_REFACTOR.qmd` for the derivation.
-#'   The dispatcher is in place; the body currently aborts.
+#'   rules) that WeightIt does not support. See
+#'   `PHASE_4_INTERVENTIONS_SELF_IPW.md` for the implementation plan.
+#'   Currently aborts.
 #'
 #' @param fit A `causatr_fit` of method `"ipw"`.
-#' @param J Numeric `p`-vector. The marginal-mean Jacobian
-#'   \eqn{J = \partial\hat\mu/\partial\beta} for one intervention.
 #' @param fit_idx Integer vector of row indices used by the MSM (in
 #'   `1..n_total`).
 #' @param n_total Integer. Total length of the IF vector.
 #'
-#' @return A numeric vector of length `n_total`. Zero outside `fit_idx`.
+#' @return A list with `IF_beta` (n_fit x p matrix), `fit_idx`, `n_total`.
 #'
 #' @noRd
-correct_propensity <- function(fit, J, fit_idx, n_total) {
+prepare_propensity_if <- function(fit, fit_idx, n_total) {
   if (inherits(fit$model, "glm_weightit")) {
-    return(correct_propensity_weightit(fit, J, fit_idx, n_total))
+    return(prepare_propensity_if_weightit(fit, fit_idx, n_total))
   }
-  correct_propensity_self_contained(fit, J, fit_idx, n_total)
+  prepare_propensity_if_self_contained(fit, fit_idx, n_total)
 }
 
 
-#' Branch A: WeightIt shortcut for `correct_propensity()`
+#' Apply a prepared IPW Channel 2 correction to a single gradient
+#'
+#' @description
+#' Returns the per-individual IPW Channel 2 contribution for a single
+#' marginal-mean Jacobian `J`:
+#'
+#' \deqn{\mathrm{Ch.2}_i =
+#'   J\,A_{\beta\beta}^{-1}\,\psi_{\beta,i}
+#'   + J\,A_{\beta\beta}^{-1}\,A_{\beta\alpha}\,A_{\alpha\alpha}^{-1}\,
+#'     \psi_{\alpha,i}}
+#'
+#' Both terms are carried inside `prep$IF_beta` via the adjusted-score
+#' identity (see `prepare_propensity_if()`).
+#'
+#' @param prep Output of `prepare_propensity_if()`.
+#' @param J Numeric `p`-vector. The marginal-mean Jacobian
+#'   \eqn{J = \partial\hat\mu/\partial\beta} for one intervention.
+#'
+#' @return A numeric vector of length `prep$n_total`. Zero outside
+#'   `prep$fit_idx`.
 #'
 #' @noRd
-correct_propensity_weightit <- function(fit, J, fit_idx, n_total) {
+apply_propensity_correction <- function(prep, J) {
+  Ch2_fit <- as.numeric(prep$IF_beta %*% J)
+  Ch2 <- rep(0, prep$n_total)
+  Ch2[prep$fit_idx] <- Ch2_fit
+  Ch2
+}
+
+
+#' Branch A: WeightIt shortcut for `prepare_propensity_if()`
+#'
+#' @noRd
+prepare_propensity_if_weightit <- function(fit, fit_idx, n_total) {
   model <- fit$model
 
   # `sandwich::bread()` follows the sandwich-package convention and
@@ -966,13 +1242,12 @@ correct_propensity_weightit <- function(fit, J, fit_idx, n_total) {
   # would shrink the IF by a factor of n and the variance by n^2.
   E <- sandwich::estfun(model, asympt = TRUE)
   IF_beta <- E %*% sandwich::bread(model)
-  Ch2_fit <- as.numeric(IF_beta %*% J)
 
-  if (length(Ch2_fit) != length(fit_idx)) {
+  if (nrow(IF_beta) != length(fit_idx)) {
     rlang::abort(
       paste0(
-        "correct_propensity() Branch A: estfun() returned ",
-        length(Ch2_fit),
+        "prepare_propensity_if() Branch A: estfun() returned ",
+        nrow(IF_beta),
         " rows but fit_idx has ",
         length(fit_idx),
         ". This indicates an alignment bug between the MSM fit data ",
@@ -981,50 +1256,42 @@ correct_propensity_weightit <- function(fit, J, fit_idx, n_total) {
     )
   }
 
-  Ch2 <- rep(0, n_total)
-  Ch2[fit_idx] <- Ch2_fit
-  Ch2
+  list(IF_beta = IF_beta, fit_idx = fit_idx, n_total = n_total)
 }
 
 
 #' Branch B scaffold: self-contained IPW IF for Phase 4
 #'
 #' @description
-#' Phase 4 will fill in this body. The dispatcher in `correct_propensity()`
-#' already routes any non-`glm_weightit` MSM here, so once the body is
-#' implemented Phase 4's self-contained IPW (for shift/MTP/IPSI/dynamic
-#' interventions) plugs in without touching `variance_if()` itself.
+#' Phase 4 will fill in this body. The dispatcher in
+#' `prepare_propensity_if()` already routes any non-`glm_weightit` MSM
+#' here, so once the body is implemented Phase 4's self-contained IPW
+#' (for shift/MTP/IPSI/dynamic interventions) plugs in without touching
+#' `variance_if()` itself.
 #'
-#' Implementation steps (summarised from `VARIANCE_REFACTOR.qmd` and
-#' `PHASE_4_INTERVENTIONS_SELF_IPW.md`):
+#' Implementation steps (summarised from `PHASE_4_INTERVENTIONS_SELF_IPW.md`):
 #'
 #' 1. Pull the MSM, the propensity model, and the closure
-#'    \eqn{\alpha \mapsto w_i(\alpha)} from `fit$details`. (Phase 4 must
-#'    add `propensity_model` and `weight_fn` slots in `fit_ipw()`.)
-#' 2. **MSM term.** Call `correct_model(msm, J, fit_idx, n_total)` to get
-#'    the MSM correction *and* `h_msm = A_{ββ}^{-1} J`.
-#' 3. **Cross-derivative.** Define
-#'    `psi_beta_bar(alpha)` = `(1/n) sum_i psi_β,i(alpha, beta_hat)`, the
-#'    averaged weighted MSM score as a function of the propensity
-#'    parameters with `beta` fixed. Compute
-#'    `A_beta_alpha = -numDeriv::jacobian(psi_beta_bar, x = alpha_hat)`.
-#'    The numerical jacobian generalises to any intervention shape
-#'    (analytic derivatives differ for static vs shift vs IPSI vs dynamic).
-#' 4. **Propensity term.** Form the derived gradient
-#'    `g_prop = t(A_beta_alpha) %*% h_msm` and call
-#'    `correct_model(propensity_model, g_prop, fit_idx_prop, n_total)`.
-#'    Add its `$correction` to the MSM correction; return the sum.
+#'    \eqn{\alpha \mapsto w_i(\alpha)} from `fit$details`.
+#' 2. **MSM term.** Reuse `prepare_model_if(msm)` + a per-intervention
+#'    `apply_model_correction()` for the MSM correction, keeping
+#'    `h_msm = A_{ββ}^{-1} J`.
+#' 3. **Cross-derivative.** Compute `A_beta_alpha` numerically via
+#'    `numDeriv::jacobian()` on the averaged weighted score, generalising
+#'    to any intervention shape.
+#' 4. **Propensity term.** Form `g_prop = t(A_beta_alpha) %*% h_msm` and
+#'    call `apply_model_correction(prep_prop, g_prop)`.
+#' 5. Assemble a `prop_prep` list whose `apply_propensity_correction()`
+#'    returns the combined MSM + propensity correction per individual.
 #'
 #' @noRd
-correct_propensity_self_contained <- function(fit, J, fit_idx, n_total) {
+prepare_propensity_if_self_contained <- function(fit, fit_idx, n_total) {
   rlang::abort(
     paste0(
-      "correct_propensity() Branch B (self-contained IPW for non-static ",
-      "interventions: shift, MTP, IPSI, dynamic) is planned for Phase 4. ",
-      "See PHASE_4_INTERVENTIONS_SELF_IPW.md, section 'Self-contained IPW ",
-      "influence function', for the implementation steps. The dispatcher ",
-      "in correct_propensity() already routes here when fit$model is not ",
-      "a glm_weightit object."
+      "Self-contained IPW IF (for non-static interventions: shift, MTP, ",
+      "IPSI, dynamic) is planned for Phase 4. Use `ci_method = 'bootstrap'` ",
+      "in the meantime, or fit with a WeightIt method that supports the ",
+      "Mparts correction (`glm`, `cbps`, `ipt`, `ebal`)."
     )
   )
 }

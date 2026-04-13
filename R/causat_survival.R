@@ -110,17 +110,28 @@ causat_survival <- function(
 
   data.table::setkeyv(data, c(id, time))
 
-  # Build the pooled logistic regression formula:
-  # event ~ time_terms + treatment + confounders
+  # Build the pooled logistic regression formula for discrete-time
+  # survival analysis (Hernán & Robins Ch. 17):
+  #   event ~ time_terms + treatment + confounders
+  # where `time_terms` is a flexible function of time (default
+  # `~ ns(time, 4)`). Pooled logistic = run one logistic regression
+  # over ALL (person, time) rows with a time-specific intercept
+  # — equivalent to a discrete-time hazard model.
   confounder_terms <- attr(stats::terms(confounders), "term.labels")
   time_terms <- attr(stats::terms(time_formula), "term.labels")
   rhs <- c(time_terms, treatment, confounder_terms)
   model_formula <- stats::reformulate(rhs, response = outcome)
 
-  # Identify fitting rows: only rows where the individual has survived
-  # up to this point (i.e. no prior event) and is not censored.
-  # Create a "previously survived" indicator: for each individual, the
-  # event column must be 0 at all prior time points.
+  # Fitting rows are the (person, time) cells where the individual
+  # is still at risk: no prior event and not censored. The "at-risk"
+  # convention is standard for hazard-based discrete-time models:
+  # once an individual has the event, they drop out of the risk set
+  # for all subsequent periods.
+  #
+  # `prev_event` is computed via within-id cumsum of the event
+  # column, shifted by 1 lag so that the CURRENT row's indicator
+  # reflects whether a prior event has occurred (not the current
+  # one). Fill with 0 for the first period — everyone starts event-free.
   data[,
     prev_event := data.table::shift(
       cumsum(get(outcome)),

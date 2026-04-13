@@ -244,10 +244,15 @@ causat <- function(
   model_fn = stats::glm,
   ...
 ) {
+  # Capture the call for later display in print/summary of the result.
   call <- match.call()
   method <- rlang::arg_match(method)
   estimand <- rlang::arg_match(estimand)
 
+  # Auto-detect point vs longitudinal from the presence of id/time.
+  # `type` lets the user force one or the other — useful for tests
+  # and for the rare case of longitudinal-shaped data the user wants
+  # to analyze cross-sectionally at a single time point.
   has_long <- !is.null(id) && !is.null(time)
 
   if (is.null(type)) {
@@ -262,6 +267,10 @@ causat <- function(
     }
   }
 
+  # All structural validation happens here. By the time check_causat_inputs()
+  # returns, the arguments are guaranteed consistent and any missing columns
+  # are surfaced with clear error messages — the downstream fit_* functions
+  # don't need to re-validate.
   check_causat_inputs(
     # nolint: object_usage_linter
     data,
@@ -276,6 +285,13 @@ causat <- function(
     history = history
   )
 
+  # prepare_data() does three things:
+  #   1. Coerces `data` to data.table (for fast subsetting + `:=`).
+  #   2. For longitudinal data, sorts by (id, time) and materializes
+  #      lag columns (`lag1_A`, `lag2_A`, ...) up to `history`.
+  #   3. Validates that the person-period structure is rectangular
+  #      (every id observed at every time, or consistently censored).
+  # All downstream fit_* functions assume the prepared shape.
   data <- prepare_data(
     # nolint: object_usage_linter
     data,
@@ -289,8 +305,15 @@ causat <- function(
     history = history
   )
 
+  # NA check on treatment values: if any are missing, user must either
+  # provide a censoring column (IPCW), use mice imputation, or remove
+  # incomplete cases manually. We do this AFTER prepare_data() because
+  # lag materialization is what actually exposes the NAs at baseline.
   check_treatment_nas(data, treatment, censoring)
 
+  # Dispatch to the method-specific fitter. Each returns a
+  # `causatr_fit` with the same S3 class and slot structure, which
+  # contrast() and diagnose() then consume uniformly.
   switch(
     method,
     gcomp = fit_gcomp(

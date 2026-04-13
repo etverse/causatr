@@ -23,11 +23,21 @@ uncertainty into \eqn{\hat\mu}.
 
 This file holds:
 \itemize{
-\item The five primitives — \code{bread_inv()}, \code{iv_design_matrix()},
-\code{correct_model()}, \code{vcov_from_if()}, \code{variance_if_numeric()}.
+\item The Channel-2 primitives — \code{bread_inv()}, \code{iv_design_matrix()},
+\code{prepare_model_if()} / \code{apply_model_correction()} (the prep/apply
+split that lets g-comp, matching, and IPW pay the \verb{p x p} bread solve
+once per model and reuse it across interventions), plus the thin
+single-gradient wrapper \code{correct_model()} that ICE uses.
+\item The \code{resolve_fit_idx()} helper (maps \code{fit$details$fit_rows} to
+model-local row indices, asserting the \code{na.action} invariant).
+\item The \code{vcov_from_if()} aggregator and the \code{variance_if_numeric()}
+two-tier numerical fallback.
 \item The dispatcher \code{variance_if()} with branches for g-computation,
-matching (cluster-robust), and ICE (chained backward recursion).
-\item The IPW-specific \code{correct_propensity()} (added in Phase C).
+matching (cluster-robust), ICE (chained forward sensitivity
+recursion), and IPW.
+\item The IPW-specific \code{prepare_propensity_if()} /
+\code{apply_propensity_correction()} pair (Branch A: WeightIt shortcut;
+Branch B: self-contained, deferred to Phase 4).
 }
 }
 \keyword{internal}

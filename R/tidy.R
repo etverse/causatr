@@ -34,8 +34,17 @@ tidy.causatr_result <- function(
   ...
 ) {
   which <- rlang::arg_match(which)
+  # Two-sided normal critical value for means CIs. Contrast CIs are
+  # read from the stored `ci_lower`/`ci_upper` (already computed with
+  # log-scale delta for ratios/ORs), but means use Wald symmetric
+  # intervals recomputed here in case `conf.level` differs from what
+  # `contrast()` originally used.
   z <- stats::qnorm((1 + conf.level) / 2)
 
+  # Mean row per intervention. `std.error` is the broom-convention
+  # name for SE; our internal table uses `se`. `type` labels each
+  # row so a consumer can filter `means` vs `contrasts` after the
+  # `all` rbind below.
   means_df <- data.frame(
     term = x$estimates$intervention,
     estimate = x$estimates$estimate,
@@ -48,6 +57,10 @@ tidy.causatr_result <- function(
     means_df$conf.high <- means_df$estimate + z * means_df$std.error
   }
 
+  # Contrast row per comparison. Copy the pre-computed CIs rather
+  # than re-deriving — for ratio/OR contrasts these came through the
+  # log-scale delta method in contrast(), which symmetric Wald here
+  # would not reproduce.
   contrasts_df <- data.frame(
     term = x$contrasts$comparison,
     estimate = x$contrasts$estimate,
@@ -60,12 +73,17 @@ tidy.causatr_result <- function(
     contrasts_df$conf.high <- x$contrasts$ci_upper
   }
 
+  # Carry the `by` subgroup column through if it's present in the
+  # source. This means `tidy()` + `dplyr::filter(by == "...")` Just
+  # Works for effect-modification results.
   has_by <- "by" %in% names(x$estimates)
   if (has_by) {
     means_df$by <- x$estimates$by
     contrasts_df$by <- x$contrasts$by
   }
 
+  # Switch on the requested shape. `"all"` rbinds means first then
+  # contrasts, consistent with how print.causatr_result shows them.
   result <- switch(
     which,
     contrasts = contrasts_df,

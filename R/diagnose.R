@@ -108,6 +108,10 @@ diagnose <- function(
 compute_positivity <- function(fit, ps_bounds) {
   treatment <- fit$treatment
 
+  # Positivity is only meaningful for a single binary treatment —
+  # that's where "probability of treatment" is a scalar we can
+  # threshold. Multivariate / categorical / continuous treatments
+  # return NULL (diagnose() skips positivity for those).
   if (length(treatment) > 1L) {
     return(NULL)
   }
@@ -118,6 +122,13 @@ compute_positivity <- function(fit, ps_bounds) {
     return(NULL)
   }
 
+  # Source the propensity scores from whatever's already been fit:
+  #   - IPW:      reuse the WeightIt-computed PS directly.
+  #   - Matching: reuse the MatchIt distance vector (PS when the
+  #               distance method is logistic, which is the default).
+  #   - G-comp:   no PS was fit, so run a quick logistic regression
+  #               of treatment on confounders to get one. This is
+  #               purely for diagnostics — it doesn't affect estimation.
   if (!is.null(fit$weights_obj)) {
     ps <- fit$weights_obj$ps
   } else if (!is.null(fit$match_obj)) {
@@ -134,6 +145,11 @@ compute_positivity <- function(fit, ps_bounds) {
     ps <- stats::fitted(ps_model)
   }
 
+  # Count violations on both tails. `ps_bounds = c(0.025, 0.975)` is
+  # the Crump et al. (2009) default for "extreme overlap zones";
+  # individuals outside this range have near-zero probability of
+  # being in one arm and contribute unstable weights (or can't be
+  # matched at all).
   n_low <- sum(ps < ps_bounds[1], na.rm = TRUE)
   n_high <- sum(ps > ps_bounds[2], na.rm = TRUE)
   n_total <- length(ps)
@@ -212,10 +228,16 @@ compute_balance <- function(fit, stats, thresholds) {
 #'   `mean_control`, and `smd`, or `NULL` for non-binary treatments.
 #' @noRd
 compute_balance_simple <- function(fit) {
+  # Minimal fallback when cobalt isn't installed: compute unadjusted
+  # standardised mean differences (SMDs) for each confounder, one
+  # row per confounder. Not as rich as cobalt (no weighted SMDs, no
+  # variance ratios, no factor-level breakdown), but enough to
+  # surface gross imbalance in a no-dependency environment.
   data <- fit$data
   treatment <- fit$treatment
   outcome <- fit$outcome
 
+  # Same narrowing as compute_positivity: binary scalar treatment only.
   if (length(treatment) > 1L) {
     return(NULL)
   }
@@ -225,6 +247,9 @@ compute_balance_simple <- function(fit) {
     return(NULL)
   }
 
+  # Drop rows with missing outcome — same fitting-row definition as
+  # the main pipeline, so balance is computed on the analysis sample
+  # (not the pre-filter raw data).
   fit_rows <- !is.na(data[[outcome]])
   d <- data[fit_rows]
   confounder_vars <- all.vars(fit$confounders)
@@ -233,6 +258,10 @@ compute_balance_simple <- function(fit) {
   rows_1 <- d[[treatment]] == 1
   rows_0 <- d[[treatment]] == 0
 
+  # Per-confounder SMD. Factors/characters are skipped (return NULL
+  # and get filtered by `!vapply(., is.null, .)` below) — a proper
+  # balance table for categoricals would split into levels, which is
+  # what cobalt::bal.tab() does.
   results <- lapply(confounder_vars, function(v) {
     x <- d[[v]]
     if (!is.numeric(x)) {
@@ -240,6 +269,9 @@ compute_balance_simple <- function(fit) {
     }
     m1 <- mean(x[rows_1], na.rm = TRUE)
     m0 <- mean(x[rows_0], na.rm = TRUE)
+    # Pooled SD denominator per Rosenbaum & Rubin (1985): sqrt of
+    # the average of per-group variances. Threshold convention is
+    # |SMD| < 0.1 for good balance.
     s_pooled <- sqrt(
       (stats::var(x[rows_1], na.rm = TRUE) +
         stats::var(x[rows_0], na.rm = TRUE)) /
@@ -273,8 +305,17 @@ compute_weight_summary <- function(fit) {
   fit_rows <- !is.na(fit$data[[fit$outcome]])
   trt <- trt[fit_rows]
 
+  # Effective sample size (Kish 1965): a weighted sample with highly
+  # variable weights has fewer "effective" observations than its
+  # nominal n. The formula below is the ratio (sum w)^2 / sum w^2 —
+  # equals n when all weights are equal, less otherwise. Used as a
+  # quick heuristic for "did IPW destroy my power?".
   ess <- function(wts) sum(wts)^2 / sum(wts^2)
 
+  # WeightIt's `$treat` attribute tells us whether the treatment is
+  # binary, multinomial, or continuous. The weight summary then
+  # breaks down appropriately: by arm (binary/multinomial) or just
+  # overall (continuous — no discrete groups to split on).
   treat_type <- attr(fit$weights_obj$treat, "treat.type") %||% "continuous"
 
   if (treat_type == "binary") {

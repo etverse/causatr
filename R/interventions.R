@@ -25,12 +25,19 @@
 #'   [contrast()]
 #' @export
 static <- function(value) {
+  # Accept both numeric (binary/continuous treatments) and character
+  # (categorical treatments, e.g. `static("chemo")`). `apply_single_intervention()`
+  # handles both by blindly assigning via `:=`, which is type-preserving.
   ok <- (is.numeric(value) || is.character(value)) &&
     length(value) == 1L &&
     !is.na(value)
   if (!ok) {
     rlang::abort("`value` must be a single non-NA number or character string.")
   }
+  # `new_causatr_intervention()` is a thin S3 constructor — just tags
+  # the list with the right class. Keeping constructors light means
+  # they're cheap to create even in tight `lapply` loops over many
+  # intervention variants.
   new_causatr_intervention("static", list(value = value))
 }
 
@@ -200,6 +207,15 @@ dynamic <- function(rule) {
 #' @seealso [static()], [shift()], [dynamic()], [scale_by()], [threshold()]
 #' @export
 ipsi <- function(delta) {
+  # IPSI transforms the treatment probability as
+  #   p_new(L) = delta * p(L) / (1 - p(L) + delta * p(L))
+  # which is equivalent to multiplying the ODDS of treatment by delta.
+  # delta > 1 makes treatment more likely across the population;
+  # delta < 1 makes it less likely. delta must be positive (the
+  # odds multiplier can't be zero or negative — you can't "anti-treat").
+  # The constructor stores just the scalar; actual application requires
+  # a fitted propensity model, so apply_single_intervention() currently
+  # aborts for ipsi (Phase 4 work).
   if (!rlang::is_scalar_double(delta) && !rlang::is_scalar_integer(delta)) {
     rlang::abort("`delta` must be a single positive number.")
   }
@@ -251,16 +267,34 @@ print.causatr_intervention <- function(x, ...) {
 #'
 #' @noRd
 apply_intervention <- function(data, treatment, iv) {
-  # Always work on a copy so the original data is never mutated.
+  # `data.table::copy()` forces a deep copy so in-place `:=` mutations
+  # on the treatment column inside `apply_single_intervention()` don't
+  # leak back into the caller's `data`. This is essential because
+  # compute_contrast() calls us once per intervention and expects
+  # each counterfactual frame to be independent.
   data_a <- data.table::copy(data)
+
+  # `iv = NULL` means "natural course": return the data as-is with
+  # observed treatment values untouched. This is the correct
+  # reference for MTPs (Díaz et al. 2023) and for longitudinal
+  # dynamic regimes (Hernán & Robins Ch. 21).
   if (is.null(iv)) {
     return(data_a)
   }
+
+  # Dispatch on treatment arity. The two branches exist because
+  # `iv` has a different shape in each case:
+  #   - scalar treatment -> iv is a single causatr_intervention
+  #   - multivariate     -> iv is a named list, one per treatment column
+  # The check_intervention_list() upstream validator ensures the
+  # shape matches the treatment vector length, so by the time we
+  # reach here we can trust the structure.
   if (length(treatment) == 1L) {
-    # Scalar treatment: iv is a single causatr_intervention.
     apply_single_intervention(data_a, treatment, iv)
   } else {
-    # Multivariate treatment: iv is a named list with one entry per variable.
+    # Apply each named sub-intervention to its corresponding column.
+    # Order matters only if interventions reference each other's
+    # treatment columns (they generally don't), so we just iterate.
     for (trt_nm in names(iv)) {
       apply_single_intervention(data_a, trt_nm, iv[[trt_nm]])
     }
