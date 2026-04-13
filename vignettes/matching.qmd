@@ -16,8 +16,10 @@ Propensity score matching estimates causal effects by pairing treated and
 control individuals with similar propensity scores, then comparing outcomes
 within matched sets. causatr delegates match construction to
 [MatchIt](https://kosukeimai.github.io/MatchIt/) and fits the outcome model
-on the matched sample with cluster-robust sandwich SEs (via
-`sandwich::vcovCL()` on the matched-pair subclass).
+on the matched sample. Inference runs through the unified influence-function
+variance engine (`variance_if()`): IFs are computed on the matched sample and
+aggregated **cluster-robustly** on the matched-pair subclass — the IF analogue
+of `sandwich::vcovCL()`, derived in `vignettes/variance-theory.qmd` §4.3.
 
 This vignette demonstrates propensity score matching in causatr using the NHEFS
 dataset from Hernán & Robins (2025), covering every supported combination of

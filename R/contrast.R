@@ -9,14 +9,21 @@
 #' each individual's treatment to the intervened value and averaging the fitted
 #' outcome model predictions over the target population. The target population
 #' is controlled by `estimand` (or `subset` for subgroup effects). The methods
-#' differ in how the outcome model was fitted and how the variance is estimated:
-#' - `"gcomp"`: standard `glm`/`gam` on the full data; sandwich SE via stacked
-#'   estimating equations.
+#' differ only in how the outcome model was fitted; variance is computed by the
+#' **unified influence-function engine** `variance_if()` (`R/variance_if.R`),
+#' which handles all four cases (g-comp, IPW, matching, ICE) via one entry
+#' point. See `vignettes/variance-theory.qmd` for the derivation and
+#' `VARIANCE_REFACTOR.qmd` for the architecture.
+#'
+#' - `"gcomp"`: standard `glm`/`gam` on the full data; one-model IF
+#'   correction via `correct_model()`.
 #' - `"ipw"`: `glm_weightit()` fit weighted for the target estimand (ATE/ATT);
-#'   M-estimation sandwich SE that accounts for weight estimation uncertainty.
-#' - `"matching"`: `glm()` on the matched sample with match weights; SE via
-#'   cluster-robust sandwich (`sandwich::vcovCL(vcov = ~subclass)`) to account
-#'   for pair membership.
+#'   IF Channel 2 delegated to `correct_propensity()` (WeightIt shortcut via
+#'   `sandwich::estfun(asympt = TRUE)`), which already accounts for weight
+#'   estimation uncertainty.
+#' - `"matching"`: `glm()` on the matched sample with match weights; IF is
+#'   computed on the matched sample and aggregated cluster-robustly on
+#'   `matched$subclass` via `vcov_from_if(cluster = ...)`.
 #'
 #' @param fit A `causatr_fit` object returned by [causat()].
 #' @param interventions A named list of interventions. Each element must be
@@ -129,12 +136,17 @@
 #' | `"matching"` | binary, categorical, continuous | `static()` only |
 #'
 #' ## Variance estimation
-#' - `"sandwich"`: Stacked estimating equations propagate outcome model
-#'   uncertainty through to the marginal mean.
+#' - `"sandwich"`: The unified influence-function engine `variance_if()`.
+#'   Per-individual IF = Channel 1 (direct covariate-sampling term) +
+#'   Channel 2 (one correction per nuisance model). Aggregated via
+#'   `vcov_from_if()`, with cluster-robust aggregation for matching.
+#'   Mathematically equivalent to the stacked M-estimation sandwich; see
+#'   `vignettes/variance-theory.qmd` Sections 3–4.
 #' - `"bootstrap"`: Resamples individuals (entire pipeline refitted `n_boot`
 #'   times). Respects cluster structure for longitudinal data.
-#' - `"delta"`: Explicit delta method for ratio/OR contrasts (applied
-#'   internally when `ci_method = "sandwich"`).
+#' - The delta method is applied internally for ratio / odds-ratio
+#'   contrasts on top of the `"sandwich"` vcov; it is not a separate
+#'   `ci_method` option.
 #'
 #' @references
 #' Hernán MA, Robins JM (2025). *Causal Inference: What If*. Chapman &
@@ -354,7 +366,8 @@ check_interventions_compat <- function(
 #' @param estimand Character or `NULL`. `"ATE"`, `"ATT"`, or `"ATC"`.
 #' @param subset Quoted expression or `NULL`. Rows to average over.
 #' @param reference Character or `NULL`. Name of the reference intervention.
-#' @param ci_method Character. `"sandwich"`, `"bootstrap"`, or `"delta"`.
+#' @param ci_method Character. `"sandwich"` (IF variance via `variance_if()`)
+#'   or `"bootstrap"`.
 #' @param n_boot Integer. Bootstrap replications (for `ci_method = "bootstrap"`).
 #' @param conf_level Numeric. Confidence level (e.g. 0.95).
 #' @param by Character or `NULL`. Stratification variable for effect modification.
@@ -530,10 +543,10 @@ compute_contrast <- function(
 
     boot_t <- NULL
     if (ci_method == "sandwich") {
-      vcov_mat <- ice_variance_sandwich(
+      vcov_mat <- variance_if(
         fit,
-        ice_results,
-        target_within_first
+        ice_results = ice_results,
+        target_within_first = target_within_first
       )
     } else {
       boot_res <- ice_variance_bootstrap(
@@ -595,11 +608,13 @@ compute_contrast <- function(
 
     boot_t <- NULL
     if (ci_method == "sandwich") {
-      vcov_mat <- variance_sandwich(
+      vcov_mat <- variance_if(
         fit,
-        data_a_list,
-        preds_list,
-        target_idx
+        interventions = interventions,
+        data_a_list = data_a_list,
+        preds_list = preds_list,
+        mu_hat = mu_hat,
+        target_idx = target_idx
       )
     } else {
       boot_res <- variance_bootstrap(

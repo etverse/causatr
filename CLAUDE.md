@@ -55,9 +55,10 @@ R/
 ├── matching.R              # matching (wraps MatchIt)
 │
 ├── # ── Inference ────────────────────────────────────
-├── variance_sandwich.R     # sandwich variance: J V_β Jᵀ (sandwich + numDeriv)
+├── variance_if.R           # influence-function variance engine (single entry point variance_if()
+│                           # + correct_model / correct_propensity / vcov_from_if +
+│                           # two-tier variance_if_numeric fallback)
 ├── variance_bootstrap.R    # nonparametric bootstrap via boot::boot()
-├── variance_delta.R        # (empty — delta method applied internally)
 │
 ├── # ── Data utilities ───────────────────────────────
 ├── to_person_period.R      # wide → long conversion for longitudinal data
@@ -144,7 +145,7 @@ Run this in the shell:
 - **Intervention functions, not formulas** — maximum flexibility for MTPs, dynamic rules, IPSI
 - **`contrast()` as separate step** — fit once, contrast many interventions
 - **ci_method: sandwich or bootstrap only** — delta method is applied internally for ratio/OR contrasts; not a separate ci_method
-- **Sandwich approach** — `sandwich::sandwich()` for g-comp, `vcov(glm_weightit)` for IPW, `sandwich::vcovCL()` for matching; all propagated to marginal means via J V_β Jᵀ (numDeriv::jacobian)
+- **Single influence-function engine** — `variance_if()` (`R/variance_if.R`) is the one entry point for sandwich variance across g-comp, IPW, matching, and ICE. All four methods compute a per-individual IF as Channel 1 (direct covariate-sampling term) + Channel 2 (one `correct_model()` correction per nuisance model) and aggregate via `vcov_from_if()`. Matching uses `cluster = subclass` for cluster-robust aggregation; IPW's combined MSM + propensity correction is delegated to `correct_propensity()`. See `vignettes/variance-theory.qmd` Sections 3–4 and `VARIANCE_REFACTOR.qmd` for the derivation.
 - **`type` parameter** — `causat()` accepts `type = NULL` (default, auto-detected from `id`/`time`), `"point"`, or `"longitudinal"`. Explicit `type = "longitudinal"` requires `id` and `time`.
 - **Future: self-contained IPW** — for Phase 4 (dynamic/MTP interventions), plan to implement IPW internally rather than wrapping WeightIt, so density ratio weights can support non-static interventions
 
@@ -163,11 +164,12 @@ Run this in the shell:
 ## Architecture notes
 
 - The NHEFS dataset ships with 1746 rows (117 have NA education). The book uses a 1629-row pre-cleaned subset. `compute_contrast()` handles this by excluding rows with NA predictions from the target population.
-- `variance_sandwich()` dispatches different sandwich estimators per method: `sandwich::sandwich()` for g-comp (Huber–White), `stats::vcov()` for IPW (M-estimation from glm_weightit), `sandwich::vcovCL()` for matching (cluster-robust on subclass). All share the same `compute_vcov_marginal()` helper that propagates via J V_β Jᵀ using `numDeriv::jacobian()`.
+- **Variance engine architecture (`R/variance_if.R`).** One dispatcher `variance_if(fit, ...)` routes to four method-specific branches that all share the same seven primitives: `bread_inv()` ((X'WX)^-1 for GLMs, `$Vp` for GAMs); `iv_design_matrix()` (counterfactual model matrix, GLM/GAM split); `correct_model()` (Channel 2 per model: `h = A^-1 g`, `d = X h`, `correction = n * d * r_score` where `r_score = residuals(m,"working") * weights(m,"working")` — the full GLM score, correct for non-canonical links too); `correct_propensity()` (IPW-only dispatcher with Branch A via `sandwich::estfun(asympt = TRUE)` and Branch B deferred to Phase 4); `vcov_from_if()` (aggregates IFs to a k×k vcov with optional `cluster =` for matching's within-subclass sum-then-square); `variance_if_numeric()` (two-tier fallback — Tier 1 recovers the full IF via `sandwich::estfun + bread`, Tier 2 falls back to `V1 + J V_β J^T` with a warning about the dropped cross-term).
+- **G-comp** uses one `correct_model()` call. **Matching** works entirely on `fit$details$matched_data` (n = n_match, cluster-robust on `subclass`) per the IF scope from vignette Section 4.3. **ICE** iterates `correct_model()` once per model in a forward sensitivity recursion, consuming `$d` from step k to build step k+1's gradient. **IPW** delegates Channel 2 to `correct_propensity()`, whose Branch A uses WeightIt's `glm_weightit` + `sandwich::estfun(asympt = TRUE)` / `sandwich::bread()` to get per-individual adjusted IFs in five lines. Non-Mparts WeightIt methods (`gbm`, `super`, `bart`, `optweight`, `energy`, `npcbps`) trigger a `rlang::warn()` at fit time (not contrast time) because `glm_weightit` silently drops the propensity-uncertainty correction for them.
 - For IPW and matching with saturated MSMs (Y ~ A), the predict-then-average approach in `compute_contrast()` gives the same result as reading off model coefficients (the Jacobian is trivial). This is correct but slightly redundant — kept for architectural consistency across methods.
 - The `model_fn` parameter (default `stats::glm`) allows users to plug in any fitting function with signature `function(formula, data, family, weights, ...)`.
 - ICE g-computation (`R/ice.R`) defers model fitting to `contrast()` because the sequential outcome models are intervention-dependent. `fit_ice()` stores metadata; `ice_iterate()` runs backward iteration per intervention.
-- ICE sandwich variance uses stacked estimating equations (Zivich et al. 2024) implemented via manual influence function computation — no `geex` dependency. The J V_β Jᵀ approach used for point treatments does NOT work for ICE (ignores upstream model uncertainty, can underestimate SE by 40%+).
+- ICE sandwich variance uses stacked estimating equations (Zivich et al. 2024) implemented via `variance_if_ice()` — a forward sensitivity recursion calling `correct_model()` once per model (no `geex` dependency). The J V_β Jᵀ shortcut does NOT work for ICE (ignores upstream model uncertainty, can underestimate SE by 40%+). Note: ICE models are fit *backward* in time (K → 0) inside `ice_iterate()`, but sensitivities propagate *forward* (0 → K) inside the variance loop — both are the back-substitution of the block-triangular bread of the stacked M-estimation system, in different orderings. See `variance-theory.qmd` Section 5.4 / D2 in `VARIANCE_REFACTOR.qmd`.
 - ICE bootstrap resamples individuals (all person-period rows together) via `boot::boot()` with `parallel`/`ncpus` support. `contrast()` passes these through.
 - For binary outcomes, the first ICE model uses `binomial` (actual 0/1 response), but pseudo-outcome models use `quasibinomial` (fractional logistic for predicted probabilities in [0,1]).
 - Matching with `estimand = "ATE"` auto-selects `method = "full"` for MatchIt (nearest-neighbor only supports ATT/ATC). User can override via `...`.

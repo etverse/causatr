@@ -1,5 +1,6 @@
 ^causatr\.Rproj$
 ^\.lintr$
+^tests/testthat/Rplots\.pdf$
 ^\.Rproj\.user$
 ^LICENSE\.md$
 ^README\.Rmd$

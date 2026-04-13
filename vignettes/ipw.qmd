@@ -167,7 +167,10 @@ glance(res_ate_sw)
 
 Using the `gained_weight` indicator as a binary outcome. With IPW, the MSM
 is `Y ~ A` (a linear probability model), so `contrast()` computes marginal
-risks and derives contrasts via the delta method.
+risks and derives contrasts via the influence-function variance engine
+(`variance_if()`), which for IPW delegates Channel 2 to
+`correct_propensity()`'s WeightIt shortcut
+(`sandwich::estfun(asympt = TRUE)` + `sandwich::bread()`).
 
 ### Risk difference (sandwich)
 

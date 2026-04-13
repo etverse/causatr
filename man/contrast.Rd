@@ -118,15 +118,21 @@ For all three estimation methods, \code{contrast()} computes E[Y^a] by setting
 each individual's treatment to the intervened value and averaging the fitted
 outcome model predictions over the target population. The target population
 is controlled by \code{estimand} (or \code{subset} for subgroup effects). The methods
-differ in how the outcome model was fitted and how the variance is estimated:
+differ only in how the outcome model was fitted; variance is computed by the
+\strong{unified influence-function engine} \code{variance_if()} (\code{R/variance_if.R}),
+which handles all four cases (g-comp, IPW, matching, ICE) via one entry
+point. See \code{vignettes/variance-theory.qmd} for the derivation and
+\code{VARIANCE_REFACTOR.qmd} for the architecture.
 \itemize{
-\item \code{"gcomp"}: standard \code{glm}/\code{gam} on the full data; sandwich SE via stacked
-estimating equations.
+\item \code{"gcomp"}: standard \code{glm}/\code{gam} on the full data; one-model IF
+correction via \code{correct_model()}.
 \item \code{"ipw"}: \code{glm_weightit()} fit weighted for the target estimand (ATE/ATT);
-M-estimation sandwich SE that accounts for weight estimation uncertainty.
-\item \code{"matching"}: \code{glm()} on the matched sample with match weights; SE via
-cluster-robust sandwich (\code{sandwich::vcovCL(vcov = ~subclass)}) to account
-for pair membership.
+IF Channel 2 delegated to \code{correct_propensity()} (WeightIt shortcut via
+\code{sandwich::estfun(asympt = TRUE)}), which already accounts for weight
+estimation uncertainty.
+\item \code{"matching"}: \code{glm()} on the matched sample with match weights; IF is
+computed on the matched sample and aggregated cluster-robustly on
+\code{matched$subclass} via \code{vcov_from_if(cluster = ...)}.
 }
 }
 \details{
@@ -175,12 +181,17 @@ be changed after fitting.
 
 \subsection{Variance estimation}{
 \itemize{
-\item \code{"sandwich"}: Stacked estimating equations propagate outcome model
-uncertainty through to the marginal mean.
+\item \code{"sandwich"}: The unified influence-function engine \code{variance_if()}.
+Per-individual IF = Channel 1 (direct covariate-sampling term) +
+Channel 2 (one correction per nuisance model). Aggregated via
+\code{vcov_from_if()}, with cluster-robust aggregation for matching.
+Mathematically equivalent to the stacked M-estimation sandwich; see
+\code{vignettes/variance-theory.qmd} Sections 3–4.
 \item \code{"bootstrap"}: Resamples individuals (entire pipeline refitted \code{n_boot}
 times). Respects cluster structure for longitudinal data.
-\item \code{"delta"}: Explicit delta method for ratio/OR contrasts (applied
-internally when \code{ci_method = "sandwich"}).
+\item The delta method is applied internally for ratio / odds-ratio
+contrasts on top of the \code{"sandwich"} vcov; it is not a separate
+\code{ci_method} option.
 }
 }
 }

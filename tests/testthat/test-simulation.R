@@ -1470,83 +1470,13 @@ test_that("matching × binary outcome × ratio: log-scale CI positive", {
 
 
 # ============================================================
-# ANALYTICAL JACOBIAN vs NUMERICAL
+# ANALYTIC IF vs NUMERICAL FALLBACK (variance_if_numeric Tier 1)
 # ============================================================
-
-test_that("analytical Jacobian matches numDeriv for GLM", {
-  d <- simulate_binary_binary(n = 2000, seed = 42)
-  fit <- causat(
-    d,
-    outcome = "Y",
-    treatment = "A",
-    confounders = ~L,
-    family = "binomial"
-  )
-  data_a_list <- list(
-    a1 = causatr:::apply_intervention(fit$data, "A", static(1)),
-    a0 = causatr:::apply_intervention(fit$data, "A", static(0))
-  )
-  target_idx <- rep(TRUE, nrow(fit$data))
-  V_beta <- sandwich::sandwich(fit$model)
-
-  vcov_a <- causatr:::compute_vcov_marginal(
-    fit$model,
-    data_a_list,
-    target_idx,
-    V_beta
-  )
-
-  # Force numDeriv by wrapping the model so it's not recognized as a GLM.
-  model_fake <- fit$model
-  class(model_fake) <- c("fake_class", "glm")
-  vcov_n <- causatr:::compute_vcov_marginal(
-    model_fake,
-    data_a_list,
-    target_idx,
-    V_beta
-  )
-
-  expect_equal(diag(vcov_a), diag(vcov_n), tolerance = 0.01)
-})
-
-test_that("analytical Jacobian with weights matches numDeriv", {
-  d <- simulate_binary_continuous(n = 2000, seed = 42)
-  w <- runif(nrow(d), 0.5, 2)
-  fit <- causat(
-    d,
-    outcome = "Y",
-    treatment = "A",
-    confounders = ~L,
-    weights = w
-  )
-  data_a_list <- list(
-    a1 = causatr:::apply_intervention(fit$data, "A", static(1)),
-    a0 = causatr:::apply_intervention(fit$data, "A", static(0))
-  )
-  target_idx <- rep(TRUE, nrow(fit$data))
-  V_beta <- sandwich::sandwich(fit$model)
-  w_target <- w[target_idx]
-
-  vcov_a <- causatr:::compute_vcov_marginal(
-    fit$model,
-    data_a_list,
-    target_idx,
-    V_beta,
-    weights = w_target
-  )
-  model_fake <- fit$model
-  class(model_fake) <- c("fake_class", "glm")
-  vcov_n <- causatr:::compute_vcov_marginal(
-    model_fake,
-    data_a_list,
-    target_idx,
-    V_beta,
-    weights = w_target
-  )
-
-  expect_equal(diag(vcov_a), diag(vcov_n), tolerance = 0.01)
-})
-
+# These previously tested compute_vcov_marginal()'s analytic vs numDeriv
+# Jacobian paths. After the variance refactor the equivalence we care
+# about is "variance_if() main path" (analytic correct_model + bread)
+# vs "variance_if_numeric() Tier 1" (sandwich::estfun + sandwich::bread),
+# which is covered by tests in test-variance-if.R.
 
 # ============================================================
 # EXTERNAL WEIGHTS × ALL METHODS

@@ -81,6 +81,26 @@ fit_ipw <- function(
     w$weights <- w$weights * weights[fit_rows]
   }
 
+  # Mparts guardrail (D6): WeightIt methods that do not support the
+  # M-estimation correction (gbm, super, bart, optweight, energy, npcbps)
+  # silently treat weights as fixed inside glm_weightit(). Sandwich SEs
+  # then ignore propensity-estimation uncertainty. Warn at fit time so
+  # users learn about the limitation before they call contrast() or
+  # diagnose() — see VARIANCE_REFACTOR.qmd, "Doubts D6".
+  if (is.null(attr(w, "Mparts"))) {
+    rlang::warn(
+      paste0(
+        "WeightIt method '",
+        if (is.null(w$method)) "?" else as.character(w$method),
+        "' does not implement the M-estimation correction (no `Mparts` ",
+        "attribute). Sandwich SEs from `ci_method = 'sandwich'` will treat ",
+        "the weights as fixed and may underestimate the variance. Use ",
+        "`ci_method = 'bootstrap'` for valid inference, or switch to a ",
+        "method that supports Mparts (`glm`, `cbps`, `ipt`, `ebal`)."
+      )
+    )
+  }
+
   # Step 2: Fit the weighted outcome model (marginal structural model).
   # For binary treatment the MSM is saturated: Y ~ A.
   # glm_weightit() provides M-estimation sandwich SEs that correctly
