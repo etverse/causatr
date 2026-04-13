@@ -460,13 +460,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="description" class="level3">
 <h3 class="anchored" data-anchor-id="description">Description</h3>
 <p>Standardises outcome model predictions under each named intervention and reports pairwise causal contrasts (differences, ratios, or odds ratios) with uncertainty estimates.</p>
-<p>For all three estimation methods, <code>contrast()</code> computes E[Y^a] by setting each individual’s treatment to the intervened value and averaging the fitted outcome model predictions over the target population. The target population is controlled by <code>estimand</code> (or <code>subset</code> for subgroup effects). The methods differ only in how the outcome model was fitted; variance is computed by the <strong>unified influence-function engine</strong> <code>variance_if()</code> (<code>R/variance_if.R</code>), which handles all four cases (g-comp, IPW, matching, ICE) via one entry point. See <code>vignettes/variance-theory.qmd</code> for the derivation and <code>VARIANCE_REFACTOR.qmd</code> for the architecture.</p>
+<p>For all three estimation methods, <code>contrast()</code> computes E[Y^a] by setting each individual’s treatment to the intervened value and averaging the fitted outcome model predictions over the target population. The target population is controlled by <code>estimand</code> (or <code>subset</code> for subgroup effects). The methods differ only in how the outcome model was fitted; variance is computed by the <strong>unified influence-function engine</strong> <code>variance_if()</code> (<code>R/variance_if.R</code>), which handles all four cases (g-comp, IPW, matching, ICE) via one entry point. See <code>vignettes/variance-theory.qmd</code> for the derivation and the <code>R/variance_if.R</code> roxygen header for the architecture.</p>
 <ul>
 <li>
-<p><code>“gcomp”</code>: standard <code>glm</code>/<code>gam</code> on the full data; one-model IF correction via <code>correct_model()</code>.</p>
+<p><code>“gcomp”</code>: standard <code>glm</code>/<code>gam</code> on the full data; one-model IF correction via <code>prepare_model_if()</code> + <code>apply_model_correction()</code>.</p>
 </li>
 <li>
-<p><code>“ipw”</code>: <code>glm_weightit()</code> fit weighted for the target estimand (ATE/ATT); IF Channel 2 delegated to <code>correct_propensity()</code> (WeightIt shortcut via <code>sandwich::estfun(asympt = TRUE)</code>), which already accounts for weight estimation uncertainty.</p>
+<p><code>“ipw”</code>: <code>glm_weightit()</code> fit weighted for the target estimand (ATE/ATT); IF Channel 2 delegated to <code>prepare_propensity_if()</code> (WeightIt shortcut via <code>sandwich::estfun(asympt = TRUE)</code>), which already accounts for weight estimation uncertainty.</p>
 </li>
 <li>
 <p><code>“matching”</code>: <code>glm()</code> on the matched sample with match weights; IF is computed on the matched sample and aggregated cluster-robustly on <code>matched$subclass</code> via <code>vcov_from_if(cluster = …)</code>.</p>
