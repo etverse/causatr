@@ -510,7 +510,8 @@ window.Quarto = {
   <li><a href="#the-block-triangular-bread" id="toc-the-block-triangular-bread" class="nav-link" data-scroll-target="#the-block-triangular-bread">The block-triangular bread</a></li>
   <li><a href="#inverting-by-back-substitution" id="toc-inverting-by-back-substitution" class="nav-link" data-scroll-target="#inverting-by-back-substitution">Inverting by back-substitution</a></li>
   </ul></li>
-  <li><a href="#pseudo-code-the-full-if-for-a-marginal-mean" id="toc-pseudo-code-the-full-if-for-a-marginal-mean" class="nav-link" data-scroll-target="#pseudo-code-the-full-if-for-a-marginal-mean">3.6 Pseudo-code: the full IF for a marginal mean</a></li>
+  <li><a href="#target-subpopulations-att-atu-custom-subset" id="toc-target-subpopulations-att-atu-custom-subset" class="nav-link" data-scroll-target="#target-subpopulations-att-atu-custom-subset">3.6 Target subpopulations (ATT, ATU, custom subset)</a></li>
+  <li><a href="#pseudo-code-the-full-if-for-a-marginal-mean" id="toc-pseudo-code-the-full-if-for-a-marginal-mean" class="nav-link" data-scroll-target="#pseudo-code-the-full-if-for-a-marginal-mean">3.7 Pseudo-code: the full IF for a marginal mean</a></li>
   </ul></li>
   <li><a href="#the-three-causal-estimators" id="toc-the-three-causal-estimators" class="nav-link" data-scroll-target="#the-three-causal-estimators">4. The three causal estimators</a>
   <ul>
@@ -1342,8 +1343,47 @@ A_{\mu\mu}^{-1}
 </div>
 </section>
 </section>
+<section id="target-subpopulations-att-atu-custom-subset" class="level3">
+<h3 class="anchored" data-anchor-id="target-subpopulations-att-atu-custom-subset">3.6 Target subpopulations (ATT, ATU, custom subset)</h3>
+<p>Sections 3.1–3.5 define the marginal mean as an average over the <strong>full sample</strong>: <span class="math inline">\(\hat\mu_a = (1/n)\sum_{i=1}^n g^{-1}(X_i^{*T}\hat\beta)\)</span>. Many causal estimands — the ATT, the ATU, or an estimand on a user-supplied subset — instead average only over a <strong>target subpopulation</strong> <span class="math inline">\(T \subseteq \{1,\ldots,n\}\)</span> of size <span class="math inline">\(n_t\)</span>:</p>
+<p><span class="math display">\[
+\hat\mu_a \;=\; \frac{1}{n_t}\sum_{i\in T} g^{-1}(X_i^{*T}\hat\beta)
+\]</span></p>
+<p>The stacked estimating equations need one small change to accommodate this: the mean equation is now indicator-weighted. Let <span class="math inline">\(t_i = \mathbb{1}[i \in T]\)</span> and write</p>
+<p><span class="math display">\[
+\psi_{\mu,i}(\beta,\mu_a) \;=\; t_i \cdot \bigl[g^{-1}(X_i^{*T}\beta) - \mu_a\bigr]
+\]</span></p>
+<p>so that <span class="math inline">\(\sum_i \psi_{\mu,i} = 0\)</span> still recovers <span class="math inline">\(\hat\mu_a\)</span>.</p>
+<p>Redoing the bread calculation from Section 3.5 with this indicator-weighted mean equation:</p>
+<ul>
+<li><span class="math inline">\(\color{#E6550D}{A_{\mu\mu}} = -\frac{1}{n}\sum_i \frac{\partial\psi_{\mu,i}}{\partial\mu_a} = -\frac{1}{n}\sum_i(-t_i) = \frac{n_t}{n}\)</span>, so <span class="math inline">\(A_{\mu\mu}^{-1} = \frac{n}{n_t}\)</span>.</li>
+<li><span class="math inline">\(\color{#E6550D}{A_{\mu\beta}} = -\frac{1}{n}\sum_i t_i \cdot \frac{d\mu}{d\eta}\Big|_{\eta_i^*} X_i^{*T} = -\frac{n_t}{n}\,\color{#31A354}{J_a}\)</span>, where <span class="math inline">\(\color{#31A354}{J_a} = \frac{1}{n_t}\sum_{i\in T}\frac{d\mu}{d\eta}\big|_{\eta_i^*} X_i^{*T}\)</span> is the Jacobian averaged over the target.</li>
+</ul>
+<p>Plugging into the back-substitution formula for the last row of <span class="math inline">\(A^{-1}\)</span>:</p>
+<p><span class="math display">\[
+\text{IF}_i(\hat\mu_a)
+\;=\; -A_{\mu\mu}^{-1}\,\color{#E6550D}{A_{\mu\beta}}\,\color{#3182BD}{A_{\beta\beta}^{-1}}\,\psi_{\beta,i}
+\;+\; A_{\mu\mu}^{-1}\,\psi_{\mu,i}
+\]</span></p>
+<p>Substituting <span class="math inline">\(A_{\mu\mu}^{-1} = n/n_t\)</span> and <span class="math inline">\(A_{\mu\beta} = -(n_t/n)\,\color{#31A354}{J_a}\)</span>:</p>
+<p><span id="eq-if-gcomp-target"><span class="math display">\[
+\text{IF}_i(\hat\mu_a)
+\;=\; \underbrace{\frac{n}{n_t}\cdot t_i \cdot (g^{-1}(X_i^{*T}\hat\beta) - \hat\mu_a)}_
+{\text{Channel 1 (rescaled)}}
+\;+\; \underbrace{\color{#31A354}{J_a}\,\color{#3182BD}{A_{\beta\beta}^{-1}}\,\psi_{\beta,i}}_
+{\text{Channel 2 (unchanged)}}
+\tag{7}\]</span></span></p>
+<p>Two things to notice:</p>
+<ol type="1">
+<li><strong>Channel 1 picks up a factor of <span class="math inline">\(n/n_t\)</span></strong> and is nonzero only for individuals inside the target. Without this factor the variance is underestimated by <span class="math inline">\((n_t/n)^2\)</span> — a serious undercount when the target is a proper subset (e.g., the ATT with only ~40% treated).</li>
+<li><strong>Channel 2 is unchanged.</strong> The <span class="math inline">\(n_t/n\)</span> in <span class="math inline">\(A_{\mu\beta}\)</span> cancels with the <span class="math inline">\(n/n_t\)</span> in <span class="math inline">\(A_{\mu\mu}^{-1}\)</span>, so the Channel 2 formula from Section 3.2 carries over verbatim — <span class="math inline">\(\color{#31A354}{J_a}\)</span> is just averaged over the target population instead of the full sample, and <span class="math inline">\(\psi_{\beta,i}\)</span> still runs over every individual the outcome model used (inside <strong>and</strong> outside the target), because the outcome model was fit on all those rows.</li>
+</ol>
+<p>The variance is still <span class="math inline">\(\widehat{\text{Var}}(\hat\mu_a) = (1/n^2)\sum_{i=1}^n \text{IF}_i^2\)</span>, summed over all <span class="math inline">\(n\)</span> individuals. Individuals outside the target have <span class="math inline">\(\text{Ch.1}_i = 0\)</span> and contribute only through Channel 2.</p>
+<p>Setting <span class="math inline">\(T = \{1,\ldots,n\}\)</span> (so <span class="math inline">\(n_t = n\)</span>, <span class="math inline">\(t_i \equiv 1\)</span>) recovers <a href="#eq-if-gcomp" class="quarto-xref">Equation&nbsp;4</a> exactly. The full-sample case is the special case of <a href="#eq-if-gcomp-target" class="quarto-xref">Equation&nbsp;7</a> where the scaling factor is <span class="math inline">\(1\)</span>.</p>
+</section>
 <section id="pseudo-code-the-full-if-for-a-marginal-mean" class="level3">
-<h3 class="anchored" data-anchor-id="pseudo-code-the-full-if-for-a-marginal-mean">3.6 Pseudo-code: the full IF for a marginal mean</h3>
+<h3 class="anchored" data-anchor-id="pseudo-code-the-full-if-for-a-marginal-mean">3.7 Pseudo-code: the full IF for a marginal mean</h3>
+<p>This incorporates the target subpopulation scaling from Section 3.6 and the correct non-canonical link handling for the score (multiply response residuals by <span class="math inline">\(\mu_\eta/V\)</span>; see Section 1.2 route 3).</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Pseudo-code: gcomp_influence()</summary>
@@ -1353,42 +1393,48 @@ A_{\mu\mu}^{-1}
 <span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  pred_terms <span class="ot">&lt;-</span> <span class="fu">delete.response</span>(<span class="fu">terms</span>(model))</span>
 <span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  family <span class="ot">&lt;-</span> model<span class="sc">$</span>family</span>
 <span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Predictions under intervention</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Predictions under intervention (target rows only)</span></span>
 <span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>  X_star <span class="ot">&lt;-</span> <span class="fu">model.matrix</span>(pred_terms, <span class="at">data =</span> data_a[target_idx, ])</span>
 <span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>  eta_star <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(X_star <span class="sc">%*%</span> beta_hat)</span>
 <span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>  preds <span class="ot">&lt;-</span> family<span class="sc">$</span><span class="fu">linkinv</span>(eta_star)</span>
 <span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>  mu_hat <span class="ot">&lt;-</span> <span class="fu">mean</span>(preds)</span>
 <span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>  n_t <span class="ot">&lt;-</span> <span class="fu">length</span>(preds)</span>
 <span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Channel 1: direct contribution (covariate sampling)</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Channel 1: (n/n_t) * t_i * (pred_i - mu_hat), zero outside target</span></span>
 <span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>  IF_direct <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">0</span>, n)</span>
 <span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>  IF_direct[target_idx] <span class="ot">&lt;-</span> preds <span class="sc">-</span> mu_hat</span>
 <span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Channel 2: model correction (parameter uncertainty)</span></span>
-<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Jacobian: J = (1/n_t) sum (dmu/deta) * X_star</span></span>
-<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>  mu_eta_star <span class="ot">&lt;-</span> family<span class="sc">$</span><span class="fu">mu.eta</span>(eta_star)</span>
-<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>  J <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">crossprod</span>(X_star, mu_eta_star)) <span class="sc">/</span> n_t  <span class="co"># p x 1</span></span>
-<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Bread inverse * score for each individual</span></span>
-<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a>  X_fit <span class="ot">&lt;-</span> <span class="fu">model.matrix</span>(model)</span>
-<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>  eta_fit <span class="ot">&lt;-</span> model<span class="sc">$</span>linear.predictors</span>
-<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a>  mu_eta_fit <span class="ot">&lt;-</span> family<span class="sc">$</span><span class="fu">mu.eta</span>(eta_fit)</span>
-<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>  V_fit <span class="ot">&lt;-</span> family<span class="sc">$</span><span class="fu">variance</span>(<span class="fu">fitted</span>(model))</span>
-<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a>  W <span class="ot">&lt;-</span> mu_eta_fit<span class="sc">^</span><span class="dv">2</span> <span class="sc">/</span> V_fit</span>
-<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a>  XtWX_inv <span class="ot">&lt;-</span> <span class="fu">solve</span>(<span class="fu">crossprod</span>(X_fit, X_fit <span class="sc">*</span> W))</span>
-<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a>  h <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(XtWX_inv <span class="sc">%*%</span> J)  <span class="co"># p x 1</span></span>
-<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a>  residuals <span class="ot">&lt;-</span> <span class="fu">residuals</span>(model, <span class="at">type =</span> <span class="st">"response"</span>)</span>
-<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>  IF_correction <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(X_fit <span class="sc">%*%</span> h) <span class="sc">*</span> residuals  <span class="co"># n_fit x 1</span></span>
-<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Combine: full IF = Channel 1 + n * Channel 2</span></span>
-<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Factor of n from A^{-1} = n * (X'WX)^{-1}</span></span>
-<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a>  IF <span class="ot">&lt;-</span> (n <span class="sc">/</span> n_t) <span class="sc">*</span> IF_direct</span>
-<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a>  IF[<span class="fu">seq_along</span>(IF_correction)] <span class="ot">&lt;-</span> IF[<span class="fu">seq_along</span>(IF_correction)] <span class="sc">+</span></span>
-<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a>    n <span class="sc">*</span> IF_correction</span>
-<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a>  IF</span>
-<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Channel 2 gradient: J_a = (1/n_t) sum_{target} (dmu/deta) * X_star</span></span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>  mu_eta_star <span class="ot">&lt;-</span> family<span class="sc">$</span><span class="fu">mu.eta</span>(eta_star)</span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>  J <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">crossprod</span>(X_star, mu_eta_star)) <span class="sc">/</span> n_t  <span class="co"># p x 1</span></span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Bread inverse (X'WX)^{-1} with IWLS working weights</span></span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>  X_fit <span class="ot">&lt;-</span> <span class="fu">model.matrix</span>(model)</span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a>  eta_fit <span class="ot">&lt;-</span> model<span class="sc">$</span>linear.predictors</span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>  mu_eta_fit <span class="ot">&lt;-</span> family<span class="sc">$</span><span class="fu">mu.eta</span>(eta_fit)</span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a>  V_fit <span class="ot">&lt;-</span> family<span class="sc">$</span><span class="fu">variance</span>(<span class="fu">fitted</span>(model))</span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>  W <span class="ot">&lt;-</span> mu_eta_fit<span class="sc">^</span><span class="dv">2</span> <span class="sc">/</span> V_fit</span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a>  XtWX_inv <span class="ot">&lt;-</span> <span class="fu">solve</span>(<span class="fu">crossprod</span>(X_fit, X_fit <span class="sc">*</span> W))</span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a>  h <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(XtWX_inv <span class="sc">%*%</span> J)  <span class="co"># p x 1</span></span>
+<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Per-observation directional sensitivity and SCORE residual.</span></span>
+<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Score residual = response residual * (dmu/deta) / V(mu), so that</span></span>
+<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>  <span class="co"># psi_i = X_i * r_i * (mu_eta/V). For canonical links mu_eta/V = 1</span></span>
+<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>  <span class="co"># and this reduces to the response residual.</span></span>
+<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a>  d_fit <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(X_fit <span class="sc">%*%</span> h)</span>
+<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a>  r_response <span class="ot">&lt;-</span> <span class="fu">residuals</span>(model, <span class="at">type =</span> <span class="st">"response"</span>)</span>
+<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a>  r_score <span class="ot">&lt;-</span> r_response <span class="sc">*</span> mu_eta_fit <span class="sc">/</span> V_fit</span>
+<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a>  IF_correction <span class="ot">&lt;-</span> d_fit <span class="sc">*</span> r_score                         <span class="co"># n_fit x 1</span></span>
+<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Combine: full IF = (n/n_t) * Ch.1 + n * Ch.2</span></span>
+<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Factor of n on Ch.2 from A_{beta,beta}^{-1} = n * (X'WX)^{-1}</span></span>
+<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Factor of (n/n_t) on Ch.1 from A_{mu,mu}^{-1} = n/n_t (Sec. 3.6)</span></span>
+<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a>  IF <span class="ot">&lt;-</span> (n <span class="sc">/</span> n_t) <span class="sc">*</span> IF_direct</span>
+<span id="cb3-44"><a href="#cb3-44" aria-hidden="true" tabindex="-1"></a>  IF[<span class="fu">seq_along</span>(IF_correction)] <span class="ot">&lt;-</span> IF[<span class="fu">seq_along</span>(IF_correction)] <span class="sc">+</span></span>
+<span id="cb3-45"><a href="#cb3-45" aria-hidden="true" tabindex="-1"></a>    n <span class="sc">*</span> IF_correction</span>
+<span id="cb3-46"><a href="#cb3-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-47"><a href="#cb3-47" aria-hidden="true" tabindex="-1"></a>  IF</span>
+<span id="cb3-48"><a href="#cb3-48" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
 </section>
@@ -1525,7 +1571,7 @@ A = \begin{pmatrix}
   \color{#E6550D}{A_{\beta\alpha}}\;
   \color{#3182BD}{A_{\alpha\alpha}^{-1}}\;
   \psi_{\alpha,i}}_{\text{propensity correction}}
-\tag{7}\]</span></span></p>
+\tag{8}\]</span></span></p>
 <p>Reading each term:</p>
 <ul>
 <li><strong>Channel 1</strong>: how individual <span class="math inline">\(i\)</span>’s prediction deviates from the mean (same as g-comp). Zero when predictions are constant (saturated MSM + static intervention); nonzero for non-static interventions or non-saturated MSMs.</li>
@@ -1669,7 +1715,7 @@ V_\beta = \color{#3182BD}{A^{-1}}
 \frac{\partial \hat\mu}{\partial \hat\beta_k^T}
 \;\cdot\;
 \color{#3182BD}{A_k^{-1}} \; \psi_k(O_i; \hat\beta_k)
-\tag{8}\]</span></span></p>
+\tag{9}\]</span></span></p>
 <p>Each term in the sum is a “Channel 2” from Section 3.2 applied to model <span class="math inline">\(k\)</span>: the Jacobian <span class="math inline">\(\partial\hat\mu/\partial\hat\beta_k^T\)</span> (how <span class="math inline">\(\hat\mu\)</span> depends on model <span class="math inline">\(k\)</span>) times the IF of model <span class="math inline">\(k\)</span>’s parameters (<span class="math inline">\(\color{#3182BD}{A_k^{-1}}\psi_{k,i}\)</span>).</p>
 <div class="callout callout-style-default callout-note callout-titled">
 <div class="callout-header d-flex align-content-center">
@@ -1737,10 +1783,36 @@ Figure&nbsp;2: ICE backward iteration. Models are fit from final time to baselin
 = \underbrace{\frac{1}{n_t}(\tilde{Y}_{0,i} - \hat\mu)}_{\text{Channel 1}}
 + \sum_{k=0}^{K}
 \underbrace{
-\color{#E6550D}{d_{k,i}} \cdot r_{k,i}
+\color{#E6550D}{d_{k,i}} \cdot r^{\text{score}}_{k,i}
 }_{\text{Channel 2 for model } k}
-\tag{9}\]</span></span></p>
-<p>where <span class="math inline">\(r_{k,i} = Y_{k,i} - \hat{Y}_{k,i}\)</span> is individual <span class="math inline">\(i\)</span>’s residual at model <span class="math inline">\(k\)</span>, and <span class="math inline">\(\color{#E6550D}{d_{k,i}}\)</span> is the <strong>sensitivity</strong> — how much a perturbation at model <span class="math inline">\(k\)</span> propagates to <span class="math inline">\(\hat\mu\)</span>.</p>
+\tag{10}\]</span></span></p>
+<p>where <span class="math inline">\(\color{#E6550D}{d_{k,i}}\)</span> is the <strong>sensitivity</strong> — how much a perturbation at model <span class="math inline">\(k\)</span> propagates to <span class="math inline">\(\hat\mu\)</span> — and <span class="math inline">\(r^{\text{score}}_{k,i}\)</span> is individual <span class="math inline">\(i\)</span>’s <strong>score residual</strong> at model <span class="math inline">\(k\)</span>:</p>
+<p><span class="math display">\[
+r^{\text{score}}_{k,i}
+\;=\; (Y_{k,i} - \hat{Y}_{k,i}) \cdot
+\frac{d\mu/d\eta\big|_{\eta_{k,i}}}{V(\hat{Y}_{k,i})}
+\]</span></p>
+<p>i.e.&nbsp;the response residual <span class="math inline">\(r_{k,i} = Y_{k,i} - \hat{Y}_{k,i}\)</span> weighted by the link-scale factor from the GLM score (Section 1.2, route 3). For <strong>canonical</strong> links (logistic-logit, Poisson-log, Gaussian-identity) the ratio <span class="math inline">\((d\mu/d\eta)/V(\mu) = 1\)</span> and <span class="math inline">\(r^{\text{score}}_{k,i}\)</span> collapses to the ordinary response residual <span class="math inline">\(r_{k,i}\)</span>. For <strong>non-canonical</strong> links (probit, cloglog, Gamma-log, Poisson-sqrt, etc.) the factor is not <span class="math inline">\(1\)</span> and must be applied.</p>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Warning</span>Why the score residual, not the response residual
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><span class="math inline">\(\text{Ch.2}_i = J_k A_k^{-1} \psi_{k,i}\)</span> contains the full GLM score <span class="math inline">\(\psi_{k,i} = (Y - \mu)\cdot(d\mu/d\eta)/V(\mu)\cdot X_i\)</span>, not the bare residual <span class="math inline">\((Y - \mu)\cdot X_i\)</span>. Working through the algebra:</p>
+<p><span class="math display">\[
+\color{#31A354}{J_k}\color{#3182BD}{A_k^{-1}}\psi_{k,i}
+\;=\; n\cdot d_{k,i}\cdot (Y_{k,i} - \hat Y_{k,i})\cdot
+\frac{d\mu/d\eta\big|_{\eta_{k,i}}}{V(\hat Y_{k,i})}
+\;=\; n\cdot d_{k,i}\cdot r^{\text{score}}_{k,i}
+\]</span></p>
+<p>The factor of <span class="math inline">\(n\)</span> arises from <span class="math inline">\(A_k^{-1} = n(X_k^T W_k X_k)^{-1}\)</span> (Section 5.5). Omitting the <span class="math inline">\((d\mu/d\eta)/V\)</span> factor and using the plain response residual is correct only when it equals <span class="math inline">\(1\)</span> — i.e., only for canonical links. This mistake is silent on logistic/Poisson-log/Gaussian models but miscalibrates probit and cloglog.</p>
+</div>
+</div>
 </section>
 <section id="what-the-sensitivities-measure" class="level4">
 <h4 class="anchored" data-anchor-id="what-the-sensitivities-measure">What the sensitivities measure</h4>
@@ -1760,14 +1832,15 @@ Figure&nbsp;2: ICE backward iteration. Models are fit from final time to baselin
 \frac{d\mu}{d\eta}\bigg|_{\eta_{0,j}^*}
 \;\cdot\; X_{0,j}^*
 \]</span></p>
-<p><span class="math inline">\(g_0\)</span> tells us the total sensitivity of <span class="math inline">\(\hat\mu\)</span> to <span class="math inline">\(\beta_0\)</span>, but the IF requires a per-individual quantity. We need to ask: “of the total shift in <span class="math inline">\(\hat\beta_0\)</span> caused by the data, how much came from individual <span class="math inline">\(i\)</span>?” The answer uses two facts: (a) individual <span class="math inline">\(i\)</span>’s influence on <span class="math inline">\(\hat\beta_0\)</span> is proportional to their score <span class="math inline">\(\psi_{0,i}\)</span>, which is proportional to <span class="math inline">\(r_{0,i}
-\cdot X_{0,i}\)</span>; and (b) the constant of proportionality involves the bread inverse <span class="math inline">\((X_0^T W_0 X_0)^{-1}\)</span>. Combining:</p>
+<p><span class="math inline">\(g_0\)</span> tells us the total sensitivity of <span class="math inline">\(\hat\mu\)</span> to <span class="math inline">\(\beta_0\)</span>, but the IF requires a per-individual quantity. We need to ask: “of the total shift in <span class="math inline">\(\hat\beta_0\)</span> caused by the data, how much came from individual <span class="math inline">\(i\)</span>?” The answer uses two facts: (a) individual <span class="math inline">\(i\)</span>’s influence on <span class="math inline">\(\hat\beta_0\)</span> is proportional to their score <span class="math inline">\(\psi_{0,i} = (d\mu/d\eta)_i / V(\mu_i) \cdot
+r_{0,i} \cdot X_{0,i}\)</span>; and (b) the constant of proportionality involves the bread inverse <span class="math inline">\((X_0^T W_0 X_0)^{-1}\)</span>. Combining:</p>
 <p><span class="math display">\[
 h_0 = \underbrace{(X_0^T W_0 X_0)^{-1}}_{\text{bread inverse}} g_0,
 \qquad
 \color{#E6550D}{d_{0,i}} = h_0^T X_{0,i}
 \]</span></p>
-<p>Now <span class="math inline">\(\color{#E6550D}{d_{0,i}} \cdot r_{0,i}\)</span> gives individual <span class="math inline">\(i\)</span>’s Channel 2 contribution: their residual <span class="math inline">\(r_{0,i}\)</span> (how much their data “disagrees” with model 0) scaled by <span class="math inline">\(\color{#E6550D}{d_{0,i}}\)</span> (how much that disagreement matters for <span class="math inline">\(\hat\mu\)</span>). This is equivalent to <span class="math inline">\(\color{#31A354}{J_0}\color{#3182BD}{A_0^{-1}}\psi_{0,i}\)</span> from Section 3.2, factored into the three steps above.</p>
+<p>Now <span class="math inline">\(\color{#E6550D}{d_{0,i}} \cdot r^{\text{score}}_{0,i}\)</span> gives individual <span class="math inline">\(i\)</span>’s Channel 2 contribution: their <strong>score residual</strong> <span class="math inline">\(r^{\text{score}}_{0,i} = (Y_{0,i} - \hat Y_{0,i}) \cdot (d\mu/d\eta)_i /
+V(\mu_i)\)</span> (how much their data “disagrees” with model 0, on the link-scaled score metric) scaled by <span class="math inline">\(\color{#E6550D}{d_{0,i}}\)</span> (how much that disagreement matters for <span class="math inline">\(\hat\mu\)</span>). For canonical links <span class="math inline">\((d\mu/d\eta)/V = 1\)</span> and the score residual collapses to the response residual <span class="math inline">\(r_{0,i}\)</span>. For non-canonical links the link-scale factor must be kept. This is equivalent to <span class="math inline">\(\color{#31A354}{J_0}\color{#3182BD}{A_0^{-1}}\psi_{0,i}\)</span> from Section 3.2, factored into the three steps above.</p>
 </section>
 <section id="recursive-case-model-k-1-ldots-k" class="level4">
 <h4 class="anchored" data-anchor-id="recursive-case-model-k-1-ldots-k">Recursive case: model <span class="math inline">\(k = 1, \ldots, K\)</span></h4>
@@ -1793,7 +1866,7 @@ h_k = (X_k^T W_k X_k)^{-1} g_k,
 <h3 class="anchored" data-anchor-id="scaling-the-factor-of-n">5.5 Scaling: the factor of <span class="math inline">\(n\)</span></h3>
 <p>Each model correction involves <span class="math inline">\(\color{#3182BD}{A_k^{-1}}\)</span>. Since <span class="math inline">\(\color{#3182BD}{A_k} = \frac{1}{n_k} X_k^T W_k X_k\)</span>, we have <span class="math inline">\(\color{#3182BD}{A_k^{-1}} = n_k(X_k^T W_k X_k)^{-1}\)</span>. So the correction at step <span class="math inline">\(k\)</span> is:</p>
 <p><span class="math display">\[
-n_k \cdot \color{#E6550D}{d_{k,i}} \cdot r_{k,i}
+n_k \cdot \color{#E6550D}{d_{k,i}} \cdot r^{\text{score}}_{k,i}
 \]</span></p>
 <p>The factor <span class="math inline">\(n_k\)</span> ensures each IF contribution is <span class="math inline">\(O(1)\)</span> per individual, giving the correct <span class="math inline">\(\text{Var}(\hat\mu) = O(1/n)\)</span>.</p>
 <div class="callout callout-style-default callout-warning callout-titled">
@@ -1821,46 +1894,56 @@ n_k \cdot \color{#E6550D}{d_{k,i}} \cdot r_{k,i}
 <span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  mu_hat <span class="ot">&lt;-</span> <span class="fu">mean</span>(pseudo_final[target])</span>
 <span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  n_target <span class="ot">&lt;-</span> <span class="fu">sum</span>(target)</span>
 <span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>  IF <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">0</span>, n)</span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  IF[target] <span class="ot">&lt;-</span> (n <span class="sc">/</span> n_target) <span class="sc">*</span> (pseudo_final[target] <span class="sc">-</span> mu_hat)  <span class="co"># Channel 1</span></span>
-<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>  d <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">0</span>, n)  <span class="co"># sensitivities from previous step</span></span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (step <span class="cf">in</span> <span class="dv">0</span><span class="sc">:</span>K) {</span>
-<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>    model_k <span class="ot">&lt;-</span> models[[step <span class="sc">+</span> <span class="dv">1</span>]]</span>
-<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    X_k <span class="ot">&lt;-</span> <span class="fu">model.matrix</span>(model_k)         <span class="co"># fitting design matrix</span></span>
-<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>    r_k <span class="ot">&lt;-</span> <span class="fu">residuals</span>(model_k)            <span class="co"># r_{k,i}</span></span>
-<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>    W_k <span class="ot">&lt;-</span> <span class="fu">working_weights</span>(model_k)</span>
-<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>    fit_ids_k <span class="ot">&lt;-</span> model_k<span class="sc">$</span>fitting_ids</span>
-<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>    n_k <span class="ot">&lt;-</span> <span class="fu">length</span>(fit_ids_k)</span>
-<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Intervention design matrix and link derivatives (dmu/deta)</span></span>
-<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>    X_star_k <span class="ot">&lt;-</span> <span class="fu">model.matrix</span>(model_k, <span class="at">newdata =</span> intervention_data[[step <span class="sc">+</span> <span class="dv">1</span>]])</span>
-<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>    eta_star <span class="ot">&lt;-</span> X_star_k <span class="sc">%*%</span> <span class="fu">coef</span>(model_k)</span>
-<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>    mu_eta_star <span class="ot">&lt;-</span> model_k<span class="sc">$</span>family<span class="sc">$</span><span class="fu">mu.eta</span>(eta_star)</span>
-<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Step 1: Gradient g_k = d mu_hat / d beta_k</span></span>
-<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (step <span class="sc">==</span> <span class="dv">0</span>) {</span>
-<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>      g_k <span class="ot">&lt;-</span> <span class="fu">crossprod</span>(X_star_k[target, ], mu_eta_star[target]) <span class="sc">/</span> n_target</span>
-<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>    } <span class="cf">else</span> {</span>
-<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a>      prev_ids <span class="ot">&lt;-</span> models[[step]]<span class="sc">$</span>fitting_ids</span>
-<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a>      g_k <span class="ot">&lt;-</span> <span class="fu">crossprod</span>(X_star_k[prev_ids, ], d[prev_ids] <span class="sc">*</span> mu_eta_star[prev_ids])</span>
-<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a>    }</span>
-<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Step 2: Solve h_k = (X'WX)^{-1} g_k</span></span>
-<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a>    h_k <span class="ot">&lt;-</span> <span class="fu">solve</span>(<span class="fu">crossprod</span>(X_k, X_k <span class="sc">*</span> W_k)) <span class="sc">%*%</span> g_k</span>
-<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Step 3: Distribute d_{k,i} = h_k' X_{k,i}</span></span>
-<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a>    d <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">0</span>, n)</span>
-<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a>    d[fit_ids_k] <span class="ot">&lt;-</span> X_k <span class="sc">%*%</span> h_k</span>
-<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-40"><a href="#cb4-40" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Channel 2 for model k: n_k * d_{k,i} * r_{k,i}</span></span>
-<span id="cb4-41"><a href="#cb4-41" aria-hidden="true" tabindex="-1"></a>    r_vec <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">0</span>, n)</span>
-<span id="cb4-42"><a href="#cb4-42" aria-hidden="true" tabindex="-1"></a>    r_vec[fit_ids_k] <span class="ot">&lt;-</span> r_k</span>
-<span id="cb4-43"><a href="#cb4-43" aria-hidden="true" tabindex="-1"></a>    IF <span class="ot">&lt;-</span> IF <span class="sc">+</span> n_k <span class="sc">*</span> d <span class="sc">*</span> r_vec</span>
-<span id="cb4-44"><a href="#cb4-44" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb4-45"><a href="#cb4-45" aria-hidden="true" tabindex="-1"></a>  IF</span>
-<span id="cb4-46"><a href="#cb4-46" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Channel 1 with target-subpopulation scaling (see Sec. 3.6).</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  IF <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">0</span>, n)</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>  IF[target] <span class="ot">&lt;-</span> (n <span class="sc">/</span> n_target) <span class="sc">*</span> (pseudo_final[target] <span class="sc">-</span> mu_hat)</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>  d <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">0</span>, n)  <span class="co"># sensitivities from previous step</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (step <span class="cf">in</span> <span class="dv">0</span><span class="sc">:</span>K) {</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    model_k <span class="ot">&lt;-</span> models[[step <span class="sc">+</span> <span class="dv">1</span>]]</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>    family_k <span class="ot">&lt;-</span> model_k<span class="sc">$</span>family</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>    X_k <span class="ot">&lt;-</span> <span class="fu">model.matrix</span>(model_k)         <span class="co"># fitting design matrix</span></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>    eta_k <span class="ot">&lt;-</span> model_k<span class="sc">$</span>linear.predictors</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>    mu_eta_k <span class="ot">&lt;-</span> family_k<span class="sc">$</span><span class="fu">mu.eta</span>(eta_k)   <span class="co"># dmu/deta at fitted values</span></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>    V_k <span class="ot">&lt;-</span> family_k<span class="sc">$</span><span class="fu">variance</span>(<span class="fu">fitted</span>(model_k))</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>    W_k <span class="ot">&lt;-</span> mu_eta_k<span class="sc">^</span><span class="dv">2</span> <span class="sc">/</span> V_k              <span class="co"># IWLS working weights</span></span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>    fit_ids_k <span class="ot">&lt;-</span> model_k<span class="sc">$</span>fitting_ids</span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>    n_k <span class="ot">&lt;-</span> <span class="fu">length</span>(fit_ids_k)</span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Score residual = response residual * (dmu/deta) / V(mu). For</span></span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>    <span class="co"># canonical links this factor is 1; for non-canonical (probit,</span></span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>    <span class="co"># cloglog, Gamma-log, ...) it is not.</span></span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>    r_response_k <span class="ot">&lt;-</span> <span class="fu">residuals</span>(model_k, <span class="at">type =</span> <span class="st">"response"</span>)</span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>    r_score_k <span class="ot">&lt;-</span> r_response_k <span class="sc">*</span> mu_eta_k <span class="sc">/</span> V_k</span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Intervention design matrix and link derivatives (dmu/deta)</span></span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a>    X_star_k <span class="ot">&lt;-</span> <span class="fu">model.matrix</span>(model_k, <span class="at">newdata =</span> intervention_data[[step <span class="sc">+</span> <span class="dv">1</span>]])</span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a>    eta_star <span class="ot">&lt;-</span> X_star_k <span class="sc">%*%</span> <span class="fu">coef</span>(model_k)</span>
+<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a>    mu_eta_star <span class="ot">&lt;-</span> family_k<span class="sc">$</span><span class="fu">mu.eta</span>(eta_star)</span>
+<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Step 1: Gradient g_k = d mu_hat / d beta_k</span></span>
+<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (step <span class="sc">==</span> <span class="dv">0</span>) {</span>
+<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a>      g_k <span class="ot">&lt;-</span> <span class="fu">crossprod</span>(X_star_k[target, ], mu_eta_star[target]) <span class="sc">/</span> n_target</span>
+<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a>    } <span class="cf">else</span> {</span>
+<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a>      prev_ids <span class="ot">&lt;-</span> models[[step]]<span class="sc">$</span>fitting_ids</span>
+<span id="cb4-40"><a href="#cb4-40" aria-hidden="true" tabindex="-1"></a>      g_k <span class="ot">&lt;-</span> <span class="fu">crossprod</span>(X_star_k[prev_ids, ], d[prev_ids] <span class="sc">*</span> mu_eta_star[prev_ids])</span>
+<span id="cb4-41"><a href="#cb4-41" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb4-42"><a href="#cb4-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-43"><a href="#cb4-43" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Step 2: Solve h_k = (X'WX)^{-1} g_k</span></span>
+<span id="cb4-44"><a href="#cb4-44" aria-hidden="true" tabindex="-1"></a>    h_k <span class="ot">&lt;-</span> <span class="fu">solve</span>(<span class="fu">crossprod</span>(X_k, X_k <span class="sc">*</span> W_k)) <span class="sc">%*%</span> g_k</span>
+<span id="cb4-45"><a href="#cb4-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-46"><a href="#cb4-46" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Step 3: Distribute d_{k,i} = h_k' X_{k,i}</span></span>
+<span id="cb4-47"><a href="#cb4-47" aria-hidden="true" tabindex="-1"></a>    d <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">0</span>, n)</span>
+<span id="cb4-48"><a href="#cb4-48" aria-hidden="true" tabindex="-1"></a>    d[fit_ids_k] <span class="ot">&lt;-</span> X_k <span class="sc">%*%</span> h_k</span>
+<span id="cb4-49"><a href="#cb4-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-50"><a href="#cb4-50" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Channel 2 for model k: n_k * d_{k,i} * r_score_{k,i}</span></span>
+<span id="cb4-51"><a href="#cb4-51" aria-hidden="true" tabindex="-1"></a>    r_vec <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">0</span>, n)</span>
+<span id="cb4-52"><a href="#cb4-52" aria-hidden="true" tabindex="-1"></a>    r_vec[fit_ids_k] <span class="ot">&lt;-</span> r_score_k</span>
+<span id="cb4-53"><a href="#cb4-53" aria-hidden="true" tabindex="-1"></a>    IF <span class="ot">&lt;-</span> IF <span class="sc">+</span> n_k <span class="sc">*</span> d <span class="sc">*</span> r_vec</span>
+<span id="cb4-54"><a href="#cb4-54" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb4-55"><a href="#cb4-55" aria-hidden="true" tabindex="-1"></a>  IF</span>
+<span id="cb4-56"><a href="#cb4-56" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
 </section>
