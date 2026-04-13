@@ -460,16 +460,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="description" class="level3">
 <h3 class="anchored" data-anchor-id="description">Description</h3>
 <p>Standardises outcome model predictions under each named intervention and reports pairwise causal contrasts (differences, ratios, or odds ratios) with uncertainty estimates.</p>
-<p>For all three estimation methods, <code>contrast()</code> computes E[Y^a] by setting each individual’s treatment to the intervened value and averaging the fitted outcome model predictions over the target population. The target population is controlled by <code>estimand</code> (or <code>subset</code> for subgroup effects). The methods differ in how the outcome model was fitted and how the variance is estimated:</p>
+<p>For all three estimation methods, <code>contrast()</code> computes E[Y^a] by setting each individual’s treatment to the intervened value and averaging the fitted outcome model predictions over the target population. The target population is controlled by <code>estimand</code> (or <code>subset</code> for subgroup effects). The methods differ only in how the outcome model was fitted; variance is computed by the <strong>unified influence-function engine</strong> <code>variance_if()</code> (<code>R/variance_if.R</code>), which handles all four cases (g-comp, IPW, matching, ICE) via one entry point. See <code>vignettes/variance-theory.qmd</code> for the derivation and <code>VARIANCE_REFACTOR.qmd</code> for the architecture.</p>
 <ul>
 <li>
-<p><code>“gcomp”</code>: standard <code>glm</code>/<code>gam</code> on the full data; sandwich SE via stacked estimating equations.</p>
+<p><code>“gcomp”</code>: standard <code>glm</code>/<code>gam</code> on the full data; one-model IF correction via <code>correct_model()</code>.</p>
 </li>
 <li>
-<p><code>“ipw”</code>: <code>glm_weightit()</code> fit weighted for the target estimand (ATE/ATT); M-estimation sandwich SE that accounts for weight estimation uncertainty.</p>
+<p><code>“ipw”</code>: <code>glm_weightit()</code> fit weighted for the target estimand (ATE/ATT); IF Channel 2 delegated to <code>correct_propensity()</code> (WeightIt shortcut via <code>sandwich::estfun(asympt = TRUE)</code>), which already accounts for weight estimation uncertainty.</p>
 </li>
 <li>
-<p><code>“matching”</code>: <code>glm()</code> on the matched sample with match weights; SE via cluster-robust sandwich (<code>sandwich::vcovCL(vcov = ~subclass)</code>) to account for pair membership.</p>
+<p><code>“matching”</code>: <code>glm()</code> on the matched sample with match weights; IF is computed on the matched sample and aggregated cluster-robustly on <code>matched$subclass</code> via <code>vcov_from_if(cluster = …)</code>.</p>
 </li>
 </ul>
 </section>
@@ -773,13 +773,13 @@ Variance estimation
 </h4>
 <ul>
 <li>
-<p><code>“sandwich”</code>: Stacked estimating equations propagate outcome model uncertainty through to the marginal mean.</p>
+<p><code>“sandwich”</code>: The unified influence-function engine <code>variance_if()</code>. Per-individual IF = Channel 1 (direct covariate-sampling term) + Channel 2 (one correction per nuisance model). Aggregated via <code>vcov_from_if()</code>, with cluster-robust aggregation for matching. Mathematically equivalent to the stacked M-estimation sandwich; see <code>vignettes/variance-theory.qmd</code> Sections 3–4.</p>
 </li>
 <li>
 <p><code>“bootstrap”</code>: Resamples individuals (entire pipeline refitted <code>n_boot</code> times). Respects cluster structure for longitudinal data.</p>
 </li>
 <li>
-<p><code>“delta”</code>: Explicit delta method for ratio/OR contrasts (applied internally when <code>ci_method = “sandwich”</code>).</p>
+<p>The delta method is applied internally for ratio / odds-ratio contrasts on top of the <code>“sandwich”</code> vcov; it is not a separate <code>ci_method</code> option.</p>
 </li>
 </ul>
 </section>
