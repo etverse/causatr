@@ -593,9 +593,13 @@ test_that("ICE gcomp × by recovers heterogeneous effects (binary outcome)", {
   A0 <- rbinom(n, 1, plogis(0.3 * L0))
   L1 <- L0 + 0.5 * A0 + rnorm(n)
   A1 <- rbinom(n, 1, plogis(0.3 * L1))
-  Y <- rbinom(n, 1, plogis(
-    -3 + 1.5 * A0 + 1.5 * A1 + 0.5 * L0 + 0.5 * L1 + 2 * sex
-  ))
+  Y <- rbinom(
+    n,
+    1,
+    plogis(
+      -3 + 1.5 * A0 + 1.5 * A1 + 0.5 * L0 + 0.5 * L1 + 2 * sex
+    )
+  )
 
   t0 <- data.frame(
     id = seq_len(n),

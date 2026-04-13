@@ -1,4 +1,3 @@
-
 test_that("causat() returns a causatr_fit for longitudinal data", {
   long <- make_table201(scale = 1 / 100)
   fit <- causat(
@@ -201,7 +200,6 @@ test_that("ICE handles censoring indicator", {
   expect_s3_class(result, "causatr_result")
   expect_true(all(is.finite(result$estimates$estimate)))
 })
-
 
 
 test_that("ICE recovers known non-zero ATE from linear SCM (2 time points)", {

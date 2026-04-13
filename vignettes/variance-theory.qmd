@@ -906,7 +906,78 @@ forming the $(p+1) \times (p+1)$ meat matrix $\color{#E6550D}{B}$ — it
 computes the same answer by summing scalar products.
 :::
 
-### 3.6 Pseudo-code: the full IF for a marginal mean
+### 3.6 Target subpopulations (ATT, ATU, custom subset)
+
+Sections 3.1–3.5 define the marginal mean as an average over the **full
+sample**: $\hat\mu_a = (1/n)\sum_{i=1}^n g^{-1}(X_i^{*T}\hat\beta)$.
+Many causal estimands — the ATT, the ATU, or an estimand on a
+user-supplied subset — instead average only over a **target
+subpopulation** $T \subseteq \{1,\ldots,n\}$ of size $n_t$:
+
+$$
+\hat\mu_a \;=\; \frac{1}{n_t}\sum_{i\in T} g^{-1}(X_i^{*T}\hat\beta)
+$$
+
+The stacked estimating equations need one small change to accommodate
+this: the mean equation is now indicator-weighted. Let $t_i = \mathbb{1}[i \in T]$ and write
+
+$$
+\psi_{\mu,i}(\beta,\mu_a) \;=\; t_i \cdot \bigl[g^{-1}(X_i^{*T}\beta) - \mu_a\bigr]
+$$
+
+so that $\sum_i \psi_{\mu,i} = 0$ still recovers $\hat\mu_a$.
+
+Redoing the bread calculation from Section 3.5 with this indicator-weighted mean equation:
+
+- $\color{#E6550D}{A_{\mu\mu}} = -\frac{1}{n}\sum_i \frac{\partial\psi_{\mu,i}}{\partial\mu_a} = -\frac{1}{n}\sum_i(-t_i) = \frac{n_t}{n}$, so $A_{\mu\mu}^{-1} = \frac{n}{n_t}$.
+- $\color{#E6550D}{A_{\mu\beta}} = -\frac{1}{n}\sum_i t_i \cdot \frac{d\mu}{d\eta}\Big|_{\eta_i^*} X_i^{*T} = -\frac{n_t}{n}\,\color{#31A354}{J_a}$, where $\color{#31A354}{J_a} = \frac{1}{n_t}\sum_{i\in T}\frac{d\mu}{d\eta}\big|_{\eta_i^*} X_i^{*T}$ is the Jacobian averaged over the target.
+
+Plugging into the back-substitution formula for the last row of $A^{-1}$:
+
+$$
+\text{IF}_i(\hat\mu_a)
+\;=\; -A_{\mu\mu}^{-1}\,\color{#E6550D}{A_{\mu\beta}}\,\color{#3182BD}{A_{\beta\beta}^{-1}}\,\psi_{\beta,i}
+\;+\; A_{\mu\mu}^{-1}\,\psi_{\mu,i}
+$$
+
+Substituting $A_{\mu\mu}^{-1} = n/n_t$ and $A_{\mu\beta} = -(n_t/n)\,\color{#31A354}{J_a}$:
+
+$$
+\text{IF}_i(\hat\mu_a)
+\;=\; \underbrace{\frac{n}{n_t}\cdot t_i \cdot (g^{-1}(X_i^{*T}\hat\beta) - \hat\mu_a)}_
+{\text{Channel 1 (rescaled)}}
+\;+\; \underbrace{\color{#31A354}{J_a}\,\color{#3182BD}{A_{\beta\beta}^{-1}}\,\psi_{\beta,i}}_
+{\text{Channel 2 (unchanged)}}
+$$ {#eq-if-gcomp-target}
+
+Two things to notice:
+
+1. **Channel 1 picks up a factor of $n/n_t$** and is nonzero only for
+   individuals inside the target. Without this factor the variance is
+   underestimated by $(n_t/n)^2$ — a serious undercount when the target
+   is a proper subset (e.g., the ATT with only ~40% treated).
+2. **Channel 2 is unchanged.** The $n_t/n$ in $A_{\mu\beta}$ cancels with
+   the $n/n_t$ in $A_{\mu\mu}^{-1}$, so the Channel 2 formula from
+   Section 3.2 carries over verbatim — $\color{#31A354}{J_a}$ is just
+   averaged over the target population instead of the full sample, and
+   $\psi_{\beta,i}$ still runs over every individual the outcome model
+   used (inside **and** outside the target), because the outcome model
+   was fit on all those rows.
+
+The variance is still
+$\widehat{\text{Var}}(\hat\mu_a) = (1/n^2)\sum_{i=1}^n \text{IF}_i^2$,
+summed over all $n$ individuals. Individuals outside the target have
+$\text{Ch.1}_i = 0$ and contribute only through Channel 2.
+
+Setting $T = \{1,\ldots,n\}$ (so $n_t = n$, $t_i \equiv 1$) recovers
+@eq-if-gcomp exactly. The full-sample case is the special case of
+@eq-if-gcomp-target where the scaling factor is $1$.
+
+### 3.7 Pseudo-code: the full IF for a marginal mean
+
+This incorporates the target subpopulation scaling from Section 3.6
+and the correct non-canonical link handling for the score (multiply
+response residuals by $\mu_\eta/V$; see Section 1.2 route 3).
 
 ```{r}
 #| eval: false
@@ -918,23 +989,22 @@ gcomp_influence <- function(model, data_a, target_idx) {
   pred_terms <- delete.response(terms(model))
   family <- model$family
 
-  # Predictions under intervention
+  # Predictions under intervention (target rows only)
   X_star <- model.matrix(pred_terms, data = data_a[target_idx, ])
   eta_star <- as.numeric(X_star %*% beta_hat)
   preds <- family$linkinv(eta_star)
   mu_hat <- mean(preds)
   n_t <- length(preds)
 
-  # Channel 1: direct contribution (covariate sampling)
+  # Channel 1: (n/n_t) * t_i * (pred_i - mu_hat), zero outside target
   IF_direct <- rep(0, n)
   IF_direct[target_idx] <- preds - mu_hat
 
-  # Channel 2: model correction (parameter uncertainty)
-  # Jacobian: J = (1/n_t) sum (dmu/deta) * X_star
+  # Channel 2 gradient: J_a = (1/n_t) sum_{target} (dmu/deta) * X_star
   mu_eta_star <- family$mu.eta(eta_star)
   J <- as.numeric(crossprod(X_star, mu_eta_star)) / n_t  # p x 1
 
-  # Bread inverse * score for each individual
+  # Bread inverse (X'WX)^{-1} with IWLS working weights
   X_fit <- model.matrix(model)
   eta_fit <- model$linear.predictors
   mu_eta_fit <- family$mu.eta(eta_fit)
@@ -943,11 +1013,18 @@ gcomp_influence <- function(model, data_a, target_idx) {
   XtWX_inv <- solve(crossprod(X_fit, X_fit * W))
   h <- as.numeric(XtWX_inv %*% J)  # p x 1
 
-  residuals <- residuals(model, type = "response")
-  IF_correction <- as.numeric(X_fit %*% h) * residuals  # n_fit x 1
+  # Per-observation directional sensitivity and SCORE residual.
+  # Score residual = response residual * (dmu/deta) / V(mu), so that
+  # psi_i = X_i * r_i * (mu_eta/V). For canonical links mu_eta/V = 1
+  # and this reduces to the response residual.
+  d_fit <- as.numeric(X_fit %*% h)
+  r_response <- residuals(model, type = "response")
+  r_score <- r_response * mu_eta_fit / V_fit
+  IF_correction <- d_fit * r_score                         # n_fit x 1
 
-  # Combine: full IF = Channel 1 + n * Channel 2
-  # Factor of n from A^{-1} = n * (X'WX)^{-1}
+  # Combine: full IF = (n/n_t) * Ch.1 + n * Ch.2
+  # Factor of n on Ch.2 from A_{beta,beta}^{-1} = n * (X'WX)^{-1}
+  # Factor of (n/n_t) on Ch.1 from A_{mu,mu}^{-1} = n/n_t (Sec. 3.6)
   IF <- (n / n_t) * IF_direct
   IF[seq_along(IF_correction)] <- IF[seq_along(IF_correction)] +
     n * IF_correction
@@ -1358,13 +1435,48 @@ $$
 = \underbrace{\frac{1}{n_t}(\tilde{Y}_{0,i} - \hat\mu)}_{\text{Channel 1}}
 + \sum_{k=0}^{K}
 \underbrace{
-\color{#E6550D}{d_{k,i}} \cdot r_{k,i}
+\color{#E6550D}{d_{k,i}} \cdot r^{\text{score}}_{k,i}
 }_{\text{Channel 2 for model } k}
 $$ {#eq-if-ice}
 
-where $r_{k,i} = Y_{k,i} - \hat{Y}_{k,i}$ is individual $i$'s residual at
-model $k$, and $\color{#E6550D}{d_{k,i}}$ is the **sensitivity** — how much a
-perturbation at model $k$ propagates to $\hat\mu$.
+where $\color{#E6550D}{d_{k,i}}$ is the **sensitivity** — how much a
+perturbation at model $k$ propagates to $\hat\mu$ — and
+$r^{\text{score}}_{k,i}$ is individual $i$'s **score residual** at
+model $k$:
+
+$$
+r^{\text{score}}_{k,i}
+\;=\; (Y_{k,i} - \hat{Y}_{k,i}) \cdot
+\frac{d\mu/d\eta\big|_{\eta_{k,i}}}{V(\hat{Y}_{k,i})}
+$$
+
+i.e. the response residual $r_{k,i} = Y_{k,i} - \hat{Y}_{k,i}$ weighted
+by the link-scale factor from the GLM score (Section 1.2, route 3).
+For **canonical** links (logistic-logit, Poisson-log, Gaussian-identity)
+the ratio $(d\mu/d\eta)/V(\mu) = 1$ and $r^{\text{score}}_{k,i}$
+collapses to the ordinary response residual $r_{k,i}$. For
+**non-canonical** links (probit, cloglog, Gamma-log, Poisson-sqrt,
+etc.) the factor is not $1$ and must be applied.
+
+::: {.callout-warning}
+### Why the score residual, not the response residual
+$\text{Ch.2}_i = J_k A_k^{-1} \psi_{k,i}$ contains the full GLM score
+$\psi_{k,i} = (Y - \mu)\cdot(d\mu/d\eta)/V(\mu)\cdot X_i$, not the bare
+residual $(Y - \mu)\cdot X_i$. Working through the algebra:
+
+$$
+\color{#31A354}{J_k}\color{#3182BD}{A_k^{-1}}\psi_{k,i}
+\;=\; n\cdot d_{k,i}\cdot (Y_{k,i} - \hat Y_{k,i})\cdot
+\frac{d\mu/d\eta\big|_{\eta_{k,i}}}{V(\hat Y_{k,i})}
+\;=\; n\cdot d_{k,i}\cdot r^{\text{score}}_{k,i}
+$$
+
+The factor of $n$ arises from $A_k^{-1} = n(X_k^T W_k X_k)^{-1}$
+(Section 5.5). Omitting the $(d\mu/d\eta)/V$ factor and using the plain
+response residual is correct only when it equals $1$ — i.e., only for
+canonical links. This mistake is silent on logistic/Poisson-log/Gaussian
+models but miscalibrates probit and cloglog.
+:::
 
 #### What the sensitivities measure
 
@@ -1400,9 +1512,9 @@ $g_0$ tells us the total sensitivity of $\hat\mu$ to $\beta_0$, but the IF
 requires a per-individual quantity. We need to ask: "of the total shift in
 $\hat\beta_0$ caused by the data, how much came from individual $i$?" The
 answer uses two facts: (a) individual $i$'s influence on $\hat\beta_0$ is
-proportional to their score $\psi_{0,i}$, which is proportional to $r_{0,i}
-\cdot X_{0,i}$; and (b) the constant of proportionality involves the bread
-inverse $(X_0^T W_0 X_0)^{-1}$. Combining:
+proportional to their score $\psi_{0,i} = (d\mu/d\eta)_i / V(\mu_i) \cdot
+r_{0,i} \cdot X_{0,i}$; and (b) the constant of proportionality involves
+the bread inverse $(X_0^T W_0 X_0)^{-1}$. Combining:
 
 $$
 h_0 = \underbrace{(X_0^T W_0 X_0)^{-1}}_{\text{bread inverse}} g_0,
@@ -1410,12 +1522,17 @@ h_0 = \underbrace{(X_0^T W_0 X_0)^{-1}}_{\text{bread inverse}} g_0,
 \color{#E6550D}{d_{0,i}} = h_0^T X_{0,i}
 $$
 
-Now $\color{#E6550D}{d_{0,i}} \cdot r_{0,i}$ gives individual $i$'s Channel 2
-contribution: their residual $r_{0,i}$ (how much their data "disagrees" with
-model 0) scaled by $\color{#E6550D}{d_{0,i}}$ (how much that disagreement
-matters for $\hat\mu$). This is equivalent to
-$\color{#31A354}{J_0}\color{#3182BD}{A_0^{-1}}\psi_{0,i}$ from Section 3.2,
-factored into the three steps above.
+Now $\color{#E6550D}{d_{0,i}} \cdot r^{\text{score}}_{0,i}$ gives
+individual $i$'s Channel 2 contribution: their **score residual**
+$r^{\text{score}}_{0,i} = (Y_{0,i} - \hat Y_{0,i}) \cdot (d\mu/d\eta)_i /
+V(\mu_i)$ (how much their data "disagrees" with model 0, on the
+link-scaled score metric) scaled by $\color{#E6550D}{d_{0,i}}$ (how much
+that disagreement matters for $\hat\mu$). For canonical links
+$(d\mu/d\eta)/V = 1$ and the score residual collapses to the response
+residual $r_{0,i}$. For non-canonical links the link-scale factor must
+be kept. This is equivalent to
+$\color{#31A354}{J_0}\color{#3182BD}{A_0^{-1}}\psi_{0,i}$ from
+Section 3.2, factored into the three steps above.
 
 #### Recursive case: model $k = 1, \ldots, K$
 
@@ -1454,7 +1571,7 @@ $\color{#3182BD}{A_k^{-1}} = n_k(X_k^T W_k X_k)^{-1}$. So the correction at
 step $k$ is:
 
 $$
-n_k \cdot \color{#E6550D}{d_{k,i}} \cdot r_{k,i}
+n_k \cdot \color{#E6550D}{d_{k,i}} \cdot r^{\text{score}}_{k,i}
 $$
 
 The factor $n_k$ ensures each IF contribution is $O(1)$ per individual, giving
@@ -1478,23 +1595,33 @@ chained_influence <- function(models, data_iv, target) {
   mu_hat <- mean(pseudo_final[target])
   n_target <- sum(target)
 
+  # Channel 1 with target-subpopulation scaling (see Sec. 3.6).
   IF <- rep(0, n)
-  IF[target] <- (n / n_target) * (pseudo_final[target] - mu_hat)  # Channel 1
+  IF[target] <- (n / n_target) * (pseudo_final[target] - mu_hat)
 
   d <- rep(0, n)  # sensitivities from previous step
 
   for (step in 0:K) {
     model_k <- models[[step + 1]]
+    family_k <- model_k$family
     X_k <- model.matrix(model_k)         # fitting design matrix
-    r_k <- residuals(model_k)            # r_{k,i}
-    W_k <- working_weights(model_k)
+    eta_k <- model_k$linear.predictors
+    mu_eta_k <- family_k$mu.eta(eta_k)   # dmu/deta at fitted values
+    V_k <- family_k$variance(fitted(model_k))
+    W_k <- mu_eta_k^2 / V_k              # IWLS working weights
     fit_ids_k <- model_k$fitting_ids
     n_k <- length(fit_ids_k)
+
+    # Score residual = response residual * (dmu/deta) / V(mu). For
+    # canonical links this factor is 1; for non-canonical (probit,
+    # cloglog, Gamma-log, ...) it is not.
+    r_response_k <- residuals(model_k, type = "response")
+    r_score_k <- r_response_k * mu_eta_k / V_k
 
     # Intervention design matrix and link derivatives (dmu/deta)
     X_star_k <- model.matrix(model_k, newdata = intervention_data[[step + 1]])
     eta_star <- X_star_k %*% coef(model_k)
-    mu_eta_star <- model_k$family$mu.eta(eta_star)
+    mu_eta_star <- family_k$mu.eta(eta_star)
 
     # Step 1: Gradient g_k = d mu_hat / d beta_k
     if (step == 0) {
@@ -1511,9 +1638,9 @@ chained_influence <- function(models, data_iv, target) {
     d <- rep(0, n)
     d[fit_ids_k] <- X_k %*% h_k
 
-    # Channel 2 for model k: n_k * d_{k,i} * r_{k,i}
+    # Channel 2 for model k: n_k * d_{k,i} * r_score_{k,i}
     r_vec <- rep(0, n)
-    r_vec[fit_ids_k] <- r_k
+    r_vec[fit_ids_k] <- r_score_k
     IF <- IF + n_k * d * r_vec
   }
   IF
