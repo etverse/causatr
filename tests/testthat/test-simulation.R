@@ -1754,6 +1754,66 @@ test_that("ICE × continuous TV treatment × shift recovers structural 2*delta (
 })
 
 
+test_that("ICE × continuous TV treatment × scale_by recovers 2*(c-1) (vs lmtp)", {
+  # Truth-based companion to the shift() test above. DGP:
+  #
+  #   L_0 ~ N(0, 1)
+  #   A_0 = 1 + 0.4*L_0 + N(0, 1)   (E[A_0] = 1)
+  #   L_1 = L_0 + N(0, 1)           (independent of A_0)
+  #   A_1 = 1 + 0.4*L_1 + N(0, 1)   (E[A_1] = 1)
+  #   Y   = 1 + A_0 + A_1 + 0.5*L_1 + N(0, 1)
+  #
+  # Under scale_by(c):
+  #   E[Y^{c*A}] = 1 + c*E[A_0] + c*E[A_1] + 0.5*E[L_1] = 1 + 2c
+  # so the contrast against scale_by(1) is 2*(c - 1).
+  # Cross-checked against `lmtp::lmtp_tmle()` with a custom shift
+  # function (= 1.5 * A_t): lmtp returns ~0.985, causatr returns
+  # ~0.987, structural truth = 1.
+  set.seed(2029)
+  n <- 5000
+  c_scale <- 1.5
+
+  L0 <- stats::rnorm(n)
+  A0 <- 1 + 0.4 * L0 + stats::rnorm(n)
+  L1 <- L0 + stats::rnorm(n)
+  A1 <- 1 + 0.4 * L1 + stats::rnorm(n)
+  Y <- 1 + A0 + A1 + 0.5 * L1 + stats::rnorm(n)
+
+  long <- data.table::data.table(
+    id = rep(seq_len(n), each = 2),
+    time = rep(0:1, times = n),
+    A = as.numeric(rbind(A0, A1)),
+    L = as.numeric(rbind(L0, L1)),
+    Y = rep(Y, each = 2)
+  )
+  fit <- causat(
+    long,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~1,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(scaled = scale_by(c_scale), nat = scale_by(1)),
+    type = "difference",
+    reference = "nat",
+    ci_method = "sandwich"
+  )
+  truth <- 2 * (c_scale - 1)
+  expect_lt(abs(res$contrasts$estimate[1] - truth), 0.05)
+  expect_lt(res$contrasts$ci_lower[1], truth)
+  expect_gt(res$contrasts$ci_upper[1], truth)
+
+  # Marginal mean under scale_by(c) should be ~1 + 2c = 4.
+  est <- res$estimates
+  e_scaled <- est$estimate[est$intervention == "scaled"]
+  expect_lt(abs(e_scaled - (1 + 2 * c_scale)), 0.1)
+})
+
+
 # ============================================================
 # CONFINT × STRATIFIED BOOTSTRAP
 # ============================================================

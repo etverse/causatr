@@ -142,10 +142,9 @@ the supported intervention / variance shapes differ across methods.
 | binary | binomial | static | 3+ | bootstrap | none | ✅ truth | test-ice.R |
 | binary | binomial | static | 3+ | bootstrap (parallel) | none | ✅ truth | test-ice.R |
 | continuous | gaussian | shift | 2 | sandwich | none | ✅ truth (vs lmtp) | test-simulation.R |
-| continuous | gaussian | scale_by | 2 | sandwich | none | 🟡 smoke | test-ice.R |
+| continuous | gaussian | scale_by | 2 | sandwich | none | ✅ truth (vs lmtp) | test-simulation.R |
 | continuous | gaussian | threshold | 2 | sandwich | none | 🟡 smoke | test-ice.R |
 | continuous | gaussian | shift | 2 | bootstrap | none | ❌ none | **GAP** |
-| continuous | gaussian | scale_by | 2 | sandwich | none | ❌ truth | **GAP** (need lmtp-validated truth) |
 | binary | gaussian | static | 2 | sandwich | none + censoring | ✅ truth | test-ice.R |
 | multivariate | gaussian | static | 2 | sandwich | none | ✅ truth | test-multivariate.R |
 | multivariate | gaussian | shift | 2 | sandwich | none | ✅ truth | test-multivariate.R |
