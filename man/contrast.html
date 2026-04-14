@@ -233,6 +233,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">Causal survival analysis (Chapter 17)</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../vignettes/validation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Validation against reference implementations</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -472,7 +478,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="description" class="level3">
 <h3 class="anchored" data-anchor-id="description">Description</h3>
 <p>Standardises outcome model predictions under each named intervention and reports pairwise causal contrasts (differences, ratios, or odds ratios) with uncertainty estimates.</p>
-<p>For all three estimation methods, <code>contrast()</code> computes E[Y^a] by setting each individual’s treatment to the intervened value and averaging the fitted outcome model predictions over the target population. The target population is controlled by <code>estimand</code> (or <code>subset</code> for subgroup effects). The methods differ only in how the outcome model was fitted; variance is computed by the <strong>unified influence-function engine</strong> <code>variance_if()</code> (<code>R/variance_if.R</code>), which handles all four cases (g-comp, IPW, matching, ICE) via one entry point. See <code>vignettes/variance-theory.qmd</code> for the derivation and the <code>R/variance_if.R</code> roxygen header for the architecture.</p>
+<p>For all three causal estimators, <code>contrast()</code> computes E[Y^a] by setting each individual’s treatment to the intervened value and averaging the fitted outcome model predictions over the target population. The target population is controlled by <code>estimand</code> (or <code>subset</code> for subgroup effects). The estimators differ only in how the outcome model was fitted; variance is computed by the <strong>unified influence-function engine</strong> <code>variance_if()</code> (<code>R/variance_if.R</code>), which handles all four cases (g-comp, IPW, matching, ICE) via one entry point. See <code>vignettes/variance-theory.qmd</code> for the derivation and the <code>R/variance_if.R</code> roxygen header for the architecture.</p>
 <ul>
 <li>
 <p><code>“gcomp”</code>: standard <code>glm</code>/<code>gam</code> on the full data; one-model IF correction via <code>prepare_model_if()</code> + <code>apply_model_correction()</code>.</p>
@@ -525,13 +531,13 @@ A <code>causatr_fit</code> object returned by <code>causat()</code>.
 <p>A <code>causatr_intervention</code> object created by <code>static()</code>, <code>shift()</code>, <code>dynamic()</code>, <code>scale_by()</code>, <code>threshold()</code>, or <code>ipsi()</code>.</p>
 </li>
 <li>
-<p><code>NULL</code>, meaning the natural course (observed treatment values are used as-is). The natural course is the standard reference for modified treatment policies on continuous treatments (e.g.&nbsp;<code>shift(-10)</code> vs <code>NULL</code>; Díaz et al.&nbsp;2023) and for longitudinal dynamic regimes (Hernán &amp; Robins Ch. 21). For binary treatments, the natural-course marginal mean equals E[Y] under the observed treatment mechanism (by consistency); use <code>static(1)</code> vs <code>static(0)</code> for the conventional ATE. Supported for all methods.</p>
+<p><code>NULL</code>, meaning the natural course (observed treatment values are used as-is). The natural course is the standard reference for modified treatment policies on continuous treatments (e.g.&nbsp;<code>shift(-10)</code> vs <code>NULL</code>; Díaz et al.&nbsp;2023) and for longitudinal dynamic regimes (Hernán &amp; Robins Ch. 21). For binary treatments, the natural-course marginal mean equals E[Y] under the observed treatment mechanism (by consistency); use <code>static(1)</code> vs <code>static(0)</code> for the conventional ATE. Supported for all estimators.</p>
 </li>
 <li>
 <p>A named list of <code>causatr_intervention</code> objects, one per treatment variable, for multivariate (joint) treatments. Each sub-list must name every treatment variable specified in <code>causat()</code>.</p>
 </li>
 </ul>
-<p><strong>Note:</strong> Non-static interventions (<code>shift()</code>, <code>scale_by()</code>, <code>threshold()</code>, <code>dynamic()</code>, <code>ipsi()</code>) are only supported for <code>method = “gcomp”</code>. For IPW and matching, the weights/matched sets were estimated under the observed treatment distribution; applying a different regime requires re-calling <code>causat()</code> with updated data. <code>ipsi()</code> additionally requires a fitted propensity model that is not yet wired through any engine (Phase 4) and currently aborts for all methods.</p>
+<p><strong>Note:</strong> Non-static interventions (<code>shift()</code>, <code>scale_by()</code>, <code>threshold()</code>, <code>dynamic()</code>, <code>ipsi()</code>) are only supported for <code>estimator = “gcomp”</code>. For IPW and matching, the weights/matched sets were estimated under the observed treatment distribution; applying a different regime requires re-calling <code>causat()</code> with updated data. <code>ipsi()</code> additionally requires a fitted propensity model that is not yet wired through any engine (Phase 4) and currently aborts for all estimators.</p>
 <strong>Survival contrasts are not yet implemented.</strong> <code>contrast()</code> on a <code>causatr_fit</code> returned by <code>causat_survival()</code> aborts with an informative error. The pooled logistic fit itself works; only the survival-curve contrast step is pending.
 </td>
 </tr>
@@ -548,7 +554,7 @@ Character. The contrast scale: <code>“difference”</code> (default), <code>�
 <code id="estimand">estimand</code>
 </td>
 <td>
-Character or <code>NULL</code>. The target estimand: <code>“ATE”</code>, <code>“ATT”</code>, or <code>“ATC”</code>. For <code>method = “gcomp”</code>, overrides the estimand stored in <code>fit</code> (allowing one fit to produce multiple estimands). For <code>method = “ipw”</code> or <code>“matching”</code>, must match the estimand used at fitting time — changing it aborts with an informative message. If <code>NULL</code>, defaults to <code>fit$estimand</code>. Mutually exclusive with <code>subset</code>.
+Character or <code>NULL</code>. The target estimand: <code>“ATE”</code>, <code>“ATT”</code>, or <code>“ATC”</code>. For <code>estimator = “gcomp”</code>, overrides the estimand stored in <code>fit</code> (allowing one fit to produce multiple estimands). For <code>estimator = “ipw”</code> or <code>“matching”</code>, must match the estimand used at fitting time — changing it aborts with an informative message. If <code>NULL</code>, defaults to <code>fit$estimand</code>. Mutually exclusive with <code>subset</code>.
 </td>
 </tr>
 <tr>
@@ -572,7 +578,7 @@ Character or <code>NULL</code>. Name of the reference intervention (the denomina
 <code id="ci_method">ci_method</code>
 </td>
 <td>
-Character. The variance/CI method: <code>“sandwich”</code> (default) or <code>“bootstrap”</code>.
+Character. The variance/CI approach: <code>“sandwich”</code> (default) or <code>“bootstrap”</code>.
 </td>
 </tr>
 <tr>
@@ -828,7 +834,7 @@ Contrast scale.
 <code>ci_method</code>
 </dt>
 <dd>
-Inference method.
+Inference approach.
 </dd>
 <dt>
 <code>reference</code>
@@ -849,10 +855,10 @@ The intervention list.
 Number of individuals averaged over.
 </dd>
 <dt>
-<code>method</code>
+<code>estimator</code>
 </dt>
 <dd>
-Estimation method from the fit.
+Causal estimator from the fit.
 </dd>
 <dt>
 <code>vcov</code>

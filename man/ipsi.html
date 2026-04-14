@@ -233,6 +233,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">Causal survival analysis (Chapter 17)</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../vignettes/validation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Validation against reference implementations</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -471,7 +477,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="description" class="level3">
 <h3 class="anchored" data-anchor-id="description">Description</h3>
 <p>Creates an incremental propensity score intervention (IPSI) that multiplies each individual’s odds of treatment by <code>delta</code>. Values of <code>delta &gt; 1</code> increase the probability of treatment; <code>delta &lt; 1</code> decrease it. This is a stochastic modified treatment policy indexed by a single scalar.</p>
-<p><strong>Status: not yet applicable</strong> (planned Phase 4). The constructor is implemented and will appear in <code>fit$interventions</code>, but <code>contrast()</code> currently aborts when handed an <code>ipsi()</code> intervention because application requires a fitted propensity model that is not yet wired through the estimation engines. Use <code>shift()</code>, <code>scale_by()</code>, or <code>static()</code> with <code>method = “gcomp”</code> in the meantime.</p>
+<p><strong>Status: not yet applicable</strong> (planned Phase 4). The constructor is implemented and will appear in <code>fit$interventions</code>, but <code>contrast()</code> currently aborts when handed an <code>ipsi()</code> intervention because application requires a fitted propensity model that is not yet wired through the estimation engines. Use <code>shift()</code>, <code>scale_by()</code>, or <code>static()</code> with <code>estimator = “gcomp”</code> in the meantime.</p>
 </section>
 <section id="usage" class="level3">
 <h3 class="anchored" data-anchor-id="usage">Usage</h3>

@@ -23,6 +23,41 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
 </style>
 
 
@@ -196,6 +231,12 @@ ul.task-list li input[type="checkbox"] {
   <div class="sidebar-item-container"> 
   <a href="./vignettes/survival.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Causal survival analysis (Chapter 17)</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./vignettes/validation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Validation against reference implementations</span></a>
   </div>
 </li>
       </ul>
@@ -414,6 +455,7 @@ ul.task-list li input[type="checkbox"] {
   <ul>
   <li><a href="#causatr-development-version" id="toc-causatr-development-version" class="nav-link active" data-scroll-target="#causatr-development-version">causatr (development version)</a>
   <ul class="collapse">
+  <li><a href="#breaking-causat-causat_survival-argument-method-renamed-to-estimator" id="toc-breaking-causat-causat_survival-argument-method-renamed-to-estimator" class="nav-link" data-scroll-target="#breaking-causat-causat_survival-argument-method-renamed-to-estimator">Breaking: <code>causat()</code> / <code>causat_survival()</code> argument <code>method</code> renamed to <code>estimator</code></a></li>
   <li><a href="#critical-review-sweep-r1r9-s1s9" id="toc-critical-review-sweep-r1r9-s1s9" class="nav-link" data-scroll-target="#critical-review-sweep-r1r9-s1s9">2026-04-14 — Critical review sweep (R1–R9 + S1–S9)</a>
   <ul class="collapse">
   <li><a href="#required-changes-correctness-silent-failure-fixes" id="toc-required-changes-correctness-silent-failure-fixes" class="nav-link" data-scroll-target="#required-changes-correctness-silent-failure-fixes">Required changes (correctness / silent-failure fixes)</a></li>
@@ -442,6 +484,14 @@ ul.task-list li input[type="checkbox"] {
 
 <section id="causatr-development-version" class="level1">
 <h1>causatr (development version)</h1>
+<section id="breaking-causat-causat_survival-argument-method-renamed-to-estimator" class="level2">
+<h2 class="anchored" data-anchor-id="breaking-causat-causat_survival-argument-method-renamed-to-estimator">Breaking: <code>causat()</code> / <code>causat_survival()</code> argument <code>method</code> renamed to <code>estimator</code></h2>
+<p><code>causat(method = ...)</code> shadowed <code>WeightIt::weightit(method = ...)</code> and <code>MatchIt::matchit(method = ...)</code>, making it impossible to forward those packages’ own <code>method</code> selector through <code>...</code>. The causatr argument has been renamed to <code>estimator</code>; extra <code>...</code> arguments now flow cleanly into WeightIt / MatchIt. This is a hard rename with no deprecation shim — update call sites from <code>method = "gcomp" | "ipw" | "matching"</code> to <code>estimator = "..."</code>, and from <code>fit$method</code> / <code>result$method</code> / <code>diag$method</code> to <code>fit$estimator</code> / <code>result$estimator</code> / <code>diag$estimator</code>. The <code>glance.causatr_result()</code> output column is renamed in the same way.</p>
+<p>After the rename, forwarding e.g.&nbsp;a CBPS propensity model is a one-liner:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(data, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>, <span class="at">confounders =</span> <span class="sc">~</span> L1 <span class="sc">+</span> L2,</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>              <span class="at">estimator =</span> <span class="st">"ipw"</span>, <span class="at">method =</span> <span class="st">"cbps"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>See <code>vignette("ipw")</code> for a worked example. <code>ci_method</code> is a separate concept and is unchanged.</p>
+</section>
 <section id="critical-review-sweep-r1r9-s1s9" class="level2">
 <h2 class="anchored" data-anchor-id="critical-review-sweep-r1r9-s1s9">2026-04-14 — Critical review sweep (R1–R9 + S1–S9)</h2>
 <p>Systematic audit and hardening of the whole package in a single pass. All fixes below are covered by existing or newly-added tests; the FEATURE_COVERAGE_MATRIX.md now carries a CI-enforced round-trip check so future drift between the matrix and the test files fails loudly.</p>
@@ -570,7 +620,7 @@ ul.task-list li input[type="checkbox"] {
 <section id="phase-23-implementation" class="level2">
 <h2 class="anchored" data-anchor-id="phase-23-implementation">2026-04-01 — Phase 2–3 implementation</h2>
 <ul>
-<li><strong><code>causat(method = "gcomp" / "ipw" / "matching")</code></strong> fully working, with:
+<li><strong><code>causat(estimator = "gcomp" / "ipw" / "matching")</code></strong> fully working, with:
 <ul>
 <li>parametric g-formula via a user-supplied <code>model_fn</code></li>
 <li>IPW via <code>WeightIt::weightit()</code> and <code>WeightIt::glm_weightit()</code></li>

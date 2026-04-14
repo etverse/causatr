@@ -233,6 +233,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">Causal survival analysis (Chapter 17)</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../vignettes/validation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Validation against reference implementations</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -513,10 +519,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> confounders, <span class="at">censoring =</span> <span class="st">"censored"</span>)</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>fit_ipw <span class="ot">&lt;-</span> <span class="fu">causat</span>(nhefs_complete, <span class="at">outcome =</span> <span class="st">"wt82_71"</span>, <span class="at">treatment =</span> <span class="st">"qsmk"</span>,</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> confounders, <span class="at">method =</span> <span class="st">"ipw"</span>)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> confounders, <span class="at">estimator =</span> <span class="st">"ipw"</span>)</span>
 <span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>fit_m <span class="ot">&lt;-</span> <span class="fu">causat</span>(nhefs_complete, <span class="at">outcome =</span> <span class="st">"wt82_71"</span>, <span class="at">treatment =</span> <span class="st">"qsmk"</span>,</span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> confounders, <span class="at">method =</span> <span class="st">"matching"</span>, <span class="at">estimand =</span> <span class="st">"ATT"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> confounders, <span class="at">estimator =</span> <span class="st">"matching"</span>, <span class="at">estimand =</span> <span class="st">"ATT"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="contrasts" class="level3">
@@ -573,11 +579,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"qsmk"</span>, <span class="at">confounders =</span> confounders, <span class="at">family =</span> <span class="st">"binomial"</span>)</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>fit_ipw_bin <span class="ot">&lt;-</span> <span class="fu">causat</span>(nhefs_complete, <span class="at">outcome =</span> <span class="st">"gained_weight"</span>,</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"qsmk"</span>, <span class="at">confounders =</span> confounders, <span class="at">method =</span> <span class="st">"ipw"</span>)</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"qsmk"</span>, <span class="at">confounders =</span> confounders, <span class="at">estimator =</span> <span class="st">"ipw"</span>)</span>
 <span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>fit_m_bin <span class="ot">&lt;-</span> <span class="fu">causat</span>(nhefs_complete, <span class="at">outcome =</span> <span class="st">"gained_weight"</span>,</span>
 <span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"qsmk"</span>, <span class="at">confounders =</span> confounders,</span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">method =</span> <span class="st">"matching"</span>, <span class="at">estimand =</span> <span class="st">"ATT"</span>)</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimator =</span> <span class="st">"matching"</span>, <span class="at">estimand =</span> <span class="st">"ATT"</span>)</span>
 <span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>res_gc_bin <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit_gc_bin, ivs, <span class="at">reference =</span> <span class="st">"continue"</span>)</span>
 <span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>res_ipw_bin <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit_ipw_bin, ivs, <span class="at">reference =</span> <span class="st">"continue"</span>)</span>

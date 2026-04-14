@@ -262,6 +262,12 @@ window.Quarto = {
  <span class="menu-text">Causal survival analysis (Chapter 17)</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../vignettes/validation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Validation against reference implementations</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -524,7 +530,7 @@ window.Quarto = {
 <p>All analyses follow the same two-step pattern:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Step 1: Fit</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(data, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>, <span class="at">confounders =</span> <span class="sc">~</span> L1 <span class="sc">+</span> L2,</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>              <span class="at">method =</span> <span class="st">"gcomp"</span>)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>              <span class="at">estimator =</span> <span class="st">"gcomp"</span>)</span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Step 2: Contrast</span></span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit,</span>
@@ -553,7 +559,7 @@ window.Quarto = {
 <span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>result</span>
 <span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; &lt;causatr_result&gt;</span></span>
-<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  Method:    G-computation</span></span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  Estimator: G-computation</span></span>
 <span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  Estimand:  ATE</span></span>
 <span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  Contrast:  Difference</span></span>
 <span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  CI method: sandwich</span></span>
@@ -743,7 +749,7 @@ window.Quarto = {
 </tbody>
 </table>
 <p>For multivariate treatments (e.g.&nbsp;<code>treatment = c("A1", "A2")</code>), supply interventions as named lists with one element per treatment variable.</p>
-<p>Effect modification in the outcome / MSM model itself (e.g.&nbsp;<code>~ L + sex + A:sex</code>) is currently supported only for g-computation. IPW and matching wrap a saturated <code>Y ~ A</code> MSM around the propensity / matched design, and reject an <code>A:modifier</code> term up front — use <code>method = "gcomp"</code> for heterogeneous effects, or <code>by = "modifier"</code> below for stratum-specific summaries of a homogeneous effect. See <code>PHASE_8_INTERACTIONS.md</code> for the planned unified API.</p>
+<p>Effect modification in the outcome / MSM model itself (e.g.&nbsp;<code>~ L + sex + A:sex</code>) is currently supported only for g-computation. IPW and matching wrap a saturated <code>Y ~ A</code> MSM around the propensity / matched design, and reject an <code>A:modifier</code> term up front — use <code>estimator = "gcomp"</code> for heterogeneous effects, or <code>by = "modifier"</code> below for stratum-specific summaries of a homogeneous effect. See <code>PHASE_8_INTERACTIONS.md</code> for the planned unified API.</p>
 </section>
 <section id="effect-modification" class="level2">
 <h2 class="anchored" data-anchor-id="effect-modification">Effect modification</h2>

@@ -233,6 +233,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">Causal survival analysis (Chapter 17)</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../vignettes/validation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Validation against reference implementations</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -471,10 +477,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="unnumbered anchored" data-anchor-id="diagnostics-for-a-fitted-causal-model">Diagnostics for a fitted causal model</h2>
 <section id="description" class="level3">
 <h3 class="anchored" data-anchor-id="description">Description</h3>
-<p>Computes diagnostics appropriate to the estimation method:</p>
+<p>Computes diagnostics appropriate to the causal estimator:</p>
 <ul>
 <li>
-<p><strong>All methods</strong>: positivity checks (flags covariate strata where the probability of treatment is near 0 or 1).</p>
+<p><strong>All estimators</strong>: positivity checks (flags covariate strata where the probability of treatment is near 0 or 1).</p>
 </li>
 <li>
 <p><code>“ipw”</code>: covariate balance before and after weighting (via <code>cobalt</code>), weight distribution summary (mean, SD, max, effective sample size).</p>
@@ -583,10 +589,10 @@ data.table or <code>NULL</code>: weight distribution summary (IPW only).
 data.table or <code>NULL</code>: match quality summary (matching only).
 </dd>
 <dt>
-<code>method</code>
+<code>estimator</code>
 </dt>
 <dd>
-Character: the estimation method.
+Character: the causal estimator.
 </dd>
 <dt>
 <code>fit</code>
@@ -612,7 +618,7 @@ The original <code>causatr_fit</code> (stored for <code>plot()</code>).
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"nhefs"</span>, <span class="at">package =</span> <span class="st">"causatr"</span>)</span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(nhefs, <span class="at">outcome =</span> <span class="st">"wt82_71"</span>, <span class="at">treatment =</span> <span class="st">"qsmk"</span>,</span>
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>              <span class="at">confounders =</span> <span class="sc">~</span> sex <span class="sc">+</span> age <span class="sc">+</span> wt71,</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>              <span class="at">method =</span> <span class="st">"ipw"</span>)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>              <span class="at">estimator =</span> <span class="st">"ipw"</span>)</span>
 <span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>diag <span class="ot">&lt;-</span> <span class="fu">diagnose</span>(fit)</span>
 <span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(diag)</span>
 <span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(diag)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
