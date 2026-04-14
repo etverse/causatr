@@ -463,14 +463,15 @@ test_that("ICE × bootstrap × external weights gives finite SE matching sandwic
   expect_true(all(is.finite(res_boot$contrasts$se)))
   expect_true(all(res_boot$contrasts$se > 0))
 
-  # Sandwich vs bootstrap SE within a factor of 2. The bound is
-  # generous because the weighted ICE stacked-EE bread is more
-  # variable than the unweighted version, and the bootstrap may
-  # actually be the more accurate of the two for small samples
-  # under non-uniform weights — to be revisited in the next audit
-  # cycle (FEATURE_COVERAGE_MATRIX flags this as a potential
-  # sandwich-underestimate finding).
+  # Sandwich and bootstrap SE should now agree to within ~15% (tighter
+  # than the original 0.5–2.5 bound). The prior 1.89x discrepancy was
+  # tracked to a missing w_{k-1} factor in the cascade gradient inside
+  # `variance_if_ice_one()` — A_{k-1,k} carries the weights from the
+  # previous step's pseudo-outcome fit, which the old implementation
+  # silently dropped. Cross-checked via a 300-rep simulation under this
+  # DGP: empirical SD ≈ 0.113 and the fixed sandwich mean SE ≈ 0.120,
+  # with bootstrap within MC noise of both.
   ratio <- res_boot$contrasts$se[1] / res_sand$contrasts$se[1]
-  expect_gt(ratio, 0.5)
-  expect_lt(ratio, 2.5)
+  expect_gt(ratio, 0.85)
+  expect_lt(ratio, 1.2)
 })

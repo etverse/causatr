@@ -1542,20 +1542,32 @@ know how sensitive $\hat\mu$ is to each of those pseudo-outcomes — that is
 $\color{#E6550D}{d_{k-1,j}}$ from the previous step.
 
 The gradient of $\hat\mu$ w.r.t. $\beta_k$ therefore weights each individual's
-contribution by the previously-computed sensitivity:
+contribution by the previously-computed sensitivity, further scaled by the
+prior weight $w_{k-1,j}$ that the $(k-1)$-th score function carries for
+row $j$:
 
 $$
 \underset{p_k \times 1}{g_k}
 = \sum_{j \in \text{fit}_{k-1}}
+w_{k-1,j}\;\cdot\;
 \color{#E6550D}{d_{k-1,j}}
 \;\cdot\;
 \frac{d\mu}{d\eta}\bigg|_{\eta_{k,j}^*}
 \;\cdot\; X_{k,j}^*
 $$
 
+The $w_{k-1,j}$ factor comes from $A_{k-1,k} =
+E[\partial s_{k-1,j}/\partial \beta_k]$, and $s_{k-1,j}$ inherits
+$w_{k-1,j}$ because the $(k-1)$-th pseudo-outcome model is a weighted
+fit. In the unweighted case $w_{k-1,j} \equiv 1$ and the factor drops
+out; dropping it under non-uniform external weights (e.g. IPCW,
+survey weights) silently underestimates the sandwich variance by a
+factor that scales with weight heterogeneity.
+
 Compare this to $g_0$: the uniform weight $\frac{1}{n_t}$ over the target
-population is replaced by $\color{#E6550D}{d_{k-1,j}}$ over the previous
-model's fitting set. Everything else — solve and distribute — is identical:
+population is replaced by $w_{k-1,j} \cdot \color{#E6550D}{d_{k-1,j}}$ over
+the previous model's fitting set. Everything else — solve and distribute —
+is identical:
 
 $$
 h_k = (X_k^T W_k X_k)^{-1} g_k,
@@ -1623,12 +1635,17 @@ chained_influence <- function(models, data_iv, target) {
     eta_star <- X_star_k %*% coef(model_k)
     mu_eta_star <- family_k$mu.eta(eta_star)
 
-    # Step 1: Gradient g_k = d mu_hat / d beta_k
+    # Step 1: Gradient g_k = d mu_hat / d beta_k. The step > 0 branch
+    # carries w_{k-1} from the previous-step fit's prior weights.
     if (step == 0) {
       g_k <- crossprod(X_star_k[target, ], mu_eta_star[target]) / n_target
     } else {
       prev_ids <- models[[step]]$fitting_ids
-      g_k <- crossprod(X_star_k[prev_ids, ], d[prev_ids] * mu_eta_star[prev_ids])
+      w_prev <- models[[step]]$prior.weights  # 1-vector if unweighted
+      g_k <- crossprod(
+        X_star_k[prev_ids, ],
+        w_prev * d[prev_ids] * mu_eta_star[prev_ids]
+      )
     }
 
     # Step 2: Solve h_k = (X'WX)^{-1} g_k

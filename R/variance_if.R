@@ -1012,6 +1012,24 @@ variance_if_ice_one <- function(fit, ice_result, target) {
     IF_vec[target] <- (n / n_target) * (pseudo_final[target] - mu_hat)
   }
 
+  # Per-time-step id -> external-weight lookup. Needed for the
+  # step > 1 cascade gradient, which must multiply by the weight of
+  # the PREVIOUS model's fit row (w_{k-1} enters through A_{k-1,k} =
+  # E[\partial s_{k-1}/\partial \beta_k]; see variance-theory vignette
+  # Section 5.4). Without this factor the sandwich silently drops a
+  # term and underestimates the ICE SE under non-uniform weights by
+  # ~2x on heterogeneous designs. Only built when external weights
+  # are present — unweighted ICE is unchanged.
+  w_at_step <- if (has_weights) {
+    lapply(seq_len(n_times), function(k) {
+      rows_k <- data[[time_col]] == time_points[k]
+      ids_k <- as.character(data[rows_k][[id_col]])
+      stats::setNames(ext_w[rows_k], ids_k)
+    })
+  } else {
+    NULL
+  }
+
   d_vec <- rep(0, n)
 
   for (step_i in seq_len(n_times)) {
@@ -1082,7 +1100,19 @@ variance_if_ice_one <- function(fit, ice_result, target) {
       keep <- !is.na(idx_in_all) & !is.na(rows_in_iv)
       if (any(keep)) {
         d_prev <- d_vec[idx_in_all[keep]]
-        weights_g <- d_prev * mu_eta_star[rows_in_iv[keep]]
+        # Cascade gradient g_k^eff = A_{k-1,k}^T h_{k-1}
+        #   = sum_j w_{k-1,j} * d_{k-1,j} * X^*_{k,j} * mu_eta_{k,j}
+        # The w_{k-1,j} factor comes from \partial s_{k-1,j}/\partial
+        # \beta_k, which carries the prior weights from the (k-1)-th
+        # fit because the pseudo-outcome model at step k-1 is weighted.
+        # Unweighted ICE has w ≡ 1 so this collapses to the previous
+        # formula; see variance-theory vignette Section 5.4.
+        w_prev <- if (has_weights) {
+          unname(w_at_step[[step_i - 1L]][prev_fit_ids[keep]])
+        } else {
+          rep(1, sum(keep))
+        }
+        weights_g <- w_prev * d_prev * mu_eta_star[rows_in_iv[keep]]
         g_k <- as.numeric(
           crossprod(
             X_star_k[rows_in_iv[keep], , drop = FALSE],
