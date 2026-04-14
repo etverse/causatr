@@ -70,8 +70,18 @@ prepare_data <- function(
     # Sanity check: warn about confounders that are obviously
     # misclassified (e.g. baseline that varies within person, or
     # time-varying that doesn't). These are often typos in the
-    # user's formula rather than intentional.
-    warn_confounder_variation(data, confounders, confounders_tv, id)
+    # user's formula rather than intentional. Pass `treatment` so
+    # interaction terms that include the treatment (e.g.
+    # `~ sex + A:sex`) don't trigger a spurious warning about `A`
+    # varying within individuals — `A` is the treatment, not a
+    # baseline confounder.
+    warn_confounder_variation(
+      data,
+      confounders,
+      confounders_tv,
+      id,
+      treatment
+    )
   }
 
   data
@@ -135,7 +145,13 @@ create_lag_vars <- function(data, treatment, tv_vars, id, time, history) {
 #' @param id Character ID column name.
 #' @return `NULL` invisibly; issues warnings for suspected misclassifications.
 #' @noRd
-warn_confounder_variation <- function(data, confounders, confounders_tv, id) {
+warn_confounder_variation <- function(
+  data,
+  confounders,
+  confounders_tv,
+  id,
+  treatment = character(0)
+) {
   # Sanity-check each confounder against the user's classification.
   # Two error modes:
   #   (a) a variable declared time-varying that doesn't actually vary
@@ -146,7 +162,14 @@ warn_confounder_variation <- function(data, confounders, confounders_tv, id) {
   # variables that are constant in-sample but meaningful time-varying
   # in principle (e.g. a dummy for "first 6 months of follow-up" in a
   # dataset with exactly 6 months).
-  baseline_vars <- all.vars(confounders)
+  #
+  # Subtract the treatment columns from `baseline_vars`. Users
+  # commonly write `confounders = ~ L + A:L` to encode an A × L
+  # interaction on the outcome; `all.vars(~ L + A:L)` returns both
+  # `L` and `A`, and without this subtraction `A` would trip the
+  # within-individual variation check below. `A` is the treatment,
+  # not a baseline confounder.
+  baseline_vars <- setdiff(all.vars(confounders), treatment)
   tv_vars <- if (!is.null(confounders_tv)) {
     all.vars(confounders_tv)
   } else {

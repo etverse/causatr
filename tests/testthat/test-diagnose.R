@@ -15,6 +15,29 @@ test_that("diagnose() rejects non-causatr_fit input", {
   expect_error(diagnose("not_a_fit"), "causatr_fit")
 })
 
+test_that("diagnose() aborts when the WeightIt object is missing treat.type", {
+  # Snapshot-locked rejection path for a non-standard WeightIt fit.
+  # `compute_weight_summary()` reads `attr(weights_obj$treat,
+  # "treat.type")` to pick group labels; if the attribute is missing
+  # (serialized object, hand-crafted weightit, etc.) it would
+  # silently mislabel binary/multinomial weight summaries. Abort
+  # instead.
+  skip_if_not_installed("WeightIt")
+  d <- simulate_binary_continuous(n = 300)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    method = "ipw"
+  )
+  # Strip the treat.type attribute after-the-fact to simulate a
+  # non-standard WeightIt fit.
+  attr(fit$weights_obj$treat, "treat.type") <- NULL
+  expect_snapshot(error = TRUE, diagnose(fit))
+})
+
+
 test_that("diagnose() rejects longitudinal fits with a clear error", {
   # Coverage gap: running diagnose() on a longitudinal fit used to
   # produce a degenerate single-row positivity table (logistic on all

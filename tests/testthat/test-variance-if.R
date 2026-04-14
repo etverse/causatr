@@ -414,6 +414,44 @@ test_that("variance_if_numeric() Tier 2 keeps full Channel-1 covariance", {
 })
 
 
+# ── vcov_from_if() with cluster= matches hand-computed sum-then-square ──
+
+test_that("vcov_from_if(cluster = ...) matches the hand-computed cluster-robust form", {
+  # IF-level unit test for the cluster-robust aggregation formula
+  # used by matching. Given length-n IF vectors for k interventions,
+  #   V[a, b] = (1/n^2) * sum_c (sum_{i in c} IF_{a,i}) (sum_{i in c} IF_{b,i})
+  # where c indexes matched-pair subclasses. This is the formula
+  # variance-theory.qmd §4.3 states for cluster-robust matching
+  # variance and that `variance_if_matching()` relies on. The e2e
+  # matching tests exercise it through the full pipeline, but
+  # there was no direct unit test pinning the formula itself.
+  set.seed(333)
+  n <- 40
+  k <- 3
+  # Fake IFs across 3 interventions on a small sample. Use deliberate
+  # per-cluster structure so within-cluster sums are non-trivial.
+  IF_list <- lapply(seq_len(k), function(j) stats::rnorm(n, mean = 0.2 * j))
+  names(IF_list) <- paste0("a", seq_len(k))
+  # 4 clusters of size 10.
+  cluster <- rep(1:4, each = 10)
+
+  V_fn <- vcov_from_if(IF_list, n = n, int_names = names(IF_list),
+                       cluster = cluster)
+
+  IF_mat <- do.call(cbind, IF_list)
+  cluster_sums <- rowsum(IF_mat, as.factor(cluster), reorder = FALSE)
+  V_ref <- crossprod(cluster_sums) / n^2
+  dimnames(V_ref) <- list(names(IF_list), names(IF_list))
+
+  expect_equal(V_fn, V_ref, tolerance = 1e-12)
+
+  # Sanity-check: cluster-robust aggregation strictly differs from the
+  # standard (ungrouped) one when cluster sizes > 1.
+  V_ungrouped <- vcov_from_if(IF_list, n = n, int_names = names(IF_list))
+  expect_false(isTRUE(all.equal(unname(V_fn), unname(V_ungrouped))))
+})
+
+
 # ── Tier 2 via a custom model_fn with no sandwich::estfun method ──
 
 test_that("variance_if_numeric() Tier 2 works end-to-end via a custom model_fn", {

@@ -53,14 +53,14 @@ the supported intervention / variance shapes differ across methods.
 | binary | gaussian | GLM | static | ATT | difference | sandwich | none | ✅ truth | test-gcomp.R, test-simulation.R |
 | binary | gaussian | GLM | static | ATC | difference | sandwich | none | ✅ truth | test-simulation.R |
 | binary | gaussian | GLM | static | ATE | difference | sandwich | survey | ✅ truth | test-simulation.R |
-| binary | gaussian | GLM | static | ATE | difference | bootstrap | survey | 🟡 smoke | test-simulation.R |
+| binary | gaussian | GLM | static | ATE | difference | bootstrap | survey | ✅ truth (ATE = 3) | test-simulation.R |
 | binary | binomial | GLM | static | ATE | difference (RD) | sandwich | none | ✅ truth | test-simulation.R |
 | binary | binomial | GLM | static | ATE | ratio (RR) | sandwich | none | ✅ truth | test-simulation.R |
 | binary | binomial | GLM | static | ATE | OR | sandwich | none | ✅ truth | test-simulation.R |
 | binary | binomial | GLM | static | ATE | difference | bootstrap | none | ✅ truth | test-simulation.R |
 | binary | poisson | GLM | static | ATE | ratio | sandwich | none | ✅ truth | test-gcomp.R |
-| binary | quasibinomial | GLM | static | ATE | difference | sandwich | none | ❌ none | — |
-| binary | gamma | GLM | static | ATE | ratio | sandwich | none | ❌ none | — |
+| binary | quasibinomial | GLM | static | ATE | difference | sandwich | none | ✅ truth (vs empirical E_L) | test-simulation.R |
+| binary | gamma (log) | GLM | static | ATE | ratio | sandwich | none | ✅ truth (exp(β_A)) | test-simulation.R |
 | binary | gaussian | GAM | static | ATE | difference | sandwich | none | ✅ truth | test-complex-dgp.R |
 | binary | gaussian | GAM | static | ATE | difference | bootstrap | none | ✅ truth | test-complex-dgp.R |
 | binary | gaussian | GLM (splines) | static | ATE | difference | sandwich | none | ✅ truth | test-complex-dgp.R |
@@ -73,6 +73,15 @@ the supported intervention / variance shapes differ across methods.
 | binary | gaussian | GLM | dynamic | ATE | difference | sandwich | none | ✅ truth | test-simulation.R |
 | multivariate | gaussian | GLM | static | ATE | difference | sandwich | none | ✅ truth | test-multivariate.R |
 | multivariate | gaussian | GLM | shift | ATE | difference | sandwich | none | ✅ truth | test-multivariate.R |
+| multivariate | gaussian | GLM | scale_by | ATE | difference | sandwich | none | ✅ truth | test-multivariate.R |
+| multivariate | gaussian | GLM | threshold | ATE | difference | sandwich | none | ✅ truth | test-multivariate.R |
+| multivariate | gaussian | GLM | dynamic | ATE | difference | sandwich | none | ✅ truth | test-multivariate.R |
+| multivariate | binomial | GLM | static | ATE | difference (RD) | sandwich | none | ✅ truth | test-multivariate.R |
+| multivariate | binomial | GLM | static | ATE | ratio (RR) | sandwich | none | ✅ truth | test-multivariate.R |
+| multivariate | binomial | GLM | static | ATE | OR | sandwich | none | ✅ truth | test-multivariate.R |
+| multivariate | gaussian | GLM | static | subset | difference | sandwich | none | ✅ truth | test-multivariate.R |
+| multivariate | gaussian | GLM | static | by(L) | difference | sandwich | none | ✅ truth | test-multivariate.R |
+| multivariate | gaussian | GLM | static | ATE | difference | bootstrap | none | ✅ ratio vs sandwich | test-multivariate.R |
 | binary | gaussian | GLM | static | ATE | difference | sandwich | none + censoring | ✅ truth | test-simulation.R |
 | binary | gaussian | unsupported `model_fn` | static | ATE | difference | numeric Tier 1 | none | 🟡 smoke | test-variance-if.R |
 | binary | gaussian | unsupported `model_fn` | static | ATE | difference | numeric Tier 2 | none | ✅ truth (vs main path, to ~1%) | test-variance-if.R |
@@ -93,13 +102,13 @@ the supported intervention / variance shapes differ across methods.
 | binary | gaussian | static | ATE | difference | bootstrap | none | ✅ truth | test-simulation.R |
 | binary | gaussian | static | ATT | difference | sandwich | none | ✅ truth | test-simulation.R |
 | binary | gaussian | static | ATC | difference | sandwich | none | ✅ truth | test-simulation.R |
-| binary | gaussian | static | ATE | difference | sandwich | survey | 🟡 smoke | test-simulation.R |
+| binary | gaussian | static | ATE | difference | sandwich | survey | ✅ truth | test-simulation.R |
 | binary | binomial | static | ATE | difference (RD) | sandwich | none | ✅ truth | test-simulation.R |
 | binary | binomial | static | ATE | ratio | sandwich | none | ✅ truth | test-simulation.R |
 | binary | binomial | static | ATE | OR | sandwich | none | ✅ truth | test-simulation.R |
 | binary | binomial | static | ATE | difference | bootstrap | none | ✅ truth | test-simulation.R |
-| categorical (k>2) | gaussian | static | ATE | difference | sandwich | none | 🟡 smoke | test-ipw.R |
-| continuous | gaussian | static | ATE | difference | sandwich | none | 🟡 smoke | test-ipw.R |
+| categorical (k>2) | gaussian | static | ATE | difference | sandwich | none | ✅ truth | test-simulation.R |
+| continuous | gaussian | static (specific levels) | ATE | difference | sandwich | none | ✅ truth | test-simulation.R |
 | binary | gaussian | shift / scale / threshold / dynamic / ipsi | — | — | — | — | ⛔ **rejected** (Phase 4) | test-ipw.R, test-contrast.R |
 | binary | gaussian | static | ATE | difference | sandwich (non-Mparts WeightIt method) | none | ✅ e2e smoke (finite understated SE + bootstrap fallback) | test-ipw.R |
 | multivariate | any | any | any | any | any | any | ⛔ **rejected** (Phase 4) | test-s3-methods.R, test-multivariate.R |
@@ -143,13 +152,13 @@ the supported intervention / variance shapes differ across methods.
 | binary | binomial | static | 3+ | bootstrap (parallel) | none | ✅ truth | test-ice.R |
 | continuous | gaussian | shift | 2 | sandwich | none | ✅ truth (vs lmtp) | test-simulation.R |
 | continuous | gaussian | scale_by | 2 | sandwich | none | ✅ truth (vs lmtp) | test-simulation.R |
-| continuous | gaussian | threshold | 2 | sandwich | none | 🟡 smoke | test-ice.R |
-| continuous | gaussian | shift | 2 | bootstrap | none | ❌ none | **GAP** |
+| continuous | gaussian | threshold | 2 | sandwich | none | ✅ truth (2*E[max(A,0)]) | test-simulation.R |
+| continuous | gaussian | shift | 2 | bootstrap | none | ✅ truth (2*δ) | test-simulation.R |
 | binary | gaussian | static | 2 | sandwich | none + censoring | ✅ truth | test-ice.R |
 | multivariate | gaussian | static | 2 | sandwich | none | ✅ truth | test-multivariate.R |
 | multivariate | gaussian | shift | 2 | sandwich | none | ✅ truth | test-multivariate.R |
 | binary | gaussian | ipsi | any | — | — | ⛔ **rejected** (Phase 4) | test-ice.R |
-| binary | gaussian | static | 2 | bootstrap | survey | ❌ none | **GAP** |
+| binary | gaussian | static | 2 | bootstrap | survey | ✅ smoke (ratio vs sandwich) | test-simulation.R |
 | binary | gaussian | static | 2 | sandwich | none + ATT | ⛔ **rejected** (only ATE for ICE) | test-ice.R |
 
 ---
@@ -160,7 +169,7 @@ the supported intervention / variance shapes differ across methods.
 |---|---|---|---|---|---|---|---|---|
 | binary | survival | pooled logistic + ns(time) | (no contrast yet) | — | none | none | ✅ fit-only smoke | test-s3-methods.R, test-simulation.R |
 | binary | survival | pooled logistic + factor(time) | (no contrast yet) | — | none | none | ✅ fit-only smoke | test-s3-methods.R |
-| binary | survival | pooled logistic | (no contrast yet) | — | present | none | ❌ none | **GAP** |
+| binary | survival | pooled logistic | (no contrast yet) | — | present | none | ✅ fit-only smoke (Phase 6 contrast pending) | test-simulation.R |
 | any | survival | any | any | any | any | non-NULL | ⛔ **rejected** (Phase 6) | test-causat.R |
 | binary | survival | pooled logistic | static | analytic | none | none | ❌ contrast for survival not implemented | **GAP / Phase 6** |
 
@@ -179,14 +188,14 @@ the supported intervention / variance shapes differ across methods.
 | `contrast()` rejects bad reference / intervention shape | ✅ snapshots | test-contrast.R |
 | `diagnose()` for gcomp / IPW / matching | ✅ smoke + snapshots | test-diagnose.R |
 | `diagnose()` for longitudinal | ⛔ **rejected** (per-period diagnostics deferred to a future phase) | test-diagnose.R |
-| `diagnose()` aborts on missing WeightIt treat.type | 🟡 unit | manual check; needs test |
+| `diagnose()` aborts on missing WeightIt treat.type | ✅ snapshot | test-diagnose.R |
 | S3 methods: print, summary, plot, coef, vcov, confint, tidy, glance | ✅ smoke | test-s3-methods.R |
 | `confint()` respects `level` arg (sandwich path) | ✅ smoke | test-s3-methods.R |
 | `confint()` consistency between sandwich and bootstrap on `level` | ✅ unit + monotonicity | test-s3-methods.R |
 | `causat_mice()` (multiple imputation wrapper) | 🟡 stubbed | test-causat-mice.R |
-| Numeric variance Tier 1 (estfun-based fallback) | 🟡 unit | test-variance-if.R |
+| Numeric variance Tier 1 (estfun-based fallback) | ✅ unit (analytic IF to ~1e-6) | test-variance-if.R |
 | Numeric variance Tier 2 (delta shortcut + warn) | ✅ e2e via custom `model_fn` | test-variance-if.R |
-| Cluster-robust matching variance (vs an IF-level reference) | 🟡 e2e | test-simulation.R; **GAP** for IF-level test |
+| Cluster-robust matching variance (vs an IF-level reference) | ✅ unit (hand-computed sum-then-square) + e2e | test-variance-if.R, test-simulation.R |
 
 ---
 

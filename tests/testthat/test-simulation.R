@@ -92,6 +92,440 @@ test_that("gcomp × binary trt × binary outcome × ratio × sandwich", {
   expect_gt(result$contrasts$se[1], 0)
 })
 
+test_that("gcomp × binomial × probit link × static × sandwich", {
+  # Non-canonical link stress test. The Channel-2 r_score builder in
+  # `prepare_model_if()` multiplies the response residual by
+  # (dmu/deta)/V(mu); for canonical links this factor is 1 and the
+  # bug would be silent, for probit / cloglog / Gamma-log it is not.
+  # DGP uses a binary outcome with probit link so the link-scale
+  # factor is non-trivial.
+  set.seed(300)
+  n <- 2500
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, stats::plogis(0.3 * L))
+  Y <- stats::rbinom(n, 1, stats::pnorm(-0.5 + 0.8 * A + 0.4 * L))
+  df <- data.frame(Y = Y, A = A, L = L)
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    family = stats::binomial(link = "probit")
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    ci_method = "sandwich"
+  )
+  # Marginal truth: E_L[pnorm(-0.5 + 1*A + 0.4*L)].
+  truth_1 <- mean(stats::pnorm(-0.5 + 1 + 0.4 * L))
+  truth_0 <- mean(stats::pnorm(-0.5 + 0 + 0.4 * L))
+  est <- res$estimates
+  expect_lt(abs(est$estimate[est$intervention == "a1"] - truth_1), 0.06)
+  expect_lt(abs(est$estimate[est$intervention == "a0"] - truth_0), 0.06)
+  expect_true(all(is.finite(res$estimates$se) & res$estimates$se > 0))
+})
+
+
+test_that("gcomp × binomial × cloglog link × static × sandwich", {
+  # cloglog is another non-canonical link; hazards the same r_score
+  # factor as probit. mu.eta(eta) = exp(eta - exp(eta)) / (1 - mu),
+  # V(mu) = mu*(1 - mu), so (dmu/deta)/V(mu) has a mu/(1 - mu) factor
+  # that only disappears at mu = 0.5.
+  set.seed(301)
+  n <- 2500
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, stats::plogis(0.3 * L))
+  eta <- -1.5 + 0.8 * A + 0.4 * L
+  # cloglog: P(Y = 1) = 1 - exp(-exp(eta))
+  Y <- stats::rbinom(n, 1, 1 - exp(-exp(eta)))
+  df <- data.frame(Y = Y, A = A, L = L)
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    family = stats::binomial(link = "cloglog")
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    ci_method = "sandwich"
+  )
+  truth_1 <- mean(1 - exp(-exp(-1.5 + 1 + 0.4 * L)))
+  truth_0 <- mean(1 - exp(-exp(-1.5 + 0 + 0.4 * L)))
+  est <- res$estimates
+  expect_lt(abs(est$estimate[est$intervention == "a1"] - truth_1), 0.1)
+  expect_lt(abs(est$estimate[est$intervention == "a0"] - truth_0), 0.1)
+  expect_true(all(is.finite(res$estimates$se) & res$estimates$se > 0))
+})
+
+
+test_that("ICE × binomial × ratio × sandwich runs with finite SE", {
+  # Cross-cut: ICE + binomial outcome + ratio contrast. Previously
+  # only `difference` was exercised; the delta-method log-scale CI
+  # path was untested for ICE. Same DGP as the existing ICE binomial
+  # sandwich test.
+  set.seed(10)
+  n <- 600
+  L0 <- stats::rnorm(n)
+  A0 <- stats::rbinom(n, 1, stats::plogis(0.3 * L0))
+  L1 <- L0 + 0.2 * A0 + stats::rnorm(n)
+  A1 <- stats::rbinom(n, 1, stats::plogis(0.3 * L1 + 0.4 * A0))
+  Y <- stats::rbinom(
+    n,
+    1,
+    stats::plogis(-1 + 0.5 * A0 + 0.5 * A1 + 0.3 * L1)
+  )
+  long <- data.table::data.table(
+    id = rep(seq_len(n), each = 2),
+    time = rep(0:1, times = n),
+    A = as.numeric(rbind(A0, A1)),
+    L = as.numeric(rbind(L0, L1)),
+    Y = rep(Y, each = 2)
+  )
+  fit <- causat(
+    long,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~1,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    family = "binomial"
+  )
+  res_ratio <- contrast(
+    fit,
+    interventions = list(always = static(1), never = static(0)),
+    reference = "never",
+    type = "ratio",
+    ci_method = "sandwich"
+  )
+  expect_gt(res_ratio$contrasts$estimate[1], 1)
+  expect_lt(res_ratio$contrasts$ci_lower[1], res_ratio$contrasts$estimate[1])
+  expect_gt(res_ratio$contrasts$ci_upper[1], res_ratio$contrasts$estimate[1])
+  expect_true(all(is.finite(res_ratio$contrasts$se)))
+
+  res_or <- contrast(
+    fit,
+    interventions = list(always = static(1), never = static(0)),
+    reference = "never",
+    type = "or",
+    ci_method = "sandwich"
+  )
+  expect_gt(res_or$contrasts$estimate[1], 1)
+  expect_true(all(is.finite(res_or$contrasts$se)))
+})
+
+
+test_that("ICE × by(sex) × sandwich stratifies target but keeps additive β_A", {
+  # Cross-cut: ICE + by() stratification. Uses a no-interaction DGP
+  # so the structural truth is β_A = 2 in BOTH strata — this is
+  # the correct behavior of ICE under an additive model: the contrast
+  # collapses to the treatment coefficient, which is stratum-agnostic.
+  # The stratum-specific μ_a marginals still differ (they carry the
+  # sex intercept and the stratum-conditional L distribution), and
+  # the `by` path must return four separate μ rows.
+  #
+  # DGP:
+  #   sex ~ Bernoulli(0.5)
+  #   L_0 ~ N(0, 1); A_0 ~ Bernoulli(plogis(0.3 * L_0))
+  #   L_1 = L_0 + 0.2*A_0 + N(0, 1); A_1 ~ Bernoulli(plogis(0.3*L_1 + 0.4*A_0))
+  #   Y = 1 + A_0 + A_1 + 0.5*L_1 + 0.5*sex + N(0, 1)
+  # True structural contrast (always vs never): 2 in both strata.
+  set.seed(12)
+  n <- 800
+  sex <- stats::rbinom(n, 1, 0.5)
+  L0 <- stats::rnorm(n)
+  A0 <- stats::rbinom(n, 1, stats::plogis(0.3 * L0))
+  L1 <- L0 + 0.2 * A0 + stats::rnorm(n)
+  A1 <- stats::rbinom(n, 1, stats::plogis(0.3 * L1 + 0.4 * A0))
+  Y <- 1 + A0 + A1 + 0.5 * L1 + 0.5 * sex + stats::rnorm(n)
+  long <- data.table::data.table(
+    id = rep(seq_len(n), each = 2),
+    time = rep(0:1, times = n),
+    A = as.numeric(rbind(A0, A1)),
+    L = as.numeric(rbind(L0, L1)),
+    sex = rep(sex, each = 2),
+    Y = rep(Y, each = 2)
+  )
+  fit <- causat(
+    long,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~sex,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(always = static(1), never = static(0)),
+    reference = "never",
+    ci_method = "sandwich",
+    by = "sex"
+  )
+  # 2 strata × 2 interventions = 4 estimate rows; 2 strata × 1
+  # non-reference contrast = 2 contrast rows.
+  expect_equal(nrow(res$estimates), 4)
+  expect_equal(nrow(res$contrasts), 2)
+
+  est <- res$estimates[order(res$estimates$by, res$estimates$intervention)]
+  # μ(always | sex = 0) < μ(always | sex = 1) because sex adds 0.5
+  # to Y; the by path must surface this shift.
+  mu_always_by <- est$estimate[est$intervention == "always"]
+  mu_never_by <- est$estimate[est$intervention == "never"]
+  expect_gt(mu_always_by[2] - mu_always_by[1], 0.3) # sex=1 higher
+  expect_gt(mu_never_by[2] - mu_never_by[1], 0.3)
+
+  ct <- res$contrasts[order(res$contrasts$by)]
+  # Contrast equals β_A across strata under an additive model; truth = 2.
+  expect_lt(abs(ct$estimate[1] - 2), 0.2)
+  expect_lt(abs(ct$estimate[2] - 2), 0.2)
+  expect_true(all(is.finite(ct$se) & ct$se > 0))
+})
+
+
+test_that("matching × binary × poisson outcome × sandwich recovers exp(beta)", {
+  # Matching with a count outcome via the Poisson family. Previously
+  # only gaussian/binomial outcomes were tested on the matching
+  # pathway.
+  set.seed(14)
+  n <- 2000
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, stats::plogis(0.3 * L))
+  Y <- stats::rpois(n, exp(1 + 0.4 * A + 0.3 * L))
+  df <- data.frame(Y = Y, A = A, L = L)
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    method = "matching",
+    estimand = "ATT",
+    family = "poisson"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "ratio",
+    ci_method = "sandwich"
+  )
+  truth <- exp(0.4)
+  expect_lt(abs(res$contrasts$estimate[1] - truth), 0.15)
+  expect_true(all(is.finite(res$contrasts$se) & res$contrasts$se > 0))
+})
+
+
+test_that("matching × binary × gamma(log) outcome × sandwich recovers exp(beta) (ATT bias)", {
+  # Matching with a Gamma log outcome. Exercises the non-canonical-link
+  # r_score path on the matching MSM.
+  set.seed(15)
+  n <- 2000
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, stats::plogis(0.3 * L))
+  mu <- exp(1 + 0.4 * A + 0.3 * L)
+  Y <- stats::rgamma(n, shape = 5, rate = 5 / mu)
+  df <- data.frame(Y = Y, A = A, L = L)
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    method = "matching",
+    estimand = "ATT",
+    family = stats::Gamma(link = "log")
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "ratio",
+    ci_method = "sandwich"
+  )
+  # 1:1 NN matching on a gamma-log DGP has a finite-sample upward
+  # bias under the ATT estimand; the contrast recovers ~exp(0.4)
+  # but with a generous tolerance.
+  truth <- exp(0.4)
+  expect_lt(abs(res$contrasts$estimate[1] - truth), 0.25)
+  expect_true(all(is.finite(res$contrasts$se) & res$contrasts$se > 0))
+})
+
+
+test_that("gcomp × binary trt × poisson × ratio × bootstrap recovers exp(beta_A)", {
+  # Truth-based companion to test-gcomp.R's sandwich Poisson test.
+  # DGP: Y | A, L ~ Poisson(exp(0.5 + 0.4*A + 0.2*L)).
+  # Marginal rate ratio = exp(0.4) ≈ 1.49 (Jensen factor from
+  # averaging over L cancels in the ratio).
+  set.seed(9)
+  n <- 1500
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, stats::plogis(0.3 * L))
+  Y <- stats::rpois(n, exp(0.5 + 0.4 * A + 0.2 * L))
+  df <- data.frame(Y = Y, A = A, L = L)
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    family = "poisson"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "ratio",
+    ci_method = "bootstrap",
+    n_boot = 200L
+  )
+  truth <- exp(0.4)
+  expect_lt(abs(res$contrasts$estimate[1] - truth), 0.15)
+  expect_lt(res$contrasts$ci_lower[1], truth)
+  expect_gt(res$contrasts$ci_upper[1], truth)
+})
+
+
+test_that("ipw × binary × ATT × bootstrap recovers ATE = 3 (constant effect)", {
+  # IPW ATT with bootstrap variance. simulate_binary_continuous has
+  # a constant treatment effect of 3 so ATE = ATT = ATC = 3. This
+  # upgrades the previously-missing bootstrap cell on the ATT path.
+  set.seed(99)
+  d <- simulate_binary_continuous(n = 2000, seed = 99)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    method = "ipw",
+    estimand = "ATT"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    ci_method = "bootstrap",
+    n_boot = 200L
+  )
+  expect_lt(abs(res$contrasts$estimate[1] - 3), 0.3)
+  expect_lt(res$contrasts$ci_lower[1], 3)
+  expect_gt(res$contrasts$ci_upper[1], 3)
+})
+
+
+test_that("matching × binary × ATC × bootstrap runs with finite SE", {
+  # Cross-cut: matching + ATC + bootstrap. Previously only the
+  # sandwich ATC cell was tested.
+  set.seed(88)
+  d <- simulate_binary_continuous(n = 1500, seed = 88)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    method = "matching",
+    estimand = "ATC"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    ci_method = "bootstrap",
+    n_boot = 100L
+  )
+  expect_lt(abs(res$contrasts$estimate[1] - 3), 0.5)
+  expect_true(all(is.finite(res$contrasts$se) & res$contrasts$se > 0))
+})
+
+
+test_that("gcomp × binary trt × quasibinomial outcome × static × sandwich", {
+  # Truth-based test for fractional (in [0, 1]) outcomes via
+  # quasibinomial. DGP:
+  #   L ~ N(0, 1); A ~ Bernoulli(0.5)
+  #   mu_i = plogis(-0.5 + 1*A_i + 0.3*L_i)
+  #   Y_i ~ Beta(10*mu_i, 10*(1 - mu_i))
+  # Marginal counterfactual mean E[Y^a] = E_L[plogis(-0.5 + a + 0.3*L)]
+  # (computed empirically over L to form the truth).
+  set.seed(1)
+  n <- 2000
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, 0.5)
+  mu <- stats::plogis(-0.5 + 1.0 * A + 0.3 * L)
+  Y <- stats::rbeta(n, 10 * mu, 10 * (1 - mu))
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    family = stats::quasibinomial()
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    ci_method = "sandwich"
+  )
+
+  truth_1 <- mean(stats::plogis(-0.5 + 1 + 0.3 * L))
+  truth_0 <- mean(stats::plogis(-0.5 + 0 + 0.3 * L))
+  est <- res$estimates
+  expect_lt(abs(est$estimate[est$intervention == "a1"] - truth_1), 0.02)
+  expect_lt(abs(est$estimate[est$intervention == "a0"] - truth_0), 0.02)
+  # RD CI covers the truth.
+  ct <- res$contrasts
+  expect_lt(ct$ci_lower[1], truth_1 - truth_0)
+  expect_gt(ct$ci_upper[1], truth_1 - truth_0)
+})
+
+
+test_that("gcomp × binary trt × gamma(log) outcome × ratio × sandwich", {
+  # Truth-based test for a Gamma log-linear outcome. DGP:
+  #   L ~ N(0, 1); A ~ Bernoulli(0.5)
+  #   log E[Y | A, L] = 1 + 0.4*A + 0.3*L
+  #   Y ~ Gamma(shape = 5, rate = 5/E[Y | A, L])
+  # For iid L, E[Y^1] / E[Y^0] = exp(0.4), because the L term is
+  # common to both arms and cancels in the ratio.
+  set.seed(2)
+  n <- 3000
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, 0.5)
+  log_mu <- 1 + 0.4 * A + 0.3 * L
+  mu <- exp(log_mu)
+  shape <- 5
+  Y <- stats::rgamma(n, shape = shape, rate = shape / mu)
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    family = stats::Gamma(link = "log")
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "ratio",
+    ci_method = "sandwich"
+  )
+
+  # Truth is exp(0.4) modulo Jensen's: marginalising exp(1 + 0.4*a +
+  # 0.3*L) over L picks up an exp(0.5 * 0.3^2) factor that cancels in
+  # the ratio. So the marginal RR is exp(0.4).
+  truth_rr <- exp(0.4)
+  ct <- res$contrasts
+  expect_lt(abs(ct$estimate[1] - truth_rr), 0.05)
+  expect_lt(ct$ci_lower[1], truth_rr)
+  expect_gt(ct$ci_upper[1], truth_rr)
+  expect_true(all(is.finite(res$estimates$se) & res$estimates$se > 0))
+})
+
+
 test_that("gcomp × categorical (3-level) treatment × static × difference × sandwich", {
   # Truth-based test for gcomp on a 3-level factor treatment.
   # DGP:
@@ -642,6 +1076,116 @@ test_that("ipw × continuous outcome × gaussian family (default) recovers ATE",
   expect_equal(result$contrasts$estimate[1], 3.0, tolerance = 0.3)
 })
 
+test_that("ipw × continuous trt × static at specific levels recovers 1 + 2*a", {
+  # Truth-based test for IPW on a continuous treatment via
+  # generalised propensity score. DGP (simulate_continuous_continuous):
+  #   L ~ N(0, 1); A = 1 + 0.5*L + N(0, 1); Y = 1 + 2*A + L + N(0, 1)
+  # Structural truth: E[Y^a] = 1 + 2*a, contrast(a=1, a=0) = 2.
+  # IPW at a=0 is extrapolating (A ~ N(1, ...)) so we allow a slightly
+  # looser tolerance than the interior value at a=1.
+  df <- simulate_continuous_continuous(n = 3000)
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    method = "ipw"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    ci_method = "sandwich"
+  )
+  est <- res$estimates
+  e1 <- est$estimate[est$intervention == "a1"]
+  e0 <- est$estimate[est$intervention == "a0"]
+  expect_lt(abs(e1 - 3), 0.1)
+  expect_lt(abs(e0 - 1), 0.2)
+  expect_lt(abs(res$contrasts$estimate[1] - 2), 0.15)
+  expect_true(all(is.finite(res$estimates$se) & res$estimates$se > 0))
+})
+
+
+test_that("ipw × categorical (3-level) treatment × static × sandwich", {
+  # Truth-based IPW test on a 3-level factor treatment. Shares the
+  # DGP with the gcomp categorical test so the two methods can be
+  # cross-checked against the same ground truth.
+  set.seed(100)
+  n <- 3000
+  L <- stats::rnorm(n)
+  e1 <- exp(0.3 + 0.4 * L)
+  e2 <- exp(-0.2 + 0.3 * L)
+  P <- cbind(1, e1, e2) / (1 + e1 + e2)
+  A <- vapply(
+    seq_len(n),
+    function(i) sample(0:2, 1L, prob = P[i, ]),
+    integer(1)
+  )
+  A <- factor(A, levels = c("0", "1", "2"))
+  beta_A <- c("0" = 0, "1" = 2, "2" = 5)
+  Y <- 1 + beta_A[as.character(A)] + 0.5 * L + stats::rnorm(n)
+  df <- data.frame(A = A, L = L, Y = as.numeric(Y))
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    method = "ipw"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(
+      a0 = static("0"),
+      a1 = static("1"),
+      a2 = static("2")
+    ),
+    reference = "a0",
+    ci_method = "sandwich"
+  )
+
+  est <- res$estimates
+  expect_lt(abs(est$estimate[est$intervention == "a0"] - 1), 0.1)
+  expect_lt(abs(est$estimate[est$intervention == "a1"] - 3), 0.1)
+  expect_lt(abs(est$estimate[est$intervention == "a2"] - 6), 0.1)
+
+  ct <- res$contrasts
+  expect_lt(abs(ct$estimate[ct$comparison == "a1 vs a0"] - 2), 0.1)
+  expect_lt(abs(ct$estimate[ct$comparison == "a2 vs a0"] - 5), 0.1)
+})
+
+
+test_that("ipw × binary × survey weights × sandwich recovers ATE", {
+  # Truth-based IPW test with external survey weights. Same DGP as
+  # simulate_binary_continuous (true ATE = 3). Adds non-uniform
+  # weights that multiply into the WeightIt weights at fit time.
+  # The sampling DGP is symmetric in the weight variable so the
+  # survey-weighted ATE coincides with the unweighted structural
+  # truth.
+  set.seed(77)
+  df <- simulate_binary_continuous(n = 3000, seed = 77)
+  # Weights independent of (A, L, Y) — pure survey-weight design.
+  w <- sample(c(1, 3), nrow(df), replace = TRUE)
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    method = "ipw",
+    weights = w
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    ci_method = "sandwich"
+  )
+  expect_lt(abs(res$contrasts$estimate[1] - 3), 0.2)
+  expect_true(all(is.finite(res$contrasts$se) & res$contrasts$se > 0))
+})
+
+
 test_that("matching × continuous outcome × gaussian family recovers ATE", {
   df <- simulate_binary_continuous(n = 2000)
   fit <- causat(
@@ -934,6 +1478,58 @@ test_that("triangulation: all methods agree on binary outcome RD", {
 # ============================================================
 # SURVIVAL / PERSON-PERIOD TESTS
 # ============================================================
+
+test_that("causat_survival fits on data with censoring", {
+  # Smoke test for the censoring path in causat_survival(). The
+  # Phase 6 contrast() survival pathway is still pending, but the
+  # pooled-logistic fit should accept an additional censoring
+  # column and drop post-censoring rows from the fitting set. Locks
+  # in the fit-time behavior so Phase 6 can layer contrast support
+  # without regressing the existing smoke.
+  set.seed(321)
+  n_id <- 150
+  n_time <- 8
+  ids <- rep(seq_len(n_id), each = n_time)
+  times <- rep(0:(n_time - 1), times = n_id)
+  A <- rep(stats::rbinom(n_id, 1, 0.5), each = n_time)
+  L <- rep(stats::rnorm(n_id), each = n_time)
+
+  h <- stats::plogis(-3 + 0.1 * times - 0.5 * A + 0.3 * L)
+  event <- stats::rbinom(length(h), 1, h)
+
+  # Random administrative censoring at each person-period.
+  cens <- stats::rbinom(length(h), 1, 0.05)
+
+  dt <- data.table::data.table(
+    id = ids,
+    time = times,
+    A = A,
+    L = L,
+    event = event,
+    cens = cens
+  )
+  # Carry forward: once censored, stay censored (monotone).
+  dt[, cens := as.integer(cumsum(cens) > 0), by = id]
+  dt[, cum_event := cumsum(event), by = id]
+  dt[cum_event > 1, event := 0]
+  dt[, cum_event := NULL]
+
+  fit <- causat_survival(
+    dt,
+    outcome = "event",
+    treatment = "A",
+    confounders = ~L,
+    id = "id",
+    time = "time",
+    censoring = "cens",
+    time_formula = ~ splines::ns(time, 3)
+  )
+  expect_s3_class(fit, "causatr_fit")
+  expect_equal(fit$type, "survival")
+  expect_true(length(fit$details$time_points) > 1)
+  expect_true(length(stats::coef(fit$model)) > 0)
+})
+
 
 test_that("causat_survival fits a pooled logistic model on long data", {
   # Simulate simple survival data in person-period format.
@@ -1540,9 +2136,15 @@ test_that("matching × binary outcome × ratio: log-scale CI positive", {
 # EXTERNAL WEIGHTS × ALL METHODS
 # ============================================================
 
-test_that("gcomp × external weights + bootstrap: finite SE", {
-  d <- simulate_binary_continuous(n = 1000, seed = 42)
-  w <- runif(nrow(d), 0.5, 2)
+test_that("gcomp × external weights + bootstrap recovers the structural ATE", {
+  # Upgraded from smoke to truth. simulate_binary_continuous has
+  # constant treatment effect 3 (true ATE = E[Y^1] - E[Y^0] = 3)
+  # regardless of the weighted target population. With iid survey
+  # weights in [0.5, 2] the weighted average outcome model still
+  # identifies 3. Also checks the bootstrap CI covers the truth.
+  d <- simulate_binary_continuous(n = 1500, seed = 42)
+  set.seed(2027)
+  w <- stats::runif(nrow(d), 0.5, 2)
   fit <- causat(
     d,
     outcome = "Y",
@@ -1552,14 +2154,18 @@ test_that("gcomp × external weights + bootstrap: finite SE", {
   )
   expect_true(!is.null(fit$details$weights))
   expect_false(".causatr_w" %in% names(fit$data))
-  res <- suppressWarnings(contrast(
+  res <- contrast(
     fit,
     interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
     ci_method = "bootstrap",
-    n_boot = 50
-  ))
-  expect_true(all(is.finite(res$contrasts$se)))
-  expect_gt(res$contrasts$se, 0)
+    n_boot = 200L
+  )
+  truth <- 3
+  expect_lt(abs(res$contrasts$estimate[1] - truth), 0.2)
+  expect_lt(res$contrasts$ci_lower[1], truth)
+  expect_gt(res$contrasts$ci_upper[1], truth)
+  expect_true(all(is.finite(res$contrasts$se) & res$contrasts$se > 0))
 })
 
 test_that("ipw × external weights + sandwich: runs without error", {
@@ -1809,6 +2415,140 @@ test_that("ICE × continuous TV treatment × shift recovers structural 2*delta (
   est <- res$estimates
   e_shift <- est$estimate[est$intervention == "shifted"]
   expect_lt(abs(e_shift - 3), 0.2)
+})
+
+
+test_that("ICE × continuous TV treatment × threshold recovers 2 * E[max(A, 0)]", {
+  # Truth-based test for threshold() on a time-varying continuous
+  # treatment. DGP: independent A_t ~ N(0, 1), Y = A_0 + A_1 + 0.3*L_1 + noise.
+  # threshold(lower = 0) replaces each A_t with max(A_t, 0).
+  # For A ~ N(0, 1), E[max(A, 0)] = dnorm(0) = 1 / sqrt(2*pi).
+  # Structural contrast = 2 * dnorm(0) ≈ 0.7979.
+  set.seed(50)
+  n <- 3000
+  L0 <- stats::rnorm(n)
+  A0 <- stats::rnorm(n)
+  L1 <- stats::rnorm(n)
+  A1 <- stats::rnorm(n)
+  Y <- A0 + A1 + 0.3 * L1 + stats::rnorm(n)
+  long <- data.table::data.table(
+    id = rep(seq_len(n), each = 2),
+    time = rep(0:1, times = n),
+    A = as.numeric(rbind(A0, A1)),
+    L = as.numeric(rbind(L0, L1)),
+    Y = rep(Y, each = 2)
+  )
+  fit <- causat(
+    long,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~1,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(thr = threshold(lower = 0), nat = threshold()),
+    reference = "nat",
+    ci_method = "sandwich"
+  )
+  truth <- 2 * stats::dnorm(0)
+  expect_lt(abs(res$contrasts$estimate[1] - truth), 0.05)
+  expect_lt(res$contrasts$ci_lower[1], truth)
+  expect_gt(res$contrasts$ci_upper[1], truth)
+})
+
+
+test_that("ICE × continuous TV treatment × shift × bootstrap recovers 2*delta", {
+  # Bootstrap companion to the ICE × shift sandwich truth test
+  # below. Same DGP (E[A_t] unrestricted, Y = 1 + A_0 + A_1 + 0.5*L_1).
+  # Structural contrast against shift(0) is 2*delta.
+  # n_boot kept small; the check is on the point estimate and that
+  # the CI covers the truth.
+  set.seed(2030)
+  n <- 1500
+  delta <- 1
+  L0 <- stats::rnorm(n)
+  A0 <- 0.4 * L0 + stats::rnorm(n)
+  L1 <- L0 + stats::rnorm(n)
+  A1 <- 0.4 * L1 + stats::rnorm(n)
+  Y <- 1 + A0 + A1 + 0.5 * L1 + stats::rnorm(n)
+  long <- data.table::data.table(
+    id = rep(seq_len(n), each = 2),
+    time = rep(0:1, times = n),
+    A = as.numeric(rbind(A0, A1)),
+    L = as.numeric(rbind(L0, L1)),
+    Y = rep(Y, each = 2)
+  )
+  fit <- causat(
+    long,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~1,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(shifted = shift(delta), nat = shift(0)),
+    reference = "nat",
+    ci_method = "bootstrap",
+    n_boot = 100L
+  )
+  truth <- 2 * delta
+  expect_lt(abs(res$contrasts$estimate[1] - truth), 0.2)
+  expect_lt(res$contrasts$ci_lower[1], truth)
+  expect_gt(res$contrasts$ci_upper[1], truth)
+})
+
+
+test_that("ICE × binary TV × static × bootstrap × survey weights runs", {
+  # Cross-cut: ICE + external weights + bootstrap. Previously
+  # untested. Verifies the bootstrap pipeline threads the weights
+  # through every resampled refit and returns a finite SE that is
+  # in the ballpark of the sandwich SE on the same DGP.
+  set.seed(51)
+  n <- 600
+  L0 <- stats::rnorm(n)
+  A0 <- stats::rbinom(n, 1, stats::plogis(0.4 * L0))
+  L1 <- L0 + 0.3 * A0 + stats::rnorm(n)
+  A1 <- stats::rbinom(n, 1, stats::plogis(0.4 * L1 + 0.5 * A0))
+  Y <- 1 + A0 + A1 + 0.5 * L1 + stats::rnorm(n)
+  w_id <- sample(c(1, 3), n, replace = TRUE)
+  long <- data.table::data.table(
+    id = rep(seq_len(n), each = 2),
+    time = rep(0:1, times = n),
+    A = as.numeric(rbind(A0, A1)),
+    L = as.numeric(rbind(L0, L1)),
+    Y = rep(Y, each = 2)
+  )
+  fit <- causat(
+    long,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~1,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    weights = rep(w_id, each = 2)
+  )
+  res_boot <- contrast(
+    fit,
+    interventions = list(always = static(1), never = static(0)),
+    ci_method = "bootstrap",
+    n_boot = 100L
+  )
+  res_sand <- contrast(
+    fit,
+    interventions = list(always = static(1), never = static(0)),
+    ci_method = "sandwich"
+  )
+  expect_true(all(is.finite(res_boot$contrasts$se) & res_boot$contrasts$se > 0))
+  ratio <- res_boot$contrasts$se[1] / res_sand$contrasts$se[1]
+  expect_gt(ratio, 0.7)
+  expect_lt(ratio, 1.5)
 })
 
 
