@@ -1524,6 +1524,218 @@ test_that("ipw × external weights + sandwich: runs without error", {
   expect_gt(res$contrasts$se, 0)
 })
 
+test_that("gcomp × external weights recovers WEIGHTED target population mean", {
+  # Truth-based test for survey-style external weights. The existing
+  # external-weights tests only assert "runs without error and finite
+  # SE"; this one pins the actual numerical target so a future bug
+  # that drops the weights or applies them in the wrong place can
+  # be caught.
+  #
+  # DGP:
+  #   S      ~ Bernoulli(0.5) (stratum)
+  #   L | S=0 ~ N(0, 1)
+  #   L | S=1 ~ N(2, 1)
+  #   A | L  ~ Bernoulli(plogis(0.4 * L))
+  #   Y      = 1 + 2*A + 0.5*L + N(0, 1)
+  # Survey weight: w = 1 if S=0, w = 4 if S=1.
+  # Truth: weighted E[Y^{a=1}] = 1 + 2 + 0.5 * E_w[L]
+  #        E_w[L] = (n0 * 0 + 4 * n1 * 2) / (n0 + 4 * n1) -> 1.6
+  set.seed(2026)
+  n0 <- 2000
+  n1 <- 2000
+  S <- c(rep(0L, n0), rep(1L, n1))
+  L <- c(stats::rnorm(n0, 0, 1), stats::rnorm(n1, 2, 1))
+  A <- stats::rbinom(n0 + n1, 1, stats::plogis(0.4 * L))
+  Y <- 1 + 2 * A + 0.5 * L + stats::rnorm(n0 + n1)
+  w <- ifelse(S == 1, 4, 1)
+  d <- data.frame(Y = Y, A = A, L = L, S = S)
+
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    weights = w
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    type = "difference",
+    reference = "a0",
+    ci_method = "sandwich"
+  )
+
+  ew_L <- (n0 * 0 + 4 * n1 * 2) / (n0 + 4 * n1) # = 1.6
+  truth_a1 <- 1 + 2 + 0.5 * ew_L # = 3.8
+  truth_a0 <- 1 + 0.5 * ew_L # = 1.8
+
+  est <- res$estimates[order(res$estimates$intervention)]
+  expect_lt(
+    abs(est$estimate[est$intervention == "a1"] - truth_a1),
+    0.15
+  )
+  expect_lt(
+    abs(est$estimate[est$intervention == "a0"] - truth_a0),
+    0.15
+  )
+  # ATE is constant across strata so the weighted vs unweighted
+  # contrast is the same: 2.
+  expect_lt(abs(res$contrasts$estimate[1] - 2), 0.1)
+})
+
+test_that("ICE × external weights produces the WEIGHTED marginal mean", {
+  # Critical regression test for the ICE backward-loop weight bug.
+  # Before the fix, only the final-time outcome model received
+  # external weights; every intermediate pseudo-outcome model was
+  # silently unweighted. The bug produced finite SEs and
+  # plausible-looking estimates — it could only be detected by
+  # comparing against the analytical weighted target.
+  #
+  # DGP (2 periods, balanced panel):
+  #   L_0 ~ N(0, 1)
+  #   A_0 | L_0 ~ Bernoulli(plogis(0.4 * L_0))
+  #   L_1 = L_0 + 0.3 * A_0 + N(0, 1)
+  #   A_1 | L_1, A_0 ~ Bernoulli(plogis(0.4 * L_1 + 0.5 * A_0))
+  #   Y    = 1 + A_0 + A_1 + 0.5 * L_1 + N(0, 1)
+  # Survey weight per id: w = 4 if L_0 > 0, w = 1 otherwise.
+  #
+  # Under the "never" regime (A_0 = A_1 = 0):
+  #   Y^{never} = 1 + 0.5 * L_0 + 0.5*N(0,1) + N(0,1)
+  # so weighted E[Y^{never}] = 1 + 0.5 * E_w[L_0].
+  # Unweighted E[Y^{never}] ≈ 1 + 0 = 1.
+  set.seed(2027)
+  n <- 4000
+  L0 <- stats::rnorm(n)
+  A0 <- stats::rbinom(n, 1, stats::plogis(0.4 * L0))
+  L1 <- L0 + 0.3 * A0 + stats::rnorm(n)
+  A1 <- stats::rbinom(n, 1, stats::plogis(0.4 * L1 + 0.5 * A0))
+  Y <- 1 + A0 + A1 + 0.5 * L1 + stats::rnorm(n)
+
+  w_id <- ifelse(L0 > 0, 4, 1)
+  long <- data.table::data.table(
+    id = rep(seq_len(n), each = 2),
+    time = rep(0:1, times = n),
+    A = as.numeric(rbind(A0, A1)),
+    L = as.numeric(rbind(L0, L1)),
+    Y = rep(Y, each = 2)
+  )
+  w_long <- rep(w_id, each = 2)
+
+  fit_w <- causat(
+    long,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~1,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    weights = w_long
+  )
+  res_w <- contrast(
+    fit_w,
+    interventions = list(never = static(0)),
+    ci_method = "sandwich"
+  )
+
+  fit_uw <- causat(
+    long,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~1,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time"
+  )
+  res_uw <- contrast(
+    fit_uw,
+    interventions = list(never = static(0)),
+    ci_method = "sandwich"
+  )
+
+  e_never_w <- res_w$estimates$estimate[1]
+  e_never_uw <- res_uw$estimates$estimate[1]
+
+  # Analytical weighted truth for E[Y^{never}].
+  ew_L0 <- sum(w_id * L0) / sum(w_id)
+  truth_w <- 1 + 0.5 * ew_L0
+
+  # Both estimates within 0.15 of their respective targets.
+  expect_lt(abs(e_never_w - truth_w), 0.2)
+  expect_lt(abs(e_never_uw - 1), 0.2)
+
+  # And — critically — the two must DIFFER. Under the pre-fix bug
+  # the backward-loop models would silently ignore weights and the
+  # weighted vs unweighted estimates would coincide.
+  expect_gt(e_never_w - e_never_uw, 0.1)
+})
+
+test_that("ICE × continuous TV treatment × shift recovers structural 2*delta (vs lmtp)", {
+  # Truth-based test for shift() on a time-varying continuous
+  # treatment. Validated against `lmtp::lmtp_tmle()` — both methods
+  # now agree on E[Y^{shift(1)}] = 1 + 2*delta = 3 with delta = 1.
+  #
+  # DGP designed so L_1 is INDEPENDENT of A_0 and A_1 is independent
+  # of A_0. This isolates the shift effect: each time point's A
+  # enters Y with coefficient 1 and there is no downstream-confounding
+  # path, so the structural truth is exactly 2*delta.
+  #
+  #   L_0 ~ N(0, 1)
+  #   A_0 = 0.4*L_0 + N(0, 1)
+  #   L_1 = L_0 + N(0, 1)        (independent of A_0)
+  #   A_1 = 0.4*L_1 + N(0, 1)    (independent of A_0)
+  #   Y   = 1 + A_0 + A_1 + 0.5*L_1 + N(0, 1)
+  #
+  # Pre-fix, causatr's ICE returned ~3*delta because
+  # `ice_apply_intervention_long()` recomputed treatment lag columns
+  # from the shifted treatment, double-applying the shift through
+  # both the lag-column path and the current-A prediction path.
+  # Removing the lag recomputation aligns causatr with the Robins
+  # iterated-conditional-expectation algorithm and with lmtp.
+  set.seed(2028)
+  n <- 5000
+  delta <- 1
+
+  L0 <- stats::rnorm(n)
+  A0 <- 0.4 * L0 + stats::rnorm(n)
+  L1 <- L0 + stats::rnorm(n)
+  A1 <- 0.4 * L1 + stats::rnorm(n)
+  Y <- 1 + A0 + A1 + 0.5 * L1 + stats::rnorm(n)
+
+  long <- data.table::data.table(
+    id = rep(seq_len(n), each = 2),
+    time = rep(0:1, times = n),
+    A = as.numeric(rbind(A0, A1)),
+    L = as.numeric(rbind(L0, L1)),
+    Y = rep(Y, each = 2)
+  )
+  fit <- causat(
+    long,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~1,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(shifted = shift(delta), nat = shift(0)),
+    type = "difference",
+    reference = "nat",
+    ci_method = "sandwich"
+  )
+  truth <- 2 * delta
+  expect_lt(abs(res$contrasts$estimate[1] - truth), 0.2)
+  expect_lt(res$contrasts$ci_lower[1], truth)
+  expect_gt(res$contrasts$ci_upper[1], truth)
+
+  # Also validate the marginal mean under shift matches the lmtp
+  # reference of 1 + 2*delta = 3.
+  est <- res$estimates
+  e_shift <- est$estimate[est$intervention == "shifted"]
+  expect_lt(abs(e_shift - 3), 0.2)
+})
+
 
 # ============================================================
 # CONFINT × STRATIFIED BOOTSTRAP
@@ -1558,7 +1770,7 @@ test_that("to_person_period() aborts on duplicated ids", {
   # silently produce malformed long data because the reshape
   # assumes one row per id. Catch it up front.
   wide <- data.table::data.table(
-    id = c(1, 2, 2),  # duplicate
+    id = c(1, 2, 2), # duplicate
     sex = c(0, 1, 1),
     A0 = c(1, 0, 0),
     A1 = c(1, 1, 1),

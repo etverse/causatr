@@ -475,3 +475,65 @@ test_that("ICE external weights propagate through every backward step", {
     ))
   )
 })
+
+
+test_that("ICE accepts shift / scale_by / threshold interventions on time-varying treatment", {
+  # Coverage gap: existing ICE tests cover static and dynamic. The
+  # remaining intervention constructors (shift, scale_by, threshold)
+  # are documented as supported by gcomp/ICE but were never exercised
+  # against the ICE backward iteration. Smoke-test that they at
+  # least fit and return finite estimates.
+  set.seed(2)
+  n <- 50
+  long <- data.table::data.table(
+    id = rep(seq_len(n), each = 3),
+    time = rep(0:2, times = n),
+    A = stats::rnorm(3 * n, 1, 0.5),
+    L = stats::rnorm(3 * n),
+    Y = stats::rnorm(3 * n)
+  )
+  fit <- causat(
+    long,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~1,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time"
+  )
+
+  for (iv in list(
+    list(s = shift(0.5), z = static(0)),
+    list(s = scale_by(1.2), z = static(0)),
+    list(s = threshold(lower = 0), z = static(0))
+  )) {
+    res <- contrast(fit, interventions = iv, ci_method = "sandwich")
+    expect_true(all(is.finite(res$estimates$estimate)))
+    expect_true(all(is.finite(res$estimates$se)))
+    expect_true(all(res$estimates$se > 0))
+  }
+})
+
+
+test_that("ipsi() is explicitly rejected by ICE/contrast() (Phase 4 placeholder)", {
+  # Lock in the not-yet-implemented abort so a future Phase-4
+  # implementation can't silently regress while wiring it up.
+  long <- make_table201(scale = 1 / 100)
+  fit <- causat(
+    long,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~1,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time"
+  )
+  expect_snapshot(
+    error = TRUE,
+    contrast(
+      fit,
+      interventions = list(boost = ipsi(2), nat = ipsi(1)),
+      ci_method = "sandwich"
+    )
+  )
+})

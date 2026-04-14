@@ -127,3 +127,53 @@ test_that("g-comp ATT differs from ATE", {
   expect_gt(res_ate$contrasts$estimate[1], 0)
   expect_gt(res_att$contrasts$estimate[1], 0)
 })
+
+
+test_that("g-comp supports Poisson family with sandwich variance", {
+  # Coverage gap: every existing g-comp test uses Gaussian or
+  # binomial. Verify the Poisson path (count outcome with log link)
+  # works end-to-end with sandwich SEs.
+  set.seed(1)
+  n <- 500
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, plogis(0.3 * L))
+  Y <- stats::rpois(n, exp(0.5 + 0.4 * A + 0.2 * L))
+
+  df <- data.frame(Y = Y, A = A, L = L)
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    family = "poisson"
+  )
+  expect_s3_class(fit, "causatr_fit")
+
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    type = "ratio",
+    ci_method = "sandwich",
+    reference = "a0"
+  )
+  # Expected rate ratio ~ exp(0.4) ≈ 1.49
+  expect_gt(res$contrasts$estimate[1], 1.2)
+  expect_lt(res$contrasts$estimate[1], 1.8)
+  expect_true(all(is.finite(res$contrasts$se)))
+  expect_true(all(res$contrasts$se > 0))
+})
+
+
+test_that("g-comp rejects unknown family string", {
+  df <- data.frame(Y = c(1, 2, 3), A = c(0, 1, 0), L = c(1, 2, 3))
+  expect_snapshot(
+    error = TRUE,
+    causat(
+      df,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~L,
+      family = "not_a_family"
+    )
+  )
+})

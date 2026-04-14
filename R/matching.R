@@ -67,9 +67,23 @@ fit_matching <- function(
     check_pkg("optmatch")
     dots$method <- "full"
   }
-  m <- do.call(
-    MatchIt::matchit,
-    c(list(ps_formula, data = fit_data, estimand = estimand), dots)
+  # Run MatchIt with the small-sample "Fewer control/treated units"
+  # warning demoted to a message: that warning duplicates information
+  # already surfaced by `diagnose()`'s match-quality report (matched
+  # vs unmatched counts, weight distribution), and emitting it from
+  # the fit step makes every analysis on a slightly imbalanced sample
+  # look broken. Other MatchIt warnings still propagate to the user.
+  m <- withCallingHandlers(
+    do.call(
+      MatchIt::matchit,
+      c(list(ps_formula, data = fit_data, estimand = estimand), dots)
+    ),
+    warning = function(w) {
+      if (grepl("Fewer (control|treated) units", conditionMessage(w))) {
+        rlang::inform(conditionMessage(w))
+        invokeRestart("muffleWarning")
+      }
+    }
   )
 
   # Step 2: Extract matched data with match weights and subclass membership.

@@ -265,51 +265,35 @@ ice_apply_intervention_long <- function(
   id_col,
   time_col
 ) {
-  # Step 1: apply the intervention to the *current* treatment column.
-  # `apply_intervention()` returns a copy (or the input unchanged if
-  # `intervention` is NULL for the natural course), so the original
+  # Apply the intervention to the *current* treatment column only.
+  # `apply_intervention()` returns a deep copy (or the input unchanged
+  # if `intervention` is NULL for the natural course), so the caller's
   # `data` is never mutated.
+  #
+  # IMPORTANT: we DO NOT recompute treatment lag columns from the
+  # intervened treatment. The Robins iterative conditional expectation
+  # algorithm (and lmtp's TMLE implementation) substitutes only the
+  # *current-time* treatment at each backward step; the lag columns
+  # in the prediction frame at step k must hold the OBSERVED A_{k-1},
+  # A_{k-2}, ... so that the chain of pseudo-outcome regressions
+  # correctly back-substitutes through the conditional-expectation
+  # tower without double-counting.
+  #
+  # Why the previous lag-recomputation was wrong: at step k, the
+  # outcome model regresses on (A_k, lag1_A=A_{k-1}, ...). Predicting
+  # with both A_k and lag1_A set to their intervention values applied
+  # the intervention at A_{k-1} via the lag, AND then the next backward
+  # step (k-1) applied it again via the current-A column for A_{k-1}.
+  # For a `shift(delta)` intervention this produces a (K+1)*delta total
+  # effect instead of the structural K*delta — verified by comparing
+  # against `lmtp::lmtp_tmle()`'s sequential-regression shortcut.
+  #
+  # Time-varying confounder lags (`lag1_L`, ...) are left alone for
+  # exactly the same reason: ICE conditions on the observed covariate
+  # history.
   data_iv <- apply_intervention(data, treatment, intervention)
-
-  # `data.table::copy()` forces a deep copy — defensive because
-  # `apply_intervention()` may return an object sharing columns with
-  # the input. `setkeyv()` sorts by (id, time), which is a prerequisite
-  # for the by-group `shift()` calls below to land in the right order.
   data_iv <- data.table::copy(data_iv)
   data.table::setkeyv(data_iv, c(id_col, time_col))
-
-  # Step 2: recompute treatment lag columns from the *intervened*
-  # treatment values. This is the non-obvious part: if the user does
-  # `static(1)`, the treatment column is 1 everywhere, so `lag1_A`
-  # must also become 1 at every non-first time point (the previous
-  # period's intervention), not the originally-observed lag1_A.
-  #
-  # We only touch treatment lags. Time-varying confounder lags
-  # (`lag1_L`, ...) are left alone because ICE conditions on the
-  # *observed* covariate history — that's the whole point of the
-  # iterative conditional expectation: we propagate through the data's
-  # natural covariate trajectory while only the treatment is
-  # counterfactual.
-  for (trt in treatment) {
-    # Find all lag columns for this treatment by regex match.
-    lag_cols <- grep(
-      paste0("^lag[0-9]+_", trt, "$"),
-      names(data_iv),
-      value = TRUE
-    )
-    for (lc in lag_cols) {
-      # Extract the numeric lag order from the column name.
-      lag_n <- as.integer(sub(paste0("^lag([0-9]+)_", trt, "$"), "\\1", lc))
-      # Recompute via within-id shift of the (intervened) treatment
-      # column. `by = id_col` keeps each individual's time series
-      # isolated so lags don't bleed across people.
-      data_iv[,
-        (lc) := data.table::shift(get(trt), n = lag_n, type = "lag"),
-        by = c(id_col)
-      ]
-    }
-  }
-
   data_iv
 }
 

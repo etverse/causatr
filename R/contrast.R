@@ -680,11 +680,17 @@ compute_contrast <- function(
     # Handle NA predictions (e.g. rows with missing confounders).
     # Intersect a "valid-across-all-interventions" mask with the target
     # to avoid losing rows whose prediction is NA under *any* regime
-    # we care about. Warn if the drop is nontrivial.
+    # we care about. Inform (not warn) if the drop is nontrivial:
+    # for the canonical NHEFS workflow this fires every time because
+    # 117 rows have missing education, and the book accepts the
+    # exclusion as a data-hygiene fact rather than a problem. Keeping
+    # it as a `warn()` made every NHEFS-using test surface a noisy
+    # WARN line. `inform()` is the right semantic level — visible to
+    # users but not flagged by testthat as a real warning.
     valid_preds <- Reduce(`&`, lapply(preds_list, function(p) !is.na(p)))
     n_dropped <- sum(!valid_preds & target_idx)
     if (n_dropped > 0L) {
-      rlang::warn(
+      rlang::inform(
         paste0(
           n_dropped,
           " row(s) with NA predictions excluded from the ",

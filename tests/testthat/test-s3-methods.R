@@ -94,13 +94,19 @@ test_that("causat_survival() does not mutate input data.table", {
   original_names <- copy(names(dt))
   original_ncol <- ncol(dt)
 
+  # Use `~ factor(time)` instead of the default `splines::ns(time, 4)`:
+  # the test data has only 3 unique time points, which is below the
+  # minimum needed for ns(df=4) and triggers a "shoving interior knots"
+  # warning. factor() is the saturated baseline-hazard alternative
+  # documented in causat_survival()'s `time_formula` parameter.
   fit <- causat_survival(
     dt,
     outcome = "event",
     treatment = "A",
     confounders = ~L,
     id = "id",
-    time = "time"
+    time = "time",
+    time_formula = ~ factor(time)
   )
 
   expect_equal(names(dt), original_names)
@@ -117,13 +123,19 @@ test_that("survival type aborts in contrast()", {
     L = rnorm(60)
   )
 
+  # Use `~ factor(time)` instead of the default `splines::ns(time, 4)`:
+  # the test data has only 3 unique time points, which is below the
+  # minimum needed for ns(df=4) and triggers a "shoving interior knots"
+  # warning. factor() is the saturated baseline-hazard alternative
+  # documented in causat_survival()'s `time_formula` parameter.
   fit <- causat_survival(
     dt,
     outcome = "event",
     treatment = "A",
     confounders = ~L,
     id = "id",
-    time = "time"
+    time = "time",
+    time_formula = ~ factor(time)
   )
 
   expect_snapshot(

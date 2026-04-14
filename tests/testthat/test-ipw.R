@@ -86,3 +86,28 @@ test_that("causat(method = 'ipw') rejects longitudinal data", {
     "longitudinal"
   )
 })
+
+
+test_that("IPW rejects shift intervention until Phase 4", {
+  # Phase-3 IPW only handles static interventions (binary/categorical).
+  # Shift / MTP / IPSI / dynamic require self-contained IPW (Phase 4)
+  # because WeightIt does not return density-ratio weights for
+  # non-static interventions. Check the error path is not silent.
+  data("nhefs", package = "causatr")
+  fit <- causat(
+    nhefs,
+    outcome = "wt82_71",
+    treatment = "qsmk",
+    confounders = ~ sex + age + wt71,
+    method = "ipw",
+    censoring = "censored"
+  )
+  expect_snapshot(
+    error = TRUE,
+    contrast(
+      fit,
+      interventions = list(s = shift(1), c = static(0)),
+      ci_method = "sandwich"
+    )
+  )
+})
