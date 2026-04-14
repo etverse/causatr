@@ -94,6 +94,28 @@ causat_survival <- function(
     }
   }
 
+  # Phase 6 scaffold guardrail: `competing` is recorded in the
+  # returned fit's `details$competing` slot so a future implementation
+  # can pick it up, but the current pooled-logistic path does NOT
+  # apply any competing-risks adjustment (no cause-specific filtering,
+  # no Aalen-Johansen / sub-distribution hazard). Silently fitting a
+  # plain hazard model when the user thinks competing risks are
+  # handled would return wrong cumulative-incidence estimates, so
+  # abort loudly until Phase 6 lands.
+  if (!is.null(competing)) {
+    rlang::abort(
+      paste0(
+        "Competing-risks survival analysis is not yet implemented ",
+        "(planned for Phase 6). The `competing` argument is reserved ",
+        "but currently has no effect; re-running with `competing = NULL` ",
+        "would silently fit a plain cause-deleted hazard model, which ",
+        "is biased in the presence of competing events. Track progress ",
+        "in PHASE_6_SURVIVAL.md."
+      ),
+      .call = FALSE
+    )
+  }
+
   # Ensure person-period format: data must have one row per id per time point.
   # Check by counting rows per id — if max == 1, the data is still in wide
   # format and needs conversion.

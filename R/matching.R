@@ -82,10 +82,34 @@ fit_matching <- function(
 
   matched_weights <- matched_data$weights
   if (!is.null(weights)) {
-    # Multiply external weights with match weights.
-    # Need to align: matched_data rows come from fit_data[matched indices].
-    matched_weights <- matched_weights *
-      weights[fit_rows][as.integer(rownames(matched_data))]
+    # Align external weights to matched rows. `MatchIt::match.data()`
+    # preserves rownames from `fit_data`, and our `fit_data` was
+    # constructed via `as.data.frame(data[fit_rows])` which yields
+    # rownames "1", ..., sum(fit_rows). So `matched_idx` is a
+    # positional index into the length-`sum(fit_rows)` vector
+    # `weights[fit_rows]`. Defensively guard against any of these
+    # invariants being violated (e.g. a future refactor that uses
+    # data.table directly and preserves the original rownames):
+    # bail out with a clear error rather than silently producing
+    # NA-tainted or misaligned weights.
+    matched_idx <- as.integer(rownames(matched_data))
+    fit_w <- weights[fit_rows]
+    if (
+      anyNA(matched_idx) ||
+        any(matched_idx < 1L) ||
+        any(matched_idx > length(fit_w))
+    ) {
+      rlang::abort(
+        paste0(
+          "Cannot align external weights to matched data: matched-row ",
+          "indices fall outside `weights[fit_rows]` (length ",
+          length(fit_w),
+          "). This indicates a row-name invariant violation in `fit_data`."
+        ),
+        .call = FALSE
+      )
+    }
+    matched_weights <- matched_weights * fit_w[matched_idx]
   }
 
   model <- stats::glm(

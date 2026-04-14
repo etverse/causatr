@@ -1236,10 +1236,19 @@ apply_propensity_correction <- function(prep, J) {
 prepare_propensity_if_weightit <- function(fit, fit_idx, n_total) {
   model <- fit$model
 
-  # `sandwich::bread()` follows the sandwich-package convention and
-  # returns A^{-1} (NOT n*A^{-1}), so multiplying estfun by bread directly
-  # yields per-observation IF_beta,i = A^{-1} psi_i. Dividing by nobs(m)
-  # would shrink the IF by a factor of n and the variance by n^2.
+  # `sandwich::bread()` returns `n * (X'WX)^{-1}` (the Hessian-scale
+  # convention from `?sandwich::bread`), so `psi_i %*% bread` already
+  # carries the factor-of-n needed by `apply_propensity_correction()`
+  # (which omits the explicit `* n_total` multiplication that the
+  # numeric Tier-1 path uses, see `variance_if_numeric()`). End result:
+  #
+  #   Ch.2_i = J %*% IF_beta_i = J %*% n*(X'WX)^{-1} %*% psi_i
+  #          = n * d_i * r^score_i
+  #
+  # which matches the analytic g-comp / matching path (see
+  # `apply_model_correction()`'s `n_total * d_fit * r_score`). Do
+  # NOT divide by `nobs(model)` here; the two conventions differ
+  # only in where the factor of n shows up.
   E <- sandwich::estfun(model, asympt = TRUE)
   IF_beta <- E %*% sandwich::bread(model)
 

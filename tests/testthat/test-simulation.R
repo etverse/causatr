@@ -1551,3 +1551,28 @@ test_that("confint with by + bootstrap returns correctly ordered CIs", {
     expect_gte(ci[i, "upper"], res$estimates$estimate[i])
   }
 })
+
+
+test_that("to_person_period() aborts on duplicated ids", {
+  # Regression guard: a duplicated id in the wide input would
+  # silently produce malformed long data because the reshape
+  # assumes one row per id. Catch it up front.
+  wide <- data.table::data.table(
+    id = c(1, 2, 2),  # duplicate
+    sex = c(0, 1, 1),
+    A0 = c(1, 0, 0),
+    A1 = c(1, 1, 1),
+    L0 = c(5, 3, 3),
+    L1 = c(4, 6, 6),
+    Y = c(0, 1, 1)
+  )
+  expect_snapshot(
+    error = TRUE,
+    to_person_period(
+      wide,
+      id = "id",
+      time_varying = list(A = c("A0", "A1"), L = c("L0", "L1")),
+      time_invariant = c("sex", "Y")
+    )
+  )
+})

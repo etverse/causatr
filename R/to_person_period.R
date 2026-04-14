@@ -68,6 +68,29 @@ to_person_period <- function(
 
   n_times <- length(time_varying[[1]])
 
+  # Validate that each id appears exactly once in the wide input. The
+  # whole reshape assumes one row per individual (since each (var, t)
+  # cell is a distinct column), so a duplicated id in the wide table
+  # silently triggers an n*n_times-row stack with mangled time
+  # alignment. Catch this up front instead of letting downstream
+  # ICE / survival code see malformed long data.
+  id_counts <- data[, .N, by = c(id)]
+  dup_ids <- id_counts[N > 1L][[id]]
+  if (length(dup_ids) > 0L) {
+    rlang::abort(
+      paste0(
+        "`to_person_period()` requires each id to appear exactly once in ",
+        "the wide input. Found ",
+        length(dup_ids),
+        " duplicated id(s): ",
+        paste(utils::head(dup_ids, 5), collapse = ", "),
+        if (length(dup_ids) > 5L) ", ..." else "",
+        "."
+      ),
+      .call = FALSE
+    )
+  }
+
   # Validate that all time-varying variables have the same number of columns.
   for (nm in names(time_varying)) {
     if (length(time_varying[[nm]]) != n_times) {

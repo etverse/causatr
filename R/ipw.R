@@ -75,6 +75,28 @@ fit_ipw <- function(
     ...
   )
 
+  # Length guard: WeightIt may internally drop additional rows if the
+  # PS formula references covariates with NA that we didn't catch in
+  # `get_fit_rows()` (which only looks at the outcome). A silent
+  # length mismatch here would either produce NA weights or
+  # misalign the external-weight product to the wrong individuals.
+  # Fail loudly instead — the user's data needs cleaning before IPW.
+  if (length(w$weights) != sum(fit_rows)) {
+    rlang::abort(
+      paste0(
+        "WeightIt returned ",
+        length(w$weights),
+        " weights but causatr selected ",
+        sum(fit_rows),
+        " fitting rows (rows with non-missing outcome). This usually ",
+        "means a confounder column has missing values that WeightIt ",
+        "dropped. Drop those rows manually before calling `causat()` ",
+        "or impute them so the row counts agree."
+      ),
+      .call = FALSE
+    )
+  }
+
   # If external weights are provided (e.g. survey weights), multiply them
   # with the estimated IPW weights.
   if (!is.null(weights)) {

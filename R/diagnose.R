@@ -316,7 +316,23 @@ compute_weight_summary <- function(fit) {
   # binary, multinomial, or continuous. The weight summary then
   # breaks down appropriately: by arm (binary/multinomial) or just
   # overall (continuous — no discrete groups to split on).
-  treat_type <- attr(fit$weights_obj$treat, "treat.type") %||% "continuous"
+  # Abort on a missing `treat.type` rather than silently defaulting
+  # to "continuous": a NULL attribute means the WeightIt object was
+  # constructed by a non-standard path (custom subclass, serialized
+  # then re-loaded via a stale package version) and the resulting
+  # group labels would silently mislabel binary/multinomial fits.
+  treat_type <- attr(fit$weights_obj$treat, "treat.type")
+  if (is.null(treat_type)) {
+    rlang::abort(
+      paste0(
+        "WeightIt object is missing the `treat.type` attribute. This ",
+        "indicates a non-standard or serialized WeightIt fit. Refit ",
+        "the model with `causat(..., method = 'ipw')` so causatr can ",
+        "label weight summaries correctly."
+      ),
+      .call = FALSE
+    )
+  }
 
   if (treat_type == "binary") {
     group_labels <- c("treated", "control", "overall")
