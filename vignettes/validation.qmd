@@ -1,0 +1,589 @@
+---
+title: "Validation against reference implementations"
+vignette: >
+  %\VignetteIndexEntry{Validation against reference implementations}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r}
+#| include: false
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+causatr is built around a single influence-function engine that reproduces the
+sandwich-variance construction used by several purpose-built R packages. This
+vignette runs side-by-side comparisons against those packages so you can see
+the agreement (and disagreement, where it's expected) directly. Each section
+fits the same causal quantity with causatr and with a reference implementation
+and prints a two-row table of the point estimate, standard error, and 95% CI.
+
+**What counts as "matching".** Some references implement the *same* estimator
+and should agree to high precision:
+
+- `stdReg2::standardize_glm()` uses the same g-formula influence function as
+  causatr's point-gcomp engine, so the point estimate should match to ~1e-6 and
+  the SE to within rounding of the covariance inverse.
+- `WeightIt::glm_weightit()` uses the same M-estimator sandwich as causatr's
+  IPW Branch A, so the SE should match within rounding.
+- `marginaleffects::avg_comparisons()` on a `MatchIt::matchit()` output with
+  `vcov = ~subclass` uses the same cluster-robust aggregation as causatr's
+  matching branch, so point estimate and SE should match closely.
+
+Other references implement a *different* estimator that targets the same
+causal quantity. In those cases we expect agreement on the point estimate (up
+to finite-sample noise) but not on the SE construction:
+
+- `lmtp::lmtp_tmle()` is a TMLE, not a plug-in g-formula. It targets the same
+  causal parameter but has a different finite-sample distribution; agreement
+  is a sanity check, not a correctness proof.
+
+The packages used here are all in `Suggests`; every chunk below is guarded
+with `requireNamespace()` so the vignette still builds if any of them is
+missing.
+
+## Setup
+
+```{r}
+#| message: false
+library(causatr)
+
+compare_row <- function(label, result, name, ref_name,
+                        ref_est, ref_se, level = 0.95) {
+  con <- result$contrasts
+  est <- result$estimates
+  if (name %in% con$comparison) {
+    row <- con[con$comparison == name, ]
+  } else if (name %in% est$intervention) {
+    row <- est[est$intervention == name, ]
+  } else {
+    stop(
+      "name '", name,
+      "' not found in result$contrasts$comparison or result$estimates$intervention"
+    )
+  }
+  stopifnot(
+    length(ref_est) == 1L && is.finite(ref_est),
+    length(ref_se) == 1L && is.finite(ref_se)
+  )
+  z <- stats::qnorm(1 - (1 - level) / 2)
+  data.table::data.table(
+    quantity = label,
+    source = c("causatr", ref_name),
+    estimate = c(row$estimate, ref_est),
+    se = c(row$se, ref_se),
+    ci_lower = c(row$ci_lower, ref_est - z * ref_se),
+    ci_upper = c(row$ci_upper, ref_est + z * ref_se)
+  )
+}
+```
+
+`compare_row()` pulls an estimate from a `causatr_result` (either an
+intervention mean or a contrast by name) and pairs it with a reference
+estimate + SE under a normal-approximation CI. The output is a two-row
+`data.table` you can print verbatim.
+
+We use two small simulated DGPs for reproducibility. NHEFS would work too, but
+inline simulation keeps the vignette self-contained and cheap to render.
+
+```{r}
+simulate_point <- function(n = 2000, seed = 1L, binary_outcome = FALSE) {
+  set.seed(seed)
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1L, stats::plogis(0.4 * L))
+  if (binary_outcome) {
+    Y <- stats::rbinom(n, 1L, stats::plogis(-0.5 + 0.8 * A + 0.3 * L))
+  } else {
+    Y <- 1 + 2 * A + 0.5 * L + stats::rnorm(n, sd = 0.8)
+  }
+  data.frame(L = L, A = A, Y = Y)
+}
+
+simulate_longitudinal <- function(n = 500L, K = 3L, seed = 2L) {
+  set.seed(seed)
+  L <- matrix(0, n, K)
+  A <- matrix(0L, n, K)
+  for (k in seq_len(K)) {
+    L[, k] <- stats::rnorm(n) +
+      if (k == 1L) 0 else 0.3 * A[, k - 1L]
+    A[, k] <- stats::rbinom(n, 1L, stats::plogis(0.3 * L[, k]))
+  }
+  Y <- stats::rbinom(n, 1L, stats::plogis(-1 + 0.4 * rowSums(A) + 0.2 * L[, K]))
+  wide <- data.table::data.table(id = seq_len(n))
+  for (k in seq_len(K)) {
+    wide[[paste0("L", k)]] <- L[, k]
+    wide[[paste0("A", k)]] <- A[, k]
+  }
+  wide$Y <- Y
+  wide[]
+}
+
+simulate_longitudinal_continuous <- function(n = 400L, K = 2L, seed = 3L) {
+  set.seed(seed)
+  L <- matrix(0, n, K)
+  A <- matrix(0, n, K)
+  for (k in seq_len(K)) {
+    L[, k] <- stats::rnorm(n) +
+      if (k == 1L) 0 else 0.2 * A[, k - 1L]
+    A[, k] <- stats::rnorm(n, mean = 0.3 * L[, k], sd = 1)
+  }
+  Y <- 1 + rowSums(A) + 0.3 * L[, K] + stats::rnorm(n, sd = 0.5)
+  wide <- data.table::data.table(id = seq_len(n))
+  for (k in seq_len(K)) {
+    wide[[paste0("L", k)]] <- L[, k]
+    wide[[paste0("A", k)]] <- A[, k]
+  }
+  wide$Y <- Y
+  wide[]
+}
+```
+
+## 1. Point g-computation vs `stdReg2`
+
+`stdReg2::standardize_glm()` implements the parametric g-formula with the same
+influence-function sandwich variance that causatr uses in its point-gcomp
+branch. Agreement here should be exact up to rounding.
+
+### 1a. Continuous outcome, risk difference
+
+```{r}
+df_pt <- simulate_point(n = 2000, binary_outcome = FALSE)
+
+fit_gcomp <- causat(
+  df_pt,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~L,
+  estimator = "gcomp"
+)
+res_gcomp <- contrast(
+  fit_gcomp,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  reference = "a0",
+  type = "difference",
+  ci_method = "sandwich"
+)
+res_gcomp$contrasts
+```
+
+```{r}
+#| eval: !expr requireNamespace("stdReg2", quietly = TRUE)
+std_fit <- stdReg2::standardize_glm(
+  Y ~ A + L,
+  data = df_pt,
+  values = list(A = c(0, 1)),
+  contrasts = "difference",
+  reference = 0
+)
+std_res <- generics::tidy(std_fit)
+std_diff <- std_res[std_res$contrast == "difference" & std_res$A == 1, ]
+
+compare_row(
+  "ATE (risk difference)", res_gcomp,
+  name = "a1 vs a0",
+  ref_name = "stdReg2",
+  ref_est = std_diff$Estimate,
+  ref_se = std_diff$Std.Error
+)
+```
+
+### 1b. Binary outcome, risk difference
+
+```{r}
+df_pt_bin <- simulate_point(n = 2000, binary_outcome = TRUE)
+
+fit_bin <- causat(
+  df_pt_bin,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~L,
+  family = binomial(),
+  estimator = "gcomp"
+)
+res_bin_rd <- contrast(
+  fit_bin,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  reference = "a0",
+  type = "difference",
+  ci_method = "sandwich"
+)
+res_bin_rd$contrasts
+```
+
+```{r}
+#| eval: !expr requireNamespace("stdReg2", quietly = TRUE)
+std_bin <- stdReg2::standardize_glm(
+  Y ~ A + L,
+  data = df_pt_bin,
+  family = "binomial",
+  values = list(A = c(0, 1)),
+  contrasts = "difference",
+  reference = 0
+)
+std_bin_res <- generics::tidy(std_bin)
+std_bin_diff <- std_bin_res[std_bin_res$contrast == "difference" & std_bin_res$A == 1, ]
+
+compare_row(
+  "Risk difference", res_bin_rd,
+  name = "a1 vs a0",
+  ref_name = "stdReg2",
+  ref_est = std_bin_diff$Estimate,
+  ref_se = std_bin_diff$Std.Error
+)
+```
+
+### 1c. Binary outcome, risk ratio
+
+`stdReg2` also supports `contrasts = "ratio"` and returns the SE on the
+ratio scale using the same influence-function approach causatr uses
+internally. Note that causatr's CI is built on the *log* scale
+(`exp(log(est) ± z * se/est)`) while `stdReg2`'s CI is linear on the ratio
+scale, so the CI bounds will differ slightly even when the point estimate
+and SE agree to rounding.
+
+```{r}
+res_bin_rr <- contrast(
+  fit_bin,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  reference = "a0",
+  type = "ratio",
+  ci_method = "sandwich"
+)
+res_bin_rr$contrasts
+```
+
+```{r}
+#| eval: !expr requireNamespace("stdReg2", quietly = TRUE)
+std_rr <- stdReg2::standardize_glm(
+  Y ~ A + L,
+  data = df_pt_bin,
+  family = "binomial",
+  values = list(A = c(0, 1)),
+  contrasts = "ratio",
+  reference = 0
+)
+std_rr_res <- generics::tidy(std_rr)
+std_rr_row <- std_rr_res[std_rr_res$contrast == "ratio" & std_rr_res$A == 1, ]
+
+compare_row(
+  "Risk ratio", res_bin_rr,
+  name = "a1 vs a0",
+  ref_name = "stdReg2",
+  ref_est = std_rr_row$Estimate,
+  ref_se = std_rr_row$Std.Error
+)
+```
+
+## 2. IPW vs `WeightIt::glm_weightit`
+
+causatr's IPW Branch A wraps `WeightIt::glm_weightit` for the propensity
+fit and applies the Mparts correction to the marginal structural model.
+Comparing against `glm_weightit` directly verifies that the bookkeeping
+matches: point estimate and SE should agree.
+
+```{r}
+fit_ipw <- causat(
+  df_pt,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~L,
+  estimator = "ipw"
+)
+res_ipw <- contrast(
+  fit_ipw,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  reference = "a0",
+  type = "difference",
+  ci_method = "sandwich"
+)
+res_ipw$contrasts
+```
+
+```{r}
+#| eval: !expr requireNamespace("WeightIt", quietly = TRUE)
+w_ref <- WeightIt::weightit(
+  A ~ L,
+  data = df_pt,
+  method = "glm",
+  estimand = "ATE"
+)
+msm_ref <- WeightIt::glm_weightit(
+  Y ~ A,
+  data = df_pt,
+  weightit = w_ref
+)
+coef_msm <- stats::coef(msm_ref)
+vcov_msm <- stats::vcov(msm_ref)
+ref_est <- unname(coef_msm["A"])
+ref_se <- sqrt(vcov_msm["A", "A"])
+
+compare_row(
+  "ATE (IPW)", res_ipw,
+  name = "a1 vs a0",
+  ref_name = "WeightIt (glm_weightit)",
+  ref_est = ref_est,
+  ref_se = ref_se
+)
+```
+
+With a saturated `Y ~ A` MSM, the coefficient on `A` *is* the marginal
+contrast, so reading it off `glm_weightit` gives the reference directly. If
+you wanted to use a richer MSM (e.g. to coarsen a multi-level treatment), you
+would standardize predictions from `glm_weightit` via `marginaleffects`
+instead — the same logic, just with an extra delta-method step.
+
+## 3. Matching vs `marginaleffects` on `MatchIt`
+
+For matching, the canonical post-match estimator is to refit the outcome on
+the matched subset with cluster-robust SE on the subclass. causatr's matching
+branch does exactly this internally; `marginaleffects::avg_comparisons()` with
+`vcov = ~subclass` reproduces the same construction.
+
+```{r}
+fit_match <- causat(
+  df_pt,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~L,
+  estimator = "matching",
+  estimand = "ATT"
+)
+res_match <- contrast(
+  fit_match,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  reference = "a0",
+  type = "difference",
+  ci_method = "sandwich"
+)
+res_match$contrasts
+```
+
+```{r}
+#| eval: !expr (requireNamespace("MatchIt", quietly = TRUE) && requireNamespace("marginaleffects", quietly = TRUE))
+m_ref <- MatchIt::matchit(
+  A ~ L,
+  data = df_pt,
+  method = "nearest",
+  estimand = "ATT"
+)
+md_ref <- MatchIt::match.data(m_ref)
+lm_ref <- stats::lm(Y ~ A, data = md_ref, weights = weights)
+me_match <- marginaleffects::avg_comparisons(
+  lm_ref,
+  variables = list(A = c(0, 1)),
+  vcov = ~subclass,
+  wts = "weights",
+  newdata = subset(md_ref, A == 1)
+)
+compare_row(
+  "ATT (matching)", res_match,
+  name = "a1 vs a0",
+  ref_name = "marginaleffects+MatchIt",
+  ref_est = me_match$estimate,
+  ref_se = me_match$std.error
+)
+```
+
+The `newdata = subset(md_ref, A == 1)` argument tells `marginaleffects` to
+average over the treated-subject target population, which is what
+`estimand = "ATT"` means.
+
+## 4. Longitudinal ICE vs `lmtp::lmtp_tmle`
+
+`lmtp::lmtp_tmle()` is a TMLE that targets the same parameter as ICE
+g-computation but with a different finite-sample bias-variance profile.
+We expect agreement on the point estimate up to sampling noise (both methods
+are consistent for the same target), but not exact agreement on the SE.
+
+### 4a. Binary treatment, binary outcome, "always" vs "never"
+
+```{r}
+wide_bin <- simulate_longitudinal(n = 500L, K = 3L)
+long_bin <- to_person_period(
+  wide_bin,
+  id = "id",
+  time_varying = list(L = c("L1", "L2", "L3"), A = c("A1", "A2", "A3")),
+  time_invariant = "Y"
+)
+
+fit_ice <- causat(
+  long_bin,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~1,
+  confounders_tv = ~L,
+  family = binomial(),
+  id = "id",
+  time = "time",
+  estimator = "gcomp",
+  type = "longitudinal",
+  history = 1L
+)
+res_ice <- contrast(
+  fit_ice,
+  interventions = list(always = static(1), never = static(0)),
+  reference = "never",
+  type = "difference",
+  ci_method = "sandwich"
+)
+res_ice$contrasts
+```
+
+```{r}
+#| eval: !expr requireNamespace("lmtp", quietly = TRUE)
+set.seed(42)
+lmtp_always <- tryCatch(
+  lmtp::lmtp_tmle(
+    data = as.data.frame(wide_bin),
+    trt = c("A1", "A2", "A3"),
+    outcome = "Y",
+    time_vary = list("L1", "L2", "L3"),
+    shift = function(data, trt) rep(1, nrow(data)),
+    outcome_type = "binomial",
+    learners_outcome = "SL.glm",
+    learners_trt = "SL.glm",
+    folds = 2
+  ),
+  error = function(e) NULL
+)
+lmtp_never <- tryCatch(
+  lmtp::lmtp_tmle(
+    data = as.data.frame(wide_bin),
+    trt = c("A1", "A2", "A3"),
+    outcome = "Y",
+    time_vary = list("L1", "L2", "L3"),
+    shift = function(data, trt) rep(0, nrow(data)),
+    outcome_type = "binomial",
+    learners_outcome = "SL.glm",
+    learners_trt = "SL.glm",
+    folds = 2
+  ),
+  error = function(e) NULL
+)
+
+if (!is.null(lmtp_always) && !is.null(lmtp_never)) {
+  lmtp_diff <- lmtp::lmtp_contrast(lmtp_always, ref = lmtp_never, type = "additive")
+  ref_row <- lmtp_diff$estimates
+  compare_row(
+    "Always vs never (RD)", res_ice,
+    name = "always vs never",
+    ref_name = "lmtp_tmle",
+    ref_est = ref_row$estimate,
+    ref_se = ref_row$std.error
+  )
+} else {
+  message("lmtp fit failed; skipping comparison row.")
+}
+```
+
+### 4b. Continuous treatment, shift intervention
+
+```{r}
+wide_cont <- simulate_longitudinal_continuous(n = 400L, K = 2L)
+long_cont <- to_person_period(
+  wide_cont,
+  id = "id",
+  time_varying = list(L = c("L1", "L2"), A = c("A1", "A2")),
+  time_invariant = "Y"
+)
+
+fit_ice_shift <- causat(
+  long_cont,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~1,
+  confounders_tv = ~L,
+  family = gaussian(),
+  id = "id",
+  time = "time",
+  estimator = "gcomp",
+  type = "longitudinal",
+  history = 1L
+)
+res_ice_shift <- contrast(
+  fit_ice_shift,
+  interventions = list(plus1 = shift(1), zero = shift(0)),
+  reference = "zero",
+  type = "difference",
+  ci_method = "sandwich"
+)
+res_ice_shift$contrasts
+```
+
+```{r}
+#| eval: !expr requireNamespace("lmtp", quietly = TRUE)
+set.seed(43)
+shift_up <- function(data, trt) data[[trt]] + 1
+shift_id <- function(data, trt) data[[trt]]
+
+lmtp_up <- tryCatch(
+  lmtp::lmtp_tmle(
+    data = as.data.frame(wide_cont),
+    trt = c("A1", "A2"),
+    outcome = "Y",
+    time_vary = list("L1", "L2"),
+    shift = shift_up,
+    outcome_type = "continuous",
+    learners_outcome = "SL.glm",
+    learners_trt = "SL.glm",
+    folds = 2
+  ),
+  error = function(e) NULL
+)
+lmtp_id <- tryCatch(
+  lmtp::lmtp_tmle(
+    data = as.data.frame(wide_cont),
+    trt = c("A1", "A2"),
+    outcome = "Y",
+    time_vary = list("L1", "L2"),
+    shift = shift_id,
+    outcome_type = "continuous",
+    learners_outcome = "SL.glm",
+    learners_trt = "SL.glm",
+    folds = 2
+  ),
+  error = function(e) NULL
+)
+
+if (!is.null(lmtp_up) && !is.null(lmtp_id)) {
+  lmtp_diff <- lmtp::lmtp_contrast(lmtp_up, ref = lmtp_id, type = "additive")
+  ref_row <- lmtp_diff$estimates
+  compare_row(
+    "Shift(+1) vs identity", res_ice_shift,
+    name = "plus1 vs zero",
+    ref_name = "lmtp_tmle",
+    ref_est = ref_row$estimate,
+    ref_se = ref_row$std.error
+  )
+} else {
+  message("lmtp fit failed; skipping comparison row.")
+}
+```
+
+The structural effect of `shift(+1)` on this DGP is exactly 2 (one unit per
+period, two periods). Both estimators should recover this up to sampling
+noise; the two SEs correspond to different estimators (ICE plug-in vs TMLE)
+and are expected to differ in the second decimal place.
+
+## 5. Other references
+
+Several additional R packages would extend this validation suite:
+
+- **`gfoRmula`** implements the parametric g-formula on wide longitudinal
+  data and is the most direct peer of causatr's ICE engine. Its intervention
+  specification is more verbose (lists of `intvars`, `interventions`,
+  `int_descript`), but a comparison on static "always vs never" would make
+  a natural addition to section 4a.
+- **`survey::svyglm()`** (combined with a user-supplied weights column) is
+  the standard reference for survey-weighted IPW. Since causatr validates
+  survey-weight handling in its tests, a vignette comparison would mostly
+  duplicate that coverage.
+- **Survival validation** will land once `causat_survival()`'s contrast path
+  is implemented in Phase 6; the natural references are
+  `survival::survfit()` for the unadjusted Kaplan-Meier sanity check and
+  `gfoRmula::gformula_survival()` for the adjusted g-formula reference.
+
+If you'd like to contribute a reference comparison for one of these (or for a
+package not listed here), open an issue — the pattern is the same as in
+sections 1–4: fit the same quantity two ways, pass both to `compare_row()`,
+and print the resulting two-row table.

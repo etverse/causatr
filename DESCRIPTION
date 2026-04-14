@@ -31,6 +31,8 @@ Suggests:
     cobalt,
     forrest,
     knitr,
+    lmtp,
+    marginaleffects,
     MASS,
     mgcv,
     mice,
