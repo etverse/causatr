@@ -8,21 +8,39 @@ dynamic(rule)
 }
 \arguments{
 \item{rule}{A function with signature \verb{function(data, treatment)} that
-returns a vector of treatment values of the same length as \code{nrow(data)}.}
+returns a vector of treatment values of length \code{nrow(data)}.}
 }
 \value{
 A \code{causatr_intervention} object.
 }
 \description{
-Creates a dynamic intervention where the treatment at each time point is
-determined by a user-supplied function of the covariate history. The
-function \code{rule} receives the current data (subset to the current time point)
-and the observed treatment vector, and returns the intervened treatment
-vector.
+Creates a dynamic intervention where treatment is determined by a
+user-supplied function of the covariate history. When \code{contrast()}
+evaluates the intervention, \code{rule} receives two arguments:
+\itemize{
+\item \code{data}: the \strong{full} counterfactual data.table (a copy of \code{fit$data}
+with all columns intact, including lag columns for longitudinal
+fits). For point treatments this is one row per individual; for
+longitudinal ICE it is the entire person-period panel at once. The
+rule is called once per intervention, not once per time step.
+\item \code{treatment}: the observed (or currently-held) treatment vector,
+length \code{nrow(data)}.
+}
+
+\code{rule} must return a numeric vector of length \code{nrow(data)}. To branch
+on time, reference the time column directly (e.g. \code{data$time == 0}).
+To reference the treatment or covariate history in longitudinal data,
+use the materialised lag columns (\code{data$lag1_A}, \code{data$lag1_L}, …)
+that \code{prepare_data()} built from \code{history}.
 }
 \examples{
-# Treat if CD4 count is below 200
+# Point treatment: treat if CD4 count is below 200
 cd4_rule <- dynamic(\(data, trt) ifelse(data$cd4 < 200, 1, 0))
+
+# Longitudinal: treat at time k if a time-varying confounder triggered
+# at time k (the whole panel is passed in one call; the time column
+# lets the rule dispatch per-row).
+adaptive <- dynamic(\(data, trt) as.integer(!is.na(data$L) & data$L > 0))
 
 }
 \references{

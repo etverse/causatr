@@ -147,14 +147,26 @@ threshold <- function(lower = -Inf, upper = Inf) {
 #' Dynamic treatment rule
 #'
 #' @description
-#' Creates a dynamic intervention where the treatment at each time point is
-#' determined by a user-supplied function of the covariate history. The
-#' function `rule` receives the current data (subset to the current time point)
-#' and the observed treatment vector, and returns the intervened treatment
-#' vector.
+#' Creates a dynamic intervention where treatment is determined by a
+#' user-supplied function of the covariate history. When `contrast()`
+#' evaluates the intervention, `rule` receives two arguments:
+#'
+#' - `data`: the **full** counterfactual data.table (a copy of `fit$data`
+#'   with all columns intact, including lag columns for longitudinal
+#'   fits). For point treatments this is one row per individual; for
+#'   longitudinal ICE it is the entire person-period panel at once. The
+#'   rule is called once per intervention, not once per time step.
+#' - `treatment`: the observed (or currently-held) treatment vector,
+#'   length `nrow(data)`.
+#'
+#' `rule` must return a numeric vector of length `nrow(data)`. To branch
+#' on time, reference the time column directly (e.g. `data$time == 0`).
+#' To reference the treatment or covariate history in longitudinal data,
+#' use the materialised lag columns (`data$lag1_A`, `data$lag1_L`, …)
+#' that `prepare_data()` built from `history`.
 #'
 #' @param rule A function with signature `function(data, treatment)` that
-#'   returns a vector of treatment values of the same length as `nrow(data)`.
+#'   returns a vector of treatment values of length `nrow(data)`.
 #'
 #' @return A `causatr_intervention` object.
 #'
@@ -163,8 +175,13 @@ threshold <- function(lower = -Inf, upper = Inf) {
 #' Hall/CRC. Chapter 19 (dynamic treatment strategies).
 #'
 #' @examples
-#' # Treat if CD4 count is below 200
+#' # Point treatment: treat if CD4 count is below 200
 #' cd4_rule <- dynamic(\(data, trt) ifelse(data$cd4 < 200, 1, 0))
+#'
+#' # Longitudinal: treat at time k if a time-varying confounder triggered
+#' # at time k (the whole panel is passed in one call; the time column
+#' # lets the rule dispatch per-row).
+#' adaptive <- dynamic(\(data, trt) as.integer(!is.na(data$L) & data$L > 0))
 #'
 #' @seealso [static()], [shift()], [scale_by()], [threshold()], [ipsi()]
 #' @export
@@ -229,6 +246,21 @@ ipsi <- function(delta) {
   if (delta <= 0) {
     rlang::abort("`delta` must be positive.")
   }
+  # One-per-session inform: the constructor succeeds, but `contrast()`
+  # will currently abort on an IPSI intervention (Phase 4). Surfacing
+  # the status at construction time helps users catch the dead end
+  # before they wire a whole pipeline together and hit the contrast
+  # error. `.frequency = "once"` means this fires at most once per
+  # R session regardless of how many IPSI interventions are built.
+  rlang::inform(
+    c(
+      "`ipsi()` is currently dead-ended: the constructor succeeds but `contrast()` aborts.",
+      i = "IPSI requires a fitted propensity model that is not wired through any estimation engine yet (planned for Phase 4).",
+      i = "Use `shift()`, `scale_by()`, or `static()` with `method = 'gcomp'` in the meantime."
+    ),
+    .frequency = "once",
+    .frequency_id = "causatr_ipsi_dead_end"
+  )
   new_causatr_intervention("ipsi", list(delta = delta))
 }
 
@@ -299,6 +331,42 @@ apply_intervention <- function(data, treatment, iv) {
   if (length(treatment) == 1L) {
     apply_single_intervention(data_a, treatment, iv)
   } else {
+    # Multivariate treatment: verify `names(iv)` matches the treatment
+    # vector *exactly*. Upstream `check_intervention_list()` validated
+    # that every sub-element is a `causatr_intervention`, but did not
+    # cross-check the sub-list names against the `treatment` argument
+    # (that validator has no access to the fit). Without this guard a
+    # user typo like `list(X = static(1), A2 = shift(-10))` for
+    # `treatment = c("A1", "A2")` silently creates a spurious `X`
+    # column via data.table's `[, (X) := ...]` and never touches `A1`.
+    missing <- setdiff(treatment, names(iv))
+    extra <- setdiff(names(iv), treatment)
+    if (length(missing) > 0L || length(extra) > 0L) {
+      rlang::abort(
+        paste0(
+          "Multivariate intervention names must match the `treatment` ",
+          "argument exactly. ",
+          if (length(missing) > 0L) {
+            paste0(
+              "Missing: ",
+              paste(shQuote(missing), collapse = ", "),
+              ". "
+            )
+          },
+          if (length(extra) > 0L) {
+            paste0(
+              "Unexpected: ",
+              paste(shQuote(extra), collapse = ", "),
+              ". "
+            )
+          },
+          "Expected names: ",
+          paste(shQuote(treatment), collapse = ", "),
+          "."
+        ),
+        .call = FALSE
+      )
+    }
     # Apply each named sub-intervention to its corresponding column.
     # Order matters only if interventions reference each other's
     # treatment columns (they generally don't), so we just iterate.
