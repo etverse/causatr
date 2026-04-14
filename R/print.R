@@ -112,6 +112,45 @@ print.causatr_result <- function(x, ...) {
   cat(" CI method: ", x$ci_method, "\n", sep = "")
   cat(" N:         ", x$n, "\n", sep = "")
 
+  # Bootstrap diagnostics: surface the success/failure split so users
+  # see at print time when replicates were silently discarded. The
+  # `boot_info` slot is only populated for `ci_method = "bootstrap"`,
+  # and may be a single 3-element list (no `by`) or a list-of-lists
+  # keyed by subgroup level when `by = ...` was used. In the by case
+  # we reduce to totals across strata; per-stratum detail is available
+  # in `x$boot_info` for users who want it.
+  if (!is.null(x$boot_info)) {
+    bi <- x$boot_info
+    if (
+      is.list(bi) && !all(c("n_requested", "n_ok", "n_fail") %in% names(bi))
+    ) {
+      # by-stratum list-of-lists: collapse to totals.
+      n_req <- sum(vapply(bi, function(b) b$n_requested %||% 0L, integer(1)))
+      n_fail <- sum(vapply(bi, function(b) b$n_fail %||% 0L, integer(1)))
+    } else {
+      n_req <- bi$n_requested
+      n_fail <- bi$n_fail
+    }
+    if (!is.null(n_req) && n_req > 0L) {
+      n_ok <- n_req - n_fail
+      pct <- if (n_fail > 0L) {
+        paste0(" (", round(100 * n_fail / n_req, 1), "% failed)")
+      } else {
+        ""
+      }
+      cat(
+        " Bootstrap: ",
+        n_ok,
+        "/",
+        n_req,
+        " replicates",
+        pct,
+        "\n",
+        sep = ""
+      )
+    }
+  }
+
   # When `by = ...` was used, the estimates / contrasts tables have
   # an extra `by` column. Section headers acknowledge this so the
   # reader knows to interpret each row as a per-stratum estimate.

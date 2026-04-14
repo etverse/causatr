@@ -40,4 +40,63 @@ recursion), and IPW.
 Branch B: self-contained, deferred to Phase 4).
 }
 }
+\section{Layout}{
+
+Functions appear in this file in the order below. Grep for the name
+to jump; line numbers are deliberately omitted so this index does not
+rot as the file grows.
+
+\strong{Primitives (shared across methods).}
+\itemize{
+\item \code{bread_inv()} — \verb{(X'WX)^\{-1\}} for GLMs, \code{Vp} for GAMs, with a warned
+\code{MASS::ginv()} fallback on singular bread.
+\item \code{iv_design_matrix()} — counterfactual model matrix under an
+intervention (GLM/GAM split).
+\item \code{resolve_fit_idx()} — maps \code{fit$details$fit_rows} to model-local row
+indices and asserts the \code{na.action} invariant.
+}
+
+\strong{Channel-2 per-model correction (prep/apply split).}
+\itemize{
+\item \code{prepare_model_if()} — one bread solve per model, reused across
+interventions (O(1) instead of O(k)).
+\item \code{apply_model_correction()} — per-intervention application step.
+\item \code{correct_model()} — thin single-gradient wrapper used by ICE.
+}
+
+\strong{Aggregation and fallbacks.}
+\itemize{
+\item \code{vcov_from_if()} — \code{crossprod}-based aggregator with optional
+\verb{cluster =} sum-then-square for matching.
+\item \code{variance_if_numeric()} — two-tier numerical fallback (Tier 1
+recovers the full IF via \code{sandwich::estfun + bread}; Tier 2 falls
+back to \verb{V1 + J V_\\beta J^T}).
+}
+
+\strong{Dispatcher and per-method branches.}
+\itemize{
+\item \code{variance_if()} — single entry point, routes to one of the four.
+\item \code{build_point_channel_pieces()}, \code{prepare_point_variance()} —
+shared point-treatment plumbing for gcomp / IPW / matching.
+\item \code{variance_if_gcomp()} — g-computation branch.
+\item \code{variance_if_matching()} — matching branch; cluster-robust on
+\code{subclass}.
+\item \code{variance_if_ice()} / \code{variance_if_ice_one()} — ICE forward
+sensitivity recursion; cycles models rather than interventions so
+prep-hoisting does not apply.
+\item \code{variance_if_ipw()} — IPW branch; delegates Channel 2 to the
+propensity-specific pair below.
+}
+
+\strong{IPW Channel-2 pair (propensity-specific).}
+\itemize{
+\item \code{prepare_propensity_if()} — dispatcher; Branch A for Mparts-capable
+WeightIt methods, Branch B deferred.
+\item \code{apply_propensity_correction()} — per-intervention application.
+\item \code{prepare_propensity_if_weightit()} — Branch A: \code{sandwich::estfun( asympt = TRUE)} + \code{sandwich::bread()} shortcut.
+\item \code{prepare_propensity_if_self_contained()} — Branch B: self-contained
+IF, placeholder for Phase 4.
+}
+}
+
 \keyword{internal}

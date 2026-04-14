@@ -6,3 +6,28 @@
       Error in `contrast()`:
       ! Non-static interventions (shift, dynamic, scale, threshold, ipsi) are not supported for method = 'ipw'. The weights/matched sets were estimated under the original treatment regime and are not valid under a different intervention. Use method = 'gcomp' instead.
 
+# IPW rejects A:modifier interaction terms in confounders
+
+    Code
+      causat(d, outcome = "Y", treatment = "A", confounders = ~ L + sex + A:sex,
+      method = "ipw")
+    Condition
+      Error in `check_confounders_no_treatment()`:
+      ! `confounders` contains term(s) involving the treatment, which are not supported for `method = "ipw"`.
+      x Offending term(s): sex:A.
+      i IPW and matching wrap a saturated MSM `Y ~ A` around the propensity/match model, so treatment-by-modifier interactions cannot be estimated here.
+      i Use `method = "gcomp"` for heterogeneous treatment effects, or `by = "modifier"` in `contrast()` for stratum-specific summaries of a homogeneous effect.
+      i See `PHASE_8_INTERACTIONS.md` for the planned unified API.
+
+# IPW rejects bare treatment in confounders
+
+    Code
+      causat(d, outcome = "Y", treatment = "A", confounders = ~ L + A, method = "ipw")
+    Condition
+      Error in `check_confounders_no_treatment()`:
+      ! `confounders` contains term(s) involving the treatment, which are not supported for `method = "ipw"`.
+      x Offending term(s): A.
+      i IPW and matching wrap a saturated MSM `Y ~ A` around the propensity/match model, so treatment-by-modifier interactions cannot be estimated here.
+      i Use `method = "gcomp"` for heterogeneous treatment effects, or `by = "modifier"` in `contrast()` for stratum-specific summaries of a homogeneous effect.
+      i See `PHASE_8_INTERACTIONS.md` for the planned unified API.
+

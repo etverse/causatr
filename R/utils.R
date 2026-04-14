@@ -98,6 +98,7 @@ new_causatr_result <- function(
   fit_type,
   vcov,
   boot_t = NULL,
+  boot_info = NULL,
   call
 ) {
   structure(
@@ -115,6 +116,12 @@ new_causatr_result <- function(
       fit_type = fit_type,
       vcov = vcov,
       boot_t = boot_t,
+      # NULL when ci_method = "sandwich"; otherwise a 3-element list of
+      # `n_requested`, `n_ok`, `n_fail` carried up from
+      # `process_boot_results()` so `print.causatr_result()` and
+      # downstream consumers can surface bootstrap failure rates without
+      # re-deriving them from `boot_t`.
+      boot_info = boot_info,
       call = call
     ),
     class = "causatr_result"
@@ -249,6 +256,75 @@ build_ps_formula <- function(confounders, treatment) {
   # reassembles verbatim into a two-sided formula.
   confounder_terms <- attr(stats::terms(confounders), "term.labels")
   stats::reformulate(confounder_terms, response = treatment)
+}
+
+#' Abort if `confounders` contains a term involving the treatment
+#'
+#' IPW and matching fitters wrap a hardcoded saturated MSM (`Y ~ A`) around a
+#' `confounders`-driven propensity/match model. Any interaction term the user
+#' writes as `A:modifier` (or `A * modifier`) cannot land anywhere useful:
+#' it pollutes the PS formula with the treatment on both sides, and it is
+#' silently dropped from the MSM, which `contrast()` averages over. That is
+#' the core Phase 8 limitation (see `PHASE_8_INTERACTIONS.md`). Until Phase
+#' 8 lands we abort early with a pointer to `method = "gcomp"` so users do
+#' not silently get a homogeneous-effect estimate when they asked for a
+#' heterogeneous one.
+#'
+#' Bare treatment terms in `confounders` (e.g. `~ L + A`) are also rejected
+#' because `A` has no place in a propensity model of `A`.
+#'
+#' @param confounders One-sided formula passed by the user.
+#' @param treatment Character vector of treatment column name(s).
+#' @param method Character. `"ipw"` or `"matching"`; used in the error text.
+#' @return `invisible(NULL)` on success; aborts otherwise.
+#' @noRd
+check_confounders_no_treatment <- function(confounders, treatment, method) {
+  term_labels <- attr(stats::terms(confounders), "term.labels")
+  if (length(term_labels) == 0L) {
+    return(invisible(NULL))
+  }
+
+  # For each term, extract the variables it references via `all.vars()` on
+  # the parsed expression. This catches `A:sex`, `sex:A`, `A*sex` (which
+  # `terms()` has already expanded to main effects + interaction), and bare
+  # `A`. It does not catch `I(A + 1)` on purpose: `I()` wraps are opaque to
+  # `terms()` and users reaching for them are doing something advanced.
+  offenders <- vapply(
+    term_labels,
+    function(tl) {
+      vars <- all.vars(parse(text = tl)[[1L]])
+      any(vars %in% treatment)
+    },
+    logical(1L)
+  )
+
+  if (any(offenders)) {
+    bad <- term_labels[offenders]
+    rlang::abort(
+      c(
+        paste0(
+          "`confounders` contains term(s) involving the treatment, which ",
+          "are not supported for `method = \"",
+          method,
+          "\"`."
+        ),
+        x = paste0("Offending term(s): ", paste(bad, collapse = ", "), "."),
+        i = paste0(
+          "IPW and matching wrap a saturated MSM `Y ~ A` around the ",
+          "propensity/match model, so treatment-by-modifier interactions ",
+          "cannot be estimated here."
+        ),
+        i = paste0(
+          "Use `method = \"gcomp\"` for heterogeneous treatment effects, ",
+          "or `by = \"modifier\"` in `contrast()` for stratum-specific ",
+          "summaries of a homogeneous effect."
+        ),
+        i = "See `PHASE_8_INTERACTIONS.md` for the planned unified API."
+      ),
+      .call = FALSE
+    )
+  }
+  invisible(NULL)
 }
 
 #' Get the logical vector of fitting rows

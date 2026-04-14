@@ -17,6 +17,13 @@ Creates an incremental propensity score intervention (IPSI) that multiplies
 each individual's odds of treatment by \code{delta}. Values of \code{delta > 1}
 increase the probability of treatment; \code{delta < 1} decrease it. This is a
 stochastic modified treatment policy indexed by a single scalar.
+
+\strong{Status: not yet applicable} (planned Phase 4). The constructor is
+implemented and will appear in \code{fit$interventions}, but
+\code{\link[=contrast]{contrast()}} currently aborts when handed an \code{ipsi()} intervention
+because application requires a fitted propensity model that is not yet
+wired through the estimation engines. Use \code{\link[=shift]{shift()}}, \code{\link[=scale_by]{scale_by()}}, or
+\code{\link[=static]{static()}} with \code{method = "gcomp"} in the meantime.
 }
 \examples{
 \dontrun{

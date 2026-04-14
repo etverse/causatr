@@ -4,6 +4,13 @@
 #' Convenience wrapper for causal survival analysis using pooled logistic
 #' regression as a discrete-time hazard model (Hernán & Robins Ch. 17).
 #'
+#' **Status: scaffolded.** The pooled logistic fit itself is implemented,
+#' but the survival-curve contrast step in [contrast()] is not yet wired
+#' up and aborts with an informative error. Competing-risks analysis (the
+#' `competing` argument) is also not yet implemented and aborts at fit
+#' time when supplied. Treat this function as experimental until both
+#' paths land.
+#'
 #' ## Algorithm
 #'
 #' 1. Convert data to person-period format if not already long (using
@@ -33,7 +40,9 @@
 #'   If provided, rows where `censoring == 1` are excluded from fitting,
 #'   and subsequent rows for that individual are also dropped.
 #' @param competing Character or `NULL`. Name of a variable indicating the
-#'   type of competing event (for competing risks analysis).
+#'   type of competing event (for competing risks analysis). **Not yet
+#'   implemented**: supplying a non-`NULL` value currently aborts. Reserved
+#'   for a future release.
 #' @param time_formula A one-sided formula specifying how time enters the
 #'   hazard model. Default `~ splines::ns(time, 4)`. Use `~ factor(time)`
 #'   for a fully saturated (non-parametric) baseline hazard.

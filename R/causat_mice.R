@@ -1,12 +1,17 @@
-#' Fit causal models across multiply-imputed datasets
+#' Fit causal models across multiply-imputed datasets (not yet implemented)
 #'
 #' @description
-#' Applies [causat()] and [contrast()] across all imputed datasets in a
-#' `mids` object (from `mice::mice()`), then pools point estimates and
-#' variances using Rubin's rules. This handles missing treatment values (or
-#' any other missing data) via multiple imputation.
+#' **Status: not yet implemented.** This function is an internal placeholder
+#' for the planned multiple-imputation workflow. Calling it always errors.
+#' Do not rely on it; the signature may change before the first working
+#' release. Until this ships, handle missing data with a complete-case
+#' analysis or impute upstream and call [causat()] on a single completed
+#' dataset.
 #'
-#' Rubin's rules pool m point estimates and their within-imputation variances:
+#' @section Planned design:
+#' Apply [causat()] and [contrast()] across all imputed datasets in a
+#' `mids` object (from `mice::mice()`), then pool point estimates and
+#' variances using Rubin's rules:
 #' - **Pooled estimate**: mean of per-imputation estimates.
 #' - **Total variance**: within-imputation variance + between-imputation
 #'   variance + between-imputation correction.
@@ -67,7 +72,7 @@
 #'
 #' @seealso [causat()], [contrast()]
 #' @keywords internal
-#' @export
+#' @noRd
 causat_mice <- function(
   imp,
   outcome,

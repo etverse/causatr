@@ -83,7 +83,7 @@ the supported intervention / variance shapes differ across methods.
 | multivariate | gaussian | GLM | static | by(L) | difference | sandwich | none | ✅ truth | test-multivariate.R |
 | multivariate | gaussian | GLM | static | ATE | difference | bootstrap | none | ✅ ratio vs sandwich | test-multivariate.R |
 | binary | gaussian | GLM | static | ATE | difference | sandwich | none + censoring | ✅ truth | test-simulation.R |
-| binary | gaussian | unsupported `model_fn` | static | ATE | difference | numeric Tier 1 | none | 🟡 smoke | test-variance-if.R |
+| binary | gaussian | unsupported `model_fn` | static | ATE | difference | numeric Tier 1 | none | ✅ unit (vs analytic IF on logistic GLM; no e2e through `causat()` because the analytic gcomp branch wins for any standard fitter, so Tier 1 only fires in synthetic unit setup) | test-variance-if.R |
 | binary | gaussian | unsupported `model_fn` | static | ATE | difference | numeric Tier 2 | none | ✅ truth (vs main path, to ~1%) | test-variance-if.R |
 | categorical (k>2) | gaussian | GLM | static | ATE | difference | sandwich | none | ✅ truth | test-simulation.R |
 
@@ -111,6 +111,7 @@ the supported intervention / variance shapes differ across methods.
 | continuous | gaussian | static (specific levels) | ATE | difference | sandwich | none | ✅ truth | test-simulation.R |
 | binary | gaussian | shift / scale / threshold / dynamic / ipsi | — | — | — | — | ⛔ **rejected** (Phase 4) | test-ipw.R, test-contrast.R |
 | binary | gaussian | static | ATE | difference | sandwich (non-Mparts WeightIt method) | none | ✅ e2e smoke (finite understated SE + bootstrap fallback) | test-ipw.R |
+| any | any | any — with `A:modifier` in `confounders` | any | any | any | any | ⛔ **rejected** (Phase 8; saturated MSM cannot represent effect modification — use gcomp) | test-ipw.R |
 | multivariate | any | any | any | any | any | any | ⛔ **rejected** (Phase 4) | test-s3-methods.R, test-multivariate.R |
 | longitudinal (any shape) | any | any | any | any | any | any | ⛔ **rejected** (Phase 4) | test-ipw.R |
 
@@ -132,6 +133,7 @@ the supported intervention / variance shapes differ across methods.
 | categorical (k>2) | any | any | any | any | any | any | ⛔ **rejected** (MatchIt is binary-only; verified via docs) | test-matching.R |
 | continuous | any | any | any | any | any | any | ⛔ **rejected** (no continuous matching in MatchIt) | test-matching.R |
 | binary | gaussian | shift / scale / threshold / dynamic / ipsi | — | — | — | — | ⛔ **rejected** (Phase 4) | test-contrast.R |
+| any | any | any — with `A:modifier` in `confounders` | any | any | any | any | ⛔ **rejected** (Phase 8; saturated MSM cannot represent effect modification — use gcomp) | test-matching.R |
 | multivariate | any | any | any | any | any | any | ⛔ **rejected** (Phase 7) | test-s3-methods.R |
 | longitudinal | any | any | any | any | any | any | ⛔ **rejected** | test-matching.R |
 

@@ -269,11 +269,12 @@ check_treatment_nas <- function(
   # Missing treatment values must be handled explicitly — silently
   # dropping them (as glm would by default via na.action) is wrong
   # because the dropped rows may be MAR, not MCAR, and biasing the
-  # marginal mean. Three legitimate handling paths:
+  # marginal mean. Two legitimate handling paths today:
   #   1. Censoring indicator -> IPCW via `censoring = "col"`
-  #   2. Multiple imputation -> `causat_mice()`
-  #   3. Manual complete-case subset -> user removes rows before calling
-  # Show all three as hints in the abort so the user can pick.
+  #   2. Manual complete-case subset -> user removes rows before calling
+  # (Multiple imputation via `causat_mice()` is planned for a future
+  # release; the stub is unexported so it is not advertised in the
+  # abort hint.)
   trt_cols <- treatment
   for (col in trt_cols) {
     n_na <- sum(is.na(data[[col]]))
@@ -292,10 +293,6 @@ check_treatment_nas <- function(
           i = paste0(
             "Use `censoring = '...'` for inverse probability of ",
             "censoring weights."
-          ),
-          i = paste0(
-            "Use `causat_mice()` with a mice `mids` object for ",
-            "multiple imputation."
           ),
           i = "Or remove incomplete cases before calling `causat()`."
         ),

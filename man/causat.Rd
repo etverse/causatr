@@ -166,11 +166,15 @@ Supports binary, categorical, and continuous treatments (anything
 in \code{\link[=contrast]{contrast()}}, because the weights were estimated under the observed
 treatment distribution.
 
-For longitudinal data, calls \code{WeightIt::weightitMSM()}. The denominator
-model at each time \code{k} includes baseline confounders, concurrent
-time-varying confounders, and lagged treatment. The numerator model
-includes only baseline confounders and lagged treatment (standard
-stabilized weights), unless overridden via \code{numerator}.
+\strong{Longitudinal IPW is not yet implemented} (planned Phase 4). The
+design below describes the target API; \code{method = "ipw"} with \code{id} and
+\code{time} currently aborts with an informative error. Use \code{method = "gcomp"} (which uses ICE g-computation for longitudinal data) in the
+meantime. When implemented, \code{WeightIt::weightitMSM()} will fit a
+denominator model at each time \code{k} that includes baseline confounders,
+concurrent time-varying confounders, and lagged treatment. The
+numerator model will include only baseline confounders and lagged
+treatment (standard stabilized weights), unless overridden via
+\code{numerator}.
 }
 
 \subsection{Matching (\code{method = "matching"})}{
@@ -281,6 +285,6 @@ sandwich variance estimator for iterated conditional expectation
 g-computation. \emph{Statistics in Medicine} 43:5562–5572.
 }
 \seealso{
-\code{\link[=contrast]{contrast()}}, \code{\link[=diagnose]{diagnose()}}, \code{\link[=causat_survival]{causat_survival()}}, \code{\link[=causat_mice]{causat_mice()}},
+\code{\link[=contrast]{contrast()}}, \code{\link[=diagnose]{diagnose()}}, \code{\link[=causat_survival]{causat_survival()}},
 \code{\link[=static]{static()}}, \code{\link[=shift]{shift()}}, \code{\link[=dynamic]{dynamic()}}
 }

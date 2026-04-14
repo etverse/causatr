@@ -187,3 +187,35 @@ test_that("IPW rejects shift intervention until Phase 4", {
     )
   )
 })
+
+test_that("IPW rejects A:modifier interaction terms in confounders", {
+  # Phase 8 limitation: IPW wraps a saturated MSM `Y ~ A`, so `A:sex`
+  # has nowhere to land and was previously silently dropped. We now
+  # abort at fit time with a pointer to `method = "gcomp"`.
+  d <- simulate_binary_continuous(n = 200, seed = 1)
+  d$sex <- rbinom(nrow(d), 1, 0.5)
+  expect_snapshot(
+    error = TRUE,
+    causat(
+      d,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~ L + sex + A:sex,
+      method = "ipw"
+    )
+  )
+})
+
+test_that("IPW rejects bare treatment in confounders", {
+  d <- simulate_binary_continuous(n = 200, seed = 2)
+  expect_snapshot(
+    error = TRUE,
+    causat(
+      d,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~ L + A,
+      method = "ipw"
+    )
+  )
+})

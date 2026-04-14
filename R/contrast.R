@@ -46,7 +46,14 @@
 #'   `dynamic()`, `ipsi()`) are only supported for `method = "gcomp"`.
 #'   For IPW and matching, the weights/matched sets were estimated under the
 #'   observed treatment distribution; applying a different regime requires
-#'   re-calling [causat()] with updated data.
+#'   re-calling [causat()] with updated data. `ipsi()` additionally requires
+#'   a fitted propensity model that is not yet wired through any engine
+#'   (Phase 4) and currently aborts for all methods.
+#'
+#'   **Survival contrasts are not yet implemented.** `contrast()` on a
+#'   `causatr_fit` returned by [causat_survival()] aborts with an
+#'   informative error. The pooled logistic fit itself works; only the
+#'   survival-curve contrast step is pending.
 #' @param type Character. The contrast scale: `"difference"` (default),
 #'   `"ratio"`, or `"or"` (odds ratio). All pairwise contrasts are reported.
 #' @param estimand Character or `NULL`. The target estimand: `"ATE"`,
@@ -550,6 +557,7 @@ compute_contrast <- function(
         fit_type = fit$type,
         vcov = lapply(results_list, function(r) r$vcov),
         boot_t = lapply(results_list, function(r) r$boot_t),
+        boot_info = lapply(results_list, function(r) r$boot_info),
         call = call
       )
     )
@@ -636,6 +644,7 @@ compute_contrast <- function(
     # Variance: sandwich via the IF engine (default, fast) or
     # bootstrap via `ice_variance_bootstrap()` (clustered on `id`).
     boot_t <- NULL
+    boot_info <- NULL
     if (ci_method == "sandwich") {
       vcov_mat <- variance_if(
         fit,
@@ -655,6 +664,7 @@ compute_contrast <- function(
       )
       vcov_mat <- boot_res$vcov
       boot_t <- boot_res$boot_t
+      boot_info <- boot_res$boot_info
     }
   } else {
     # ── Point-treatment g-computation / IPW / matching.
@@ -723,6 +733,7 @@ compute_contrast <- function(
     # / matching — the engine's dispatcher picks the right branch from
     # `fit$method`) or nonparametric bootstrap.
     boot_t <- NULL
+    boot_info <- NULL
     if (ci_method == "sandwich") {
       vcov_mat <- variance_if(
         fit,
@@ -745,6 +756,7 @@ compute_contrast <- function(
       )
       vcov_mat <- boot_res$vcov
       boot_t <- boot_res$boot_t
+      boot_info <- boot_res$boot_info
     }
   }
 
@@ -910,6 +922,7 @@ compute_contrast <- function(
     fit_type = fit$type,
     vcov = vcov_mat,
     boot_t = boot_t,
+    boot_info = boot_info,
     call = call
   )
 }

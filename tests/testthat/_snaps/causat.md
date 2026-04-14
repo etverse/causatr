@@ -108,7 +108,6 @@
       Error in `causat()`:
       ! Treatment variable 'A' has 1 missing value.
       i Use `censoring = '...'` for inverse probability of censoring weights.
-      i Use `causat_mice()` with a mice `mids` object for multiple imputation.
       i Or remove incomplete cases before calling `causat()`.
 
 # causat() rejects missing confounders_tv column

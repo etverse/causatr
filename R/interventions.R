@@ -185,6 +185,13 @@ dynamic <- function(rule) {
 #' increase the probability of treatment; `delta < 1` decrease it. This is a
 #' stochastic modified treatment policy indexed by a single scalar.
 #'
+#' **Status: not yet applicable** (planned Phase 4). The constructor is
+#' implemented and will appear in `fit$interventions`, but
+#' [contrast()] currently aborts when handed an `ipsi()` intervention
+#' because application requires a fitted propensity model that is not yet
+#' wired through the estimation engines. Use [shift()], [scale_by()], or
+#' [static()] with `method = "gcomp"` in the meantime.
+#'
 #' @param delta Positive numeric. The odds multiplier.
 #'
 #' @return A `causatr_intervention` object.

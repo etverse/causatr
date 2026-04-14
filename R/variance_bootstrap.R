@@ -7,8 +7,11 @@
 #' @param boot_res A `boot::boot` result object.
 #' @param int_names Character vector of intervention names.
 #' @param n_boot Integer. Total number of requested replicates.
-#' @return A list with `vcov` (k x k matrix) and `boot_t` (matrix of
-#'   successful replicates).
+#' @return A list with `vcov` (k x k matrix), `boot_t` (matrix of
+#'   successful replicates), and `boot_info` (a 3-element list of
+#'   `n_requested`, `n_ok`, `n_fail`) so downstream consumers
+#'   (`contrast()`, `print.causatr_result()`) can surface the bootstrap
+#'   failure rate without re-deriving it from `boot_t`.
 #' @noRd
 process_boot_results <- function(boot_res, int_names, n_boot) {
   # `boot_res$t` is an (R x k) matrix of statistics. Failed replicates
@@ -76,7 +79,15 @@ process_boot_results <- function(boot_res, int_names, n_boot) {
   boot_t <- t_mat[complete_rows, , drop = FALSE]
   colnames(boot_t) <- int_names
 
-  list(vcov = vcov_mat, boot_t = boot_t)
+  list(
+    vcov = vcov_mat,
+    boot_t = boot_t,
+    boot_info = list(
+      n_requested = n_boot,
+      n_ok = n_ok,
+      n_fail = n_fail
+    )
+  )
 }
 
 #' Bootstrap variance–covariance matrix for marginal means
@@ -239,6 +250,29 @@ refit_ipw <- function(fit, d_b, weights = NULL) {
     data = fit_data_b,
     estimand = fit$estimand
   )
+
+  # Mirror the alignment guard in `fit_ipw()` (R/ipw.R): WeightIt drops
+  # rows with missing PS-formula covariates, so `w_b$weights` may be
+  # shorter than `fit_rows_b`. The next-line external-weight multiply
+  # would then recycle silently and misalign weights to the wrong
+  # individuals. Abort the bootstrap replicate via an error that the
+  # outer `tryCatch` in `boot_fn()` will catch and convert to an NA
+  # row, so the failure is counted in `boot_info$n_fail` rather than
+  # silently producing a wrong vcov.
+  if (length(w_b$weights) != sum(fit_rows_b)) {
+    rlang::abort(
+      paste0(
+        "Bootstrap replicate: WeightIt returned ",
+        length(w_b$weights),
+        " weights but causatr selected ",
+        sum(fit_rows_b),
+        " fitting rows. A confounder column has missing values that ",
+        "WeightIt dropped; the multiply on the next line would recycle ",
+        "silently. Clean or impute the data before calling `causat()`."
+      ),
+      .call = FALSE
+    )
+  }
 
   if (!is.null(weights)) {
     w_b$weights <- w_b$weights * weights[fit_rows_b]

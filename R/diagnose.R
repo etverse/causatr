@@ -10,6 +10,12 @@
 #'   match quality summary (% matched, caliper info).
 #' - `"gcomp"`: unadjusted covariate imbalance between treatment groups.
 #'
+#' **Point-treatment fits only.** Diagnostics for longitudinal (ICE) fits
+#' are not yet implemented and `diagnose()` aborts with an informative
+#' error on a longitudinal `fit`. For longitudinal data, inspect
+#' per-period propensity / balance tables manually until a dedicated
+#' longitudinal path lands.
+#'
 #' @param fit A `causatr_fit` object returned by [causat()].
 #' @param stats Character vector. Balance statistics to compute. Passed to
 #'   `cobalt::bal.tab()`. For binary treatments, valid options include `"m"`

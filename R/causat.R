@@ -121,11 +121,16 @@
 #' in [contrast()], because the weights were estimated under the observed
 #' treatment distribution.
 #'
-#' For longitudinal data, calls `WeightIt::weightitMSM()`. The denominator
-#' model at each time `k` includes baseline confounders, concurrent
-#' time-varying confounders, and lagged treatment. The numerator model
-#' includes only baseline confounders and lagged treatment (standard
-#' stabilized weights), unless overridden via `numerator`.
+#' **Longitudinal IPW is not yet implemented** (planned Phase 4). The
+#' design below describes the target API; `method = "ipw"` with `id` and
+#' `time` currently aborts with an informative error. Use `method =
+#' "gcomp"` (which uses ICE g-computation for longitudinal data) in the
+#' meantime. When implemented, `WeightIt::weightitMSM()` will fit a
+#' denominator model at each time `k` that includes baseline confounders,
+#' concurrent time-varying confounders, and lagged treatment. The
+#' numerator model will include only baseline confounders and lagged
+#' treatment (standard stabilized weights), unless overridden via
+#' `numerator`.
 #'
 #' ## Matching (`method = "matching"`)
 #' Calls `MatchIt::matchit()` to create matched sets. The estimand is
@@ -228,7 +233,7 @@
 #' )
 #' }
 #'
-#' @seealso [contrast()], [diagnose()], [causat_survival()], [causat_mice()],
+#' @seealso [contrast()], [diagnose()], [causat_survival()],
 #'   [static()], [shift()], [dynamic()]
 #' @export
 causat <- function(

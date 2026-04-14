@@ -471,6 +471,49 @@ test_that("confint() respects level for both sandwich and bootstrap paths", {
 })
 
 
+test_that("bootstrap result carries boot_info and print() surfaces it", {
+  # Issue 5: previously, bootstrap failures were warned transiently
+  # and lost. `boot_info` now lives on the result so users can see
+  # the success/failure split at print time and post-hoc.
+  set.seed(7)
+  d <- simulate_binary_continuous(n = 200, seed = 7)
+  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L)
+
+  res_sand <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    ci_method = "sandwich"
+  )
+  res_boot <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    ci_method = "bootstrap",
+    n_boot = 50L
+  )
+
+  # Sandwich path stores nothing.
+  expect_null(res_sand$boot_info)
+
+  # Bootstrap path stores the 3-element list, with totals consistent.
+  expect_type(res_boot$boot_info, "list")
+  expect_named(res_boot$boot_info, c("n_requested", "n_ok", "n_fail"))
+  expect_equal(res_boot$boot_info$n_requested, 50L)
+  expect_equal(
+    res_boot$boot_info$n_ok + res_boot$boot_info$n_fail,
+    res_boot$boot_info$n_requested
+  )
+  # And matches the row count of the stored replicate matrix.
+  expect_equal(nrow(res_boot$boot_t), res_boot$boot_info$n_ok)
+
+  # print() surfaces a "Bootstrap: <n_ok>/<n_req>" line for the
+  # bootstrap result and not for the sandwich result.
+  out_boot <- utils::capture.output(print(res_boot))
+  out_sand <- utils::capture.output(print(res_sand))
+  expect_true(any(grepl("Bootstrap:", out_boot)))
+  expect_false(any(grepl("Bootstrap:", out_sand)))
+})
+
+
 test_that("ICE × bootstrap × external weights gives finite SE matching sandwich", {
   # Coverage gap: ICE+bootstrap+weights had no test. This is a
   # cross-cut of three previously-undertested features. Asserts:

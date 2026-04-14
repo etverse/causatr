@@ -40,7 +40,9 @@ If provided, rows where \code{censoring == 1} are excluded from fitting,
 and subsequent rows for that individual are also dropped.}
 
 \item{competing}{Character or \code{NULL}. Name of a variable indicating the
-type of competing event (for competing risks analysis).}
+type of competing event (for competing risks analysis). \strong{Not yet
+implemented}: supplying a non-\code{NULL} value currently aborts. Reserved
+for a future release.}
 
 \item{time_formula}{A one-sided formula specifying how time enters the
 hazard model. Default \code{~ splines::ns(time, 4)}. Use \code{~ factor(time)}
@@ -58,6 +60,13 @@ use with \code{\link[=contrast]{contrast()}}.
 \description{
 Convenience wrapper for causal survival analysis using pooled logistic
 regression as a discrete-time hazard model (Hernán & Robins Ch. 17).
+
+\strong{Status: scaffolded.} The pooled logistic fit itself is implemented,
+but the survival-curve contrast step in \code{\link[=contrast]{contrast()}} is not yet wired
+up and aborts with an informative error. Competing-risks analysis (the
+\code{competing} argument) is also not yet implemented and aborts at fit
+time when supplied. Treat this function as experimental until both
+paths land.
 \subsection{Algorithm}{
 \enumerate{
 \item Convert data to person-period format if not already long (using
