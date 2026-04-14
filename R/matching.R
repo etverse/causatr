@@ -127,34 +127,11 @@ fit_matching <- function(
   # confounding).  Match weights are applied via the `weights` argument.
   msm_formula <- stats::reformulate(treatment, response = outcome)
 
-  matched_weights <- matched_data$weights
-  if (!is.null(weights)) {
-    # `MatchIt::match.data()` preserves the rownames of `fit_data`,
-    # which `as.data.frame(data[fit_rows])` set to "1".."sum(fit_rows)".
-    # `matched_idx` is therefore a positional index into the
-    # length-`sum(fit_rows)` vector `weights[fit_rows]`. We assert
-    # the indices are in range before subsetting so a downstream
-    # refactor that breaks the row-name invariant fails loudly
-    # instead of producing NA-tainted or misaligned weights.
-    matched_idx <- as.integer(rownames(matched_data))
-    fit_w <- weights[fit_rows]
-    if (
-      anyNA(matched_idx) ||
-        any(matched_idx < 1L) ||
-        any(matched_idx > length(fit_w))
-    ) {
-      rlang::abort(
-        paste0(
-          "Cannot align external weights to matched data: matched-row ",
-          "indices fall outside `weights[fit_rows]` (length ",
-          length(fit_w),
-          "). This indicates a row-name invariant violation in `fit_data`."
-        ),
-        .call = FALSE
-      )
-    }
-    matched_weights <- matched_weights * fit_w[matched_idx]
-  }
+  matched_weights <- combine_match_and_external_weights(
+    matched_data,
+    external_weights = weights,
+    fit_rows = fit_rows
+  )
 
   model <- stats::glm(
     msm_formula,
@@ -192,4 +169,67 @@ fit_matching <- function(
       weights = weights
     )
   )
+}
+
+
+#' Combine MatchIt match weights with optional external weights
+#'
+#' @description
+#' `MatchIt::match.data()` returns a data frame whose rownames are the
+#' positional indices of `fit_data` (which, in turn, was built via
+#' `as.data.frame(data[fit_rows])`). To attach an external weight vector
+#' (e.g. survey weights) to the matched sample we therefore need to:
+#' (1) subset `external_weights` to the fit rows, and
+#' (2) reindex by `as.integer(rownames(matched_data))` so each matched row
+#'     picks up its original observation's weight.
+#'
+#' Used by both `fit_matching()` (at fit time) and `refit_matching()` (at
+#' bootstrap time) so the row-name invariant is asserted in exactly one
+#' place; a future change to `as.data.frame.data.table`'s rowname
+#' behavior surfaces as a single loud abort rather than two silently
+#' drifting call sites.
+#'
+#' @param matched_data Data frame returned by `MatchIt::match.data()`. Must
+#'   carry a `weights` column (match weights) and rownames that parse as
+#'   integer positional indices into `fit_rows`.
+#' @param external_weights Numeric vector of length `nrow(data)` or `NULL`.
+#'   The external (survey / IPCW) weights passed to `causat()`.
+#' @param fit_rows Logical vector of length `nrow(data)` flagging which rows
+#'   were passed to `MatchIt::matchit()`.
+#'
+#' @return Numeric vector of combined weights, length `nrow(matched_data)`.
+#'
+#' @noRd
+combine_match_and_external_weights <- function(
+  matched_data,
+  external_weights,
+  fit_rows
+) {
+  matched_weights <- matched_data$weights
+  if (is.null(external_weights)) {
+    return(matched_weights)
+  }
+  matched_idx <- as.integer(rownames(matched_data))
+  fit_w <- external_weights[fit_rows]
+  # Range + NA check: the invariant is that rownames(matched_data) are
+  # positional indices in 1..sum(fit_rows). Any violation here means the
+  # rowname assumption has been broken upstream (e.g. by a change in
+  # `as.data.frame.data.table`), in which case the weight alignment
+  # would silently corrupt the IF / bootstrap estimates.
+  if (
+    anyNA(matched_idx) ||
+      any(matched_idx < 1L) ||
+      any(matched_idx > length(fit_w))
+  ) {
+    rlang::abort(
+      paste0(
+        "Cannot align external weights to matched data: matched-row ",
+        "indices fall outside `external_weights[fit_rows]` (length ",
+        length(fit_w),
+        "). This indicates a row-name invariant violation in `fit_data`."
+      ),
+      .call = FALSE
+    )
+  }
+  matched_weights * fit_w[matched_idx]
 }
