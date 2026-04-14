@@ -19,9 +19,14 @@ website:
     contents:
       - text: Home
         file: index.md
+      # Single-item sections need the explicit text:/file: form.
+      # altdoc serializes the sidebar via yaml::as.yaml(), which
+      # collapses a one-item `- foo.qmd` sequence into the scalar
+      # `contents: foo.qmd` and breaks Quarto's sidebar link.
       - section: Getting started
         contents:
-          - vignettes/introduction.qmd
+          - text: "Introduction"
+            file: vignettes/introduction.qmd
       - section: Estimation methods
         contents:
           - vignettes/gcomp.qmd
@@ -34,7 +39,8 @@ website:
           - vignettes/survival.qmd
       - section: Theory
         contents:
-          - vignettes/variance-theory.qmd
+          - text: "Variance estimation"
+            file: vignettes/variance-theory.qmd
       - section: $ALTDOC_MAN_BLOCK
       - text: News
         file: $ALTDOC_NEWS
