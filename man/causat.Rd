@@ -47,7 +47,9 @@ for point treatments. If \code{NULL}, no time-varying confounders are used.}
 
 \item{method}{Character. Estimation method: \code{"gcomp"} (default), \code{"ipw"},
 or \code{"matching"}. IPW requires the \code{WeightIt} package; matching requires
-the \code{MatchIt} package.}
+the \code{MatchIt} package. Note: \code{"matching"} is restricted to \strong{binary
+point treatments} (MatchIt does not support multi-category or
+continuous treatments); use \code{"gcomp"} or \code{"ipw"} for those cases.}
 
 \item{family}{Character or family object. The outcome model family
 (e.g. \code{"gaussian"}, \code{"binomial"}, \code{stats::quasibinomial()}). Used by
@@ -175,7 +177,10 @@ stabilized weights), unless overridden via \code{numerator}.
 
 Calls \code{MatchIt::matchit()} to create matched sets. The estimand is
 fixed at fitting time. Only \code{static()} interventions are supported
-in \code{\link[=contrast]{contrast()}}.
+in \code{\link[=contrast]{contrast()}}. \strong{Matching is binary-only}: \code{MatchIt} does not
+support categorical (k > 2 levels) or continuous treatments, and
+causatr aborts with a clear error in both cases. Use \code{method = "gcomp"} or \code{method = "ipw"} for categorical / continuous
+treatments. Longitudinal matching is also unsupported.
 }
 
 \subsection{Estimands}{\tabular{lll}{

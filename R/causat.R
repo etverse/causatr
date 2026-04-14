@@ -30,7 +30,9 @@
 #'   for point treatments. If `NULL`, no time-varying confounders are used.
 #' @param method Character. Estimation method: `"gcomp"` (default), `"ipw"`,
 #'   or `"matching"`. IPW requires the `WeightIt` package; matching requires
-#'   the `MatchIt` package.
+#'   the `MatchIt` package. Note: `"matching"` is restricted to **binary
+#'   point treatments** (MatchIt does not support multi-category or
+#'   continuous treatments); use `"gcomp"` or `"ipw"` for those cases.
 #' @param family Character or family object. The outcome model family
 #'   (e.g. `"gaussian"`, `"binomial"`, `stats::quasibinomial()`). Used by
 #'   all methods: passed to the outcome model for `"gcomp"`, to the MSM for
@@ -128,7 +130,11 @@
 #' ## Matching (`method = "matching"`)
 #' Calls `MatchIt::matchit()` to create matched sets. The estimand is
 #' fixed at fitting time. Only `static()` interventions are supported
-#' in [contrast()].
+#' in [contrast()]. **Matching is binary-only**: `MatchIt` does not
+#' support categorical (k > 2 levels) or continuous treatments, and
+#' causatr aborts with a clear error in both cases. Use `method =
+#' "gcomp"` or `method = "ipw"` for categorical / continuous
+#' treatments. Longitudinal matching is also unsupported.
 #'
 #' ## Estimands
 #' | Estimand | Population averaged over | Applicability |

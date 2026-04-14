@@ -26,9 +26,13 @@ dataset from Hernán & Robins (2025), covering every supported combination of
 treatment type, outcome type, contrast scale, and inference method for
 time-fixed treatments.
 
-**Note:** Matching currently supports only `static()` interventions and binary
-treatments. For modified treatment policies, use g-computation (see
-`vignette("gcomp")`).
+**Note:** Matching supports only `static()` interventions and **binary
+point treatments**. `MatchIt` itself is binary-only, so categorical
+(k > 2 levels) and continuous treatments are rejected up front with a
+clear error — use `method = "gcomp"` or `method = "ipw"` for those.
+Longitudinal matching is also not supported. For modified treatment
+policies (shift / scale / threshold / dynamic / MTP), use
+g-computation (see `vignette("gcomp")`).
 
 ## Setup
 
