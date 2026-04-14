@@ -596,12 +596,16 @@ compute_contrast <- function(
     rows_first <- data[[time_col]] == first_time
 
     if (!is.null(subset)) {
-      # Evaluate the user's subset expression in the environment of
-      # the full data.table, then AND with the baseline-row mask. This
-      # lets users write things like `quote(age > 50)` and have it
-      # interpreted over the first time point's covariates.
+      # Evaluate the user's subset expression against the full
+      # data.table, then AND with the baseline-row mask. `data` is
+      # already a data.table (inheriting from list), so `eval()` can
+      # look up column names directly without us having to
+      # `as.list()`-materialize a copy. Passing `enclos = parent.frame()`
+      # preserves the caller's lexical scope so expressions like
+      # `quote(age > cutoff)` can still resolve `cutoff` from the
+      # user's session.
       target_baseline <- rows_first &
-        as.logical(eval(subset, envir = as.list(data)))
+        as.logical(eval(subset, envir = data, enclos = parent.frame()))
     } else {
       target_baseline <- rows_first
     }
@@ -813,6 +817,52 @@ compute_contrast <- function(
       ". The odds ratio is undefined when the probability is 0 or 1."
     ))
   }
+  # Ratios and odds ratios use a log-scale delta method CI (see below).
+  # log() of a negative or zero ratio is NaN / -Inf, so we must reject
+  # any comparison where the reference and an alternative have opposite
+  # signs — legal for Gaussian outcomes where mu can be negative, fatal
+  # for the exp(log(R) ± z se_log) CI construction. Odds ratios inherit
+  # the same concern via the OR formula's mu/(1-mu) term, which can
+  # cross zero for Gaussian outcomes. Abort with a clear message
+  # pointing to `type = "difference"` or a binomial/poisson/gamma
+  # refit so users are not handed silent NaN CIs.
+  if (type %in% c("ratio", "or")) {
+    neg_mu <- mu_hat[!is.na(mu_hat)] <= 0
+    if (any(neg_mu)) {
+      bad <- names(mu_hat)[which(mu_hat <= 0)]
+      rlang::abort(paste0(
+        "type = '",
+        type,
+        "' requires all intervention-specific marginal means to be ",
+        "strictly positive, but '",
+        paste(bad, collapse = "', '"),
+        "' ",
+        if (length(bad) == 1L) "has" else "have",
+        " a non-positive estimate (mu_hat = ",
+        paste(round(mu_hat[bad], 4), collapse = ", "),
+        "). The log-scale delta method CI is undefined for non-positive ",
+        "ratios. Use `type = \"difference\"` for Gaussian outcomes, or ",
+        "refit with a binomial / poisson / gamma family for ratios."
+      ))
+    }
+    if (type == "or") {
+      gt1_mu <- mu_hat >= 1
+      if (any(gt1_mu)) {
+        bad <- names(mu_hat)[which(mu_hat >= 1)]
+        rlang::abort(paste0(
+          "type = 'or' requires all intervention-specific marginal means ",
+          "to lie strictly in (0, 1) (they are probabilities), but '",
+          paste(bad, collapse = "', '"),
+          "' ",
+          if (length(bad) == 1L) "has" else "have",
+          " a mean >= 1 (mu_hat = ",
+          paste(round(mu_hat[bad], 4), collapse = ", "),
+          "). Refit with `family = \"binomial\"` / `\"quasibinomial\"` ",
+          "or use `type = \"difference\"`."
+        ))
+      }
+    }
+  }
 
   # Pairwise contrasts a_j vs a_ref via the delta method on the vcov.
   # The vcov from `variance_if()` is on the (mu_1, mu_2, ..., mu_k)
@@ -945,9 +995,12 @@ compute_contrast <- function(
 #'
 #' @noRd
 get_target_idx <- function(data, treatment, estimand, subset) {
-  # A quoted subset expression always takes priority over the estimand keyword.
+  # A quoted subset expression always takes priority over the estimand
+  # keyword. `data` is a data.table (list-like), so `eval()` can resolve
+  # column names directly; `enclos = parent.frame()` preserves the
+  # caller's scope for expressions that reference session variables.
   if (!is.null(subset)) {
-    return(as.logical(eval(subset, envir = as.list(data))))
+    return(as.logical(eval(subset, envir = data, enclos = parent.frame())))
   }
   if (estimand == "ATE") {
     # Average over all individuals in the dataset.
