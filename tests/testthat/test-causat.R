@@ -38,6 +38,36 @@ test_that("causat() rejects time without id", {
   )
 })
 
+test_that("causat() rejects NA / non-finite / negative / mis-sized weights", {
+  df <- data.frame(Y = stats::rnorm(50), A = stats::rbinom(50, 1, 0.5), L = stats::rnorm(50))
+
+  expect_snapshot(
+    error = TRUE,
+    causat(df, outcome = "Y", treatment = "A", confounders = ~L,
+           weights = c(NA, rep(1, 49)))
+  )
+  expect_snapshot(
+    error = TRUE,
+    causat(df, outcome = "Y", treatment = "A", confounders = ~L,
+           weights = c(Inf, rep(1, 49)))
+  )
+  expect_snapshot(
+    error = TRUE,
+    causat(df, outcome = "Y", treatment = "A", confounders = ~L,
+           weights = c(-1, rep(1, 49)))
+  )
+  expect_snapshot(
+    error = TRUE,
+    causat(df, outcome = "Y", treatment = "A", confounders = ~L,
+           weights = rep(1, 40))
+  )
+  expect_snapshot(
+    error = TRUE,
+    causat(df, outcome = "Y", treatment = "A", confounders = ~L,
+           weights = as.character(rep(1, 50)))
+  )
+})
+
 test_that("causat() successfully fits a gcomp model", {
   df <- data.frame(
     Y = c(1, 2, 3, 4, 5, 6, 7, 8),

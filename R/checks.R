@@ -84,6 +84,21 @@ check_intervention_list <- function(x, call = rlang::caller_env()) {
       call = call
     )
   }
+  # Names must be unique: duplicates otherwise slip through silently
+  # and produce stale rows in the estimates / contrasts tables (the
+  # second entry with the same name shadows the first in named-vector
+  # indexing, but rbindlist / data.table still emits both).
+  if (anyDuplicated(names(x))) {
+    dups <- unique(names(x)[duplicated(names(x))])
+    rlang::abort(
+      paste0(
+        "`interventions` has duplicated name(s): ",
+        paste0("'", dups, "'", collapse = ", "),
+        ". Each intervention must have a unique name."
+      ),
+      call = call
+    )
+  }
   # Per-element validation. Three valid shapes:
   #   (a) `NULL`           — natural course (observed treatment as-is)
   #   (b) causatr_intervention — bare intervention for scalar treatment
@@ -454,4 +469,76 @@ check_causat_inputs <- function(
       )
     }
   }
+}
+
+
+#' Validate an external weight vector before handing it to a fitter
+#'
+#' @description
+#' Up-front check on the `weights` argument passed to `causat()` or
+#' `causat_survival()`. Historically non-finite or negative weights
+#' silently fell through to the downstream GLM or to `WeightIt`, which
+#' either aborted with a cryptic message or (worse) produced NaN
+#' estimates. Reject at the causatr boundary so users see a specific
+#' error with the failing call site.
+#'
+#' Zero weights are allowed as a pass-through even though they carry
+#' no information on their own — users sometimes use zero weights to
+#' implement a conditional subset, and the downstream fitter handles
+#' it fine.
+#'
+#' @param weights Numeric vector or `NULL`.
+#' @param n Expected length (number of rows in the data passed to
+#'   `causat()`).
+#' @param call Caller environment for error messages.
+#'
+#' @return `NULL` invisibly; aborts on invalid input.
+#'
+#' @noRd
+check_weights <- function(weights, n, call = rlang::caller_env()) {
+  if (is.null(weights)) {
+    return(invisible(NULL))
+  }
+  if (!is.numeric(weights)) {
+    rlang::abort(
+      "`weights` must be numeric.",
+      call = call
+    )
+  }
+  if (length(weights) != n) {
+    rlang::abort(
+      paste0(
+        "`weights` must have length equal to `nrow(data)` (",
+        n,
+        "), got ",
+        length(weights),
+        "."
+      ),
+      call = call
+    )
+  }
+  if (anyNA(weights)) {
+    rlang::abort(
+      paste0(
+        "`weights` contains ",
+        sum(is.na(weights)),
+        " missing value(s). ",
+        "Drop those rows or impute before calling `causat()`."
+      ),
+      call = call
+    )
+  }
+  if (any(!is.finite(weights))) {
+    rlang::abort(
+      "`weights` contains non-finite value(s) (Inf / NaN).",
+      call = call
+    )
+  }
+  if (any(weights < 0)) {
+    rlang::abort(
+      "`weights` must be non-negative.",
+      call = call
+    )
+  }
+  invisible(NULL)
 }

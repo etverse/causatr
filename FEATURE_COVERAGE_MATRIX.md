@@ -192,10 +192,73 @@ the supported intervention / variance shapes differ across methods.
 | S3 methods: print, summary, plot, coef, vcov, confint, tidy, glance | ✅ smoke | test-s3-methods.R |
 | `confint()` respects `level` arg (sandwich path) | ✅ smoke | test-s3-methods.R |
 | `confint()` consistency between sandwich and bootstrap on `level` | ✅ unit + monotonicity | test-s3-methods.R |
+| `causat()` rejects NA / Inf / negative / mis-sized / non-numeric weights | ✅ snapshot | test-causat.R |
+| `contrast()` rejects duplicated intervention names | ✅ snapshot | test-contrast.R |
+| `contrast()` rejects empty intervention list | ✅ snapshot | test-contrast.R |
 | `causat_mice()` (multiple imputation wrapper) | 🟡 stubbed | test-causat-mice.R |
 | Numeric variance Tier 1 (estfun-based fallback) | ✅ unit (analytic IF to ~1e-6) | test-variance-if.R |
 | Numeric variance Tier 2 (delta shortcut + warn) | ✅ e2e via custom `model_fn` | test-variance-if.R |
 | Cluster-robust matching variance (vs an IF-level reference) | ✅ unit (hand-computed sum-then-square) + e2e | test-variance-if.R, test-simulation.R |
+
+---
+
+## Planned coverage (future phases)
+
+These rows capture the target coverage for features the scaffold and
+`PHASE_*.md` files commit to, but that are not yet implemented. They
+are listed here so (a) the matrix reflects the full design intent, not
+just what's shipped, and (b) a future PR that lands the implementation
+has an explicit checklist to fill in.
+
+### Phase 4 — Self-contained IPW for non-static interventions
+
+| Treatment | Outcome | Intervention | Variance | Status | Notes |
+|---|---|---|---|---|---|
+| binary | gaussian | shift | sandwich | ❌ planned | density-ratio weight engine pending |
+| binary | gaussian | scale_by | sandwich | ❌ planned | — |
+| binary | gaussian | threshold | sandwich | ❌ planned | — |
+| binary | gaussian | dynamic | sandwich | ❌ planned | — |
+| binary | gaussian | ipsi(δ) | sandwich | ❌ planned | requires propensity density model |
+| continuous | gaussian | shift / MTP | sandwich | ❌ planned | — |
+| binary | binomial | shift / MTP | sandwich | ❌ planned | — |
+| multivariate | gaussian | any | any | ❌ planned | Phase 4/7 |
+| longitudinal | any | static | sandwich | ❌ planned | delegate to `WeightIt::weightitMSM()` |
+| variance engine Branch B (self-contained IPW) | — | — | sandwich | ❌ planned | `correct_propensity_self_contained()` stub exists; tests T1–T4 from `PHASE_4_INTERVENTIONS_SELF_IPW.md` |
+
+### Phase 6 — Survival contrasts and competing risks
+
+| Treatment | Outcome | Intervention | Quantity | Variance | Status | Notes |
+|---|---|---|---|---|---|---|
+| binary | survival | static | survival curve S^a(t) | sandwich | ❌ planned | per-individual hazard → cumulative product |
+| binary | survival | static | risk at time t | sandwich | ❌ planned | 1 − S^a(t) |
+| binary | survival | static | risk difference | sandwich | ❌ planned | (1 − S^{a1}) − (1 − S^{a0}) |
+| binary | survival | static | risk ratio | sandwich | ❌ planned | delta method on cumulative product |
+| binary | survival | static | any | bootstrap | ❌ planned | refit → cumulative product per replicate |
+| any | survival | any | cause-specific CIF | sandwich | ❌ planned | competing risks |
+| binary | survival | dynamic | survival curve | sandwich | ❌ planned | Ch. 17 dynamic strategies |
+| longitudinal + ICE survival | any | static/dynamic | survival curve | sandwich | ❌ planned | backward iteration with hazard models |
+| NHEFS 120-month survival replication (Ch. 17) | — | — | risk difference | sandwich | ❌ planned | target ≈ 0.2%, 95% CI ≈ (−4.1%, 3.7%) |
+
+### Phase 7 — Advanced
+
+| Feature | Status | Notes |
+|---|---|---|
+| Survey weights pass-through + adjusted sandwich | 🟡 partial | Current `weights` arg supports basic survey weights; needs explicit `survey` design integration |
+| Cluster-robust sandwich beyond matching subclass | ❌ planned | `sandwich::vcovCL()` integration for cluster-resampled designs |
+| Parallel bootstrap via `boot::boot(parallel=, ncpus=)` | ✅ done | tests in `test-ice.R`, `test-s3-methods.R` |
+| Parallel bootstrap via `future` backend | ❌ planned | alternative to `boot::boot()` built-in parallelism |
+| Multivariate treatment: joint interventions | ✅ done | test-multivariate.R |
+| Continuous treatment vignette | ❌ planned | companion to `vignettes/gcomp.qmd` |
+| `target_trial()` metadata / specification helper | ❌ planned | Ch. 22 |
+| Documentation: collider / LASSO confounder selection → `dagitty` | ❌ planned | Ch. 18 |
+| Documentation: ML in g-formula → `lmtp` | ❌ planned | Ch. 18 |
+| Sequential positivity warnings (longitudinal) | ❌ planned | Phase 7 (deferred from Phase 5) |
+| Stratified ICE option (`stratified = TRUE`) | ❌ planned | Phase 7 (deferred from Phase 5) |
+| Multinomial outcomes across methods | ❌ planned | `nnet::multinom()` or `VGAM::vglm(multinomial())` |
+| Ordinal outcomes (cumulative probability contrasts) | ❌ planned | `MASS::polr()` / `ordinal::clm()` |
+| Grace period / visit process interventions | ❌ planned | cf. `gfoRmula` visitprocess |
+| "% intervened on" feasibility diagnostic | ❌ planned | cf. `gfoRmula` |
+| ICE: auto-expand treatment × baseline-modifier interaction to all lag periods | ❌ planned | current behavior handles current-period A × modifier only; lagged treatments do not get auto-expanded modifier interactions. See the `~ A:sex` discussion in the longitudinal section — the fix is a formula-template expansion in `ice_build_formula()` |
 
 ---
 

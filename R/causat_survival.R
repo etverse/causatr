@@ -94,6 +94,11 @@ causat_survival <- function(
     }
   }
 
+  # Same up-front weights validation as `causat()` — reject NA,
+  # non-finite, negative, or mis-sized weight vectors so users see a
+  # specific error instead of a cryptic GLM abort.
+  check_weights(weights, nrow(data))
+
   # `competing` is reserved for Phase 6 (sub-distribution hazard /
   # Aalen-Johansen). The pooled-logistic path here does NOT apply
   # any competing-risks adjustment, so accepting a non-NULL value

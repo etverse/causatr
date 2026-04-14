@@ -14,6 +14,22 @@
       Error in `contrast()`:
       ! All elements of `interventions` must be named.
 
+# contrast() rejects duplicated intervention names
+
+    Code
+      contrast(fit, list(a = static(1), a = static(0)))
+    Condition
+      Error in `contrast()`:
+      ! `interventions` has duplicated name(s): 'a'. Each intervention must have a unique name.
+
+# contrast() rejects an empty intervention list
+
+    Code
+      contrast(fit, interventions = list())
+    Condition
+      Error in `contrast()`:
+      ! `interventions` must be a named list with at least one intervention.
+
 # contrast() rejects non-static interventions for IPW
 
     Code

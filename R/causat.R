@@ -317,6 +317,14 @@ causat <- function(
   # lag materialization is what actually exposes the NAs at baseline.
   check_treatment_nas(data, treatment, censoring)
 
+  # Validate external weights up front. Earlier versions silently
+  # passed non-finite / negative weights through to the fit step,
+  # where GLM's own check sometimes aborted with a cryptic message and
+  # sometimes silently produced NaN estimates. Reject at the causatr
+  # boundary with a specific error so users know which call site is
+  # the problem.
+  check_weights(weights, nrow(data))
+
   # Dispatch to the method-specific fitter. Each returns a
   # `causatr_fit` with the same S3 class and slot structure, which
   # contrast() and diagnose() then consume uniformly.

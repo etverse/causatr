@@ -10,6 +10,22 @@ test_that("contrast() rejects unnamed intervention list", {
   )
 })
 
+test_that("contrast() rejects duplicated intervention names", {
+  fit <- structure(list(method = "gcomp"), class = "causatr_fit")
+  expect_snapshot(
+    error = TRUE,
+    contrast(fit, list(a = static(1), a = static(0)))
+  )
+})
+
+test_that("contrast() rejects an empty intervention list", {
+  fit <- structure(list(method = "gcomp"), class = "causatr_fit")
+  expect_snapshot(
+    error = TRUE,
+    contrast(fit, interventions = list())
+  )
+})
+
 test_that("contrast() rejects non-static interventions for IPW", {
   fit <- structure(list(method = "ipw"), class = "causatr_fit")
   expect_snapshot(

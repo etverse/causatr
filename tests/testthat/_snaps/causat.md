@@ -38,6 +38,51 @@
       Error in `causat()`:
       ! Both `id` and `time` must be provided together for longitudinal data.
 
+# causat() rejects NA / non-finite / negative / mis-sized weights
+
+    Code
+      causat(df, outcome = "Y", treatment = "A", confounders = ~L, weights = c(NA,
+        rep(1, 49)))
+    Condition
+      Error in `causat()`:
+      ! `weights` contains 1 missing value(s). Drop those rows or impute before calling `causat()`.
+
+---
+
+    Code
+      causat(df, outcome = "Y", treatment = "A", confounders = ~L, weights = c(Inf,
+        rep(1, 49)))
+    Condition
+      Error in `causat()`:
+      ! `weights` contains non-finite value(s) (Inf / NaN).
+
+---
+
+    Code
+      causat(df, outcome = "Y", treatment = "A", confounders = ~L, weights = c(-1,
+        rep(1, 49)))
+    Condition
+      Error in `causat()`:
+      ! `weights` must be non-negative.
+
+---
+
+    Code
+      causat(df, outcome = "Y", treatment = "A", confounders = ~L, weights = rep(1,
+        40))
+    Condition
+      Error in `causat()`:
+      ! `weights` must have length equal to `nrow(data)` (50), got 40.
+
+---
+
+    Code
+      causat(df, outcome = "Y", treatment = "A", confounders = ~L, weights = as.character(
+        rep(1, 50)))
+    Condition
+      Error in `causat()`:
+      ! `weights` must be numeric.
+
 # causat() rejects ATT for continuous treatment
 
     Code
