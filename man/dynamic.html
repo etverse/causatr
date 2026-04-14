@@ -470,7 +470,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="unnumbered anchored" data-anchor-id="dynamic-treatment-rule">Dynamic treatment rule</h2>
 <section id="description" class="level3">
 <h3 class="anchored" data-anchor-id="description">Description</h3>
-<p>Creates a dynamic intervention where the treatment at each time point is determined by a user-supplied function of the covariate history. The function <code>rule</code> receives the current data (subset to the current time point) and the observed treatment vector, and returns the intervened treatment vector.</p>
+<p>Creates a dynamic intervention where treatment is determined by a user-supplied function of the covariate history. When <code>contrast()</code> evaluates the intervention, <code>rule</code> receives two arguments:</p>
+<ul>
+<li>
+<p><code>data</code>: the <strong>full</strong> counterfactual data.table (a copy of <code>fit$data</code> with all columns intact, including lag columns for longitudinal fits). For point treatments this is one row per individual; for longitudinal ICE it is the entire person-period panel at once. The rule is called once per intervention, not once per time step.</p>
+</li>
+<li>
+<p><code>treatment</code>: the observed (or currently-held) treatment vector, length <code>nrow(data)</code>.</p>
+</li>
+</ul>
+<p><code>rule</code> must return a numeric vector of length <code>nrow(data)</code>. To branch on time, reference the time column directly (e.g.&nbsp;<code>data$time == 0</code>). To reference the treatment or covariate history in longitudinal data, use the materialised lag columns (<code>data$lag1_A</code>, <code>data$lag1_L</code>, …) that <code>prepare_data()</code> built from <code>history</code>.</p>
 </section>
 <section id="usage" class="level3">
 <h3 class="anchored" data-anchor-id="usage">Usage</h3>
@@ -485,7 +494,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <code id="rule">rule</code>
 </td>
 <td>
-A function with signature <code style="white-space: pre;">function(data, treatment)</code> that returns a vector of treatment values of the same length as <code>nrow(data)</code>.
+A function with signature <code style="white-space: pre;">function(data, treatment)</code> that returns a vector of treatment values of length <code>nrow(data)</code>.
 </td>
 </tr>
 </tbody></table>
@@ -507,8 +516,13 @@ A function with signature <code style="white-space: pre;">function(data, treatme
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">"causatr"</span>)</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Treat if CD4 count is below 200</span></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>cd4_rule <span class="ot">&lt;-</span> <span class="fu">dynamic</span>(\(data, trt) <span class="fu">ifelse</span>(data<span class="sc">$</span>cd4 <span class="sc">&lt;</span> <span class="dv">200</span>, <span class="dv">1</span>, <span class="dv">0</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Point treatment: treat if CD4 count is below 200</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>cd4_rule <span class="ot">&lt;-</span> <span class="fu">dynamic</span>(\(data, trt) <span class="fu">ifelse</span>(data<span class="sc">$</span>cd4 <span class="sc">&lt;</span> <span class="dv">200</span>, <span class="dv">1</span>, <span class="dv">0</span>))</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Longitudinal: treat at time k if a time-varying confounder triggered</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co"># at time k (the whole panel is passed in one call; the time column</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="co"># lets the rule dispatch per-row).</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>adaptive <span class="ot">&lt;-</span> <span class="fu">dynamic</span>(\(data, trt) <span class="fu">as.integer</span>(<span class="sc">!</span><span class="fu">is.na</span>(data<span class="sc">$</span>L) <span class="sc">&amp;</span> data<span class="sc">$</span>L <span class="sc">&gt;</span> <span class="dv">0</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 
 

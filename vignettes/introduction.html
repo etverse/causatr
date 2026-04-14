@@ -726,23 +726,24 @@ window.Quarto = {
 <td>Continuous</td>
 <td>Yes</td>
 <td>Yes (GPS)</td>
-<td>No</td>
+<td>No (MatchIt binary-only)</td>
 </tr>
 <tr class="odd">
-<td>Categorical</td>
+<td>Categorical (k &gt; 2)</td>
 <td>Yes</td>
 <td>Yes</td>
-<td>Yes</td>
+<td>No (MatchIt binary-only)</td>
 </tr>
 <tr class="even">
-<td>Multivariate</td>
+<td>Multivariate (joint)</td>
 <td>Yes</td>
-<td>Not yet</td>
-<td>Not yet</td>
+<td>Not yet (Phase 4)</td>
+<td>Not yet (Phase 7)</td>
 </tr>
 </tbody>
 </table>
 <p>For multivariate treatments (e.g.&nbsp;<code>treatment = c("A1", "A2")</code>), supply interventions as named lists with one element per treatment variable.</p>
+<p>Effect modification in the outcome / MSM model itself (e.g.&nbsp;<code>~ L + sex + A:sex</code>) is currently supported only for g-computation. IPW and matching wrap a saturated <code>Y ~ A</code> MSM around the propensity / matched design, and reject an <code>A:modifier</code> term up front — use <code>method = "gcomp"</code> for heterogeneous effects, or <code>by = "modifier"</code> below for stratum-specific summaries of a homogeneous effect. See <code>PHASE_8_INTERACTIONS.md</code> for the planned unified API.</p>
 </section>
 <section id="effect-modification" class="level2">
 <h2 class="anchored" data-anchor-id="effect-modification">Effect modification</h2>

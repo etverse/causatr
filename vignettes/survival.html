@@ -23,6 +23,41 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
 </style>
 
 
@@ -71,6 +106,35 @@ ul.task-list li input[type="checkbox"] {
   }
 }</script>
 
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
 
 </head>
 
@@ -408,8 +472,19 @@ ul.task-list li input[type="checkbox"] {
 <div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
 <!-- margin-sidebar -->
     <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
-        
-    <div class="quarto-code-links"><h2>Code Links</h2><ul><li><a href="undefined"><i class="bi bi-link-45deg"></i></a></li></ul></div></div>
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#setup" id="toc-setup" class="nav-link active" data-scroll-target="#setup">Setup</a></li>
+  <li><a href="#fitting-the-pooled-logistic-hazard-model" id="toc-fitting-the-pooled-logistic-hazard-model" class="nav-link" data-scroll-target="#fitting-the-pooled-logistic-hazard-model">Fitting the pooled logistic hazard model</a></li>
+  <li><a href="#contrasts-not-yet-implemented" id="toc-contrasts-not-yet-implemented" class="nav-link" data-scroll-target="#contrasts-not-yet-implemented">Contrasts (not yet implemented)</a></li>
+  <li><a href="#workaround-pooled-logistic-fit-diagnostics-today" id="toc-workaround-pooled-logistic-fit-diagnostics-today" class="nav-link" data-scroll-target="#workaround-pooled-logistic-fit-diagnostics-today">Workaround: pooled logistic fit diagnostics today</a></li>
+  <li><a href="#tracking-phase-6" id="toc-tracking-phase-6" class="nav-link" data-scroll-target="#tracking-phase-6">Tracking Phase 6</a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
+  </ul>
+<div class="quarto-code-links"><h2>Code Links</h2><ul><li><a href="undefined"><i class="bi bi-link-45deg"></i></a></li></ul></div></nav>
+    </div>
 <!-- main -->
 <main class="content" id="quarto-document-content">
 
@@ -432,11 +507,86 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<!-- TODO: write survival vignette -->
-<!-- Cover: causat_survival(), pooled logistic regression, survival curves -->
-<!-- under intervention, competing risks, replicating Chapter 17 estimates -->
+<p>This vignette covers causal survival analysis in causatr. The current implementation (Phase 6 scaffolding) exposes a fit-only path via <code>causat_survival()</code>; the survival-curve contrast step (needed to produce counterfactual survival curves, risk differences, and risk ratios under each intervention) is still in development and currently aborts with an informative error. Competing-risks analysis is also reserved for Phase 6.</p>
+<p>The intended end-to-end workflow, once the contrast path lands, is a direct translation of Chapter 17 of Hernán &amp; Robins (2025): a discrete-time hazard model fit by pooled logistic regression, followed by an individual-level prediction sweep to obtain S^a(t) = prod(1 - h^a(m)) under each intervention.</p>
+<section id="setup" class="level2">
+<h2 class="anchored" data-anchor-id="setup">Setup</h2>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(causatr)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"nhefs"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The NHEFS dataset includes a binary event indicator <code>death</code> (1 if the individual died during follow-up) and a continuous <code>yrdth</code> column with the year of death. For the pooled-logistic path we need person-period data with one row per (individual, time interval). <code>to_person_period()</code> performs the wide-to-long conversion.</p>
+</section>
+<section id="fitting-the-pooled-logistic-hazard-model" class="level2">
+<h2 class="anchored" data-anchor-id="fitting-the-pooled-logistic-hazard-model">Fitting the pooled logistic hazard model</h2>
+<p><code>causat_survival()</code> converts data to person-period format (if not already), fits a pooled logistic regression for the discrete hazard <span class="math inline">\(\text{logit Pr}[D_{k+1} = 1 | \text{survived to } k, A, L]\)</span>, and stores the fitted model in a <code>causatr_fit</code> object of <code>type = "survival"</code>.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>fit_surv <span class="ot">&lt;-</span> <span class="fu">causat_survival</span>(</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  nhefs_person_period,</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"death_indicator"</span>,</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"qsmk"</span>,</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> <span class="sc">~</span> sex <span class="sc">+</span> age <span class="sc">+</span> race <span class="sc">+</span> <span class="fu">factor</span>(education) <span class="sc">+</span> smokeintensity <span class="sc">+</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    smokeyrs <span class="sc">+</span> <span class="fu">factor</span>(exercise) <span class="sc">+</span> <span class="fu">factor</span>(active) <span class="sc">+</span> wt71,</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">id =</span> <span class="st">"seqn"</span>,</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">time =</span> <span class="st">"interval"</span>,</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">time_formula =</span> <span class="sc">~</span> splines<span class="sc">::</span><span class="fu">ns</span>(time, <span class="dv">4</span>)</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>fit_surv</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Key arguments:</p>
+<ul>
+<li><code>time_formula</code>: the function of time that enters the hazard model. Default <code>~ splines::ns(time, 4)</code> fits a smooth baseline hazard. Use <code>~ factor(time)</code> for a fully saturated (non-parametric) baseline.</li>
+<li><code>censoring</code>: a time-varying censoring indicator column, used to drop rows where the individual has been lost to follow-up.</li>
+<li><code>weights</code>: pre-computed IPCW or survey weights, validated upfront by <code>check_weights()</code>.</li>
+<li><code>competing</code>: reserved for competing-risks analysis. Supplying a non-<code>NULL</code> value currently aborts — the plain pooled-logistic model it would wrap is biased under competing events, so causatr refuses to fit it until the proper sub-distribution / Aalen–Johansen path is implemented in Phase 6.</li>
+</ul>
+<p>Under the hood, <code>causat_survival()</code> builds the risk set by dropping rows after the first event for each individual (<code>prev_event &gt; 0</code>), merges with the censoring mask, and fits the weighted logistic model on the surviving at-risk rows.</p>
+</section>
+<section id="contrasts-not-yet-implemented" class="level2">
+<h2 class="anchored" data-anchor-id="contrasts-not-yet-implemented">Contrasts (not yet implemented)</h2>
+<p>The survival-curve contrast step would take the fitted hazard model and compute, for each named intervention:</p>
+<ol type="1">
+<li><code>apply_intervention()</code> on each (person, time) cell in the risk set.</li>
+<li><code>predict(fit_surv$model, newdata = ..., type = "response")</code> to get counterfactual discrete hazards <span class="math inline">\(\hat h_i^a(k)\)</span>.</li>
+<li>Cumulative product within each individual to obtain <span class="math inline">\(\hat S_i^a(k) = \prod_{m \le k}(1 - \hat h_i^a(m))\)</span>.</li>
+<li>Average across individuals in the target population to get <span class="math inline">\(\hat S^a(k)\)</span>.</li>
+<li>Contrasts across interventions: risk difference <span class="math inline">\((1 - \hat S^{a_1}(t)) - (1 - \hat S^{a_0}(t))\)</span>, risk ratio, etc., with the delta-method variance propagated from the hazard model’s vcov.</li>
+</ol>
+<p>Today, attempting <code>contrast(fit_surv, ...)</code> returns an informative error pointing to this open scope. Track progress in <code>PHASE_6_SURVIVAL.md</code>.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Will abort until Phase 6 contrast support lands:</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">contrast</span>(</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  fit_surv,</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">quit =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">continue =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">"difference"</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="workaround-pooled-logistic-fit-diagnostics-today" class="level2">
+<h2 class="anchored" data-anchor-id="workaround-pooled-logistic-fit-diagnostics-today">Workaround: pooled logistic fit diagnostics today</h2>
+<p>Even without the contrast step, the fitted hazard model is a plain <code>glm()</code> object and can be inspected directly:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_surv<span class="sc">$</span>model)</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(fit_surv<span class="sc">$</span>model)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>For a quick sanity check before the Phase 6 contrast path is wired up, you can extract the predicted hazard under each intervention manually, then compute the cumulative survival in base R. This is exactly the loop that will eventually move into <code>contrast()</code>.</p>
+</section>
+<section id="tracking-phase-6" class="level2">
+<h2 class="anchored" data-anchor-id="tracking-phase-6">Tracking Phase 6</h2>
+<p>The survival path is tracked in:</p>
+<ul>
+<li><code>PHASE_6_SURVIVAL.md</code> — design notes and the outstanding work list.</li>
+<li><code>FEATURE_COVERAGE_MATRIX.md</code> §“Method 5 — Survival” — current fit-only coverage and the contrast rows marked as ❌ / GAP.</li>
+<li><code>test-simulation.R</code> and <code>test-s3-methods.R</code> — fit-only smoke tests that guard the current scaffolding.</li>
+</ul>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<p>Hernán MA, Robins JM (2025). <em>Causal Inference: What If</em>. Chapman &amp; Hall/CRC. Chapter 17: Causal survival analysis.</p>
+<p>D’Agostino RB, Lee ML, Belanger AJ, Cupples LA, Anderson K, Kannel WB (1990). Relation of pooled logistic regression to time dependent Cox regression analysis: the Framingham Heart Study. <em>Statistics in Medicine</em> 9:1501–1515.</p>
 
 
+</section>
 
 </main> <!-- /main -->
 <script id="quarto-html-after-body" type="application/javascript">

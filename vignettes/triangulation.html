@@ -675,24 +675,42 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>Treatment model</td>
 </tr>
 <tr class="even">
-<td>Non-static interventions</td>
+<td>Non-static interventions (shift / scale / threshold / dynamic)</td>
 <td>Yes</td>
-<td>No</td>
-<td>No</td>
+<td>No (Phase 4)</td>
+<td>No (Phase 4)</td>
 </tr>
 <tr class="odd">
 <td>Continuous treatment</td>
 <td>Yes</td>
-<td>Limited</td>
-<td>Limited</td>
+<td>Yes (GPS, static only)</td>
+<td>No (MatchIt binary-only)</td>
 </tr>
 <tr class="even">
-<td>Variance estimation</td>
-<td>Sandwich or bootstrap</td>
-<td>M-estimation sandwich</td>
-<td>Cluster-robust sandwich</td>
+<td>Categorical (k &gt; 2) treatment</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>No (MatchIt binary-only)</td>
 </tr>
 <tr class="odd">
+<td>Effect modification via <code>A:modifier</code> in <code>confounders</code></td>
+<td>Yes</td>
+<td>Rejected (Phase 8)</td>
+<td>Rejected (Phase 8)</td>
+</tr>
+<tr class="even">
+<td>Longitudinal (time-varying) treatments</td>
+<td>Yes (ICE)</td>
+<td>No (Phase 4)</td>
+<td>No</td>
+</tr>
+<tr class="odd">
+<td>Variance estimation</td>
+<td>Sandwich (IF engine) or bootstrap</td>
+<td>M-estimation sandwich via WeightIt’s <code>glm_weightit</code></td>
+<td>Cluster-robust sandwich on matched subclass</td>
+</tr>
+<tr class="even">
 <td>Robustness to</td>
 <td>Treatment model misspecification</td>
 <td>Outcome model misspecification</td>
@@ -701,6 +719,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tbody>
 </table>
 <p>When the outcome model and treatment model are both correctly specified, all three methods should produce similar estimates. Disagreement suggests model misspecification — investigate further.</p>
+<p>For features marked “No (Phase X)”, causatr aborts at fit or contrast time with a pointer to the planning doc rather than silently returning a wrong answer — see <code>FEATURE_COVERAGE_MATRIX.md</code> for the full rejection-path inventory.</p>
 </section>
 <section id="references" class="level2">
 <h2 class="anchored" data-anchor-id="references">References</h2>
