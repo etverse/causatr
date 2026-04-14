@@ -127,16 +127,52 @@ causat_survival <- function(
     )
   }
 
-  # Ensure person-period format: data must have one row per id per time point.
-  # Check by counting rows per id — if max == 1, the data is still in wide
-  # format and needs conversion.
+  # Ensure person-period format: every id must appear at more than one
+  # time point. Previous implementations used `max(rows_per_id$N) == 1L`
+  # which only caught uniform wide format — a mixed frame with some
+  # single-row ids and some multi-row ids would slip through and end up
+  # fitting a degenerate risk set at the survival step. We now require
+  # that every id has at least 2 rows (a minimally well-formed
+  # person-period panel), and additionally that `time` actually varies
+  # within each id so duplicated rows at the same time don't masquerade
+  # as a long panel.
   rows_per_id <- data[, .N, by = c(id)]
-  if (max(rows_per_id$N) == 1L) {
+  if (any(rows_per_id$N == 1L)) {
+    n_wide <- sum(rows_per_id$N == 1L)
     rlang::abort(
       paste0(
-        "Data appears to be in wide format (one row per individual). ",
-        "Use `to_person_period()` to convert to long person-period format ",
-        "before calling `causat_survival()`."
+        "Data does not appear to be in person-period format: ",
+        n_wide,
+        " of ",
+        nrow(rows_per_id),
+        " unique `",
+        id,
+        "` values have only a single row. ",
+        "Use `to_person_period()` to convert to long format before ",
+        "calling `causat_survival()`."
+      )
+    )
+  }
+  # `.SDcols = time` + `.SD[[1L]]` avoids a brittle `get(time)` call
+  # in the j expression (data.table's NSE env binds column symbols
+  # *and* the outer scope, and `get(time)` there can resolve to the
+  # special-name binding instead of the user's variable).
+  time_unique_per_id <- data[,
+    list(nt = length(unique(.SD[[1L]]))),
+    by = c(id),
+    .SDcols = time
+  ]
+  if (any(time_unique_per_id$nt < rows_per_id$N)) {
+    rlang::abort(
+      paste0(
+        "Some individuals have duplicated rows at the same `",
+        time,
+        "` value. ",
+        "`causat_survival()` requires unique (",
+        id,
+        ", ",
+        time,
+        ") pairs."
       )
     )
   }
