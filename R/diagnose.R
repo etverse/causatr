@@ -1,8 +1,8 @@
 #' Diagnostics for a fitted causal model
 #'
 #' @description
-#' Computes diagnostics appropriate to the estimation method:
-#' - **All methods**: positivity checks (flags covariate strata where the
+#' Computes diagnostics appropriate to the causal estimator:
+#' - **All estimators**: positivity checks (flags covariate strata where the
 #'   probability of treatment is near 0 or 1).
 #' - `"ipw"`: covariate balance before and after weighting (via `cobalt`),
 #'   weight distribution summary (mean, SD, max, effective sample size).
@@ -36,7 +36,7 @@
 #'       (IPW only).}
 #'     \item{`match_quality`}{data.table or `NULL`: match quality summary
 #'       (matching only).}
-#'     \item{`method`}{Character: the estimation method.}
+#'     \item{`estimator`}{Character: the causal estimator.}
 #'     \item{`fit`}{The original `causatr_fit` (stored for `plot()`).}
 #'   }
 #'
@@ -71,7 +71,7 @@
 #' data("nhefs", package = "causatr")
 #' fit <- causat(nhefs, outcome = "wt82_71", treatment = "qsmk",
 #'               confounders = ~ sex + age + wt71,
-#'               method = "ipw")
+#'               estimator = "ipw")
 #' diag <- diagnose(fit)
 #' print(diag)
 #' plot(diag)
@@ -120,7 +120,7 @@ diagnose <- function(
     positivity = positivity,
     weights = weights_summary,
     match_quality = match_quality,
-    method = fit$method,
+    estimator = fit$estimator,
     fit = fit
   )
 }
@@ -219,7 +219,7 @@ compute_balance <- function(fit, stats, thresholds) {
     return(compute_balance_simple(fit))
   }
 
-  if (fit$method == "ipw" && !is.null(fit$weights_obj)) {
+  if (fit$estimator == "ipw" && !is.null(fit$weights_obj)) {
     cobalt::bal.tab(
       fit$weights_obj,
       un = TRUE,
@@ -227,7 +227,7 @@ compute_balance <- function(fit, stats, thresholds) {
       thresholds = thresholds,
       binary = "std"
     )
-  } else if (fit$method == "matching" && !is.null(fit$match_obj)) {
+  } else if (fit$estimator == "matching" && !is.null(fit$match_obj)) {
     cobalt::bal.tab(
       fit$match_obj,
       un = TRUE,
@@ -318,12 +318,12 @@ compute_balance_simple <- function(fit) {
 
 #' Compute IPW weight distribution summary
 #'
-#' @param fit A `causatr_fit` object (IPW method only).
+#' @param fit A `causatr_fit` object (IPW estimator only).
 #' @return A data.table with mean, SD, min, max, and ESS by treatment group,
 #'   or `NULL` for non-IPW fits.
 #' @noRd
 compute_weight_summary <- function(fit) {
-  if (fit$method != "ipw" || is.null(fit$weights_obj)) {
+  if (fit$estimator != "ipw" || is.null(fit$weights_obj)) {
     return(NULL)
   }
 
@@ -352,7 +352,7 @@ compute_weight_summary <- function(fit) {
       paste0(
         "WeightIt object is missing the `treat.type` attribute. This ",
         "indicates a non-standard or serialized WeightIt fit. Refit ",
-        "the model with `causat(..., method = 'ipw')` so causatr can ",
+        "the model with `causat(..., estimator = 'ipw')` so causatr can ",
         "label weight summaries correctly."
       ),
       .call = FALSE
@@ -423,12 +423,12 @@ compute_weight_summary <- function(fit) {
 
 #' Compute matching quality metrics
 #'
-#' @param fit A `causatr_fit` object (matching method only).
+#' @param fit A `causatr_fit` object (matching estimator only).
 #' @return A data.table with total, matched, discarded counts and retention
 #'   percentage, or `NULL` for non-matching fits.
 #' @noRd
 compute_match_quality <- function(fit) {
-  if (fit$method != "matching" || is.null(fit$match_obj)) {
+  if (fit$estimator != "matching" || is.null(fit$match_obj)) {
     return(NULL)
   }
 

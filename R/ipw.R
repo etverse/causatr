@@ -63,7 +63,7 @@ fit_ipw <- function(
   # dropped from the effect estimate. Abort early with a Phase-8
   # pointer rather than returning a wrong answer. See
   # `check_confounders_no_treatment()` in `R/utils.R`.
-  check_confounders_no_treatment(confounders, treatment, method = "ipw")
+  check_confounders_no_treatment(confounders, treatment, estimator = "ipw")
 
   # Build the treatment model formula: A ~ confounders.
   # This is used by WeightIt to estimate propensity scores.
@@ -113,8 +113,8 @@ fit_ipw <- function(
   }
 
   # Mparts guardrail: WeightIt methods that do not support the
-  # M-estimation correction (gbm, super, bart, optweight, energy, npcbps)
-  # silently treat weights as fixed inside glm_weightit(). Sandwich SEs
+  # M-estimation correction (gbm, super, bart, optweight, energy, npcbps,
+  # cfd) silently treat weights as fixed inside glm_weightit(). Sandwich SEs
   # then ignore propensity-estimation uncertainty. Warn at fit time so
   # users learn about the limitation before they call contrast() or
   # diagnose().
@@ -153,7 +153,7 @@ fit_ipw <- function(
     confounders = confounders,
     confounders_tv = confounders_tv,
     family = family,
-    method = "ipw",
+    estimator = "ipw",
     type = "point",
     estimand = estimand,
     id = NULL,

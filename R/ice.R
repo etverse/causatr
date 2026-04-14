@@ -146,7 +146,7 @@ fit_ice <- function(
     confounders = confounders,
     confounders_tv = confounders_tv,
     family = family,
-    method = "gcomp",
+    estimator = "gcomp",
     type = "longitudinal",
     estimand = estimand,
     id = id,

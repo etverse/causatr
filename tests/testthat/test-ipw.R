@@ -1,4 +1,4 @@
-test_that("causat(method = 'ipw') fits on simple data", {
+test_that("causat(estimator = 'ipw') fits on simple data", {
   df <- data.frame(
     Y = c(1, 2, 3, 4, 5, 6, 7, 8),
     A = c(0, 0, 0, 0, 1, 1, 1, 1),
@@ -9,10 +9,10 @@ test_that("causat(method = 'ipw') fits on simple data", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "ipw"
+    estimator = "ipw"
   ))
   expect_s3_class(fit, "causatr_fit")
-  expect_equal(fit$method, "ipw")
+  expect_equal(fit$estimator, "ipw")
 })
 
 test_that("IPW with external weights stores in details", {
@@ -23,7 +23,7 @@ test_that("IPW with external weights stores in details", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "ipw",
+    estimator = "ipw",
     weights = w
   )
   expect_true(!is.null(fit$details$weights))
@@ -39,7 +39,7 @@ test_that("IPW bootstrap with external weights gives finite SE", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "ipw",
+    estimator = "ipw",
     weights = w
   )
   res <- suppressWarnings(contrast(
@@ -59,13 +59,13 @@ test_that("IPW continuous treatment via WeightIt fits", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "ipw"
+    estimator = "ipw"
   )
   expect_s3_class(fit, "causatr_fit")
-  expect_equal(fit$method, "ipw")
+  expect_equal(fit$estimator, "ipw")
 })
 
-test_that("causat(method = 'ipw') rejects longitudinal data", {
+test_that("causat(estimator = 'ipw') rejects longitudinal data", {
   df <- data.frame(
     Y = c(0, 1, 0, 1),
     A = c(0, 1, 0, 1),
@@ -79,7 +79,7 @@ test_that("causat(method = 'ipw') rejects longitudinal data", {
       outcome = "Y",
       treatment = "A",
       confounders = ~L,
-      method = "ipw",
+      estimator = "ipw",
       id = "id",
       time = "time"
     ),
@@ -138,7 +138,7 @@ test_that("IPW × non-Mparts WeightIt method × sandwich returns finite SE at co
       outcome = "Y",
       treatment = "A",
       confounders = ~L,
-      method = "ipw"
+      estimator = "ipw"
     ),
     "does not implement the M-estimation correction"
   )
@@ -175,7 +175,7 @@ test_that("IPW rejects shift intervention until Phase 4", {
     outcome = "wt82_71",
     treatment = "qsmk",
     confounders = ~ sex + age + wt71,
-    method = "ipw",
+    estimator = "ipw",
     censoring = "censored"
   )
   expect_snapshot(
@@ -191,7 +191,7 @@ test_that("IPW rejects shift intervention until Phase 4", {
 test_that("IPW rejects A:modifier interaction terms in confounders", {
   # Phase 8 limitation: IPW wraps a saturated MSM `Y ~ A`, so `A:sex`
   # has nowhere to land and was previously silently dropped. We now
-  # abort at fit time with a pointer to `method = "gcomp"`.
+  # abort at fit time with a pointer to `estimator = "gcomp"`.
   d <- simulate_binary_continuous(n = 200, seed = 1)
   d$sex <- rbinom(nrow(d), 1, 0.5)
   expect_snapshot(
@@ -201,7 +201,7 @@ test_that("IPW rejects A:modifier interaction terms in confounders", {
       outcome = "Y",
       treatment = "A",
       confounders = ~ L + sex + A:sex,
-      method = "ipw"
+      estimator = "ipw"
     )
   )
 })
@@ -215,7 +215,62 @@ test_that("IPW rejects bare treatment in confounders", {
       outcome = "Y",
       treatment = "A",
       confounders = ~ L + A,
-      method = "ipw"
+      estimator = "ipw"
     )
   )
+})
+
+test_that("causat(estimator = 'ipw') forwards `method` to WeightIt::weightit()", {
+  # Regression guard for the 2026-04-14 rename of the user-facing
+  # `method` argument to `estimator`. The whole point of the rename
+  # was to free up `method =` for forwarding to WeightIt/MatchIt via
+  # `...`. If someone ever reintroduces a `method` formal on causat()
+  # this test will catch the silent shadowing because the CBPS fit
+  # object would revert to the default glm weights (which *does*
+  # ship Mparts, so no warning would fire — the only observable
+  # difference is `fit$weights_obj$method`).
+  skip_if_not_installed("WeightIt")
+  d <- simulate_binary_continuous(n = 400, seed = 7)
+
+  # CBPS is one of the four Mparts-supporting WeightIt methods, so
+  # no non-Mparts warning should be emitted. expect_no_warning() would
+  # trip on any unrelated deprecation, so we assert the specific
+  # Mparts text is absent instead.
+  fit_cbps <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw",
+    estimand = "ATE",
+    method = "cbps"
+  )
+  expect_s3_class(fit_cbps, "causatr_fit")
+  expect_equal(fit_cbps$estimator, "ipw")
+  # The key assertion: the forwarded `method = "cbps"` actually
+  # reached WeightIt, not just lived in `...` unused.
+  expect_equal(as.character(fit_cbps$weights_obj$method), "cbps")
+  expect_false(is.null(attr(fit_cbps$weights_obj, "Mparts")))
+
+  # And the default (no forwarded method) should still land on glm.
+  fit_default <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw",
+    estimand = "ATE"
+  )
+  expect_equal(as.character(fit_default$weights_obj$method), "glm")
+
+  # Contrast should run cleanly on the CBPS fit and return a finite,
+  # positive sandwich SE — proving the full pipeline (fit → variance)
+  # handles a non-default WeightIt method end-to-end.
+  res <- contrast(
+    fit_cbps,
+    interventions = list(a0 = static(0), a1 = static(1)),
+    ci_method = "sandwich"
+  )
+  expect_true(all(is.finite(res$contrasts$se)))
+  expect_true(res$contrasts$se[1] > 0)
 })

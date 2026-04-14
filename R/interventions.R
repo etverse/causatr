@@ -207,7 +207,7 @@ dynamic <- function(rule) {
 #' [contrast()] currently aborts when handed an `ipsi()` intervention
 #' because application requires a fitted propensity model that is not yet
 #' wired through the estimation engines. Use [shift()], [scale_by()], or
-#' [static()] with `method = "gcomp"` in the meantime.
+#' [static()] with `estimator = "gcomp"` in the meantime.
 #'
 #' @param delta Positive numeric. The odds multiplier.
 #'
@@ -256,7 +256,7 @@ ipsi <- function(delta) {
     c(
       "`ipsi()` is currently dead-ended: the constructor succeeds but `contrast()` aborts.",
       i = "IPSI requires a fitted propensity model that is not wired through any estimation engine yet (planned for Phase 4).",
-      i = "Use `shift()`, `scale_by()`, or `static()` with `method = 'gcomp'` in the meantime."
+      i = "Use `shift()`, `scale_by()`, or `static()` with `estimator = 'gcomp'` in the meantime."
     ),
     .frequency = "once",
     .frequency_id = "causatr_ipsi_dead_end"

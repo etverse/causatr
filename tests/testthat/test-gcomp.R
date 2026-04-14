@@ -1,4 +1,4 @@
-test_that("causat(method = 'gcomp') fits on simple data", {
+test_that("causat(estimator = 'gcomp') fits on simple data", {
   df <- data.frame(
     Y = c(1, 2, 3, 4, 5, 6, 7, 8),
     A = c(0, 0, 0, 0, 1, 1, 1, 1),
@@ -6,7 +6,7 @@ test_that("causat(method = 'gcomp') fits on simple data", {
   )
   fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L)
   expect_s3_class(fit, "causatr_fit")
-  expect_equal(fit$method, "gcomp")
+  expect_equal(fit$estimator, "gcomp")
   expect_equal(fit$type, "point")
   expect_equal(fit$details$n_fit, 8L)
 })

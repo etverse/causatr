@@ -42,15 +42,15 @@
 ```r
 # G-computation (our core)
 fit_gcomp <- causat(data, outcome = "Y", treatment = "A", confounders = ~ L1 + L2,
-                    method = "gcomp")
+                    estimator = "gcomp")
 
 # IPW (weights from WeightIt)
 fit_ipw <- causat(data, outcome = "Y", treatment = "A", confounders = ~ L1 + L2,
-                  method = "ipw")
+                  estimator = "ipw")
 
 # Matching (matched data from MatchIt)
 fit_match <- causat(data, outcome = "Y", treatment = "A", confounders = ~ L1 + L2,
-                    method = "matching")
+                    estimator = "matching")
 
 # Same contrast() call works for all
 contrast(fit_gcomp, interventions = list(a1 = static(1), a0 = static(0)))
@@ -95,8 +95,8 @@ Using black-box ML (random forests, neural nets) directly in g-computation does 
 
 | Need | Package | Relationship to causatr |
 |---|---|---|
-| Weight estimation | `WeightIt` | **Imports**: `causat(method = "ipw")` calls `WeightIt::weightit()` internally |
-| Matching | `MatchIt` | **Imports**: `causat(method = "matching")` calls `MatchIt::matchit()` internally |
+| Weight estimation | `WeightIt` | **Imports**: `causat(estimator = "ipw")` calls `WeightIt::weightit()` internally |
+| Matching | `MatchIt` | **Imports**: `causat(estimator = "matching")` calls `MatchIt::matchit()` internally |
 | Balance diagnostics | `cobalt` | **Suggests**: `diagnose()` calls `cobalt::bal.tab()` for balance summaries |
 | Semiparametric/TMLE | `lmtp` | Out of scope. Complementary package, not a competitor. |
 | Forward-simulation g-formula | `gfoRmula` | Out of scope. We supersede with ICE for longitudinal. |
@@ -232,7 +232,7 @@ result <- contrast(fit, interventions, ci_method = "bootstrap", n_boot = 500)
 5. S3 class definitions + print/summary methods
 
 ### Phase 2: Point Treatment G-Computation + Inference — DONE
-6. `causat(method = "gcomp")` for point treatments (`R/causat.R`, `R/gcomp.R`)
+6. `causat(estimator = "gcomp")` for point treatments (`R/causat.R`, `R/gcomp.R`)
 7. `contrast()` for point treatments (`R/contrast.R`)
 8. Sandwich variance via J V_β Jᵀ (`R/variance_sandwich.R`)
 9. Bootstrap variance (`R/variance_bootstrap.R`)
@@ -240,8 +240,8 @@ result <- contrast(fit, interventions, ci_method = "bootstrap", n_boot = 500)
 11. `model_fn` parameter for pluggable fitting functions
 
 ### Phase 3: IPW + Matching (Triangulation) — DONE
-12. `causat(method = "ipw")` — wraps WeightIt (`R/ipw.R`) ✓
-13. `causat(method = "matching")` — wraps MatchIt (`R/matching.R`) ✓
+12. `causat(estimator = "ipw")` — wraps WeightIt (`R/ipw.R`) ✓
+13. `causat(estimator = "matching")` — wraps MatchIt (`R/matching.R`) ✓
 14. Vignettes: `ipw.qmd`, `matching.qmd`, `triangulation.qmd` ✓
 15. Comprehensive simulation-based tests (binary/continuous outcome, all contrast types, all estimands) ✓
 16. `diagnose()` — positivity, balance (cobalt), weight distribution, match quality, Love plots (`R/diagnose.R`) ✓

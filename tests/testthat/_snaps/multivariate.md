@@ -9,16 +9,16 @@
 # mv point: IPW rejected
 
     Code
-      causat(df, "Y", c("A1", "A2"), ~L, method = "ipw")
+      causat(df, "Y", c("A1", "A2"), ~L, estimator = "ipw")
     Condition
       Error in `causat()`:
-      ! Multivariate treatments are not yet supported for method = 'ipw'. Use method = 'gcomp' for joint interventions on multiple treatments, or fit separate models for each treatment.
+      ! Multivariate treatments are not yet supported for estimator = 'ipw'. Use estimator = 'gcomp' for joint interventions on multiple treatments, or fit separate models for each treatment.
 
 # mv point: matching rejected
 
     Code
-      causat(df, "Y", c("A1", "A2"), ~L, method = "matching")
+      causat(df, "Y", c("A1", "A2"), ~L, estimator = "matching")
     Condition
       Error in `causat()`:
-      ! Multivariate treatments are not yet supported for method = 'matching'. Use method = 'gcomp' for joint interventions on multiple treatments, or fit separate models for each treatment.
+      ! Multivariate treatments are not yet supported for estimator = 'matching'. Use estimator = 'gcomp' for joint interventions on multiple treatments, or fit separate models for each treatment.
 

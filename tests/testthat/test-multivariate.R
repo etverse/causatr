@@ -140,6 +140,56 @@ test_that("mv point: static, all four combinations recover truth", {
   expect_true(abs(ate_a2 - 1.0) < tol)
 })
 
+test_that("mv point: A1:A2 treatment-by-treatment interaction recovers truth", {
+  # DGP with a multiplicative A1*A2 interaction on top of simulate_mv_point:
+  #   Y = 2 + 1.5*A1 + 1.0*A2 + 0.8*A1*A2 - 0.5*L + N(0,1)
+  # Truth:
+  #   E[Y(0,0)] = 2.0, E[Y(1,0)] = 3.5, E[Y(0,1)] = 3.0, E[Y(1,1)] = 5.3
+  #   ATE(both vs neither)   = 3.3
+  #   ATE(a1_only vs neither)= 1.5
+  #   ATE(a2_only vs neither)= 1.0
+  #
+  # Unlike `A:modifier`, an interaction between the two treatment columns
+  # is legal in IPW/matching terms (no baseline moderator) AND in point
+  # gcomp's outcome model — the whole A1:A2 surface is modeled. This test
+  # pins that behavior so a future refactor of the multivariate path
+  # cannot silently collapse the interaction.
+  set.seed(42)
+  n <- 3000
+  L <- rnorm(n)
+  A1 <- rbinom(n, 1, plogis(0.3 * L))
+  A2 <- rbinom(n, 1, plogis(-0.3 * L))
+  Y <- 2 + 1.5 * A1 + 1.0 * A2 + 0.8 * A1 * A2 - 0.5 * L + rnorm(n)
+  df <- data.frame(L = L, A1 = A1, A2 = A2, Y = Y)
+
+  fit <- causat(df, "Y", c("A1", "A2"), ~ L + A1:A2)
+
+  result <- contrast(
+    fit,
+    interventions = list(
+      both = list(A1 = static(1), A2 = static(1)),
+      a1_only = list(A1 = static(1), A2 = static(0)),
+      a2_only = list(A1 = static(0), A2 = static(1)),
+      neither = list(A1 = static(0), A2 = static(0))
+    ),
+    reference = "neither"
+  )
+
+  ey <- setNames(result$estimates$estimate, result$estimates$intervention)
+  expect_true(abs(ey["both"] - 5.3) < tol)
+  expect_true(abs(ey["a1_only"] - 3.5) < tol)
+  expect_true(abs(ey["a2_only"] - 3.0) < tol)
+  expect_true(abs(ey["neither"] - 2.0) < tol)
+
+  ates <- setNames(
+    result$contrasts$estimate,
+    result$contrasts$comparison
+  )
+  expect_true(abs(ates["both vs neither"] - 3.3) < tol)
+  expect_true(abs(ates["a1_only vs neither"] - 1.5) < tol)
+  expect_true(abs(ates["a2_only vs neither"] - 1.0) < tol)
+})
+
 test_that("mv point: shift intervention on continuous A2", {
   df <- simulate_mv_mixed()
   fit <- causat(df, "Y", c("A1", "A2"), ~L)
@@ -304,7 +354,7 @@ test_that("mv point: IPW rejected", {
   df <- simulate_mv_point()
   expect_snapshot(
     error = TRUE,
-    causat(df, "Y", c("A1", "A2"), ~L, method = "ipw")
+    causat(df, "Y", c("A1", "A2"), ~L, estimator = "ipw")
   )
 })
 
@@ -312,7 +362,7 @@ test_that("mv point: matching rejected", {
   df <- simulate_mv_point()
   expect_snapshot(
     error = TRUE,
-    causat(df, "Y", c("A1", "A2"), ~L, method = "matching")
+    causat(df, "Y", c("A1", "A2"), ~L, estimator = "matching")
   )
 })
 

@@ -29,7 +29,7 @@ test_that("diagnose() aborts when the WeightIt object is missing treat.type", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "ipw"
+    estimator = "ipw"
   )
   # Strip the treat.type attribute after-the-fact to simulate a
   # non-standard WeightIt fit.
@@ -78,7 +78,7 @@ test_that("diagnose() returns causatr_diag for gcomp", {
   diag <- diagnose(fit)
 
   expect_s3_class(diag, "causatr_diag")
-  expect_equal(diag$method, "gcomp")
+  expect_equal(diag$estimator, "gcomp")
   expect_false(is.null(diag$positivity))
   expect_false(is.null(diag$balance))
   expect_null(diag$weights)
@@ -92,12 +92,12 @@ test_that("diagnose() returns causatr_diag for IPW", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "ipw"
+    estimator = "ipw"
   )
   diag <- diagnose(fit)
 
   expect_s3_class(diag, "causatr_diag")
-  expect_equal(diag$method, "ipw")
+  expect_equal(diag$estimator, "ipw")
   expect_false(is.null(diag$positivity))
   expect_false(is.null(diag$balance))
   expect_false(is.null(diag$weights))
@@ -111,13 +111,13 @@ test_that("diagnose() returns causatr_diag for matching", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "matching",
+    estimator = "matching",
     estimand = "ATT"
   )
   diag <- diagnose(fit)
 
   expect_s3_class(diag, "causatr_diag")
-  expect_equal(diag$method, "matching")
+  expect_equal(diag$estimator, "matching")
   expect_false(is.null(diag$positivity))
   expect_false(is.null(diag$balance))
   expect_null(diag$weights)
@@ -149,7 +149,7 @@ test_that("positivity uses propensity scores from weightit for IPW", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "ipw"
+    estimator = "ipw"
   )
   diag <- diagnose(fit)
 
@@ -172,7 +172,7 @@ test_that("balance uses cobalt::bal.tab for IPW when available", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "ipw"
+    estimator = "ipw"
   )
   diag <- diagnose(fit)
 
@@ -187,7 +187,7 @@ test_that("balance uses cobalt::bal.tab for matching when available", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "matching",
+    estimator = "matching",
     estimand = "ATT"
   )
   diag <- diagnose(fit)
@@ -215,7 +215,7 @@ test_that("weight summary has treated/control/overall for IPW", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "ipw"
+    estimator = "ipw"
   )
   diag <- diagnose(fit)
 
@@ -238,7 +238,7 @@ test_that("match_quality has expected fields for matching", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "matching",
+    estimator = "matching",
     estimand = "ATT"
   )
   diag <- diagnose(fit)
@@ -262,7 +262,7 @@ test_that("print.causatr_diag outputs method info", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "ipw"
+    estimator = "ipw"
   )
   diag <- diagnose(fit)
 
@@ -277,7 +277,7 @@ test_that("summary.causatr_diag works", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "ipw"
+    estimator = "ipw"
   )
   diag <- diagnose(fit)
 
@@ -297,7 +297,7 @@ test_that("plot.causatr_diag produces a love plot for IPW", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "ipw"
+    estimator = "ipw"
   )
   diag <- diagnose(fit)
 
@@ -314,7 +314,7 @@ test_that("plot.causatr_diag produces a love plot for matching", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "matching",
+    estimator = "matching",
     estimand = "ATT"
   )
   diag <- diagnose(fit)
@@ -343,7 +343,7 @@ test_that("diagnose() respects custom thresholds", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "ipw"
+    estimator = "ipw"
   )
   diag <- diagnose(fit, thresholds = c(m = 0.05, v = 1.5))
 

@@ -152,7 +152,7 @@ test_that("multivariate treatment blocked for IPW", {
       outcome = "Y",
       treatment = c("A1", "A2"),
       confounders = ~L,
-      method = "ipw"
+      estimator = "ipw"
     )
   )
 })
@@ -165,7 +165,7 @@ test_that("multivariate treatment blocked for matching", {
       outcome = "Y",
       treatment = c("A1", "A2"),
       confounders = ~L,
-      method = "matching"
+      estimator = "matching"
     )
   )
 })
@@ -258,7 +258,7 @@ test_that("glance.causatr_result returns one-row data frame", {
   gl <- glance(result)
   expect_s3_class(gl, "data.frame")
   expect_equal(nrow(gl), 1L)
-  expect_equal(gl$method, "gcomp")
+  expect_equal(gl$estimator, "gcomp")
   expect_equal(gl$n_interventions, 2L)
 })
 
@@ -307,7 +307,7 @@ test_that("weight summary handles continuous treatment IPW", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "ipw"
+    estimator = "ipw"
   )
   diag <- diagnose(fit)
 
@@ -517,7 +517,9 @@ test_that("bootstrap result carries boot_info and print() surfaces it", {
     length(res_boot$boot_info$n_fail_by_int),
     length(res_boot$estimates$intervention)
   )
-  expect_true(all(res_boot$boot_info$n_fail_by_int >= res_boot$boot_info$n_fail))
+  expect_true(all(
+    res_boot$boot_info$n_fail_by_int >= res_boot$boot_info$n_fail
+  ))
   # And matches the row count of the stored replicate matrix.
   expect_equal(nrow(res_boot$boot_t), res_boot$boot_info$n_ok)
 

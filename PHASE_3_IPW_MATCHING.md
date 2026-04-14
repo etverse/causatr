@@ -9,7 +9,7 @@ IPW estimation via WeightIt, matching via MatchIt, diagnostics (`diagnose()`), a
 
 ## What was implemented
 
-1. `causat(method = "ipw")` → `fit_ipw()` in `R/ipw.R`
+1. `causat(estimator = "ipw")` → `fit_ipw()` in `R/ipw.R`
    - Builds treatment model formula from `confounders` term labels
    - Calls `WeightIt::weightit()` for propensity-score weights
    - Calls `WeightIt::glm_weightit()` for the weighted MSM (Y ~ A) with user-specified family
@@ -17,7 +17,7 @@ IPW estimation via WeightIt, matching via MatchIt, diagnostics (`diagnose()`), a
    - Supports ATE, ATT, ATC estimands (fixed at fit time)
    - Rejects longitudinal data (future: `WeightIt::weightitMSM()`)
 
-2. `causat(method = "matching")` → `fit_matching()` in `R/matching.R`
+2. `causat(estimator = "matching")` → `fit_matching()` in `R/matching.R`
    - Calls `MatchIt::matchit()` for matched sets
    - Auto-selects `method = "full"` for ATE (nearest-neighbor only supports ATT/ATC); user can override via `...`
    - Extracts matched data + weights via `MatchIt::match.data()`

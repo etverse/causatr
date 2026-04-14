@@ -16,7 +16,7 @@ Invisibly returns \code{object}.
 }
 \description{
 Provides a detailed summary of a \link[=causat]{causatr_fit} object, including
-the estimation method, outcome family, confounder formula, and the
+the causal estimator, outcome family, confounder formula, and the
 underlying model (outcome model, propensity weights, or matching object).
 }
 \seealso{

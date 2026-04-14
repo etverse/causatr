@@ -22,7 +22,7 @@
 #' @param treatment Character. Passed to [causat()].
 #' @param confounders A one-sided formula. Passed to [causat()].
 #' @param interventions A named list of interventions. Passed to [contrast()].
-#' @param method Character. Passed to [causat()]. Default `"gcomp"`.
+#' @param estimator Character. Passed to [causat()]. Default `"gcomp"`.
 #' @param family Character or family object. Passed to [causat()].
 #' @param estimand Character. Passed to [causat()].
 #' @param type Character. Contrast scale. Passed to [contrast()].
@@ -79,7 +79,7 @@ causat_mice <- function(
   treatment,
   confounders,
   interventions,
-  method = "gcomp",
+  estimator = "gcomp",
   family = "gaussian",
   estimand = "ATE",
   type = "difference",

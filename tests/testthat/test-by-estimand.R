@@ -285,7 +285,7 @@ test_that("ipw × by × ATT: n_by reflects treated subset", {
     outcome = "Y",
     treatment = "A",
     confounders = ~ L + sex,
-    method = "ipw",
+    estimator = "ipw",
     estimand = "ATT"
   )
   result <- contrast(
@@ -314,7 +314,7 @@ test_that("ipw × by × ATE: n_by sums to total", {
     outcome = "Y",
     treatment = "A",
     confounders = ~ L + sex,
-    method = "ipw"
+    estimator = "ipw"
   )
   result <- contrast(
     fit,
@@ -337,7 +337,7 @@ test_that("ipw × by × ATC: n_by reflects control subset", {
     outcome = "Y",
     treatment = "A",
     confounders = ~ L + sex,
-    method = "ipw",
+    estimator = "ipw",
     estimand = "ATC"
   )
   result <- contrast(
@@ -370,7 +370,7 @@ test_that("matching × by × ATT: n_by reflects treated subset", {
     outcome = "Y",
     treatment = "A",
     confounders = ~ L + sex,
-    method = "matching",
+    estimator = "matching",
     estimand = "ATT"
   )
   result <- contrast(
@@ -661,7 +661,7 @@ test_that("ipw × by × ATT × binary outcome", {
     outcome = "Y",
     treatment = "A",
     confounders = ~ L + sex,
-    method = "ipw",
+    estimator = "ipw",
     family = "binomial",
     estimand = "ATT"
   )
@@ -691,7 +691,7 @@ test_that("matching × by × ATT × binary outcome", {
     outcome = "Y",
     treatment = "A",
     confounders = ~ L + sex,
-    method = "matching",
+    estimator = "matching",
     family = "binomial",
     estimand = "ATT"
   )

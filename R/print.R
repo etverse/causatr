@@ -2,7 +2,7 @@
 #'
 #' @description
 #' Displays a compact summary of a [causatr_fit][causat] object, showing the
-#' estimation method, treatment type, outcome, treatment variable, and sample
+#' causal estimator, treatment type, outcome, treatment variable, and sample
 #' size.
 #'
 #' @param x A `causatr_fit` object.
@@ -11,22 +11,22 @@
 #' @seealso [summary.causatr_fit()], [causat()]
 #' @export
 print.causatr_fit <- function(x, ...) {
-  # Pretty-print the method. Defaults-through the raw value if the
-  # user has somehow set an unrecognized method so print() never
+  # Pretty-print the estimator. Defaults-through the raw value if the
+  # user has somehow set an unrecognized estimator so print() never
   # errors on a malformed fit object.
-  method_label <- switch(
-    x$method,
+  estimator_label <- switch(
+    x$estimator,
     gcomp = "G-computation",
     ipw = "IPW (WeightIt)",
     matching = "Matching (MatchIt)",
-    x$method
+    x$estimator
   )
   family_label <- format_family(x$family)
   # Collapse multivariate treatments into a comma-separated label.
   trt_label <- paste(x$treatment, collapse = ", ")
 
   cat("<causatr_fit>\n")
-  cat(" Method:     ", method_label, "\n", sep = "")
+  cat(" Estimator:  ", estimator_label, "\n", sep = "")
   cat(" Type:       ", x$type, "\n", sep = "")
   cat(" Outcome:    ", x$outcome, " (", family_label, ")\n", sep = "")
   cat(" Treatment:  ", trt_label, "\n", sep = "")
@@ -79,7 +79,7 @@ format_family <- function(family) {
 #' Print a causatr result
 #'
 #' @description
-#' Displays the estimation method, contrast type, CI method, sample size,
+#' Displays the causal estimator, contrast type, CI method, sample size,
 #' intervention-specific marginal means, and pairwise contrasts (with SEs
 #' and confidence intervals).
 #'
@@ -91,12 +91,12 @@ format_family <- function(family) {
 print.causatr_result <- function(x, ...) {
   # Human-readable labels for the header block. Same defaults-through
   # pattern as `print.causatr_fit` in case of unrecognized slot values.
-  method_label <- switch(
-    x$method,
+  estimator_label <- switch(
+    x$estimator,
     gcomp = "G-computation",
     ipw = "IPW",
     matching = "Matching",
-    x$method
+    x$estimator
   )
   type_label <- switch(
     x$type,
@@ -106,7 +106,7 @@ print.causatr_result <- function(x, ...) {
   )
 
   cat("<causatr_result>\n")
-  cat(" Method:    ", method_label, "\n", sep = "")
+  cat(" Estimator: ", estimator_label, "\n", sep = "")
   cat(" Estimand:  ", x$estimand, "\n", sep = "")
   cat(" Contrast:  ", type_label, "\n", sep = "")
   cat(" CI method: ", x$ci_method, "\n", sep = "")
@@ -185,15 +185,15 @@ print.causatr_result <- function(x, ...) {
 #' @seealso [summary.causatr_diag()], [diagnose()]
 #' @export
 print.causatr_diag <- function(x, ...) {
-  cat("<causatr_diag>\n", " Method:", x$method, "\n\n", sep = "")
+  cat("<causatr_diag>\n", " Estimator:", x$estimator, "\n\n", sep = "")
   # Each section is conditionally printed based on which diagnostics
-  # the underlying method supports:
-  #   - positivity: any method (when treatment is binary)
+  # the underlying estimator supports:
+  #   - positivity: any estimator (when treatment is binary)
   #   - balance:    always (cobalt table or simple SMD fallback)
   #   - weights:    IPW only (NULL elsewhere)
   #   - match_quality: matching only (NULL elsewhere)
-  # The NULL checks let us print one compact block per method
-  # without a switch() on method type.
+  # The NULL checks let us print one compact block per estimator
+  # without a switch() on estimator type.
   if (!is.null(x$positivity)) {
     cat("Positivity (propensity score):\n")
     print(x$positivity, row.names = FALSE)

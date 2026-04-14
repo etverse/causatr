@@ -172,7 +172,7 @@ test_that("variance_if matching path matches vcovCL+J V_beta J^T at saturated MS
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "matching",
+    estimator = "matching",
     estimand = "ATT"
   )
 
@@ -272,7 +272,7 @@ test_that("variance_if IPW path matches WeightIt vcov + J V_beta J^T at saturate
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "ipw"
+    estimator = "ipw"
   )
 
   res_if <- contrast(
@@ -299,7 +299,7 @@ test_that("variance_if IPW path matches WeightIt vcov + J V_beta J^T at saturate
 test_that("prepare_propensity_if() Branch B aborts with a Phase 4 message", {
   fake_fit <- list(
     model = structure(list(), class = "lm"),
-    method = "ipw"
+    estimator = "ipw"
   )
   expect_error(
     prepare_propensity_if(fake_fit, fit_idx = 1L, n_total = 1L),
@@ -334,7 +334,7 @@ test_that("fit_ipw warns when WeightIt method lacks Mparts", {
       outcome = "Y",
       treatment = "A",
       confounders = ~L,
-      method = "ipw"
+      estimator = "ipw"
     ),
     "Mparts"
   )
@@ -720,7 +720,7 @@ test_that("build_point_channel_pieces() returns the right Ch1/grad shapes", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "gcomp"
+    estimator = "gcomp"
   )
   model <- fit$model
   data_a_list <- list(a1 = transform(df, A = 1), a0 = transform(df, A = 0))
@@ -774,7 +774,7 @@ test_that("variance_if_ipw hoisted prep gives same vcov as per-intervention reco
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "ipw"
+    estimator = "ipw"
   )
 
   res <- contrast(
@@ -998,7 +998,7 @@ test_that("build_point_channel_pieces() aborts when target population is empty",
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "gcomp"
+    estimator = "gcomp"
   )
 
   data_a_list <- list(a1 = transform(df, A = 1), a0 = transform(df, A = 0))
@@ -1050,7 +1050,7 @@ test_that("prepare_point_variance() returns consistent pieces and prep", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "gcomp"
+    estimator = "gcomp"
   )
   model <- fit$model
   data_a_list <- list(a1 = transform(df, A = 1), a0 = transform(df, A = 0))
@@ -1111,7 +1111,7 @@ test_that("variance_if_gcomp() wrapper refactor preserves analytic result", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "gcomp"
+    estimator = "gcomp"
   )
 
   res <- contrast(
@@ -1174,7 +1174,7 @@ test_that("build_point_channel_pieces() isolates NA predictions to non-target ro
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "gcomp"
+    estimator = "gcomp"
   )
   model <- fit$model
 

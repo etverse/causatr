@@ -86,21 +86,21 @@ fit_gc <- causat(nhefs, outcome = "wt82_71", treatment = "qsmk",
 fit_ipw <- causat(nhefs, outcome = "wt82_71", treatment = "qsmk",
   confounders = ~ sex + age + race + smokeintensity + smokeyrs +
     factor(exercise) + factor(active) + wt71,
-  method = "ipw")
+  estimator = "ipw")
 
 # Matching (propensity score)
 fit_m <- causat(nhefs, outcome = "wt82_71", treatment = "qsmk",
   confounders = ~ sex + age + race + smokeintensity + smokeyrs +
     factor(exercise) + factor(active) + wt71,
-  method = "matching", estimand = "ATT")
+  estimator = "matching", estimand = "ATT")
 
 # All three estimates
 rbind(
-  data.frame(method = "gcomp", contrast(fit_gc,
+  data.frame(estimator = "gcomp", contrast(fit_gc,
     list(quit = static(1), cont = static(0)), reference = "cont")$contrasts),
-  data.frame(method = "ipw", contrast(fit_ipw,
+  data.frame(estimator = "ipw", contrast(fit_ipw,
     list(quit = static(1), cont = static(0)), reference = "cont")$contrasts),
-  data.frame(method = "matching", contrast(fit_m,
+  data.frame(estimator = "matching", contrast(fit_m,
     list(quit = static(1), cont = static(0)), reference = "cont")$contrasts)
 )
 ```

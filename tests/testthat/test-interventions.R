@@ -80,7 +80,7 @@ test_that("static() with character value works through full pipeline", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "gcomp"
+    estimator = "gcomp"
   )
   res <- contrast(
     fit,

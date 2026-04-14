@@ -44,7 +44,7 @@ the supported intervention / variance shapes differ across methods.
 
 ---
 
-## Method 1 — Point-treatment g-computation (`method = "gcomp"`)
+## Method 1 — Point-treatment g-computation (`estimator = "gcomp"`)
 
 | Treatment | Outcome | Model | Intervention | Estimand | Contrast | Variance | Weights | Status | Test file |
 |---|---|---|---|---|---|---|---|---|---|
@@ -94,7 +94,7 @@ the supported intervention / variance shapes differ across methods.
 
 ---
 
-## Method 2 — Inverse probability weighting (`method = "ipw"`)
+## Method 2 — Inverse probability weighting (`estimator = "ipw"`)
 
 | Treatment | Outcome | Intervention | Estimand | Contrast | Variance | Weights | Status | Test file |
 |---|---|---|---|---|---|---|---|---|
@@ -117,7 +117,7 @@ the supported intervention / variance shapes differ across methods.
 
 ---
 
-## Method 3 — Matching (`method = "matching"`)
+## Method 3 — Matching (`estimator = "matching"`)
 
 | Treatment | Outcome | Intervention | Estimand | Contrast | Variance | Weights | Status | Test file |
 |---|---|---|---|---|---|---|---|---|
@@ -139,7 +139,7 @@ the supported intervention / variance shapes differ across methods.
 
 ---
 
-## Method 4 — ICE longitudinal g-computation (`method = "gcomp"`, `type = "longitudinal"`)
+## Method 4 — ICE longitudinal g-computation (`estimator = "gcomp"`, `type = "longitudinal"`)
 
 | Treatment | Outcome | Intervention | n_periods | Variance | Weights | Status | Test file |
 |---|---|---|---|---|---|---|---|

@@ -9,7 +9,7 @@ G-computation (parametric g-formula) for point treatments with sandwich and boot
 
 ## What was implemented
 
-1. `causat(method = "gcomp")` → `fit_gcomp_point()` in `R/gcomp.R`
+1. `causat(estimator = "gcomp")` → `fit_gcomp_point()` in `R/gcomp.R`
    - Builds formula from `treatment` + `confounders` term labels
    - Fits on uncensored + non-NA-outcome rows
    - Calls `model_fn(formula, data, family, weights, ...)` — user-pluggable (default `stats::glm`)

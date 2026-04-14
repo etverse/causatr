@@ -36,14 +36,14 @@ near-violations.}
 (IPW only).}
 \item{\code{match_quality}}{data.table or \code{NULL}: match quality summary
 (matching only).}
-\item{\code{method}}{Character: the estimation method.}
+\item{\code{estimator}}{Character: the causal estimator.}
 \item{\code{fit}}{The original \code{causatr_fit} (stored for \code{plot()}).}
 }
 }
 \description{
-Computes diagnostics appropriate to the estimation method:
+Computes diagnostics appropriate to the causal estimator:
 \itemize{
-\item \strong{All methods}: positivity checks (flags covariate strata where the
+\item \strong{All estimators}: positivity checks (flags covariate strata where the
 probability of treatment is near 0 or 1).
 \item \code{"ipw"}: covariate balance before and after weighting (via \code{cobalt}),
 weight distribution summary (mean, SD, max, effective sample size).
@@ -93,7 +93,7 @@ original sample retained.
 data("nhefs", package = "causatr")
 fit <- causat(nhefs, outcome = "wt82_71", treatment = "qsmk",
               confounders = ~ sex + age + wt71,
-              method = "ipw")
+              estimator = "ipw")
 diag <- diagnose(fit)
 print(diag)
 plot(diag)

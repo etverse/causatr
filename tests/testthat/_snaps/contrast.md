@@ -36,7 +36,7 @@
       contrast(fit, list(a1 = shift(1), a0 = static(0)))
     Condition
       Error in `contrast()`:
-      ! Non-static interventions (shift, dynamic, scale, threshold, ipsi) are not supported for method = 'ipw'. The weights/matched sets were estimated under the original treatment regime and are not valid under a different intervention. Use method = 'gcomp' instead.
+      ! Non-static interventions (shift, dynamic, scale, threshold, ipsi) are not supported for estimator = 'ipw'. The weights/matched sets were estimated under the original treatment regime and are not valid under a different intervention. Use estimator = 'gcomp' instead.
 
 # contrast() rejects non-static interventions for matching
 
@@ -44,7 +44,7 @@
       contrast(fit, list(a1 = dynamic(function(d, a) 1), a0 = static(0)))
     Condition
       Error in `contrast()`:
-      ! Non-static interventions (shift, dynamic, scale, threshold, ipsi) are not supported for method = 'matching'. The weights/matched sets were estimated under the original treatment regime and are not valid under a different intervention. Use method = 'gcomp' instead.
+      ! Non-static interventions (shift, dynamic, scale, threshold, ipsi) are not supported for estimator = 'matching'. The weights/matched sets were estimated under the original treatment regime and are not valid under a different intervention. Use estimator = 'gcomp' instead.
 
 # contrast() rejects estimand and subset together
 
@@ -69,7 +69,7 @@
       contrast(fit, list(a1 = static(1), a0 = static(0)), estimand = "ATT")
     Condition
       Error in `contrast()`:
-      ! For method = 'ipw', the estimand is fixed at fitting time because it determines the weights. Refit with causat(estimand = 'ATT').
+      ! For estimator = 'ipw', the estimand is fixed at fitting time because it determines the weights. Refit with causat(estimand = 'ATT').
 
 # contrast() aborts when matching estimand is changed
 
@@ -77,7 +77,7 @@
       contrast(fit, list(a1 = static(1), a0 = static(0)), estimand = "ATE")
     Condition
       Error in `contrast()`:
-      ! For method = 'matching', the estimand is fixed at fitting time because it determines the weights. Refit with causat(estimand = 'ATE').
+      ! For estimator = 'matching', the estimand is fixed at fitting time because it determines the weights. Refit with causat(estimand = 'ATE').
 
 # contrast() rejects ATT for longitudinal fit
 

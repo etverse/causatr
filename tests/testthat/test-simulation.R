@@ -303,7 +303,7 @@ test_that("matching × binary × poisson outcome × sandwich recovers exp(beta)"
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "matching",
+    estimator = "matching",
     estimand = "ATT",
     family = "poisson"
   )
@@ -335,7 +335,7 @@ test_that("matching × binary × gamma(log) outcome × sandwich recovers exp(bet
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "matching",
+    estimator = "matching",
     estimand = "ATT",
     family = stats::Gamma(link = "log")
   )
@@ -399,7 +399,7 @@ test_that("ipw × binary × ATT × bootstrap recovers ATE = 3 (constant effect)"
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "ipw",
+    estimator = "ipw",
     estimand = "ATT"
   )
   res <- contrast(
@@ -425,7 +425,7 @@ test_that("matching × binary × ATC × bootstrap runs with finite SE", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "matching",
+    estimator = "matching",
     estimand = "ATC"
   )
   res <- contrast(
@@ -728,6 +728,19 @@ test_that("gcomp × GAM via model_fn = mgcv::gam", {
   )
 
   expect_equal(result$contrasts$estimate[1], 3, tolerance = 0.3)
+
+  # Pin the GAM lpmatrix path in iv_design_matrix(): the GAM branch
+  # (R/variance_if.R:184-200) calls predict.gam(..., type = "lpmatrix")
+  # on the raw data.table without the data.frame coercion the GLM
+  # branch uses. Assert that sandwich variance came out finite and
+  # positive, and that the returned vcov has the expected k × k shape
+  # (k = number of interventions). A silent dim mismatch or NaN here
+  # would indicate the GAM branch has regressed.
+  expect_true(is.finite(result$contrasts$se[1]))
+  expect_gt(result$contrasts$se[1], 0)
+  expect_equal(dim(result$vcov), c(2L, 2L))
+  expect_true(all(is.finite(result$vcov)))
+  expect_gt(result$vcov[1, 1], 0)
 })
 
 # ============================================================
@@ -771,7 +784,7 @@ test_that("matching × binary trt × continuous outcome × difference × sandwic
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "matching",
+    estimator = "matching",
     estimand = "ATT"
   )
 
@@ -793,7 +806,7 @@ test_that("matching × binary trt × continuous outcome × difference × bootstr
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "matching",
+    estimator = "matching",
     estimand = "ATT"
   )
 
@@ -821,7 +834,7 @@ test_that("ipw × binary trt × continuous outcome × difference × sandwich: AT
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "ipw"
+    estimator = "ipw"
   )
 
   result <- contrast(
@@ -842,7 +855,7 @@ test_that("ipw × binary trt × continuous outcome × difference × bootstrap: S
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "ipw"
+    estimator = "ipw"
   )
 
   result <- contrast(
@@ -870,21 +883,21 @@ test_that("triangulation × binary trt × continuous outcome: all methods ≈ AT
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "gcomp"
+    estimator = "gcomp"
   )
   fit_ipw <- causat(
     df,
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "ipw"
+    estimator = "ipw"
   )
   fit_m <- causat(
     df,
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "matching",
+    estimator = "matching",
     estimand = "ATT"
   )
 
@@ -979,7 +992,7 @@ test_that("ipw × binary trt × binary outcome × difference × sandwich", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "ipw"
+    estimator = "ipw"
   )
   result <- contrast(
     fit,
@@ -998,7 +1011,7 @@ test_that("ipw × binary trt × binary outcome × ratio × sandwich", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "ipw"
+    estimator = "ipw"
   )
   result <- contrast(
     fit,
@@ -1021,7 +1034,7 @@ test_that("ipw × binary outcome × binomial family recovers RD", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "ipw",
+    estimator = "ipw",
     family = "binomial"
   )
   result <- contrast(
@@ -1042,7 +1055,7 @@ test_that("matching × binary outcome × quasibinomial family recovers RD", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "matching",
+    estimator = "matching",
     family = "quasibinomial"
   )
   result <- contrast(
@@ -1063,7 +1076,7 @@ test_that("ipw × continuous outcome × gaussian family (default) recovers ATE",
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "ipw",
+    estimator = "ipw",
     family = "gaussian"
   )
   result <- contrast(
@@ -1089,7 +1102,7 @@ test_that("ipw × continuous trt × static at specific levels recovers 1 + 2*a",
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "ipw"
+    estimator = "ipw"
   )
   res <- contrast(
     fit,
@@ -1132,7 +1145,7 @@ test_that("ipw × categorical (3-level) treatment × static × sandwich", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "ipw"
+    estimator = "ipw"
   )
   res <- contrast(
     fit,
@@ -1172,7 +1185,7 @@ test_that("ipw × binary × survey weights × sandwich recovers ATE", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "ipw",
+    estimator = "ipw",
     weights = w
   )
   res <- contrast(
@@ -1193,7 +1206,7 @@ test_that("matching × continuous outcome × gaussian family recovers ATE", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "matching",
+    estimator = "matching",
     family = "gaussian"
   )
   result <- contrast(
@@ -1218,7 +1231,7 @@ test_that("ipw × binary trt × continuous outcome × sandwich vs bootstrap", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "ipw"
+    estimator = "ipw"
   )
 
   res_sw <- contrast(
@@ -1252,7 +1265,7 @@ test_that("ipw × ATT estimand ≈ 3", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "ipw",
+    estimator = "ipw",
     estimand = "ATT"
   )
   result <- contrast(
@@ -1276,7 +1289,7 @@ test_that("matching × binary trt × binary outcome × difference × sandwich", 
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "matching",
+    estimator = "matching",
     estimand = "ATT"
   )
   result <- contrast(
@@ -1296,7 +1309,7 @@ test_that("matching × binary trt × binary outcome × ratio × sandwich", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "matching",
+    estimator = "matching",
     estimand = "ATT"
   )
   result <- contrast(
@@ -1324,7 +1337,7 @@ test_that("matching × binary trt × continuous outcome × sandwich vs bootstrap
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "matching",
+    estimator = "matching",
     estimand = "ATT"
   )
 
@@ -1431,7 +1444,7 @@ test_that("triangulation: all methods agree on binary outcome RD", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "gcomp",
+    estimator = "gcomp",
     family = "binomial"
   )
   fit_ipw <- causat(
@@ -1439,14 +1452,14 @@ test_that("triangulation: all methods agree on binary outcome RD", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "ipw"
+    estimator = "ipw"
   )
   fit_m <- causat(
     df,
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "matching",
+    estimator = "matching",
     estimand = "ATT"
   )
 
@@ -1584,7 +1597,7 @@ test_that("matching × binary trt × continuous outcome × ATE × sandwich ≈ 3
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "matching",
+    estimator = "matching",
     estimand = "ATE"
   )
   result <- contrast(
@@ -1604,7 +1617,7 @@ test_that("matching × binary trt × continuous outcome × ATE × bootstrap", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "matching",
+    estimator = "matching",
     estimand = "ATE"
   )
   result <- contrast(
@@ -1630,7 +1643,7 @@ test_that("matching × binary trt × continuous outcome × ATC × sandwich ≈ 3
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "matching",
+    estimator = "matching",
     estimand = "ATC"
   )
   result <- contrast(
@@ -1655,7 +1668,7 @@ test_that("ipw × binary trt × continuous outcome × ATC × sandwich ≈ 3", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "ipw",
+    estimator = "ipw",
     estimand = "ATC"
   )
   result <- contrast(
@@ -1680,7 +1693,7 @@ test_that("ipw × binary trt × binary outcome × or × sandwich", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "ipw"
+    estimator = "ipw"
   )
   result <- contrast(
     fit,
@@ -1707,7 +1720,7 @@ test_that("matching × binary trt × binary outcome × or × sandwich", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "matching",
+    estimator = "matching",
     estimand = "ATT"
   )
   result <- contrast(
@@ -1948,7 +1961,7 @@ test_that("matching × binary trt × binary outcome × ATE × sandwich", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "matching",
+    estimator = "matching",
     estimand = "ATE"
   )
   result <- contrast(
@@ -1974,7 +1987,7 @@ test_that("ipw × binary trt × binary outcome × bootstrap SE finite", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "ipw"
+    estimator = "ipw"
   )
   result <- contrast(
     fit,
@@ -2000,7 +2013,7 @@ test_that("matching × binary trt × binary outcome × bootstrap SE finite", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "matching",
+    estimator = "matching",
     estimand = "ATT"
   )
   result <- contrast(
@@ -2088,7 +2101,7 @@ test_that("ipw × binary outcome × ratio: log-scale CI positive", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "ipw",
+    estimator = "ipw",
     family = "binomial"
   )
   res <- contrast(
@@ -2108,7 +2121,7 @@ test_that("matching × binary outcome × ratio: log-scale CI positive", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "matching",
+    estimator = "matching",
     estimand = "ATT",
     family = "binomial"
   )
@@ -2176,7 +2189,7 @@ test_that("ipw × external weights + sandwich: runs without error", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "ipw",
+    estimator = "ipw",
     weights = w
   )
   res <- contrast(

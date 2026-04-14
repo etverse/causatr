@@ -1,4 +1,4 @@
-test_that("causat(method = 'matching') fits on simple data", {
+test_that("causat(estimator = 'matching') fits on simple data", {
   set.seed(1)
   df <- data.frame(
     Y = rnorm(100),
@@ -10,11 +10,11 @@ test_that("causat(method = 'matching') fits on simple data", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "matching",
+    estimator = "matching",
     estimand = "ATT"
   )
   expect_s3_class(fit, "causatr_fit")
-  expect_equal(fit$method, "matching")
+  expect_equal(fit$estimator, "matching")
 })
 
 test_that("matching recovers ATT in the right direction", {
@@ -24,7 +24,7 @@ test_that("matching recovers ATT in the right direction", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "matching",
+    estimator = "matching",
     estimand = "ATT"
   )
   res <- contrast(
@@ -48,7 +48,7 @@ test_that("matching with external weights stores in details", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "matching",
+    estimator = "matching",
     estimand = "ATT",
     weights = w
   )
@@ -64,7 +64,7 @@ test_that("matching bootstrap with external weights gives finite SE", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    method = "matching",
+    estimator = "matching",
     estimand = "ATT",
     weights = w
   )
@@ -78,7 +78,7 @@ test_that("matching bootstrap with external weights gives finite SE", {
   expect_true(res$contrasts$se > 0)
 })
 
-test_that("causat(method = 'matching') rejects longitudinal data", {
+test_that("causat(estimator = 'matching') rejects longitudinal data", {
   df <- data.frame(
     Y = c(0, 1, 0, 1),
     A = c(0, 1, 0, 1),
@@ -92,7 +92,7 @@ test_that("causat(method = 'matching') rejects longitudinal data", {
       outcome = "Y",
       treatment = "A",
       confounders = ~L,
-      method = "matching",
+      estimator = "matching",
       id = "id",
       time = "time"
     ),
@@ -119,7 +119,7 @@ test_that("matching aborts on categorical (k > 2) treatment with a clear error",
       outcome = "Y",
       treatment = "A",
       confounders = ~L,
-      method = "matching"
+      estimator = "matching"
     )
   )
 })
@@ -144,7 +144,7 @@ test_that("matching aborts on continuous treatment", {
       outcome = "Y",
       treatment = "A",
       confounders = ~L,
-      method = "matching"
+      estimator = "matching"
     )
   )
 })
@@ -152,7 +152,7 @@ test_that("matching aborts on continuous treatment", {
 test_that("matching rejects A:modifier interaction terms in confounders", {
   # Phase 8 limitation: matching wraps a saturated MSM `Y ~ A`, so
   # `A:sex` has nowhere to land and was previously silently dropped.
-  # We now abort at fit time with a pointer to `method = "gcomp"`.
+  # We now abort at fit time with a pointer to `estimator = "gcomp"`.
   d <- simulate_binary_continuous(n = 200, seed = 1)
   d$sex <- rbinom(nrow(d), 1, 0.5)
   expect_snapshot(
@@ -162,7 +162,53 @@ test_that("matching rejects A:modifier interaction terms in confounders", {
       outcome = "Y",
       treatment = "A",
       confounders = ~ L + sex + A:sex,
-      method = "matching"
+      estimator = "matching"
     )
   )
+})
+
+test_that("causat(estimator = 'matching') forwards `method` to MatchIt::matchit()", {
+  # Regression guard for the 2026-04-14 rename: the whole reason we
+  # renamed `causat(method = )` to `estimator` was so that `...` could
+  # forward `method = "cem"`, `"optimal"`, etc. straight into
+  # MatchIt::matchit(). cem is built into MatchIt and needs no extra
+  # packages, so it's our canonical forwarding target in tests.
+  skip_if_not_installed("MatchIt")
+  d <- simulate_binary_continuous(n = 400, seed = 11)
+  # cem wants discrete covariates; bucket L so CEM has something to
+  # coarsen against.
+  d$L_cat <- cut(d$L, breaks = 4, labels = FALSE)
+
+  fit_cem <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L_cat,
+    estimator = "matching",
+    estimand = "ATT",
+    method = "cem"
+  )
+  expect_s3_class(fit_cem, "causatr_fit")
+  expect_equal(fit_cem$estimator, "matching")
+  expect_equal(as.character(fit_cem$match_obj$info$method), "cem")
+
+  # Default (no forwarded method) for ATT should land on nearest-neighbor.
+  fit_default <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L_cat,
+    estimator = "matching",
+    estimand = "ATT"
+  )
+  expect_equal(as.character(fit_default$match_obj$info$method), "nearest")
+
+  # End-to-end: contrast + sandwich SE on the forwarded method.
+  res <- contrast(
+    fit_cem,
+    interventions = list(a0 = static(0), a1 = static(1)),
+    ci_method = "sandwich"
+  )
+  expect_true(all(is.finite(res$contrasts$se)))
+  expect_true(res$contrasts$se[1] > 0)
 })

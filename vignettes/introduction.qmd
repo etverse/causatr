@@ -31,7 +31,7 @@ All analyses follow the same two-step pattern:
 ```r
 # Step 1: Fit
 fit <- causat(data, outcome = "Y", treatment = "A", confounders = ~ L1 + L2,
-              method = "gcomp")
+              estimator = "gcomp")
 
 # Step 2: Contrast
 result <- contrast(fit,
@@ -122,7 +122,7 @@ interventions as named lists with one element per treatment variable.
 Effect modification in the outcome / MSM model itself (e.g. `~ L + sex + A:sex`)
 is currently supported only for g-computation. IPW and matching wrap a
 saturated `Y ~ A` MSM around the propensity / matched design, and reject an
-`A:modifier` term up front — use `method = "gcomp"` for heterogeneous effects,
+`A:modifier` term up front — use `estimator = "gcomp"` for heterogeneous effects,
 or `by = "modifier"` below for stratum-specific summaries of a homogeneous
 effect. See `PHASE_8_INTERACTIONS.md` for the planned unified API.
 

@@ -2,7 +2,7 @@
 #'
 #' @description
 #' Provides a detailed summary of a [causatr_fit][causat] object, including
-#' the estimation method, outcome family, confounder formula, and the
+#' the causal estimator, outcome family, confounder formula, and the
 #' underlying model (outcome model, propensity weights, or matching object).
 #'
 #' @param object A `causatr_fit` object.
@@ -13,8 +13,8 @@
 summary.causatr_fit <- function(object, ...) {
   cat(
     "causatr fit\n",
-    "Method:      ",
-    object$method,
+    "Estimator:   ",
+    object$estimator,
     "\n",
     "Type:        ",
     object$type,

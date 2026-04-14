@@ -163,7 +163,7 @@ fit_gcomp_point <- function(
     confounders = confounders,
     confounders_tv = NULL,
     family = family,
-    method = "gcomp",
+    estimator = "gcomp",
     type = "point",
     estimand = estimand,
     id = NULL,

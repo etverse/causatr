@@ -105,7 +105,7 @@ test_that("causat() successfully fits a gcomp model", {
   )
   fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L)
   expect_s3_class(fit, "causatr_fit")
-  expect_equal(fit$method, "gcomp")
+  expect_equal(fit$estimator, "gcomp")
 })
 
 test_that("causat() rejects ATT for continuous treatment", {

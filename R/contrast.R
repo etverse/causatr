@@ -5,11 +5,12 @@
 #' reports pairwise causal contrasts (differences, ratios, or odds ratios)
 #' with uncertainty estimates.
 #'
-#' For all three estimation methods, `contrast()` computes E\[Y^a\] by setting
+#' For all three causal estimators, `contrast()` computes E\[Y^a\] by setting
 #' each individual's treatment to the intervened value and averaging the fitted
 #' outcome model predictions over the target population. The target population
-#' is controlled by `estimand` (or `subset` for subgroup effects). The methods
-#' differ only in how the outcome model was fitted; variance is computed by the
+#' is controlled by `estimand` (or `subset` for subgroup effects). The
+#' estimators differ only in how the outcome model was fitted; variance is
+#' computed by the
 #' **unified influence-function engine** `variance_if()` (`R/variance_if.R`),
 #' which handles all four cases (g-comp, IPW, matching, ICE) via one entry
 #' point. See `vignettes/variance-theory.qmd` for the derivation and the
@@ -37,18 +38,18 @@
 #'     (Hernán & Robins Ch. 21). For binary treatments, the
 #'     natural-course marginal mean equals E\[Y\] under the observed
 #'     treatment mechanism (by consistency); use `static(1)` vs
-#'     `static(0)` for the conventional ATE. Supported for all methods.
+#'     `static(0)` for the conventional ATE. Supported for all estimators.
 #'   - A named list of `causatr_intervention` objects, one per treatment
 #'     variable, for multivariate (joint) treatments. Each sub-list must name
 #'     every treatment variable specified in `causat()`.
 #'
 #'   **Note:** Non-static interventions (`shift()`, `scale_by()`, `threshold()`,
-#'   `dynamic()`, `ipsi()`) are only supported for `method = "gcomp"`.
+#'   `dynamic()`, `ipsi()`) are only supported for `estimator = "gcomp"`.
 #'   For IPW and matching, the weights/matched sets were estimated under the
 #'   observed treatment distribution; applying a different regime requires
 #'   re-calling [causat()] with updated data. `ipsi()` additionally requires
 #'   a fitted propensity model that is not yet wired through any engine
-#'   (Phase 4) and currently aborts for all methods.
+#'   (Phase 4) and currently aborts for all estimators.
 #'
 #'   **Survival contrasts are not yet implemented.** `contrast()` on a
 #'   `causatr_fit` returned by [causat_survival()] aborts with an
@@ -57,11 +58,11 @@
 #' @param type Character. The contrast scale: `"difference"` (default),
 #'   `"ratio"`, or `"or"` (odds ratio). All pairwise contrasts are reported.
 #' @param estimand Character or `NULL`. The target estimand: `"ATE"`,
-#'   `"ATT"`, or `"ATC"`. For `method = "gcomp"`, overrides the estimand
+#'   `"ATT"`, or `"ATC"`. For `estimator = "gcomp"`, overrides the estimand
 #'   stored in `fit` (allowing one fit to produce multiple estimands). For
-#'   `method = "ipw"` or `"matching"`, must match the estimand used at fitting
-#'   time — changing it aborts with an informative message. If `NULL`,
-#'   defaults to `fit$estimand`. Mutually exclusive with `subset`.
+#'   `estimator = "ipw"` or `"matching"`, must match the estimand used at
+#'   fitting time — changing it aborts with an informative message. If
+#'   `NULL`, defaults to `fit$estimand`. Mutually exclusive with `subset`.
 #' @param subset A quoted expression (`quote(...)`) defining a subgroup to
 #'   average over instead of an estimand. Evaluated in the context of the
 #'   fitted data. Works for any treatment type. For example,
@@ -73,7 +74,7 @@
 #'   first intervention in the list. Only relevant when `type = "difference"`
 #'   or `"ratio"` and there are more than two interventions. For categorical
 #'   treatments, use this to specify the reference level.
-#' @param ci_method Character. The variance/CI method: `"sandwich"` (default)
+#' @param ci_method Character. The variance/CI approach: `"sandwich"` (default)
 #'   or `"bootstrap"`.
 #' @param n_boot Integer. Number of bootstrap replications when
 #'   `ci_method = "bootstrap"`. Default `500`.
@@ -98,11 +99,11 @@
 #'       `comparison`, `estimate`, `se`, `ci_lower`, `ci_upper`.}
 #'     \item{`type`}{Contrast scale.}
 #'     \item{`estimand`}{`"ATE"`, `"ATT"`, `"ATC"`, or `"subset"`.}
-#'     \item{`ci_method`}{Inference method.}
+#'     \item{`ci_method`}{Inference approach.}
 #'     \item{`reference`}{Name of the reference intervention.}
 #'     \item{`interventions`}{The intervention list.}
 #'     \item{`n`}{Number of individuals averaged over.}
-#'     \item{`method`}{Estimation method from the fit.}
+#'     \item{`estimator`}{Causal estimator from the fit.}
 #'     \item{`vcov`}{Full variance-covariance matrix for all E\[Y^a\].}
 #'     \item{`call`}{The original call.}
 #'   }
@@ -279,7 +280,7 @@ contrast <- function(
   # overriding here would silently break the inverse-weighting identity.
   if (!is.null(estimand)) {
     estimand <- rlang::arg_match(estimand, c("ATE", "ATT", "ATC"))
-    check_estimand_compat(estimand, fit$method, fit$estimand)
+    check_estimand_compat(estimand, fit$estimator, fit$estimand)
     check_estimand_trt_compat(
       estimand,
       fit$treatment,
@@ -288,10 +289,10 @@ contrast <- function(
     )
   }
 
-  # Validate the interventions list — names, types, and method
+  # Validate the interventions list — names, types, and estimator
   # compatibility (IPW/matching only accept static(), ICE accepts all).
   check_intervention_list(interventions)
-  check_interventions_compat(fit$method, interventions)
+  check_interventions_compat(fit$estimator, interventions)
 
   # `reference` names the intervention used as the contrast denominator
   # (pairwise a_j vs a_ref). Must exist in the named list.
@@ -324,7 +325,7 @@ contrast <- function(
 
   # Hand off to the internal engine. Everything above is argument
   # validation; the actual math lives in `compute_contrast()` and
-  # its method-specific delegates.
+  # its estimator-specific delegates.
   compute_contrast(
     fit,
     interventions,
@@ -342,25 +343,25 @@ contrast <- function(
   )
 }
 
-#' Check that interventions are compatible with the estimation method
+#' Check that interventions are compatible with the causal estimator
 #'
 #' IPW and matching only support static interventions; non-static
 #' interventions require g-computation.
 #'
-#' @param method Character estimation method.
+#' @param estimator Character causal estimator.
 #' @param interventions Named list of `causatr_intervention` objects.
 #' @param call Caller environment for error messages.
 #' @return `NULL` invisibly; aborts if incompatible interventions are found.
 #' @noRd
 check_interventions_compat <- function(
-  method,
+  estimator,
   interventions,
   call = rlang::caller_env()
 ) {
   # Only IPW and matching are restricted. G-comp supports every
   # intervention type because it re-predicts from an outcome model
   # that doesn't care about the treatment-assignment mechanism.
-  if (method %in% c("ipw", "matching")) {
+  if (estimator %in% c("ipw", "matching")) {
     # For each element in the interventions list, determine whether it
     # represents a non-static regime. Three shapes to handle:
     #   - NULL entry         -> natural course (always allowed)
@@ -399,12 +400,12 @@ check_interventions_compat <- function(
       rlang::abort(
         paste0(
           "Non-static interventions (shift, dynamic, scale, threshold, ipsi) ",
-          "are not supported for method = '",
-          method,
+          "are not supported for estimator = '",
+          estimator,
           "'. ",
           "The weights/matched sets were estimated under the original ",
           "treatment regime and are not valid under a different intervention. ",
-          "Use method = 'gcomp' instead."
+          "Use estimator = 'gcomp' instead."
         ),
         call = call
       )
@@ -552,7 +553,7 @@ compute_contrast <- function(
           function(r) r$n,
           integer(1)
         )),
-        method = fit$method,
+        estimator = fit$estimator,
         family = fit$family,
         fit_type = fit$type,
         vcov = lapply(results_list, function(r) r$vcov),
@@ -735,7 +736,7 @@ compute_contrast <- function(
 
     # Variance: sandwich via the IF engine (shared across gcomp / ipw
     # / matching — the engine's dispatcher picks the right branch from
-    # `fit$method`) or nonparametric bootstrap.
+    # `fit$estimator`) or nonparametric bootstrap.
     boot_t <- NULL
     boot_info <- NULL
     if (ci_method == "sandwich") {
@@ -967,7 +968,7 @@ compute_contrast <- function(
     reference = ref_name,
     interventions = interventions,
     n = n_target,
-    method = fit$method,
+    estimator = fit$estimator,
     family = fit$family,
     fit_type = fit$type,
     vcov = vcov_mat,

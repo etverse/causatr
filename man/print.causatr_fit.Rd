@@ -16,7 +16,7 @@ Invisibly returns \code{x}.
 }
 \description{
 Displays a compact summary of a \link[=causat]{causatr_fit} object, showing the
-estimation method, treatment type, outcome, treatment variable, and sample
+causal estimator, treatment type, outcome, treatment variable, and sample
 size.
 }
 \seealso{

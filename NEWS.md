@@ -1,5 +1,27 @@
 # causatr (development version)
 
+## Breaking: `causat()` / `causat_survival()` argument `method` renamed to `estimator`
+
+`causat(method = ...)` shadowed `WeightIt::weightit(method = ...)` and
+`MatchIt::matchit(method = ...)`, making it impossible to forward those
+packages' own `method` selector through `...`. The causatr argument has
+been renamed to `estimator`; extra `...` arguments now flow cleanly into
+WeightIt / MatchIt. This is a hard rename with no deprecation shim —
+update call sites from `method = "gcomp" | "ipw" | "matching"` to
+`estimator = "..."`, and from `fit$method` / `result$method` /
+`diag$method` to `fit$estimator` / `result$estimator` / `diag$estimator`.
+The `glance.causatr_result()` output column is renamed in the same way.
+
+After the rename, forwarding e.g. a CBPS propensity model is a one-liner:
+
+```r
+fit <- causat(data, outcome = "Y", treatment = "A", confounders = ~ L1 + L2,
+              estimator = "ipw", method = "cbps")
+```
+
+See `vignette("ipw")` for a worked example. `ci_method` is a separate
+concept and is unchanged.
+
 ## 2026-04-14 — Critical review sweep (R1–R9 + S1–S9)
 
 Systematic audit and hardening of the whole package in a single pass.
@@ -296,7 +318,7 @@ every combination supported by `FEATURE_COVERAGE_MATRIX.md`:
 
 ## 2026-04-01 — Phase 2–3 implementation
 
-- **`causat(method = "gcomp" / "ipw" / "matching")`** fully
+- **`causat(estimator = "gcomp" / "ipw" / "matching")`** fully
   working, with:
   - parametric g-formula via a user-supplied `model_fn`
   - IPW via `WeightIt::weightit()` and `WeightIt::glm_weightit()`

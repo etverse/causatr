@@ -127,6 +127,20 @@ causat_survival <- function(
     )
   }
 
+  # Phase 6 is scaffolded: the pooled-logistic fit below runs to
+  # completion, but `contrast()` on the resulting fit will abort with a
+  # scaffold message. Warn at fit time as well so users learn about the
+  # limitation before investing in a long fit rather than after.
+  rlang::inform(
+    c(
+      "`causat_survival()` is scaffolded (Phase 6).",
+      i = "The pooled-logistic hazard model will fit, but `contrast()` on survival fits is not yet implemented.",
+      i = "Track progress in PHASE_6_SURVIVAL.md."
+    ),
+    .frequency = "regularly",
+    .frequency_id = "causat_survival_scaffold"
+  )
+
   # Ensure person-period format: every id must appear at more than one
   # time point. Previous implementations used `max(rows_per_id$N) == 1L`
   # which only caught uniform wide format — a mixed frame with some
@@ -236,7 +250,7 @@ causat_survival <- function(
     confounders = confounders,
     confounders_tv = NULL,
     family = "binomial",
-    method = "gcomp",
+    estimator = "gcomp",
     type = "survival",
     estimand = "ATE",
     id = id,

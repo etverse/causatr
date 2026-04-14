@@ -18,17 +18,17 @@
 
     Code
       causat(data.frame(Y = 1:10, A1 = 1:10, A2 = 1:10, L = 1:10), outcome = "Y",
-      treatment = c("A1", "A2"), confounders = ~L, method = "ipw")
+      treatment = c("A1", "A2"), confounders = ~L, estimator = "ipw")
     Condition
       Error in `causat()`:
-      ! Multivariate treatments are not yet supported for method = 'ipw'. Use method = 'gcomp' for joint interventions on multiple treatments, or fit separate models for each treatment.
+      ! Multivariate treatments are not yet supported for estimator = 'ipw'. Use estimator = 'gcomp' for joint interventions on multiple treatments, or fit separate models for each treatment.
 
 # multivariate treatment blocked for matching
 
     Code
       causat(data.frame(Y = 1:10, A1 = 1:10, A2 = 1:10, L = 1:10), outcome = "Y",
-      treatment = c("A1", "A2"), confounders = ~L, method = "matching")
+      treatment = c("A1", "A2"), confounders = ~L, estimator = "matching")
     Condition
       Error in `causat()`:
-      ! Multivariate treatments are not yet supported for method = 'matching'. Use method = 'gcomp' for joint interventions on multiple treatments, or fit separate models for each treatment.
+      ! Multivariate treatments are not yet supported for estimator = 'matching'. Use estimator = 'gcomp' for joint interventions on multiple treatments, or fit separate models for each treatment.
 

@@ -12,7 +12,7 @@
 \item{...}{Currently unused.}
 }
 \value{
-A one-row data.frame with columns \code{method}, \code{estimand},
+A one-row data.frame with columns \code{estimator}, \code{estimand},
 \code{contrast_type}, \code{ci_method}, \code{n}, and \code{n_interventions}.
 }
 \description{

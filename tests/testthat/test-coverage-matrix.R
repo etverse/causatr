@@ -69,7 +69,11 @@ test_that("Every test-*.R file is referenced in FEATURE_COVERAGE_MATRIX.md", {
   check_files <- setdiff(local_files, exempt)
 
   not_referenced <- check_files[
-    !vapply(check_files, function(f) grepl(f, md_text, fixed = TRUE), logical(1))
+    !vapply(
+      check_files,
+      function(f) grepl(f, md_text, fixed = TRUE),
+      logical(1)
+    )
   ]
   expect_identical(
     not_referenced,

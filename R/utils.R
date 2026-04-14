@@ -8,7 +8,7 @@
 #' @param confounders One-sided formula of baseline confounders.
 #' @param confounders_tv One-sided formula of time-varying confounders or `NULL`.
 #' @param family Character or family object describing the outcome distribution.
-#' @param method Character estimation method (`"gcomp"`, `"ipw"`, `"matching"`).
+#' @param estimator Character causal estimator (`"gcomp"`, `"ipw"`, `"matching"`).
 #' @param type `"point"` or `"longitudinal"`.
 #' @param estimand Character estimand (`"ATE"`, `"ATT"`, `"ATC"`).
 #' @param id Character ID column name or `NULL`.
@@ -19,7 +19,7 @@
 #' @param weights_obj A `weightit` object (IPW) or `NULL`.
 #' @param match_obj A `matchit` object (matching) or `NULL`.
 #' @param call The original `causat()` call environment.
-#' @param details Named list of method-specific metadata.
+#' @param details Named list of estimator-specific metadata.
 #' @return A list with class `"causatr_fit"`.
 #' @noRd
 new_causatr_fit <- function(
@@ -30,7 +30,7 @@ new_causatr_fit <- function(
   confounders,
   confounders_tv,
   family,
-  method,
+  estimator,
   type,
   estimand,
   id,
@@ -52,7 +52,7 @@ new_causatr_fit <- function(
       confounders = confounders,
       confounders_tv = confounders_tv,
       family = family,
-      method = method,
+      estimator = estimator,
       type = type,
       estimand = estimand,
       id = id,
@@ -79,7 +79,7 @@ new_causatr_fit <- function(
 #' @param reference Character name of the reference intervention or `NULL`.
 #' @param interventions Named list of `causatr_intervention` objects.
 #' @param n Integer sample size used for estimation.
-#' @param method Character estimation method.
+#' @param estimator Character causal estimator.
 #' @param vcov Variance-covariance matrix of marginal means.
 #' @param call The original `contrast()` call environment.
 #' @return A list with class `"causatr_result"`.
@@ -93,7 +93,7 @@ new_causatr_result <- function(
   reference,
   interventions,
   n,
-  method,
+  estimator,
   family,
   fit_type,
   vcov,
@@ -111,7 +111,7 @@ new_causatr_result <- function(
       reference = reference,
       interventions = interventions,
       n = n,
-      method = method,
+      estimator = estimator,
       family = family,
       fit_type = fit_type,
       vcov = vcov,
@@ -134,7 +134,7 @@ new_causatr_result <- function(
 #' @param positivity data.table of propensity score summaries.
 #' @param weights data.table of weight distribution summaries (IPW) or `NULL`.
 #' @param match_quality data.table of match quality metrics or `NULL`.
-#' @param method Character estimation method.
+#' @param estimator Character causal estimator.
 #' @param fit The original `causatr_fit` (stored for `plot()` method).
 #' @return A list with class `"causatr_diag"`.
 #' @noRd
@@ -143,7 +143,7 @@ new_causatr_diag <- function(
   positivity,
   weights,
   match_quality,
-  method,
+  estimator,
   fit = NULL
 ) {
   structure(
@@ -152,7 +152,7 @@ new_causatr_diag <- function(
       positivity = positivity,
       weights = weights,
       match_quality = match_quality,
-      method = method,
+      estimator = estimator,
       fit = fit
     ),
     class = "causatr_diag"
@@ -266,8 +266,8 @@ build_ps_formula <- function(confounders, treatment) {
 #' it pollutes the PS formula with the treatment on both sides, and it is
 #' silently dropped from the MSM, which `contrast()` averages over. That is
 #' the core Phase 8 limitation (see `PHASE_8_INTERACTIONS.md`). Until Phase
-#' 8 lands we abort early with a pointer to `method = "gcomp"` so users do
-#' not silently get a homogeneous-effect estimate when they asked for a
+#' 8 lands we abort early with a pointer to `estimator = "gcomp"` so users
+#' do not silently get a homogeneous-effect estimate when they asked for a
 #' heterogeneous one.
 #'
 #' Bare treatment terms in `confounders` (e.g. `~ L + A`) are also rejected
@@ -275,10 +275,10 @@ build_ps_formula <- function(confounders, treatment) {
 #'
 #' @param confounders One-sided formula passed by the user.
 #' @param treatment Character vector of treatment column name(s).
-#' @param method Character. `"ipw"` or `"matching"`; used in the error text.
+#' @param estimator Character. `"ipw"` or `"matching"`; used in the error text.
 #' @return `invisible(NULL)` on success; aborts otherwise.
 #' @noRd
-check_confounders_no_treatment <- function(confounders, treatment, method) {
+check_confounders_no_treatment <- function(confounders, treatment, estimator) {
   term_labels <- attr(stats::terms(confounders), "term.labels")
   if (length(term_labels) == 0L) {
     return(invisible(NULL))
@@ -304,8 +304,8 @@ check_confounders_no_treatment <- function(confounders, treatment, method) {
       c(
         paste0(
           "`confounders` contains term(s) involving the treatment, which ",
-          "are not supported for `method = \"",
-          method,
+          "are not supported for `estimator = \"",
+          estimator,
           "\"`."
         ),
         x = paste0("Offending term(s): ", paste(bad, collapse = ", "), "."),
@@ -315,7 +315,7 @@ check_confounders_no_treatment <- function(confounders, treatment, method) {
           "cannot be estimated here."
         ),
         i = paste0(
-          "Use `method = \"gcomp\"` for heterogeneous treatment effects, ",
+          "Use `estimator = \"gcomp\"` for heterogeneous treatment effects, ",
           "or `by = \"modifier\"` in `contrast()` for stratum-specific ",
           "summaries of a homogeneous effect."
         ),

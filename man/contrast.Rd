@@ -34,19 +34,19 @@ treatment policies on continuous treatments (e.g. \code{shift(-10)} vs
 (Hernán & Robins Ch. 21). For binary treatments, the
 natural-course marginal mean equals E[Y] under the observed
 treatment mechanism (by consistency); use \code{static(1)} vs
-\code{static(0)} for the conventional ATE. Supported for all methods.
+\code{static(0)} for the conventional ATE. Supported for all estimators.
 \item A named list of \code{causatr_intervention} objects, one per treatment
 variable, for multivariate (joint) treatments. Each sub-list must name
 every treatment variable specified in \code{causat()}.
 }
 
 \strong{Note:} Non-static interventions (\code{shift()}, \code{scale_by()}, \code{threshold()},
-\code{dynamic()}, \code{ipsi()}) are only supported for \code{method = "gcomp"}.
+\code{dynamic()}, \code{ipsi()}) are only supported for \code{estimator = "gcomp"}.
 For IPW and matching, the weights/matched sets were estimated under the
 observed treatment distribution; applying a different regime requires
 re-calling \code{\link[=causat]{causat()}} with updated data. \code{ipsi()} additionally requires
 a fitted propensity model that is not yet wired through any engine
-(Phase 4) and currently aborts for all methods.
+(Phase 4) and currently aborts for all estimators.
 
 \strong{Survival contrasts are not yet implemented.} \code{contrast()} on a
 \code{causatr_fit} returned by \code{\link[=causat_survival]{causat_survival()}} aborts with an
@@ -57,11 +57,11 @@ survival-curve contrast step is pending.}
 \code{"ratio"}, or \code{"or"} (odds ratio). All pairwise contrasts are reported.}
 
 \item{estimand}{Character or \code{NULL}. The target estimand: \code{"ATE"},
-\code{"ATT"}, or \code{"ATC"}. For \code{method = "gcomp"}, overrides the estimand
+\code{"ATT"}, or \code{"ATC"}. For \code{estimator = "gcomp"}, overrides the estimand
 stored in \code{fit} (allowing one fit to produce multiple estimands). For
-\code{method = "ipw"} or \code{"matching"}, must match the estimand used at fitting
-time — changing it aborts with an informative message. If \code{NULL},
-defaults to \code{fit$estimand}. Mutually exclusive with \code{subset}.}
+\code{estimator = "ipw"} or \code{"matching"}, must match the estimand used at
+fitting time — changing it aborts with an informative message. If
+\code{NULL}, defaults to \code{fit$estimand}. Mutually exclusive with \code{subset}.}
 
 \item{subset}{A quoted expression (\code{quote(...)}) defining a subgroup to
 average over instead of an estimand. Evaluated in the context of the
@@ -76,7 +76,7 @@ first intervention in the list. Only relevant when \code{type = "difference"}
 or \code{"ratio"} and there are more than two interventions. For categorical
 treatments, use this to specify the reference level.}
 
-\item{ci_method}{Character. The variance/CI method: \code{"sandwich"} (default)
+\item{ci_method}{Character. The variance/CI approach: \code{"sandwich"} (default)
 or \code{"bootstrap"}.}
 
 \item{n_boot}{Integer. Number of bootstrap replications when
@@ -107,11 +107,11 @@ A \code{causatr_result} object with slots:
 \code{comparison}, \code{estimate}, \code{se}, \code{ci_lower}, \code{ci_upper}.}
 \item{\code{type}}{Contrast scale.}
 \item{\code{estimand}}{\code{"ATE"}, \code{"ATT"}, \code{"ATC"}, or \code{"subset"}.}
-\item{\code{ci_method}}{Inference method.}
+\item{\code{ci_method}}{Inference approach.}
 \item{\code{reference}}{Name of the reference intervention.}
 \item{\code{interventions}}{The intervention list.}
 \item{\code{n}}{Number of individuals averaged over.}
-\item{\code{method}}{Estimation method from the fit.}
+\item{\code{estimator}}{Causal estimator from the fit.}
 \item{\code{vcov}}{Full variance-covariance matrix for all E[Y^a].}
 \item{\code{call}}{The original call.}
 }
@@ -121,11 +121,12 @@ Standardises outcome model predictions under each named intervention and
 reports pairwise causal contrasts (differences, ratios, or odds ratios)
 with uncertainty estimates.
 
-For all three estimation methods, \code{contrast()} computes E[Y^a] by setting
+For all three causal estimators, \code{contrast()} computes E[Y^a] by setting
 each individual's treatment to the intervened value and averaging the fitted
 outcome model predictions over the target population. The target population
-is controlled by \code{estimand} (or \code{subset} for subgroup effects). The methods
-differ only in how the outcome model was fitted; variance is computed by the
+is controlled by \code{estimand} (or \code{subset} for subgroup effects). The
+estimators differ only in how the outcome model was fitted; variance is
+computed by the
 \strong{unified influence-function engine} \code{variance_if()} (\code{R/variance_if.R}),
 which handles all four cases (g-comp, IPW, matching, ICE) via one entry
 point. See \code{vignettes/variance-theory.qmd} for the derivation and the

@@ -164,7 +164,7 @@ test_that("ipw × multiple confounders recovers ATE", {
     outcome = "Y",
     treatment = "A",
     confounders = ~ L1 + L2 + L3 + L4,
-    method = "ipw"
+    estimator = "ipw"
   )
   res <- contrast(
     fit,
@@ -194,7 +194,7 @@ test_that("triangulation × nonlinear confounding × flexible models", {
     outcome = "Y",
     treatment = "A",
     confounders = ~ splines::ns(L, 5),
-    method = "ipw"
+    estimator = "ipw"
   )
   fit_gam <- causat(
     d,

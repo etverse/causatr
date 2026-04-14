@@ -1,7 +1,7 @@
 #' Fit a causal model
 #'
 #' @description
-#' Prepares the causal estimation pipeline for a given method. For
+#' Prepares the causal estimation pipeline for a given estimator. For
 #' `"gcomp"`, fits the conditional outcome model E\[Y | A, L\] that will be
 #' used by [contrast()] for standardisation. For `"ipw"`, estimates
 #' propensity-score-based weights (via `WeightIt::weightit()`) that will be
@@ -28,7 +28,7 @@
 #'   change over time within individuals and enter the outcome model at each
 #'   ICE step alongside their lagged values (controlled by `history`). Ignored
 #'   for point treatments. If `NULL`, no time-varying confounders are used.
-#' @param method Character. Estimation method: `"gcomp"` (default), `"ipw"`,
+#' @param estimator Character. Causal estimator: `"gcomp"` (default), `"ipw"`,
 #'   or `"matching"`. IPW requires the `WeightIt` package; matching requires
 #'   the `MatchIt` package. Note: `"matching"` is restricted to **binary
 #'   point treatments** (MatchIt does not support multi-category or
@@ -59,7 +59,7 @@
 #' @param numerator A one-sided formula or `NULL`. Numerator formula for
 #'   stabilized IPW weights in longitudinal models. Defaults to baseline
 #'   confounders only (no time-varying confounders), which gives the standard
-#'   stabilized weights. Only relevant for `method = "ipw"` with longitudinal
+#'   stabilized weights. Only relevant for `estimator = "ipw"` with longitudinal
 #'   data.
 #' @param weights Numeric vector or `NULL`. Pre-computed observation weights
 #'   (e.g. survey weights or externally computed IPCW). For `"gcomp"`,
@@ -75,9 +75,9 @@
 #'   Default `stats::glm`; pass `mgcv::gam` for GAMs, `MASS::glm.nb` for
 #'   negative-binomial, etc. Ignored for `"ipw"` and `"matching"`.
 #' @param ... Additional arguments passed to the underlying estimation
-#'   function: `WeightIt::weightit()` for `method = "ipw"` (e.g.
-#'   `method = "glm"`); `MatchIt::matchit()` for `method = "matching"` (e.g.
-#'   `method = "nearest"`, `ratio = 1`).
+#'   function: `WeightIt::weightit()` for `estimator = "ipw"` (e.g.
+#'   `method = "glm"` or `method = "cbps"`); `MatchIt::matchit()` for
+#'   `estimator = "matching"` (e.g. `method = "nearest"`, `ratio = 1`).
 #'
 #' @return A `causatr_fit` object with slots:
 #'   \describe{
@@ -87,7 +87,7 @@
 #'     \item{`data`}{data.table used for fitting.}
 #'     \item{`treatment`, `outcome`, `confounders`, `confounders_tv`,
 #'       `family`}{Model spec.}
-#'     \item{`method`}{`"gcomp"`, `"ipw"`, or `"matching"`.}
+#'     \item{`estimator`}{`"gcomp"`, `"ipw"`, or `"matching"`.}
 #'     \item{`type`}{`"point"` or `"longitudinal"`.}
 #'     \item{`estimand`}{`"ATE"`, `"ATT"`, or `"ATC"`.}
 #'     \item{`id`, `time`, `censoring`}{Longitudinal identifiers.}
@@ -100,7 +100,7 @@
 #'   }
 #'
 #' @details
-#' ## G-computation (`method = "gcomp"`)
+#' ## G-computation (`estimator = "gcomp"`)
 #' Fits E\[Y | A, L\] using `glm()` (or `mgcv::gam()` if the formula
 #' contains `s()` or `te()` terms). [contrast()] standardises over the
 #' target population (controlled by `estimand`) to obtain E\[Y^a\] under each
@@ -112,7 +112,7 @@
 #' conditioning on baseline confounders (`confounders`), time-varying
 #' confounders (`confounders_tv`), and their lags up to `history` steps.
 #'
-#' ## IPW (`method = "ipw"`)
+#' ## IPW (`estimator = "ipw"`)
 #' Calls `WeightIt::weightit()` to estimate propensity-score-based weights
 #' for the desired `estimand`, then fits a weighted outcome model via
 #' `WeightIt::glm_weightit()`. The estimand is fixed at fitting time.
@@ -122,24 +122,24 @@
 #' treatment distribution.
 #'
 #' **Longitudinal IPW is not yet implemented** (planned Phase 4). The
-#' design below describes the target API; `method = "ipw"` with `id` and
-#' `time` currently aborts with an informative error. Use `method =
-#' "gcomp"` (which uses ICE g-computation for longitudinal data) in the
-#' meantime. When implemented, `WeightIt::weightitMSM()` will fit a
-#' denominator model at each time `k` that includes baseline confounders,
-#' concurrent time-varying confounders, and lagged treatment. The
-#' numerator model will include only baseline confounders and lagged
+#' design below describes the target API; `estimator = "ipw"` with `id` and
+#' `time` currently aborts with an informative error. Use
+#' `estimator = "gcomp"` (which uses ICE g-computation for longitudinal
+#' data) in the meantime. When implemented, `WeightIt::weightitMSM()` will
+#' fit a denominator model at each time `k` that includes baseline
+#' confounders, concurrent time-varying confounders, and lagged treatment.
+#' The numerator model will include only baseline confounders and lagged
 #' treatment (standard stabilized weights), unless overridden via
 #' `numerator`.
 #'
-#' ## Matching (`method = "matching"`)
+#' ## Matching (`estimator = "matching"`)
 #' Calls `MatchIt::matchit()` to create matched sets. The estimand is
 #' fixed at fitting time. Only `static()` interventions are supported
 #' in [contrast()]. **Matching is binary-only**: `MatchIt` does not
 #' support categorical (k > 2 levels) or continuous treatments, and
-#' causatr aborts with a clear error in both cases. Use `method =
-#' "gcomp"` or `method = "ipw"` for categorical / continuous
-#' treatments. Longitudinal matching is also unsupported.
+#' causatr aborts with a clear error in both cases. Use
+#' `estimator = "gcomp"` or `estimator = "ipw"` for categorical /
+#' continuous treatments. Longitudinal matching is also unsupported.
 #'
 #' ## Estimands
 #' | Estimand | Population averaged over | Applicability |
@@ -190,26 +190,30 @@
 #'   estimand = "ATT"
 #' )
 #'
-#' # IPW (requires WeightIt) — estimand fixed at fit time
+#' # IPW (requires WeightIt) — estimand fixed at fit time.
+#' # Extra args in `...` are forwarded to `WeightIt::weightit()` — e.g.
+#' # `method = "cbps"` selects covariate-balancing propensity scores.
 #' fit_ipw <- causat(
 #'   nhefs,
 #'   outcome = "wt82_71",
 #'   treatment = "qsmk",
 #'   confounders = ~ sex + age + race + education +
 #'     smokeintensity + smokeyrs + exercise + active + wt71,
-#'   method = "ipw",
-#'   estimand = "ATE"
+#'   estimator = "ipw",
+#'   estimand = "ATE",
+#'   method = "cbps"
 #' )
 #'
-#' # Matching (requires MatchIt)
+#' # Matching (requires MatchIt). `method = "nearest"` is MatchIt's own arg.
 #' fit_match <- causat(
 #'   nhefs,
 #'   outcome = "wt82_71",
 #'   treatment = "qsmk",
 #'   confounders = ~ sex + age + race + education +
 #'     smokeintensity + smokeyrs + exercise + active + wt71,
-#'   method = "matching",
-#'   estimand = "ATT"
+#'   estimator = "matching",
+#'   estimand = "ATT",
+#'   method = "nearest"
 #' )
 #'
 #' # Longitudinal with time-varying confounders
@@ -242,7 +246,7 @@ causat <- function(
   treatment,
   confounders,
   confounders_tv = NULL,
-  method = c("gcomp", "ipw", "matching"),
+  estimator = c("gcomp", "ipw", "matching"),
   family = "gaussian",
   estimand = c("ATE", "ATT", "ATC"),
   id = NULL,
@@ -257,7 +261,7 @@ causat <- function(
 ) {
   # Capture the call for later display in print/summary of the result.
   call <- match.call()
-  method <- rlang::arg_match(method)
+  estimator <- rlang::arg_match(estimator)
   estimand <- rlang::arg_match(estimand)
 
   # Auto-detect point vs longitudinal from the presence of id/time.
@@ -289,7 +293,7 @@ causat <- function(
     treatment = treatment,
     confounders = confounders,
     confounders_tv = confounders_tv,
-    method = method,
+    estimator = estimator,
     estimand = estimand,
     id = id,
     time = time,
@@ -330,11 +334,11 @@ causat <- function(
   # the problem.
   check_weights(weights, nrow(data))
 
-  # Dispatch to the method-specific fitter. Each returns a
+  # Dispatch to the estimator-specific fitter. Each returns a
   # `causatr_fit` with the same S3 class and slot structure, which
   # contrast() and diagnose() then consume uniformly.
   switch(
-    method,
+    estimator,
     gcomp = fit_gcomp(
       data,
       outcome,
@@ -379,6 +383,14 @@ causat <- function(
       weights,
       call,
       ...
-    )
+    ),
+    # Defensive default: unreachable under normal use because
+    # rlang::arg_match(estimator) above restricts `estimator` to the
+    # allowed set. Kept so a future refactor that loosens arg_match
+    # cannot silently return NULL from causat().
+    rlang::abort(c(
+      paste0("Unknown `estimator` '", estimator, "'."),
+      i = "Must be one of: 'gcomp', 'ipw', 'matching'."
+    ))
   )
 }

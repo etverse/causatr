@@ -68,8 +68,8 @@ fit_matching <- function(
         treatment,
         "` has ",
         length(trt_levels),
-        " levels. Use `method = \"gcomp\"` or `method = \"ipw\"` for ",
-        "categorical treatments (Phase 4 / Phase 7 will revisit ",
+        " levels. Use `estimator = \"gcomp\"` or `estimator = \"ipw\"` ",
+        "for categorical treatments (Phase 4 / Phase 7 will revisit ",
         "multi-category matching)."
       ),
       .call = FALSE
@@ -82,7 +82,11 @@ fit_matching <- function(
   # dropped from the effect estimate. Abort early with a Phase-8
   # pointer rather than returning a wrong answer. See
   # `check_confounders_no_treatment()` in `R/utils.R`.
-  check_confounders_no_treatment(confounders, treatment, method = "matching")
+  check_confounders_no_treatment(
+    confounders,
+    treatment,
+    estimator = "matching"
+  )
 
   # Build the treatment model formula: A ~ confounders.
   # MatchIt uses this to estimate propensity scores for matching.
@@ -148,7 +152,7 @@ fit_matching <- function(
     confounders = confounders,
     confounders_tv = NULL,
     family = family,
-    method = "matching",
+    estimator = "matching",
     type = "point",
     estimand = estimand,
     id = NULL,

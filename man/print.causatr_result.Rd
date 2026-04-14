@@ -15,7 +15,7 @@
 Invisibly returns \code{x}.
 }
 \description{
-Displays the estimation method, contrast type, CI method, sample size,
+Displays the causal estimator, contrast type, CI method, sample size,
 intervention-specific marginal means, and pairwise contrasts (with SEs
 and confidence intervals).
 }

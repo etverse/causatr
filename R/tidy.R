@@ -105,7 +105,7 @@ tidy.causatr_result <- function(
 #' @param x A `causatr_result` object.
 #' @param ... Currently unused.
 #'
-#' @return A one-row data.frame with columns `method`, `estimand`,
+#' @return A one-row data.frame with columns `estimator`, `estimand`,
 #'   `contrast_type`, `ci_method`, `n`, and `n_interventions`.
 #'
 #' @examples
@@ -118,7 +118,7 @@ tidy.causatr_result <- function(
 #' @export
 glance.causatr_result <- function(x, ...) {
   data.frame(
-    method = x$method,
+    estimator = x$estimator,
     estimand = x$estimand,
     contrast_type = x$type,
     ci_method = x$ci_method,

@@ -41,10 +41,10 @@ fit_gc <- causat(nhefs, outcome = "wt82_71", treatment = "qsmk",
   confounders = confounders, censoring = "censored")
 
 fit_ipw <- causat(nhefs_complete, outcome = "wt82_71", treatment = "qsmk",
-  confounders = confounders, method = "ipw")
+  confounders = confounders, estimator = "ipw")
 
 fit_m <- causat(nhefs_complete, outcome = "wt82_71", treatment = "qsmk",
-  confounders = confounders, method = "matching", estimand = "ATT")
+  confounders = confounders, estimator = "matching", estimand = "ATT")
 ```
 
 ### Contrasts
@@ -90,11 +90,11 @@ fit_gc_bin <- causat(nhefs_complete, outcome = "gained_weight",
   treatment = "qsmk", confounders = confounders, family = "binomial")
 
 fit_ipw_bin <- causat(nhefs_complete, outcome = "gained_weight",
-  treatment = "qsmk", confounders = confounders, method = "ipw")
+  treatment = "qsmk", confounders = confounders, estimator = "ipw")
 
 fit_m_bin <- causat(nhefs_complete, outcome = "gained_weight",
   treatment = "qsmk", confounders = confounders,
-  method = "matching", estimand = "ATT")
+  estimator = "matching", estimand = "ATT")
 
 res_gc_bin <- contrast(fit_gc_bin, ivs, reference = "continue")
 res_ipw_bin <- contrast(fit_ipw_bin, ivs, reference = "continue")

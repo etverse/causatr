@@ -10,7 +10,7 @@ causat(
   treatment,
   confounders,
   confounders_tv = NULL,
-  method = c("gcomp", "ipw", "matching"),
+  estimator = c("gcomp", "ipw", "matching"),
   family = "gaussian",
   estimand = c("ATE", "ATT", "ATC"),
   id = NULL,
@@ -45,7 +45,7 @@ change over time within individuals and enter the outcome model at each
 ICE step alongside their lagged values (controlled by \code{history}). Ignored
 for point treatments. If \code{NULL}, no time-varying confounders are used.}
 
-\item{method}{Character. Estimation method: \code{"gcomp"} (default), \code{"ipw"},
+\item{estimator}{Character. Causal estimator: \code{"gcomp"} (default), \code{"ipw"},
 or \code{"matching"}. IPW requires the \code{WeightIt} package; matching requires
 the \code{MatchIt} package. Note: \code{"matching"} is restricted to \strong{binary
 point treatments} (MatchIt does not support multi-category or
@@ -83,7 +83,7 @@ confounders to include in each ICE outcome model. Default \code{1} (one lag).
 \item{numerator}{A one-sided formula or \code{NULL}. Numerator formula for
 stabilized IPW weights in longitudinal models. Defaults to baseline
 confounders only (no time-varying confounders), which gives the standard
-stabilized weights. Only relevant for \code{method = "ipw"} with longitudinal
+stabilized weights. Only relevant for \code{estimator = "ipw"} with longitudinal
 data.}
 
 \item{weights}{Numeric vector or \code{NULL}. Pre-computed observation weights
@@ -103,9 +103,9 @@ Default \code{stats::glm}; pass \code{mgcv::gam} for GAMs, \code{MASS::glm.nb} f
 negative-binomial, etc. Ignored for \code{"ipw"} and \code{"matching"}.}
 
 \item{...}{Additional arguments passed to the underlying estimation
-function: \code{WeightIt::weightit()} for \code{method = "ipw"} (e.g.
-\code{method = "glm"}); \code{MatchIt::matchit()} for \code{method = "matching"} (e.g.
-\code{method = "nearest"}, \code{ratio = 1}).}
+function: \code{WeightIt::weightit()} for \code{estimator = "ipw"} (e.g.
+\code{method = "glm"} or \code{method = "cbps"}); \code{MatchIt::matchit()} for
+\code{estimator = "matching"} (e.g. \code{method = "nearest"}, \code{ratio = 1}).}
 }
 \value{
 A \code{causatr_fit} object with slots:
@@ -116,7 +116,7 @@ stored in \code{weights_obj} / \code{match_obj} instead).}
 \item{\code{data}}{data.table used for fitting.}
 \item{\code{treatment}, \code{outcome}, \code{confounders}, \code{confounders_tv},
 \code{family}}{Model spec.}
-\item{\code{method}}{\code{"gcomp"}, \code{"ipw"}, or \code{"matching"}.}
+\item{\code{estimator}}{\code{"gcomp"}, \code{"ipw"}, or \code{"matching"}.}
 \item{\code{type}}{\code{"point"} or \code{"longitudinal"}.}
 \item{\code{estimand}}{\code{"ATE"}, \code{"ATT"}, or \code{"ATC"}.}
 \item{\code{id}, \code{time}, \code{censoring}}{Longitudinal identifiers.}
@@ -129,7 +129,7 @@ stored in \code{weights_obj} / \code{match_obj} instead).}
 }
 }
 \description{
-Prepares the causal estimation pipeline for a given method. For
+Prepares the causal estimation pipeline for a given estimator. For
 \code{"gcomp"}, fits the conditional outcome model E[Y | A, L] that will be
 used by \code{\link[=contrast]{contrast()}} for standardisation. For \code{"ipw"}, estimates
 propensity-score-based weights (via \code{WeightIt::weightit()}) that will be
@@ -142,7 +142,7 @@ g-computation (Zivich et al., 2024): outcome models are fitted at each
 time point via backward iteration.
 }
 \details{
-\subsection{G-computation (\code{method = "gcomp"})}{
+\subsection{G-computation (\code{estimator = "gcomp"})}{
 
 Fits E[Y | A, L] using \code{glm()} (or \code{mgcv::gam()} if the formula
 contains \code{s()} or \code{te()} terms). \code{\link[=contrast]{contrast()}} standardises over the
@@ -156,7 +156,7 @@ conditioning on baseline confounders (\code{confounders}), time-varying
 confounders (\code{confounders_tv}), and their lags up to \code{history} steps.
 }
 
-\subsection{IPW (\code{method = "ipw"})}{
+\subsection{IPW (\code{estimator = "ipw"})}{
 
 Calls \code{WeightIt::weightit()} to estimate propensity-score-based weights
 for the desired \code{estimand}, then fits a weighted outcome model via
@@ -167,24 +167,26 @@ in \code{\link[=contrast]{contrast()}}, because the weights were estimated under
 treatment distribution.
 
 \strong{Longitudinal IPW is not yet implemented} (planned Phase 4). The
-design below describes the target API; \code{method = "ipw"} with \code{id} and
-\code{time} currently aborts with an informative error. Use \code{method = "gcomp"} (which uses ICE g-computation for longitudinal data) in the
-meantime. When implemented, \code{WeightIt::weightitMSM()} will fit a
-denominator model at each time \code{k} that includes baseline confounders,
-concurrent time-varying confounders, and lagged treatment. The
-numerator model will include only baseline confounders and lagged
+design below describes the target API; \code{estimator = "ipw"} with \code{id} and
+\code{time} currently aborts with an informative error. Use
+\code{estimator = "gcomp"} (which uses ICE g-computation for longitudinal
+data) in the meantime. When implemented, \code{WeightIt::weightitMSM()} will
+fit a denominator model at each time \code{k} that includes baseline
+confounders, concurrent time-varying confounders, and lagged treatment.
+The numerator model will include only baseline confounders and lagged
 treatment (standard stabilized weights), unless overridden via
 \code{numerator}.
 }
 
-\subsection{Matching (\code{method = "matching"})}{
+\subsection{Matching (\code{estimator = "matching"})}{
 
 Calls \code{MatchIt::matchit()} to create matched sets. The estimand is
 fixed at fitting time. Only \code{static()} interventions are supported
 in \code{\link[=contrast]{contrast()}}. \strong{Matching is binary-only}: \code{MatchIt} does not
 support categorical (k > 2 levels) or continuous treatments, and
-causatr aborts with a clear error in both cases. Use \code{method = "gcomp"} or \code{method = "ipw"} for categorical / continuous
-treatments. Longitudinal matching is also unsupported.
+causatr aborts with a clear error in both cases. Use
+\code{estimator = "gcomp"} or \code{estimator = "ipw"} for categorical /
+continuous treatments. Longitudinal matching is also unsupported.
 }
 
 \subsection{Estimands}{\tabular{lll}{
@@ -232,26 +234,30 @@ fit_att <- causat(
   estimand = "ATT"
 )
 
-# IPW (requires WeightIt) — estimand fixed at fit time
+# IPW (requires WeightIt) — estimand fixed at fit time.
+# Extra args in `...` are forwarded to `WeightIt::weightit()` — e.g.
+# `method = "cbps"` selects covariate-balancing propensity scores.
 fit_ipw <- causat(
   nhefs,
   outcome = "wt82_71",
   treatment = "qsmk",
   confounders = ~ sex + age + race + education +
     smokeintensity + smokeyrs + exercise + active + wt71,
-  method = "ipw",
-  estimand = "ATE"
+  estimator = "ipw",
+  estimand = "ATE",
+  method = "cbps"
 )
 
-# Matching (requires MatchIt)
+# Matching (requires MatchIt). `method = "nearest"` is MatchIt's own arg.
 fit_match <- causat(
   nhefs,
   outcome = "wt82_71",
   treatment = "qsmk",
   confounders = ~ sex + age + race + education +
     smokeintensity + smokeyrs + exercise + active + wt71,
-  method = "matching",
-  estimand = "ATT"
+  estimator = "matching",
+  estimand = "ATT",
+  method = "nearest"
 )
 
 # Longitudinal with time-varying confounders

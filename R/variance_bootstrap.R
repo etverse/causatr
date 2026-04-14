@@ -116,8 +116,8 @@ process_boot_results <- function(boot_res, int_names, n_boot) {
 #'
 #' @description
 #' Estimates Var(μ̂) by resampling the entire estimation pipeline `n_boot`
-#' times (Hernán & Robins, Technical Point 13.1).  Works for all estimation
-#' methods (g-comp, IPW, matching).
+#' times (Hernán & Robins, Technical Point 13.1).  Works for all causal
+#' estimators (g-comp, IPW, matching).
 #'
 #' ## Algorithm
 #'
@@ -154,7 +154,7 @@ variance_bootstrap <- function(
 ) {
   data <- fit$data
   int_names <- names(interventions)
-  method <- fit$method
+  estimator <- fit$estimator
   outcome <- fit$outcome
   treatment <- fit$treatment
   censoring <- fit$censoring
@@ -233,8 +233,8 @@ variance_bootstrap <- function(
 #' Refit the full estimation pipeline on a bootstrap sample
 #'
 #' @description
-#' Dispatches to the appropriate refitting logic based on the estimation
-#' method stored in `fit$method`.
+#' Dispatches to the appropriate refitting logic based on the causal
+#' estimator stored in `fit$estimator`.
 #'
 #' @param fit A `causatr_fit` object (original fit, for extracting formulas etc.).
 #' @param d_b A data.table bootstrap sample.
@@ -243,15 +243,19 @@ variance_bootstrap <- function(
 #'
 #' @noRd
 refit_model <- function(fit, d_b, weights = NULL) {
-  if (fit$method == "gcomp") {
+  if (fit$estimator == "gcomp") {
     refit_gcomp(fit, d_b, weights = weights)
-  } else if (fit$method == "ipw") {
+  } else if (fit$estimator == "ipw") {
     refit_ipw(fit, d_b, weights = weights)
-  } else if (fit$method == "matching") {
+  } else if (fit$estimator == "matching") {
     refit_matching(fit, d_b, weights = weights)
   } else {
     rlang::abort(
-      paste0("Bootstrap not yet supported for method = '", fit$method, "'."),
+      paste0(
+        "Bootstrap not yet supported for estimator = '",
+        fit$estimator,
+        "'."
+      ),
       .call = FALSE
     )
   }

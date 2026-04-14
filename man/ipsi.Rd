@@ -23,7 +23,7 @@ implemented and will appear in \code{fit$interventions}, but
 \code{\link[=contrast]{contrast()}} currently aborts when handed an \code{ipsi()} intervention
 because application requires a fitted propensity model that is not yet
 wired through the estimation engines. Use \code{\link[=shift]{shift()}}, \code{\link[=scale_by]{scale_by()}}, or
-\code{\link[=static]{static()}} with \code{method = "gcomp"} in the meantime.
+\code{\link[=static]{static()}} with \code{estimator = "gcomp"} in the meantime.
 }
 \examples{
 \dontrun{

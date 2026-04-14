@@ -70,19 +70,19 @@ plot.causatr_result <- function(x, which = c("contrasts", "means"), ...) {
 
   dt$ci_label <- format_ci(dt$estimate, dt$ci_lower, dt$ci_upper)
 
-  method_label <- switch(
-    x$method,
+  estimator_label <- switch(
+    x$estimator,
     gcomp = "G-computation",
     ipw = "IPW",
     matching = "Matching",
-    x$method
+    x$estimator
   )
   type_label <- if (!is.null(x$fit_type) && x$fit_type == "longitudinal") {
     " (ICE)"
   } else {
     ""
   }
-  default_title <- paste0(method_label, type_label, ", ", x$estimand)
+  default_title <- paste0(estimator_label, type_label, ", ", x$estimand)
 
   # Assemble forrest() arguments. We build a named list so callers
   # can override any default via `...` without us needing to
@@ -205,10 +205,10 @@ get_cobalt_object <- function(diag) {
     return(NULL)
   }
 
-  if (fit$method == "ipw" && !is.null(fit$weights_obj)) {
+  if (fit$estimator == "ipw" && !is.null(fit$weights_obj)) {
     return(fit$weights_obj)
   }
-  if (fit$method == "matching" && !is.null(fit$match_obj)) {
+  if (fit$estimator == "matching" && !is.null(fit$match_obj)) {
     return(fit$match_obj)
   }
   NULL

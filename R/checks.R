@@ -154,10 +154,10 @@ check_intervention_list <- function(x, call = rlang::caller_env()) {
   }
 }
 
-#' Check that an estimand override is compatible with the fit method
+#' Check that an estimand override is compatible with the fit estimator
 #'
 #' @param estimand Character estimand requested in `contrast()`, or `NULL`.
-#' @param fit_method Character estimation method (`"gcomp"`, `"ipw"`, or
+#' @param fit_estimator Character causal estimator (`"gcomp"`, `"ipw"`, or
 #'   `"matching"`).
 #' @param fit_estimand Character estimand that was used at fitting time.
 #' @param call Caller environment for error messages.
@@ -165,7 +165,7 @@ check_intervention_list <- function(x, call = rlang::caller_env()) {
 #' @noRd
 check_estimand_compat <- function(
   estimand,
-  fit_method,
+  fit_estimator,
   fit_estimand,
   call = rlang::caller_env()
 ) {
@@ -181,11 +181,11 @@ check_estimand_compat <- function(
   # weights doesn't give you E[Y^a]. G-comp doesn't have this
   # problem: the outcome model is estimand-agnostic, and the estimand
   # only affects which rows we average predictions over.
-  if (fit_method %in% c("ipw", "matching") && estimand != fit_estimand) {
+  if (fit_estimator %in% c("ipw", "matching") && estimand != fit_estimand) {
     rlang::abort(
       paste0(
-        "For method = '",
-        fit_method,
+        "For estimator = '",
+        fit_estimator,
         "', the estimand is fixed at fitting time because it determines the ",
         "weights. Refit with causat(estimand = '",
         estimand,
@@ -316,7 +316,7 @@ check_treatment_nas <- function(
 #' @param confounders One-sided formula of baseline confounders.
 #' @param confounders_tv One-sided formula of time-varying confounders, or
 #'   `NULL`.
-#' @param method Character estimation method.
+#' @param estimator Character causal estimator.
 #' @param estimand Character estimand.
 #' @param id Character ID column name, or `NULL`.
 #' @param time Character time column name, or `NULL`.
@@ -330,7 +330,7 @@ check_causat_inputs <- function(
   treatment,
   confounders,
   confounders_tv,
-  method,
+  estimator,
   estimand,
   id,
   time,
@@ -342,15 +342,15 @@ check_causat_inputs <- function(
   # catches the "only one present" mistake.
   type <- if (!is.null(id) && !is.null(time)) "longitudinal" else "point"
 
-  # Method × type compatibility: longitudinal data is ICE-only for now.
-  # IPW/matching for longitudinal would need weightitMSM/matchit for
-  # repeated measures, which is Phase 4+ territory.
-  if (type == "longitudinal" && method %in% c("ipw", "matching")) {
+  # Estimator × type compatibility: longitudinal data is ICE-only for
+  # now. IPW/matching for longitudinal would need weightitMSM/matchit
+  # for repeated measures, which is Phase 4+ territory.
+  if (type == "longitudinal" && estimator %in% c("ipw", "matching")) {
     rlang::abort(
       paste0(
-        "method = '",
-        method,
-        "' does not support longitudinal data. Use method = 'gcomp'."
+        "estimator = '",
+        estimator,
+        "' does not support longitudinal data. Use estimator = 'gcomp'."
       ),
       call = call
     )
@@ -359,12 +359,12 @@ check_causat_inputs <- function(
   # Multivariate treatments for IPW/matching are also Phase 4+; the
   # propensity / matched-design story is more involved than simple
   # per-component application.
-  if (length(treatment) > 1L && method %in% c("ipw", "matching")) {
+  if (length(treatment) > 1L && estimator %in% c("ipw", "matching")) {
     rlang::abort(
       paste0(
-        "Multivariate treatments are not yet supported for method = '",
-        method,
-        "'. Use method = 'gcomp' for joint interventions on multiple ",
+        "Multivariate treatments are not yet supported for estimator = '",
+        estimator,
+        "'. Use estimator = 'gcomp' for joint interventions on multiple ",
         "treatments, or fit separate models for each treatment."
       ),
       call = call

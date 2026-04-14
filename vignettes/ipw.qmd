@@ -30,7 +30,7 @@ interventions is planned for Phase 4.
 
 **Note:** IPW and matching reject an `A:modifier` term inside `confounders`
 up front — the saturated `Y ~ A` MSM has no slot for the interaction.
-Use `method = "gcomp"` for heterogeneous treatment effects, or `by =
+Use `estimator = "gcomp"` for heterogeneous treatment effects, or `by =
 "modifier"` below for stratum-specific summaries of a homogeneous effect.
 
 ## Setup
@@ -65,7 +65,7 @@ fit_ipw <- causat(
   confounders = ~ sex + age + I(age^2) + race + factor(education) +
     smokeintensity + I(smokeintensity^2) + smokeyrs + I(smokeyrs^2) +
     factor(exercise) + factor(active) + wt71 + I(wt71^2),
-  method = "ipw",
+  estimator = "ipw",
   estimand = "ATE"
 )
 
@@ -108,7 +108,7 @@ fit_ipw_att <- causat(
   confounders = ~ sex + age + I(age^2) + race + factor(education) +
     smokeintensity + I(smokeintensity^2) + smokeyrs + I(smokeyrs^2) +
     factor(exercise) + factor(active) + wt71 + I(wt71^2),
-  method = "ipw",
+  estimator = "ipw",
   estimand = "ATT"
 )
 
@@ -132,7 +132,7 @@ fit_ipw_atc <- causat(
   confounders = ~ sex + age + I(age^2) + race + factor(education) +
     smokeintensity + I(smokeintensity^2) + smokeyrs + I(smokeyrs^2) +
     factor(exercise) + factor(active) + wt71 + I(wt71^2),
-  method = "ipw",
+  estimator = "ipw",
   estimand = "ATC"
 )
 
@@ -194,7 +194,7 @@ fit_ipw_bin <- causat(
   confounders = ~ sex + age + I(age^2) + race + factor(education) +
     smokeintensity + I(smokeintensity^2) + smokeyrs + I(smokeyrs^2) +
     factor(exercise) + factor(active) + wt71 + I(wt71^2),
-  method = "ipw"
+  estimator = "ipw"
 )
 
 res_rd <- contrast(
@@ -309,7 +309,7 @@ fit_ipw_cat <- causat(
   outcome = "Y",
   treatment = "A",
   confounders = ~ L,
-  method = "ipw"
+  estimator = "ipw"
 )
 
 res_ipw_cat <- contrast(
@@ -346,7 +346,7 @@ fit_ipw_cont <- causat(
   outcome = "Y",
   treatment = "A",
   confounders = ~ L,
-  method = "ipw"
+  estimator = "ipw"
 )
 
 res_ipw_cont <- contrast(
@@ -383,7 +383,7 @@ fit_ipw_sv <- causat(
   outcome = "Y",
   treatment = "A",
   confounders = ~ L,
-  method = "ipw",
+  estimator = "ipw",
   weights = w
 )
 
@@ -400,8 +400,8 @@ res_ipw_sv
 
 WeightIt's M-estimation shortcut (`glm_weightit`'s `Mparts`) is only wired
 up for a subset of methods (`glm`, `cbps`, `ipt`, `ebal`). For anything
-else (`gbm`, `super`, `bart`, `optweight`, `energy`, `npcbps`) causatr
-emits a warning at fit time so you know the sandwich SE will treat the
+else (`gbm`, `super`, `bart`, `optweight`, `energy`, `npcbps`, `cfd`)
+causatr emits a warning at fit time so you know the sandwich SE will treat the
 weights as fixed:
 
 ```
@@ -417,6 +417,38 @@ bootstrap resamples the full pipeline (including the weight-estimation
 step) and is always valid, regardless of whether Mparts is wired up.
 See `FEATURE_COVERAGE_MATRIX.md` entry for "non-Mparts WeightIt method"
 for the end-to-end smoke test.
+
+## Forwarding WeightIt arguments (CBPS)
+
+Any extra arguments passed to `causat()` flow through `...` straight
+into `WeightIt::weightit()`. Because the causatr argument is now
+`estimator` (not `method`), WeightIt's own `method = "..."` is free
+and you can pick a non-default propensity score estimator. The example
+below uses covariate-balancing propensity scores (Imai & Ratkovic, 2014),
+which support Mparts, so sandwich SEs remain valid with no warning.
+
+```{r}
+fit_cbps <- causat(
+  nhefs_complete,
+  outcome = "wt82_71",
+  treatment = "qsmk",
+  confounders = ~ sex + age + I(age^2) + race + factor(education) +
+    smokeintensity + I(smokeintensity^2) + smokeyrs + I(smokeyrs^2) +
+    factor(exercise) + factor(active) + wt71 + I(wt71^2),
+  estimator = "ipw",
+  estimand = "ATE",
+  method = "cbps"  # forwarded to WeightIt::weightit()
+)
+
+res_cbps <- contrast(
+  fit_cbps,
+  interventions = list(quit = static(1), continue = static(0)),
+  reference = "continue",
+  type = "difference",
+  ci_method = "sandwich"
+)
+res_cbps
+```
 
 ## Comparing estimands
 

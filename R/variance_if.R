@@ -167,13 +167,14 @@ bread_inv <- function(model, X_fit) {
 #'   reusing `model$xlevels` so factor levels survive interventions
 #'   that produce single-level treatment columns (e.g. `static("low")`).
 #'
-#' `newdata` is coerced to `data.frame` up front to avoid
-#' `model.matrix()` failing on `data.table` inputs — `model.matrix()`
-#' sometimes chokes on `data.table` because of how it dispatches the
-#' `[` subset used internally when evaluating terms. The coercion is
-#' cheap (shared column pointers) and side-steps a class of
-#' environment-related edge cases that previously required callers to
-#' wrap the call in a `tryCatch`.
+#' Accepts `data.table` directly on both branches — no coercion to
+#' `data.frame`. Verified against GLM, GLM-with-interaction, and
+#' `na.action`-triggering inputs; `stats::model.matrix()` dispatches
+#' through `model.frame()` which handles `data.table` without going
+#' through the `[.data.table` subset that can evaluate bare symbols in
+#' the frame's environment. `delete.response()` strips the LHS from
+#' `terms(model)` so the counterfactual frame does not need the
+#' response column.
 #'
 #' @param model A fitted model object.
 #' @param newdata Data frame or data.table of counterfactual observations.
@@ -182,17 +183,8 @@ bread_inv <- function(model, X_fit) {
 #'
 #' @noRd
 iv_design_matrix <- function(model, newdata) {
-  # `predict(gam, ..., type = "lpmatrix")` accepts data.table directly.
   if (inherits(model, "gam")) {
     return(stats::predict(model, newdata = newdata, type = "lpmatrix"))
-  }
-  # GLM path: force data.frame so `model.matrix()` doesn't trip on
-  # data.table's `[` dispatch. Using `delete.response()` on the model's
-  # terms drops the LHS (Y) so we don't need the response column in
-  # `newdata` — important because the counterfactual frame is built
-  # from covariates alone.
-  if (data.table::is.data.table(newdata)) {
-    newdata <- as.data.frame(newdata)
   }
   pred_terms <- stats::delete.response(stats::terms(model))
   xlev <- model$xlevels
@@ -477,9 +469,15 @@ variance_if_numeric <- function(
   n_total <- length(target_idx)
   beta_hat <- stats::coef(model)
 
-  data_a_frames <- lapply(data_a_list, function(da) {
-    as.data.frame(da)[target_idx, , drop = FALSE]
-  })
+  # Row-subset each counterfactual frame to the target population.
+  # `da[target_idx, , drop = FALSE]` is polymorphic: it does row-selection
+  # on both data.frame and data.table (the trailing empty `j` forces
+  # data.frame's `[` into row-index mode instead of column-select).
+  # Avoids the previous `as.data.frame(da)[...]` roundtrip.
+  data_a_frames <- lapply(
+    data_a_list,
+    function(da) da[target_idx, , drop = FALSE]
+  )
 
   target_w <- numeric(n_total)
   if (!is.null(weights)) {
@@ -655,9 +653,9 @@ variance_if <- function(
     return(variance_if_ice(fit, ice_results, target_within_first))
   }
 
-  method <- fit$method
+  estimator <- fit$estimator
 
-  if (method == "gcomp") {
+  if (estimator == "gcomp") {
     return(variance_if_gcomp(
       fit,
       data_a_list,
@@ -667,11 +665,11 @@ variance_if <- function(
     ))
   }
 
-  if (method == "matching") {
+  if (estimator == "matching") {
     return(variance_if_matching(fit, interventions))
   }
 
-  if (method == "ipw") {
+  if (estimator == "ipw") {
     return(variance_if_ipw(
       fit,
       data_a_list,
@@ -681,7 +679,7 @@ variance_if <- function(
     ))
   }
 
-  rlang::abort(paste0("Unknown method '", method, "' in variance_if()."))
+  rlang::abort(paste0("Unknown estimator '", estimator, "' in variance_if()."))
 }
 
 
@@ -754,9 +752,11 @@ build_point_channel_pieces <- function(
   fit_idx <- resolve_fit_idx(fit, model)
   beta_hat <- stats::coef(model)
 
-  data_a_frames <- lapply(data_a_list, function(da) {
-    as.data.frame(da)[target_idx, , drop = FALSE]
-  })
+  # Polymorphic row-subset: works on both data.frame and data.table.
+  data_a_frames <- lapply(
+    data_a_list,
+    function(da) da[target_idx, , drop = FALSE]
+  )
 
   Ch1_list <- vector("list", k)
   grad_list <- vector("list", k)
@@ -936,10 +936,15 @@ variance_if_matching <- function(fit, interventions) {
   int_names <- names(interventions)
   k <- length(int_names)
 
-  matched <- as.data.frame(fit$details$matched_data)
-  n_m <- nrow(matched)
-  cluster <- matched$subclass
-  match_w <- matched$weights
+  # `fit$details$matched_data` is stashed as a data.table by
+  # `fit_matching()` (R/matching.R:168). Use it directly — no round-trip
+  # through data.frame. `$subclass` / `$weights` column access and
+  # `nrow()` all work natively on data.table, and downstream
+  # `stats::predict()` + `iv_design_matrix()` accept data.table inputs.
+  matched_dt <- fit$details$matched_data
+  n_m <- nrow(matched_dt)
+  cluster <- matched_dt$subclass
+  match_w <- matched_dt$weights
   if (is.null(match_w)) {
     match_w <- rep(1, n_m)
   }
@@ -949,20 +954,18 @@ variance_if_matching <- function(fit, interventions) {
   beta_hat <- stats::coef(model)
 
   treatment <- fit$treatment
-  matched_dt <- data.table::as.data.table(matched)
 
   prep <- prepare_model_if(model, fit_idx, n_m)
 
   IF_list <- lapply(seq_len(k), function(j) {
     iv <- interventions[[j]]
     da <- apply_intervention(matched_dt, treatment, iv)
-    da_df <- as.data.frame(da)
-    p <- as.numeric(stats::predict(model, newdata = da_df, type = "response"))
+    p <- as.numeric(stats::predict(model, newdata = da, type = "response"))
     mu_hat_j <- sum(match_w * p) / sum_w
 
     IF_vec <- n_m * (match_w / sum_w) * (p - mu_hat_j)
 
-    X_star <- iv_design_matrix(model, da_df)
+    X_star <- iv_design_matrix(model, da)
     eta_star <- as.numeric(X_star %*% beta_hat)
     mu_eta_star <- model$family$mu.eta(eta_star)
     g <- as.numeric(crossprod(X_star, match_w * mu_eta_star)) / sum_w
@@ -1268,7 +1271,7 @@ variance_if_ipw <- function(
 #'   `PHASE_4_INTERVENTIONS_SELF_IPW.md` for the implementation plan.
 #'   Currently aborts.
 #'
-#' @param fit A `causatr_fit` of method `"ipw"`.
+#' @param fit A `causatr_fit` of estimator `"ipw"`.
 #' @param fit_idx Integer vector of row indices used by the MSM (in
 #'   `1..n_total`).
 #' @param n_total Integer. Total length of the IF vector.

@@ -29,7 +29,7 @@ time-fixed treatments.
 **Note:** Matching supports only `static()` interventions and **binary
 point treatments**. `MatchIt` itself is binary-only, so categorical
 (k > 2 levels) and continuous treatments are rejected up front with a
-clear error — use `method = "gcomp"` or `method = "ipw"` for those.
+clear error — use `estimator = "gcomp"` or `estimator = "ipw"` for those.
 Longitudinal matching is also not supported. For modified treatment
 policies (shift / scale / threshold / dynamic / MTP), use
 g-computation (see `vignette("gcomp")`).
@@ -68,7 +68,7 @@ fit_m <- causat(
   confounders = ~ sex + age + I(age^2) + race + factor(education) +
     smokeintensity + I(smokeintensity^2) + smokeyrs + I(smokeyrs^2) +
     factor(exercise) + factor(active) + wt71 + I(wt71^2),
-  method = "matching",
+  estimator = "matching",
   estimand = "ATT"
 )
 
@@ -113,7 +113,7 @@ fit_m_ate <- causat(
   confounders = ~ sex + age + I(age^2) + race + factor(education) +
     smokeintensity + I(smokeintensity^2) + smokeyrs + I(smokeyrs^2) +
     factor(exercise) + factor(active) + wt71 + I(wt71^2),
-  method = "matching",
+  estimator = "matching",
   estimand = "ATE"
 )
 
@@ -166,7 +166,7 @@ fit_m_sv <- causat(
   confounders = ~ sex + age + I(age^2) + race + factor(education) +
     smokeintensity + I(smokeintensity^2) + smokeyrs + I(smokeyrs^2) +
     factor(exercise) + factor(active) + wt71 + I(wt71^2),
-  method = "matching",
+  estimator = "matching",
   estimand = "ATT",
   weights = svy_w
 )
@@ -193,7 +193,7 @@ fit_m_atc <- causat(
   confounders = ~ sex + age + I(age^2) + race + factor(education) +
     smokeintensity + I(smokeintensity^2) + smokeyrs + I(smokeyrs^2) +
     factor(exercise) + factor(active) + wt71 + I(wt71^2),
-  method = "matching",
+  estimator = "matching",
   estimand = "ATC"
 )
 
@@ -233,7 +233,7 @@ fit_m_bin <- causat(
   confounders = ~ sex + age + I(age^2) + race + factor(education) +
     smokeintensity + I(smokeintensity^2) + smokeyrs + I(smokeyrs^2) +
     factor(exercise) + factor(active) + wt71 + I(wt71^2),
-  method = "matching",
+  estimator = "matching",
   estimand = "ATT"
 )
 
@@ -343,6 +343,43 @@ tinyplot(
 )
 abline(h = 0, lty = 2, col = "grey40")
 ```
+
+## Forwarding MatchIt arguments (CEM)
+
+Any extra arguments passed to `causat()` flow through `...` straight into
+`MatchIt::matchit()`. Because the causatr argument is now `estimator` (not
+`method`), MatchIt's own `method = "..."` is free and you can pick a
+non-default matching algorithm. The example below swaps the default
+nearest-neighbor matcher for **coarsened exact matching** (Iacus, King &
+Porro, 2012), which is built into MatchIt and needs no extra packages.
+Other forwardable values include `"optimal"` (needs `optmatch`),
+`"genetic"` (needs `Matching`), `"cardinality"` (needs an LP solver), and
+the full MatchIt method list.
+
+```{r}
+fit_cem <- causat(
+  nhefs_complete,
+  outcome = "wt82_71",
+  treatment = "qsmk",
+  confounders = ~ sex + age + race + factor(education) +
+    smokeintensity + smokeyrs + factor(exercise) + factor(active) + wt71,
+  estimator = "matching",
+  estimand = "ATT",
+  method = "cem"  # forwarded to MatchIt::matchit()
+)
+
+res_cem <- contrast(
+  fit_cem,
+  interventions = list(quit = static(1), continue = static(0)),
+  reference = "continue",
+  type = "difference",
+  ci_method = "sandwich"
+)
+res_cem
+```
+
+Any additional MatchIt knobs (`ratio`, `replace`, `caliper`, `distance`,
+`k2k`, …) can be passed the same way.
 
 ## Effect modification with `by`
 

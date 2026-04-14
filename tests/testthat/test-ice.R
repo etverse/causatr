@@ -12,7 +12,7 @@ test_that("causat() returns a causatr_fit for longitudinal data", {
 
   expect_s3_class(fit, "causatr_fit")
   expect_equal(fit$type, "longitudinal")
-  expect_equal(fit$method, "gcomp")
+  expect_equal(fit$estimator, "gcomp")
   expect_null(fit$model)
   expect_equal(fit$details$n_times, 2L)
 })

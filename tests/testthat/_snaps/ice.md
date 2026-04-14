@@ -5,7 +5,7 @@
     Message
       `ipsi()` is currently dead-ended: the constructor succeeds but `contrast()` aborts.
       i IPSI requires a fitted propensity model that is not wired through any estimation engine yet (planned for Phase 4).
-      i Use `shift()`, `scale_by()`, or `static()` with `method = 'gcomp'` in the meantime.
+      i Use `shift()`, `scale_by()`, or `static()` with `estimator = 'gcomp'` in the meantime.
       This message is displayed once per session.
     Condition
       Error in `apply_single_intervention()`:
