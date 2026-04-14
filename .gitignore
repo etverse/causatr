@@ -48,3 +48,5 @@ data-raw/ice_fixture_*.csv
 
 /.quarto/
 **/*.quarto_ipynb
+_quarto/*
+!_quarto/_freeze/
