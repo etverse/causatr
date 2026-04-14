@@ -1,5 +1,155 @@
 # causatr (development version)
 
+## 2026-04-14 — Critical review sweep (R1–R9 + S1–S9)
+
+Systematic audit and hardening of the whole package in a single pass.
+All fixes below are covered by existing or newly-added tests; the
+FEATURE_COVERAGE_MATRIX.md now carries a CI-enforced round-trip check
+so future drift between the matrix and the test files fails loudly.
+
+### Required changes (correctness / silent-failure fixes)
+
+- **`contrast()` ratio / odds-ratio guard (R2).** The log-scale delta
+  method was silently returning `NaN` CIs when `mu_hat` had mixed signs
+  (legal for Gaussian outcomes, fatal for `log(R)`). `contrast(type =
+  "ratio")` now aborts upfront if any intervention mean is non-positive,
+  and `type = "or"` additionally aborts if any mean is ≥ 1. Error
+  messages point to `type = "difference"` or a binomial / poisson /
+  gamma refit.
+- **`variance_bootstrap()` warning suppression narrowed (R3).** The
+  refit closure previously wrapped the whole pipeline in
+  `suppressWarnings()`, hiding GLM non-convergence, bread-singular
+  warnings, and everything else. Replaced with a
+  `withCallingHandlers()` that demotes only the three expected noisy
+  warnings (`fitted probabilities numerically 0 or 1`, `X'WX is
+  singular`, `Fewer (control|treated) units`). Genuine failures now
+  surface through `tryCatch`'s error path and show up as failed
+  replicates in `boot_info`.
+- **Shared match-weight alignment helper (R4).** Extracted
+  `combine_match_and_external_weights()` (in `R/matching.R`) so both
+  `fit_matching()` and `refit_matching()` share the rowname-invariant
+  check. A future change to `as.data.frame.data.table`'s rowname
+  behavior now fails loudly in exactly one place instead of silently
+  producing misaligned weights in the bootstrap.
+- **`dynamic()` docstring corrected (R5).** The previous wording
+  claimed the rule received data "subset to the current time point";
+  in reality it is called once per intervention with the full
+  counterfactual panel. Updated the roxygen prose and the example to
+  show how to branch on the time column or a lag column.
+- **ICE all-NA column drop is no longer silent (R6).**
+  `ice_build_formula()` still drops `lag*_` columns at step 0 (a
+  structural requirement), but now emits a `rlang::inform()` when a
+  user-supplied column is dropped at a step because it happened to be
+  all NA (e.g. a time-varying confounder first measured at time > 0).
+  Gated via `.frequency = "regularly"` so the message does not spam
+  long pipelines.
+- **`boot_info$n_fail_by_int` (R7).** `process_boot_results()` now
+  records per-intervention NA counts in addition to the whole-row
+  totals. This lets users see whether bootstrap failures cluster on a
+  single intervention (e.g. a rare `static()` level triggering
+  separation) versus being spread across the whole replicate. The
+  field is surfaced in `boot_info` and tested in `test-s3-methods.R`.
+- **`causat_survival()` wide-format check (R8).** The previous
+  `max(rows_per_id$N) == 1L` test only caught uniformly wide data; a
+  mixed frame with some single-row ids and some multi-row ids would
+  slip through. Now uses `any(rows_per_id$N == 1L)` and additionally
+  asserts that `time` varies within each id (no duplicated rows at
+  the same time value).
+- **`FEATURE_COVERAGE_MATRIX.md` ↔ `tests/` round-trip check (R9).**
+  New `tests/testthat/test-coverage-matrix.R` parses the matrix,
+  extracts every `test-*.R` reference, and asserts both that the
+  referenced file exists and that every test file on disk is
+  referenced somewhere in the matrix. Guards against the exact kind
+  of drift the rest of this sweep was cleaning up.
+
+### Suggestions (hardening / clarity)
+
+- **`fit_gcomp_point()` resolves `family` via `resolve_family()` (S1)**
+  so custom `model_fn` implementations that don't auto-coerce a bare
+  string see a fully-evaluated family object. Matches the behavior
+  already in `fit_ipw()` and `fit_matching()`.
+- **Multivariate sub-intervention name validation (S2).**
+  `apply_intervention()` now asserts `setequal(names(iv), treatment)`
+  before iterating the sub-interventions. A typo like
+  `list(X = static(1), A2 = static(0))` for `treatment = c("A1",
+  "A2")` now aborts with a clear message instead of silently creating
+  a spurious `X` column via data.table.
+- **`ipsi()` constructor informs about its Phase-4 status (S3).** The
+  constructor succeeds (so users can build their interventions list)
+  but surfaces a one-per-session `rlang::inform()` pointing to the
+  known `contrast()` abort, so users hit the wall at construction
+  rather than deep in a pipeline. Use `.frequency_id =
+  "causatr_ipsi_dead_end"` to silence or grep for it.
+- **`check_estimand_trt_compat()` error message (S4)** now explicitly
+  says "binary point treatments coded as 0/1" and suggests recoding.
+  Factor- or `1/2`-coded treatments previously got the same message
+  without any hint at the coding issue.
+- **Tier 2 numeric variance warning is now classed (S5).**
+  `variance_if_numeric()`'s delta-shortcut warning carries
+  `class = "causatr_tier2_fallback"` so batch pipelines and CI can
+  grep for it via `withCallingHandlers()`.
+- **`compute_weight_summary()` binary split pulls levels from
+  WeightIt (S6)** instead of hard-coding `trt == 0` / `trt == 1`.
+  Factor-coded binary treatments and integer codings like `c(1, 2)`
+  now get correctly-populated "treated" / "control" rows.
+- **`contrast()` subset evaluation preserves lexical scope (S7).** The
+  three `eval(subset, envir = as.list(data))` call sites were copying
+  every column of `data` into a fresh list and losing the caller's
+  enclosing environment. Switched to
+  `eval(subset, envir = data, enclos = parent.frame())`, which skips
+  the copy and lets `subset` expressions reference session variables
+  like `quote(age > cutoff)`.
+- **FEATURE_COVERAGE_MATRIX survival section split (S8).** Replaced
+  the mixed "fit-only smoke (Phase 6 contrast pending)" rows with an
+  explicit three-table layout (fit path / contrast path / rejection
+  path) so the Phase 6 gap is visible without status annotations that
+  mean different things on different rows.
+- **`.pseudo_y` column collision guard in ICE (S9).** `fit_ice()` now
+  aborts upfront if `data` already has a column named `.pseudo_y`,
+  which is the internal bookkeeping column ICE writes predicted
+  pseudo-outcomes into during the backward iteration.
+
+### Doc drift — `A:modifier` behaviour (R1)
+
+`CLAUDE.md`, `NEWS.md` (this file's older entries), `PHASE_8_INTERACTIONS.md`,
+and `CAUSATR_SCAFFOLD.md` all still described IPW and matching as
+"silently ignoring" `A:modifier` interaction terms in `confounders`.
+That code path was hardened months ago: `fit_ipw()` and `fit_matching()`
+now call `check_confounders_no_treatment()` and **abort** upfront with
+a Phase-8 pointer. Every doc that mis-described the old behavior has
+been updated to match the current behavior.
+
+### Vignette expansion
+
+Every method vignette (excluding `variance-theory.qmd`) now covers
+every combination supported by `FEATURE_COVERAGE_MATRIX.md`:
+
+- **`gcomp.qmd`** — added worked examples for categorical (k > 2)
+  treatment, multivariate (joint) treatment, external survey weights,
+  and a Poisson count outcome with a log-link ratio contrast. Summary
+  table now records the family / weights columns.
+- **`ipw.qmd`** — added categorical and continuous (GPS) treatment
+  sections, an external-survey-weights section, a parallel-bootstrap
+  section, and a non-Mparts WeightIt fallback example. Updated the
+  Channel-2 technical note to reference the current
+  `prepare_propensity_if()` / `apply_propensity_correction()`
+  architecture (was still referring to the renamed
+  `correct_propensity()`).
+- **`matching.qmd`** — added an ATT + external survey weights section
+  demonstrating `combine_match_and_external_weights()`, and extended
+  the summary table with a categorical / continuous rejection row.
+- **`longitudinal.qmd`** — added continuous-treatment + MTP section
+  (shift / scale_by / threshold), multivariate time-varying
+  treatment, external weights (with a note pointing to the ICE
+  cascade-gradient correction in §5.4 of the theory vignette), and a
+  censoring / IPCW-style example.
+- **`survival.qmd`** — replaced the 3-line TODO stub with a full
+  narrative of the current fit-only Phase 6 status, the intended
+  end-to-end contrast algorithm, and the tracking pointers.
+- **`triangulation.qmd`** — introduction.qmd and the comparison table
+  both corrected for the drift above (matching is binary-only;
+  continuous / categorical are not "Limited").
+
 ## 2026-04-14 — Sweep and audit
 
 - **ICE sandwich fix under non-uniform external weights.** The
@@ -56,9 +206,11 @@
 - **`PHASE_8_INTERACTIONS.md` design doc.** Plans a unified
   effect-modification API across gcomp / IPW / matching / ICE. IPW
   and matching currently hardcode a saturated `Y ~ A` MSM and
-  silently ignore `A:modifier` terms; ICE handles current-period
-  A × modifier but not lagged A × modifier. Phase 8 will fix all
-  four in one pass.
+  **hard-abort** on any `A:modifier` term in `confounders` via
+  `check_confounders_no_treatment()` (rather than silently dropping
+  it and returning a pooled ATE); ICE handles current-period A ×
+  modifier but not lagged A × modifier. Phase 8 will replace both
+  the abort and the lag-gap with a proper MSM builder.
 
 ## 2026-04-13 — Variance engine unification
 
