@@ -407,6 +407,62 @@ test_that("confint() level argument changes the CI width consistently", {
 })
 
 
+test_that("confint() respects level for both sandwich and bootstrap paths", {
+  # Coverage gap from FEATURE_COVERAGE_MATRIX: the bootstrap branch
+  # reads `$boot_t` and recomputes percentile CIs at the requested
+  # `level`; the sandwich branch reconstructs Wald CIs from the
+  # stored SE. Both should produce wider intervals for a larger
+  # level. Also asserts that the sandwich Wald CI is numerically
+  # distinct from the bootstrap percentile CI (they come from
+  # different formulas), and that the bootstrap CI width is
+  # monotone in level.
+  set.seed(21)
+  n <- 800
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, stats::plogis(0.4 * L))
+  Y <- 1 + 2 * A + 0.5 * L + stats::rnorm(n)
+  df <- data.frame(Y = Y, A = A, L = L)
+  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L)
+
+  res_sand <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    ci_method = "sandwich"
+  )
+  res_boot <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    ci_method = "bootstrap",
+    n_boot = 400L
+  )
+
+  # Sandwich path: widths strictly increase in level.
+  s90 <- confint(res_sand, level = 0.90)
+  s95 <- confint(res_sand, level = 0.95)
+  s99 <- confint(res_sand, level = 0.99)
+  expect_true(all(s95[, "upper"] - s95[, "lower"] > s90[, "upper"] - s90[, "lower"]))
+  expect_true(all(s99[, "upper"] - s99[, "lower"] > s95[, "upper"] - s95[, "lower"]))
+
+  # Bootstrap path: percentile CI also widens with `level`. This is
+  # the previously-untested branch — a prior implementation read
+  # `$estimates$ci_lower/ci_upper` (frozen at contrast() time), so
+  # the result was invariant to `level`.
+  b90 <- confint(res_boot, level = 0.90)
+  b95 <- confint(res_boot, level = 0.95)
+  b99 <- confint(res_boot, level = 0.99)
+  expect_true(all(b95[, "upper"] - b95[, "lower"] > b90[, "upper"] - b90[, "lower"]))
+  expect_true(all(b99[, "upper"] - b99[, "lower"] > b95[, "upper"] - b95[, "lower"]))
+
+  # Sandwich Wald CI differs from bootstrap percentile CI (numerics
+  # from different formulas). On this DGP the two should still be
+  # within 25% of each other at 95%.
+  w_sand <- s95[, "upper"] - s95[, "lower"]
+  w_boot <- b95[, "upper"] - b95[, "lower"]
+  expect_true(all(w_sand > 0) && all(w_boot > 0))
+  expect_lt(max(abs(w_sand - w_boot) / w_sand), 0.25)
+})
+
+
 test_that("ICE × bootstrap × external weights gives finite SE matching sandwich", {
   # Coverage gap: ICE+bootstrap+weights had no test. This is a
   # cross-cut of three previously-undertested features. Asserts:

@@ -182,7 +182,7 @@ the supported intervention / variance shapes differ across methods.
 | `diagnose()` aborts on missing WeightIt treat.type | 🟡 unit | manual check; needs test |
 | S3 methods: print, summary, plot, coef, vcov, confint, tidy, glance | ✅ smoke | test-s3-methods.R |
 | `confint()` respects `level` arg (sandwich path) | ✅ smoke | test-s3-methods.R |
-| `confint()` consistency between sandwich and bootstrap on `level` | ❌ none | **GAP** |
+| `confint()` consistency between sandwich and bootstrap on `level` | ✅ unit + monotonicity | test-s3-methods.R |
 | `causat_mice()` (multiple imputation wrapper) | 🟡 stubbed | test-causat-mice.R |
 | Numeric variance Tier 1 (estfun-based fallback) | 🟡 unit | test-variance-if.R |
 | Numeric variance Tier 2 (delta shortcut + warn) | ✅ e2e via custom `model_fn` | test-variance-if.R |
