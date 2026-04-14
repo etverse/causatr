@@ -649,7 +649,7 @@ G-computation (<code>method = “gcomp”</code>)
 IPW (<code>method = “ipw”</code>)
 </h4>
 <p>Calls <code>WeightIt::weightit()</code> to estimate propensity-score-based weights for the desired <code>estimand</code>, then fits a weighted outcome model via <code>WeightIt::glm_weightit()</code>. The estimand is fixed at fitting time. Supports binary, categorical, and continuous treatments (anything <code>WeightIt</code> supports). Only <code>static()</code> interventions are supported in <code>contrast()</code>, because the weights were estimated under the observed treatment distribution.</p>
-<p>For longitudinal data, calls <code>WeightIt::weightitMSM()</code>. The denominator model at each time <code>k</code> includes baseline confounders, concurrent time-varying confounders, and lagged treatment. The numerator model includes only baseline confounders and lagged treatment (standard stabilized weights), unless overridden via <code>numerator</code>.</p>
+<p><strong>Longitudinal IPW is not yet implemented</strong> (planned Phase 4). The design below describes the target API; <code>method = “ipw”</code> with <code>id</code> and <code>time</code> currently aborts with an informative error. Use <code>method = “gcomp”</code> (which uses ICE g-computation for longitudinal data) in the meantime. When implemented, <code>WeightIt::weightitMSM()</code> will fit a denominator model at each time <code>k</code> that includes baseline confounders, concurrent time-varying confounders, and lagged treatment. The numerator model will include only baseline confounders and lagged treatment (standard stabilized weights), unless overridden via <code>numerator</code>.</p>
 <h4 class="anchored">
 Matching (<code>method = “matching”</code>)
 </h4>
@@ -800,7 +800,7 @@ Internal diagnostics list.
 </section>
 <section id="see-also" class="level3">
 <h3 class="anchored" data-anchor-id="see-also">See Also</h3>
-<p><code>contrast()</code>, <code>diagnose()</code>, <code>causat_survival()</code>, <code>causat_mice()</code>, <code>static()</code>, <code>shift()</code>, <code>dynamic()</code></p>
+<p><code>contrast()</code>, <code>diagnose()</code>, <code>causat_survival()</code>, <code>static()</code>, <code>shift()</code>, <code>dynamic()</code></p>
 </section>
 <section id="examples" class="level3">
 <h3 class="anchored" data-anchor-id="examples">Examples</h3>
