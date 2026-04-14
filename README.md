@@ -38,11 +38,6 @@ using the NHEFS dataset from Hernán & Robins (2025):
 
 ``` r
 library(causatr)
-#> 
-#> Attaching package: 'causatr'
-#> The following object is masked from 'package:base':
-#> 
-#>     scale
 data("nhefs")
 
 # Step 1: Fit the outcome model via g-computation
@@ -63,18 +58,20 @@ result <- contrast(
   interventions = list(quit = static(1), continue = static(0)),
   reference = "continue"
 )
+#> 117 row(s) with NA predictions excluded from the target population.
 result
 #> <causatr_result>
-#>  Method:      gcomp
-#>  Contrast:    difference
-#>  CI method:   sandwich
-#>  N:           1629
+#>  Method:    G-computation
+#>  Estimand:  ATE
+#>  Contrast:  Difference
+#>  CI method: sandwich
+#>  N:         1629
 #> 
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
 #>          <char>    <num>  <num>    <num>    <num>
-#> 1:         quit    5.176 0.4298    4.333    6.018
-#> 2:     continue    1.660 0.2063    1.256    2.065
+#> 1:         quit    5.176 0.4367     4.32    6.032
+#> 2:     continue    1.660 0.2195     1.23    2.090
 #> 
 #> Contrasts:
 #>          comparison estimate     se ci_lower ci_upper
@@ -116,8 +113,8 @@ rbind(
 )
 #>     method   comparison estimate        se ci_lower ci_upper
 #> 1    gcomp quit vs cont 3.155727 0.4487520 2.276190 4.035265
-#> 2      ipw quit vs cont 3.205240 0.4693563 2.285318 4.125162
-#> 3 matching quit vs cont 2.984411 0.5097832 1.985254 3.983568
+#> 2      ipw quit vs cont 3.205240 0.4513455 2.320619 4.089861
+#> 3 matching quit vs cont 2.984411 0.5091996 1.986398 3.982424
 ```
 
 ## Intervention types
@@ -134,32 +131,33 @@ fit_cont <- causat(nhefs, outcome = "wt82_71",
 contrast(fit_cont,
   interventions = list(
     reduce10 = shift(-10),
-    halved = scale(0.5),
+    halved = scale_by(0.5),
     cap20 = threshold(0, 20),
     observed = NULL
   ),
   reference = "observed"
 )
 #> <causatr_result>
-#>  Method:      gcomp
-#>  Contrast:    difference
-#>  CI method:   sandwich
-#>  N:           1746
+#>  Method:    G-computation
+#>  Estimand:  ATE
+#>  Contrast:  Difference
+#>  CI method: sandwich
+#>  N:         1746
 #> 
 #> Intervention means:
 #>    intervention estimate     se ci_lower ci_upper
 #>          <char>    <num>  <num>    <num>    <num>
-#> 1:     reduce10    2.621 0.2337    2.163    3.079
-#> 2:       halved    2.619 0.2367    2.155    3.083
-#> 3:        cap20    2.664 0.1906    2.290    3.038
-#> 4:     observed    2.699 0.1828    2.341    3.057
+#> 1:     reduce10    2.621 0.2403    2.150    3.092
+#> 2:       halved    2.619 0.2432    2.142    3.095
+#> 3:        cap20    2.664 0.1987    2.275    3.053
+#> 4:     observed    2.699 0.1914    2.324    3.074
 #> 
 #> Contrasts:
 #>              comparison estimate      se ci_lower ci_upper
 #>                  <char>    <num>   <num>    <num>    <num>
 #> 1: reduce10 vs observed -0.07803 0.16323  -0.3980   0.2419
-#> 2:   halved vs observed -0.08028 0.16794  -0.4094   0.2489
-#> 3:    cap20 vs observed -0.03488 0.07297  -0.1779   0.1081
+#> 2:   halved vs observed -0.08028 0.16792  -0.4094   0.2488
+#> 3:    cap20 vs observed -0.03488 0.07294  -0.1778   0.1081
 ```
 
 ## Diagnostics
@@ -176,21 +174,43 @@ plot(diag)    # Love plot (requires cobalt)
 
 - **Three estimation methods**: g-computation, IPW (via
   [WeightIt](https://ngreifer.github.io/WeightIt/)), matching (via
-  [MatchIt](https://kosukeimai.github.io/MatchIt/))
+  [MatchIt](https://kosukeimai.github.io/MatchIt/)). Matching is
+  binary-only; continuous / categorical treatments use gcomp or IPW.
+- **Longitudinal support**: ICE g-computation (Zivich et al. 2024) for
+  time-varying treatments with sandwich variance via stacked estimating
+  equations, plus parallel bootstrap via `boot::boot()`.
+- **Flexible interventions**: `static()`, `shift()`, `scale_by()`,
+  `threshold()`, `dynamic()` for modified treatment policies. IPSI is
+  scaffolded for Phase 4.
+- **Any outcome family**: gaussian, binomial (logit / probit / cloglog),
+  Poisson, quasibinomial (fractional responses), Gamma with log link,
+  plus any family you pass through `model_fn`.
+- **Pluggable models**: `stats::glm`, `mgcv::gam`, splines via `ns()` /
+  `bs()`, or any fit function with signature
+  `(formula, data, family, weights, ...)`. A two-tier numeric-variance
+  fallback handles model classes without a `sandwich::estfun` method.
+- **Robust inference**: analytic sandwich SE (default, via a unified
+  influence-function engine) or nonparametric bootstrap with percentile
+  CIs. `confint()` respects the `level` argument on both paths.
+- **External weights**: survey / IPCW weights pass through every method
+  and propagate to the sandwich variance.
+- **Contrast types**: risk difference, risk ratio, odds ratio — ratio
+  and OR use log-scale CIs.
+- **Estimands**: ATE, ATT, ATC, or custom subgroups via `subset=` /
+  `by=`.
 - **Built-in diagnostics**: positivity checks, covariate balance via
   [cobalt](https://ngreifer.github.io/cobalt/), weight summaries, Love
-  plots
-- **Flexible interventions**: `static()`, `shift()`, `scale_by()`,
-  `threshold()`, `dynamic()` for modified treatment policies
-- **Robust inference**: sandwich SE (default) or nonparametric bootstrap
-- **Any outcome type**: continuous, binary, count (via `family`
-  parameter)
-- **Pluggable models**: pass `stats::glm`, `mgcv::gam`, or any
-  compatible fitting function via `model_fn`
-- **Contrast types**: risk difference, risk ratio, odds ratio
-- **Estimands**: ATE, ATT, ATC, or custom subgroups via `subset`
+  plots.
+- **Tidy integration**: `tidy()` / `glance()` / `confint()` / `coef()` /
+  `vcov()` / `plot()` (forest plot via `forrest`) / broom-compatible
+  output.
 
 ## References
 
 Hernán MA, Robins JM (2025). *Causal Inference: What If*. Chapman &
 Hall/CRC.
+
+## Acknowledgements
+
+This package was built with the contribution of
+[Claude](https://claude.ai), Anthropic’s AI assistant.

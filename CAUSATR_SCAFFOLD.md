@@ -154,13 +154,15 @@ Suggests:
 | Incremental propensity score | Planned (Phase 4) | Multiply treatment odds by δ; constructor exists, IPW engine pending |
 | **Treatment types** | | |
 | Binary treatment | Yes | All methods |
-| Continuous treatment | Yes | G-comp + IPW (GPS); not matching |
-| Categorical treatment | Yes (g-comp), partial (IPW/matching) | Full support in Phase 4 |
-| Multivariate treatment | Yes (g-comp), planned (IPW Phase 4, matching Phase 7) | G-comp supports `treatment = c("A1", "A2")` |
+| Continuous treatment | Yes (g-comp, IPW via GPS) | Matching rejects continuous with an explicit error (MatchIt is binary-only) |
+| Categorical treatment (k > 2) | Yes (g-comp, IPW via multinomial PS) | Matching rejects categorical with an explicit error (MatchIt is binary-only) |
+| Multivariate treatment | Yes (g-comp); IPW and matching rejected | IPW/multivariate is Phase 4; multivariate matching is Phase 7 |
 | **Outcome types** | | |
 | Continuous outcome | Yes | family = "gaussian" |
-| Binary outcome | Yes | family = "binomial" |
+| Binary outcome | Yes | family = "binomial" (logit / probit / cloglog all tested) |
 | Count outcome | Yes | family = "poisson" or `MASS::glm.nb` via `model_fn` |
+| Fractional outcome in [0, 1] | Yes | family = "quasibinomial" |
+| Positive continuous outcome | Yes | family = `Gamma(link = "log")` |
 | Censored outcome (survival) | Scaffolded (Phase 6) | Pooled logistic fit done; survival curves in contrast() pending |
 | Competing risks | Planned (Phase 6) | Cause-specific hazard models; parameter scaffolded in causat_survival() |
 | Multinomial outcome | Planned (Phase 7) | Multi-category outcomes via `nnet::multinom()` or `VGAM`; all methods |
