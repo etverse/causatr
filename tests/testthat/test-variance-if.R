@@ -414,6 +414,134 @@ test_that("variance_if_numeric() Tier 2 keeps full Channel-1 covariance", {
 })
 
 
+# ── Tier 2 via a custom model_fn with no sandwich::estfun method ──
+
+test_that("variance_if_numeric() Tier 2 works end-to-end via a custom model_fn", {
+  # Spec from FEATURE_COVERAGE_MATRIX.md: "Construct a minimal custom
+  # S3 model class with coef, predict, vcov but NO sandwich::estfun
+  # method. Assert variance_if_numeric() warns, returns finite V, and
+  # the point estimate matches the main path to ~1%."
+  #
+  # `tlm_fit` wraps `stats::lm.fit()` but returns an object with a
+  # single class `toy_lm` so neither sandwich::estfun.lm nor
+  # sandwich::bread.lm dispatch on it. causat() sees no `$family` and
+  # routes to variance_if_numeric(); estfun() errors; Tier 2 fires.
+  tlm_fit <- function(formula, data, family = NULL, weights = NULL, ...) {
+    mf <- stats::model.frame(formula, data = data)
+    y <- stats::model.response(mf)
+    X <- stats::model.matrix(formula, mf)
+    f <- stats::lm.fit(X, y)
+    resid_var <- sum(f$residuals^2) / (length(y) - f$rank)
+    XtX_inv <- chol2inv(f$qr$qr[seq_len(f$rank), seq_len(f$rank), drop = FALSE])
+    vcov_mat <- resid_var * XtX_inv
+    dimnames(vcov_mat) <- list(colnames(X), colnames(X))
+    structure(
+      list(
+        coefficients = f$coefficients,
+        terms = stats::terms(mf),
+        xlevels = stats::.getXlevels(stats::terms(mf), mf),
+        vcov = vcov_mat,
+        contrasts = attr(X, "contrasts")
+      ),
+      class = "toy_lm"
+    )
+  }
+  coef.toy_lm <- function(object, ...) object$coefficients
+  vcov.toy_lm <- function(object, ...) object$vcov
+  predict.toy_lm <- function(object, newdata, type = "response", ...) {
+    X <- stats::model.matrix(
+      stats::delete.response(object$terms),
+      data = newdata,
+      xlev = object$xlevels
+    )
+    as.numeric(X %*% object$coefficients)
+  }
+  # Register the S3 methods for the scope of this test. testthat's
+  # local_bindings doesn't dispatch for S3 method tables, so use
+  # registerS3method() + on.exit() to scope and clean up.
+  registerS3method("coef", "toy_lm", coef.toy_lm)
+  registerS3method("vcov", "toy_lm", vcov.toy_lm)
+  registerS3method("predict", "toy_lm", predict.toy_lm)
+  on.exit(
+    {
+      s3_reg <- get(".__S3MethodsTable__.", envir = baseenv())
+      # Best-effort cleanup; failing to unregister leaves the methods
+      # visible to later tests but doesn't break correctness.
+      suppressWarnings(rm(list = c(
+        "coef.toy_lm",
+        "vcov.toy_lm",
+        "predict.toy_lm"
+      ), envir = s3_reg))
+    },
+    add = TRUE
+  )
+
+  set.seed(404)
+  n <- 500
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, 0.5)
+  Y <- 1 + 0.8 * A + 0.3 * L + stats::rnorm(n)
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    model_fn = tlm_fit
+  )
+
+  # Tier 2 should warn about dropping the cross-term. Capture the
+  # result and the warning separately: expect_warning() returns
+  # invisible(NULL), so the result has to come out of a
+  # withCallingHandlers wrapper.
+  warning_msg <- NULL
+  res <- withCallingHandlers(
+    contrast(
+      fit,
+      interventions = list(a1 = static(1), a0 = static(0)),
+      ci_method = "sandwich"
+    ),
+    warning = function(w) {
+      warning_msg <<- conditionMessage(w)
+      invokeRestart("muffleWarning")
+    }
+  )
+  expect_match(warning_msg, "drops the IF cross-term")
+
+  expect_true(all(is.finite(res$estimates$se)))
+  expect_true(all(res$estimates$se > 0))
+  expect_true(all(is.finite(res$contrasts$se)))
+
+  # Main path = stats::glm with a gaussian identity. Point estimates
+  # should agree to within ~1% because both fit the same linear model,
+  # just via different machinery.
+  fit_main <- causat(df, outcome = "Y", treatment = "A", confounders = ~L)
+  res_main <- contrast(
+    fit_main,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    ci_method = "sandwich"
+  )
+  expect_equal(
+    unname(res$estimates$estimate),
+    unname(res_main$estimates$estimate),
+    tolerance = 0.01
+  )
+  expect_equal(
+    unname(res$contrasts$estimate),
+    unname(res_main$contrasts$estimate),
+    tolerance = 0.01
+  )
+  # Tier 2 drops the cross-term, so the SE is allowed to be slightly
+  # off from the analytic path — anchor it to within 10% so we catch
+  # catastrophic regressions but allow the expected miscalibration.
+  expect_lt(
+    abs(res$contrasts$se - res_main$contrasts$se) / res_main$contrasts$se,
+    0.1
+  )
+})
+
+
 # ── prepare_model_if() + apply_model_correction() equal correct_model() ──
 
 test_that("prepare_model_if()/apply_model_correction() matches correct_model()", {

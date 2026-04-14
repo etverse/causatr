@@ -75,7 +75,7 @@ the supported intervention / variance shapes differ across methods.
 | multivariate | gaussian | GLM | shift | ATE | difference | sandwich | none | ✅ truth | test-multivariate.R |
 | binary | gaussian | GLM | static | ATE | difference | sandwich | none + censoring | ✅ truth | test-simulation.R |
 | binary | gaussian | unsupported `model_fn` | static | ATE | difference | numeric Tier 1 | none | 🟡 smoke | test-variance-if.R |
-| binary | gaussian | unsupported `model_fn` | static | ATE | difference | numeric Tier 2 | none | ❌ none | **GAP** |
+| binary | gaussian | unsupported `model_fn` | static | ATE | difference | numeric Tier 2 | none | ✅ truth (vs main path, to ~1%) | test-variance-if.R |
 | categorical (k>2) | gaussian | GLM | static | ATE | difference | sandwich | none | ✅ truth | test-simulation.R |
 
 **Error / rejection paths** (must also be tested):
@@ -185,7 +185,7 @@ the supported intervention / variance shapes differ across methods.
 | `confint()` consistency between sandwich and bootstrap on `level` | ❌ none | **GAP** |
 | `causat_mice()` (multiple imputation wrapper) | 🟡 stubbed | test-causat-mice.R |
 | Numeric variance Tier 1 (estfun-based fallback) | 🟡 unit | test-variance-if.R |
-| Numeric variance Tier 2 (delta shortcut + warn) | ❌ none | **GAP** |
+| Numeric variance Tier 2 (delta shortcut + warn) | ✅ e2e via custom `model_fn` | test-variance-if.R |
 | Cluster-robust matching variance (vs an IF-level reference) | 🟡 e2e | test-simulation.R; **GAP** for IF-level test |
 
 ---
