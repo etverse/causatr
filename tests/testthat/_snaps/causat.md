@@ -89,7 +89,7 @@
       causat(df, outcome = "Y", treatment = "A", confounders = ~L, estimand = "ATT")
     Condition
       Error in `causat()`:
-      ! estimand = 'ATT' is only defined for binary point treatments. Use estimand = 'ATE' or subset = quote(...) for subgroup effects.
+      ! estimand = 'ATT' is only defined for binary point treatments coded as 0/1. Use estimand = 'ATE' or subset = quote(...) for subgroup effects (or recode the treatment as integer 0/1 if it already has two levels).
 
 # causat() rejects ATT for multivariate treatment
 
@@ -98,7 +98,7 @@
       estimand = "ATT")
     Condition
       Error in `causat()`:
-      ! estimand = 'ATT' is only defined for binary point treatments. Use estimand = 'ATE' or subset = quote(...) for subgroup effects.
+      ! estimand = 'ATT' is only defined for binary point treatments coded as 0/1. Use estimand = 'ATE' or subset = quote(...) for subgroup effects (or recode the treatment as integer 0/1 if it already has two levels).
 
 # causat() aborts when treatment has NAs and no censoring
 

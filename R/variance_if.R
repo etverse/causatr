@@ -557,7 +557,12 @@ variance_if_numeric <- function(
     }
   }
 
-  # Tier 2: drop the cross-term, warn.
+  # Tier 2: drop the cross-term, warn. We attach a classed warning
+  # (`causatr_tier2_fallback`) so batch / CI pipelines can grep for
+  # this exact condition via `withCallingHandlers(..., causatr_tier2_fallback = ...)`.
+  # Plain `rlang::warn()` with a string is not discoverable once it
+  # lands in a knit log, and this fallback is a real calibration risk
+  # the user should be able to react to programmatically.
   rlang::warn(
     paste0(
       "Model class '",
@@ -567,7 +572,8 @@ variance_if_numeric <- function(
       "which drops the IF cross-term (vignette Section 3.3) and may ",
       "slightly miscalibrate the variance. Use ci_method = 'bootstrap' ",
       "for an exact answer."
-    )
+    ),
+    class = "causatr_tier2_fallback"
   )
 
   Ch1_mat <- do.call(cbind, Ch1_list)

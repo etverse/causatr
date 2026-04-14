@@ -360,8 +360,39 @@ compute_weight_summary <- function(fit) {
   }
 
   if (treat_type == "binary") {
+    # WeightIt encodes the treatment in `fit$weights_obj$treat` and
+    # exposes its levels via `levels(treat)` (factor) or via
+    # `unique(treat)` (numeric). Previous versions of this function
+    # hard-coded `trt == 1` / `trt == 0`, which silently produced empty
+    # "treated" / "control" masks for any non-0/1 binary coding (e.g.
+    # factor levels `c("control", "treated")` or integer codes
+    # `c(1, 2)`). We now pull the two levels from WeightIt directly and
+    # pick the second one as "treated" (matching `glm()`'s convention
+    # that the second factor level is the one being modelled).
+    trt_col <- fit$weights_obj$treat
+    lev <- if (is.factor(trt_col)) {
+      levels(trt_col)
+    } else {
+      sort(unique(stats::na.omit(as.vector(trt_col))))
+    }
+    if (length(lev) != 2L) {
+      rlang::abort(
+        "Binary WeightIt treatment must have exactly 2 levels."
+      )
+    }
+    treated_lev <- lev[2]
+    control_lev <- lev[1]
+    # Labels stay as the canonical "treated" / "control" / "overall"
+    # triple (snapshot-tested and print-friendly); the numeric / factor
+    # level value enters the mask only, not the label. Downstream
+    # `print.causatr_diag()` can always display both by joining on
+    # this summary with the user's own metadata if needed.
     group_labels <- c("treated", "control", "overall")
-    group_masks <- list(trt == 1, trt == 0, rep(TRUE, length(w)))
+    group_masks <- list(
+      trt == treated_lev,
+      trt == control_lev,
+      rep(TRUE, length(w))
+    )
   } else if (treat_type == "multinomial") {
     trt_levels <- sort(unique(stats::na.omit(trt)))
     group_labels <- c(as.character(trt_levels), "overall")

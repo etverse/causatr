@@ -85,7 +85,7 @@
       contrast(fit, list(a1 = static(1), a0 = static(0)), estimand = "ATT")
     Condition
       Error in `contrast()`:
-      ! estimand = 'ATT' is only defined for binary point treatments. Use estimand = 'ATE' or subset = quote(...) for subgroup effects.
+      ! estimand = 'ATT' is only defined for binary point treatments coded as 0/1. Use estimand = 'ATE' or subset = quote(...) for subgroup effects (or recode the treatment as integer 0/1 if it already has two levels).
 
 # contrast() rejects reference not in interventions
 

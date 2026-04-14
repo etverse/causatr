@@ -136,11 +136,21 @@ fit_gcomp_point <- function(
   # Subset the user-supplied observation weights to match the fitting rows.
   model_weights <- if (!is.null(weights)) weights[fit_rows] else NULL
 
+  # Resolve the family to a proper family object at the causatr
+  # boundary so every downstream caller — including user-supplied
+  # `model_fn` implementations that don't do their own coercion — sees
+  # a fully-evaluated family object. `stats::glm()` accepts character /
+  # function / object forms, but a custom `model_fn` (e.g. a thin
+  # wrapper around `lm()` that forwards to `family$linkfun`) can break
+  # on a bare string. This matches the resolution step already done in
+  # `fit_ipw()` and `fit_matching()`.
+  resolved_family <- resolve_family(family)
+
   # Fit E[Y | A, L] using the caller-supplied fitting function.
   model <- model_fn(
     model_formula,
     data = fit_data,
-    family = family,
+    family = resolved_family,
     weights = model_weights,
     ...
   )

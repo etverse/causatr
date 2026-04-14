@@ -221,15 +221,20 @@ check_estimand_trt_compat <- function(
   }
 
   # ATT/ATC are defined as "average effect among the treated/controls",
-  # which requires a natural binary split of the population. For
+  # which requires a natural binary 0/1 split of the population. For
   # continuous treatment there is no "treated group"; for longitudinal
   # there is no single baseline treatment to condition on. Multivariate
   # falls in the same bucket — there's no unique "treated" level.
+  # Factor or character-coded binary treatments are also rejected: the
+  # downstream `contrast()` filter is `trt_sym == 1L`, so even a
+  # two-level factor with levels `c("control", "treated")` silently
+  # returns zero rows.
   msg <- paste0(
     "estimand = '",
     estimand,
-    "' is only defined for binary point treatments. ",
-    "Use estimand = 'ATE' or subset = quote(...) for subgroup effects."
+    "' is only defined for binary point treatments coded as 0/1. ",
+    "Use estimand = 'ATE' or subset = quote(...) for subgroup effects ",
+    "(or recode the treatment as integer 0/1 if it already has two levels)."
   )
 
   if (type == "longitudinal") {
@@ -243,7 +248,8 @@ check_estimand_trt_compat <- function(
   # If we have data at this point, confirm the single treatment column
   # is actually coded 0/1 — not just character values like "A"/"B",
   # which would fail silently later when contrast() tries to filter
-  # on treatment == 1.
+  # on treatment == 1. The error message above already tells the user
+  # to recode so they don't have to reverse-engineer the check.
   if (!is.null(data)) {
     trt_vals <- unique(stats::na.omit(data[[treatment]]))
     if (!all(trt_vals %in% c(0, 1))) {
