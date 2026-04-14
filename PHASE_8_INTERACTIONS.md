@@ -11,14 +11,16 @@ This phase does **not** introduce new interventions, methods, or outcome familie
 
 ## Today's state (pre-Phase 8)
 
-The test matrix in `FEATURE_COVERAGE_MATRIX.md` currently marks `by(L)` as "✅ truth" only for point gcomp. The other cells are silently misleading.
+The test matrix in `FEATURE_COVERAGE_MATRIX.md` currently marks `by(L)` as "✅ truth" only for point gcomp. The other cells either hard-abort (IPW / matching) or return partially correct numbers (ICE).
 
 | Method | How EM is currently supported | What happens when a user writes `~ L + sex + A:sex` |
 |---|---|---|
 | **Point gcomp** | ✅ Outcome model includes the full `confounders` RHS. `A:sex` feeds the outcome GLM directly. `by(sex)` averages the predictions per stratum and recovers the correct effect. | Works. MC-verified: sex-specific contrasts recovered to ~1% on a linear-Gaussian DGP. |
-| **Point IPW** | ❌ `fit_ipw()` builds `msm_formula <- stats::reformulate(treatment, response = outcome)` — a hardcoded saturated `Y ~ A`. `confounders` is used for the propensity model only. | Silently ignores `A:sex`. Both `by` strata return the same pooled ATE. Confirmed via probe. |
-| **Point matching** | ❌ Same shape as IPW: `msm_formula <- stats::reformulate(treatment, response = outcome)`. Confounders enter only the PS. | Same silent failure. Both `by` strata return the same pooled matched ATE. |
+| **Point IPW** | ⛔ `fit_ipw()` builds `msm_formula <- stats::reformulate(treatment, response = outcome)` — a hardcoded saturated `Y ~ A`. `confounders` is used for the propensity model only. `fit_ipw()` calls `check_confounders_no_treatment()` and **aborts** before any weights are estimated. | Hard error with a Phase-8 pointer. Preferred to silently returning a pooled ATE. |
+| **Point matching** | ⛔ Same MSM shape as IPW: `msm_formula <- stats::reformulate(treatment, response = outcome)`. `fit_matching()` also calls `check_confounders_no_treatment()` and aborts upfront. | Hard error with a Phase-8 pointer. |
 | **Longitudinal ICE** | ⚠️ `ice_build_formula()` injects `baseline_terms` verbatim at every period. `A:sex` resolves to `A_k:sex` — the **current-period** treatment × modifier. Lagged treatments (`lag1_A`, `lag2_A`, ...) do NOT get a corresponding `lag1_A:sex` term. | Partial. Current-period effect modification is captured; earlier-period contributions are collapsed. MC evidence: 2-period DGP with persistent `(1 + 1.5·sex)·A_k` effect returns contrasts 2.81 / 4.43 vs structural truth 2.10 / 5.10 — roughly half the intended heterogeneity. |
+
+Phase 8 will replace the hard-abort path with a proper MSM builder that honors `A:modifier` terms for IPW and matching, and will auto-expand `lag{k}_A:modifier` for ICE.
 
 The root cause in each case is different, which is part of why this needs a dedicated phase rather than four scattered fixes.
 

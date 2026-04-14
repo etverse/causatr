@@ -172,7 +172,7 @@ Suggests:
 | IPW (via WeightIt) | Yes | Static interventions only; self-contained IPW for dynamic/MTP in Phase 4 |
 | Matching (via MatchIt) | Yes | Static interventions only |
 | **Effect modification** | | |
-| Effect modification (A × baseline modifier) | Partial | Point gcomp: yes; IPW / matching: silently ignored (MSM hardcoded to `Y ~ A`); ICE: current-period A only, lags miss the interaction. Unified API planned in **Phase 8** — see `PHASE_8_INTERACTIONS.md`. |
+| Effect modification (A × baseline modifier) | Partial | Point gcomp: yes; IPW / matching: **hard-abort** on any `A:modifier` term in `confounders` via `check_confounders_no_treatment()` (MSM hardcoded to `Y ~ A` cannot carry it); ICE: current-period A only, lags miss the interaction. Unified API planned in **Phase 8** — see `PHASE_8_INTERACTIONS.md`. |
 | **Inference** | | |
 | Sandwich variance | Yes | J V_β Jᵀ via sandwich + numDeriv |
 | Bootstrap | Yes | Full-pipeline resampling via boot |
@@ -281,10 +281,11 @@ result <- contrast(fit, interventions, ci_method = "bootstrap", n_boot = 500)
     formula — shared across every method so the convention is
     consistent.
 37. IPW — `fit_ipw()` currently hardcodes a saturated `Y ~ A` MSM
-    and silently ignores any `A:modifier` term. Extend the MSM
-    builder to include detected EM terms.
-38. Matching — same silent failure as IPW (`fit_matching()` also
-    hardcodes `Y ~ A`). Same fix.
+    and aborts upfront on any `A:modifier` term via
+    `check_confounders_no_treatment()`. Extend the MSM builder to
+    include detected EM terms and drop the abort.
+38. Matching — same abort path as IPW (`fit_matching()` also
+    hardcodes `Y ~ A` and calls the same guard). Same fix.
 39. ICE — `ice_build_formula()` resolves `A:sex` only for the
     current-period treatment slot; lagged treatments do not get
     auto-expanded modifier interactions, compressing heterogeneity
