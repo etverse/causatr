@@ -76,7 +76,7 @@ the supported intervention / variance shapes differ across methods.
 | binary | gaussian | GLM | static | ATE | difference | sandwich | none + censoring | ✅ truth | test-simulation.R |
 | binary | gaussian | unsupported `model_fn` | static | ATE | difference | numeric Tier 1 | none | 🟡 smoke | test-variance-if.R |
 | binary | gaussian | unsupported `model_fn` | static | ATE | difference | numeric Tier 2 | none | ❌ none | **GAP** |
-| categorical (k>2) | gaussian | GLM | static | ATE | difference | sandwich | none | ❌ none | **GAP** |
+| categorical (k>2) | gaussian | GLM | static | ATE | difference | sandwich | none | ✅ truth | test-simulation.R |
 
 **Error / rejection paths** (must also be tested):
 - gcomp + invalid family string → ✅ test-gcomp.R
@@ -120,8 +120,8 @@ the supported intervention / variance shapes differ across methods.
 | binary | binomial | static | ATT | difference | sandwich | none | ✅ truth | test-simulation.R |
 | binary | binomial | static | ATT | ratio / OR | sandwich | none | ✅ truth | test-simulation.R |
 | binary | quasibinomial | static | ATT | difference | sandwich | none | ✅ truth | test-simulation.R |
-| categorical (k>2) | gaussian | static | ATT | difference | sandwich | none | ❌ none | **GAP** |
-| continuous | any | any | any | any | any | any | ⛔ **rejected** (no continuous matching in MatchIt) | (need explicit error test) **GAP** |
+| categorical (k>2) | any | any | any | any | any | any | ⛔ **rejected** (MatchIt is binary-only; verified via docs) | test-matching.R |
+| continuous | any | any | any | any | any | any | ⛔ **rejected** (no continuous matching in MatchIt) | test-matching.R |
 | binary | gaussian | shift / scale / threshold / dynamic / ipsi | — | — | — | — | ⛔ **rejected** (Phase 4) | test-contrast.R |
 | multivariate | any | any | any | any | any | any | ⛔ **rejected** (Phase 7) | test-s3-methods.R |
 | longitudinal | any | any | any | any | any | any | ⛔ **rejected** | test-matching.R |

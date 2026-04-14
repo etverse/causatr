@@ -51,6 +51,31 @@ fit_matching <- function(
     )
   }
 
+  # MatchIt requires a binary treatment (`MatchIt:::check_treat`
+  # aborts for 3+ levels). Intercept this upstream with a clearer
+  # error so users don't hit the MatchIt internal message, and so
+  # the rejection path is explicit in causatr's own namespace.
+  trt_vals <- data[[treatment]]
+  trt_levels <- if (is.factor(trt_vals)) {
+    levels(droplevels(trt_vals))
+  } else {
+    unique(stats::na.omit(trt_vals))
+  }
+  if (length(trt_levels) > 2L) {
+    rlang::abort(
+      paste0(
+        "Matching supports only binary treatments, but `",
+        treatment,
+        "` has ",
+        length(trt_levels),
+        " levels. Use `method = \"gcomp\"` or `method = \"ipw\"` for ",
+        "categorical treatments (Phase 4 / Phase 7 will revisit ",
+        "multi-category matching)."
+      ),
+      .call = FALSE
+    )
+  }
+
   # Build the treatment model formula: A ~ confounders.
   # MatchIt uses this to estimate propensity scores for matching.
   ps_formula <- build_ps_formula(confounders, treatment)

@@ -101,6 +101,30 @@ test_that("causat(method = 'matching') rejects longitudinal data", {
 })
 
 
+test_that("matching aborts on categorical (k > 2) treatment with a clear error", {
+  # MatchIt itself requires a binary treatment. causatr intercepts
+  # this upstream with a clearer message pointing users to gcomp /
+  # IPW. Snapshot locks in the message so a future refactor can't
+  # silently downgrade it to the internal MatchIt error.
+  set.seed(100)
+  df <- data.frame(
+    Y = stats::rnorm(200),
+    A = factor(sample(0:2, 200, replace = TRUE)),
+    L = stats::rnorm(200)
+  )
+  expect_snapshot(
+    error = TRUE,
+    causat(
+      df,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~L,
+      method = "matching"
+    )
+  )
+})
+
+
 test_that("matching aborts on continuous treatment", {
   # Locks in the rejection path (MatchIt itself errors). causatr
   # does not pre-check this; we rely on MatchIt's own validation,

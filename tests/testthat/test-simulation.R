@@ -92,6 +92,64 @@ test_that("gcomp × binary trt × binary outcome × ratio × sandwich", {
   expect_gt(result$contrasts$se[1], 0)
 })
 
+test_that("gcomp × categorical (3-level) treatment × static × difference × sandwich", {
+  # Truth-based test for gcomp on a 3-level factor treatment.
+  # DGP:
+  #   L ~ N(0, 1)
+  #   A | L ~ multinomial with level probs driven by L
+  #   E[Y | A, L] = 1 + 2*I(A=1) + 5*I(A=2) + 0.5*L
+  # Marginal counterfactual means: E[Y^0] = 1, E[Y^1] = 3, E[Y^2] = 6.
+  # Contrasts: (a1 - a0) = 2, (a2 - a0) = 5.
+  set.seed(100)
+  n <- 4000
+  L <- stats::rnorm(n)
+  e1 <- exp(0.3 + 0.4 * L)
+  e2 <- exp(-0.2 + 0.3 * L)
+  P <- cbind(1, e1, e2) / (1 + e1 + e2)
+  A <- vapply(
+    seq_len(n),
+    function(i) sample(0:2, 1L, prob = P[i, ]),
+    integer(1)
+  )
+  A <- factor(A, levels = c("0", "1", "2"))
+  beta_A <- c("0" = 0, "1" = 2, "2" = 5)
+  Y <- 1 + beta_A[as.character(A)] + 0.5 * L + stats::rnorm(n)
+  df <- data.table::data.table(A = A, L = L, Y = as.numeric(Y))
+
+  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L)
+  res <- contrast(
+    fit,
+    interventions = list(
+      a0 = static("0"),
+      a1 = static("1"),
+      a2 = static("2")
+    ),
+    reference = "a0",
+    ci_method = "sandwich"
+  )
+
+  est <- res$estimates
+  e0 <- est$estimate[est$intervention == "a0"]
+  e1_mean <- est$estimate[est$intervention == "a1"]
+  e2_mean <- est$estimate[est$intervention == "a2"]
+  expect_lt(abs(e0 - 1), 0.1)
+  expect_lt(abs(e1_mean - 3), 0.1)
+  expect_lt(abs(e2_mean - 6), 0.1)
+
+  ct <- res$contrasts
+  c10 <- ct$estimate[ct$comparison == "a1 vs a0"]
+  c20 <- ct$estimate[ct$comparison == "a2 vs a0"]
+  expect_lt(abs(c10 - 2), 0.1)
+  expect_lt(abs(c20 - 5), 0.1)
+  # SEs finite and positive; CIs cover the truth.
+  expect_true(all(is.finite(ct$se)) && all(ct$se > 0))
+  expect_lt(ct$ci_lower[ct$comparison == "a1 vs a0"], 2)
+  expect_gt(ct$ci_upper[ct$comparison == "a1 vs a0"], 2)
+  expect_lt(ct$ci_lower[ct$comparison == "a2 vs a0"], 5)
+  expect_gt(ct$ci_upper[ct$comparison == "a2 vs a0"], 5)
+})
+
+
 # ============================================================
 # GCOMP × CONTINUOUS TREATMENT × CONTINUOUS OUTCOME × INTERVENTIONS
 # ============================================================
