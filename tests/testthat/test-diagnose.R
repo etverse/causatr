@@ -15,6 +15,40 @@ test_that("diagnose() rejects non-causatr_fit input", {
   expect_error(diagnose("not_a_fit"), "causatr_fit")
 })
 
+test_that("diagnose() rejects longitudinal fits with a clear error", {
+  # Coverage gap: running diagnose() on a longitudinal fit used to
+  # produce a degenerate single-row positivity table (logistic on all
+  # time points pooled) and then crash inside cobalt's print method.
+  # Reject explicitly until per-period diagnostics land in a future
+  # phase. Snapshot locks the message so a future refactor can't
+  # silently downgrade the error or accidentally re-enable the broken
+  # code path.
+  set.seed(1)
+  n <- 60
+  L0 <- stats::rnorm(n)
+  A0 <- stats::rbinom(n, 1, plogis(0.4 * L0))
+  L1 <- L0 + 0.3 * A0 + stats::rnorm(n)
+  A1 <- stats::rbinom(n, 1, plogis(0.4 * L1 + 0.5 * A0))
+  Y <- 1 + A0 + A1 + 0.5 * L1 + stats::rnorm(n)
+  long <- data.table::data.table(
+    id = rep(seq_len(n), each = 2),
+    time = rep(0:1, times = n),
+    A = as.numeric(rbind(A0, A1)),
+    L = as.numeric(rbind(L0, L1)),
+    Y = rep(Y, each = 2)
+  )
+  fit <- causat(
+    long,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~1,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time"
+  )
+  expect_snapshot(error = TRUE, diagnose(fit))
+})
+
 test_that("diagnose() returns causatr_diag for gcomp", {
   df <- simulate_binary_continuous(n = 500)
   fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L)

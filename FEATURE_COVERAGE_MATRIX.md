@@ -178,7 +178,7 @@ the supported intervention / variance shapes differ across methods.
 | `contrast()` rejects bad estimand × method combos | ✅ snapshots | test-contrast.R |
 | `contrast()` rejects bad reference / intervention shape | ✅ snapshots | test-contrast.R |
 | `diagnose()` for gcomp / IPW / matching | ✅ smoke + snapshots | test-diagnose.R |
-| `diagnose()` for longitudinal | ❌ none | **GAP** |
+| `diagnose()` for longitudinal | ⛔ **rejected** (per-period diagnostics deferred to a future phase) | test-diagnose.R |
 | `diagnose()` aborts on missing WeightIt treat.type | 🟡 unit | manual check; needs test |
 | S3 methods: print, summary, plot, coef, vcov, confint, tidy, glance | ✅ smoke | test-s3-methods.R |
 | `confint()` respects `level` arg (sandwich path) | ✅ smoke | test-s3-methods.R |

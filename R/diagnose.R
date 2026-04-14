@@ -83,6 +83,27 @@ diagnose <- function(
     rlang::abort("`fit` must be a `causatr_fit` object returned by `causat()`.")
   }
 
+  # Longitudinal fits need per-period positivity and per-period
+  # balance tables, which are not implemented yet (planned for a
+  # later phase alongside the diagnose.longitudinal design). Reject
+  # up front rather than running the point-treatment path on a
+  # longitudinal fit, which silently produces a degenerate positivity
+  # table and crashes in cobalt's printer (see FEATURE_COVERAGE_MATRIX.md).
+  if (identical(fit$type, "longitudinal")) {
+    rlang::abort(
+      c(
+        "`diagnose()` is not yet supported for longitudinal fits.",
+        i = paste0(
+          "Per-period positivity and per-period balance tables ",
+          "will land in a future phase. For now, run `diagnose()` ",
+          "on a point-treatment subset of the data (e.g. baseline ",
+          "with `time == min(time)`)."
+        )
+      ),
+      .call = FALSE
+    )
+  }
+
   positivity <- compute_positivity(fit, ps_bounds)
   balance <- compute_balance(fit, stats, thresholds)
   weights_summary <- compute_weight_summary(fit)
