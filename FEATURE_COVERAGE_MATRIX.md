@@ -167,13 +167,31 @@ the supported intervention / variance shapes differ across methods.
 
 ## Method 5 — Survival (`causat_survival()`)
 
-| Treatment | Outcome | Hazard model | Intervention | Variance | Censoring | Competing | Status | Test file |
-|---|---|---|---|---|---|---|---|---|
-| binary | survival | pooled logistic + ns(time) | (no contrast yet) | — | none | none | ✅ fit-only smoke | test-s3-methods.R, test-simulation.R |
-| binary | survival | pooled logistic + factor(time) | (no contrast yet) | — | none | none | ✅ fit-only smoke | test-s3-methods.R |
-| binary | survival | pooled logistic | (no contrast yet) | — | present | none | ✅ fit-only smoke (Phase 6 contrast pending) | test-simulation.R |
-| any | survival | any | any | any | any | non-NULL | ⛔ **rejected** (Phase 6) | test-causat.R |
-| binary | survival | pooled logistic | static | analytic | none | none | ❌ contrast for survival not implemented | **GAP / Phase 6** |
+### Fit path (implemented today)
+
+| Treatment | Outcome | Hazard model | Censoring | Competing | Status | Test file |
+|---|---|---|---|---|---|---|
+| binary | survival | pooled logistic + `ns(time)` | none | none | ✅ fit-only smoke | test-s3-methods.R, test-simulation.R |
+| binary | survival | pooled logistic + `factor(time)` | none | none | ✅ fit-only smoke | test-s3-methods.R |
+| binary | survival | pooled logistic | present (IPCW-style row filter) | none | ✅ fit-only smoke | test-simulation.R |
+
+### Contrast path (Phase 6, not yet implemented)
+
+| Quantity | Intervention | Variance | Status | Notes |
+|---|---|---|---|---|
+| Survival curve S^a(t) | static | sandwich | ❌ Phase 6 | `contrast(fit_surv, ...)` aborts today |
+| Risk at time t (1 − S^a(t)) | static | sandwich | ❌ Phase 6 | |
+| Risk difference | static | sandwich | ❌ Phase 6 | |
+| Risk ratio | static | sandwich + log-scale delta | ❌ Phase 6 | |
+| Any survival quantity | dynamic | sandwich | ❌ Phase 6 | |
+| NHEFS 120-month RD replication (Ch. 17) | static | sandwich | ❌ Phase 6 | target ≈ 0.2%, 95% CI ≈ (−4.1%, 3.7%) |
+
+### Rejection paths (tested today)
+
+| Condition | Behaviour | Test file |
+|---|---|---|
+| `competing` argument non-`NULL` | ⛔ rejected (Phase 6) | test-causat.R |
+| `contrast()` called on a `causatr_fit` with `type = "survival"` | ⛔ rejected (Phase 6) | test-contrast.R |
 
 ---
 
@@ -201,6 +219,9 @@ the supported intervention / variance shapes differ across methods.
 | Numeric variance Tier 1 (estfun-based fallback) | ✅ unit (analytic IF to ~1e-6) | test-variance-if.R |
 | Numeric variance Tier 2 (delta shortcut + warn) | ✅ e2e via custom `model_fn` | test-variance-if.R |
 | Cluster-robust matching variance (vs an IF-level reference) | ✅ unit (hand-computed sum-then-square) + e2e | test-variance-if.R, test-simulation.R |
+| Intervention constructors (`static`, `shift`, `scale_by`, `threshold`, `dynamic`, `ipsi`) | ✅ unit (class + slot shape, reject paths) | test-interventions.R |
+| External-reference cross-checks (`stdReg2`, hand-computed SE, `delicatessen` ICE values) | ✅ truth (tight tolerance against independent implementations) | test-variance-reference.R |
+| FEATURE_COVERAGE_MATRIX.md ↔ tests/ round-trip audit | ✅ | test-coverage-matrix.R |
 
 ---
 
