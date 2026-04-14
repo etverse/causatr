@@ -101,7 +101,7 @@ the supported intervention / variance shapes differ across methods.
 | categorical (k>2) | gaussian | static | ATE | difference | sandwich | none | 🟡 smoke | test-ipw.R |
 | continuous | gaussian | static | ATE | difference | sandwich | none | 🟡 smoke | test-ipw.R |
 | binary | gaussian | shift / scale / threshold / dynamic / ipsi | — | — | — | — | ⛔ **rejected** (Phase 4) | test-ipw.R, test-contrast.R |
-| binary | gaussian | static | ATE | difference | sandwich (non-Mparts WeightIt method) | none | ❌ none | **GAP** (warn at fit time, behavior at contrast time untested) |
+| binary | gaussian | static | ATE | difference | sandwich (non-Mparts WeightIt method) | none | ✅ e2e smoke (finite understated SE + bootstrap fallback) | test-ipw.R |
 | multivariate | any | any | any | any | any | any | ⛔ **rejected** (Phase 4) | test-s3-methods.R, test-multivariate.R |
 | longitudinal (any shape) | any | any | any | any | any | any | ⛔ **rejected** (Phase 4) | test-ipw.R |
 
