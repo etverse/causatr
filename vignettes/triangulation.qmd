@@ -158,14 +158,22 @@ plot(diag_m)
 | Criterion | G-computation | IPW | Matching |
 |---|---|---|---|
 | Model specification | Outcome model | Treatment model | Treatment model |
-| Non-static interventions | Yes | No | No |
-| Continuous treatment | Yes | Limited | Limited |
-| Variance estimation | Sandwich or bootstrap | M-estimation sandwich | Cluster-robust sandwich |
+| Non-static interventions (shift / scale / threshold / dynamic) | Yes | No (Phase 4) | No (Phase 4) |
+| Continuous treatment | Yes | Yes (GPS, static only) | No (MatchIt binary-only) |
+| Categorical (k > 2) treatment | Yes | Yes | No (MatchIt binary-only) |
+| Effect modification via `A:modifier` in `confounders` | Yes | Rejected (Phase 8) | Rejected (Phase 8) |
+| Longitudinal (time-varying) treatments | Yes (ICE) | No (Phase 4) | No |
+| Variance estimation | Sandwich (IF engine) or bootstrap | M-estimation sandwich via WeightIt's `glm_weightit` | Cluster-robust sandwich on matched subclass |
 | Robustness to | Treatment model misspecification | Outcome model misspecification | Outcome model misspecification |
 
 When the outcome model and treatment model are both correctly specified, all
 three methods should produce similar estimates. Disagreement suggests model
 misspecification — investigate further.
+
+For features marked "No (Phase X)", causatr aborts at fit or contrast time
+with a pointer to the planning doc rather than silently returning a wrong
+answer — see `FEATURE_COVERAGE_MATRIX.md` for the full rejection-path
+inventory.
 
 ## References
 

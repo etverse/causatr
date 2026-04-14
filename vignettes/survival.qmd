@@ -11,6 +11,132 @@ vignette: >
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 ```
 
-<!-- TODO: write survival vignette -->
-<!-- Cover: causat_survival(), pooled logistic regression, survival curves -->
-<!-- under intervention, competing risks, replicating Chapter 17 estimates -->
+This vignette covers causal survival analysis in causatr. The current
+implementation (Phase 6 scaffolding) exposes a fit-only path via
+`causat_survival()`; the survival-curve contrast step (needed to produce
+counterfactual survival curves, risk differences, and risk ratios under each
+intervention) is still in development and currently aborts with an
+informative error. Competing-risks analysis is also reserved for Phase 6.
+
+The intended end-to-end workflow, once the contrast path lands, is a direct
+translation of Chapter 17 of Hernán & Robins (2025): a discrete-time hazard
+model fit by pooled logistic regression, followed by an individual-level
+prediction sweep to obtain S^a(t) = prod(1 - h^a(m)) under each intervention.
+
+## Setup
+
+```{r}
+#| message: false
+library(causatr)
+data("nhefs")
+```
+
+The NHEFS dataset includes a binary event indicator `death` (1 if the
+individual died during follow-up) and a continuous `yrdth` column with the
+year of death. For the pooled-logistic path we need person-period data with
+one row per (individual, time interval). `to_person_period()` performs the
+wide-to-long conversion.
+
+## Fitting the pooled logistic hazard model
+
+`causat_survival()` converts data to person-period format (if not already),
+fits a pooled logistic regression for the discrete hazard
+$\text{logit Pr}[D_{k+1} = 1 | \text{survived to } k, A, L]$, and stores the
+fitted model in a `causatr_fit` object of `type = "survival"`.
+
+```{r}
+#| eval: false
+fit_surv <- causat_survival(
+  nhefs_person_period,
+  outcome = "death_indicator",
+  treatment = "qsmk",
+  confounders = ~ sex + age + race + factor(education) + smokeintensity +
+    smokeyrs + factor(exercise) + factor(active) + wt71,
+  id = "seqn",
+  time = "interval",
+  time_formula = ~ splines::ns(time, 4)
+)
+fit_surv
+```
+
+Key arguments:
+
+- `time_formula`: the function of time that enters the hazard model. Default
+  `~ splines::ns(time, 4)` fits a smooth baseline hazard. Use
+  `~ factor(time)` for a fully saturated (non-parametric) baseline.
+- `censoring`: a time-varying censoring indicator column, used to drop rows
+  where the individual has been lost to follow-up.
+- `weights`: pre-computed IPCW or survey weights, validated upfront by
+  `check_weights()`.
+- `competing`: reserved for competing-risks analysis. Supplying a non-`NULL`
+  value currently aborts — the plain pooled-logistic model it would wrap
+  is biased under competing events, so causatr refuses to fit it until the
+  proper sub-distribution / Aalen–Johansen path is implemented in Phase 6.
+
+Under the hood, `causat_survival()` builds the risk set by dropping rows
+after the first event for each individual (`prev_event > 0`), merges with
+the censoring mask, and fits the weighted logistic model on the surviving
+at-risk rows.
+
+## Contrasts (not yet implemented)
+
+The survival-curve contrast step would take the fitted hazard model and
+compute, for each named intervention:
+
+1. `apply_intervention()` on each (person, time) cell in the risk set.
+2. `predict(fit_surv$model, newdata = ..., type = "response")` to get
+   counterfactual discrete hazards $\hat h_i^a(k)$.
+3. Cumulative product within each individual to obtain
+   $\hat S_i^a(k) = \prod_{m \le k}(1 - \hat h_i^a(m))$.
+4. Average across individuals in the target population to get $\hat S^a(k)$.
+5. Contrasts across interventions: risk difference
+   $(1 - \hat S^{a_1}(t)) - (1 - \hat S^{a_0}(t))$, risk ratio, etc., with
+   the delta-method variance propagated from the hazard model's vcov.
+
+Today, attempting `contrast(fit_surv, ...)` returns an informative error
+pointing to this open scope. Track progress in `PHASE_6_SURVIVAL.md`.
+
+```{r}
+#| eval: false
+# Will abort until Phase 6 contrast support lands:
+result <- contrast(
+  fit_surv,
+  interventions = list(quit = static(1), continue = static(0)),
+  type = "difference"
+)
+```
+
+## Workaround: pooled logistic fit diagnostics today
+
+Even without the contrast step, the fitted hazard model is a plain `glm()`
+object and can be inspected directly:
+
+```{r}
+#| eval: false
+summary(fit_surv$model)
+coef(fit_surv$model)
+```
+
+For a quick sanity check before the Phase 6 contrast path is wired up, you
+can extract the predicted hazard under each intervention manually, then
+compute the cumulative survival in base R. This is exactly the loop that
+will eventually move into `contrast()`.
+
+## Tracking Phase 6
+
+The survival path is tracked in:
+
+- `PHASE_6_SURVIVAL.md` — design notes and the outstanding work list.
+- `FEATURE_COVERAGE_MATRIX.md` §"Method 5 — Survival" — current fit-only
+  coverage and the contrast rows marked as ❌ / GAP.
+- `test-simulation.R` and `test-s3-methods.R` — fit-only smoke tests that
+  guard the current scaffolding.
+
+## References
+
+Hernán MA, Robins JM (2025). *Causal Inference: What If*. Chapman & Hall/CRC.
+Chapter 17: Causal survival analysis.
+
+D'Agostino RB, Lee ML, Belanger AJ, Cupples LA, Anderson K, Kannel WB (1990).
+Relation of pooled logistic regression to time dependent Cox regression
+analysis: the Framingham Heart Study. *Statistics in Medicine* 9:1501–1515.

@@ -392,6 +392,223 @@ res_rr <- contrast(
 res_rr
 ```
 
+## Continuous treatment with modified treatment policies
+
+ICE also supports continuous time-varying treatments combined with the
+modified-treatment-policy (MTP) interventions: `shift()`, `scale_by()`, and
+`threshold()`. The intervention is applied to the current-time treatment
+at each backward step; `ice_apply_intervention_long()` explicitly does
+**not** recompute the lag columns from the intervened values (this would
+double-count a non-static intervention — see `CLAUDE.md` for the
+structural reason).
+
+```{r}
+set.seed(101)
+n <- 800
+sim_id <- rep(seq_len(n), each = 2)
+sim_time <- rep(0:1, n)
+
+L0 <- rnorm(n)
+A0 <- 1 + 0.4 * L0 + rnorm(n)
+L1 <- 0.3 * L0 + 0.5 * A0 + rnorm(n)
+A1 <- 1 + 0.5 * L1 + rnorm(n)
+Y <- 2 + 1.5 * A0 + 2 * A1 + 0.5 * L0 - 0.3 * L1 + rnorm(n)
+
+cont_long <- data.frame(
+  id = sim_id,
+  time = sim_time,
+  A = c(rbind(A0, A1)),
+  L = c(rbind(L0, L1)),
+  Y = c(rbind(NA_real_, Y))
+)
+
+fit_cont <- causat(
+  cont_long,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ 1,
+  confounders_tv = ~ L,
+  id = "id",
+  time = "time"
+)
+
+res_mtp <- contrast(
+  fit_cont,
+  interventions = list(
+    observed = NULL,
+    shift_m1 = shift(-1),
+    halved   = scale_by(0.5),
+    capped   = threshold(0, 1)
+  ),
+  reference = "observed",
+  type = "difference",
+  ci_method = "sandwich"
+)
+res_mtp
+```
+
+Structural truth for `shift(-1)` on a 2-period additive DGP with
+coefficients 1.5 + 2: ATE = −(1.5 + 2) = −3.5 relative to the natural
+course. The estimate should be close to this value.
+
+## Multivariate time-varying treatment
+
+When multiple treatments vary over time (e.g. two drugs dosed jointly),
+pass a character vector to `treatment =` and supply each intervention as
+a named sub-list. Lag columns are built per-component by `prepare_data()`.
+
+```{r}
+set.seed(202)
+n <- 600
+sim_id <- rep(seq_len(n), each = 2)
+sim_time <- rep(0:1, n)
+L0 <- rnorm(n)
+A10 <- rbinom(n, 1, plogis(0.3 * L0))
+A20 <- rbinom(n, 1, plogis(0.1 * L0))
+L1 <- 0.3 * L0 + 0.4 * A10 + 0.2 * A20 + rnorm(n)
+A11 <- rbinom(n, 1, plogis(0.3 * L1))
+A21 <- rbinom(n, 1, plogis(0.1 * L1))
+Y <- 2 + 1.5 * A10 + 1.5 * A11 + 0.8 * A20 + 0.8 * A21 + 0.5 * L1 + rnorm(n)
+
+mv_long <- data.frame(
+  id = sim_id,
+  time = sim_time,
+  A1 = c(rbind(A10, A11)),
+  A2 = c(rbind(A20, A21)),
+  L = c(rbind(L0, L1)),
+  Y = c(rbind(NA_real_, Y))
+)
+
+fit_mv_long <- causat(
+  mv_long,
+  outcome = "Y",
+  treatment = c("A1", "A2"),
+  confounders = ~ 1,
+  confounders_tv = ~ L,
+  id = "id",
+  time = "time"
+)
+
+res_mv_long <- contrast(
+  fit_mv_long,
+  interventions = list(
+    both_on  = list(A1 = static(1), A2 = static(1)),
+    both_off = list(A1 = static(0), A2 = static(0))
+  ),
+  reference = "both_off",
+  type = "difference"
+)
+res_mv_long
+```
+
+Structural truth: `both_on − both_off = 2*(1.5 + 0.8) = 4.6` (sum of
+both-treatment effects across both periods).
+
+## External weights (IPCW / survey)
+
+External weights — survey weights or pre-computed IPCW — pass through
+every backward-step model via `model_fn`'s `weights =` argument. The ICE
+sandwich variance engine accounts for heterogeneous weights via the
+`A_{k-1,k}` cascade gradient (see `variance-theory.qmd` §5.4 and the
+inline comment in `R/variance_if.R:variance_if_ice_one`).
+
+```{r}
+set.seed(303)
+n <- 500
+sim_id <- rep(seq_len(n), each = 2)
+sim_time <- rep(0:1, n)
+L0 <- rbinom(n, 1, 0.5)
+A0 <- rbinom(n, 1, plogis(-0.2 + 0.6 * L0))
+L1 <- rbinom(n, 1, plogis(-0.2 + 0.8 * A0 + 0.3 * L0))
+A1 <- rbinom(n, 1, plogis(-0.2 + 0.6 * L1))
+Y <- 2 + 2.5 * A0 + 2.5 * A1 - 0.5 * L1 + rnorm(n)
+weights_long <- runif(2 * n, 0.5, 2.0)
+
+w_long_df <- data.frame(
+  id = sim_id,
+  time = sim_time,
+  A = c(rbind(A0, A1)),
+  L = c(rbind(L0, L1)),
+  Y = c(rbind(NA_real_, Y))
+)
+
+fit_w <- causat(
+  w_long_df,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ 1,
+  confounders_tv = ~ L,
+  id = "id",
+  time = "time",
+  weights = weights_long
+)
+
+res_w <- contrast(
+  fit_w,
+  interventions = list(always = static(1), never = static(0)),
+  reference = "never",
+  type = "difference",
+  ci_method = "sandwich"
+)
+res_w
+```
+
+## Censoring (IPCW-style row filter)
+
+Pass a time-varying censoring indicator via `censoring =`. At each
+backward step, ICE restricts the fit to uncensored rows; predictions are
+made for the target population regardless of censoring status, so the
+estimator is valid under the usual sequential-randomization assumption
+on the censoring mechanism.
+
+```{r}
+set.seed(404)
+n <- 500
+sim_id <- rep(seq_len(n), each = 2)
+sim_time <- rep(0:1, n)
+L0 <- rbinom(n, 1, 0.5)
+A0 <- rbinom(n, 1, plogis(-0.2 + 0.6 * L0))
+L1 <- rbinom(n, 1, plogis(-0.2 + 0.8 * A0 + 0.3 * L0))
+A1 <- rbinom(n, 1, plogis(-0.2 + 0.6 * L1))
+Y_full <- 2 + 2 * A0 + 2 * A1 - 0.5 * L1 + rnorm(n)
+# 20% censoring at t = 1 depending on A0 + L0.
+C1 <- rbinom(n, 1, plogis(-2 + 0.5 * A0 + 0.3 * L0))
+Y <- ifelse(C1 == 1, NA_real_, Y_full)
+
+cens_long <- data.frame(
+  id = sim_id,
+  time = sim_time,
+  A = c(rbind(A0, A1)),
+  L = c(rbind(L0, L1)),
+  C = c(rbind(0L, C1)),
+  Y = c(rbind(NA_real_, Y))
+)
+
+fit_c <- causat(
+  cens_long,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ 1,
+  confounders_tv = ~ L,
+  id = "id",
+  time = "time",
+  censoring = "C"
+)
+
+res_c <- contrast(
+  fit_c,
+  interventions = list(always = static(1), never = static(0)),
+  reference = "never",
+  type = "difference",
+  ci_method = "sandwich"
+)
+res_c
+```
+
+Structural truth: sum of per-period effects ≈ 4 (2 + 2). The estimate
+should be close, and the sandwich SE reflects the censoring-induced
+reduction in effective sample size at each step.
+
 ## How ICE works
 
 ICE g-computation (Zivich et al., 2024) works **backward** in time:
@@ -424,18 +641,42 @@ This requires **only outcome models** --- unlike forward simulation
 - `history`: Markov order. `history = 1` (default) includes one lag of
   treatment and TV confounders. `history = Inf` includes full history.
 - `censoring`: Time-varying censoring indicator (1 = censored). ICE restricts
-  to uncensored at each backward step.
+  to uncensored at each backward step; the resulting estimator is IPCW-valid
+  when the censoring mechanism is conditionally random given the covariate
+  history.
+- `weights`: external survey weights or pre-computed IPCW. Validated upfront
+  by `check_weights()` (rejects NA, Inf, negative, mis-sized) and propagated
+  through every step of the backward recursion. The ICE sandwich variance
+  engine accounts for the weights via the `A_{k-1,k}` cascade gradient —
+  dropping them would underestimate the SE under heterogeneous weights by
+  roughly a factor of two.
+- `parallel` / `ncpus`: passed straight through to `boot::boot()` on the
+  bootstrap path. Defaults to `getOption("boot.parallel", "no")` /
+  `getOption("boot.ncpus", 1L)` so a session-wide `options(boot.parallel =
+  "multicore")` flips parallelism on for every `contrast()` call.
+
+For a full enumeration of the sandwich-vs-bootstrap, continuous/binary,
+external-weights, censoring, multivariate-treatment, and ipsi-rejection
+combinations, see `FEATURE_COVERAGE_MATRIX.md` §"Method 4 — ICE longitudinal
+g-computation" (20+ truth-pinned rows against `lmtp::lmtp_tmle` / analytic
+targets / Hernán & Robins Table 20.1).
 
 ## Summary of covered combinations
 
-| Outcome | Contrast | Inference | Intervention | History |
-|---|---|---|---|---|
-| Continuous | Difference | Sandwich | Static | 1 |
-| Continuous | Difference | Bootstrap | Static | 1 |
-| Continuous | Difference | Sandwich | Dynamic | 1 |
-| Continuous | Difference | Sandwich | Static | Inf |
-| Binary | Difference | Sandwich | Static | 1 |
-| Binary | Ratio | Sandwich | Static | 1 |
+| Outcome | Treatment | Intervention | Variance | Weights | Status |
+|---|---|---|---|---|---|
+| Continuous | Binary | Static (always vs never) | Sandwich | none | ✅ Table 20.1 |
+| Continuous | Binary | Static | Bootstrap | none | ✅ Table 20.1 |
+| Continuous | Binary | Dynamic (rule on L) | Sandwich | none | ✅ |
+| Continuous | Binary | Static | Sandwich + bootstrap | survey | ✅ |
+| Continuous | Continuous | Shift / Scale / Threshold | Sandwich | none | ✅ (vs lmtp) |
+| Continuous | Continuous | Shift | Bootstrap | none | ✅ (vs lmtp) |
+| Continuous | Multivariate | Static / Shift | Sandwich | none | ✅ |
+| Binary | Binary | Static / Dynamic | Sandwich / bootstrap | none | ✅ (3+ periods) |
+| Binary | Binary | Static | Bootstrap (parallel) | none | ✅ |
+| Continuous | Binary | Static | Sandwich | none + censoring | ✅ |
+| — | Binary | ipsi(δ) | — | — | ⛔ rejected (Phase 4) |
+| — | Binary | static / ATT | — | — | ⛔ rejected (ICE is ATE-only) |
 
 ## References
 

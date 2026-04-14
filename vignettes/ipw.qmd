@@ -22,9 +22,16 @@ This vignette demonstrates IPW in causatr using the NHEFS dataset from Hernán
 & Robins (2025), covering every supported combination of treatment type,
 outcome type, contrast scale, and inference method for time-fixed treatments.
 
-**Note:** IPW currently supports only `static()` interventions. For modified
-treatment policies (shift, scale, threshold, dynamic), use g-computation
-(see `vignette("gcomp")`).
+**Note:** IPW currently supports only `static()` interventions because the
+weights are estimated once under the observed treatment distribution.
+For modified treatment policies (shift, scale, threshold, dynamic, MTP), use
+g-computation (see `vignette("gcomp")`); self-contained IPW for non-static
+interventions is planned for Phase 4.
+
+**Note:** IPW and matching reject an `A:modifier` term inside `confounders`
+up front — the saturated `Y ~ A` MSM has no slot for the interaction.
+Use `method = "gcomp"` for heterogeneous treatment effects, or `by =
+"modifier"` below for stratum-specific summaries of a homogeneous effect.
 
 ## Setup
 
@@ -166,11 +173,16 @@ glance(res_ate_sw)
 ## Binary treatment, binary outcome
 
 Using the `gained_weight` indicator as a binary outcome. With IPW, the MSM
-is `Y ~ A` (a linear probability model), so `contrast()` computes marginal
-risks and derives contrasts via the influence-function variance engine
-(`variance_if()`), which for IPW delegates Channel 2 to
-`correct_propensity()`'s WeightIt shortcut
-(`sandwich::estfun(asympt = TRUE)` + `sandwich::bread()`).
+is `Y ~ A` (a linear probability / logistic model), so `contrast()` computes
+marginal risks and derives contrasts via the unified influence-function
+variance engine (`variance_if()`), which for IPW delegates Channel 2 to
+`prepare_propensity_if()` / `apply_propensity_correction()`. Branch A (the
+default) uses WeightIt's own M-estimation shortcut
+(`sandwich::estfun(asympt = TRUE)` + `sandwich::bread()`) so weight-estimation
+uncertainty propagates into the reported SEs automatically. Non-Mparts
+WeightIt methods (`gbm`, `super`, `bart`, `optweight`, `energy`, `npcbps`)
+fall back to treating weights as fixed and emit a warning at fit time — use
+`ci_method = "bootstrap"` for valid inference on those.
 
 ### Risk difference (sandwich)
 
@@ -248,6 +260,163 @@ res_rr_bs <- contrast(
 )
 res_rr_bs
 ```
+
+## Parallel bootstrap
+
+Bootstrap replicates can be parallelised by passing `parallel` and `ncpus`
+straight through to `boot::boot()`:
+
+```{r}
+#| eval: false
+res_par <- contrast(
+  fit_ipw,
+  interventions = list(quit = static(1), continue = static(0)),
+  reference = "continue",
+  ci_method = "bootstrap",
+  n_boot = 200L,
+  parallel = "multicore",  # or "snow" on Windows
+  ncpus = 4L
+)
+```
+
+These default to `getOption("boot.parallel", "no")` and
+`getOption("boot.ncpus", 1L)`, so a session-wide
+`options(boot.parallel = "multicore", boot.ncpus = 4L)` flips parallelism
+on for every `contrast()` call without per-call plumbing.
+
+## Categorical treatment (k > 2 levels)
+
+WeightIt estimates a multinomial propensity score for categorical
+treatments and causatr passes them through to `glm_weightit()` as-is.
+The MSM is still `Y ~ A` — a per-level marginal mean — so `contrast()`
+can compute any pairwise contrast against a user-chosen reference level.
+
+```{r}
+set.seed(42)
+n <- 2000
+L <- rnorm(n)
+probs <- exp(cbind(0, 0.5 * L, -0.3 * L))
+probs <- probs / rowSums(probs)
+A <- factor(
+  apply(probs, 1, function(p) sample(c("A", "B", "C"), 1, prob = p)),
+  levels = c("A", "B", "C")
+)
+Y <- 2 + (A == "B") * 1.5 + (A == "C") * -0.8 + 0.5 * L + rnorm(n)
+cat_df <- data.frame(Y = Y, A = A, L = L)
+
+fit_ipw_cat <- causat(
+  cat_df,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L,
+  method = "ipw"
+)
+
+res_ipw_cat <- contrast(
+  fit_ipw_cat,
+  interventions = list(
+    arm_a = static("A"),
+    arm_b = static("B"),
+    arm_c = static("C")
+  ),
+  reference = "arm_a",
+  type = "difference"
+)
+res_ipw_cat
+```
+
+## Continuous treatment (generalised propensity score)
+
+For continuous treatments WeightIt fits a generalised propensity score
+(the default is a density-ratio model). IPW still only supports `static()`
+interventions — the weights are valid for the observed treatment
+distribution, not for a shifted one. Use `static(value)` at specific
+levels of the continuous variable and read off pairwise differences.
+
+```{r}
+set.seed(5)
+n <- 2000
+L <- rnorm(n)
+A <- 1 + 0.5 * L + rnorm(n)
+Y <- 1 + 2 * A + L + rnorm(n)
+cont_df <- data.frame(Y = Y, A = A, L = L)
+
+fit_ipw_cont <- causat(
+  cont_df,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L,
+  method = "ipw"
+)
+
+res_ipw_cont <- contrast(
+  fit_ipw_cont,
+  interventions = list(a_low = static(0), a_mid = static(1), a_high = static(2)),
+  reference = "a_low",
+  type = "difference"
+)
+res_ipw_cont
+```
+
+Structural truth: `E[Y(a)] = 1 + 2a`, so `a_mid − a_low = 2` and
+`a_high − a_low = 4`.
+
+## External (survey) weights
+
+Pre-computed survey weights are passed via `weights =`; causatr validates
+them via `check_weights()` and **multiplies** them element-wise with the
+WeightIt-estimated IPW weights. The combined weight then drives both the
+`glm_weightit()` MSM fit and the influence-function variance via
+`sandwich::estfun(asympt = TRUE)`.
+
+```{r}
+set.seed(6)
+n <- 2000
+L <- rnorm(n)
+A <- rbinom(n, 1, plogis(0.5 * L))
+Y <- 2 + 3 * A + 1.5 * L + rnorm(n)
+w <- runif(n, 0.5, 2.0)
+sv_df <- data.frame(Y = Y, A = A, L = L)
+
+fit_ipw_sv <- causat(
+  sv_df,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L,
+  method = "ipw",
+  weights = w
+)
+
+res_ipw_sv <- contrast(
+  fit_ipw_sv,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  reference = "a0",
+  type = "difference"
+)
+res_ipw_sv
+```
+
+## Non-Mparts WeightIt methods and the bootstrap fallback
+
+WeightIt's M-estimation shortcut (`glm_weightit`'s `Mparts`) is only wired
+up for a subset of methods (`glm`, `cbps`, `ipt`, `ebal`). For anything
+else (`gbm`, `super`, `bart`, `optweight`, `energy`, `npcbps`) causatr
+emits a warning at fit time so you know the sandwich SE will treat the
+weights as fixed:
+
+```
+Warning: WeightIt method 'gbm' does not implement the M-estimation
+correction (no `Mparts` attribute). Sandwich SEs from `ci_method =
+'sandwich'` will treat the weights as fixed and may underestimate the
+variance. Use `ci_method = 'bootstrap'` for valid inference, or switch
+to a method that supports Mparts (`glm`, `cbps`, `ipt`, `ebal`).
+```
+
+When you see this warning, switch to `ci_method = "bootstrap"` — the
+bootstrap resamples the full pipeline (including the weight-estimation
+step) and is always valid, regardless of whether Mparts is wired up.
+See `FEATURE_COVERAGE_MATRIX.md` entry for "non-Mparts WeightIt method"
+for the end-to-end smoke test.
 
 ## Comparing estimands
 
@@ -364,18 +533,25 @@ diag$weights
 
 ## Summary of covered combinations
 
-| Treatment | Outcome | Contrast | Inference | Estimand |
-|---|---|---|---|---|
-| Binary | Continuous | Difference | Sandwich | ATE |
-| Binary | Continuous | Difference | Bootstrap | ATE |
-| Binary | Continuous | Difference | Sandwich | ATT |
-| Binary | Continuous | Difference | Sandwich | ATC |
-| Binary | Continuous | Difference | Bootstrap | ATT |
-| Binary | Binary | Difference | Sandwich | ATE |
-| Binary | Binary | Difference | Bootstrap | ATE |
-| Binary | Binary | Ratio | Sandwich | ATE |
-| Binary | Binary | OR | Sandwich | ATE |
-| Binary | Binary | Ratio | Bootstrap | ATE |
+| Treatment | Outcome | Contrast | Inference | Estimand | Weights |
+|---|---|---|---|---|---|
+| Binary | Continuous | Difference | Sandwich | ATE | none |
+| Binary | Continuous | Difference | Bootstrap | ATE | none |
+| Binary | Continuous | Difference | Sandwich | ATT | none |
+| Binary | Continuous | Difference | Sandwich | ATC | none |
+| Binary | Continuous | Difference | Bootstrap | ATT | none |
+| Binary | Continuous | Difference | Sandwich | ATE | survey |
+| Binary | Binary | Difference | Sandwich | ATE | none |
+| Binary | Binary | Difference | Bootstrap | ATE | none |
+| Binary | Binary | Ratio | Sandwich | ATE | none |
+| Binary | Binary | OR | Sandwich | ATE | none |
+| Binary | Binary | Ratio | Bootstrap | ATE | none |
+| Categorical (k>2) | Continuous | Difference | Sandwich | ATE | none |
+| Continuous (static levels) | Continuous | Difference | Sandwich | ATE | none |
+| Any | Any | Any | Any | Any | ⛔ rejected when `A:modifier` in `confounders` (Phase 8) |
+| Binary (non-Mparts WeightIt) | Continuous | Difference | Bootstrap | ATE | none |
+| Multivariate / Longitudinal | — | — | — | — | ⛔ rejected (Phase 4) |
+| Non-`static()` intervention | — | — | — | — | ⛔ rejected (Phase 4) |
 
 ## References
 

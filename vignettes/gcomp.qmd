@@ -464,6 +464,153 @@ modification results:
 plot(res_by_sex)
 ```
 
+## Categorical treatment (k > 2 levels)
+
+G-computation handles categorical treatments natively by fitting a single
+outcome model with the treatment as a factor covariate. `contrast()` then
+standardises predictions under each named `static()` level and pairwise
+differences are read off against the reference category.
+
+```{r}
+set.seed(42)
+n <- 2000
+L <- rnorm(n)
+A <- sample(c("A", "B", "C"), n, replace = TRUE, prob = c(0.4, 0.35, 0.25))
+Y <- 2 + (A == "B") * 1.5 + (A == "C") * -0.8 + 0.5 * L + rnorm(n)
+cat_df <- data.frame(Y = Y, A = factor(A, levels = c("A", "B", "C")), L = L)
+
+fit_cat <- causat(cat_df, outcome = "Y", treatment = "A", confounders = ~ L)
+
+res_cat <- contrast(
+  fit_cat,
+  interventions = list(
+    arm_a = static("A"),
+    arm_b = static("B"),
+    arm_c = static("C")
+  ),
+  reference = "arm_a",
+  type = "difference",
+  ci_method = "sandwich"
+)
+res_cat
+```
+
+Structural truth: `B − A = 1.5`, `C − A = −0.8`. The sandwich CIs should cover both.
+
+## Multivariate (joint) treatment
+
+Pass `treatment = c("A1", "A2")` for a joint intervention on two or more
+treatment variables. Interventions are supplied as **named sub-lists**, one
+entry per treatment column, and each sub-intervention is independent (the
+rules can be different types — e.g. `static()` for one, `shift()` for
+another).
+
+```{r}
+set.seed(1)
+n <- 2000
+L1 <- rnorm(n)
+L2 <- rnorm(n)
+A1 <- rbinom(n, 1, plogis(0.3 * L1))
+A2 <- 1 + 0.4 * L2 + rnorm(n)
+Y <- 1 + 2 * A1 + 0.5 * A2 + L1 + L2 + rnorm(n)
+mv_df <- data.frame(Y = Y, A1 = A1, A2 = A2, L1 = L1, L2 = L2)
+
+fit_mv <- causat(
+  mv_df,
+  outcome = "Y",
+  treatment = c("A1", "A2"),
+  confounders = ~ L1 + L2
+)
+
+res_mv <- contrast(
+  fit_mv,
+  interventions = list(
+    both_on  = list(A1 = static(1), A2 = static(2)),
+    both_off = list(A1 = static(0), A2 = static(0))
+  ),
+  reference = "both_off",
+  type = "difference"
+)
+res_mv
+```
+
+Structural truth: `both_on − both_off = 2*1 + 0.5*2 = 3.0`.
+
+## External (survey) weights
+
+Pre-computed weights (survey weights, calibration weights, externally-fit
+IPCW) are passed via `weights =` and validated upfront by `check_weights()`
+(NA / Inf / negative / mis-sized vectors are rejected with a specific
+error). The sandwich engine propagates the weights through both Channel 1
+(target-population weighting) and Channel 2 (IWLS weighted score).
+
+```{r}
+set.seed(2)
+n <- 2000
+L <- rnorm(n)
+A <- rbinom(n, 1, plogis(0.5 * L))
+Y <- 2 + 3 * A + 1.5 * L + rnorm(n)
+# A random survey weight unrelated to outcome: verifies the IF correctly
+# propagates weights without introducing bias when the weights carry no
+# real information.
+w <- runif(n, 0.5, 2.0)
+sv_df <- data.frame(Y = Y, A = A, L = L)
+
+fit_sv <- causat(
+  sv_df,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L,
+  weights = w
+)
+
+res_sv <- contrast(
+  fit_sv,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  reference = "a0",
+  type = "difference"
+)
+res_sv
+```
+
+The weighted ATE estimate is still ≈ 3 (the structural truth), and the
+sandwich SE reflects both the outcome-model and weighted-target sampling
+uncertainty.
+
+## Poisson count outcome
+
+For rate / count outcomes, pass `family = "poisson"`. The outcome model
+becomes a log-link GLM and `contrast(..., type = "ratio")` returns the
+marginal rate ratio.
+
+```{r}
+set.seed(3)
+n <- 2000
+L <- rnorm(n)
+A <- rbinom(n, 1, plogis(0.5 * L))
+Y <- rpois(n, lambda = exp(0.5 + 0.7 * A + 0.3 * L))
+pois_df <- data.frame(Y = Y, A = A, L = L)
+
+fit_pois <- causat(
+  pois_df,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L,
+  family = "poisson"
+)
+
+res_rr_pois <- contrast(
+  fit_pois,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  reference = "a0",
+  type = "ratio",
+  ci_method = "sandwich"
+)
+res_rr_pois
+```
+
+Structural truth: marginal RR ≈ `exp(0.7) ≈ 2.01`.
+
 ## GAM model via model_fn
 
 Pass `mgcv::gam` instead of `stats::glm` for flexible nonlinear confounder
@@ -492,26 +639,34 @@ res_gam
 
 ## Summary of covered combinations
 
-| Treatment | Outcome | Contrast | Inference | Estimand | Intervention |
-|---|---|---|---|---|---|
-| Binary | Continuous | Difference | Sandwich | ATE | Static |
-| Binary | Continuous | Difference | Bootstrap | ATE | Static |
-| Binary | Continuous | Difference | Sandwich | ATT | Static |
-| Binary | Continuous | Difference | Sandwich | ATC | Static |
-| Binary | Continuous | Difference | Sandwich | Subset | Static |
-| Binary | Continuous | Difference | Sandwich | ATE (by sex) | Static |
-| Binary | Binary | Difference | Sandwich | ATE | Static |
-| Binary | Binary | Difference | Bootstrap | ATE | Static |
-| Binary | Binary | Ratio | Sandwich | ATE | Static |
-| Binary | Binary | OR | Sandwich | ATE | Static |
-| Continuous | Continuous | Difference | Sandwich | ATE | Static |
-| Continuous | Continuous | Difference | Sandwich | ATE | Shift |
-| Continuous | Continuous | Difference | Sandwich | ATE | Scale |
-| Continuous | Continuous | Difference | Sandwich | ATE | Threshold |
-| Continuous | Continuous | Difference | Sandwich | ATE | Dynamic |
-| Continuous | Continuous | Difference | Bootstrap | ATE | Shift |
-| Binary | Continuous | Difference | Sandwich | ATE | Dynamic |
-| Binary | Continuous | Difference | Sandwich | ATE | GAM model |
+| Treatment | Outcome / family | Model | Intervention | Estimand | Contrast | Inference | Weights |
+|---|---|---|---|---|---|---|---|
+| Binary | Continuous / gaussian | GLM | Static | ATE | Difference | Sandwich | none |
+| Binary | Continuous / gaussian | GLM | Static | ATE | Difference | Bootstrap | none |
+| Binary | Continuous / gaussian | GLM | Static | ATT | Difference | Sandwich | none |
+| Binary | Continuous / gaussian | GLM | Static | ATC | Difference | Sandwich | none |
+| Binary | Continuous / gaussian | GLM | Static | Subset | Difference | Sandwich | none |
+| Binary | Continuous / gaussian | GLM | Static | ATE (by sex) | Difference | Sandwich | none |
+| Binary | Continuous / gaussian | GLM | Dynamic | ATE | Difference | Sandwich | none |
+| Binary | Continuous / gaussian | GLM | Static | ATE | Difference | Sandwich | survey |
+| Binary | Continuous / gaussian | GAM (`mgcv::gam`) | Static | ATE | Difference | Sandwich | none |
+| Binary | Binary / binomial | GLM | Static | ATE | Difference | Sandwich | none |
+| Binary | Binary / binomial | GLM | Static | ATE | Difference | Bootstrap | none |
+| Binary | Binary / binomial | GLM | Static | ATE | Ratio | Sandwich | none |
+| Binary | Binary / binomial | GLM | Static | ATE | OR | Sandwich | none |
+| Binary | Count / poisson | GLM | Static | ATE | Ratio | Sandwich | none |
+| Continuous | Continuous / gaussian | GLM | Static | ATE | Difference | Sandwich | none |
+| Continuous | Continuous / gaussian | GLM | Shift | ATE | Difference | Sandwich | none |
+| Continuous | Continuous / gaussian | GLM | Scale | ATE | Difference | Sandwich | none |
+| Continuous | Continuous / gaussian | GLM | Threshold | ATE | Difference | Sandwich | none |
+| Continuous | Continuous / gaussian | GLM | Dynamic | ATE | Difference | Sandwich | none |
+| Continuous | Continuous / gaussian | GLM | Shift | ATE | Difference | Bootstrap | none |
+| Categorical (k>2) | Continuous / gaussian | GLM | Static | ATE | Difference | Sandwich | none |
+| Multivariate | Continuous / gaussian | GLM | Joint static | ATE | Difference | Sandwich | none |
+
+See `FEATURE_COVERAGE_MATRIX.md` for the full list of truth-pinned combinations
+(including censoring, quasibinomial, gamma, and the numeric two-tier
+variance fallback for custom `model_fn` choices).
 
 ## References
 

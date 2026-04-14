@@ -142,6 +142,45 @@ res_ate_bs <- contrast(
 res_ate_bs
 ```
 
+### ATT with external survey weights
+
+Pre-computed survey weights are passed via `weights =` to `causat()` and
+validated upfront by `check_weights()`. Internally causatr **multiplies**
+the survey weights by the match weights from `MatchIt`; the combined
+weight drives the outcome-model fit on the matched sample and enters the
+cluster-robust IF variance via `prior.weights`. The row-alignment
+between the matched sample and the user-supplied weights is handled by
+`combine_match_and_external_weights()` (defined in `R/matching.R`) so
+the invariant is asserted in exactly one place.
+
+```{r}
+set.seed(42)
+# Synthetic survey weights unrelated to the outcome — demonstrates the
+# plumbing without introducing real bias.
+svy_w <- runif(nrow(nhefs_complete), 0.5, 2.0)
+
+fit_m_sv <- causat(
+  nhefs_complete,
+  outcome = "wt82_71",
+  treatment = "qsmk",
+  confounders = ~ sex + age + I(age^2) + race + factor(education) +
+    smokeintensity + I(smokeintensity^2) + smokeyrs + I(smokeyrs^2) +
+    factor(exercise) + factor(active) + wt71 + I(wt71^2),
+  method = "matching",
+  estimand = "ATT",
+  weights = svy_w
+)
+
+res_m_sv <- contrast(
+  fit_m_sv,
+  interventions = list(quit = static(1), continue = static(0)),
+  reference = "continue",
+  type = "difference",
+  ci_method = "sandwich"
+)
+res_m_sv
+```
+
 ### ATC estimand
 
 The ATC targets the effect among controls (those who continued smoking).
@@ -375,18 +414,20 @@ diag$match_quality
 
 ## Summary of covered combinations
 
-| Treatment | Outcome | Contrast | Inference | Estimand |
-|---|---|---|---|---|
-| Binary | Continuous | Difference | Sandwich | ATT |
-| Binary | Continuous | Difference | Bootstrap | ATT |
-| Binary | Continuous | Difference | Sandwich | ATE |
-| Binary | Continuous | Difference | Bootstrap | ATE |
-| Binary | Continuous | Difference | Sandwich | ATC |
-| Binary | Binary | Difference | Sandwich | ATT |
-| Binary | Binary | Difference | Bootstrap | ATT |
-| Binary | Binary | Ratio | Sandwich | ATT |
-| Binary | Binary | OR | Sandwich | ATT |
-| Binary | Binary | Ratio | Bootstrap | ATT |
+| Treatment | Outcome | Contrast | Inference | Estimand | Weights |
+|---|---|---|---|---|---|
+| Binary | Continuous | Difference | Sandwich | ATT | none |
+| Binary | Continuous | Difference | Bootstrap | ATT | none |
+| Binary | Continuous | Difference | Sandwich | ATT | survey |
+| Binary | Continuous | Difference | Sandwich | ATE | none |
+| Binary | Continuous | Difference | Bootstrap | ATE | none |
+| Binary | Continuous | Difference | Sandwich | ATC | none |
+| Binary | Binary | Difference | Sandwich | ATT | none |
+| Binary | Binary | Difference | Bootstrap | ATT | none |
+| Binary | Binary | Ratio | Sandwich | ATT | none |
+| Binary | Binary | OR | Sandwich | ATT | none |
+| Binary | Binary | Ratio | Bootstrap | ATT | none |
+| Categorical (k>2) / Continuous | — | — | — | — | ⛔ rejected |
 
 ## References
 
