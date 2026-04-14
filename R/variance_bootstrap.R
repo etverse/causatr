@@ -18,10 +18,31 @@ process_boot_results <- function(boot_res, int_names, n_boot) {
   # are flagged by NA rows (each per-rep function wraps its body in
   # tryCatch and returns `rep(NA_real_, k)` on error), so
   # `complete.cases()` identifies the usable ones.
+  #
+  # We also track per-intervention failure counts in the returned
+  # `boot_info$n_fail_by_int`. This is the only way to see whether
+  # failures cluster on one intervention (e.g. a rare static value
+  # that triggers separation in every resample) versus are spread
+  # across the whole replicate (e.g. a bad factor-level sample): the
+  # whole-row drop biases the vcov more in the former case. Downstream
+  # `print.causatr_result()` surfaces the vector so users spot the
+  # pattern.
   t_mat <- boot_res$t
+  colnames(t_mat) <- int_names
   complete_rows <- stats::complete.cases(t_mat)
   n_ok <- sum(complete_rows)
   n_fail <- n_boot - n_ok
+  # Per-intervention failure counts: for each column, count NA rows.
+  # This is strictly `>= n_fail / k` (a failed replicate contributes
+  # an NA to every column), but is a better diagnostic because a
+  # heterogeneous failure pattern reveals which intervention caused
+  # the failure.
+  n_fail_by_int <- vapply(
+    seq_along(int_names),
+    function(j) sum(is.na(t_mat[, j])),
+    integer(1)
+  )
+  names(n_fail_by_int) <- int_names
 
   if (n_ok < 2L) {
     # With fewer than 2 successful replicates the sample variance is
@@ -85,7 +106,8 @@ process_boot_results <- function(boot_res, int_names, n_boot) {
     boot_info = list(
       n_requested = n_boot,
       n_ok = n_ok,
-      n_fail = n_fail
+      n_fail = n_fail,
+      n_fail_by_int = n_fail_by_int
     )
   )
 }
@@ -154,7 +176,31 @@ variance_bootstrap <- function(
           NULL
         }
 
-        model_b <- suppressWarnings(refit_model(fit, d_b, weights = w_b))
+        # Demote only the specific warnings we expect to emit on
+        # nearly every replicate and that would otherwise flood the
+        # console: GLM "fitted probabilities numerically 0 or 1",
+        # `X'WX` near-singular on thin resamples, and MatchIt's
+        # "Fewer control/treated units". Everything else — non-
+        # convergence, family mismatches, factor-level surprises — is
+        # allowed to surface so users can spot pipeline instability
+        # instead of seeing a silent NA column in `boot_t`.
+        model_b <- withCallingHandlers(
+          refit_model(fit, d_b, weights = w_b),
+          warning = function(w) {
+            msg <- conditionMessage(w)
+            if (
+              grepl(
+                "fitted probabilities numerically 0 or 1",
+                msg,
+                fixed = TRUE
+              ) ||
+                grepl("X'WX` is singular", msg, fixed = TRUE) ||
+                grepl("Fewer (control|treated) units", msg)
+            ) {
+              invokeRestart("muffleWarning")
+            }
+          }
+        )
 
         target_idx_b <- get_target_idx(d_b, treatment, est, subset)
 
@@ -307,13 +353,16 @@ refit_matching <- function(fit, d_b, weights = NULL) {
   m_b <- do.call(MatchIt::matchit, match_args)
   matched_b <- MatchIt::match.data(m_b)
 
-  # Combine match weights with external weights. MatchIt::match.data()
-  # reorders rows; use rownames (original row indices) to align.
-  matched_weights <- matched_b$weights
-  if (!is.null(weights)) {
-    matched_weights <- matched_weights *
-      weights[fit_rows_b][as.integer(rownames(matched_b))]
-  }
+  # Combine match weights with external weights via the shared helper
+  # (defined in R/matching.R). Using the same code path as `fit_matching()`
+  # means any row-name invariant violation fails loudly at the bootstrap
+  # boundary rather than silently producing NA-tainted or misaligned
+  # weights on a subset of replicates.
+  matched_weights <- combine_match_and_external_weights(
+    matched_b,
+    external_weights = weights,
+    fit_rows = fit_rows_b
+  )
 
   msm_formula <- stats::reformulate(fit$treatment, response = fit$outcome)
   stats::glm(
@@ -437,11 +486,14 @@ ice_variance_bootstrap <- function(
       return(rep(NA_real_, length(int_names)))
     }
 
-    # Determine target population in the bootstrap sample.
+    # Determine target population in the bootstrap sample. `d_b` is
+    # a data.table (list-like), so `eval()` resolves column references
+    # directly; `enclos = parent.frame()` preserves any session-scoped
+    # variables referenced by the user's subset expression.
     rows_b_first <- d_b[[time_col]] == first_time
     if (!is.null(subset)) {
       target_b <- rows_b_first &
-        as.logical(eval(subset, envir = as.list(d_b)))
+        as.logical(eval(subset, envir = d_b, enclos = parent.frame()))
     } else {
       target_b <- rows_b_first
     }

@@ -494,14 +494,30 @@ test_that("bootstrap result carries boot_info and print() surfaces it", {
   # Sandwich path stores nothing.
   expect_null(res_sand$boot_info)
 
-  # Bootstrap path stores the 3-element list, with totals consistent.
+  # Bootstrap path stores the info list, with totals consistent.
   expect_type(res_boot$boot_info, "list")
-  expect_named(res_boot$boot_info, c("n_requested", "n_ok", "n_fail"))
+  # Fields: n_requested / n_ok / n_fail (scalar totals) +
+  # n_fail_by_int (per-intervention NA counts, added so users can
+  # see whether failures cluster on a single intervention).
+  expect_named(
+    res_boot$boot_info,
+    c("n_requested", "n_ok", "n_fail", "n_fail_by_int")
+  )
   expect_equal(res_boot$boot_info$n_requested, 50L)
   expect_equal(
     res_boot$boot_info$n_ok + res_boot$boot_info$n_fail,
     res_boot$boot_info$n_requested
   )
+  # Per-intervention failure counts: one entry per intervention,
+  # named by intervention, each ≥ overall n_fail / k (a failed replicate
+  # contributes to every column but an intervention-specific failure
+  # may contribute to only one).
+  expect_type(res_boot$boot_info$n_fail_by_int, "integer")
+  expect_equal(
+    length(res_boot$boot_info$n_fail_by_int),
+    length(res_boot$estimates$intervention)
+  )
+  expect_true(all(res_boot$boot_info$n_fail_by_int >= res_boot$boot_info$n_fail))
   # And matches the row count of the stored replicate matrix.
   expect_equal(nrow(res_boot$boot_t), res_boot$boot_info$n_ok)
 
