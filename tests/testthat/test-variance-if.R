@@ -435,8 +435,12 @@ test_that("vcov_from_if(cluster = ...) matches the hand-computed cluster-robust 
   # 4 clusters of size 10.
   cluster <- rep(1:4, each = 10)
 
-  V_fn <- vcov_from_if(IF_list, n = n, int_names = names(IF_list),
-                       cluster = cluster)
+  V_fn <- vcov_from_if(
+    IF_list,
+    n = n,
+    int_names = names(IF_list),
+    cluster = cluster
+  )
 
   IF_mat <- do.call(cbind, IF_list)
   cluster_sums <- rowsum(IF_mat, as.factor(cluster), reorder = FALSE)
@@ -505,11 +509,14 @@ test_that("variance_if_numeric() Tier 2 works end-to-end via a custom model_fn",
       s3_reg <- get(".__S3MethodsTable__.", envir = baseenv())
       # Best-effort cleanup; failing to unregister leaves the methods
       # visible to later tests but doesn't break correctness.
-      suppressWarnings(rm(list = c(
-        "coef.toy_lm",
-        "vcov.toy_lm",
-        "predict.toy_lm"
-      ), envir = s3_reg))
+      suppressWarnings(rm(
+        list = c(
+          "coef.toy_lm",
+          "vcov.toy_lm",
+          "predict.toy_lm"
+        ),
+        envir = s3_reg
+      ))
     },
     add = TRUE
   )

@@ -440,8 +440,12 @@ test_that("confint() respects level for both sandwich and bootstrap paths", {
   s90 <- confint(res_sand, level = 0.90)
   s95 <- confint(res_sand, level = 0.95)
   s99 <- confint(res_sand, level = 0.99)
-  expect_true(all(s95[, "upper"] - s95[, "lower"] > s90[, "upper"] - s90[, "lower"]))
-  expect_true(all(s99[, "upper"] - s99[, "lower"] > s95[, "upper"] - s95[, "lower"]))
+  expect_true(all(
+    s95[, "upper"] - s95[, "lower"] > s90[, "upper"] - s90[, "lower"]
+  ))
+  expect_true(all(
+    s99[, "upper"] - s99[, "lower"] > s95[, "upper"] - s95[, "lower"]
+  ))
 
   # Bootstrap path: percentile CI also widens with `level`. This is
   # the previously-untested branch — a prior implementation read
@@ -450,8 +454,12 @@ test_that("confint() respects level for both sandwich and bootstrap paths", {
   b90 <- confint(res_boot, level = 0.90)
   b95 <- confint(res_boot, level = 0.95)
   b99 <- confint(res_boot, level = 0.99)
-  expect_true(all(b95[, "upper"] - b95[, "lower"] > b90[, "upper"] - b90[, "lower"]))
-  expect_true(all(b99[, "upper"] - b99[, "lower"] > b95[, "upper"] - b95[, "lower"]))
+  expect_true(all(
+    b95[, "upper"] - b95[, "lower"] > b90[, "upper"] - b90[, "lower"]
+  ))
+  expect_true(all(
+    b99[, "upper"] - b99[, "lower"] > b95[, "upper"] - b95[, "lower"]
+  ))
 
   # Sandwich Wald CI differs from bootstrap percentile CI (numerics
   # from different formulas). On this DGP the two should still be
