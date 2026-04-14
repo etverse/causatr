@@ -513,11 +513,23 @@ ice_iterate <- function(fit, intervention) {
       fit_data
     )
 
-    models[[step_i]] <- model_fn(
-      formula_k,
+    # Build args via do.call to conditionally include `weights`. The
+    # final-time model (above) already uses this pattern; if we call
+    # `model_fn()` directly here and external weights are non-NULL,
+    # the backward pseudo-outcome models silently fit UNWEIGHTED, which
+    # biases every longitudinal analysis that uses external weights
+    # (IPCW, survey weights) and invalidates the stacked-EE sandwich.
+    # Weight alignment: `mask_uncens` is length n_total; we subset it
+    # to `has_pseudo` to match fit_data exactly.
+    model_args_k <- list(
+      formula = formula_k,
       data = fit_data,
       family = family_pseudo
     )
+    if (!is.null(external_weights)) {
+      model_args_k$weights <- external_weights[mask_uncens][has_pseudo]
+    }
+    models[[step_i]] <- do.call(model_fn, model_args_k)
 
     # Predict under intervention for ALL individuals at the current
     # time point (not just the fitting subset). This keeps the
