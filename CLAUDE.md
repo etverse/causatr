@@ -16,6 +16,7 @@ Architecture and per-phase implementation guides are stored in the project root:
 - `PHASE_5_LONGITUDINAL_ICE.md` — ICE g-computation for time-varying treatments (Ch. 19–21) (**done**)
 - `PHASE_6_SURVIVAL.md` — causal survival analysis (Ch. 17) (**scaffolded**)
 - `PHASE_7_ADVANCED.md` — survey weights, clustering, parallel, multivariate
+- `PHASE_8_INTERACTIONS.md` — unified effect-modification (A × modifier) API across gcomp / IPW / matching / ICE (**pending, design doc**). IPW and matching currently hardcode a saturated `Y ~ A` MSM and silently ignore `A:modifier` terms; ICE handles current-period A × modifier but not lagged A × modifier.
 
 Implementation guides for each phase will be created from claude.ai chapter summaries when that phase begins.
 
@@ -165,6 +166,7 @@ Run this in the shell:
 | 5 | Longitudinal ICE g-computation + sandwich for ICE | **done** |
 | 6 | Survival (`causat_survival()`) + competing risks | **scaffolded** (pooled logistic fit done; contrast for survival curves pending) |
 | 7 | Survey weights, clustered SE, parallel bootstrap, multivariate matching | **partial** (boot parallel done; future backend, survey weights, clustering pending) |
+| 8 | Unified effect-modification (`A:modifier`) API across gcomp / IPW / matching / ICE | **pending** (design doc only; see `PHASE_8_INTERACTIONS.md`) |
 
 ## Architecture notes
 

@@ -48,3 +48,6 @@
 ^skills-lock\.json$
 ^data-raw$
 ^_quarto$
+^_pkgdown\.yml$
+^FEATURE_COVERAGE_MATRIX\.md$
+^vignettes/\.quarto$

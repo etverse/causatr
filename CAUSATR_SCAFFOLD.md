@@ -5,7 +5,7 @@
 > Part of the [etverse](https://github.com/etverse) ecosystem.
 >
 > Companion files (one per phase):
-> - `PHASE_1_FOUNDATION.md` through `PHASE_7_ADVANCED.md` — per-phase implementation plans and status
+> - `PHASE_1_FOUNDATION.md` through `PHASE_8_INTERACTIONS.md` — per-phase implementation plans and status
 > - `chapters/` — Individual chapter PDFs for implementation-level detail
 > - Implementation guides for each phase are created from claude.ai chapter summaries when that phase begins
 
@@ -169,6 +169,8 @@ Suggests:
 | G-computation | Yes | Core engine; supports all intervention types |
 | IPW (via WeightIt) | Yes | Static interventions only; self-contained IPW for dynamic/MTP in Phase 4 |
 | Matching (via MatchIt) | Yes | Static interventions only |
+| **Effect modification** | | |
+| Effect modification (A × baseline modifier) | Partial | Point gcomp: yes; IPW / matching: silently ignored (MSM hardcoded to `Y ~ A`); ICE: current-period A only, lags miss the interaction. Unified API planned in **Phase 8** — see `PHASE_8_INTERACTIONS.md`. |
 | **Inference** | | |
 | Sandwich variance | Yes | J V_β Jᵀ via sandwich + numDeriv |
 | Bootstrap | Yes | Full-pipeline resampling via boot |
@@ -270,6 +272,31 @@ result <- contrast(fit, interventions, ci_method = "bootstrap", n_boot = 500)
 33. Parallel processing (`future` for bootstrap)
 34. Multivariate treatment
 35. Continuous treatment vignette
+
+### Phase 8: Unified Effect-Modification API — PENDING (design doc)
+36. `parse_effect_mod(confounders, treatment)` helper that detects
+    treatment × modifier terms (e.g. `A:sex`) in the `confounders`
+    formula — shared across every method so the convention is
+    consistent.
+37. IPW — `fit_ipw()` currently hardcodes a saturated `Y ~ A` MSM
+    and silently ignores any `A:modifier` term. Extend the MSM
+    builder to include detected EM terms.
+38. Matching — same silent failure as IPW (`fit_matching()` also
+    hardcodes `Y ~ A`). Same fix.
+39. ICE — `ice_build_formula()` resolves `A:sex` only for the
+    current-period treatment slot; lagged treatments do not get
+    auto-expanded modifier interactions, compressing heterogeneity
+    in multi-period DGPs. Auto-expand `A:modifier` to include the
+    same interaction with every currently-available lag per period.
+40. Cross-method truth test: gcomp / IPW / matching / ICE all run
+    on the same EM DGP with the same formula and agree within the
+    usual triangulation tolerance.
+41. Regression guards: every existing DGP without EM terms must
+    give identical numbers pre- and post-refactor — a non-EM fit
+    must still produce the saturated `Y ~ A` MSM it does today.
+42. Vignette updates across `gcomp.qmd`, `ipw.qmd`, `matching.qmd`,
+    `longitudinal.qmd`, and `triangulation.qmd` documenting the
+    convention. Full plan: `PHASE_8_INTERACTIONS.md`.
 
 ---
 
