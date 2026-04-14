@@ -318,13 +318,14 @@ test_that("ICE: sandwich ≈ bootstrap within 20% (large n)", {
     interventions = list(always = static(1), never = static(0)),
     ci_method = "sandwich"
   )
+  # Picks up `parallel = "multicore"` and `ncpus` from the global
+  # options set in `helper-parallel.R`, so this test scales with the
+  # number of available cores.
   res_bt <- contrast(
     fit,
     interventions = list(always = static(1), never = static(0)),
     ci_method = "bootstrap",
-    n_boot = 200L,
-    parallel = "multicore",
-    ncpus = 2L
+    n_boot = 200L
   )
 
   for (iv in c("always", "never")) {

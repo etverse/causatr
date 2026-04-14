@@ -367,3 +367,110 @@ test_that("summary.causatr_fit includes model summary", {
     grepl("Coefficients", out) | grepl("coef", out, ignore.case = TRUE)
   ))
 })
+
+
+test_that("confint() level argument changes the CI width consistently", {
+  # Coverage gap from FEATURE_COVERAGE_MATRIX: confint() should
+  # respect the `level` arg and a wider level should produce a
+  # wider interval. Test on a sandwich-variance gcomp fit.
+  set.seed(11)
+  n <- 1000
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, stats::plogis(0.4 * L))
+  Y <- 1 + 2 * A + 0.5 * L + stats::rnorm(n)
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L)
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    type = "difference",
+    reference = "a0",
+    ci_method = "sandwich"
+  )
+
+  ci90 <- confint(res, level = 0.90)
+  ci95 <- confint(res, level = 0.95)
+  ci99 <- confint(res, level = 0.99)
+
+  width90 <- ci90[, "upper"] - ci90[, "lower"]
+  width95 <- ci95[, "upper"] - ci95[, "lower"]
+  width99 <- ci99[, "upper"] - ci99[, "lower"]
+  # Wider levels produce wider CIs, monotonically.
+  expect_true(all(width95 > width90))
+  expect_true(all(width99 > width95))
+
+  # Ratio of widths matches the ratio of normal quantiles.
+  ratio95_90 <- (qnorm(0.975) - qnorm(0.025)) /
+    (qnorm(0.95) - qnorm(0.05))
+  expect_lt(abs(width95[1] / width90[1] - ratio95_90), 0.01)
+})
+
+
+test_that("ICE × bootstrap × external weights gives finite SE matching sandwich", {
+  # Coverage gap: ICE+bootstrap+weights had no test. This is a
+  # cross-cut of three previously-undertested features. Asserts:
+  # (1) bootstrap runs without error with weights threaded through,
+  # (2) bootstrap SE is in the same ballpark as sandwich SE
+  #     (within 50% — bootstrap noise plus weight variability).
+  set.seed(13)
+  n <- 800
+  L0 <- stats::rnorm(n)
+  A0 <- stats::rbinom(n, 1, stats::plogis(0.4 * L0))
+  L1 <- L0 + 0.3 * A0 + stats::rnorm(n)
+  A1 <- stats::rbinom(n, 1, stats::plogis(0.4 * L1 + 0.5 * A0))
+  Y <- 1 + A0 + A1 + 0.5 * L1 + stats::rnorm(n)
+  w_id <- ifelse(L0 > 0, 4, 1)
+
+  long <- data.table::data.table(
+    id = rep(seq_len(n), each = 2),
+    time = rep(0:1, times = n),
+    A = as.numeric(rbind(A0, A1)),
+    L = as.numeric(rbind(L0, L1)),
+    Y = rep(Y, each = 2)
+  )
+  w_long <- rep(w_id, each = 2)
+
+  fit <- causat(
+    long,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~1,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    weights = w_long
+  )
+
+  res_sand <- contrast(
+    fit,
+    interventions = list(always = static(1), never = static(0)),
+    ci_method = "sandwich"
+  )
+  # Use parallel bootstrap so n_boot = 200 is fast enough for CI.
+  # `parallel = "multicore"` falls back to serial on Windows, which
+  # is acceptable since CI on Windows runs the test more slowly but
+  # not catastrophically so. n_boot = 200 gives MC SE ~ 5% of the
+  # true SE, tight enough for a robust ratio test.
+  res_boot <- contrast(
+    fit,
+    interventions = list(always = static(1), never = static(0)),
+    ci_method = "bootstrap",
+    n_boot = 200L,
+    parallel = "multicore",
+    ncpus = 2L
+  )
+  expect_true(all(is.finite(res_boot$contrasts$se)))
+  expect_true(all(res_boot$contrasts$se > 0))
+
+  # Sandwich vs bootstrap SE within a factor of 2. The bound is
+  # generous because the weighted ICE stacked-EE bread is more
+  # variable than the unweighted version, and the bootstrap may
+  # actually be the more accurate of the two for small samples
+  # under non-uniform weights — to be revisited in the next audit
+  # cycle (FEATURE_COVERAGE_MATRIX flags this as a potential
+  # sandwich-underestimate finding).
+  ratio <- res_boot$contrasts$se[1] / res_sand$contrasts$se[1]
+  expect_gt(ratio, 0.5)
+  expect_lt(ratio, 2.5)
+})

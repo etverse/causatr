@@ -15,7 +15,7 @@ contrast(
   n_boot = 500L,
   conf_level = 0.95,
   by = NULL,
-  parallel = c("no", "multicore", "snow"),
+  parallel = getOption("boot.parallel", "no"),
   ncpus = getOption("boot.ncpus", 1L)
 )
 }

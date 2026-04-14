@@ -75,12 +75,13 @@ fit_ipw <- function(
     ...
   )
 
-  # Length guard: WeightIt may internally drop additional rows if the
-  # PS formula references covariates with NA that we didn't catch in
-  # `get_fit_rows()` (which only looks at the outcome). A silent
-  # length mismatch here would either produce NA weights or
-  # misalign the external-weight product to the wrong individuals.
-  # Fail loudly instead — the user's data needs cleaning before IPW.
+  # `get_fit_rows()` only excludes rows with missing outcome, but
+  # WeightIt drops rows with missing PS-formula covariates as well.
+  # If those row sets differ, `w$weights` is shorter than `fit_rows`
+  # and the external-weight multiply on the next line would either
+  # recycle silently or misalign weights to the wrong individuals.
+  # Require the row counts to match and ask the user to clean or
+  # impute the data first.
   if (length(w$weights) != sum(fit_rows)) {
     rlang::abort(
       paste0(

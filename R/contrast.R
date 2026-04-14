@@ -219,9 +219,14 @@ contrast <- function(
   n_boot = 500L,
   conf_level = 0.95,
   by = NULL,
-  parallel = c("no", "multicore", "snow"),
+  parallel = getOption("boot.parallel", "no"),
   ncpus = getOption("boot.ncpus", 1L)
 ) {
+  # `parallel` accepts the same three values as `boot::boot()` and
+  # defaults to `getOption("boot.parallel", "no")`, so a session-wide
+  # `options(boot.parallel = "multicore")` flips bootstrap parallelism
+  # on for every `contrast()` call without per-call plumbing.
+  parallel <- match.arg(parallel, c("no", "multicore", "snow"))
   # Capture the original call so that the returned `causatr_result`
   # can echo it in its `print` and `summary` methods. `match.call()`
   # here — not at compute_contrast() — so the recorded call reflects
@@ -305,7 +310,10 @@ contrast <- function(
     }
   }
 
-  parallel <- rlang::arg_match(parallel)
+  # `parallel` is already normalised at the top of `contrast()` via
+  # an explicit `match.arg()` against the full choice list, so we
+  # cannot use `rlang::arg_match()` here (it derives choices from
+  # the formal's default, which is a single resolved option string).
 
   # Hand off to the internal engine. Everything above is argument
   # validation; the actual math lives in `compute_contrast()` and

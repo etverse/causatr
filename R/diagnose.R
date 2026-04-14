@@ -312,15 +312,13 @@ compute_weight_summary <- function(fit) {
   # quick heuristic for "did IPW destroy my power?".
   ess <- function(wts) sum(wts)^2 / sum(wts^2)
 
-  # WeightIt's `$treat` attribute tells us whether the treatment is
-  # binary, multinomial, or continuous. The weight summary then
-  # breaks down appropriately: by arm (binary/multinomial) or just
-  # overall (continuous — no discrete groups to split on).
-  # Abort on a missing `treat.type` rather than silently defaulting
-  # to "continuous": a NULL attribute means the WeightIt object was
-  # constructed by a non-standard path (custom subclass, serialized
-  # then re-loaded via a stale package version) and the resulting
-  # group labels would silently mislabel binary/multinomial fits.
+  # WeightIt's `$treat` attribute carries a `treat.type` tag that
+  # tells us whether the treatment is binary, multinomial, or
+  # continuous. The weight summary uses it to pick group labels:
+  # by arm (binary / multinomial) or overall only (continuous, no
+  # discrete groups). A missing tag indicates a non-standard or
+  # serialized WeightIt fit and would silently mislabel binary /
+  # multinomial weight summaries, so abort instead of defaulting.
   treat_type <- attr(fit$weights_obj$treat, "treat.type")
   if (is.null(treat_type)) {
     rlang::abort(

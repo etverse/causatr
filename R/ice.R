@@ -265,32 +265,21 @@ ice_apply_intervention_long <- function(
   id_col,
   time_col
 ) {
-  # Apply the intervention to the *current* treatment column only.
-  # `apply_intervention()` returns a deep copy (or the input unchanged
-  # if `intervention` is NULL for the natural course), so the caller's
-  # `data` is never mutated.
-  #
-  # IMPORTANT: we DO NOT recompute treatment lag columns from the
-  # intervened treatment. The Robins iterative conditional expectation
-  # algorithm (and lmtp's TMLE implementation) substitutes only the
-  # *current-time* treatment at each backward step; the lag columns
-  # in the prediction frame at step k must hold the OBSERVED A_{k-1},
-  # A_{k-2}, ... so that the chain of pseudo-outcome regressions
-  # correctly back-substitutes through the conditional-expectation
-  # tower without double-counting.
-  #
-  # Why the previous lag-recomputation was wrong: at step k, the
-  # outcome model regresses on (A_k, lag1_A=A_{k-1}, ...). Predicting
-  # with both A_k and lag1_A set to their intervention values applied
-  # the intervention at A_{k-1} via the lag, AND then the next backward
-  # step (k-1) applied it again via the current-A column for A_{k-1}.
-  # For a `shift(delta)` intervention this produces a (K+1)*delta total
-  # effect instead of the structural K*delta — verified by comparing
-  # against `lmtp::lmtp_tmle()`'s sequential-regression shortcut.
-  #
-  # Time-varying confounder lags (`lag1_L`, ...) are left alone for
-  # exactly the same reason: ICE conditions on the observed covariate
-  # history.
+  # The Robins iterated conditional expectation algorithm
+  # (and `lmtp::lmtp_tmle()`'s sequential-regression shortcut)
+  # substitutes only the **current-time** treatment at each
+  # backward step. Lag columns must therefore hold the OBSERVED
+  # A_{k-1}, A_{k-2}, ... in the prediction frame at step k, so
+  # the chain of pseudo-outcome regressions back-substitutes
+  # through the conditional-expectation tower correctly. We
+  # apply the intervention to the current treatment column only
+  # and leave both treatment-lag and covariate-lag columns
+  # untouched. (Recomputing lag1_A from the intervened treatment
+  # would double-count any non-static intervention via the
+  # lag-column path AND the current-A prediction path, returning
+  # (K+1)*delta instead of K*delta for `shift(delta)` on K time
+  # points — see test-simulation.R for the lmtp-validated truth
+  # check.)
   data_iv <- apply_intervention(data, treatment, intervention)
   data_iv <- data.table::copy(data_iv)
   data.table::setkeyv(data_iv, c(id_col, time_col))
@@ -497,14 +486,14 @@ ice_iterate <- function(fit, intervention) {
       fit_data
     )
 
-    # Build args via do.call to conditionally include `weights`. The
-    # final-time model (above) already uses this pattern; if we call
-    # `model_fn()` directly here and external weights are non-NULL,
-    # the backward pseudo-outcome models silently fit UNWEIGHTED, which
-    # biases every longitudinal analysis that uses external weights
-    # (IPCW, survey weights) and invalidates the stacked-EE sandwich.
-    # Weight alignment: `mask_uncens` is length n_total; we subset it
-    # to `has_pseudo` to match fit_data exactly.
+    # `do.call(model_fn, model_args_k)` rather than a direct call so
+    # the `weights =` argument can be conditionally included: glm()
+    # uses NSE on `weights`, and `weights = NULL` is not the same as
+    # omitting it. External weights (IPCW, survey weights) MUST flow
+    # through every backward pseudo-outcome model, otherwise the
+    # stacked-EE sandwich for the longitudinal target is biased.
+    # `mask_uncens` is length n_total; we subset it to `has_pseudo`
+    # so the weight vector aligns with `fit_data` row-for-row.
     model_args_k <- list(
       formula = formula_k,
       data = fit_data,

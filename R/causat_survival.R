@@ -94,14 +94,11 @@ causat_survival <- function(
     }
   }
 
-  # Phase 6 scaffold guardrail: `competing` is recorded in the
-  # returned fit's `details$competing` slot so a future implementation
-  # can pick it up, but the current pooled-logistic path does NOT
-  # apply any competing-risks adjustment (no cause-specific filtering,
-  # no Aalen-Johansen / sub-distribution hazard). Silently fitting a
-  # plain hazard model when the user thinks competing risks are
-  # handled would return wrong cumulative-incidence estimates, so
-  # abort loudly until Phase 6 lands.
+  # `competing` is reserved for Phase 6 (sub-distribution hazard /
+  # Aalen-Johansen). The pooled-logistic path here does NOT apply
+  # any competing-risks adjustment, so accepting a non-NULL value
+  # would return a cause-deleted hazard model masquerading as a
+  # competing-risks estimator. Abort until the implementation lands.
   if (!is.null(competing)) {
     rlang::abort(
       paste0(

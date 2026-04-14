@@ -96,16 +96,13 @@ fit_matching <- function(
 
   matched_weights <- matched_data$weights
   if (!is.null(weights)) {
-    # Align external weights to matched rows. `MatchIt::match.data()`
-    # preserves rownames from `fit_data`, and our `fit_data` was
-    # constructed via `as.data.frame(data[fit_rows])` which yields
-    # rownames "1", ..., sum(fit_rows). So `matched_idx` is a
-    # positional index into the length-`sum(fit_rows)` vector
-    # `weights[fit_rows]`. Defensively guard against any of these
-    # invariants being violated (e.g. a future refactor that uses
-    # data.table directly and preserves the original rownames):
-    # bail out with a clear error rather than silently producing
-    # NA-tainted or misaligned weights.
+    # `MatchIt::match.data()` preserves the rownames of `fit_data`,
+    # which `as.data.frame(data[fit_rows])` set to "1".."sum(fit_rows)".
+    # `matched_idx` is therefore a positional index into the
+    # length-`sum(fit_rows)` vector `weights[fit_rows]`. We assert
+    # the indices are in range before subsetting so a downstream
+    # refactor that breaks the row-name invariant fails loudly
+    # instead of producing NA-tainted or misaligned weights.
     matched_idx <- as.integer(rownames(matched_data))
     fit_w <- weights[fit_rows]
     if (

@@ -155,3 +155,8 @@ plot(diag)    # Love plot (requires cobalt)
 ## References
 
 Hernán MA, Robins JM (2025). *Causal Inference: What If*. Chapman & Hall/CRC.
+
+## Acknowledgements
+
+This package was built with the contribution of [Claude](https://claude.ai),
+Anthropic's AI assistant.

@@ -99,3 +99,28 @@ test_that("causat(method = 'matching') rejects longitudinal data", {
     "longitudinal"
   )
 })
+
+
+test_that("matching aborts on continuous treatment", {
+  # Locks in the rejection path (MatchIt itself errors). causatr
+  # does not pre-check this; we rely on MatchIt's own validation,
+  # but the FEATURE_COVERAGE_MATRIX requires this case to be
+  # tested so we can detect a regression if a future MatchIt
+  # version changes the behavior or if causatr ever adds
+  # continuous-matching support without the gating check.
+  set.seed(1)
+  df <- data.frame(
+    Y = stats::rnorm(200),
+    A = stats::rnorm(200),
+    L = stats::rnorm(200)
+  )
+  expect_error(
+    causat(
+      df,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~L,
+      method = "matching"
+    )
+  )
+})

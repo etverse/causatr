@@ -1581,6 +1581,17 @@ test_that("gcomp × external weights recovers WEIGHTED target population mean", 
   # ATE is constant across strata so the weighted vs unweighted
   # contrast is the same: 2.
   expect_lt(abs(res$contrasts$estimate[1] - 2), 0.1)
+
+  # Each marginal mean's CI must cover its analytical truth.
+  e_a1_row <- est[est$intervention == "a1"]
+  e_a0_row <- est[est$intervention == "a0"]
+  expect_lt(e_a1_row$ci_lower, truth_a1)
+  expect_gt(e_a1_row$ci_upper, truth_a1)
+  expect_lt(e_a0_row$ci_lower, truth_a0)
+  expect_gt(e_a0_row$ci_upper, truth_a0)
+  # And the contrast CI must cover 2.
+  expect_lt(res$contrasts$ci_lower[1], 2)
+  expect_gt(res$contrasts$ci_upper[1], 2)
 })
 
 test_that("ICE × external weights produces the WEIGHTED marginal mean", {
@@ -1659,13 +1670,19 @@ test_that("ICE × external weights produces the WEIGHTED marginal mean", {
   ew_L0 <- sum(w_id * L0) / sum(w_id)
   truth_w <- 1 + 0.5 * ew_L0
 
-  # Both estimates within 0.15 of their respective targets.
+  # Both estimates within 0.2 of their respective targets.
   expect_lt(abs(e_never_w - truth_w), 0.2)
   expect_lt(abs(e_never_uw - 1), 0.2)
 
-  # And — critically — the two must DIFFER. Under the pre-fix bug
-  # the backward-loop models would silently ignore weights and the
-  # weighted vs unweighted estimates would coincide.
+  # Each CI must cover its own analytical target.
+  expect_lt(res_w$estimates$ci_lower[1], truth_w)
+  expect_gt(res_w$estimates$ci_upper[1], truth_w)
+  expect_lt(res_uw$estimates$ci_lower[1], 1)
+  expect_gt(res_uw$estimates$ci_upper[1], 1)
+
+  # And — critically — the two must DIFFER. If the backward-loop
+  # models silently dropped the weights, the weighted and
+  # unweighted estimates would coincide.
   expect_gt(e_never_w - e_never_uw, 0.1)
 })
 
