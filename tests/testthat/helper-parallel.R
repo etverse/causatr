@@ -20,7 +20,15 @@ local({
   # per-replicate workload hits diminishing returns from fork
   # overhead, and we want to leave at least one core free for
   # testthat's file-level worker.
-  ncpus <- max(1L, min(6L, parallel::detectCores(logical = FALSE) - 1L))
+  #
+  # Under `R CMD check` the env var `_R_CHECK_LIMIT_CORES_` is set,
+  # which makes `parallel:::.check_ncores()` abort as soon as more
+  # than 2 cores are requested ("N simultaneous processes spawned").
+  # Cap at 2 in that environment so tests don't die on CI runners
+  # that report 3+ physical cores.
+  limit_cores <- tolower(Sys.getenv("_R_CHECK_LIMIT_CORES_", ""))
+  max_cores <- if (limit_cores %in% c("true", "warn")) 2L else 6L
+  ncpus <- max(1L, min(max_cores, parallel::detectCores(logical = FALSE) - 1L))
   options(boot.ncpus = ncpus)
   if (.Platform$OS.type != "windows") {
     options(boot.parallel = "multicore")
