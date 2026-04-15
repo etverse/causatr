@@ -274,7 +274,7 @@ has an explicit checklist to fill in.
 | binary | gaussian | ipsi(δ) | sandwich | ❌ planned | requires propensity density model |
 | continuous | gaussian | shift / MTP | sandwich | ❌ planned | — |
 | binary | binomial | shift / MTP | sandwich | ❌ planned | — |
-| multivariate | gaussian | any | any | ❌ planned | Phase 4/7 |
+| multivariate | gaussian | any | any | ❌ planned | IPW multivariate (this row); matching multivariate is Phase 7 |
 | longitudinal | any | static | sandwich | ❌ planned | delegate to `WeightIt::weightitMSM()` |
 | variance engine Branch B (self-contained IPW) | — | — | sandwich | ❌ planned | `correct_propensity_self_contained()` stub exists; tests T1–T4 from `PHASE_4_INTERVENTIONS_SELF_IPW.md` |
 
@@ -300,7 +300,9 @@ has an explicit checklist to fill in.
 | Cluster-robust sandwich beyond matching subclass | ❌ planned | `sandwich::vcovCL()` integration for cluster-resampled designs |
 | Parallel bootstrap via `boot::boot(parallel=, ncpus=)` | ✅ done | tests in `test-ice.R`, `test-s3-methods.R` |
 | Parallel bootstrap via `future` backend | ❌ planned | alternative to `boot::boot()` built-in parallelism |
-| Multivariate treatment: joint interventions | ✅ done | test-multivariate.R |
+| Multivariate treatment (g-comp, point + longitudinal) | ✅ done | test-multivariate.R |
+| Multivariate treatment (IPW) | ❌ planned | Phase 4 — needs self-contained density-ratio engine |
+| Multivariate treatment (matching) | ❌ planned | Phase 7 — `MatchIt` does not natively support joint treatments |
 | Continuous treatment vignette | ❌ planned | companion to `vignettes/gcomp.qmd` |
 | `target_trial()` metadata / specification helper | ❌ planned | Ch. 22 |
 | Documentation: collider / LASSO confounder selection → `dagitty` | ❌ planned | Ch. 18 |

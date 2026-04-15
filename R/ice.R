@@ -280,13 +280,20 @@ ice_build_formula <- function(
 #' Apply intervention and update lag columns for longitudinal data
 #'
 #' @description
-#' First applies the intervention to the treatment column via
-#' `apply_intervention()`, then recomputes the treatment lag columns
-#' (`lag1_A`, `lag2_A`, ...) from the **intervened** treatment values so
-#' that the full treatment history reflects the intervention strategy.
+#' Applies the intervention to the **current-time** treatment column via
+#' `apply_intervention()` and leaves all lag columns untouched. The
+#' Robins iterated conditional expectation algorithm (and
+#' `lmtp::lmtp_tmle()`'s sequential-regression shortcut) substitutes
+#' only the current treatment at each backward step, so treatment-lag
+#' columns (`lag1_A`, `lag2_A`, ...) must continue to hold the
+#' **observed** A_{k-1}, A_{k-2}, ... in the prediction frame at step k.
+#' Recomputing lag columns from the intervened treatment would
+#' double-count any non-static intervention and return (K+1)*delta
+#' instead of K*delta for `shift(delta)` on K time points (verified
+#' against `lmtp::lmtp_tmle` in `test-simulation.R`).
 #'
-#' Time-varying confounder lags are **not** modified — ICE conditions on
-#' the observed covariate history.
+#' Time-varying confounder lags are **not** modified either — ICE
+#' conditions on the observed covariate history.
 #'
 #' @param data data.table. Full person-period data with lag columns.
 #' @param treatment Character. Treatment column name(s).

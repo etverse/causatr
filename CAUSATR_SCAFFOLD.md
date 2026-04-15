@@ -268,12 +268,12 @@ result <- contrast(fit, interventions, ci_method = "bootstrap", n_boot = 500)
 29. Competing risks (cause-specific hazards) — pending
 30. Vignette: `survival.qmd` ✓
 
-### Phase 7: Advanced Features — PENDING
-31. Survey weights (pass through to model fitting + adjust sandwich)
-32. Clustered data (cluster-robust sandwich via `sandwich::vcovCL()`)
-33. Parallel processing (`future` for bootstrap)
-34. Multivariate treatment
-35. Continuous treatment vignette
+### Phase 7: Advanced Features — PARTIAL
+31. Survey weights (pass through to model fitting + adjust sandwich) — pending (basic `weights` pass-through done; explicit `survey` design integration pending)
+32. Clustered data (cluster-robust sandwich via `sandwich::vcovCL()`) — pending (matching uses subclass cluster-robust today; general designs pending)
+33. Parallel processing for bootstrap — `boot::boot(parallel=, ncpus=)` ✓; `future` backend pending
+34. Multivariate treatment — g-comp (point + longitudinal) ✓; IPW pending (Phase 4); matching pending (Phase 7)
+35. Continuous treatment vignette — pending
 
 ### Phase 8: Unified Effect-Modification API — PENDING (design doc)
 36. `parse_effect_mod(confounders, treatment)` helper that detects
