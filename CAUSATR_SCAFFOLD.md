@@ -5,7 +5,7 @@
 > Part of the [etverse](https://github.com/etverse) ecosystem.
 >
 > Companion files (one per phase):
-> - `PHASE_1_FOUNDATION.md` through `PHASE_8_INTERACTIONS.md` — per-phase implementation plans and status
+> - `PHASE_1_FOUNDATION.md` through `PHASE_9_DIAGNOSE.md` — per-phase implementation plans and status
 > - `chapters/` — Individual chapter PDFs for implementation-level detail
 > - Implementation guides for each phase are created from claude.ai chapter summaries when that phase begins
 
@@ -303,6 +303,29 @@ result <- contrast(fit, interventions, ci_method = "bootstrap", n_boot = 500)
     `longitudinal.qmd`, and `triangulation.qmd` documenting the
     convention. Full plan: `PHASE_8_INTERACTIONS.md`.
 
+### Phase 9: Full `diagnose()` rewrite for Phase 4 architecture — PENDING (design doc)
+43. Intervention-aware `diagnose()` with `intervention =` argument,
+    mirroring `contrast()`. One diagnostic panel per intervention
+    the user passes in.
+44. Longitudinal (ICE) dispatch path with per-time-step positivity,
+    balance, and censoring diagnostics.
+45. Treatment-type-aware dispatch (binary / categorical / continuous),
+    routed through `detect_treatment_family()` rather than WeightIt's
+    `treat.type` attribute.
+46. Estimand-aware balance: SMDs under ATE vs ATT vs ATC use
+    different reference populations, and the rewrite makes that
+    explicit.
+47. Effect-modification-aware stratification (Phase 8 dependency):
+    optional `by = "modifier"` argument to report balance within
+    modifier strata.
+48. Redesigned `causatr_diag` object (nested per-intervention) and
+    corresponding print / summary / plot methods.
+49. `vignettes/diagnostics.qmd` — user-facing tour.
+50. Phase 4 ships a **minimal shim** so `diagnose()` keeps working
+    on the common binary static ATE cross-sectional case; the full
+    rewrite is scoped in `PHASE_9_DIAGNOSE.md` and depends on
+    Phases 4, 5, and 8 being in place.
+
 ---
 
 ## 8. Key Design Decisions
@@ -319,5 +342,5 @@ result <- contrast(fit, interventions, ci_method = "bootstrap", n_boot = 500)
 | `data.table` internally | Performance for large longitudinal datasets |
 | Intervention functions (not formulas) | Maximum flexibility for modified treatment policies, dynamic rules, IPSI |
 | `contrast()` as a separate step | Fit once, contrast many interventions; clean separation of concerns |
-| `diagnose()` integrates cobalt | Balance diagnostics are essential but cobalt already does it perfectly |
+| `diagnose()` integrates cobalt | Balance diagnostics are essential but cobalt already does it perfectly. Phase 4 ships a minimal shim for the new IPW architecture (binary static ATE works); full intervention-/treatment-/estimand-aware rewrite is `PHASE_9_DIAGNOSE.md`. |
 | No TMLE/DML/mediation/HTE | Totally out of scope — these are separate problems with dedicated packages |

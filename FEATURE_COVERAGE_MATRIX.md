@@ -236,9 +236,15 @@ the supported intervention / variance shapes differ across methods.
 | `causat()` rejects bad inputs (missing cols, bad estimand) | ✅ snapshots | test-causat.R |
 | `contrast()` rejects bad estimand × method combos | ✅ snapshots | test-contrast.R |
 | `contrast()` rejects bad reference / intervention shape | ✅ snapshots | test-contrast.R |
-| `diagnose()` for gcomp / IPW / matching | ✅ smoke + snapshots | test-diagnose.R |
-| `diagnose()` for longitudinal | ⛔ **rejected** (per-period diagnostics deferred to a future phase) | test-diagnose.R |
-| `diagnose()` aborts on missing WeightIt treat.type | ✅ snapshot | test-diagnose.R |
+| `diagnose()` for gcomp / matching | ✅ smoke + snapshots | test-diagnose.R |
+| `diagnose()` for IPW (Phase 3 runtime via WeightIt) | ✅ smoke + snapshots | test-diagnose.R |
+| `diagnose()` for IPW (Phase 4 runtime via shim) | 🟡 smoke only on binary static ATE; full rewrite deferred to **Phase 9** (`PHASE_9_DIAGNOSE.md`) | test-diagnose.R (to be updated in Chunk 3c) |
+| `diagnose()` intervention-aware (`intervention =` arg, per-intervention panels) | ❌ planned (**Phase 9**) | — |
+| `diagnose()` for longitudinal | ⛔ **rejected** today; full longitudinal dispatch planned for **Phase 9** | test-diagnose.R |
+| `diagnose()` treatment-type-aware dispatch via `detect_treatment_family()` (binary / categorical / continuous) | 🟡 shim in Phase 4; full dispatch in **Phase 9** | — |
+| `diagnose()` estimand-aware balance (ATE vs ATT vs ATC reference populations) | ❌ planned (**Phase 9**) | — |
+| `diagnose()` effect-modification-aware stratification (`by = "modifier"`) | ❌ planned (**Phase 9**, depends on Phase 8) | — |
+| `diagnose()` aborts on missing WeightIt treat.type | ⛔ **obsolete** after Chunk 3c — no more WeightIt runtime path; the check becomes a no-op / is deleted | test-diagnose.R (to be deleted in Chunk 3c) |
 | S3 methods: print, summary, plot, coef, vcov, confint, tidy, glance | ✅ smoke | test-s3-methods.R |
 | `confint()` respects `level` arg (sandwich path) | ✅ smoke | test-s3-methods.R |
 | `confint()` consistency between sandwich and bootstrap on `level` | ✅ unit + monotonicity | test-s3-methods.R |

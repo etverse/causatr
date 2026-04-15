@@ -17,6 +17,7 @@ Architecture and per-phase implementation guides are stored in the project root:
 - `PHASE_6_SURVIVAL.md` — causal survival analysis (Ch. 17) (**scaffolded**)
 - `PHASE_7_ADVANCED.md` — survey weights, clustering, parallel, multivariate
 - `PHASE_8_INTERACTIONS.md` — unified effect-modification (A × modifier) API across gcomp / IPW / matching / ICE (**pending, design doc**). IPW and matching currently hardcode a saturated `Y ~ A` MSM and **hard-abort** via `check_confounders_no_treatment()` if `confounders` contains an `A:modifier` term (see `R/utils.R`); ICE handles current-period A × modifier but not lagged A × modifier.
+- `PHASE_9_DIAGNOSE.md` — full `diagnose()` rewrite for the Phase 4 architecture (**pending, design doc**). Phase 4 ships a minimal shim so `diagnose()` keeps working on the common binary static ATE case; the full intervention-aware / treatment-type-aware / estimand-aware / longitudinal-aware rewrite with a `intervention =` argument is Phase 9 and depends on Phases 4, 5, and 8 being in place.
 
 Implementation guides for each phase will be created from claude.ai chapter summaries when that phase begins.
 
@@ -165,11 +166,12 @@ Run this in the shell:
 | 1 | Scaffolding, NHEFS data, checks, interventions, S3 stubs | **done** |
 | 2 | Point-treatment g-comp + inference (sandwich, bootstrap) | **done** |
 | 3 | IPW (WeightIt) + matching (MatchIt) + `diagnose()` | **done** |
-| 4 | Unified self-contained IPW engine — single density-ratio + weighted-MSM path covering static + shift + scale_by + threshold + dynamic + IPSI; categorical treatment; WeightIt → Suggests test oracle | pending |
+| 4 | Unified self-contained IPW engine — single density-ratio + weighted-MSM path covering static (HT indicator) + shift + scale_by + dynamic (binary) + IPSI; categorical treatment; `threshold()` and continuous `dynamic()` rejected under IPW; WeightIt → Suggests contrast-level test oracle | **in progress** (foundation + cross-derivative + Branch B helper + estimand gate + IPSI cleanup done as of commit 6e3d42b; Chunk 3c rewrite of `fit_ipw()` / variance dispatcher / bootstrap / diagnose shim next) |
 | 5 | Longitudinal ICE g-computation + sandwich for ICE | **done** |
 | 6 | Survival (`causat_survival()`) + competing risks | **scaffolded** (pooled logistic fit done; contrast for survival curves pending) |
 | 7 | Survey weights, clustered SE, parallel bootstrap, multivariate matching | **partial** (boot parallel done; future backend, survey weights, clustering pending) |
 | 8 | Unified effect-modification (`A:modifier`) API across gcomp / IPW / matching / ICE | **pending** (design doc only; see `PHASE_8_INTERACTIONS.md`) |
+| 9 | Full `diagnose()` rewrite for Phase 4 architecture — intervention-aware, treatment-type-aware, estimand-aware, longitudinal-aware. Phase 4 ships a minimal shim; full rewrite is Phase 9 and depends on Phases 4, 5, 8. | **pending** (design doc only; see `PHASE_9_DIAGNOSE.md`) |
 
 ## Architecture notes
 

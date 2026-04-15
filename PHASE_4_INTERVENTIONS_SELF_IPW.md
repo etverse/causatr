@@ -199,39 +199,110 @@ Implementation: add `check_estimand_intervention_compat(estimand, intervention)`
 
 Error class: `causatr_bad_estimand_intervention`. Message points users to `estimator = "gcomp"` for non-static ATT/ATC, or to switch to ATE.
 
-### 9. WeightIt and lmtp as independent test oracles (both Suggests)
+### 9. Oracle testing strategy: contrast-level comparisons, no runtime branching
 
-After Phase 4 lands, `WeightIt` moves from `Imports:` to `Suggests:` in `DESCRIPTION`. `lmtp` is **added** to `Suggests:` in the same PR — it serves as a second independent oracle for the non-static interventions that WeightIt cannot reach. Tests that use either package are wrapped in `skip_if_not_installed("...")` so the package builds and tests cleanly without them.
+**Decision: Branch A is removed from R/ entirely.** The Phase 3 variance engine carried a `prepare_propensity_if()` dispatcher that routed between Branch A (`sandwich::estfun(asympt = TRUE)` on `glm_weightit`) and Branch B (self-contained, first-principles). The dispatcher was scaffolding — a way for Phase 3 to ship with Phase 4's slot names already in place. Once Phase 4 flips the runtime, keeping Branch A alive in `R/` is dead-code-waiting-to-rot:
 
-**WeightIt — variance oracle for static binary.** The classical M-estimation correction for parametric IPW is what `WeightIt::glm_weightit()` + `sandwich::estfun(asympt = TRUE)` gives you. For the static binary case this is asymptotically equivalent to our unified engine's sandwich, so it's a tight numerical oracle:
+- Two code paths to keep in sync indefinitely even though only one runs.
+- Two variance branches that must give the same answer on static binary forever, maintained via a brittle cross-branch test.
+- A runtime dependency on `WeightIt::glm_weightit` for a path nobody takes in production.
 
-- **T-oracle1:** `compute_density_ratio_weights()` on a static binary setup ≡ `WeightIt::weightit(method = "glm")$weights` to ~1e-12.
-- **T-oracle2:** full-pipeline `causat(estimator = "ipw") |> contrast()` ≡ `WeightIt::glm_weightit()` + MSM by hand on the same fit, **point estimate / SE / vcov** to ~1e-6.
+**Chunk 3c deletes** `prepare_propensity_if()`, `prepare_propensity_if_weightit()`, `prepare_propensity_if_self_contained()`, and `apply_propensity_correction()` from `R/variance_if.R`. The new `variance_if_ipw()` is a straight loop over interventions calling `compute_ipw_if_self_contained_one()` (committed in Chunk 3b, 6e3d42b) and aggregating via `vcov_from_if()`. One code path, no branching. The Phase 3 IPW tests either adapt to the new architecture or get deleted (see §12 below for the tests list).
 
-**lmtp — point-estimate oracle for non-static interventions.** `lmtp::lmtp_ipw()` uses density-ratio weights and accepts parametric learners (`learners_trt = "SL.glm"`, `folds = 1` for deterministic behaviour). For a given parametric propensity model it agrees with our engine on the **Hájek point estimate**. It does **not** serve as a variance oracle because its SE is built from the EIF rather than the M-estimation sandwich — different object, only asymptotically comparable on saturated binary.
+**Oracle strategy: contrast-level, not IF-level.** The WeightIt and lmtp oracle tests compare **final contrast estimates and their standard errors**, not per-individual influence functions. Two reasons:
 
-- **T-oracle3:** `causat(shift(-5))` on NHEFS continuous treatment ≡ `lmtp::lmtp_ipw(shift = function(d, t) d[[t]] - 5, learners_trt = "SL.glm", folds = 1)` point estimate to ~1e-6.
-- **T-oracle4:** `causat(ipsi(2))` on NHEFS binary treatment ≡ a manual IPSI weight + weighted mean comparison (no lmtp-side IPSI helper; we build the shift closure ourselves from the closed form) to ~1e-6.
+1. **Architecture independence.** The causatr self-contained engine uses HT indicator weights with intercept-only MSMs (`w_i = I(A_i = a*) / f(A_i|L_i)`, `glm(Y ~ 1, weights = w)`) for static binary, while WeightIt's `glm_weightit` uses full-IPW weights with a saturated MSM (`w_i = 1/f(A_i|L_i)`, `glm(Y ~ A, weights = w)`). These are different architectures that estimate the same functional — their per-observation IFs are not elementwise comparable, but the final point estimate and SE of `mu_1 - mu_0` agree asymptotically (and, for the same data, numerically at ~1e-6). Comparing at the contrast level lets the test be agnostic to the internal decomposition.
 
-The causatr variance story stays anchored to (a) T-A_β_α elementwise hand-derivation, (b) T-end-to-end stacked sandwich by hand, (c) T-non-static IF > delta-only shortcut, (d) bootstrap parity — none of which depend on lmtp.
+2. **Robustness to internal refactoring.** IF-level tests couple the test suite to implementation details of the variance engine. If we ever change the IF decomposition (say, to hoist some more computation out of the per-intervention loop for perf), an IF-level oracle breaks even though the final answer is correct. Contrast-level oracles test what the user actually consumes: `$estimates$estimate`, `$estimates$se`, `$contrasts$estimate`, `$contrasts$se`.
+
+**WeightIt — contrast-level oracle for binary × {ATE, ATT, ATC}.** `WeightIt::glm_weightit()` supports all three estimands on binary treatment and has been field-tested for a decade. Ideal reference for the static binary case:
+
+- **T-oracle1:** `causat(estimator = "ipw", estimand = "ATE")` + `contrast(static(1) vs static(0))` point estimate and SE ≈ `WeightIt::glm_weightit(weightit(..., estimand = "ATE"))` + manual `Y ~ A` MSM contrast, tolerance ~1e-6.
+- **T-oracle2:** Same pipeline, `estimand = "ATT"`.
+- **T-oracle3:** Same pipeline, `estimand = "ATC"`.
+- **T-oracle4:** `estimand = "ATE"` but with `propensity_model_fn = mgcv::gam` — proves the engine handles non-GLM propensity models correctly.
+
+Each test is wrapped in `skip_if_not_installed("WeightIt")`. All oracle code (the WeightIt reference fit + contrast extraction helper) lives in `tests/testthat/helper-ipw-weightit-oracle.R`, **not in `R/`**. WeightIt is a test-only dependency in the final architecture.
+
+**lmtp — contrast-level oracle for non-static interventions.** `lmtp::lmtp_ipw()` with parametric learners (`learners_trt = "SL.glm"`, `folds = 1`) is the only publicly-available package that supports the same shift / MTP / IPSI estimands as our engine. For a given parametric propensity model it agrees on the Hájek point estimate. It is **not** a variance oracle because its SE uses the EIF rather than the M-estimation sandwich — different objects, only asymptotically comparable.
+
+- **T-oracle5:** `causat(shift(-5))` on NHEFS continuous treatment point estimate ≈ `lmtp::lmtp_ipw(shift = function(d, t) d[[t]] - 5, learners_trt = "SL.glm", folds = 1)` point estimate, tolerance ~1e-6.
+- **T-oracle6:** `causat(ipsi(2))` on NHEFS binary treatment point estimate ≈ a manual IPSI weight + weighted mean comparison, tolerance ~1e-6.
+- **T-oracle7 (stretch):** categorical static ATE once the categorical branch lands — compare against `lmtp_ipw` with a multinomial propensity.
+
+All `skip_if_not_installed("lmtp")` — lmtp is also test-only.
+
+**Variance correctness stays anchored to first-principles tests**, not to WeightIt or lmtp:
+
+- **T-A_β_α** (landed in Chunk 3a, commit 4090e51) — hand-derived cross-derivative vs `numDeriv::jacobian` for static(1), static(0), shift, IPSI, NULL. 12 assertions at ~1e-6.
+- **T-end-to-end stacked sandwich by hand** (landed in Chunk 3b, commit 6e3d42b) — hand-assembled (alpha, beta) 3×3 block bread + meat, inverted manually, compared to `sum(compute_ipw_if_self_contained_one(...)^2) / n^2` on a synthetic binary static setup. 4 assertions at 1e-6.
+- **T-non-static IF > delta-only shortcut** (Chunk 3g) — on a shift / MTP DGP where Channel 1 ≠ 0, the full IF-based variance must materially exceed the `J V_β Jᵀ` delta-only shortcut. Proves the propensity-correction channel is actually contributing to the SE under non-static interventions.
+- **Bootstrap parity** (Chunk 3g) — on the same DGPs, `ci_method = "bootstrap"` must agree with `ci_method = "sandwich"` within Monte Carlo error. `variance_bootstrap()` doesn't touch the IF engine, so this is an end-to-end sanity check on the Phase 4 runtime pipeline.
 
 ### 10. Stabilization, diagnostics, pushforward sign, IPSI shortcut
 
 Four implementation notes that would otherwise get rediscovered mid-PR:
 
 - **Stabilization: start nonstabilized.** Weights are `f_d(A|L) / f(A|L)`, no marginal numerator. Hájek normalization (`sum(wY)/sum(w)`) already controls finite-sample variance for the saturated MSM cases. A stabilization option (`stabilize = TRUE`) is a follow-up, not Phase 4 scope.
-- **Weight diagnostics.** `diagnose()` on an IPW fit adds weight-distribution summaries: min / max / quartiles / 99th percentile / count of weights > 99th percentile. Optional user-side truncation at a given percentile is exposed as an argument to `diagnose()`, not baked into the fit.
+- **Weight diagnostics (minimal shim only in Phase 4).** `diagnose()` on a Phase 4 IPW fit ships a **minimal shim** that reads `fit$details$propensity_model` (instead of `fit$weights_obj`), computes default weights via `compute_density_ratio_weights(tm, data, static(1))` for binary fits or `compute_density_ratio_weights(tm, data, NULL)` for non-binary fits, and dispatches between treatment-type-specific panels via `detect_treatment_family()`. The shim covers the common binary static ATE case so existing `causat(estimator = "ipw") |> diagnose()` calls keep working. The **full intervention-aware / treatment-type-aware / estimand-aware / longitudinal-aware rewrite**, including a new `intervention =` argument mirroring `contrast()`, is scoped in [`PHASE_9_DIAGNOSE.md`](PHASE_9_DIAGNOSE.md) and deferred to a later phase. The deferral is intentional: a proper `diagnose()` rewrite touches every estimator and every treatment type and interacts with Phase 8 effect modification — too large to fit into the Phase 4 IPW engine push.
 - **Pushforward sign + Jacobian (critical).** For continuous MTPs, the weight is `f_d(A_obs | L) / f(A_obs | L)` where `f_d` is the **pushforward** of `f` under the intervention — *not* `f(d(A_obs) | L) / f(A_obs | L)`. For `shift(δ)` this means evaluating the fitted density at `A_obs − δ` (because `d⁻¹(y) = y − δ`), and for `scale_by(c)` it means evaluating at `A_obs / c` and multiplying by the Jacobian `|1/c|`. The naive "evaluate at the intervened value" formula gives `E[Y^{shift(−δ)}]` instead of `E[Y^{shift(δ)}]` — it's a sign trap that is easy to write and hard to notice without the truth-based Hájek test. The `compute_density_ratio_weights()` and `make_weight_fn()` bodies both carry a comment block pointing at this derivation.
 - **IPSI closed-form shortcut.** For `ipsi(δ)` the density ratio collapses to `w_i = (δ·A_i + (1 − A_i)) / (δ·p_i + (1 − p_i))`. Use this closed form inside the unified engine instead of evaluating the density at two transformed points — it is faster and avoids numerical near-1 ratios on both sides of the ratio. The `weight_fn` closure used by the variance engine evaluates the same closed form at candidate `α` values.
 
-### 11. Tests to add
+### 11. Chunk plan and test status
 
-**Variance-engine hand-derived truth:**
+Phase 4 lands as a sequence of focused commits rather than one big-bang rewrite, so each step can be reviewed and rolled back independently:
 
-- **T-A_β_α numerical vs analytic** on static binary: derive `∂ψ_β,i/∂α^T` by hand for logistic propensity + binary static weights, compare against `numDeriv::jacobian(psi_beta_bar, ...)` elementwise at ~1e-6.
-- **T-end-to-end stacked sandwich** on a tiny simulated dataset (`n = 200`, `q = p = 2`, Gaussian outcome, logistic propensity): assemble the full `(q+p+1) × (q+p+1)` stacked bread/meat by hand, invert, read off the `(μ,μ)` entry, compare against `variance_if()` at ~1e-10.
-- **T-non-static** (shift / MTP) on NHEFS where Channel 1 ≠ 0: IF-based variance must materially exceed `J V_β Jᵀ` (the delta-only shortcut) — proves Phase 4 is actually capturing the extra uncertainty.
-- **Bootstrap parity**: `ci_method = "bootstrap"` on the same setups must agree with sandwich within Monte Carlo error — bootstrap is unchanged because `variance_bootstrap()` refits the whole pipeline and never touches `variance_if()`.
+| Chunk | Scope | Status |
+|---|---|---|
+| Foundation | `R/treatment_model.R` + `R/ipw_weights.R` + `R/interventions.R` IPSI constructor cleanup + `check_estimand_intervention_compat()` + threshold/continuous-dynamic rejection | **done** (commits `2bea1ae`, `128340b`, `8d79ceb`, `28eefb6`) |
+| 3a | T-A_β_α hand-derived cross-derivative test on `make_weight_fn()` for static(1), static(0), shift, IPSI, NULL | **done** (commit `4090e51`, 12 assertions at 1e-6) |
+| 3b | `compute_ipw_if_self_contained_one()` helper + stacked-sandwich oracle on a hand-assembled (alpha, beta) 3×3 bread/meat system | **done** (commit `6e3d42b`, 4 assertions at 1e-6) |
+| 3c | Big atomic rewrite — `fit_ipw()` / `compute_contrast()` IPW path / `variance_if_ipw()` / `refit_ipw()` / `new_causatr_fit()` slot handling / `diagnose()` shim; **DELETE** `prepare_propensity_if*` / `apply_propensity_correction` from `R/`; adapt Phase 3 test suite + regenerate snapshots | **pending** |
+| 3d | `tests/testthat/helper-ipw-weightit-oracle.R` + contrast-level oracle tests T-oracle1..4 (binary ATE/ATT/ATC + GAM propensity, `skip_if_not_installed("WeightIt")`); DESCRIPTION move WeightIt `Imports:` → `Suggests:` | **pending** |
+| 3e | Categorical (multinomial) branch in `fit_treatment_model()` + `make_weight_fn()` + `evaluate_density()`; `check_estimand_trt_compat()` update; new tests for categorical static HT | **pending** |
+| 3f | lmtp contrast-level oracles T-oracle5 (shift) + T-oracle6 (IPSI), `skip_if_not_installed("lmtp")`; DESCRIPTION add lmtp to `Suggests:` | **pending** |
+| 3g | Non-static variance regression tests — T-non-static (IF > delta-only shortcut) + bootstrap parity for shift and IPSI | **pending** |
+| 3h | User-facing vignette `vignettes/interventions.qmd` — intervention-type tour with estimator-by-estimator examples | **pending** |
+| 3i | Theory vignette `vignettes/ipw-variance-theory.qmd` — density-ratio derivation, pushforward sign + Jacobian, HT indicator form, IPSI closed form, `make_weight_fn` closure design, numerical `A_{β,α}` verification. Cross-reference from `vignettes/variance-theory.qmd` §4.2 | **pending** |
+
+The chunk boundary is deliberately where the runtime architecture flips (3c). Chunks 3a and 3b validate the new variance machinery against first-principles references **before** any runtime code changes, so chunk 3c can focus on plumbing without also debugging the math.
+
+**Test file status after each chunk:**
+
+- **Foundation** and **3a/3b**: add `test-treatment-model.R`, `test-ipw-weights.R`, `test-ipw-cross-derivative.R`, `test-ipw-branch-b.R`, `test-estimand-intervention-compat.R`. All existing Phase 3 tests still pass because nothing in runtime R/ code changed at the IPW path yet.
+- **3c**: all existing Phase 3 IPW tests are either rewritten for the new architecture or deleted (see §12). Snapshots regenerated. Simulation/by-estimand tolerances audited and widened where necessary.
+- **3d**: new `test-ipw-weightit-oracle.R` added. WeightIt no longer on the runtime path.
+- **3e/3f/3g**: new feature tests land as the features themselves do.
+
+### 12. Phase 3 tests that need attention in Chunk 3c
+
+The reconnaissance pass (between commit 6e3d42b and Chunk 3c) identified these test touchpoints:
+
+**WeightIt-specific tests to DELETE (behavior no longer applies):**
+
+- `test-ipw.R`: "forwards `method` to `WeightIt::weightit()`" (tests `method = "cbps"` routing through the Phase 3 WeightIt path; the whole `method = ...` mechanism is gone under Phase 4's `propensity_model_fn` approach).
+- `test-ipw.R`: non-Mparts warning test ("WeightIt method 'gbm' does not implement the M-estimation correction"); warning no longer exists because WeightIt is no longer called at runtime.
+- `test-critical-review-2026-04.R`: B2 test ("bootstrap refit replays user's `method = 'cbps'`"); entire test is about WeightIt cbps bootstrap replay.
+
+**Tests to REWRITE (same coverage, new architecture):**
+
+- `test-ipw.R`: rewrite basic fit / contrast sanity tests to use the new `fit$details$propensity_model` + `propensity_model_fn` shape. Add new tests for the `propensity_model_fn = mgcv::gam` path.
+- `test-diagnose.R`: update every test that reads `fit$weights_obj$ps` / `$weights` / `$treat` / `treat.type` to use the new slots and the shimmed `diagnose()`.
+- `test-s3-methods.R`: update `print.causatr_fit` / `summary.causatr_fit` IPW path tests (print output text changes because the fit no longer stores a `weightit` object).
+- `test-replay-fit.R`: IPW sections; gcomp sections stay unchanged because `replay_fit()` is still used by `refit_gcomp()`.
+- `test-weights-edge-cases.R`: IPW path — external weights now enter the propensity density fit via `weights = `, not WeightIt's `s.weights`.
+
+**Tests to AUDIT (expect to pass, may need tolerance widening):**
+
+- `test-simulation.R`, `test-by-estimand.R`, `test-variance-if.R`, `test-complex-dgp.R`: truth-based simulation tests for binary/continuous outcomes × ATE/ATT/ATC × sandwich/bootstrap. Both old and new paths estimate the same functional; point estimates should agree at ~1e-6 and SEs should agree at ~1e-4 (finite-sample drift from numDeriv central differences vs WeightIt's analytic Jacobian). Any test needing wider tolerance than ~1e-3 gets flagged and investigated.
+- `test-multivariate.R`: IPW rejection tests for multivariate treatment — should still fire, no changes needed.
+- `test-contrast.R`: IPW rejection tests for non-static interventions — the existing `check_interventions_compat()` gate stays in place, so these tests still fire. Update expected error messages if they reference WeightIt.
+
+**Snapshots to REGENERATE:**
+
+- `_snaps/ipw.md` — WeightIt error text that appears in snapshot assertions.
+- `_snaps/diagnose.md` — `fit$weights_obj`-based output format.
+- `_snaps/s3-methods.md` — print/summary text for IPW fits.
 
 **Independent oracle cross-checks** (see §9):
 
