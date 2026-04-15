@@ -91,9 +91,13 @@ fit_ipw <- function(
   # full weight vector the weightit was fit against. Post-multiplication
   # silently under-corrected the survey-weighted propensity uncertainty
   # (see B6 in the 2026-04-15 critical review).
+  # Strip duplicate keys from dots so the explicit `s.weights`
+  # assignment below cannot be shadowed by a user-supplied `s.weights`
+  # in `...`. See C5 in the 2026-04-15 second-round critical review.
+  dots_ipw <- dots[setdiff(names(dots), c("data", "estimand", "s.weights"))]
   weightit_args <- c(
     list(ps_formula, data = fit_data, estimand = estimand),
-    dots
+    dots_ipw
   )
   if (!is.null(weights)) {
     weightit_args$s.weights <- weights[fit_rows]

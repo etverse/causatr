@@ -378,7 +378,15 @@ ice_iterate <- function(fit, intervention) {
   family_pseudo <- details$family_pseudo
   external_weights <- details$weights
   # User's stashed `...` for `model_fn`. Empty list if none were passed.
+  # Strip any keys that overlap with the args we pass explicitly
+  # (`formula`, `data`, `family`, `weights`) so `do.call(..., c(args,
+  # dots))` cannot silently carry two entries of the same name — in
+  # `do.call` the first wins, but having a second silently-ignored
+  # binding is a footgun. See C5 in the 2026-04-15 second-round review.
   model_fn_dots <- details$dots %||% list()
+  model_fn_dots <- model_fn_dots[
+    setdiff(names(model_fn_dots), c("formula", "data", "family", "weights"))
+  ]
 
   # Build the intervention-modified person-period frame once. `data_iv`
   # has the counterfactual treatment column and matching lags, but the

@@ -292,8 +292,12 @@ refit_gcomp <- function(fit, d_b, weights = NULL) {
   # point estimate. Without this, bootstrap SEs for e.g. `mgcv::gam`
   # with a non-default `method` or `gamma` silently corresponded to
   # a *different* estimator. See B2 in the 2026-04-15 critical review.
-  args <- c(args, fit$details$dots)
-  do.call(model_fn, args)
+  #
+  # C5 (2026-04-15 second-round review): strip any duplicate keys from
+  # dots so `do.call` can't carry two bindings of the same name.
+  dots <- fit$details$dots %||% list()
+  dots <- dots[setdiff(names(dots), names(args))]
+  do.call(model_fn, c(args, dots))
 }
 
 #' Refit IPW propensity weights and MSM on a bootstrap sample
@@ -311,11 +315,13 @@ refit_ipw <- function(fit, d_b, weights = NULL) {
   # Replay the original `...` from the user's `causat()` call so
   # bootstrap replicates use the same WeightIt method / link /
   # stabilisation as the point estimate. See B2 in the 2026-04-15
-  # critical review.
-  weightit_args <- c(
-    list(ps_formula, data = fit_data_b, estimand = fit$estimand),
-    fit$details$dots
-  )
+  # critical review. C5 (second-round review): strip duplicate keys
+  # from dots before the `c()` so the explicit `s.weights` assignment
+  # below can't be shadowed by a user-supplied `s.weights` in `...`.
+  base_args <- list(ps_formula, data = fit_data_b, estimand = fit$estimand)
+  dots <- fit$details$dots %||% list()
+  dots <- dots[setdiff(names(dots), c("data", "estimand", "s.weights"))]
+  weightit_args <- c(base_args, dots)
   # External weights enter propensity M-estimation as s.weights —
   # matching the B6 fix in fit_ipw(). Post-multiplying would silently
   # under-correct the Mparts IF for survey-weighted IPW.

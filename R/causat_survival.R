@@ -275,6 +275,18 @@ causat_survival <- function(
   # Store time points for prediction.
   time_points <- sort(unique(data[[time]]))
 
+  # C12 (2026-04-15 second-round review): strip causatr-internal
+  # bookkeeping columns before handing `data` back to the user via
+  # `fit$data`. They were needed for the fit_rows computation above
+  # and nothing downstream consumes them.
+  internal_cols <- intersect(
+    c(".causatr_prev_event", ".causatr_prev_cens"),
+    names(data)
+  )
+  if (length(internal_cols) > 0L) {
+    data[, (internal_cols) := NULL]
+  }
+
   new_causatr_fit(
     model = model,
     data = data,

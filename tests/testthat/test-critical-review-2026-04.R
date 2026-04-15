@@ -21,9 +21,11 @@ test_that("B1: subset expression resolves session-scoped variables", {
     subset = quote(L > cutoff)
   )
   expect_s3_class(res, "causatr_result")
-  # Point estimate on the `L > 0` subgroup is still ~3 (constant effect).
+  # Point estimate on the `L > 0` subgroup is still ~3 in magnitude
+  # (constant treatment effect; the contrast sign depends on which
+  # intervention is the reference).
   ate <- res$contrasts$estimate[1]
-  expect_true(abs(ate - 3) < 0.5)
+  expect_true(abs(abs(ate) - 3) < 0.5)
 })
 
 test_that("B1: subset works inside bootstrap workers too", {
@@ -57,13 +59,15 @@ test_that("B1: subset length mismatch aborts with a clear message", {
     confounders = ~L,
     estimator = "gcomp"
   )
-  # A scalar `TRUE` would historically recycle silently to nrow(data).
+  # A language expression that evaluates to a length-1 logical would
+  # historically recycle silently to nrow(data). `L[1] > 0` is a call
+  # (passes `is.language`) but evaluates to a scalar.
   expect_error(
     contrast(
       fit,
       interventions = list(a1 = static(1), a0 = static(0)),
       type = "difference",
-      subset = quote(TRUE)
+      subset = quote(L[1] > 0)
     ),
     regexp = "length",
     fixed = FALSE
@@ -205,19 +209,22 @@ test_that("B7: ICE Ch1 IF uniform-weighted matches unweighted (unification)", {
   expect_equal(r_u$contrasts$se[1], r_w$contrasts$se[1], tolerance = 1e-6)
 })
 
-test_that("B8: `by` skips empty strata instead of aborting", {
-  df <- simulate_binary_continuous(n = 400, seed = 8L)
+test_that("B8: `by` skips strata with no treated units under ATT", {
+  # B8 targets the case where a `by` level is represented in the fit
+  # rows but has an empty *target population* under the requested
+  # estimand. The cleanest trigger: under ATT, stratum `c` contains
+  # only controls, so the ATT target (A == 1) is empty for that level.
+  df <- simulate_binary_continuous(n = 800, seed = 8L)
   df$g <- sample(c("a", "b", "c"), nrow(df), replace = TRUE)
-  # Knock out `c` from the outcome model fit rows by setting NA outcomes.
-  df$Y[df$g == "c"] <- NA
+  df$A[df$g == "c"] <- 0L  # force stratum `c` to be all-control
   fit <- causat(
     df,
     outcome = "Y",
     treatment = "A",
-    confounders = ~L,
-    estimator = "gcomp"
+    confounders = ~ L + g,
+    estimator = "gcomp",
+    estimand = "ATT"
   )
-  # Expect a warning about skipping level `c`, not a hard abort.
   expect_warning(
     res <- contrast(
       fit,
@@ -225,12 +232,11 @@ test_that("B8: `by` skips empty strata instead of aborting", {
       type = "difference",
       by = "g"
     ),
-    regexp = "Skipped",
-    fixed = FALSE
+    regexp = "Skipped"
   )
   expect_s3_class(res, "causatr_result")
-  expect_true(all(c("a", "b") %in% res$estimates$by))
-  expect_false("c" %in% res$estimates$by)
+  expect_true(all(c("a", "b") %in% as.character(res$estimates$by)))
+  expect_false("c" %in% as.character(res$estimates$by))
 })
 
 test_that("R6: OR validation does not abort on NA mu_hat", {

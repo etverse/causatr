@@ -753,15 +753,20 @@ build_point_channel_pieces <- function(
   if (has_weights) {
     sum_w_target <- sum(ext_w[target_idx])
     if (sum_w_target <= 0) {
+      # Classed abort so `compute_contrast()`'s `by`-skip path can match
+      # on class, not on the English message text. See C3 in the
+      # 2026-04-15 second-round critical review.
       rlang::abort(
-        "build_point_channel_pieces(): target-population weights sum to 0."
+        "build_point_channel_pieces(): target-population weights sum to 0.",
+        class = "causatr_empty_target"
       )
     }
   } else {
     n_target <- sum(target_idx)
     if (n_target == 0L) {
       rlang::abort(
-        "build_point_channel_pieces(): target population is empty."
+        "build_point_channel_pieces(): target population is empty.",
+        class = "causatr_empty_target"
       )
     }
   }
@@ -1153,28 +1158,19 @@ variance_if_ice_one <- function(fit, ice_result, target) {
       target_in_iv <- match(all_ids[target], iv_ids_current)
       valid_target <- !is.na(target_in_iv)
       target_in_iv <- target_in_iv[valid_target]
-      if (has_weights) {
-        # `w_t` is already the length-`sum(target)` vector of
-        # target-population weights from the IF setup above; align it
-        # with `valid_target` to cover cases where some target individuals
-        # are missing from the current iv frame.
-        target_w <- w_t[valid_target]
-        g_k <- as.numeric(
-          crossprod(
-            X_star_k[target_in_iv, , drop = FALSE],
-            target_w * mu_eta_star[target_in_iv]
-          )
-        ) /
-          sum_w_target
-      } else {
-        g_k <- as.numeric(
-          crossprod(
-            X_star_k[target_in_iv, , drop = FALSE],
-            mu_eta_star[target_in_iv]
-          )
-        ) /
-          n_target
-      }
+      # Unified gradient using the same weighted form as the IF above:
+      # `w_t` is rep(1, n_target) in the unweighted branch (constructed
+      # at the top of this function), so dividing by `sum_w_target`
+      # recovers the unweighted `/ n_target` scale exactly. See B7 in
+      # the 2026-04-15 review.
+      target_w <- w_t[valid_target]
+      g_k <- as.numeric(
+        crossprod(
+          X_star_k[target_in_iv, , drop = FALSE],
+          target_w * mu_eta_star[target_in_iv]
+        )
+      ) /
+        sum_w_target
     } else {
       prev_fit_ids <- fit_ids_list[[step_i - 1L]]
       idx_in_all <- id_to_idx[prev_fit_ids]

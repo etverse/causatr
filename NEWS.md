@@ -1,5 +1,53 @@
 # causatr (development version)
 
+## 2026-04-15 — Second-round critical-review follow-ups (C3, C5, C12) + B7 gradient fix + weight edge-case tests
+
+A second-round self-review of the 2026-04-15 critical-review sweep
+flagged twelve concerns (C1–C12). C1, C2, C4, C6, C7, C8, C9, C10, C11
+were either false alarms (misread R semantics) or acceptable as-is.
+C3, C5, and C12 landed as real fixes; running the regression tests
+also surfaced an incomplete B7 fix. A new
+`tests/testthat/test-weights-edge-cases.R` adds 24 weight-specific
+tests covering every branch the critical review flagged as
+weight-sensitive.
+
+- **C3 — Classed abort for empty target population.**
+  `build_point_channel_pieces()` now emits
+  `rlang::abort(class = "causatr_empty_target", ...)`, and the `by`
+  skip path in `compute_contrast()` matches on class, not on the
+  English message text. Any future wording drift can no longer
+  silently turn skipped strata into real aborts.
+
+- **C5 — Duplicate key stripping in `c(args, dots)` compositions.**
+  `fit_ipw()`, `refit_ipw()`, `refit_gcomp()`, and
+  `ice_iterate()` now strip keys already present in `args` from the
+  stashed `dots` before the `c()`. `do.call()` always takes the first
+  named duplicate, so the previous behavior was correct but fragile —
+  explicit stripping makes the precedence unambiguous.
+
+- **C12 — `.causatr_prev_event` / `.causatr_prev_cens` stripped
+  from `fit$data`.** The within-id risk-set bookkeeping columns in
+  `causat_survival()` are now dropped before the `causatr_fit` is
+  returned, so they no longer leak into user-visible state.
+
+- **B7 gradient follow-up — unify ICE step_i == 1 gradient on the
+  weighted form.** The B7 fix in the first sweep only touched the
+  Channel-1 IF vector, not the corresponding sensitivity gradient
+  computed at step 1 of the backward iteration, which still used
+  `n_target` (now removed from the enclosing scope). Running the new
+  regression test surfaced a `n_target not found` abort. The gradient
+  is now computed via the same `w_t * mu_eta / sum_w_target` form
+  and reduces to the original unweighted expression when `w_t = 1`.
+
+- **Weight edge-case coverage.** New test file exercises: NA / Inf /
+  NaN / negative / non-numeric / wrong-length weights rejected by
+  `check_weights()`; zero weights as row exclusion; uniform weights
+  producing identical SEs to the unweighted path (gcomp + ICE);
+  heterogeneous weights changing SEs non-trivially; IPW survey
+  weights attaching as `s.weights`; matched outcome model carrying
+  `match_weight * external_weight`; `causat_survival()` weight
+  plumbing to the hazard fit.
+
 ## 2026-04-15 — Critical-review sweep (B1-B8, R3-R12)
 
 A second full-codebase critical review flagged ~twenty correctness and

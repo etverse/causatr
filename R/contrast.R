@@ -558,12 +558,14 @@ compute_contrast <- function(
           subset_env = subset_env
         ),
         error = function(e) {
-          msg <- conditionMessage(e)
-          if (grepl("target population is empty", msg, fixed = TRUE)) {
+          # Match on the classed abort from build_point_channel_pieces()
+          # (C3 second-round review). Class-based matching survives
+          # any future wording drift in the error message.
+          if (inherits(e, "causatr_empty_target")) {
             skipped <<- c(skipped, as.character(lev))
             return(NULL)
           }
-          rlang::abort(msg, parent = e)
+          rlang::abort(conditionMessage(e), parent = e)
         }
       )
     })
