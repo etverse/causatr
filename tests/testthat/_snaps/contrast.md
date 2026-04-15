@@ -30,14 +30,6 @@
       Error in `contrast()`:
       ! `interventions` must be a named list with at least one intervention.
 
-# contrast() rejects non-static interventions for IPW
-
-    Code
-      contrast(fit, list(a1 = shift(1), a0 = static(0)))
-    Condition
-      Error in `contrast()`:
-      ! Non-static interventions (shift, dynamic, scale, threshold, ipsi) are not supported for estimator = 'ipw'. The weights/matched sets were estimated under the original treatment regime and are not valid under a different intervention. Use estimator = 'gcomp' instead.
-
 # contrast() rejects non-static interventions for matching
 
     Code

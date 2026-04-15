@@ -7,28 +7,58 @@
 test_that("check_weights rejects NA, Inf, negative, non-numeric, wrong length", {
   df <- simulate_binary_continuous(n = 50, seed = 1L)
   expect_error(
-    causat(df, outcome = "Y", treatment = "A", confounders = ~L,
-           estimator = "gcomp", weights = c(NA_real_, rep(1, nrow(df) - 1))),
+    causat(
+      df,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~L,
+      estimator = "gcomp",
+      weights = c(NA_real_, rep(1, nrow(df) - 1))
+    ),
     regexp = "missing"
   )
   expect_error(
-    causat(df, outcome = "Y", treatment = "A", confounders = ~L,
-           estimator = "gcomp", weights = c(Inf, rep(1, nrow(df) - 1))),
+    causat(
+      df,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~L,
+      estimator = "gcomp",
+      weights = c(Inf, rep(1, nrow(df) - 1))
+    ),
     regexp = "non-finite|Inf"
   )
   expect_error(
-    causat(df, outcome = "Y", treatment = "A", confounders = ~L,
-           estimator = "gcomp", weights = c(-1, rep(1, nrow(df) - 1))),
+    causat(
+      df,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~L,
+      estimator = "gcomp",
+      weights = c(-1, rep(1, nrow(df) - 1))
+    ),
     regexp = "non-negative"
   )
   expect_error(
-    causat(df, outcome = "Y", treatment = "A", confounders = ~L,
-           estimator = "gcomp", weights = rep("1", nrow(df))),
+    causat(
+      df,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~L,
+      estimator = "gcomp",
+      weights = rep("1", nrow(df))
+    ),
     regexp = "numeric"
   )
   expect_error(
-    causat(df, outcome = "Y", treatment = "A", confounders = ~L,
-           estimator = "gcomp", weights = rep(1, nrow(df) - 1)),
+    causat(
+      df,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~L,
+      estimator = "gcomp",
+      weights = rep(1, nrow(df) - 1)
+    ),
     regexp = "length"
   )
 })
@@ -38,8 +68,12 @@ test_that("gcomp with zero weights treats those rows as excluded", {
   w <- rep(1, nrow(df))
   w[1:50] <- 0
   fit <- causat(
-    df, outcome = "Y", treatment = "A", confounders = ~L,
-    estimator = "gcomp", weights = w
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "gcomp",
+    weights = w
   )
   res <- contrast(
     fit,
@@ -51,7 +85,10 @@ test_that("gcomp with zero weights treats those rows as excluded", {
   # zero weights must be equivalent to row exclusion.
   df2 <- df[-(1:50), ]
   fit2 <- causat(
-    df2, outcome = "Y", treatment = "A", confounders = ~L,
+    df2,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
     estimator = "gcomp"
   )
   res2 <- contrast(
@@ -72,12 +109,19 @@ test_that("gcomp with zero weights treats those rows as excluded", {
 test_that("gcomp uniform weights give exactly the same SE as no weights", {
   df <- simulate_binary_continuous(n = 400, seed = 3L)
   fit_u <- causat(
-    df, outcome = "Y", treatment = "A", confounders = ~L,
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
     estimator = "gcomp"
   )
   fit_w <- causat(
-    df, outcome = "Y", treatment = "A", confounders = ~L,
-    estimator = "gcomp", weights = rep(1, nrow(df))
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "gcomp",
+    weights = rep(1, nrow(df))
   )
   r_u <- contrast(
     fit_u,
@@ -89,22 +133,31 @@ test_that("gcomp uniform weights give exactly the same SE as no weights", {
     interventions = list(a1 = static(1), a0 = static(0)),
     type = "difference"
   )
-  expect_equal(r_u$contrasts$estimate[1], r_w$contrasts$estimate[1],
-               tolerance = 1e-10)
-  expect_equal(r_u$contrasts$se[1], r_w$contrasts$se[1],
-               tolerance = 1e-8)
+  expect_equal(
+    r_u$contrasts$estimate[1],
+    r_w$contrasts$estimate[1],
+    tolerance = 1e-10
+  )
+  expect_equal(r_u$contrasts$se[1], r_w$contrasts$se[1], tolerance = 1e-8)
 })
 
 test_that("gcomp heterogeneous weights change SE (not a no-op)", {
   df <- simulate_binary_continuous(n = 400, seed = 4L)
   w <- runif(nrow(df), 0.1, 4)
   fit_u <- causat(
-    df, outcome = "Y", treatment = "A", confounders = ~L,
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
     estimator = "gcomp"
   )
   fit_w <- causat(
-    df, outcome = "Y", treatment = "A", confounders = ~L,
-    estimator = "gcomp", weights = w
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "gcomp",
+    weights = w
   )
   r_u <- contrast(
     fit_u,
@@ -122,30 +175,42 @@ test_that("gcomp heterogeneous weights change SE (not a no-op)", {
   expect_gt(abs(r_u$contrasts$se[1] - r_w$contrasts$se[1]), 1e-3)
 })
 
-test_that("IPW external weights attach as s.weights, not post-multiplied", {
+test_that("IPW external weights reach the treatment density fit", {
   df <- simulate_binary_continuous(n = 400, seed = 5L)
   w <- runif(nrow(df), 0.5, 2)
-  fit <- causat(
-    df, outcome = "Y", treatment = "A", confounders = ~L,
-    estimator = "ipw", method = "glm", weights = w
-  )
-  # WeightIt must have received s.weights of length = n_fit.
-  expect_false(is.null(fit$weights_obj$s.weights))
-  expect_equal(length(fit$weights_obj$s.weights), sum(fit$details$fit_rows))
-  # External weights still stored on fit$details$weights for Ch1.
+  fit <- suppressWarnings(causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw",
+    weights = w
+  ))
+  # Self-contained IPW: the external weights enter the propensity
+  # GLM as prior.weights, so they are observable via the GLM's
+  # own `$prior.weights` slot. They are also stashed on
+  # `fit$details$weights` for Channel 1 inside `contrast()`.
+  pw <- fit$details$propensity_model$prior.weights
+  expect_equal(length(pw), sum(fit$details$fit_rows))
+  expect_equal(as.numeric(pw), w[fit$details$fit_rows])
   expect_equal(fit$details$weights, w)
 })
 
-test_that("IPW survey-weighted sandwich SE differs from naive post-multiply", {
-  # Regression for B6: with external weights, the Mparts IF must
-  # account for propensity uncertainty. We check the sandwich SE is
-  # finite and non-zero on a realistic weighted design.
+test_that("IPW survey-weighted sandwich SE is finite and positive", {
+  # Regression: with external weights, the self-contained IPW
+  # sandwich must propagate propensity uncertainty through the
+  # cross-derivative. We check the sandwich SE is finite and
+  # non-zero on a realistic weighted design.
   df <- simulate_binary_continuous(n = 500, seed = 6L)
   w <- runif(nrow(df), 0.5, 2)
-  fit <- causat(
-    df, outcome = "Y", treatment = "A", confounders = ~L,
-    estimator = "ipw", method = "glm", weights = w
-  )
+  fit <- suppressWarnings(causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw",
+    weights = w
+  ))
   res <- contrast(
     fit,
     interventions = list(a1 = static(1), a0 = static(0)),
@@ -159,8 +224,12 @@ test_that("matching combines match weights with external weights correctly", {
   df <- simulate_binary_continuous(n = 400, seed = 7L)
   w <- runif(nrow(df), 0.5, 2)
   fit <- causat(
-    df, outcome = "Y", treatment = "A", confounders = ~L,
-    estimator = "matching", weights = w
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "matching",
+    weights = w
   )
   # The outcome model on the matched sample must carry non-trivial
   # weights (match weights * external weights).
@@ -180,10 +249,14 @@ test_that("ICE with uniform weights matches ICE without weights (both SE and est
   Y <- 1 + 0.8 * A + 0.5 * L + rnorm(2 * n)
   d <- data.frame(id = id, t = t, A = A, L = L, L0 = L0, Y = Y)
   args <- list(
-    outcome = "Y", treatment = "A",
-    confounders = ~L0, confounders_tv = ~L,
-    id = "id", time = "t",
-    estimator = "gcomp", type = "longitudinal"
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    id = "id",
+    time = "t",
+    estimator = "gcomp",
+    type = "longitudinal"
   )
   fit_u <- do.call(causat, c(list(data = d), args))
   fit_w <- do.call(causat, c(list(data = d, weights = rep(1, nrow(d))), args))
@@ -197,10 +270,12 @@ test_that("ICE with uniform weights matches ICE without weights (both SE and est
     interventions = list(a1 = static(1), a0 = static(0)),
     type = "difference"
   )
-  expect_equal(r_u$contrasts$estimate[1], r_w$contrasts$estimate[1],
-               tolerance = 1e-10)
-  expect_equal(r_u$contrasts$se[1], r_w$contrasts$se[1],
-               tolerance = 1e-10)
+  expect_equal(
+    r_u$contrasts$estimate[1],
+    r_w$contrasts$estimate[1],
+    tolerance = 1e-10
+  )
+  expect_equal(r_u$contrasts$se[1], r_w$contrasts$se[1], tolerance = 1e-10)
 })
 
 test_that("ICE heterogeneous weights produce finite, non-zero SE", {
@@ -217,10 +292,15 @@ test_that("ICE heterogeneous weights produce finite, non-zero SE", {
   w_id <- runif(n, 0.5, 2)
   w <- w_id[id]
   fit <- causat(
-    d, outcome = "Y", treatment = "A",
-    confounders = ~L0, confounders_tv = ~L,
-    id = "id", time = "t",
-    estimator = "gcomp", type = "longitudinal",
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    id = "id",
+    time = "t",
+    estimator = "gcomp",
+    type = "longitudinal",
     weights = w
   )
   res <- contrast(
@@ -244,9 +324,14 @@ test_that("causat_survival accepts weights and they flow into the hazard fit", {
   )
   w <- runif(60, 0.5, 2)
   fit <- suppressMessages(causat_survival(
-    d, outcome = "Y", treatment = "A",
-    confounders = ~L, id = "id", time = "t",
-    censoring = "C", time_formula = ~ factor(t),
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    id = "id",
+    time = "t",
+    censoring = "C",
+    time_formula = ~ factor(t),
     weights = w
   ))
   # Hazard model must see the weights on its fit rows.

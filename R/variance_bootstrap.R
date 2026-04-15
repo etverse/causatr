@@ -177,6 +177,26 @@ variance_bootstrap <- function(
           NULL
         }
 
+        # Self-contained IPW replicates live outside the shared
+        # `refit_model()` + `predict()` path because each
+        # intervention has its own weighted MSM. Dispatch to the
+        # per-replicate IPW helper, which rebuilds the treatment
+        # density model on `d_b`, loops over interventions, and
+        # returns the k-vector of marginal means directly.
+        if (estimator == "ipw") {
+          return(ipw_boot_replicate(
+            fit,
+            d_b,
+            indices,
+            w_b,
+            interventions,
+            treatment,
+            est,
+            subset,
+            subset_env
+          ))
+        }
+
         # Demote only the specific warnings we expect to emit on
         # nearly every replicate and that would otherwise flood the
         # console: GLM "fitted probabilities numerically 0 or 1",
@@ -298,60 +318,135 @@ refit_gcomp <- function(fit, d_b, weights = NULL) {
   replay_fit(model_fn, args, fit$details$dots)
 }
 
-#' Refit IPW propensity weights and MSM on a bootstrap sample
+#' Refit IPW pipeline on a bootstrap sample — dispatcher stub
+#'
+#' @description
+#' The self-contained IPW bootstrap path runs entirely inside
+#' `ipw_boot_replicate()` (called directly from `boot_fn()` in
+#' `variance_bootstrap()`) because each intervention has its own
+#' weighted MSM and the shared "refit one model, predict over all
+#' interventions" flow of `boot_fn()` does not fit. This stub exists
+#' only so the `refit_model()` dispatcher still compiles; it is
+#' unreachable under the standard pipeline.
 #'
 #' @param fit A `causatr_fit` object.
 #' @param d_b A data.table bootstrap sample.
-#' @return A `glm_weightit` model object.
+#' @param weights Numeric vector or `NULL`.
+#' @return Aborts.
 #' @noRd
 refit_ipw <- function(fit, d_b, weights = NULL) {
-  ps_formula <- build_ps_formula(fit$confounders, fit$treatment)
+  rlang::abort(
+    "Internal error: `refit_ipw()` is unreachable. IPW bootstrap replicates run through `ipw_boot_replicate()` inside `boot_fn()`."
+  )
+}
 
-  fit_rows_b <- get_fit_rows(d_b, fit$outcome)
+
+#' One bootstrap replicate for self-contained IPW
+#'
+#' @description
+#' Rebuilds the treatment density model on the resampled data, then
+#' refits one weighted MSM per intervention and reads off the
+#' marginal-mean vector for that replicate. Called from `boot_fn()`
+#' inside `variance_bootstrap()` when `fit$estimator == "ipw"`; the
+#' outer `tryCatch` in `boot_fn()` converts any abort (misalignment,
+#' density positivity violation, separation in the resampled
+#' propensity fit) into an NA row so the replicate is excluded via
+#' `process_boot_results()`.
+#'
+#' External / survey weights follow the same composition rule as
+#' the analytic path (`compute_ipw_contrast_point()` in `R/ipw.R`):
+#' the density-ratio vector is multiplied by the resampled external
+#' weights before entering the MSM fit.
+#'
+#' @param fit_template The original `causatr_fit` — used for
+#'   `confounders`, `treatment`, `outcome`, `family`, stashed `dots`,
+#'   `model_fn`, and `propensity_model_fn`. The resampled data
+#'   overrides `fit$data` for this one replicate.
+#' @param d_b Resampled `data.table`.
+#' @param indices Bootstrap row indices (passed by `boot::boot()`).
+#' @param w_b Resampled external weights, or `NULL`.
+#' @param interventions Named list of `causatr_intervention` objects.
+#' @param treatment Treatment column name.
+#' @param est Character. Effective estimand string.
+#' @param subset,subset_env Passed through to `get_target_idx()`.
+#'
+#' @return Numeric k-vector of marginal means for the replicate.
+#'
+#' @noRd
+ipw_boot_replicate <- function(
+  fit_template,
+  d_b,
+  indices,
+  w_b,
+  interventions,
+  treatment,
+  est,
+  subset,
+  subset_env
+) {
+  outcome <- fit_template$outcome
+  confounders <- fit_template$confounders
+  fam_obj <- resolve_family(fit_template$family)
+  model_fn <- fit_template$details$model_fn
+  prop_model_fn <- fit_template$details$propensity_model_fn
+  dots <- fit_template$details$dots
+  int_names <- names(interventions)
+
+  fit_rows_b <- get_fit_rows(d_b, outcome)
   fit_data_b <- d_b[fit_rows_b]
+  w_fit <- if (is.null(w_b)) NULL else w_b[fit_rows_b]
 
-  # Replay the user's original `...` via the central `replay_fit()`
-  # helper. `s.weights` is put into `base_args` when external weights
-  # are present so it wins over any user-supplied `s.weights` in dots,
-  # and declared `reserved` when absent so dots can't smuggle one in.
-  base_args <- list(ps_formula, data = fit_data_b, estimand = fit$estimand)
-  reserved <- character()
-  if (!is.null(weights)) {
-    base_args$s.weights <- weights[fit_rows_b]
-  } else {
-    reserved <- "s.weights"
+  # Rebuild the treatment density model on the resampled data.
+  tm_args <- list(
+    data = fit_data_b,
+    treatment = treatment,
+    confounders = confounders,
+    model_fn = prop_model_fn
+  )
+  if (!is.null(w_fit)) {
+    tm_args$weights <- w_fit
   }
-  w_b <- replay_fit(
-    WeightIt::weightit,
-    base_args,
-    fit$details$dots,
-    reserved = reserved
+  tm_b <- do.call(fit_treatment_model, c(tm_args, dots))
+
+  # Target-population index on the resampled data. Used only for
+  # averaging — the weighted MSM already carries the estimand via
+  # the density-ratio weights.
+  target_idx_b <- get_target_idx(
+    d_b,
+    treatment,
+    est,
+    subset,
+    subset_env = subset_env
   )
 
-  # Mirror the alignment guard in `fit_ipw()` (R/ipw.R). Abort the
-  # bootstrap replicate on misalignment; the outer `tryCatch` in
-  # `boot_fn()` converts the abort to an NA row so the failure is
-  # counted in `boot_info$n_fail`.
-  if (length(w_b$weights) != sum(fit_rows_b)) {
-    rlang::abort(
-      paste0(
-        "Bootstrap replicate: WeightIt returned ",
-        length(w_b$weights),
-        " weights but causatr selected ",
-        sum(fit_rows_b),
-        " fitting rows. A confounder column has missing values that ",
-        "WeightIt dropped. Clean or impute the data before calling `causat()`."
-      ),
-      .call = FALSE
-    )
-  }
+  vapply(
+    interventions,
+    function(iv) {
+      w_iv <- compute_density_ratio_weights(tm_b, d_b, iv)
+      w_final <- if (is.null(w_fit)) w_iv else w_iv * w_fit
 
-  msm_formula <- stats::reformulate(fit$treatment, response = fit$outcome)
-  WeightIt::glm_weightit(
-    msm_formula,
-    data = fit_data_b,
-    weightit = w_b,
-    family = fit$model$family
+      # See `compute_ipw_contrast_point()` in `R/ipw.R` for why the
+      # MSM is always `Y ~ 1` under the self-contained engine.
+      msm_formula <- stats::as.formula(paste0(outcome, " ~ 1"))
+
+      msm_args <- list(
+        formula = msm_formula,
+        data = fit_data_b,
+        family = fam_obj,
+        weights = w_final
+      )
+      msm_model <- do.call(model_fn, msm_args)
+
+      data_a_b <- apply_intervention(d_b, treatment, iv)
+      pred_a_b <- stats::predict(
+        msm_model,
+        newdata = data_a_b,
+        type = "response"
+      )
+      valid <- target_idx_b & !is.na(pred_a_b)
+      maybe_weighted_mean(pred_a_b[valid], if (!is.null(w_b)) w_b[valid])
+    },
+    numeric(1)
   )
 }
 

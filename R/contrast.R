@@ -381,10 +381,16 @@ check_interventions_compat <- function(
   interventions,
   call = rlang::caller_env()
 ) {
-  # Only IPW and matching are restricted. G-comp supports every
-  # intervention type because it re-predicts from an outcome model
-  # that doesn't care about the treatment-assignment mechanism.
-  if (estimator %in% c("ipw", "matching")) {
+  # Matching is the only estimator gated here. IPW handles non-static
+  # interventions via the self-contained density-ratio engine
+  # (`fit_treatment_model()` + `make_weight_fn()` + per-intervention
+  # weighted MSM refit inside `compute_contrast()`); the per-intervention
+  # compatibility check lives in `check_intervention_family_compat()`
+  # in `R/ipw_weights.R` and fires inside `compute_density_ratio_weights()`.
+  # G-comp supports every intervention type because it re-predicts from
+  # an outcome model that doesn't care about the treatment-assignment
+  # mechanism.
+  if (estimator == "matching") {
     # For each element in the interventions list, determine whether it
     # represents a non-static regime. Three shapes to handle:
     #   - NULL entry         -> natural course (always allowed)
@@ -755,14 +761,47 @@ compute_contrast <- function(
       boot_t <- boot_res$boot_t
       boot_info <- boot_res$boot_info
     }
+  } else if (fit$estimator == "ipw") {
+    # ── Point-treatment self-contained IPW.
+    # The density-ratio weights depend on the intervention, so we
+    # refit a weighted MSM per intervention here. Each refit
+    # consumes the density-ratio weight vector from
+    # `compute_density_ratio_weights()` multiplied by any external
+    # weights (survey / IPCW). The variance engine's IPW branch
+    # consumes the resulting per-intervention MSMs + weight closures
+    # via `compute_ipw_if_self_contained_one()`.
+    target_idx <- get_target_idx(data, fit$treatment, est, subset, subset_env)
+    n_target <- sum(target_idx)
+    if (n_target == 0L) {
+      rlang::abort(
+        "compute_contrast(): target population is empty.",
+        class = "causatr_empty_target"
+      )
+    }
+
+    ipw_res <- compute_ipw_contrast_point(
+      fit,
+      interventions,
+      target_idx,
+      ci_method,
+      est,
+      subset,
+      n_boot,
+      parallel,
+      ncpus,
+      subset_env
+    )
+    mu_hat <- ipw_res$mu_hat
+    vcov_mat <- ipw_res$vcov
+    boot_t <- ipw_res$boot_t
+    boot_info <- ipw_res$boot_info
   } else {
-    # ── Point-treatment g-computation / IPW / matching.
+    # ── Point-treatment g-computation / matching.
     # Single outcome model, predict once per intervention, average
-    # over the target population. This is the standard parametric
-    # g-formula; IPW and matching reuse the same predict-then-average
-    # path because their weighted / matched-sample outcome model is
-    # already the marginal structural model, so marginal-mean
-    # predictions read off the MSM directly.
+    # over the target population. Matching reuses the same
+    # predict-then-average path because its matched-sample outcome
+    # model is already the marginal structural model, so marginal-
+    # mean predictions read off the MSM directly.
     model <- fit$model
 
     # Logical vector (length n) flagging the target population.

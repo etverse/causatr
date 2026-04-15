@@ -151,6 +151,20 @@ compute_positivity <- function(fit, ps_bounds) {
   #               purely for diagnostics — it doesn't affect estimation.
   if (!is.null(fit$weights_obj)) {
     ps <- fit$weights_obj$ps
+  } else if (fit$estimator == "ipw" && !is.null(fit$details$propensity_model)) {
+    # Self-contained IPW: propensity scores come from the stashed
+    # treatment density model. For binary treatment the response-
+    # scale prediction is the propensity directly.
+    tm <- fit$details$treatment_model
+    if (!is.null(tm) && tm$family == "bernoulli") {
+      ps <- as.numeric(stats::predict(
+        fit$details$propensity_model,
+        newdata = fit$data[fit$details$fit_rows],
+        type = "response"
+      ))
+    } else {
+      return(NULL)
+    }
   } else if (!is.null(fit$match_obj)) {
     ps <- fit$match_obj$distance
     if (is.null(ps) || length(ps) == 0L) return(NULL)
@@ -216,6 +230,23 @@ compute_balance <- function(fit, stats, thresholds) {
     cobalt::bal.tab(
       fit$weights_obj,
       un = TRUE,
+      stats = stats,
+      thresholds = thresholds,
+      binary = "std"
+    )
+  } else if (fit$estimator == "ipw" && !is.null(fit$details$treatment_model)) {
+    # Self-contained IPW: no WeightIt weightit object to feed cobalt.
+    # Fall back to the formula-based `bal.tab()` call on the observed
+    # treatment — this produces the "unadjusted" balance table
+    # (standardised mean differences before weighting), which is the
+    # most universal diagnostic the density-ratio engine can hand
+    # cobalt without committing to one specific intervention's
+    # post-weighting balance.
+    ps_formula <- build_ps_formula(fit$confounders, fit$treatment)
+    fit_rows <- fit$details$fit_rows
+    cobalt::bal.tab(
+      ps_formula,
+      data = as.data.frame(fit$data[fit_rows]),
       stats = stats,
       thresholds = thresholds,
       binary = "std"
@@ -316,8 +347,65 @@ compute_balance_simple <- function(fit) {
 #'   or `NULL` for non-IPW fits.
 #' @noRd
 compute_weight_summary <- function(fit) {
-  if (fit$estimator != "ipw" || is.null(fit$weights_obj)) {
+  if (fit$estimator != "ipw") {
     return(NULL)
+  }
+
+  if (is.null(fit$weights_obj)) {
+    # Self-contained IPW: reconstruct the observed-treatment IPW
+    # weights from the stashed density model. Binary natural-course
+    # ATE weights are `1/p` for treated rows and `1/(1-p)` for
+    # controls; continuous / categorical treatment families are not
+    # summarised here because "the IPW weight" depends on the
+    # intervention, which `diagnose()` is not scoped to.
+    tm <- fit$details$treatment_model
+    if (is.null(tm)) {
+      return(NULL)
+    }
+    fit_rows <- fit$details$fit_rows
+    fit_data <- fit$data[fit_rows]
+    a_obs <- fit_data[[fit$treatment[1]]]
+    ess <- function(wts) sum(wts)^2 / sum(wts^2)
+
+    if (tm$family == "bernoulli") {
+      # Binary ATE weights: `1/p` for treated, `1/(1-p)` for
+      # controls. This is the canonical "observed-treatment" IPW
+      # weight summary from Hernán & Robins Ch. 12.
+      p <- as.numeric(stats::predict(
+        fit$details$propensity_model,
+        newdata = fit_data,
+        type = "response"
+      ))
+      w <- ifelse(a_obs == 1, 1 / p, 1 / (1 - p))
+      masks <- list(a_obs == 1, a_obs == 0, rep(TRUE, length(w)))
+      labels <- c("treated", "control", "overall")
+    } else if (tm$family == "gaussian") {
+      # Continuous treatment: inverse-density weight `1/f(A|L)` at
+      # the observed treatment. The density is a Gaussian pdf with
+      # conditional mean from the fitted linear model and residual
+      # SD from `tm$sigma`. Only an "overall" summary row is
+      # returned — there are no discrete groups to stratify on.
+      f_obs <- evaluate_density(tm, a_obs, fit_data)
+      w <- 1 / f_obs
+      masks <- list(rep(TRUE, length(w)))
+      labels <- "overall"
+    } else {
+      return(NULL)
+    }
+
+    rows <- lapply(seq_along(labels), function(i) {
+      w_sub <- w[masks[[i]]]
+      data.table::data.table(
+        group = labels[i],
+        n = length(w_sub),
+        mean = mean(w_sub),
+        sd = stats::sd(w_sub),
+        min = min(w_sub),
+        max = max(w_sub),
+        ess = ess(w_sub)
+      )
+    })
+    return(data.table::rbindlist(rows))
   }
 
   w <- fit$weights_obj$weights

@@ -26,14 +26,6 @@ test_that("contrast() rejects an empty intervention list", {
   )
 })
 
-test_that("contrast() rejects non-static interventions for IPW", {
-  fit <- structure(list(estimator = "ipw"), class = "causatr_fit")
-  expect_snapshot(
-    error = TRUE,
-    contrast(fit, list(a1 = shift(1), a0 = static(0)))
-  )
-})
-
 test_that("contrast() rejects non-static interventions for matching", {
   fit <- structure(list(estimator = "matching"), class = "causatr_fit")
   expect_snapshot(

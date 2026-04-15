@@ -123,7 +123,7 @@ test_that("ipsi() rejects NA / NaN delta with a clean message", {
   # needed" abort. The explicit `is.na(delta)` guard mirrors the
   # defensive checks already present in shift/scale_by/threshold.
   expect_error(ipsi(NA_real_), "non-NA positive")
-  expect_error(ipsi(NaN),     "non-NA positive")
+  expect_error(ipsi(NaN), "non-NA positive")
 })
 
 test_that("static() rejects invalid inputs", {

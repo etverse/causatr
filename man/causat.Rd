@@ -21,6 +21,7 @@ causat(
   weights = NULL,
   type = NULL,
   model_fn = stats::glm,
+  propensity_model_fn = NULL,
   ...
 )
 }
@@ -100,7 +101,17 @@ explicitly requires \code{id} and \code{time}.}
 \item{model_fn}{Function. The fitting function for the outcome model in
 g-computation. Must accept \verb{(formula, data, family, weights, ...)}.
 Default \code{stats::glm}; pass \code{mgcv::gam} for GAMs, \code{MASS::glm.nb} for
-negative-binomial, etc. Ignored for \code{"ipw"} and \code{"matching"}.}
+negative-binomial, etc. For \code{"ipw"}, \code{model_fn} also fits the
+placeholder \code{Y ~ A} display model and is the default propensity
+fitter when \code{propensity_model_fn} is \code{NULL}. Ignored for
+\code{"matching"}.}
+
+\item{propensity_model_fn}{Function or \code{NULL}. IPW only. The fitting
+function for the conditional treatment density \eqn{f(A \mid L)}
+used to build density-ratio weights. Must accept the same
+\verb{(formula, data, family, weights, ...)} signature. \code{NULL}
+(default) reuses \code{model_fn}. Pass \code{mgcv::gam} for a flexible
+propensity.}
 
 \item{...}{Additional arguments passed to the underlying estimation
 function: \code{WeightIt::weightit()} for \code{estimator = "ipw"} (e.g.
@@ -158,13 +169,15 @@ confounders (\code{confounders_tv}), and their lags up to \code{history} steps.
 
 \subsection{IPW (\code{estimator = "ipw"})}{
 
-Calls \code{WeightIt::weightit()} to estimate propensity-score-based weights
-for the desired \code{estimand}, then fits a weighted outcome model via
-\code{WeightIt::glm_weightit()}. The estimand is fixed at fitting time.
-Supports binary, categorical, and continuous treatments (anything
-\code{WeightIt} supports). Only \code{static()} interventions are supported
-in \code{\link[=contrast]{contrast()}}, because the weights were estimated under the observed
-treatment distribution.
+Fits a conditional treatment density \eqn{f(A \mid L)} via
+\code{propensity_model_fn} (defaults to \code{model_fn}). Each intervention
+requested in \code{\link[=contrast]{contrast()}} builds its own density-ratio weight
+vector and refits a weighted marginal structural model. Supports
+binary (via HT or IPSI), continuous (via smooth shift / scale_by),
+and dynamic-on-binary interventions. \code{threshold()} and continuous
+\code{dynamic()} rules are routed to \code{estimator = "gcomp"} with a
+pointer. Categorical treatments are not supported under IPW;
+\code{estimator = "gcomp"} handles them via predict-then-average.
 
 \strong{Longitudinal IPW is not supported.} \code{estimator = "ipw"} with \code{id}
 and \code{time} aborts with an informative error. Use

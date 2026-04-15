@@ -1,10 +1,12 @@
-# IPW rejects shift intervention until Phase 4
+# IPW rejects static(1) on a continuous treatment
 
     Code
-      contrast(fit, interventions = list(s = shift(1), c = static(0)), ci_method = "sandwich")
+      contrast(fit, interventions = list(a = static(1), b = static(0)), ci_method = "sandwich")
     Condition
-      Error in `contrast()`:
-      ! Non-static interventions (shift, dynamic, scale, threshold, ipsi) are not supported for estimator = 'ipw'. The weights/matched sets were estimated under the original treatment regime and are not valid under a different intervention. Use estimator = 'gcomp' instead.
+      Error in `check_intervention_family_compat()`:
+      ! `static(v)` on a continuous treatment is degenerate for IPW.
+      i No observations lie exactly at `v`, so the Horvitz-Thompson weight is zero almost surely.
+      i Use `shift()` or `scale_by()` to move the whole treatment distribution, or switch to `estimator = 'gcomp'`.
 
 # IPW rejects A:modifier interaction terms in confounders
 

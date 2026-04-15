@@ -78,9 +78,14 @@ test_that("Branch B IF aggregates to the analytic stacked-sandwich variance for 
   # dispersion behaviour. Actually `stats::gaussian()` works fine for
   # sandwich's glm methods — the dispersion cancels between estfun
   # and bread regardless of its estimated value.
-  msm_fit <- stats::glm(Y ~ 1, data = d, weights = w, family = stats::gaussian())
-  beta_hat <- stats::coef(msm_fit)  # scalar
-  mu_hat <- as.numeric(beta_hat)    # identity link + intercept-only => mu == beta0
+  msm_fit <- stats::glm(
+    Y ~ 1,
+    data = d,
+    weights = w,
+    family = stats::gaussian()
+  )
+  beta_hat <- stats::coef(msm_fit) # scalar
+  mu_hat <- as.numeric(beta_hat) # identity link + intercept-only => mu == beta0
 
   # Sanity: on `simulate_binary_continuous` the true E[Y^1] = 5.
   # The Hajek mean should land near there (well within 0.3 on n=500).
@@ -98,7 +103,8 @@ test_that("Branch B IF aggregates to the analytic stacked-sandwich variance for 
   a_ba_per_row <- (d$Y - mu_hat) * d$A * (1 - p) / p
   A_ba <- as.numeric(
     crossprod(matrix(a_ba_per_row, ncol = 1), X_ps)
-  ) / n  # length p_alpha
+  ) /
+    n # length p_alpha
 
   B <- matrix(0, p_alpha + 1, p_alpha + 1)
   B[seq_len(p_alpha), seq_len(p_alpha)] <- A_aa
@@ -108,10 +114,10 @@ test_that("Branch B IF aggregates to the analytic stacked-sandwich variance for 
   # ---- Hand-assembled meat ----------------------------------------
   # psi_alpha_i = X_ps_i * (A_i - p_i)      (logistic score)
   # psi_beta_i  = w_i * (Y_i - beta0)       (weighted intercept score)
-  psi_alpha <- X_ps * (d$A - p)             # n × p_alpha
-  psi_beta <- w * (d$Y - mu_hat)            # n-vector
-  Psi <- cbind(psi_alpha, psi_beta)         # n × (p_alpha + 1)
-  M <- crossprod(Psi) / n                    # (p_alpha + 1)^2
+  psi_alpha <- X_ps * (d$A - p) # n × p_alpha
+  psi_beta <- w * (d$Y - mu_hat) # n-vector
+  Psi <- cbind(psi_alpha, psi_beta) # n × (p_alpha + 1)
+  M <- crossprod(Psi) / n # (p_alpha + 1)^2
 
   # Sandwich variance V = (1/n) B^(-1) M B^(-T)
   B_inv <- solve(B)
@@ -132,17 +138,17 @@ test_that("Branch B IF aggregates to the analytic stacked-sandwich variance for 
   # (predictions are constant per treatment level — here, constant
   # at `beta_hat`). Verified independently via `build_point_channel_pieces`.
   Ch1 <- rep(0, n)
-  J <- 1  # d mu/d beta_0 = 1 for identity-link intercept-only Gaussian
+  J <- 1 # d mu/d beta_0 = 1 for identity-link intercept-only Gaussian
 
   IF_vec <- compute_ipw_if_self_contained_one(
-    msm_model        = msm_fit,
+    msm_model = msm_fit,
     propensity_model = ps_fit,
-    weight_fn        = wfn,
-    J                = J,
-    Ch1_i            = Ch1,
-    fit_idx          = seq_len(n),
-    fit_idx_ps       = seq_len(n),
-    n_total          = n
+    weight_fn = wfn,
+    J = J,
+    Ch1_i = Ch1,
+    fit_idx = seq_len(n),
+    fit_idx_ps = seq_len(n),
+    n_total = n
   )
 
   # vcov_from_if divides by n_total^2, so the variance of mu_hat is:
@@ -189,14 +195,14 @@ test_that("Branch B IF is all-Ch1 when the intervention is natural course", {
   wfn <- make_weight_fn(tm, dt, NULL)
 
   IF_vec <- compute_ipw_if_self_contained_one(
-    msm_model        = msm_fit,
+    msm_model = msm_fit,
     propensity_model = ps_fit,
-    weight_fn        = wfn,
-    J                = 1,
-    Ch1_i            = rep(0, n),
-    fit_idx          = seq_len(n),
-    fit_idx_ps       = seq_len(n),
-    n_total          = n
+    weight_fn = wfn,
+    J = 1,
+    Ch1_i = rep(0, n),
+    fit_idx = seq_len(n),
+    fit_idx_ps = seq_len(n),
+    n_total = n
   )
 
   # The propensity-correction channel must be zero because the
@@ -220,6 +226,6 @@ test_that("Branch B IF is all-Ch1 when the intervention is natural course", {
   # and verify.
   E_msm <- sandwich::estfun(msm_fit)
   bread_msm <- sandwich::bread(msm_fit)
-  msm_only_per_obs <- as.numeric(E_msm %*% bread_msm)  # J = 1
+  msm_only_per_obs <- as.numeric(E_msm %*% bread_msm) # J = 1
   expect_equal(IF_vec, msm_only_per_obs, tolerance = 1e-9)
 })

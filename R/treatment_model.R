@@ -272,22 +272,22 @@ fit_bernoulli_density <- function(
   # but custom fitters in the wild sometimes dispatch on the
   # `weights` argument's presence rather than its value, so we omit
   # the arg entirely when there are no external weights.
-  if (is.null(weights_fit)) {
-    model_fn(
-      formula = ps_formula,
-      data = fit_data,
-      family = stats::binomial(),
-      ...
-    )
-  } else {
-    model_fn(
-      formula = ps_formula,
-      data = fit_data,
-      family = stats::binomial(),
-      weights = weights_fit,
-      ...
-    )
+  # Build the call via `do.call()` with the weight vector substituted
+  # as an actual value rather than a symbol. Passing `weights =
+  # weights_fit` positionally would leave the symbol `weights_fit` in
+  # the glm call, which `stats::model.frame.default()` then re-evaluates
+  # against later newdata frames (e.g. inside `stats::predict()`) and
+  # fails with "object 'weights_fit' not found". `do.call()` with a
+  # list of actual values avoids the lookup.
+  base_args <- list(
+    formula = ps_formula,
+    data = fit_data,
+    family = stats::binomial()
+  )
+  if (!is.null(weights_fit)) {
+    base_args$weights <- weights_fit
   }
+  do.call(model_fn, c(base_args, list(...)))
 }
 
 
@@ -306,22 +306,18 @@ fit_gaussian_density <- function(
   weights_fit,
   ...
 ) {
-  if (is.null(weights_fit)) {
-    model_fn(
-      formula = ps_formula,
-      data = fit_data,
-      family = stats::gaussian(),
-      ...
-    )
-  } else {
-    model_fn(
-      formula = ps_formula,
-      data = fit_data,
-      family = stats::gaussian(),
-      weights = weights_fit,
-      ...
-    )
+  # See the `fit_bernoulli_density()` note on why this uses
+  # `do.call()` instead of a direct `model_fn(..., weights =
+  # weights_fit, ...)` call.
+  base_args <- list(
+    formula = ps_formula,
+    data = fit_data,
+    family = stats::gaussian()
+  )
+  if (!is.null(weights_fit)) {
+    base_args$weights <- weights_fit
   }
+  do.call(model_fn, c(base_args, list(...)))
 }
 
 

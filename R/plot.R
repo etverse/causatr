@@ -180,15 +180,31 @@ plot.causatr_diag <- function(
     )
   }
 
-  p <- cobalt::love.plot(
-    obj,
-    stats = stats,
-    abs = abs,
-    thresholds = thresholds,
-    var.order = "unadjusted",
-    binary = "std",
-    ...
-  )
+  # Self-contained IPW returns a `list(formula, data)` pair rather
+  # than a cobalt-native object; dispatch to the formula interface
+  # of `cobalt::love.plot()` in that case.
+  p <- if (is.list(obj) && !is.null(obj$formula) && !is.null(obj$data)) {
+    cobalt::love.plot(
+      obj$formula,
+      data = obj$data,
+      stats = stats,
+      abs = abs,
+      thresholds = thresholds,
+      var.order = "unadjusted",
+      binary = "std",
+      ...
+    )
+  } else {
+    cobalt::love.plot(
+      obj,
+      stats = stats,
+      abs = abs,
+      thresholds = thresholds,
+      var.order = "unadjusted",
+      binary = "std",
+      ...
+    )
+  }
 
   print(p)
   invisible(p)
@@ -207,6 +223,20 @@ get_cobalt_object <- function(diag) {
 
   if (fit$estimator == "ipw" && !is.null(fit$weights_obj)) {
     return(fit$weights_obj)
+  }
+  if (fit$estimator == "ipw" && !is.null(fit$details$treatment_model)) {
+    # Self-contained IPW has no `weightit` object. Feed
+    # `cobalt::love.plot()` the propensity formula directly — this
+    # reproduces the "unadjusted" love plot (SMDs before weighting),
+    # which is the most universal balance view the density-ratio
+    # engine can surface without committing to a specific
+    # intervention's post-weighting balance.
+    ps_formula <- build_ps_formula(fit$confounders, fit$treatment)
+    fit_rows <- fit$details$fit_rows
+    return(list(
+      formula = ps_formula,
+      data = as.data.frame(fit$data[fit_rows])
+    ))
   }
   if (fit$estimator == "matching" && !is.null(fit$match_obj)) {
     return(fit$match_obj)

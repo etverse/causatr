@@ -78,7 +78,7 @@ test_that("B2: bootstrap refit replays user's ... (gcomp quasipoisson)", {
   # Pre-fix: refit_gcomp dropped user `...`, so a gcomp fit with a
   # non-default family silently bootstrapped with the default family.
   df <- simulate_binary_continuous(n = 400, seed = 4L)
-  df$Y <- pmax(0, round(df$Y + 5))  # positive count-like outcome
+  df$Y <- pmax(0, round(df$Y + 5)) # positive count-like outcome
   fit <- causat(
     df,
     outcome = "Y",
@@ -99,37 +99,21 @@ test_that("B2: bootstrap refit replays user's ... (gcomp quasipoisson)", {
   expect_true(all(res$estimates$estimate > 0))
 })
 
-test_that("B2: IPW bootstrap replays stashed WeightIt dots", {
-  df <- simulate_binary_continuous(n = 500, seed = 5L)
-  fit <- causat(
-    df,
-    outcome = "Y",
-    treatment = "A",
-    confounders = ~L,
-    estimator = "ipw",
-    method = "glm",
-    stabilize = TRUE
-  )
-  expect_true(!is.null(fit$details$dots$stabilize))
-  res <- contrast(
-    fit,
-    interventions = list(a1 = static(1), a0 = static(0)),
-    type = "difference",
-    ci_method = "bootstrap",
-    n_boot = 25L
-  )
-  expect_s3_class(res, "causatr_result")
-})
+# B2 (WeightIt dots replay on IPW bootstrap) removed: self-contained
+# IPW no longer routes through `WeightIt::weightit()`, so there is no
+# `method = / stabilize =` user call to replay. The equivalent dots-
+# replay path now lives in `ipw_boot_replicate()` which forwards `...`
+# into `fit_treatment_model()` directly.
 
 test_that("B5: causat_survival drops all rows at/after first censor", {
   # Build a tiny long panel where id=1 is censored at t=2.
   d <- data.table::data.table(
     id = rep(1:3, each = 3),
     t = rep(1:3, 3),
-    Y = c(0, 0, 0,  0, 0, 1,  0, 0, 0),
-    A = c(1, 1, 1,  0, 0, 0,  1, 1, 1),
+    Y = c(0, 0, 0, 0, 0, 1, 0, 0, 0),
+    A = c(1, 1, 1, 0, 0, 0, 1, 1, 1),
     L = rnorm(9),
-    C = c(0, 1, 0,  0, 0, 0,  0, 0, 0)
+    C = c(0, 1, 0, 0, 0, 0, 0, 0, 0)
   )
   fit <- suppressMessages(causat_survival(
     d,
@@ -149,7 +133,7 @@ test_that("B5: causat_survival drops all rows at/after first censor", {
   expect_false(fit_rows[row_at_1_3])
 })
 
-test_that("B6: external weights enter WeightIt via s.weights", {
+test_that("B6: external weights flow into the treatment density model", {
   df <- simulate_binary_continuous(n = 400, seed = 6L)
   w <- runif(nrow(df), 0.5, 2)
   fit <- causat(
@@ -158,16 +142,17 @@ test_that("B6: external weights enter WeightIt via s.weights", {
     treatment = "A",
     confounders = ~L,
     estimator = "ipw",
-    method = "glm",
     weights = w
   )
-  # Survey weights must now be attached to the weightit object as
-  # s.weights rather than silently post-multiplied into w$weights.
-  expect_true(!is.null(fit$weights_obj$s.weights))
-  expect_equal(
-    length(fit$weights_obj$s.weights),
-    sum(fit$details$fit_rows)
-  )
+  # Self-contained IPW: external weights are (a) stashed unmodified
+  # in `$details$weights` and (b) forwarded into the propensity fit
+  # via `fit_treatment_model(weights = ...)`. Round-tripping the
+  # prior weights through the fitted propensity GLM is the
+  # observable proxy for "the weights actually entered the fit".
+  expect_equal(fit$details$weights, w)
+  pw <- fit$details$propensity_model$prior.weights
+  expect_equal(length(pw), sum(fit$details$fit_rows))
+  expect_equal(as.numeric(pw), w[fit$details$fit_rows])
 })
 
 test_that("B7: ICE Ch1 IF uniform-weighted matches unweighted (unification)", {
@@ -216,7 +201,7 @@ test_that("B8: `by` skips strata with no treated units under ATT", {
   # only controls, so the ATT target (A == 1) is empty for that level.
   df <- simulate_binary_continuous(n = 800, seed = 8L)
   df$g <- sample(c("a", "b", "c"), nrow(df), replace = TRUE)
-  df$A[df$g == "c"] <- 0L  # force stratum `c` to be all-control
+  df$A[df$g == "c"] <- 0L # force stratum `c` to be all-control
   fit <- causat(
     df,
     outcome = "Y",
@@ -241,7 +226,7 @@ test_that("B8: `by` skips strata with no treated units under ATT", {
 
 test_that("R6: OR validation does not abort on NA mu_hat", {
   df <- simulate_binary_continuous(n = 200, seed = 9L)
-  df$Y <- as.integer(df$Y > 3)  # binary
+  df$Y <- as.integer(df$Y > 3) # binary
   df$Y[1:10] <- NA
   fit <- causat(
     df,

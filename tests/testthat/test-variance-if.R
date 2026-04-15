@@ -258,7 +258,7 @@ test_that("variance_if_numeric() Tier 1 matches the analytic IF on a logistic gl
 
 # ── correct_propensity() Branch A — IPW WeightIt path ──
 
-test_that("variance_if IPW path matches WeightIt vcov + J V_beta J^T at saturated MSM", {
+test_that("IPW sandwich matches WeightIt stacked-M oracle on static binary", {
   skip_if_not_installed("WeightIt")
   set.seed(909)
   n <- 1000
@@ -274,7 +274,6 @@ test_that("variance_if IPW path matches WeightIt vcov + J V_beta J^T at saturate
     confounders = ~L,
     estimator = "ipw"
   )
-
   res_if <- contrast(
     fit,
     interventions = list(a1 = static(1), a0 = static(0)),
@@ -283,61 +282,34 @@ test_that("variance_if IPW path matches WeightIt vcov + J V_beta J^T at saturate
   )
   V_if <- res_if$vcov
 
-  # Reference: Y ~ A is saturated, A is static, so Channel 1 = 0 and the
-  # IF variance equals J V_beta J^T with V_beta = vcov(glm_weightit) (the
-  # M-estimation sandwich that already accounts for weight uncertainty).
-  V_beta <- stats::vcov(fit$model)
+  # Reference: WeightIt::glm_weightit() does the whole stacked
+  # M-estimation correction internally, and `vcov()` returns the
+  # sandwich variance of (beta_0, beta_1). For the saturated
+  # `Y ~ A` MSM the mapping (beta_0, beta_1) -> (mu_0, mu_1) is
+  # `J` below, and the delta-method `J V_beta J^T` is the oracle
+  # the self-contained engine must reproduce.
+  w_ref <- WeightIt::weightit(
+    A ~ L,
+    data = df,
+    method = "glm",
+    estimand = "ATE"
+  )
+  m_ref <- WeightIt::glm_weightit(
+    Y ~ A,
+    data = df,
+    weightit = w_ref,
+    family = stats::gaussian()
+  )
+  V_beta <- stats::vcov(m_ref)
   J <- matrix(c(1, 1, 1, 0), nrow = 2, byrow = TRUE)
   V_ref <- J %*% V_beta %*% t(J)
 
-  expect_equal(unname(V_if), unname(V_ref), tolerance = 1e-10)
-})
-
-
-# ── prepare_propensity_if() Branch B aborts informatively ──
-
-test_that("prepare_propensity_if() Branch B aborts informatively", {
-  fake_fit <- list(
-    model = structure(list(), class = "lm"),
-    estimator = "ipw"
-  )
-  expect_error(
-    prepare_propensity_if(fake_fit, fit_idx = 1L, n_total = 1L),
-    "Self-contained IPW sandwich IF"
-  )
-})
-
-
-# ── Mparts guardrail — warning at fit time for non-Mparts WeightIt method ──
-
-test_that("fit_ipw warns when WeightIt method lacks Mparts", {
-  skip_if_not_installed("WeightIt")
-
-  set.seed(1010)
-  n <- 100
-  L <- rnorm(n)
-  A <- rbinom(n, 1, plogis(0.3 * L))
-  Y <- 1 + 0.5 * A + rnorm(n)
-  df <- data.frame(Y = Y, A = A, L = L)
-
-  fake_w <- WeightIt::weightit(A ~ L, data = df, method = "glm")
-  attr(fake_w, "Mparts") <- NULL
-
-  testthat::local_mocked_bindings(
-    weightit = function(...) fake_w,
-    .package = "WeightIt"
-  )
-
-  expect_warning(
-    causat(
-      df,
-      outcome = "Y",
-      treatment = "A",
-      confounders = ~L,
-      estimator = "ipw"
-    ),
-    "Mparts"
-  )
+  # Tolerance 1e-3: WeightIt's Mparts adjusted-score and the
+  # self-contained numDeriv-based cross-derivative agree up to the
+  # linearisation error around beta_hat, which on n = 1000 rows
+  # with smooth DGP lands well inside 1e-4. Leaving headroom for
+  # seed sensitivity.
+  expect_equal(unname(V_if), unname(V_ref), tolerance = 1e-3)
 })
 
 
@@ -758,10 +730,9 @@ test_that("build_point_channel_pieces() returns the right Ch1/grad shapes", {
 })
 
 
-# ── variance_if_ipw: hoisted prop_prep matches per-intervention recompute ──
+# ── IPW sandwich: duplicate interventions return identical entries ──
 
-test_that("variance_if_ipw hoisted prep gives same vcov as per-intervention recompute", {
-  skip_if_not_installed("WeightIt")
+test_that("IPW sandwich treats duplicate interventions as identical columns", {
   set.seed(5555)
   n <- 600
   L <- rnorm(n)
@@ -782,54 +753,19 @@ test_that("variance_if_ipw hoisted prep gives same vcov as per-intervention reco
     interventions = list(
       a1 = static(1),
       a0 = static(0),
-      a1_dup = static(1) # third intervention exercises k >= 3
+      a1_dup = static(1)
     ),
     reference = "a0",
     ci_method = "sandwich"
   )
-  V_hoisted <- res$vcov
+  V <- res$vcov
 
-  # Reference: rebuild prop_prep manually once and apply per intervention.
-  # Must equal the hoisted-path vcov to machine precision (same linear
-  # algebra, just iterated differently).
-  model <- fit$model
-  n_total <- nrow(df)
-  target_idx <- rep(TRUE, n_total)
-  fit_idx <- causatr:::resolve_fit_idx(fit, model)
-
-  data_a_list <- list(
-    a1 = transform(df, A = 1),
-    a0 = transform(df, A = 0),
-    a1_dup = transform(df, A = 1)
-  )
-  preds_list <- lapply(data_a_list, function(da) {
-    as.numeric(stats::predict(model, newdata = da, type = "response"))
-  })
-  mu_hat <- vapply(preds_list, mean, numeric(1))
-
-  prop_prep <- causatr:::prepare_propensity_if(fit, fit_idx, n_total)
-
-  pieces <- causatr:::build_point_channel_pieces(
-    fit,
-    data_a_list,
-    preds_list,
-    mu_hat,
-    target_idx
-  )
-  IF_list <- lapply(seq_along(pieces$grad_list), function(j) {
-    pieces$Ch1_list[[j]] +
-      causatr:::apply_propensity_correction(prop_prep, pieces$grad_list[[j]])
-  })
-  names(IF_list) <- names(data_a_list)
-  V_ref <- causatr:::vcov_from_if(IF_list, n_total, names(data_a_list))
-
-  expect_equal(unname(V_hoisted), unname(V_ref), tolerance = 1e-12)
-
-  # Duplicate interventions should have identical diagonal AND equal
-  # off-diagonal with the first intervention (variance arithmetic
-  # invariant — any drift would mean the hoisting corrupted state).
-  expect_equal(V_hoisted["a1", "a1"], V_hoisted["a1_dup", "a1_dup"])
-  expect_equal(V_hoisted["a1", "a1_dup"], V_hoisted["a1", "a1"])
+  # Duplicate interventions must produce identical diagonal entries AND
+  # identical off-diagonal with the first `a1` — any drift would mean
+  # the per-intervention MSM refit introduced state-dependent noise
+  # across replications of the same intervention.
+  expect_equal(V["a1", "a1"], V["a1_dup", "a1_dup"], tolerance = 1e-10)
+  expect_equal(V["a1", "a1_dup"], V["a1", "a1"], tolerance = 1e-10)
 })
 
 

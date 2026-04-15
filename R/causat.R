@@ -73,7 +73,16 @@
 #' @param model_fn Function. The fitting function for the outcome model in
 #'   g-computation. Must accept `(formula, data, family, weights, ...)`.
 #'   Default `stats::glm`; pass `mgcv::gam` for GAMs, `MASS::glm.nb` for
-#'   negative-binomial, etc. Ignored for `"ipw"` and `"matching"`.
+#'   negative-binomial, etc. For `"ipw"`, `model_fn` also fits the
+#'   placeholder `Y ~ A` display model and is the default propensity
+#'   fitter when `propensity_model_fn` is `NULL`. Ignored for
+#'   `"matching"`.
+#' @param propensity_model_fn Function or `NULL`. IPW only. The fitting
+#'   function for the conditional treatment density \eqn{f(A \mid L)}
+#'   used to build density-ratio weights. Must accept the same
+#'   `(formula, data, family, weights, ...)` signature. `NULL`
+#'   (default) reuses `model_fn`. Pass `mgcv::gam` for a flexible
+#'   propensity.
 #' @param ... Additional arguments passed to the underlying estimation
 #'   function: `WeightIt::weightit()` for `estimator = "ipw"` (e.g.
 #'   `method = "glm"` or `method = "cbps"`); `MatchIt::matchit()` for
@@ -113,13 +122,15 @@
 #' confounders (`confounders_tv`), and their lags up to `history` steps.
 #'
 #' ## IPW (`estimator = "ipw"`)
-#' Calls `WeightIt::weightit()` to estimate propensity-score-based weights
-#' for the desired `estimand`, then fits a weighted outcome model via
-#' `WeightIt::glm_weightit()`. The estimand is fixed at fitting time.
-#' Supports binary, categorical, and continuous treatments (anything
-#' `WeightIt` supports). Only `static()` interventions are supported
-#' in [contrast()], because the weights were estimated under the observed
-#' treatment distribution.
+#' Fits a conditional treatment density \eqn{f(A \mid L)} via
+#' `propensity_model_fn` (defaults to `model_fn`). Each intervention
+#' requested in [contrast()] builds its own density-ratio weight
+#' vector and refits a weighted marginal structural model. Supports
+#' binary (via HT or IPSI), continuous (via smooth shift / scale_by),
+#' and dynamic-on-binary interventions. `threshold()` and continuous
+#' `dynamic()` rules are routed to `estimator = "gcomp"` with a
+#' pointer. Categorical treatments are not supported under IPW;
+#' `estimator = "gcomp"` handles them via predict-then-average.
 #'
 #' **Longitudinal IPW is not supported.** `estimator = "ipw"` with `id`
 #' and `time` aborts with an informative error. Use
@@ -251,6 +262,7 @@ causat <- function(
   weights = NULL,
   type = NULL,
   model_fn = stats::glm,
+  propensity_model_fn = NULL,
   ...
 ) {
   # Capture the call for later display in print/summary of the result.
@@ -370,6 +382,8 @@ causat <- function(
       history,
       numerator,
       weights,
+      model_fn,
+      propensity_model_fn,
       call,
       ...
     ),

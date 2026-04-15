@@ -109,30 +109,11 @@ test_that("gcomp bootstrap replays user `...` via replay_fit (end to end)", {
   expect_true(all(res$estimates$estimate > 0))
 })
 
-test_that("IPW bootstrap replays method=cbps via replay_fit (end to end)", {
-  df <- simulate_binary_continuous(n = 400, seed = 12L)
-  fit <- suppressWarnings(
-    causat(
-      df,
-      outcome = "Y",
-      treatment = "A",
-      confounders = ~L,
-      estimator = "ipw",
-      method = "cbps"
-    )
-  )
-  expect_equal(fit$details$dots$method, "cbps")
-  res <- suppressWarnings(
-    contrast(
-      fit,
-      interventions = list(a1 = static(1), a0 = static(0)),
-      type = "difference",
-      ci_method = "bootstrap",
-      n_boot = 10L
-    )
-  )
-  expect_s3_class(res, "causatr_result")
-})
+# IPW `method = cbps` replay test removed: self-contained IPW no
+# longer routes through `WeightIt::weightit()`, so the `method =`
+# dots-replay path has no target. IPW bootstrap replicates run
+# through `ipw_boot_replicate()` which forwards dots directly into
+# `fit_treatment_model()`.
 
 test_that("replay_fit: R3 — base R catches unknown dots at fit time", {
   # Confirms the dots audit R3 finding: stats::glm's glm.control

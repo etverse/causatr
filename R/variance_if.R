@@ -687,13 +687,15 @@ variance_if <- function(
   }
 
   if (estimator == "ipw") {
-    return(variance_if_ipw(
-      fit,
-      data_a_list,
-      preds_list,
-      mu_hat,
-      target_idx
-    ))
+    # IPW variance is computed directly inside
+    # `compute_ipw_contrast_point()` via
+    # `variance_if_ipw_self_contained()`, which needs the per-
+    # intervention MSM bundles that the dispatcher signature does
+    # not carry. The dispatcher therefore never runs the IPW branch
+    # under the standard pipeline; this abort catches any drift.
+    rlang::abort(
+      "Internal error: IPW variance must be routed through `compute_ipw_contrast_point()`, not the `variance_if()` dispatcher."
+    )
   }
 
   rlang::abort(paste0("Unknown estimator '", estimator, "' in variance_if()."))
@@ -1241,24 +1243,167 @@ variance_if_ipw <- function(
   mu_hat,
   target_idx
 ) {
-  int_names <- names(data_a_list)
-
-  pieces <- build_point_channel_pieces(
-    fit,
-    data_a_list,
-    preds_list,
-    mu_hat,
-    target_idx
+  # Self-contained IPW routes variance through
+  # `variance_if_ipw_self_contained()` inside `compute_ipw_contrast_point()`;
+  # the `variance_if()` dispatcher's IPW branch is unreachable under the
+  # current pipeline. Kept so any accidental call surfaces immediately
+  # instead of silently rebuilding variance via the old WeightIt path.
+  rlang::abort(
+    "Internal error: `variance_if_ipw()` should not be reached. IPW variance is routed through `variance_if_ipw_self_contained()` inside `compute_ipw_contrast_point()`."
   )
-  prop_prep <- prepare_propensity_if(fit, pieces$fit_idx, pieces$n)
+}
 
-  IF_list <- lapply(seq_along(pieces$grad_list), function(j) {
-    pieces$Ch1_list[[j]] +
-      apply_propensity_correction(prop_prep, pieces$grad_list[[j]])
+
+#' Self-contained IPW sandwich variance — straight per-intervention loop
+#'
+#' @description
+#' Per-intervention driver for the self-contained IPW engine. Called by
+#' `compute_ipw_contrast_point()` once the per-intervention MSMs have
+#' been refit. Builds the three pieces
+#' `compute_ipw_if_self_contained_one()` needs — Channel 1, marginal-
+#' mean Jacobian `J`, and the `weight_fn` closure — from the
+#' per-intervention bundle, then aggregates via `vcov_from_if()`.
+#'
+#' ## Scale convention
+#'
+#' Variance is computed **on the MSM fit-row subset** (`n = n_fit`).
+#' `compute_ipw_if_self_contained_one()` asserts `n_fit == n_ps ==
+#' n_total` internally, so we feed it the same `n_fit` for all three
+#' and align Channel 1 / the target mask to the fit-row subset via
+#' `target_idx[fit_rows]`. This matches the hand-derivation in
+#' `test-ipw-branch-b.R`, where the analytic stacked sandwich is also
+#' computed on the full `n = nrow(d)` (all rows had non-missing
+#' outcomes).
+#'
+#' @param fit A `causatr_fit` of estimator `"ipw"`.
+#' @param bundles Named list of per-intervention bundles from
+#'   `compute_ipw_contrast_point()`. Each carries `intervention`,
+#'   `msm_model`, `weights_final`, `mu_hat`.
+#' @param target_idx Logical vector (length `nrow(fit$data)`) flagging
+#'   target-population rows.
+#' @param mu_hat Named numeric vector of marginal-mean point estimates.
+#' @param fit_idx_full Integer vector of MSM fit rows in `1..nrow(fit$data)`.
+#' @param n_total Integer. `nrow(fit$data)`; used only for the
+#'   final vcov scaling step (`vcov_from_if` divides by `n_sub^2`).
+#'
+#' @return A `k x k` variance-covariance matrix.
+#'
+#' @noRd
+variance_if_ipw_self_contained <- function(
+  fit,
+  bundles,
+  target_idx,
+  mu_hat,
+  fit_idx_full,
+  n_total
+) {
+  int_names <- names(bundles)
+  data <- fit$data
+  tm <- fit$details$treatment_model
+  propensity_model <- tm$model
+  ext_w <- fit$details$weights
+
+  # Subset to the MSM fit rows. Everything below operates in the
+  # length-`n_sub` space.
+  fit_rows <- fit$details$fit_rows
+  n_sub <- length(fit_idx_full)
+  target_sub <- target_idx[fit_rows]
+  ext_w_sub <- if (is.null(ext_w)) NULL else ext_w[fit_rows]
+
+  # Target-population weights for the Channel-1 / Jacobian averaging.
+  # `sum_w_target` plays the role of the denominator in a Hájek mean
+  # over the target population; unweighted case uses a uniform weight
+  # so the formula degenerates to `/n_target` — matching the
+  # `build_point_channel_pieces()` recipe.
+  if (is.null(ext_w_sub)) {
+    w_target_vec <- rep(1, n_sub)
+    w_target_vec[!target_sub] <- 0
+    sum_w_target <- sum(target_sub)
+  } else {
+    w_target_vec <- ext_w_sub
+    w_target_vec[!target_sub] <- 0
+    sum_w_target <- sum(ext_w_sub[target_sub])
+  }
+  if (sum_w_target <= 0) {
+    rlang::abort(
+      "variance_if_ipw_self_contained(): target-population weights sum to 0.",
+      class = "causatr_empty_target"
+    )
+  }
+
+  IF_list <- lapply(int_names, function(nm) {
+    b <- bundles[[nm]]
+    msm_model <- b$msm_model
+    mu_hat_j <- mu_hat[[nm]]
+
+    # Counterfactual design matrix on the MSM fit rows under the
+    # per-intervention rule. For a saturated `Y ~ A` this is the
+    # two-column (intercept, A_target) matrix; for `Y ~ 1` it is a
+    # single column of ones. `iv_design_matrix()` handles both.
+    # `apply_intervention()` runs on the full data; we subset to the
+    # fit rows to keep lengths aligned with the MSM row count.
+    data_a_full <- apply_intervention(data, fit$treatment, b$intervention)
+    data_a_sub <- data_a_full[fit_rows]
+    X_star <- iv_design_matrix(msm_model, data_a_sub)
+
+    beta_hat <- stats::coef(msm_model)
+    eta_star <- as.numeric(X_star %*% beta_hat)
+    mu_eta_star <- msm_model$family$mu.eta(eta_star)
+    preds_sub <- msm_model$family$linkinv(eta_star)
+
+    # Channel 1: n_sub * (w_i / sum_w_target) * (pred_i - mu_hat_j),
+    # zero off target. `target_sub` masks the contribution; the
+    # unweighted branch uses `w_target_vec = 1{target}`, and the
+    # weighted branch uses `ext_w_i * 1{target}`. Scaled by
+    # `n_sub` (the `n` passed to `vcov_from_if`).
+    Ch1_i <- n_sub * (w_target_vec / sum_w_target) * (preds_sub - mu_hat_j)
+    Ch1_i[!target_sub] <- 0
+
+    # Marginal-mean Jacobian J = d mu_hat_j / d beta.
+    # For a weighted Hájek marginal mean over the target population,
+    # J = (1/sum_w_target) * sum_target (X_star_i * mu_eta_i * w_i).
+    # This matches `build_point_channel_pieces()`'s gradient.
+    w_vec_j <- w_target_vec # zero off target already
+    J <- as.numeric(crossprod(X_star, w_vec_j * mu_eta_star)) /
+      sum_w_target
+
+    # Per-intervention weight closure. `make_weight_fn()` captures
+    # the treatment model and the intervention by value, then
+    # returns a `function(alpha)` that `compute_ipw_if_self_contained_one()`
+    # feeds into `numDeriv::jacobian()` for the cross-derivative
+    # `A_{beta, alpha}`.
+    wfn <- make_weight_fn(tm, data, b$intervention)
+
+    # The causatr weight closure covers only the density-ratio
+    # piece, not the external survey weight. For the cross-
+    # derivative A_{beta, alpha} only the piece that depends on
+    # alpha matters, and that is the density ratio; the external
+    # weight enters as a constant multiplier of `psi_beta` and is
+    # absorbed inside `compute_ipw_if_self_contained_one()`'s
+    # `apply_model_correction()` call on the MSM side via the
+    # refitted `msm_model`'s own IWLS working weights (which
+    # already include the external factor). So passing `wfn`
+    # unmodified here is correct.
+    if (!is.null(ext_w_sub)) {
+      ext_w_closure <- ext_w_sub
+      base_wfn <- wfn
+      wfn <- function(alpha) base_wfn(alpha) * ext_w_closure
+    }
+
+    compute_ipw_if_self_contained_one(
+      msm_model = msm_model,
+      propensity_model = propensity_model,
+      weight_fn = wfn,
+      J = J,
+      Ch1_i = Ch1_i,
+      fit_idx = seq_len(n_sub),
+      fit_idx_ps = seq_len(n_sub),
+      n_total = n_sub
+    )
   })
   names(IF_list) <- int_names
 
-  vcov_from_if(IF_list, pieces$n, int_names)
+  vcov_from_if(IF_list, n_sub, int_names)
 }
 
 

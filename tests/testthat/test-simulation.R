@@ -1089,13 +1089,12 @@ test_that("ipw × continuous outcome × gaussian family (default) recovers ATE",
   expect_equal(result$contrasts$estimate[1], 3.0, tolerance = 0.3)
 })
 
-test_that("ipw × continuous trt × static at specific levels recovers 1 + 2*a", {
-  # Truth-based test for IPW on a continuous treatment via
-  # generalised propensity score. DGP (simulate_continuous_continuous):
+test_that("ipw × continuous trt × shift recovers the linear MTP contrast", {
+  # Truth-based test for self-contained IPW on a continuous
+  # treatment. DGP (simulate_continuous_continuous):
   #   L ~ N(0, 1); A = 1 + 0.5*L + N(0, 1); Y = 1 + 2*A + L + N(0, 1)
-  # Structural truth: E[Y^a] = 1 + 2*a, contrast(a=1, a=0) = 2.
-  # IPW at a=0 is extrapolating (A ~ N(1, ...)) so we allow a slightly
-  # looser tolerance than the interior value at a=1.
+  # Structural truth: E[Y^{A + delta}] = E[Y] + 2*delta. With
+  # delta = 1 the contrast shift(1) - natural course equals 2.
   df <- simulate_continuous_continuous(n = 3000)
   fit <- causat(
     df,
@@ -1106,66 +1105,37 @@ test_that("ipw × continuous trt × static at specific levels recovers 1 + 2*a",
   )
   res <- contrast(
     fit,
-    interventions = list(a1 = static(1), a0 = static(0)),
-    reference = "a0",
+    interventions = list(s1 = shift(1), s0 = NULL),
+    reference = "s0",
     ci_method = "sandwich"
   )
-  est <- res$estimates
-  e1 <- est$estimate[est$intervention == "a1"]
-  e0 <- est$estimate[est$intervention == "a0"]
-  expect_lt(abs(e1 - 3), 0.1)
-  expect_lt(abs(e0 - 1), 0.2)
-  expect_lt(abs(res$contrasts$estimate[1] - 2), 0.15)
+  expect_lt(abs(res$contrasts$estimate[1] - 2), 0.1)
   expect_true(all(is.finite(res$estimates$se) & res$estimates$se > 0))
 })
 
 
-test_that("ipw × categorical (3-level) treatment × static × sandwich", {
-  # Truth-based IPW test on a 3-level factor treatment. Shares the
-  # DGP with the gcomp categorical test so the two methods can be
-  # cross-checked against the same ground truth.
+test_that("ipw aborts on categorical treatment with a pointer to gcomp", {
+  # Categorical treatment is not implemented in the self-contained
+  # IPW engine (the density evaluator has no multinomial arm).
+  # Users get an explicit rejection from `fit_treatment_model()`
+  # with a pointer at `estimator = "gcomp"`.
   set.seed(100)
-  n <- 3000
-  L <- stats::rnorm(n)
-  e1 <- exp(0.3 + 0.4 * L)
-  e2 <- exp(-0.2 + 0.3 * L)
-  P <- cbind(1, e1, e2) / (1 + e1 + e2)
-  A <- vapply(
-    seq_len(n),
-    function(i) sample(0:2, 1L, prob = P[i, ]),
-    integer(1)
+  n <- 300
+  df <- data.frame(
+    A = factor(sample(c("0", "1", "2"), n, replace = TRUE)),
+    L = stats::rnorm(n),
+    Y = stats::rnorm(n)
   )
-  A <- factor(A, levels = c("0", "1", "2"))
-  beta_A <- c("0" = 0, "1" = 2, "2" = 5)
-  Y <- 1 + beta_A[as.character(A)] + 0.5 * L + stats::rnorm(n)
-  df <- data.frame(A = A, L = L, Y = as.numeric(Y))
-
-  fit <- causat(
-    df,
-    outcome = "Y",
-    treatment = "A",
-    confounders = ~L,
-    estimator = "ipw"
-  )
-  res <- contrast(
-    fit,
-    interventions = list(
-      a0 = static("0"),
-      a1 = static("1"),
-      a2 = static("2")
+  expect_error(
+    causat(
+      df,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~L,
+      estimator = "ipw"
     ),
-    reference = "a0",
-    ci_method = "sandwich"
+    class = "causatr_phase4_categorical_pending"
   )
-
-  est <- res$estimates
-  expect_lt(abs(est$estimate[est$intervention == "a0"] - 1), 0.1)
-  expect_lt(abs(est$estimate[est$intervention == "a1"] - 3), 0.1)
-  expect_lt(abs(est$estimate[est$intervention == "a2"] - 6), 0.1)
-
-  ct <- res$contrasts
-  expect_lt(abs(ct$estimate[ct$comparison == "a1 vs a0"] - 2), 0.1)
-  expect_lt(abs(ct$estimate[ct$comparison == "a2 vs a0"] - 5), 0.1)
 })
 
 
