@@ -200,14 +200,26 @@ dynamic <- function(rule) {
 #' Creates an incremental propensity score intervention (IPSI) that multiplies
 #' each individual's odds of treatment by `delta`. Values of `delta > 1`
 #' increase the probability of treatment; `delta < 1` decrease it. This is a
-#' stochastic modified treatment policy indexed by a single scalar.
+#' stochastic modified treatment policy indexed by a single scalar, and
+#' corresponds to the "shift-the-odds" counterfactual studied by
+#' Kennedy (2019).
 #'
-#' **Status: not yet applicable** (planned Phase 4). The constructor is
-#' implemented and will appear in `fit$interventions`, but
-#' [contrast()] currently aborts when handed an `ipsi()` intervention
-#' because application requires a fitted propensity model that is not yet
-#' wired through the estimation engines. Use [shift()], [scale_by()], or
-#' [static()] with `estimator = "gcomp"` in the meantime.
+#' IPSI is **binary-only** and is only meaningful under
+#' `estimator = "ipw"` — the IPW engine computes the Kennedy closed-form
+#' weight
+#' \eqn{w_i = (\delta A_i + (1 - A_i)) / (\delta p_i + (1 - p_i))}
+#' directly from the fitted propensity, with no counterfactual
+#' treatment value to predict at. `estimator = "gcomp"` and
+#' `estimator = "matching"` therefore do not support `ipsi()` — the
+#' `PHASE_4 §4` intervention × method matrix leaves those columns
+#' blank.
+#'
+#' Until the Phase 4 `fit_ipw()` rewrite lands, the full IPSI path
+#' (propensity model → density-ratio weights → weighted MSM → sandwich)
+#' is not yet wired end-to-end. The constructor, `check_intervention_family_compat()`,
+#' `compute_density_ratio_weights()`, `make_weight_fn()`, and the
+#' `ipsi_weight_formula()` helper all exist; the remaining work is
+#' plumbing them into `fit_ipw()` + `prepare_propensity_if_self_contained()`.
 #'
 #' @param delta Positive numeric. The odds multiplier.
 #'
@@ -237,9 +249,16 @@ ipsi <- function(delta) {
   # delta > 1 makes treatment more likely across the population;
   # delta < 1 makes it less likely. delta must be positive (the
   # odds multiplier can't be zero or negative — you can't "anti-treat").
-  # The constructor stores just the scalar; actual application requires
-  # a fitted propensity model, so apply_single_intervention() currently
-  # aborts for ipsi (Phase 4 work).
+  #
+  # The constructor just stores the scalar. Actual weight computation
+  # happens in `compute_density_ratio_weights()` / `make_weight_fn()`
+  # in `R/ipw_weights.R` via the Kennedy (2019) closed form
+  #   w_i = (delta * A_i + (1 - A_i)) / (delta * p_i + (1 - p_i)),
+  # which is only defined for binary treatments and is only usable
+  # from the IPW engine (there is no counterfactual treatment value
+  # for g-comp to predict at, so `PHASE_4 §4` leaves the gcomp column
+  # for ipsi empty).
+  #
   # Reject NA/NaN up front with a clean message — otherwise the next
   # `delta <= 0` comparison evaluates to `NA` and users see the cryptic
   # "missing value where TRUE/FALSE needed". Mirrors the defensive
@@ -254,21 +273,6 @@ ipsi <- function(delta) {
   if (delta <= 0) {
     rlang::abort("`delta` must be positive.")
   }
-  # One-per-session inform: the constructor succeeds, but `contrast()`
-  # will currently abort on an IPSI intervention (Phase 4). Surfacing
-  # the status at construction time helps users catch the dead end
-  # before they wire a whole pipeline together and hit the contrast
-  # error. `.frequency = "once"` means this fires at most once per
-  # R session regardless of how many IPSI interventions are built.
-  rlang::inform(
-    c(
-      "`ipsi()` is currently dead-ended: the constructor succeeds but `contrast()` aborts.",
-      i = "IPSI requires a fitted propensity model that is not wired through any estimation engine yet (planned for Phase 4).",
-      i = "Use `shift()`, `scale_by()`, or `static()` with `estimator = 'gcomp'` in the meantime."
-    ),
-    .frequency = "once",
-    .frequency_id = "causatr_ipsi_dead_end"
-  )
   new_causatr_intervention("ipsi", list(delta = delta))
 }
 
@@ -537,10 +541,20 @@ apply_single_intervention <- function(data, trt_col, iv) {
       data[, (trt_col) := new_trt]
     },
     ipsi = {
+      # IPSI has no counterfactual treatment value to assign to the
+      # column — the intervention acts on the propensity, not on the
+      # treatment itself. The IPW engine handles IPSI by building a
+      # closed-form weight vector in `compute_density_ratio_weights()`
+      # and never calls `apply_single_intervention()` on the
+      # treatment column at all. If we reach this branch, the caller
+      # is one of the non-IPW estimators (gcomp, matching), which do
+      # not support IPSI (see `PHASE_4 §4` — IPSI's gcomp / matching
+      # columns are blank).
       rlang::abort(
-        paste0(
-          "IPSI interventions require a propensity model and are not yet ",
-          "supported in contrast()."
+        c(
+          "`ipsi()` interventions are only supported under `estimator = 'ipw'`.",
+          i = "The intervention shifts the propensity, not the treatment value, so there is no counterfactual treatment to predict at under g-computation or matching.",
+          i = "Use `causat(..., estimator = 'ipw')` with an IPSI intervention, or rewrite the intervention as a `shift()` / `scale_by()` / `static()` for g-comp / matching."
         ),
         .call = FALSE
       )
