@@ -1,5 +1,7 @@
 ---
 title: "Propensity score matching with causatr"
+code-fold: show
+code-tools: true
 vignette: >
   %\VignetteIndexEntry{Propensity score matching with causatr}
   %\VignetteEngine{quarto::html}
@@ -383,21 +385,20 @@ Any additional MatchIt knobs (`ratio`, `replace`, `caliper`, `distance`,
 
 ## Effect modification with `by`
 
-The `by` argument stratifies causal effect estimates by levels of a variable.
-Here we examine whether the matching-estimated effect of quitting smoking
-differs by sex.
+::: {.callout-important}
+## Matching effect modification is a Phase 8 feature
 
-```{r}
-res_by_sex <- contrast(
-  fit_m,
-  interventions = list(quit = static(1), continue = static(0)),
-  reference = "continue",
-  type = "difference",
-  ci_method = "sandwich",
-  by = "sex"
-)
-res_by_sex
-```
+As with IPW, causatr currently wraps matching in a saturated outcome model
+(`Y ~ A` on the matched sample), so `by = "sex"` just averages a flat
+prediction surface over each subset and returns the pooled ATT/ATE twice.
+Genuine effect modification via matching would require the outcome model
+to carry an `A:sex` interaction term, which is scheduled for Phase 8
+(`PHASE_8_INTERACTIONS.md`).
+
+For heterogeneous treatment effects right now, use
+`estimator = "gcomp"` with an `A:modifier` term in `confounders` — see
+the g-computation vignette for a worked example.
+:::
 
 ## Tidy and glance
 
@@ -410,16 +411,14 @@ glance(res_att_sw)
 
 ## Forest plot
 
-The `plot()` method produces a forest plot using the `forrest` package. Forest
-plots are most useful when displaying multiple estimates, such as effect
-modification results:
+The `plot()` method produces a forest plot using the `forrest` package.
 
 ```{r}
 #| fig-width: 7
 #| fig-height: 4
-#| fig-alt: "Forest plot of the matching-estimated effect of quitting smoking on weight change, stratified by sex."
+#| fig-alt: "Forest plot of the matching-estimated ATT of quitting smoking on weight change."
 #| eval: !expr requireNamespace("forrest", quietly = TRUE)
-plot(res_by_sex)
+plot(res_att_sw)
 ```
 
 ## Diagnostics
@@ -451,20 +450,29 @@ diag$match_quality
 
 ## Summary of covered combinations
 
-| Treatment | Outcome | Contrast | Inference | Estimand | Weights |
-|---|---|---|---|---|---|
-| Binary | Continuous | Difference | Sandwich | ATT | none |
-| Binary | Continuous | Difference | Bootstrap | ATT | none |
-| Binary | Continuous | Difference | Sandwich | ATT | survey |
-| Binary | Continuous | Difference | Sandwich | ATE | none |
-| Binary | Continuous | Difference | Bootstrap | ATE | none |
-| Binary | Continuous | Difference | Sandwich | ATC | none |
-| Binary | Binary | Difference | Sandwich | ATT | none |
-| Binary | Binary | Difference | Bootstrap | ATT | none |
-| Binary | Binary | Ratio | Sandwich | ATT | none |
-| Binary | Binary | OR | Sandwich | ATT | none |
-| Binary | Binary | Ratio | Bootstrap | ATT | none |
-| Categorical (k>2) / Continuous | — | — | — | — | ⛔ rejected |
+**Legend.** ✅ covered and truth-pinned in tests · 🟡 smoke test only ·
+⛔ rejected with an informative error.
+
+| Treatment | Outcome | Intervention | Estimand | Contrast | Inference | Weights | Status |
+|---|---|---|---|---|---|---|---|
+| Binary | Continuous | Static | ATT | Difference | Sandwich | none | ✅ |
+| Binary | Continuous | Static | ATT | Difference | Bootstrap | none | ✅ |
+| Binary | Continuous | Static | ATT | Difference | Sandwich | survey | ✅ |
+| Binary | Continuous | Static | ATE | Difference | Sandwich | none | ✅ |
+| Binary | Continuous | Static | ATE | Difference | Bootstrap | none | ✅ |
+| Binary | Continuous | Static | ATC | Difference | Sandwich | none | ✅ |
+| Binary | Binary | Static | ATT | Difference | Sandwich | none | ✅ |
+| Binary | Binary | Static | ATT | Difference | Bootstrap | none | ✅ |
+| Binary | Binary | Static | ATT | Ratio | Sandwich | none | ✅ |
+| Binary | Binary | Static | ATT | OR | Sandwich | none | ✅ |
+| Binary | Binary | Static | ATT | Ratio | Bootstrap | none | ✅ |
+| Any | Any | Any | Any (with `A:modifier`) | — | — | — | ⛔ Phase 8 |
+| Categorical (k>2) / Continuous | — | — | — | — | — | — | ⛔ binary only |
+| Any | — | Dynamic / Shift / Scale / Threshold / IPSI | — | — | — | — | ⛔ Phase 4 |
+
+See [`FEATURE_COVERAGE_MATRIX.md`](https://github.com/etverse/causatr/blob/main/FEATURE_COVERAGE_MATRIX.md)
+for the authoritative coverage status of every method × treatment × outcome
+× intervention × variance combination.
 
 ## References
 

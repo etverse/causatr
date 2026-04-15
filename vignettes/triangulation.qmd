@@ -1,5 +1,7 @@
 ---
 title: "Methodological triangulation: g-computation, IPW, and matching"
+code-fold: show
+code-tools: true
 vignette: >
   %\VignetteIndexEntry{Methodological triangulation}
   %\VignetteEngine{quarto::html}

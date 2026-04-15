@@ -73,10 +73,12 @@ R/
 ├── coef.R                  # coef.causatr_result + vcov.causatr_result
 ├── confint.R               # confint.causatr_result (respects level arg)
 ├── tidy.R                  # tidy.causatr_result + glance.causatr_result
+├── knit_print.R            # knit_print.causatr_result (tinytable HTML for Quarto/knitr)
 │
 └── # ── Helpers ──────────────────────────────────────
     ├── utils.R             # S3 class constructors + misc internals
-    └── checks.R            # input validation helpers
+    ├── checks.R            # input validation helpers
+    └── zzz.R               # .onLoad hook (conditional knit_print registration)
 ```
 
 ## S3 classes
@@ -187,6 +189,7 @@ Run this in the shell:
 - `causatr_result` stores `family` and `fit_type` from the fit, enabling context-aware printing, plotting (e.g. "risk difference" vs "mean difference"), and log-scale choice for ratio/OR contrasts.
 - `plot.causatr_result()` uses the `forrest` package (Suggests) for publication-ready forest plots. Adapts reference line, log scale, and axis labels to the contrast type and outcome family.
 - `tidy.causatr_result()` and `glance.causatr_result()` provide broom-compatible outputs via `generics` (Imports).
+- `knit_print.causatr_result()` (`R/knit_print.R`) renders a `causatr_result` as a metadata header + two tinytable HTML tables (intervention means + contrasts) when the object is emitted from a knitr/Quarto chunk. It is registered in `R/zzz.R`'s `.onLoad()` hook — conditionally, only when `knitr` is installed — so both `knitr` and `tinytable` stay Suggests-only. If either is missing at render time, the method falls back to `knitr::normal_print()`, which in turn dispatches to `print.causatr_result()`. Vignettes use `code-fold: show` in their YAML so readers can fold the code chunk and still see the formatted result table; `format_tt(markdown = TRUE)` (requires `litedown`, also Suggests) is used where table cells carry LaTeX math so `\(...\)` reaches MathJax.
 - `confint.causatr_result()` recomputes CIs from the stored SE and vcov, correctly respecting the `level` argument.
 - Multivariate treatments (`treatment = c("A1", "A2")`) are supported for g-computation (point and longitudinal). IPW and matching block multivariate treatment with an informative error (planned for Phase 4 / Phase 7).
 - IPW weight diagnostics (`compute_weight_summary()`) use `weightit$treat.type` to determine group labels: "treated"/"control" for binary, per-level for multinomial, "overall" for continuous.

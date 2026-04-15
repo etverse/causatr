@@ -1,5 +1,7 @@
 ---
 title: "G-computation with causatr"
+code-fold: show
+code-tools: true
 vignette: >
   %\VignetteIndexEntry{G-computation with causatr}
   %\VignetteEngine{quarto::html}
@@ -426,12 +428,27 @@ res_dyn
 
 ## Effect modification with `by`
 
-The `by` argument stratifies causal effect estimates by levels of a variable.
-Here we examine whether the effect of quitting smoking differs by sex.
+The `by` argument stratifies causal effect estimates by levels of a
+variable. It averages the fitted model's counterfactual predictions over
+each subset — so it only produces *genuine* effect-modification estimates
+when the outcome model itself contains an interaction between treatment
+and the modifier. Here we refit the model with a `qsmk:sex` term and then
+examine how the effect of quitting smoking differs by sex.
 
 ```{r}
+fit_gc_hte <- causat(
+  nhefs,
+  outcome = "wt82_71",
+  treatment = "qsmk",
+  confounders = ~ sex + age + I(age^2) + race + factor(education) +
+    smokeintensity + I(smokeintensity^2) + smokeyrs + I(smokeyrs^2) +
+    factor(exercise) + factor(active) + wt71 + I(wt71^2) +
+    qsmk:smokeintensity + qsmk:sex,
+  censoring = "censored"
+)
+
 res_by_sex <- contrast(
-  fit_gc,
+  fit_gc_hte,
   interventions = list(quit = static(1), continue = static(0)),
   reference = "continue",
   type = "difference",
@@ -440,6 +457,16 @@ res_by_sex <- contrast(
 )
 res_by_sex
 ```
+
+::: {.callout-note}
+Without the `qsmk:sex` term in the outcome model, `by = "sex"` would still
+run but would return near-identical estimates for both strata (any
+remaining variation coming only from indirect interactions like
+`qsmk:smokeintensity` combined with differing covariate distributions).
+Only point g-computation currently supports treatment × modifier
+interactions directly; for IPW and matching the unified interaction API
+is scheduled for Phase 8.
+:::
 
 ## Tidy and glance
 
@@ -639,34 +666,39 @@ res_gam
 
 ## Summary of covered combinations
 
-| Treatment | Outcome / family | Model | Intervention | Estimand | Contrast | Inference | Weights |
-|---|---|---|---|---|---|---|---|
-| Binary | Continuous / gaussian | GLM | Static | ATE | Difference | Sandwich | none |
-| Binary | Continuous / gaussian | GLM | Static | ATE | Difference | Bootstrap | none |
-| Binary | Continuous / gaussian | GLM | Static | ATT | Difference | Sandwich | none |
-| Binary | Continuous / gaussian | GLM | Static | ATC | Difference | Sandwich | none |
-| Binary | Continuous / gaussian | GLM | Static | Subset | Difference | Sandwich | none |
-| Binary | Continuous / gaussian | GLM | Static | ATE (by sex) | Difference | Sandwich | none |
-| Binary | Continuous / gaussian | GLM | Dynamic | ATE | Difference | Sandwich | none |
-| Binary | Continuous / gaussian | GLM | Static | ATE | Difference | Sandwich | survey |
-| Binary | Continuous / gaussian | GAM (`mgcv::gam`) | Static | ATE | Difference | Sandwich | none |
-| Binary | Binary / binomial | GLM | Static | ATE | Difference | Sandwich | none |
-| Binary | Binary / binomial | GLM | Static | ATE | Difference | Bootstrap | none |
-| Binary | Binary / binomial | GLM | Static | ATE | Ratio | Sandwich | none |
-| Binary | Binary / binomial | GLM | Static | ATE | OR | Sandwich | none |
-| Binary | Count / poisson | GLM | Static | ATE | Ratio | Sandwich | none |
-| Continuous | Continuous / gaussian | GLM | Static | ATE | Difference | Sandwich | none |
-| Continuous | Continuous / gaussian | GLM | Shift | ATE | Difference | Sandwich | none |
-| Continuous | Continuous / gaussian | GLM | Scale | ATE | Difference | Sandwich | none |
-| Continuous | Continuous / gaussian | GLM | Threshold | ATE | Difference | Sandwich | none |
-| Continuous | Continuous / gaussian | GLM | Dynamic | ATE | Difference | Sandwich | none |
-| Continuous | Continuous / gaussian | GLM | Shift | ATE | Difference | Bootstrap | none |
-| Categorical (k>2) | Continuous / gaussian | GLM | Static | ATE | Difference | Sandwich | none |
-| Multivariate | Continuous / gaussian | GLM | Joint static | ATE | Difference | Sandwich | none |
+**Legend.** ✅ covered and truth-pinned in tests · 🟡 smoke test only ·
+⛔ rejected with an informative error.
 
-See `FEATURE_COVERAGE_MATRIX.md` for the full list of truth-pinned combinations
-(including censoring, quasibinomial, gamma, and the numeric two-tier
-variance fallback for custom `model_fn` choices).
+| Treatment | Outcome | Intervention | Estimand | Contrast | Inference | Weights | Status |
+|---|---|---|---|---|---|---|---|
+| Binary | Continuous (gaussian, GLM) | Static | ATE | Difference | Sandwich | none | ✅ |
+| Binary | Continuous (gaussian, GLM) | Static | ATE | Difference | Bootstrap | none | ✅ |
+| Binary | Continuous (gaussian, GLM) | Static | ATT | Difference | Sandwich | none | ✅ |
+| Binary | Continuous (gaussian, GLM) | Static | ATC | Difference | Sandwich | none | ✅ |
+| Binary | Continuous (gaussian, GLM) | Static | Subset | Difference | Sandwich | none | ✅ |
+| Binary | Continuous (gaussian, GLM) | Static | ATE (by sex, `A:sex` in model) | Difference | Sandwich | none | ✅ |
+| Binary | Continuous (gaussian, GLM) | Dynamic | ATE | Difference | Sandwich | none | ✅ |
+| Binary | Continuous (gaussian, GLM) | Static | ATE | Difference | Sandwich | survey | ✅ |
+| Binary | Continuous (gaussian, GAM) | Static | ATE | Difference | Sandwich | none | ✅ |
+| Binary | Binary (binomial, GLM) | Static | ATE | Difference | Sandwich | none | ✅ |
+| Binary | Binary (binomial, GLM) | Static | ATE | Difference | Bootstrap | none | ✅ |
+| Binary | Binary (binomial, GLM) | Static | ATE | Ratio | Sandwich | none | ✅ |
+| Binary | Binary (binomial, GLM) | Static | ATE | OR | Sandwich | none | ✅ |
+| Binary | Count (poisson, GLM) | Static | ATE | Ratio | Sandwich | none | ✅ |
+| Continuous | Continuous (gaussian, GLM) | Static | ATE | Difference | Sandwich | none | ✅ |
+| Continuous | Continuous (gaussian, GLM) | Shift | ATE | Difference | Sandwich | none | ✅ |
+| Continuous | Continuous (gaussian, GLM) | Scale | ATE | Difference | Sandwich | none | ✅ |
+| Continuous | Continuous (gaussian, GLM) | Threshold | ATE | Difference | Sandwich | none | ✅ |
+| Continuous | Continuous (gaussian, GLM) | Dynamic | ATE | Difference | Sandwich | none | ✅ |
+| Continuous | Continuous (gaussian, GLM) | Shift | ATE | Difference | Bootstrap | none | ✅ |
+| Categorical (k>2) | Continuous (gaussian, GLM) | Static | ATE | Difference | Sandwich | none | ✅ |
+| Multivariate | Continuous (gaussian, GLM) | Joint static | ATE | Difference | Sandwich | none | ✅ |
+
+See [`FEATURE_COVERAGE_MATRIX.md`](https://github.com/etverse/causatr/blob/main/FEATURE_COVERAGE_MATRIX.md)
+for the authoritative coverage status of every method × treatment × outcome
+× intervention × variance combination, including censoring, quasibinomial,
+gamma, and the numeric two-tier variance fallback for custom `model_fn`
+choices.
 
 ## References
 

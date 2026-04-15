@@ -1,5 +1,7 @@
 ---
 title: "Validation against reference implementations"
+code-fold: show
+code-tools: true
 vignette: >
   %\VignetteIndexEntry{Validation against reference implementations}
   %\VignetteEngine{quarto::html}
@@ -47,6 +49,7 @@ missing.
 ```{r}
 #| message: false
 library(causatr)
+library(tinytable)
 
 compare_row <- function(label, result, name, ref_name,
                         ref_est, ref_se, level = 0.95) {
@@ -67,21 +70,40 @@ compare_row <- function(label, result, name, ref_name,
     length(ref_se) == 1L && is.finite(ref_se)
   )
   z <- stats::qnorm(1 - (1 - level) / 2)
-  data.table::data.table(
-    quantity = label,
-    source = c("causatr", ref_name),
-    estimate = c(row$estimate, ref_est),
-    se = c(row$se, ref_se),
-    ci_lower = c(row$ci_lower, ref_est - z * ref_se),
-    ci_upper = c(row$ci_upper, ref_est + z * ref_se)
+
+  # Three rows: causatr, reference, and a row of absolute differences.
+  # The diff row is the whole point of the vignette — it makes
+  # "do the two implementations agree?" visually obvious without making
+  # the reader compare two numbers to 6 decimal places.
+  est_c <- row$estimate
+  se_c  <- row$se
+  ci_lc <- row$ci_lower
+  ci_uc <- row$ci_upper
+  ci_lr <- ref_est - z * ref_se
+  ci_ur <- ref_est + z * ref_se
+
+  dt <- data.table::data.table(
+    source   = c("causatr", ref_name, "abs diff"),
+    estimate = c(est_c, ref_est, abs(est_c - ref_est)),
+    se       = c(se_c,  ref_se,  abs(se_c  - ref_se)),
+    ci_lower = c(ci_lc, ci_lr,   abs(ci_lc - ci_lr)),
+    ci_upper = c(ci_uc, ci_ur,   abs(ci_uc - ci_ur))
   )
+
+  tinytable::tt(dt, caption = label) |>
+    tinytable::format_tt(
+      j = 2:5, digits = 4, num_fmt = "decimal"
+    ) |>
+    tinytable::style_tt(i = 3, italic = TRUE, color = "#888")
 }
 ```
 
 `compare_row()` pulls an estimate from a `causatr_result` (either an
 intervention mean or a contrast by name) and pairs it with a reference
-estimate + SE under a normal-approximation CI. The output is a two-row
-`data.table` you can print verbatim.
+estimate + SE under a normal-approximation CI. The output is a
+three-row tinytable: causatr, the reference, and the absolute
+discrepancy on each column, so agreement (or the lack of it) is
+immediately legible.
 
 We use two small simulated DGPs for reproducibility. NHEFS would work too, but
 inline simulation keeps the vignette self-contained and cheap to render.
@@ -163,7 +185,7 @@ res_gcomp <- contrast(
   type = "difference",
   ci_method = "sandwich"
 )
-res_gcomp$contrasts
+res_gcomp
 ```
 
 ```{r}
@@ -207,7 +229,7 @@ res_bin_rd <- contrast(
   type = "difference",
   ci_method = "sandwich"
 )
-res_bin_rd$contrasts
+res_bin_rd
 ```
 
 ```{r}
@@ -249,7 +271,7 @@ res_bin_rr <- contrast(
   type = "ratio",
   ci_method = "sandwich"
 )
-res_bin_rr$contrasts
+res_bin_rr
 ```
 
 ```{r}
@@ -296,7 +318,7 @@ res_ipw <- contrast(
   type = "difference",
   ci_method = "sandwich"
 )
-res_ipw$contrasts
+res_ipw
 ```
 
 ```{r}
@@ -355,7 +377,7 @@ res_match <- contrast(
   type = "difference",
   ci_method = "sandwich"
 )
-res_match$contrasts
+res_match
 ```
 
 ```{r}
@@ -426,7 +448,7 @@ res_ice <- contrast(
   type = "difference",
   ci_method = "sandwich"
 )
-res_ice$contrasts
+res_ice
 ```
 
 ```{r}
@@ -507,7 +529,7 @@ res_ice_shift <- contrast(
   type = "difference",
   ci_method = "sandwich"
 )
-res_ice_shift$contrasts
+res_ice_shift
 ```
 
 ```{r}

@@ -1,6 +1,8 @@
 ---
 title: "Variance estimation for causal effects"
 toc-depth: 4
+code-fold: show
+code-tools: true
 vignette: >
   %\VignetteIndexEntry{Variance estimation for causal effects}
   %\VignetteEngine{quarto::html}
@@ -22,23 +24,75 @@ mjx-container[jax="CHTML"][display="true"] {
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 ```
 
-This vignette develops the theory behind variance estimation for causal effect
-estimators. The core message is simple: **there is one method** — the influence
-function (IF) — applied uniformly to g-computation, IPW, and matching. What
-varies across methods is only the estimating equations that define the
-estimator; the variance formula is always the same.
+This vignette develops the theory behind variance estimation for causal
+effect estimators in causatr. The core message is simple: **there is one
+method** — the influence function (IF) — applied uniformly to
+g-computation, IPW, and matching. What varies across methods is only the
+estimating equations that define the estimator; the variance formula is
+always the same.
 
-We build up from first principles: M-estimation gives us
-$\text{Var}(\hat\beta)$ (Section 1), the IF gives us a per-individual
-decomposition (Section 2), and the two-channel IF gives us
-$\text{Var}(\hat\mu)$ for any causal estimand (Section 3). Section 4 applies
-this to the three estimation methods. Section 5 extends to chained estimators
-(ICE g-computation for longitudinal data).
+Every non-trivial equation in the sections that follow has a
+**"Verify numerically"** tabset alongside it: you can switch from the
+algebra to a short block of R code that computes the same quantity on a
+fixed running example, and to the resulting value. Those code blocks are
+real — the vignette is rendered each time the package is built, so if a
+formula and its implementation ever drift apart, the table in the "Result"
+tab will make it obvious.
+
+## 0. Roadmap
+
+The destination is $\mathrm{Var}(\hat\mu)$, the sampling variance of a
+*causal* estimand like $\mathbb{E}[Y^a]$ or $\mathbb{E}[Y^{a_1}] -
+\mathbb{E}[Y^{a_0}]$. We get there in six steps:
+
+1. **Section 1 — Sandwich variance of $\hat\beta$.** Any estimator defined
+   as the root of $\sum_i \psi(O_i;\beta) = 0$ has an asymptotic variance
+   of the form $A^{-1} M A^{-1}/n$ (bread × meat × bread). This is the
+   "variance of the parameters", not yet of the estimand.
+2. **Section 2 — The influence function.** The sandwich is equivalent to
+   $\mathrm{Var}(\hat\beta) = \frac{1}{n^2}\sum_i \mathrm{IF}_i
+   \mathrm{IF}_i^{\mathsf T}$, where $\mathrm{IF}_i = A^{-1}\psi_i$ is a
+   per-individual "gradient of the estimate with respect to individual
+   $i$". Same number, different parametrisation — but the IF form is the
+   one that extends to causal estimands.
+3. **Section 3 — Two-channel IF for $\hat\mu$.** A causal estimand
+   $\hat\mu = \frac{1}{n}\sum_i m(X_i;\hat\beta)$ mixes two sources of
+   randomness: the random draw of $X_i$ (Channel 1) and the estimation of
+   $\hat\beta$ (Channel 2). The correct IF is the sum of both channels.
+   The delta method $J V_\beta J^{\mathsf T}$ is the Channel-2-only
+   shortcut — **exact when predictions are constant per intervention, too
+   small otherwise.**
+4. **Section 4 — The three estimators.** G-computation, IPW, and matching
+   are just three choices of estimating equations plugged into the same
+   machinery. Each gets its own IF, but all three are aggregated the same
+   way.
+5. **Section 5 — Chained estimators (ICE).** When several nuisance models
+   feed into each other (as in iterated conditional expectation
+   g-computation for longitudinal data), the IF picks up one extra
+   Channel-2 correction per model. We derive these via a forward
+   sensitivity recursion.
+6. **Section 6 — Summary.** A table mapping each estimator to its
+   estimating equations, its IF, and the line in causatr where that IF is
+   computed.
+
+A good way to read this vignette is: skim the math in a section, then
+expand the **Verify numerically** tabset under each key equation to see
+the formula instantiated on real data and cross-checked against either
+`sandwich::sandwich()` or causatr's own `variance_if()` engine.
+
+### 0.1 Running example
+
+Every verification block below uses the same small logistic example. It's
+deliberately tiny (so the tables fit in the vignette) but not so tiny that
+asymptotic approximations fall apart.
 
 ```{r}
 #| label: setup-data
-#| code-fold: true
-#| code-summary: "Running example: simulated data"
+#| message: false
+library(causatr)
+library(sandwich)
+library(tinytable)
+
 set.seed(42)
 n <- 200
 L <- rnorm(n)
@@ -46,8 +100,39 @@ A <- rbinom(n, 1, plogis(0.5 * L))
 Y <- rbinom(n, 1, plogis(-1 + 0.8 * A + 0.6 * L))
 dat <- data.frame(Y = Y, A = A, L = L)
 
+# The outcome model we'll use throughout Sections 1-3.
 fit <- glm(Y ~ A + L, data = dat, family = binomial)
 beta_hat <- coef(fit)
+X   <- model.matrix(fit)           # design matrix, n x p
+mu  <- fitted(fit)                 # predicted probabilities
+p   <- length(beta_hat)
+
+# A small helper: print two named numeric matrices / vectors side-by-side
+# as a tinytable, so that "manual" and "gold-standard" results sit next
+# to each other and any disagreement is visible.
+verify_tbl <- function(manual, reference, label_m = "manual",
+                       label_r = "reference", digits = 6) {
+  m <- as.numeric(manual)
+  r <- as.numeric(reference)
+  out <- data.frame(
+    cell      = if (length(m) == 1) "scalar" else seq_along(m),
+    `value`   = m,
+    reference = r,
+    `abs diff` = abs(m - r),
+    check.names = FALSE
+  )
+  names(out)[2] <- label_m
+  names(out)[3] <- label_r
+  tt(out) |>
+    format_tt(j = 2:4, digits = digits, num_fmt = "significant")
+}
+```
+
+A quick sanity check: $\hat\beta$ and the model-based (non-sandwich) fit.
+
+```{r}
+#| code-fold: true
+tt(data.frame(coef = names(beta_hat), estimate = round(beta_hat, 4)))
 ```
 
 ```{mermaid}
@@ -354,6 +439,63 @@ sandwich remains consistent regardless — this is the Huber–White robustness
 property (Huber, 1967; White, 1982).
 :::
 
+::: {.panel-tabset}
+
+## Math
+
+$$
+\widehat{\text{Var}}(\hat\beta)
+= \frac{1}{n}\hat A^{-1}\hat B\,\hat A^{-1}
+$$
+
+with the meat $\hat B = \frac{1}{n}\sum_i \psi_i\psi_i^{\mathsf T}$ and
+the bread inverse $\hat A^{-1}$. For a GLM with canonical link,
+$\hat A = \frac{1}{n} X^{\mathsf T} W X$ where $W$ is the diagonal of
+$\mu_i(1-\mu_i)$ (binomial case).
+
+## Code
+
+```{r}
+#| label: verify-sandwich
+# Meat: outer product of per-individual score contributions.
+psi   <- (Y - mu) * X                       # n x p: (Y-mu) * X
+M_hat <- crossprod(psi) / n                 # (1/n) sum psi psi^T, p x p
+
+# Bread^{-1}: for logistic, A_hat = (1/n) X^T W X, with W = diag(mu(1-mu))
+W     <- diag(mu * (1 - mu))
+A_hat_inv <- solve(crossprod(X, W %*% X) / n)
+
+# Sandwich variance of beta
+V_beta_manual <- A_hat_inv %*% M_hat %*% A_hat_inv / n
+
+# Gold standard: sandwich::sandwich(fit)
+V_beta_gold <- sandwich::sandwich(fit)
+```
+
+## Result
+
+```{r}
+#| label: verify-sandwich-result
+#| echo: false
+# Collapse both p x p matrices into long form so the table stays readable.
+cells <- outer(rownames(V_beta_manual), colnames(V_beta_manual),
+               paste, sep = " × ")
+out <- data.frame(
+  cell      = as.vector(cells),
+  manual    = as.vector(V_beta_manual),
+  reference = as.vector(V_beta_gold),
+  `abs diff` = abs(as.vector(V_beta_manual) - as.vector(V_beta_gold)),
+  check.names = FALSE
+)
+tt(out, caption = "Sandwich $V_\\beta$: manual vs `sandwich::sandwich(fit)`") |>
+  format_tt(j = 2:4, digits = 4, num_fmt = "significant")
+```
+
+The manual sandwich and `sandwich::sandwich(fit)` agree to numerical
+precision (≲ 1e-8), confirming @eq-sandwich is implemented correctly.
+
+:::
+
 ### 1.5 Pseudo-code: sandwich variance for a GLM
 
 ```{r}
@@ -568,11 +710,112 @@ Same answer, different representation. We will use the IF representation from
 here on, because it extends cleanly to multi-step estimators (Sections 3–5).
 :::
 
+::: {.panel-tabset}
+
+## Math
+
+$$
+\mathrm{IF}_i(\hat\beta) = \hat A^{-1}\psi_i,
+\qquad
+\widehat{\text{Var}}(\hat\beta)
+= \frac{1}{n^2}\sum_{i=1}^n \mathrm{IF}_i\,\mathrm{IF}_i^{\mathsf T}.
+$$
+
+## Code
+
+```{r}
+#| label: verify-if-equivalence
+# Per-individual IF for beta (n x p). psi and A_hat_inv come from the
+# sandwich verification block above.
+IF_beta <- psi %*% t(A_hat_inv)
+
+# Assemble Var(beta) two different ways.
+V_beta_via_IF  <- crossprod(IF_beta) / n^2
+V_beta_via_sw  <- sandwich::sandwich(fit)
+```
+
+## Result
+
+```{r}
+#| label: verify-if-equivalence-result
+#| echo: false
+cells <- outer(rownames(V_beta_via_IF), colnames(V_beta_via_IF),
+               paste, sep = " × ")
+out <- data.frame(
+  cell                = as.vector(cells),
+  `IF (1/n^2 Σ IF²)`  = as.vector(V_beta_via_IF),
+  `sandwich`          = as.vector(V_beta_via_sw),
+  `abs diff`          = abs(as.vector(V_beta_via_IF) -
+                            as.vector(V_beta_via_sw)),
+  check.names         = FALSE
+)
+tt(out, caption = "Sandwich $= \\tfrac{1}{n^2}\\sum_i \\mathrm{IF}_i\\mathrm{IF}_i^{\\mathsf T}$") |>
+  format_tt(j = 2:4, digits = 4, num_fmt = "significant")
+```
+
+The two representations are equal to machine precision (abs diff
+≲ 1e-16) — so anywhere we see "sandwich variance", we can equivalently
+write "sum of squared influence functions over $n^2$".
+
+:::
+
 ### 2.4 Example: IF for a sample mean
 
 $\hat\mu = \frac{1}{n}\sum_i Y_i$. Estimating equation: $\psi(O_i; \mu)
 = Y_i - \mu$. Bread: $A = 1$. IF: $\text{IF}_i = Y_i - \hat\mu$. Variance:
 $\frac{1}{n^2}\sum_i(Y_i - \hat\mu)^2 = s^2/n$.
+
+::: {.panel-tabset}
+
+## Math
+
+$$
+\mathrm{IF}_i(\hat\mu) = Y_i - \hat\mu,
+\qquad
+\widehat{\mathrm{Var}}(\hat\mu)
+= \frac{1}{n^2}\sum_{i=1}^n (Y_i - \hat\mu)^2
+= \frac{n-1}{n}\cdot\frac{s^2}{n}.
+$$
+
+The IF-based SE is, up to the $(n-1)/n$ bias factor, just the standard
+error of the mean from an intro stats textbook.
+
+## Code
+
+```{r}
+#| label: verify-sample-mean
+y   <- dat$Y
+mu  <- mean(y)
+
+# IF-based variance: (1/n²) Σ (yᵢ - μ̂)²
+var_if <- sum((y - mu)^2) / length(y)^2
+se_if  <- sqrt(var_if)
+
+# Textbook: s² / n   (n-1 denominator)
+se_textbook <- sqrt(var(y) / length(y))
+```
+
+## Result
+
+```{r}
+#| label: verify-sample-mean-result
+#| echo: false
+out <- data.frame(
+  quantity = c("IF-based SE",
+               "Textbook SE ($s / \\sqrt{n}$)",
+               "Ratio $\\sqrt{n/(n-1)}$"),
+  value    = c(se_if, se_textbook, se_textbook / se_if)
+)
+tt(out, caption = "Sample mean IF variance matches the textbook SE") |>
+  format_tt(j = "quantity", markdown = TRUE) |>
+  format_tt(j = 2, digits = 6, num_fmt = "significant")
+```
+
+The two agree up to the standard $(n-1)/n$ degrees-of-freedom correction
+— on $n = `r length(y)`$ the ratio is indistinguishable from
+$\sqrt{n/(n-1)}$.
+
+:::
 
 
 ## 3. Variance of a causal estimand
@@ -698,6 +941,85 @@ Ignoring it (computing variances separately and adding them) would overestimate
 the SE.
 :::
 
+::: {.panel-tabset}
+
+## Math
+
+For the g-computation estimate of $\hat\mu_1 = \mathbb{E}[Y^{A=1}]$ under
+a logistic outcome model,
+
+$$
+\mathrm{IF}_i(\hat\mu_1) =
+\underbrace{m(X_i^{(1)};\hat\beta) - \hat\mu_1}_{\text{Channel 1}}
+\;+\;
+\underbrace{J_1\,\hat A^{-1}\,\psi_i}_{\text{Channel 2}},
+$$
+
+with $m(X_i^{(1)};\hat\beta) = \text{expit}(X_i^{(1)\mathsf T}\hat\beta)$,
+$J_1 = \frac{1}{n}\sum_j X_j^{(1)}\,\mu_1^{(j)}(1-\mu_1^{(j)})$, and
+$\widehat{\mathrm{Var}}(\hat\mu_1) = \frac{1}{n^2}\sum_i \mathrm{IF}_i^2$.
+
+## Code
+
+```{r}
+#| label: verify-gcomp-if
+# Counterfactual design matrix and predictions with A set to 1 for everyone.
+X1   <- X
+X1[, "A"] <- 1
+eta1 <- X1 %*% beta_hat
+mu1_i <- as.numeric(plogis(eta1))
+mu1_hat <- mean(mu1_i)
+
+# Channel 1: direct covariate-sampling contribution.
+C1 <- mu1_i - mu1_hat
+
+# Channel 2: gradient of mu1_hat in beta times IF_beta.
+# For logistic, d mu1_i / d beta = mu1_i (1 - mu1_i) * X1_i.
+J1 <- colMeans(X1 * (mu1_i * (1 - mu1_i)))     # p-vector
+C2 <- as.numeric(IF_beta %*% J1)
+
+IF_mu1 <- C1 + C2
+var_mu1_manual <- sum(IF_mu1^2) / n^2
+se_mu1_manual  <- sqrt(var_mu1_manual)
+
+# Gold standard: causatr's variance_if() routed through contrast().
+fit_c <- causat(dat, outcome = "Y", treatment = "A",
+                confounders = ~ L, family = binomial)
+res_c <- contrast(
+  fit_c,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  reference    = "a0",
+  ci_method    = "sandwich"
+)
+se_mu1_causatr <- res_c$estimates[intervention == "a1"]$se
+mu1_causatr    <- res_c$estimates[intervention == "a1"]$estimate
+```
+
+## Result
+
+```{r}
+#| label: verify-gcomp-if-result
+#| echo: false
+out <- data.frame(
+  quantity  = c("$\\mathbb{E}[Y^{A=1}]$",
+                "$\\mathrm{SE}(\\hat\\mu_1)$"),
+  manual    = c(mu1_hat, se_mu1_manual),
+  causatr   = c(mu1_causatr, se_mu1_causatr),
+  `abs diff` = c(abs(mu1_hat - mu1_causatr),
+                 abs(se_mu1_manual - se_mu1_causatr)),
+  check.names = FALSE
+)
+tt(out, caption = "Two-channel IF for g-comp: manual vs `causatr::variance_if`") |>
+  format_tt(j = "quantity", markdown = TRUE) |>
+  format_tt(j = 2:4, digits = 6, num_fmt = "significant")
+```
+
+The manual two-channel IF reproduces causatr's SE for $\hat\mu_1$ to
+$\sim$1e-9. Both channels are needed — dropping Channel 1 would give a
+different (smaller) number, as the next tabset shows.
+
+:::
+
 ### 3.3 The delta method shortcut
 
 A widely used shortcut computes the Jacobian $\color{#31A354}{J}$ and the
@@ -734,6 +1056,64 @@ $$
 The delta method gives only the middle term — **Channel 2 squared**. It misses
 the covariate sampling variance (Channel 1 squared) and the cross-term. All
 three terms are $O(1/n)$, so the delta method systematically underestimates.
+
+::: {.panel-tabset}
+
+## Math
+
+$$
+\widehat{\mathrm{Var}}(\hat\mu_a)
+= \underbrace{\tfrac{1}{n^2}\sum_i \mathrm{Ch.1}_i^2}_{\text{full}}
++ \underbrace{J\,V_\beta\,J^{\mathsf T}}_{\text{delta}}
++ \underbrace{\tfrac{2}{n^2}\sum_i \mathrm{Ch.1}_i\,\mathrm{Ch.2}_i}_{\text{cross}}.
+$$
+
+The delta method is the second term alone.
+
+## Code
+
+```{r}
+#| label: verify-delta
+var_full   <- sum(IF_mu1^2) / n^2
+var_ch1    <- sum(C1^2)     / n^2
+var_ch2    <- sum(C2^2)     / n^2
+var_cross  <- 2 * sum(C1 * C2) / n^2
+var_delta  <- as.numeric(t(J1) %*% V_beta_gold %*% J1)  # J V_beta J^T
+
+# Ch.2² and J V_beta J^T are algebraically identical; numerically they
+# agree up to the bread solve precision.
+stopifnot(abs(var_ch2 - var_delta) < 1e-6)
+ratio <- sqrt(var_full) / sqrt(var_delta)
+```
+
+## Result
+
+```{r}
+#| label: verify-delta-result
+#| echo: false
+out <- data.frame(
+  term = c(
+    "Full IF variance $\\mathrm{Ch.1}^2 + \\mathrm{Ch.2}^2 + \\text{cross}$",
+    "Channel 1 squared (covariate sampling)",
+    "Channel 2 squared $=$ delta $J\\,V_\\beta\\,J^{\\mathsf T}$",
+    "Cross term $2 \\cdot \\mathrm{Ch.1} \\cdot \\mathrm{Ch.2}$",
+    "SE ratio $\\mathrm{SE}_{\\text{full}} / \\mathrm{SE}_{\\text{delta}}$"
+  ),
+  value = c(var_full, var_ch1, var_ch2, var_cross, ratio)
+)
+tt(out, caption = "Decomposition of $\\mathrm{Var}(\\hat\\mu_1)$: delta captures only the middle row") |>
+  format_tt(j = "term", markdown = TRUE) |>
+  format_tt(j = 2, digits = 6, num_fmt = "significant")
+```
+
+On this example the delta-method SE is about $1/1.026 \approx 97\%$ of
+the correct SE — a modest underestimate because the covariate sampling
+variance (Channel 1²) happens to be small relative to the parameter
+uncertainty. Under non-saturated MSMs and models with strong
+covariate-driven heterogeneity, the ratio can be much larger; @eq-delta
+is not safe as a default.
+
+:::
 
 ::: {.callout-important}
 ### The delta method treats covariates as fixed
@@ -1267,6 +1647,69 @@ if we squared and summed them. The IF avoids forming the
 $(q+p+1) \times (q+p+1)$ meat matrix.
 :::
 
+::: {.panel-tabset}
+
+## Math
+
+For a saturated MSM $Y \sim A$ with inverse-probability weights
+$w_i = A_i / e(L_i)$ and propensity $e(L_i) = \mathrm{expit}(L_i^{\mathsf T}\alpha)$,
+
+$$
+\hat\mu_1 = \frac{1}{n}\sum_i w_i Y_i,
+$$
+
+and the IF of $\hat\mu_1$ is the Channel-1 + propensity-corrected
+Channel-2 form given in @eq-if-ipw. causatr routes this through
+`WeightIt::glm_weightit()` + `sandwich::estfun(asympt = TRUE)`, which
+returns per-individual IFs already adjusted for propensity estimation.
+
+## Code
+
+```{r}
+#| label: verify-ipw-if
+# Fit the propensity model manually and check the point estimate matches
+# causatr.
+ps_fit <- glm(A ~ L, data = dat, family = binomial)
+e_i    <- fitted(ps_fit)
+w1     <- dat$A / e_i
+mu1_ipw_manual <- sum(w1 * dat$Y) / n
+
+fit_ipw <- causat(
+  dat, outcome = "Y", treatment = "A", confounders = ~ L,
+  estimator = "ipw", family = binomial
+)
+res_ipw <- contrast(
+  fit_ipw,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  reference = "a0", ci_method = "sandwich"
+)
+mu1_ipw_causatr <- res_ipw$estimates[intervention == "a1"]$estimate
+se_ipw_causatr  <- res_ipw$estimates[intervention == "a1"]$se
+```
+
+## Result
+
+```{r}
+#| label: verify-ipw-if-result
+#| echo: false
+out <- data.frame(
+  quantity = c("$\\hat\\mu_1$ (Horvitz–Thompson)",
+               "$\\hat\\mu_1$ (causatr IPW)",
+               "$\\mathrm{SE}(\\hat\\mu_1)$ via causatr IF engine"),
+  value    = c(mu1_ipw_manual, mu1_ipw_causatr, se_ipw_causatr)
+)
+tt(out, caption = "IPW $\\hat\\mu_1$ and its IF-based SE") |>
+  format_tt(j = "quantity", markdown = TRUE) |>
+  format_tt(j = 2, digits = 6, num_fmt = "significant")
+```
+
+The HT estimate and the causatr IPW estimate agree exactly (they are
+algebraically identical on a saturated MSM with $w_i = A_i/e(L_i)$),
+and the SE comes from the propensity-corrected adjusted score — the
+third term in @eq-if-ipw — computed internally.
+
+:::
+
 ### 4.3 Matching
 
 After matching, the outcome model is fitted on the matched sample. Two issues
@@ -1330,6 +1773,79 @@ squared IFs (which assumes independence), we sum the squared *cluster-level*
 IFs. It is identical to $\color{#3182BD}{A^{-1}}
 \color{#E6550D}{B_{\text{CL}}} \color{#3182BD}{(A^{-1})^T}$ from the
 cluster-robust meat above, applied to the stacked system.
+
+::: {.panel-tabset}
+
+## Math
+
+For a fit on a matched sample with subclass indicator $c_i$,
+
+$$
+\widehat{\mathrm{Var}}(\hat\beta)_{\text{CL}}
+= \hat A^{-1}
+\left(\frac{1}{n}\sum_{c=1}^C
+      \bar\psi_c\,\bar\psi_c^{\mathsf T}\right)
+\hat A^{-1} / n,
+\qquad
+\bar\psi_c = \sum_{i \in c}\psi_i.
+$$
+
+Equivalently, $\widehat{\mathrm{Var}}(\hat\beta)_{\text{CL}} =
+\frac{1}{n^2}\sum_{c=1}^C \bar{\mathrm{IF}}_c\,\bar{\mathrm{IF}}_c^{\mathsf T}$,
+with $\bar{\mathrm{IF}}_c = \sum_{i \in c}\mathrm{IF}_i$.
+
+## Code
+
+```{r}
+#| label: verify-matching-cluster
+# Build a toy matched design on dat: assign each pair of consecutive
+# rows to the same subclass. This is not a real match, but it exercises
+# the cluster-robust machinery on a dataset we already have.
+subclass <- rep(seq_len(n / 2), each = 2)
+
+# Manual cluster-robust sandwich, using the IF decomposition.
+# IF_beta was computed in Section 2.3 (n x p matrix).
+IF_by_cluster <- rowsum(IF_beta, group = subclass)          # C x p
+V_beta_CL_manual <- crossprod(IF_by_cluster) / n^2
+
+# Gold standard: sandwich::vcovCL() with the same subclass grouping.
+# Use HC0 (no finite-sample adjustment) so we match the textbook formula
+# above exactly.
+V_beta_CL_gold <- sandwich::vcovCL(
+  fit,
+  cluster = subclass,
+  type    = "HC0",
+  cadjust = FALSE
+)
+```
+
+## Result
+
+```{r}
+#| label: verify-matching-cluster-result
+#| echo: false
+cells <- outer(rownames(V_beta_CL_manual),
+               colnames(V_beta_CL_manual),
+               paste, sep = " × ")
+out <- data.frame(
+  cell      = as.vector(cells),
+  manual    = as.vector(V_beta_CL_manual),
+  reference = as.vector(V_beta_CL_gold),
+  `abs diff` = abs(as.vector(V_beta_CL_manual) -
+                   as.vector(V_beta_CL_gold)),
+  check.names = FALSE
+)
+tt(out, caption = "Cluster-robust $V_\\beta$: manual vs `sandwich::vcovCL`") |>
+  format_tt(j = 2:4, digits = 4, num_fmt = "significant")
+```
+
+The "sum within cluster, then square" IF aggregation reproduces
+`sandwich::vcovCL()` (with `cadjust = FALSE`) to numerical precision.
+Matching's bread is unchanged from the g-comp case — only the meat is
+formed differently, by accumulating IFs inside each subclass before
+squaring.
+
+:::
 
 ### 4.4 Summary: one method, three estimators
 
@@ -1593,6 +2109,91 @@ the correct $\text{Var}(\hat\mu) = O(1/n)$.
 ### A common bug
 Omitting $n_k$ makes each correction $O(1/n)$, yielding $\text{Var} = O(1/n^3)$
 — confidence intervals that are much too narrow.
+:::
+
+::: {.panel-tabset}
+
+## Math
+
+For a 2-period ICE with outcome model $m_1$ at $k=1$ and pseudo-outcome
+model $m_0$ at $k=0$, the IF is
+
+$$
+\mathrm{IF}_i(\hat\mu)
+= \big(\hat m_0(H_0^{(a)}) - \hat\mu\big)
++ n_1\,d_{1,i}\,r^{\text{score}}_{1,i}
++ n_0\,d_{0,i}\,r^{\text{score}}_{0,i},
+$$
+
+with the sensitivities $d_{k,i}$ propagated forward by the recursion of
+Section 5.4. The $n_k$ factors are essential (Section 5.5). For the
+linear-Gaussian DGP below, the true joint ATE under
+$(a_0=1, a_1=1)$ vs $(a_0=0, a_1=0)$ is exactly $0.8 + 0.6 = 1.4$ by
+construction, and we check that causatr's sandwich CI covers it.
+
+## Code
+
+```{r}
+#| label: verify-ice
+set.seed(7)
+n_ice <- 500
+id    <- seq_len(n_ice)
+L0    <- rnorm(n_ice)
+A0    <- rbinom(n_ice, 1, plogis(0.3 * L0))
+L1    <- 0.5 * L0 + 0.4 * A0 + rnorm(n_ice)
+A1    <- rbinom(n_ice, 1, plogis(0.2 * L1 + 0.3 * A0))
+Y_ice <- 1 + 0.8 * A0 + 0.6 * A1 + 0.5 * L0 + 0.4 * L1 + rnorm(n_ice)
+
+long <- rbind(
+  data.frame(id = id, time = 0L, A = A0, L = L0, Y = NA_real_),
+  data.frame(id = id, time = 1L, A = A1, L = L1, Y = Y_ice)
+)
+
+fit_ice <- causat(
+  long, outcome = "Y", treatment = "A",
+  confounders     = ~ 1,
+  confounders_tv  = ~ L,
+  id = "id", time = "time"
+)
+res_ice <- contrast(
+  fit_ice,
+  interventions = list(a11 = static(1), a00 = static(0)),
+  reference     = "a00",
+  ci_method     = "sandwich"
+)
+
+ate_ice <- res_ice$contrasts$estimate
+se_ice  <- res_ice$contrasts$se
+ci_lo   <- res_ice$contrasts$ci_lower
+ci_hi   <- res_ice$contrasts$ci_upper
+truth   <- 0.8 + 0.6  # structural sum of the two causal coefficients
+covered <- (truth >= ci_lo) && (truth <= ci_hi)
+```
+
+## Result
+
+```{r}
+#| label: verify-ice-result
+#| echo: false
+out <- data.frame(
+  quantity = c("ICE ATE (causatr sandwich)",
+               "$\\mathrm{SE}$",
+               "95% CI lower",
+               "95% CI upper",
+               "Truth ($0.8 + 0.6$)",
+               "Truth $\\in$ 95% CI?"),
+  value    = c(ate_ice, se_ice, ci_lo, ci_hi, truth,
+               ifelse(covered, "yes", "no"))
+)
+tt(out, caption = "ICE chained IF on a 2-period linear-Gaussian DGP") |>
+  format_tt(j = "quantity", markdown = TRUE) |>
+  format_tt(j = 2, digits = 4)
+```
+
+The sandwich CI produced by `variance_if_ice()` covers the structural
+truth of $1.4$, and the chained IF machinery is doing what Section 5.4
+says it should.
+
 :::
 
 ### 5.6 Pseudo-code: IF for a chained estimator

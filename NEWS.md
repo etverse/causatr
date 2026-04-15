@@ -1,5 +1,97 @@
 # causatr (development version)
 
+## 2026-04-15 — Documentation overhaul: vignettes, math rendering, and `knit_print`
+
+A pass over every package vignette plus a small package-level addition
+so that `causatr_result` objects render as readable HTML tables inside
+Quarto / knitr documents.
+
+### New package feature: knitr-aware `causatr_result` rendering
+
+- **`R/knit_print.R`** defines a `knit_print.causatr_result()` S3 method
+  that renders a `causat() |> contrast()` result as a metadata header
+  plus two tinytable HTML tables (intervention means + contrasts) when
+  the result object is evaluated inside a knitr chunk. The method
+  degrades gracefully to the existing `print.causatr_result()` if
+  tinytable or knitr is unavailable.
+- **`R/zzz.R`** conditionally registers the method via `.onLoad()`
+  (`requireNamespace("knitr", quietly = TRUE)`), so the dependency on
+  knitr stays Suggests-only.
+- **`DESCRIPTION`** adds `tinytable` and `litedown` to `Suggests` (the
+  latter is needed by `tinytable::format_tt(markdown = TRUE)`, which the
+  variance-theory vignette uses for math-in-cells rendering).
+
+### Vignette fixes (no behavioural changes to the engine)
+
+- **`longitudinal.qmd` — Table 20.1 null-effect section rewritten.**
+  The previous explanation claimed "individual effects of A_0 and A_1
+  are both zero" and that naive regression gives non-zero estimates for
+  both. In fact (i) the true *marginal counterfactual* means are all
+  equal to 60, not the conditional effects, (ii) `lm(Y ~ A0 + A1 + L1)`
+  gives `A1 = 0` exactly (in the DGP Y does not depend on A1), and
+  (iii) the bias shows up in `A0` only, as the conditional-within-L1
+  effect of −8. The section now shows *both* naive strategies
+  (unadjusted and L1-adjusted) failing, demonstrating the null paradox
+  as stated in Hernán & Robins Chapter 20.
+
+- **`by = "sex"` examples fixed across three vignettes.**
+  - `gcomp.qmd` now refits with an explicit `qsmk:sex` term in
+    `confounders`, so the stratified estimates actually move (Male
+    ≈ 3.61, Female ≈ 3.44).
+  - `ipw.qmd` and `matching.qmd` replace the `by = "sex"` code chunks
+    with a Phase 8 callout explaining that IPW and matching wrap a
+    saturated `Y ~ A` MSM and so `by = "sex"` is a no-op until the
+    unified effect-modification API lands
+    (`PHASE_8_INTERACTIONS.md`).
+
+- **Unified "Summary of covered combinations" tables.** gcomp, ipw,
+  matching, and longitudinal now share one 8-column schema
+  (Treatment | Outcome | Intervention | Estimand | Contrast | Inference
+  | Weights | Status) with a common ✅ / 🟡 / ⛔ legend and a pointer
+  to `FEATURE_COVERAGE_MATRIX.md`.
+
+- **`code-fold: show` + `code-tools: true` in every vignette YAML.**
+  Combined with the new `knit_print` hook, readers can fold the R code
+  of any example chunk and still see a nicely formatted result table.
+
+### `variance-theory.qmd` — roadmap + verified numerics
+
+- New **Section 0 "Roadmap"** walks through Sections 1 → 6 as a single
+  narrative and introduces the running example (a small logistic GLM)
+  used by every verification block below.
+- Eight new **Math / Code / Result** tabset panels, each of which
+  instantiates a key equation on the running example and checks it
+  against either `sandwich::sandwich()`, `sandwich::vcovCL()`, or
+  `causatr::variance_if()`:
+  1. **Sec 1.4** — Sandwich variance of β̂ vs `sandwich::sandwich(fit)`
+     (agreement ≲ 1e-8).
+  2. **Sec 2.3** — `(1/n²) Σ IFᵢ IFᵢᵀ` equals the sandwich to machine
+     precision.
+  3. **Sec 2.4** — IF for a sample mean reproduces the textbook
+     $s/\sqrt n$ up to the $(n-1)/n$ d.f. correction.
+  4. **Sec 3.2** — Two-channel IF for g-comp $\hat\mu_1$ matches
+     causatr's sandwich SE to $\sim$1e-9.
+  5. **Sec 3.3** — Delta-method decomposition: shows numerically that
+     `J V_β Jᵀ` equals `Ch.2²`, and that dropping `Ch.1²` + cross term
+     underestimates the SE by about 3% on this example.
+  6. **Sec 4.2** — Horvitz-Thompson IPW $\hat\mu_1$ equals causatr's
+     IPW point estimate, with SE from the propensity-corrected
+     adjusted score.
+  7. **Sec 4.3** — Cluster-robust sandwich: per-cluster IFs summed
+     before squaring reproduce `sandwich::vcovCL(..., cadjust = FALSE)`
+     on a toy subclass assignment.
+  8. **Sec 5.5** — ICE chained IF on a 2-period linear-Gaussian DGP
+     recovers the structural truth $0.8 + 0.6 = 1.4$ within the
+     sandwich CI.
+
+### `validation.qmd` — tinytable comparisons
+
+- `compare_row()` now returns a tinytable with a third row of
+  **absolute differences** between causatr and each reference
+  implementation (stdReg2, WeightIt, marginaleffects, lmtp). Agreement
+  — or the lack of it — is readable without having to compare 6
+  decimal places by eye.
+
 ## Breaking: `causat()` / `causat_survival()` argument `method` renamed to `estimator`
 
 `causat(method = ...)` shadowed `WeightIt::weightit(method = ...)` and

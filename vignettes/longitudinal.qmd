@@ -1,5 +1,7 @@
 ---
 title: "Longitudinal treatments: ICE g-computation"
+code-fold: show
+code-tools: true
 vignette: >
   %\VignetteIndexEntry{Longitudinal treatments: ICE g-computation}
   %\VignetteEngine{quarto::html}
@@ -37,19 +39,31 @@ library(tinyplot)
 
 ## The problem: treatment-confounder feedback
 
-When treatment at time 0 affects a confounder at time 1, which in turn affects
-treatment at time 1 (A_0 -> L_1 -> A_1 -> Y), neither adjusting nor not
-adjusting for L_1 gives the correct answer:
+When $A_0$ affects a time-varying confounder $L_1$, and $L_1$ in turn affects
+both $A_1$ and $Y$ ($A_0 \to L_1 \to A_1$ and $L_1 \to Y$), ordinary
+regression cannot recover the marginal counterfactual mean
+$\mathbb{E}[Y^{a_0, a_1}]$:
 
-- **Adjusting** for L_1 opens a collider path (selection bias)
-- **Not adjusting** leaves confounding for A_1
-- **ICE g-computation** handles both correctly
+- **Adjusting** for $L_1$ blocks part of the causal path from $A_0$ to $Y$
+  (and, depending on the DAG, can open a collider path through unmeasured
+  common causes of $L_1$ and $Y$).
+- **Not adjusting** leaves $L_1$-confounding of the $A_1 \to Y$ arrow.
+- **ICE g-computation** handles both correctly by iterating conditional
+  expectations and marginalising over the $L_1$ distribution induced by each
+  intervention.
 
-## Table 20.1: a null effect with treatment-confounder feedback
+## Table 20.1: the null paradox
 
-We construct the dataset from Table 20.1 of Hernan & Robins (2025), scaled to
-3,200 individuals observed at 2 time points with a true causal effect of zero.
-(The original table has 32,000; we use 1/10th for faster vignette rendering.)
+We reconstruct the dataset from Table 20.1 of Hernan & Robins (2025), scaled
+to 3,200 individuals observed at 2 time points. (The original table has
+32,000; we use 1/10th for faster vignette rendering.) The DGP has a very
+specific property: **every joint regime $(a_0, a_1)$ has the same marginal
+counterfactual mean $\mathbb{E}[Y^{a_0, a_1}] = 60$**, so the true causal
+contrast between any two regimes is exactly zero — the "null is true".
+Crucially, the null holds only marginally: within strata of $L_1$, the
+*conditional* effect of $A_0$ is $-8$. Treatment-confounder feedback is
+exactly the mechanism that lets a non-zero conditional effect average out
+to a zero marginal effect.
 
 ```{r}
 groups <- data.frame(
@@ -77,17 +91,46 @@ time point. `L` is a time-varying confounder (only measured at time 1).
 
 ## Demonstrating bias from naive methods
 
-A naive regression of Y on treatment adjusting for L_1 gives a biased estimate:
+Hernan & Robins (2025, Ch. 20) uses this table to make a pointed argument:
+*neither* of the two conventional regression strategies recovers the null.
+Truth is $\mathbb{E}[Y^{1,1}] - \mathbb{E}[Y^{0,0}] = 0$, and in fact all
+four joint regimes have the same marginal counterfactual mean of $60$.
+
+**Strategy 1 — unadjusted.** Drop $L_1$ and hope randomisation at each
+time point takes care of confounding:
 
 ```{r}
 wide_sub <- wide[!is.na(wide$Y), ]
-naive_fit <- lm(Y ~ A0 + A1 + L1, data = wide_sub)
-naive_coefs <- coef(naive_fit)
-naive_coefs[c("A0", "A1")]
+naive_unadj <- lm(Y ~ A0 + A1, data = wide_sub)
+round(coef(naive_unadj), 3)
 ```
 
-The true individual effects of A_0 and A_1 are both zero, but the naive
-regression gives non-zero estimates due to treatment-confounder feedback.
+Both coefficients move away from zero ($A_0 \approx -1.24$,
+$A_1 \approx -12.44$). The $A_1$ estimate is especially biased:
+$L_1$ confounds $A_1 \to Y$, and without adjustment that confounding
+leaks directly into the coefficient.
+
+**Strategy 2 — adjust for $L_1$.** The standard epidemiological reflex:
+
+```{r}
+naive_fit   <- lm(Y ~ A0 + A1 + L1, data = wide_sub)
+naive_coefs <- coef(naive_fit)
+round(naive_coefs, 3)
+```
+
+Now $A_1 = 0$ (correct, because in this DGP $Y$ is a deterministic
+function of $A_0$ and $L_1$), but $A_0 = -8$ — the *conditional* effect of
+$A_0$ within strata of $L_1$. That is **not** the causal contrast we want.
+Adjusting for $L_1$ blocks the $A_0 \to L_1 \to Y$ path and leaves only
+the direct-effect residue, so $A_0$ looks like a protective effect when
+in fact the marginal causal effect is zero.
+
+**The takeaway.** One naive strategy biases $A_1$; the other biases $A_0$.
+There is no regression specification on this table that jointly returns
+$A_0 = 0$ and $A_1 = 0$. This is the *null paradox* that motivates
+g-methods: the only way to recover the null is to marginalise over the
+intervention-specific distribution of $L_1$, which is exactly what ICE
+g-computation does below.
 
 ## ICE g-computation: fitting
 
@@ -663,20 +706,28 @@ targets / Hernán & Robins Table 20.1).
 
 ## Summary of covered combinations
 
-| Outcome | Treatment | Intervention | Variance | Weights | Status |
-|---|---|---|---|---|---|
-| Continuous | Binary | Static (always vs never) | Sandwich | none | ✅ Table 20.1 |
-| Continuous | Binary | Static | Bootstrap | none | ✅ Table 20.1 |
-| Continuous | Binary | Dynamic (rule on L) | Sandwich | none | ✅ |
-| Continuous | Binary | Static | Sandwich + bootstrap | survey | ✅ |
-| Continuous | Continuous | Shift / Scale / Threshold | Sandwich | none | ✅ (vs lmtp) |
-| Continuous | Continuous | Shift | Bootstrap | none | ✅ (vs lmtp) |
-| Continuous | Multivariate | Static / Shift | Sandwich | none | ✅ |
-| Binary | Binary | Static / Dynamic | Sandwich / bootstrap | none | ✅ (3+ periods) |
-| Binary | Binary | Static | Bootstrap (parallel) | none | ✅ |
-| Continuous | Binary | Static | Sandwich | none + censoring | ✅ |
-| — | Binary | ipsi(δ) | — | — | ⛔ rejected (Phase 4) |
-| — | Binary | static / ATT | — | — | ⛔ rejected (ICE is ATE-only) |
+**Legend.** ✅ covered and truth-pinned in tests (either against Table 20.1
+or against `lmtp::lmtp_tmle()`) · 🟡 smoke test only · ⛔ rejected with an
+informative error.
+
+| Treatment | Outcome | Intervention | Estimand | Contrast | Inference | Weights | Status |
+|---|---|---|---|---|---|---|---|
+| Binary | Continuous | Static (always vs never) | ATE | Difference | Sandwich | none | ✅ Table 20.1 |
+| Binary | Continuous | Static | ATE | Difference | Bootstrap | none | ✅ Table 20.1 |
+| Binary | Continuous | Dynamic (rule on L) | ATE | Difference | Sandwich | none | ✅ |
+| Binary | Continuous | Static | ATE | Difference | Sandwich + bootstrap | survey | ✅ |
+| Continuous | Continuous | Shift / Scale / Threshold | ATE | Difference | Sandwich | none | ✅ (vs lmtp) |
+| Continuous | Continuous | Shift | ATE | Difference | Bootstrap | none | ✅ (vs lmtp) |
+| Multivariate | Continuous | Static / Shift | ATE | Difference | Sandwich | none | ✅ |
+| Binary | Binary | Static / Dynamic | ATE | Difference | Sandwich / bootstrap | none | ✅ (3+ periods) |
+| Binary | Binary | Static | ATE | Difference | Bootstrap (parallel) | none | ✅ |
+| Binary | Continuous | Static | ATE | Difference | Sandwich | censoring | ✅ |
+| Binary | Any | IPSI(δ) | — | — | — | — | ⛔ Phase 4 |
+| Binary | Any | Static / ATT | ATT | — | — | — | ⛔ ICE is ATE-only |
+
+See [`FEATURE_COVERAGE_MATRIX.md`](https://github.com/etverse/causatr/blob/main/FEATURE_COVERAGE_MATRIX.md)
+for the authoritative coverage status of every method × treatment × outcome
+× intervention × variance combination.
 
 ## References
 

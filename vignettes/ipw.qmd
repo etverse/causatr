@@ -1,5 +1,7 @@
 ---
 title: "Inverse probability weighting with causatr"
+code-fold: show
+code-tools: true
 vignette: >
   %\VignetteIndexEntry{Inverse probability weighting with causatr}
   %\VignetteEngine{quarto::html}
@@ -490,21 +492,22 @@ abline(h = 0, lty = 2, col = "grey40")
 
 ## Effect modification with `by`
 
-The `by` argument stratifies causal effect estimates by levels of a variable.
-Here we examine whether the IPW-estimated effect of quitting smoking differs
-by sex.
+::: {.callout-important}
+## IPW effect modification is a Phase 8 feature
 
-```{r}
-res_by_sex <- contrast(
-  fit_ipw,
-  interventions = list(quit = static(1), continue = static(0)),
-  reference = "continue",
-  type = "difference",
-  ci_method = "sandwich",
-  by = "sex"
-)
-res_by_sex
-```
+The `by` argument stratifies the causal effect estimates that fall out of
+the fitted marginal structural model (MSM). causatr currently hardcodes a
+*saturated* MSM, `Y ~ A`, for IPW — so predictions are flat per
+intervention, and averaging them over any subset returns the same pooled
+ATE. In other words, `by = "sex"` is a no-op for IPW until the MSM can
+carry an interaction term (e.g. `Y ~ A + A:sex` or `Y ~ A * time`).
+
+This is a causatr implementation limitation, not a methodological one.
+Unified effect-modification support across IPW, matching, and ICE is
+planned for Phase 8 (`PHASE_8_INTERACTIONS.md`). In the meantime, use
+`estimator = "gcomp"` with an `A:modifier` term in `confounders` if you
+need heterogeneous treatment effects.
+:::
 
 ## Tidy and glance
 
@@ -517,16 +520,14 @@ glance(res_ate_sw)
 
 ## Forest plot
 
-The `plot()` method produces a forest plot using the `forrest` package. Forest
-plots are most useful when displaying multiple estimates, such as effect
-modification results:
+The `plot()` method produces a forest plot using the `forrest` package.
 
 ```{r}
 #| fig-width: 7
 #| fig-height: 4
-#| fig-alt: "Forest plot of the IPW-estimated effect of quitting smoking on weight change, stratified by sex."
+#| fig-alt: "Forest plot of the IPW-estimated ATE of quitting smoking on weight change."
 #| eval: !expr requireNamespace("forrest", quietly = TRUE)
-plot(res_by_sex)
+plot(res_ate_sw)
 ```
 
 ## Diagnostics
@@ -565,25 +566,32 @@ diag$weights
 
 ## Summary of covered combinations
 
-| Treatment | Outcome | Contrast | Inference | Estimand | Weights |
-|---|---|---|---|---|---|
-| Binary | Continuous | Difference | Sandwich | ATE | none |
-| Binary | Continuous | Difference | Bootstrap | ATE | none |
-| Binary | Continuous | Difference | Sandwich | ATT | none |
-| Binary | Continuous | Difference | Sandwich | ATC | none |
-| Binary | Continuous | Difference | Bootstrap | ATT | none |
-| Binary | Continuous | Difference | Sandwich | ATE | survey |
-| Binary | Binary | Difference | Sandwich | ATE | none |
-| Binary | Binary | Difference | Bootstrap | ATE | none |
-| Binary | Binary | Ratio | Sandwich | ATE | none |
-| Binary | Binary | OR | Sandwich | ATE | none |
-| Binary | Binary | Ratio | Bootstrap | ATE | none |
-| Categorical (k>2) | Continuous | Difference | Sandwich | ATE | none |
-| Continuous (static levels) | Continuous | Difference | Sandwich | ATE | none |
-| Any | Any | Any | Any | Any | ⛔ rejected when `A:modifier` in `confounders` (Phase 8) |
-| Binary (non-Mparts WeightIt) | Continuous | Difference | Bootstrap | ATE | none |
-| Multivariate / Longitudinal | — | — | — | — | ⛔ rejected (Phase 4) |
-| Non-`static()` intervention | — | — | — | — | ⛔ rejected (Phase 4) |
+**Legend.** ✅ covered and truth-pinned in tests · 🟡 smoke test only ·
+⛔ rejected with an informative error.
+
+| Treatment | Outcome | Intervention | Estimand | Contrast | Inference | Weights | Status |
+|---|---|---|---|---|---|---|---|
+| Binary | Continuous | Static | ATE | Difference | Sandwich | none | ✅ |
+| Binary | Continuous | Static | ATE | Difference | Bootstrap | none | ✅ |
+| Binary | Continuous | Static | ATT | Difference | Sandwich | none | ✅ |
+| Binary | Continuous | Static | ATC | Difference | Sandwich | none | ✅ |
+| Binary | Continuous | Static | ATT | Difference | Bootstrap | none | ✅ |
+| Binary | Continuous | Static | ATE | Difference | Sandwich | survey | ✅ |
+| Binary | Binary | Static | ATE | Difference | Sandwich | none | ✅ |
+| Binary | Binary | Static | ATE | Difference | Bootstrap | none | ✅ |
+| Binary | Binary | Static | ATE | Ratio | Sandwich | none | ✅ |
+| Binary | Binary | Static | ATE | OR | Sandwich | none | ✅ |
+| Binary | Binary | Static | ATE | Ratio | Bootstrap | none | ✅ |
+| Categorical (k>2) | Continuous | Static | ATE | Difference | Sandwich | none | ✅ |
+| Continuous (static levels) | Continuous | Static | ATE | Difference | Sandwich | none | ✅ |
+| Binary (non-Mparts WeightIt) | Continuous | Static | ATE | Difference | Bootstrap | none | 🟡 |
+| Any | Any | Any | Any (with `A:modifier`) | — | — | — | ⛔ Phase 8 |
+| Multivariate / Longitudinal | — | — | — | — | — | — | ⛔ Phase 4 |
+| Any | — | Dynamic / Shift / Scale / Threshold / IPSI | — | — | — | — | ⛔ Phase 4 |
+
+See [`FEATURE_COVERAGE_MATRIX.md`](https://github.com/etverse/causatr/blob/main/FEATURE_COVERAGE_MATRIX.md)
+for the authoritative coverage status of every method × treatment × outcome
+× intervention × variance combination.
 
 ## References
 

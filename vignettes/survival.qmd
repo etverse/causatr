@@ -1,5 +1,7 @@
 ---
 title: "Causal survival analysis (Chapter 17)"
+code-fold: show
+code-tools: true
 vignette: >
   %\VignetteIndexEntry{Causal survival analysis}
   %\VignetteEngine{quarto::html}
