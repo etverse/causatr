@@ -426,7 +426,28 @@ apply_single_intervention <- function(data, trt_col, iv) {
       data[, (trt_col) := pmax(pmin(get(trt_col), iv$upper), iv$lower)]
     },
     dynamic = {
-      new_trt <- iv$rule(data, data[[trt_col]])
+      # 2026-04-15 fourth-round critical review Issue #10: previously
+      # only validated the return type, not the original column type.
+      # A `dynamic()` rule returning numeric on a character/factor
+      # treatment column silently coerced the column to numeric — the
+      # downstream outcome-model `predict()` then either errored with
+      # a cryptic factor-level message or, worse, re-matched unexpected
+      # levels. Gate at the column type instead: `dynamic()` is
+      # numeric-only, matching `shift()` / `scale_by()` / `threshold()`.
+      orig_trt <- data[[trt_col]]
+      if (!is.numeric(orig_trt)) {
+        rlang::abort(
+          paste0(
+            "`dynamic()` requires a numeric treatment column; `",
+            trt_col,
+            "` is of type ",
+            typeof(orig_trt),
+            ". Use `static()` for character / factor treatments."
+          ),
+          .call = FALSE
+        )
+      }
+      new_trt <- iv$rule(data, orig_trt)
       if (!is.numeric(new_trt)) {
         rlang::abort(
           "`dynamic()` rule must return a numeric vector.",
