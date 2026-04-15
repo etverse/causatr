@@ -42,6 +42,13 @@ indirectly by the existing truth-based tests in
 `test-variance-if.R` / `test-variance-reference.R` and the simulation
 harness.
 
+### Supplementary test files from the 2026-04-15 review rounds
+
+| File | Scope |
+|---|---|
+| `test-weights-edge-cases.R` | Edge cases for the external-weights path across every method: `check_weights()` gate (NA, Inf, negative, non-numeric, wrong length); zero-weight pass-through; uniform weights recovering the unweighted result at machine precision (gcomp + ICE); heterogeneous weights producing non-trivial SE shifts; IPW survey-weight `s.weights` plumbing; matching weight composition; `causat_survival()` weight flow into the hazard fit. |
+| `test-replay-fit.R` | Unit + end-to-end tests for the central `replay_fit()` helper (`R/utils.R`) introduced by the third-round dots audit: base-args precedence, positional-dot drop, `reserved`-key blocking, NULL dots, backward-compat with fit objects missing `$dots`, and real gcomp (quasipoisson) / IPW (cbps) bootstrap replay through `variance_bootstrap()`. |
+
 ## How to read the matrix
 
 Each row pins down ONE combination across every dimension. The matrix
