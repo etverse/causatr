@@ -1,5 +1,105 @@
 # causatr (development version)
 
+## 2026-04-15 — Critical-review sweep (B1-B8, R3-R12)
+
+A second full-codebase critical review flagged ~twenty correctness and
+robustness issues across the variance engine, bootstrap refit path,
+`contrast()` dispatch, and `causat_survival()`. Every blocking fix
+ships with a regression test in
+`tests/testthat/test-critical-review-2026-04.R`.
+
+### Blocking correctness fixes
+
+- **B1 — `subset` expressions now resolve caller-scoped variables.**
+  `contrast(fit, subset = quote(age > cutoff))` previously evaluated
+  `subset` with `parent.frame()` deep inside internal dispatch frames,
+  so `cutoff` (defined in the user's session) failed to resolve. The
+  caller's frame is now captured once at `contrast()`'s top level and
+  threaded through `compute_contrast()`, `get_target_idx()`,
+  `variance_bootstrap()`, and `ice_variance_bootstrap()` as an explicit
+  `subset_env` argument. `get_target_idx()` also validates that the
+  evaluated expression has length `nrow(data)` so a scalar `TRUE`
+  cannot recycle silently.
+
+- **B2 — Bootstrap replicates replay the user's `...` verbatim.**
+  `refit_gcomp()`, `refit_ipw()`, and `refit_matching()` previously
+  dropped the user's extras (`method = "cbps"`, `stabilize = TRUE`,
+  `caliper`, `ratio`, `gamma`, GAM smoothing, etc.), so bootstrap SEs
+  for any non-default estimator silently corresponded to a different
+  estimator than the point estimate. `fit_ipw()` / `fit_matching()` /
+  `fit_gcomp_point()` now stash `list(...)` onto `fit$details$dots`
+  and each refit function threads those back through `do.call()`.
+
+- **B5 — `causat_survival()` implements the documented censoring rule.**
+  The roxygen promised "subsequent rows for that individual are also
+  dropped", but the implementation only excluded the current row. A
+  `.causatr_prev_cens` within-id cumsum + lag column now drops all
+  rows at and after the first censor per id.
+
+- **B6 — External weights enter WeightIt as `s.weights`.** `fit_ipw()`
+  post-multiplied external weights onto `w$weights` *after*
+  `WeightIt::weightit()` had finished, so the Mparts sandwich
+  correction silently under-corrected survey-weighted IPW. External
+  weights now flow in as `s.weights`, and `refit_ipw()` mirrors the
+  change at bootstrap time.
+
+- **B7 — ICE Channel-1 IF unified on a single formula.**
+  `variance_if_ice_one()` previously used `(n / n_target) * (Y - mu)`
+  unweighted and `n * (w / sum_w) * (Y - mu)` weighted. These agree
+  only when `sum(w) == n_target`, so heterogeneous weights mis-scaled
+  the Channel-1/Channel-2 cross-term. The unweighted branch now sets
+  `w = 1` and shares the weighted formula. A regression test pins
+  uniform-weighted and unweighted SEs to machine precision.
+
+- **B8 — `by` skips empty strata instead of aborting the whole call.**
+  `by_vals` is now enumerated from `fit$details$fit_rows` (not the
+  full data), and any per-level call that still ends up with an empty
+  target is caught by a `tryCatch`, collected into a single
+  `rlang::warn()` at the end, and dropped from the combined result.
+
+### Required robustness fixes
+
+- **R3 — Branch-A propensity IF reconciles via `na.action`.** When the
+  MSM and propensity fits drop different rows,
+  `prepare_propensity_if_weightit()` now intersects `fit_idx` with the
+  MSM's `na.action` instead of aborting.
+
+- **R6 — OR validation no longer aborts on NA `mu_hat`.** The
+  `mu_hat >= 1` check now pre-filters NAs consistently with the
+  `<= 0` check.
+
+- **R7 — `bread_inv()` prefers `weights(model, type = "working")`.**
+  Keeps GLM subclasses (`glm_weightit`, glmnet's glm wrapper)
+  correctly aligned with the sandwich convention.
+
+- **R8 — Matched cluster aggregation uses a first-seen factor.**
+  `vcov_from_if(..., cluster = subclass)` no longer sorts the cluster
+  levels alphabetically / numerically, which had desynchronised
+  `rowsum(..., reorder = FALSE)` from `IF_mat`'s row order.
+
+- **R9 — `causat_survival()` sorts once up front via `setkeyv()`.**
+  Previously two `by = id` aggregations relied on data.table's
+  group-order staying consistent between calls.
+
+- **R10 — Robust Mparts detection.** Handles both list-shaped and
+  flag-shaped `attr(w, "Mparts")` across WeightIt versions.
+
+- **R11 — Dead `is.integer` branch removed in `interventions.R`.**
+  `is.integer(x)` already implies `is.numeric(x)`.
+
+- **R12 — Reserved column names centralised.** New constant
+  `CAUSATR_RESERVED_COLS` and helper `check_reserved_cols()` in
+  `R/utils.R`, called from `prepare_data()`, `fit_ice()`, and
+  `causat_survival()`. The previously-unprefixed `prev_event`
+  internal column was renamed to `.causatr_prev_event`.
+
+### Suggestions addressed
+
+- **S1** — `subset` length validated in `get_target_idx()`.
+- **S5** — `Reduce(`&`, ...)` in `compute_contrast()` gets an explicit
+  `init = rep(TRUE, nrow(data))` so an empty `preds_list` falls
+  through cleanly.
+
 ## 2026-04-15 — Documentation overhaul: vignettes, math rendering, and `knit_print`
 
 A pass over every package vignette plus a small package-level addition

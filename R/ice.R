@@ -54,25 +54,13 @@ fit_ice <- function(
   call,
   ...
 ) {
-  # Guard against a silent collision with our internal pseudo-outcome
-  # column. `ice_iterate()` writes predicted pseudo-outcomes into a
-  # column literally named `.pseudo_y`, which the backward iteration
-  # fits against as the response. If the user happens to have a
-  # column with that exact name in their data, the mutation would
-  # overwrite it and the subsequent regression would fit against our
-  # internal bookkeeping instead of their data. Reject upfront with a
-  # clear rename hint so the failure is explicit.
-  if (".pseudo_y" %in% names(data)) {
-    rlang::abort(
-      paste0(
-        "Column `.pseudo_y` is reserved by ICE g-computation. Rename ",
-        "this column in `data` before calling `causat()` (it will be ",
-        "overwritten by predicted pseudo-outcomes during the backward ",
-        "iteration)."
-      ),
-      .call = FALSE
-    )
-  }
+  # Guard against a silent collision with any causatr-reserved column.
+  # `ice_iterate()` writes predicted pseudo-outcomes into `.pseudo_y`,
+  # and `causat_survival()` uses `.causatr_prev_event` / `_prev_cens`
+  # for risk-set bookkeeping. If the user's data already carries any
+  # of these, the in-place mutation would silently clobber it. The
+  # single source of truth is `CAUSATR_RESERVED_COLS` in `R/utils.R`.
+  check_reserved_cols(data)
 
   # Sorted unique time points define the backward iteration grid. The
   # ICE recursion walks from `time_points[n_times]` down to
@@ -138,6 +126,10 @@ fit_ice <- function(
     family_obj
   }
 
+  # Capture user `...` so ICE bootstrap can replay the same model_fn
+  # extras (e.g. mgcv::gam `method`, `gamma`) per-step. See B2.
+  dots <- list(...)
+
   new_causatr_fit(
     model = NULL,
     data = data,
@@ -166,7 +158,8 @@ fit_ice <- function(
       model_fn = model_fn,
       family_outcome = family_obj,
       family_pseudo = family_pseudo,
-      weights = weights
+      weights = weights,
+      dots = dots
     )
   )
 }
@@ -384,6 +377,8 @@ ice_iterate <- function(fit, intervention) {
   family_outcome <- details$family_outcome
   family_pseudo <- details$family_pseudo
   external_weights <- details$weights
+  # User's stashed `...` for `model_fn`. Empty list if none were passed.
+  model_fn_dots <- details$dots %||% list()
 
   # Build the intervention-modified person-period frame once. `data_iv`
   # has the counterfactual treatment column and matching lags, but the
@@ -460,7 +455,7 @@ ice_iterate <- function(fit, intervention) {
   if (!is.null(external_weights)) {
     model_args$weights <- external_weights[fit_mask]
   }
-  models[[n_times]] <- do.call(model_fn, model_args)
+  models[[n_times]] <- do.call(model_fn, c(model_args, model_fn_dots))
 
   # Predict under the intervention for ALL uncensored individuals at
   # the final time (not just those in the fitting set). This is the
@@ -548,7 +543,7 @@ ice_iterate <- function(fit, intervention) {
     if (!is.null(external_weights)) {
       model_args_k$weights <- external_weights[mask_uncens][has_pseudo]
     }
-    models[[step_i]] <- do.call(model_fn, model_args_k)
+    models[[step_i]] <- do.call(model_fn, c(model_args_k, model_fn_dots))
 
     # Predict under intervention for ALL individuals at the current
     # time point (not just the fitting subset). This keeps the

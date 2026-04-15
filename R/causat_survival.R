@@ -103,6 +103,10 @@ causat_survival <- function(
     }
   }
 
+  # Reject user data that already carries a causatr-internal column
+  # name (e.g. `.causatr_prev_event`). See R12 in the 2026-04-15 review.
+  check_reserved_cols(data)
+
   # Same up-front weights validation as `causat()` — reject NA,
   # non-finite, negative, or mis-sized weight vectors so users see a
   # specific error instead of a cryptic GLM abort.
@@ -140,6 +144,13 @@ causat_survival <- function(
     .frequency = "regularly",
     .frequency_id = "causat_survival_scaffold"
   )
+
+  # Sort once up front so every subsequent `by = c(id)` aggregation sees
+  # a deterministic within-id row order. Previously the two aggregations
+  # below ran on unsorted data and relied on data.table's first-seen
+  # group ordering matching between the two passes. Any upstream reorder
+  # would desync them. See R9 in the 2026-04-15 critical review.
+  data.table::setkeyv(data, c(id, time))
 
   # Ensure person-period format: every id must appear at more than one
   # time point. Previous implementations used `max(rows_per_id$N) == 1L`
@@ -191,8 +202,6 @@ causat_survival <- function(
     )
   }
 
-  data.table::setkeyv(data, c(id, time))
-
   # Build the pooled logistic regression formula for discrete-time
   # survival analysis (Hernán & Robins Ch. 17):
   #   event ~ time_terms + treatment + confounders
@@ -215,8 +224,10 @@ causat_survival <- function(
   # column, shifted by 1 lag so that the CURRENT row's indicator
   # reflects whether a prior event has occurred (not the current
   # one). Fill with 0 for the first period — everyone starts event-free.
+  # Data is already keyed (id, time) from the up-front setkeyv, so
+  # `shift` sees a deterministic within-id ordering.
   data[,
-    prev_event := data.table::shift(
+    .causatr_prev_event := data.table::shift(
       cumsum(get(outcome)),
       n = 1L,
       fill = 0,
@@ -225,7 +236,29 @@ causat_survival <- function(
     by = c(id)
   ]
 
-  fit_rows <- data[["prev_event"]] == 0 & is_uncensored(data, censoring)
+  # Censoring rule: drop rows WHERE `censoring == 1` AND all subsequent
+  # rows for that individual. The docstring promised this behavior but
+  # the previous implementation only excluded the current row — a
+  # subject censored at t=2 still contributed risk at t=3. The cumsum
+  # + lag trick mirrors `prev_event` above: 0 at and before first
+  # censor, >=1 after. Rows with `prev_cens > 0` OR `censoring == 1`
+  # are both excluded. See B5 in the 2026-04-15 critical review.
+  if (!is.null(censoring)) {
+    data[,
+      .causatr_prev_cens := data.table::shift(
+        cumsum(get(censoring)),
+        n = 1L,
+        fill = 0,
+        type = "lag"
+      ),
+      by = c(id)
+    ]
+    fit_rows <- data[[".causatr_prev_event"]] == 0 &
+      data[[".causatr_prev_cens"]] == 0 &
+      is_uncensored(data, censoring)
+  } else {
+    fit_rows <- data[[".causatr_prev_event"]] == 0
+  }
   fit_data <- data[fit_rows]
 
   model_weights <- if (!is.null(weights)) weights[fit_rows] else NULL

@@ -19,6 +19,29 @@ External references used:
 - **Closed-form analytical truth** for linear-Gaussian / saturated
   binary DGPs that admit a hand derivation.
 
+## 2026-04-15 critical-review regression coverage
+
+The 2026-04-15 critical-review sweep (B1-B8, R3-R12) landed a set of
+silent-correctness fixes. Each blocking fix has a paired regression
+test in `tests/testthat/test-critical-review-2026-04.R`, targeted at
+the specific failure mode rather than the full feature combination:
+
+| Fix | Failure mode | Test |
+|---|---|---|
+| B1 | `subset = quote(age > cutoff)` could not resolve session vars inside `compute_contrast()` / boot workers. | `B1: subset expression resolves session-scoped variables`, `B1: subset works inside bootstrap workers too`, `B1: subset length mismatch aborts with a clear message` |
+| B2 | Bootstrap refit dropped user `...`, so non-default IPW / matching / gcomp bootstrap SEs corresponded to a different estimator. | `B2: bootstrap refit replays user's ... (gcomp quasipoisson)`, `B2: IPW bootstrap replays stashed WeightIt dots` |
+| B5 | `causat_survival()` censoring dropped only the current row, not subsequent rows. | `B5: causat_survival drops all rows at/after first censor` |
+| B6 | External weights were post-multiplied onto `w$weights` after WeightIt ran, so Mparts IF under-corrected. | `B6: external weights enter WeightIt via s.weights` |
+| B7 | ICE Ch1 IF weighted/unweighted formulas drifted unless `sum(w) == n_target`. | `B7: ICE Ch1 IF uniform-weighted matches unweighted (unification)` |
+| B8 | `by` enumerated over full data and aborted on empty strata. | `B8: \`by\` skips empty strata instead of aborting` |
+| R6 | OR validation aborted on NA `mu_hat` via `if (NA)`. | `R6: OR validation does not abort on NA mu_hat` |
+| R12 | Reserved column collision (`.pseudo_y`, `.causatr_prev_event`) was only checked in one place. | `R12: reserved column name is rejected up front` |
+
+Non-blocking fixes (R3, R7, R8, R9, R10, R11, S1, S5) are exercised
+indirectly by the existing truth-based tests in
+`test-variance-if.R` / `test-variance-reference.R` and the simulation
+harness.
+
 ## How to read the matrix
 
 Each row pins down ONE combination across every dimension. The matrix

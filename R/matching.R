@@ -170,7 +170,14 @@ fit_matching <- function(
       n_matched = nrow(matched_data),
       n_unmatched = sum(fit_rows) - nrow(matched_data),
       matched_data = data.table::as.data.table(matched_data),
-      weights = weights
+      weights = weights,
+      # Capture MatchIt arguments (post ATE->full defaulting) so
+      # `refit_matching()` replays the same matching specification
+      # verbatim at bootstrap time. See B2 in the 2026-04-15 review:
+      # dropping these produced bootstrap SEs that corresponded to
+      # default nearest-neighbor matching even when the user asked
+      # for caliper, ratio, distance, etc.
+      dots = dots
     )
   )
 }

@@ -109,13 +109,21 @@ bread_inv <- function(model, X_fit) {
     return(model$Vp)
   }
 
-  # Use model$weights when available — these are the IWLS working weights
-  # from the converged fit, *including* prior weights, and match exactly
-  # what sandwich::bread() and summary(glm)$cov.unscaled use. Recomputing
-  # them from family$mu.eta and family$variance is consistent in theory
-  # but loses 5–6 digits of precision in practice (different evaluation
-  # paths through the family functions vs. the IWLS internals).
-  w_iwls <- model$weights
+  # Prefer `stats::weights(model, type = "working")` when it returns a
+  # non-empty vector — this is the public accessor that sandwich::bread()
+  # and summary(glm)$cov.unscaled both use, so routing through it keeps
+  # us aligned with sandwich-ecosystem conventions even for GLM subclasses
+  # (e.g. glm_weightit, glmnet's glm wrapper) that override $weights to
+  # carry something other than the IWLS working weights. See R7 in the
+  # 2026-04-15 critical review. Fall back to $weights and finally to a
+  # family-based recomputation.
+  w_iwls <- tryCatch(
+    stats::weights(model, type = "working"),
+    error = function(e) NULL
+  )
+  if (is.null(w_iwls) || length(w_iwls) == 0L) {
+    w_iwls <- model$weights
+  }
   if (is.null(w_iwls)) {
     eta <- model$linear.predictors
     mu_eta <- model$family$mu.eta(eta)
@@ -403,7 +411,16 @@ vcov_from_if <- function(IF_list, n, int_names, cluster = NULL) {
         "`cluster` length must match the IF vector length in `vcov_from_if()`."
       )
     }
-    IF_mat <- rowsum(IF_mat, as.factor(cluster), reorder = FALSE)
+    # R8 (2026-04-15 review): `as.factor(cluster)` would reorder the
+    # levels via `sort(unique(x))`, which for an integer cluster vector
+    # uses numeric sort and for a character cluster vector uses
+    # lexicographic sort. Either way it stops tracking the row order of
+    # `IF_mat`, and `reorder = FALSE` cannot save us once the factor
+    # levels themselves have been permuted. Use a first-seen factor so
+    # `rowsum(..., reorder = FALSE)` groups consistently with IF_mat's
+    # row ordering.
+    cluster_f <- factor(cluster, levels = unique(cluster))
+    IF_mat <- rowsum(IF_mat, cluster_f, reorder = FALSE)
   }
 
   vcov_mat <- crossprod(IF_mat) / n^2
@@ -1051,23 +1068,32 @@ variance_if_ice_one <- function(fit, ice_result, target) {
   # missing at a later time point). Indexing by `target` rather than
   # multiplying the full-length vector by a zero mask avoids `0 * NA =
   # NA` propagating into the IF.
+  #
+  # B7 (2026-04-15 review): unify the weighted and unweighted IF on a
+  # single formula. Previously the weighted branch used
+  #   IF_i = n * (w_i / sum_w_target) * (Y_i - mu_hat)
+  # and the unweighted branch used
+  #   IF_i = (n / n_target) * (Y_i - mu_hat)
+  # which agree only when sum(w) == n_target. For arbitrary external
+  # weights they drift, and the Channel-2 cross-term (which uses the
+  # n-scaled gradient d_i) is mis-scaled relative to Channel 1.
+  # Setting w_i = 1 in the weighted form recovers the unweighted case
+  # exactly (sum_w_target = n_target, so n/n_target drops out), so
+  # there is one formula to reason about and one to truth-test.
   ext_w <- details$weights
   has_weights <- !is.null(ext_w)
   if (has_weights) {
     w_first <- ext_w[rows_first]
     w_t <- w_first[target]
-    sum_w_target <- sum(w_t)
-    mu_hat <- sum(w_t * pseudo_final[target]) / sum_w_target
-    IF_vec <- numeric(n)
-    IF_vec[target] <- n *
-      (w_t / sum_w_target) *
-      (pseudo_final[target] - mu_hat)
   } else {
-    n_target <- sum(target)
-    mu_hat <- mean(pseudo_final[target], na.rm = TRUE)
-    IF_vec <- numeric(n)
-    IF_vec[target] <- (n / n_target) * (pseudo_final[target] - mu_hat)
+    w_t <- rep(1, sum(target))
   }
+  sum_w_target <- sum(w_t)
+  mu_hat <- sum(w_t * pseudo_final[target]) / sum_w_target
+  IF_vec <- numeric(n)
+  IF_vec[target] <- n *
+    (w_t / sum_w_target) *
+    (pseudo_final[target] - mu_hat)
 
   # Per-time-step id -> external-weight lookup. Needed for the
   # step > 1 cascade gradient, which must multiply by the weight of
@@ -1339,15 +1365,35 @@ prepare_propensity_if_weightit <- function(fit, fit_idx, n_total) {
   E <- sandwich::estfun(model, asympt = TRUE)
   IF_beta <- E %*% sandwich::bread(model)
 
+  # R3 (2026-04-15 review): the MSM (`glm_weightit`) and the propensity
+  # model can drop different rows if a non-PS covariate carries NAs
+  # that one fit tolerates and the other doesn't. Instead of aborting,
+  # reconcile on the MSM's own kept rows via `model$na.action` and
+  # intersect with `fit_idx`. If the intersection is empty something
+  # is genuinely broken upstream — only then do we abort.
   if (nrow(IF_beta) != length(fit_idx)) {
+    na_act <- stats::na.action(model)
+    if (!is.null(na_act)) {
+      dropped <- as.integer(na_act)
+      aligned_idx <- setdiff(fit_idx, fit_idx[dropped])
+      if (length(aligned_idx) == nrow(IF_beta)) {
+        return(list(
+          IF_beta = IF_beta,
+          fit_idx = aligned_idx,
+          n_total = n_total
+        ))
+      }
+    }
     rlang::abort(
       paste0(
         "prepare_propensity_if() Branch A: estfun() returned ",
         nrow(IF_beta),
         " rows but fit_idx has ",
         length(fit_idx),
-        ". This indicates an alignment bug between the MSM fit data ",
-        "and fit$details$fit_rows."
+        ", and `na.action` did not reconcile the row sets. This ",
+        "indicates a divergence between the MSM fit data and the ",
+        "propensity fit data. Clean or impute NAs in confounders / ",
+        "outcome before calling `causat()`."
       )
     )
   }

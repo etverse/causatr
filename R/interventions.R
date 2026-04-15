@@ -419,7 +419,7 @@ apply_single_intervention <- function(data, trt_col, iv) {
     },
     dynamic = {
       new_trt <- iv$rule(data, data[[trt_col]])
-      if (!is.numeric(new_trt) && !is.integer(new_trt)) {
+      if (!is.numeric(new_trt)) {
         rlang::abort(
           "`dynamic()` rule must return a numeric vector.",
           .call = FALSE

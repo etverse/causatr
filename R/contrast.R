@@ -235,6 +235,14 @@ contrast <- function(
   # `options(boot.parallel = "multicore")` flips bootstrap parallelism
   # on for every `contrast()` call without per-call plumbing.
   parallel <- match.arg(parallel, c("no", "multicore", "snow"))
+  # Capture the caller's frame ONCE, at the top level, so a `subset`
+  # expression referring to a session variable (e.g. `quote(age >
+  # cutoff)`) can still resolve `cutoff` deep inside
+  # `compute_contrast()` / `variance_bootstrap()` / `ice_variance_bootstrap()`
+  # where `parent.frame()` no longer points at the user. Threading
+  # `subset_env` explicitly instead of re-capturing downstream is the
+  # only correct way — see B1 in the 2026-04-15 critical review.
+  subset_env <- parent.frame()
   # Capture the original call so that the returned `causatr_result`
   # can echo it in its `print` and `summary` methods. `match.call()`
   # here — not at compute_contrast() — so the recorded call reflects
@@ -339,7 +347,8 @@ contrast <- function(
     by,
     parallel,
     ncpus,
-    call
+    call,
+    subset_env
   )
 }
 
@@ -454,7 +463,8 @@ compute_contrast <- function(
   by,
   parallel,
   ncpus,
-  call
+  call,
+  subset_env = parent.frame()
 ) {
   data <- fit$data
   int_names <- names(interventions)
@@ -473,7 +483,29 @@ compute_contrast <- function(
   # get the variance engine to re-define the target population per
   # level, since vcov is computed conditional on the target.
   if (!is.null(by)) {
-    by_vals <- sort(unique(stats::na.omit(data[[by]])))
+    # B8 (2026-04-15 review): enumerate levels from the *fit rows*
+    # (rows the outcome / propensity / match model was actually fit on),
+    # not the full dataset. Levels that appear only in censored / NA-
+    # outcome rows produced empty target populations downstream, and
+    # the inner `compute_contrast()` then aborted the whole call with
+    # "target population is empty". With ATT/ATC layered on top, a
+    # level with no treated units also killed every other stratum.
+    #
+    # Fall back to the full data for longitudinal (ICE) fits because
+    # `fit_rows` there refers to intermediate backward-iteration rows,
+    # not a single outcome-model fit — the full person-period frame is
+    # the safer source for level enumeration.
+    fit_rows_for_by <- fit$details$fit_rows
+    if (
+      !is.null(fit_rows_for_by) &&
+        is.logical(fit_rows_for_by) &&
+        length(fit_rows_for_by) == nrow(data)
+    ) {
+      by_source <- data[fit_rows_for_by][[by]]
+    } else {
+      by_source <- data[[by]]
+    }
+    by_vals <- sort(unique(stats::na.omit(by_source)))
     by_sym <- as.name(by)
 
     # If the caller *also* asked for ATT/ATC, that adds a
@@ -491,6 +523,13 @@ compute_contrast <- function(
     # a *combined* subset expression — this collapses the ATT/ATC
     # selection and the by-level selection into a single quoted
     # predicate, so the inner call treats it as a subgroup request.
+    #
+    # B8: wrap the inner call in tryCatch and skip levels whose target
+    # population turns out to be empty (e.g. a `by` level with no
+    # treated units under ATT). Without this, one unbalanced stratum
+    # killed every other level's estimate. Emit a single warning
+    # listing the skipped levels once at the end.
+    skipped <- character()
     results_list <- lapply(by_vals, function(lev) {
       by_subset <- bquote(.(by_sym) == .(lev))
       combined_subset <- if (!is.null(subset)) {
@@ -501,23 +540,52 @@ compute_contrast <- function(
       if (!is.null(est_subset)) {
         combined_subset <- bquote(.(combined_subset) & .(est_subset))
       }
-      compute_contrast(
-        fit,
-        interventions,
-        type,
-        estimand = NULL,
-        subset = combined_subset,
-        reference,
-        ci_method,
-        n_boot,
-        conf_level,
-        by = NULL,
-        parallel,
-        ncpus,
-        call
+      tryCatch(
+        compute_contrast(
+          fit,
+          interventions,
+          type,
+          estimand = NULL,
+          subset = combined_subset,
+          reference,
+          ci_method,
+          n_boot,
+          conf_level,
+          by = NULL,
+          parallel,
+          ncpus,
+          call,
+          subset_env = subset_env
+        ),
+        error = function(e) {
+          msg <- conditionMessage(e)
+          if (grepl("target population is empty", msg, fixed = TRUE)) {
+            skipped <<- c(skipped, as.character(lev))
+            return(NULL)
+          }
+          rlang::abort(msg, parent = e)
+        }
       )
     })
     names(results_list) <- as.character(by_vals)
+    # Drop skipped levels from the stitched output.
+    keep <- !vapply(results_list, is.null, logical(1))
+    results_list <- results_list[keep]
+    if (length(skipped) > 0L) {
+      rlang::warn(
+        paste0(
+          "Skipped `by` level(s) with empty target population: ",
+          paste(skipped, collapse = ", "),
+          ". This typically means the level has no rows satisfying the ",
+          "estimand (e.g. no treated units under ATT)."
+        )
+      )
+    }
+    if (length(results_list) == 0L) {
+      rlang::abort(
+        "All `by` levels have empty target populations; no effect estimates."
+      )
+    }
 
     # Stitch per-level tables: each level contributes its `estimates`
     # and `contrasts` data.tables, augmented with the by-level label
@@ -601,12 +669,13 @@ compute_contrast <- function(
       # data.table, then AND with the baseline-row mask. `data` is
       # already a data.table (inheriting from list), so `eval()` can
       # look up column names directly without us having to
-      # `as.list()`-materialize a copy. Passing `enclos = parent.frame()`
-      # preserves the caller's lexical scope so expressions like
+      # `as.list()`-materialize a copy. `subset_env` is the caller
+      # frame captured at `contrast()`'s top level so
       # `quote(age > cutoff)` can still resolve `cutoff` from the
-      # user's session.
+      # user's session — `parent.frame()` here would be the internal
+      # dispatch frame, not the user's.
       target_baseline <- rows_first &
-        as.logical(eval(subset, envir = data, enclos = parent.frame()))
+        as.logical(eval(subset, envir = data, enclos = subset_env))
     } else {
       target_baseline <- rows_first
     }
@@ -665,7 +734,8 @@ compute_contrast <- function(
         est,
         subset,
         parallel,
-        ncpus
+        ncpus,
+        subset_env = subset_env
       )
       vcov_mat <- boot_res$vcov
       boot_t <- boot_res$boot_t
@@ -684,7 +754,7 @@ compute_contrast <- function(
     # Logical vector (length n) flagging the target population.
     # Determined by `est` (ATE -> everyone; ATT -> treated at baseline;
     # ATC -> controls at baseline) and the optional `subset`.
-    target_idx <- get_target_idx(data, fit$treatment, est, subset)
+    target_idx <- get_target_idx(data, fit$treatment, est, subset, subset_env)
 
     # Build one counterfactual data.table per intervention. Each is a
     # copy of `data` with the treatment column(s) overwritten according
@@ -710,7 +780,11 @@ compute_contrast <- function(
     # it as a `warn()` made every NHEFS-using test surface a noisy
     # WARN line. `inform()` is the right semantic level — visible to
     # users but not flagged by testthat as a real warning.
-    valid_preds <- Reduce(`&`, lapply(preds_list, function(p) !is.na(p)))
+    valid_preds <- Reduce(
+      `&`,
+      lapply(preds_list, function(p) !is.na(p)),
+      init = rep(TRUE, nrow(data))
+    )
     n_dropped <- sum(!valid_preds & target_idx)
     if (n_dropped > 0L) {
       rlang::inform(
@@ -757,7 +831,8 @@ compute_contrast <- function(
         est,
         subset,
         parallel,
-        ncpus
+        ncpus,
+        subset_env = subset_env
       )
       vcov_mat <- boot_res$vcov
       boot_t <- boot_res$boot_t
@@ -847,7 +922,12 @@ compute_contrast <- function(
       ))
     }
     if (type == "or") {
-      gt1_mu <- mu_hat >= 1
+      # R6 (2026-04-15 review): mirror the NA filter from the `<= 0`
+      # branch above. Previously `any(mu_hat >= 1)` returned NA when any
+      # mu_hat was NA, and `if (NA)` aborted with "missing value where
+      # TRUE/FALSE needed" — surfacing a bogus OR-validation error on
+      # a NA-prediction that the target population had already excluded.
+      gt1_mu <- mu_hat[!is.na(mu_hat)] >= 1
       if (any(gt1_mu)) {
         bad <- names(mu_hat)[which(mu_hat >= 1)]
         rlang::abort(paste0(
@@ -991,17 +1071,40 @@ compute_contrast <- function(
 #' @param subset A quoted expression or `NULL`. When provided, overrides
 #'   `estimand` and selects rows satisfying the expression evaluated in the
 #'   context of `data`.
+#' @param subset_env Environment in which to resolve free variables referenced
+#'   by `subset` (e.g. a session-scoped `cutoff`). Must be captured at
+#'   `contrast()`'s top level — `parent.frame()` at this call site would be
+#'   the internal dispatch frame, not the user's.
 #'
 #' @return Logical vector of length `nrow(data)`.
 #'
 #' @noRd
-get_target_idx <- function(data, treatment, estimand, subset) {
+get_target_idx <- function(
+  data,
+  treatment,
+  estimand,
+  subset,
+  subset_env = parent.frame()
+) {
   # A quoted subset expression always takes priority over the estimand
   # keyword. `data` is a data.table (list-like), so `eval()` can resolve
-  # column names directly; `enclos = parent.frame()` preserves the
-  # caller's scope for expressions that reference session variables.
+  # column names directly; `subset_env` is the user's caller frame
+  # threaded from `contrast()`, needed for `quote(age > cutoff)` to
+  # resolve `cutoff` from the session.
   if (!is.null(subset)) {
-    return(as.logical(eval(subset, envir = data, enclos = parent.frame())))
+    sel <- as.logical(eval(subset, envir = data, enclos = subset_env))
+    if (length(sel) != nrow(data)) {
+      rlang::abort(
+        paste0(
+          "`subset` expression must evaluate to a length-",
+          nrow(data),
+          " logical vector; got length ",
+          length(sel),
+          "."
+        )
+      )
+    }
+    return(sel)
   }
   if (estimand == "ATE") {
     # Average over all individuals in the dataset.

@@ -73,23 +73,38 @@ fit_ipw <- function(
   fit_rows <- get_fit_rows(data, outcome)
   fit_data <- data[fit_rows]
 
+  # Capture user's `...` once so it can be re-played verbatim at bootstrap
+  # time (see `refit_ipw()` in `R/variance_bootstrap.R`). Dropping `...`
+  # from refit silently caused bootstrap SEs for non-default WeightIt
+  # methods (cbps, ebal, link=probit, stabilize=TRUE) to correspond to a
+  # *different* estimator than the point estimate. See B2 in the
+  # 2026-04-15 critical review.
+  dots <- list(...)
+
   # Step 1: Estimate propensity-score weights via WeightIt.
   # WeightIt computes stabilized weights by default.
   # Additional arguments (e.g. method = "glm", "gbm", "bart") go via `...`.
-  w <- WeightIt::weightit(
-    ps_formula,
-    data = fit_data,
-    estimand = estimand,
-    ...
+  #
+  # External (survey / IPCW) weights must enter the propensity M-estimation
+  # as `s.weights` — NOT be post-multiplied onto `w$weights` — so the
+  # Mparts IF correction (`prepare_propensity_if_weightit()`) sees the
+  # full weight vector the weightit was fit against. Post-multiplication
+  # silently under-corrected the survey-weighted propensity uncertainty
+  # (see B6 in the 2026-04-15 critical review).
+  weightit_args <- c(
+    list(ps_formula, data = fit_data, estimand = estimand),
+    dots
   )
+  if (!is.null(weights)) {
+    weightit_args$s.weights <- weights[fit_rows]
+  }
+  w <- do.call(WeightIt::weightit, weightit_args)
 
   # `get_fit_rows()` only excludes rows with missing outcome, but
   # WeightIt drops rows with missing PS-formula covariates as well.
-  # If those row sets differ, `w$weights` is shorter than `fit_rows`
-  # and the external-weight multiply on the next line would either
-  # recycle silently or misalign weights to the wrong individuals.
-  # Require the row counts to match and ask the user to clean or
-  # impute the data first.
+  # If those row sets differ, `w$weights` is shorter than `fit_rows`,
+  # which means an alignment assumption downstream has been broken
+  # silently. Abort loudly and ask the user to clean or impute first.
   if (length(w$weights) != sum(fit_rows)) {
     rlang::abort(
       paste0(
@@ -106,19 +121,18 @@ fit_ipw <- function(
     )
   }
 
-  # If external weights are provided (e.g. survey weights), multiply them
-  # with the estimated IPW weights.
-  if (!is.null(weights)) {
-    w$weights <- w$weights * weights[fit_rows]
-  }
-
   # Mparts guardrail: WeightIt methods that do not support the
   # M-estimation correction (gbm, super, bart, optweight, energy, npcbps,
   # cfd) silently treat weights as fixed inside glm_weightit(). Sandwich SEs
   # then ignore propensity-estimation uncertainty. Warn at fit time so
   # users learn about the limitation before they call contrast() or
   # diagnose().
-  if (is.null(attr(w, "Mparts"))) {
+  #
+  # R10: Mparts is a list attribute in recent WeightIt versions, a flag
+  # in older ones — `isTRUE(!is.null(...))` plus a length check covers
+  # both shapes.
+  mparts <- attr(w, "Mparts")
+  if (is.null(mparts) || length(mparts) == 0L) {
     rlang::warn(
       paste0(
         "WeightIt method '",
@@ -168,7 +182,8 @@ fit_ipw <- function(
       fit_rows = fit_rows,
       n_fit = sum(fit_rows),
       n_total = nrow(data),
-      weights = weights
+      weights = weights,
+      dots = dots
     )
   )
 }

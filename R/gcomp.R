@@ -146,6 +146,12 @@ fit_gcomp_point <- function(
   # `fit_ipw()` and `fit_matching()`.
   resolved_family <- resolve_family(family)
 
+  # Capture model_fn extras so `refit_gcomp()` can replay the same
+  # smoothing / penalisation / method arguments (e.g. mgcv::gam's
+  # `gamma = 1.4`, `method = "REML"`, `glm.nb`'s `init.theta`) at
+  # bootstrap time. See B2 in the 2026-04-15 critical review.
+  dots <- list(...)
+
   # Fit E[Y | A, L] using the caller-supplied fitting function.
   model <- model_fn(
     model_formula,
@@ -179,7 +185,8 @@ fit_gcomp_point <- function(
       n_fit = sum(fit_rows),
       n_total = nrow(data),
       model_fn = model_fn,
-      weights = weights
+      weights = weights,
+      dots = dots
     )
   )
 }

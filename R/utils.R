@@ -1,3 +1,42 @@
+#' Column names reserved for causatr-internal use
+#'
+#' @description
+#' These names are used internally by causat_survival() (risk-set bookkeeping)
+#' and ice() (pseudo-outcome column). User data that already carries any of
+#' these columns would silently collide with the internal mutations, so we
+#' reject them up front via `check_reserved_cols()`. See R12 in the
+#' 2026-04-15 critical review.
+#'
+#' @noRd
+CAUSATR_RESERVED_COLS <- c(
+  ".pseudo_y",
+  ".causatr_prev_event",
+  ".causatr_prev_cens"
+)
+
+#' Assert that `data` does not carry any causatr-reserved column names
+#'
+#' @param data A data.frame / data.table.
+#' @param which Optional subset of `CAUSATR_RESERVED_COLS` to check. Defaults
+#'   to the full set.
+#' @return `NULL` invisibly; aborts with a specific error listing the
+#'   offending columns when one is present.
+#' @noRd
+check_reserved_cols <- function(data, which = CAUSATR_RESERVED_COLS) {
+  bad <- intersect(which, names(data))
+  if (length(bad) > 0L) {
+    rlang::abort(
+      paste0(
+        "Column name(s) ",
+        paste0("`", bad, "`", collapse = ", "),
+        " are reserved by causatr internals. Rename the column(s) in your ",
+        "input data before calling `causat()` / `causat_survival()`."
+      )
+    )
+  }
+  invisible(NULL)
+}
+
 #' Construct a `causatr_fit` object
 #'
 #' @param model Fitted model object (glm, gam, glm_weightit, etc.) or `NULL`
