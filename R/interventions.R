@@ -240,8 +240,16 @@ ipsi <- function(delta) {
   # The constructor stores just the scalar; actual application requires
   # a fitted propensity model, so apply_single_intervention() currently
   # aborts for ipsi (Phase 4 work).
+  # Reject NA/NaN up front with a clean message — otherwise the next
+  # `delta <= 0` comparison evaluates to `NA` and users see the cryptic
+  # "missing value where TRUE/FALSE needed". Mirrors the defensive
+  # checks in `shift()` / `scale_by()` / `threshold()`. 2026-04-15
+  # fourth-round critical review Issue #9.
   if (!rlang::is_scalar_double(delta) && !rlang::is_scalar_integer(delta)) {
     rlang::abort("`delta` must be a single positive number.")
+  }
+  if (is.na(delta)) {
+    rlang::abort("`delta` must be a single non-NA positive number.")
   }
   if (delta <= 0) {
     rlang::abort("`delta` must be positive.")

@@ -51,6 +51,16 @@ test_that("ipsi() rejects non-positive delta", {
   expect_snapshot(error = TRUE, ipsi(-1))
 })
 
+test_that("ipsi() rejects NA / NaN delta with a clean message", {
+  # 2026-04-15 fourth-round critical review Issue #9: `is_scalar_double`
+  # returns TRUE for NA_real_, so the following `delta <= 0` evaluated
+  # to NA and users saw the cryptic "missing value where TRUE/FALSE
+  # needed" abort. The explicit `is.na(delta)` guard mirrors the
+  # defensive checks already present in shift/scale_by/threshold.
+  expect_error(ipsi(NA_real_), "non-NA positive")
+  expect_error(ipsi(NaN),     "non-NA positive")
+})
+
 test_that("static() rejects invalid inputs", {
   expect_snapshot(error = TRUE, static(NA))
   expect_snapshot(error = TRUE, static(c(1, 2)))
