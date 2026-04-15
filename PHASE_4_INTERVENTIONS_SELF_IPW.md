@@ -257,7 +257,9 @@ Phase 4 lands as a sequence of focused commits rather than one big-bang rewrite,
 | Foundation | `R/treatment_model.R` + `R/ipw_weights.R` + `R/interventions.R` IPSI constructor cleanup + `check_estimand_intervention_compat()` + threshold/continuous-dynamic rejection | **done** (commits `2bea1ae`, `128340b`, `8d79ceb`, `28eefb6`) |
 | 3a | T-A_β_α hand-derived cross-derivative test on `make_weight_fn()` for static(1), static(0), shift, IPSI, NULL | **done** (commit `4090e51`, 12 assertions at 1e-6) |
 | 3b | `compute_ipw_if_self_contained_one()` helper + stacked-sandwich oracle on a hand-assembled (alpha, beta) 3×3 bread/meat system | **done** (commit `6e3d42b`, 4 assertions at 1e-6) |
-| 3c | Big atomic rewrite — `fit_ipw()` / `compute_contrast()` IPW path / `variance_if_ipw()` / `refit_ipw()` / `new_causatr_fit()` slot handling / `diagnose()` shim; **DELETE** `prepare_propensity_if*` / `apply_propensity_correction` from `R/`; adapt Phase 3 test suite + regenerate snapshots | **pending** |
+| 3c.i | `fit_ipw()` rewrite on `fit_treatment_model()` + `make_weight_fn()`; `propensity_model_fn` arg on `causat()`; `compute_contrast()` IPW path rewrite via density-ratio weights + per-intervention `Y ~ 1` Hájek MSM; `variance_if_ipw()` straight loop via `compute_ipw_if_self_contained_one()`; Phase 3 IPW test suite adapted; `ipw.md` / `s3-methods.md` snapshots regenerated | **done** (commit `d9732bf`) |
+| 3c.ii | Delete `prepare_propensity_if()` / `prepare_propensity_if_weightit()` / `prepare_propensity_if_self_contained()` / `apply_propensity_correction()` from `R/variance_if.R`; unify the `variance_if()` dispatcher so IPW routes through a single live `variance_if_ipw()`; route `compute_contrast()`'s IPW path through the dispatcher uniformly; sweep Branch-A narration from roxygen | **done** (commit `b23660b`, ≈213 lines deleted) |
+| 3c.iii | Unify bootstrap IPW path: rewrite `refit_ipw()` to replay `fit_ipw()` on resampled data, delete `ipw_boot_replicate()` special case, route bootstrap through `compute_ipw_contrast_point()` uniformly with the sandwich path; extract `diagnose()` IPW shim into `diagnose_ipw_point()` helper for the binary static ATE case; regenerate `_snaps/diagnose.md` (no-op); sweep orphaned Phase-3-era narration | **done** (commit `9055f1f`) |
 | 3d | `tests/testthat/helper-ipw-weightit-oracle.R` + contrast-level oracle tests T-oracle1..4 (binary ATE/ATT/ATC + GAM propensity, `skip_if_not_installed("WeightIt")`); DESCRIPTION move WeightIt `Imports:` → `Suggests:` | **pending** |
 | 3e | Categorical (multinomial) branch in `fit_treatment_model()` + `make_weight_fn()` + `evaluate_density()`; `check_estimand_trt_compat()` update; new tests for categorical static HT | **pending** |
 | 3f | lmtp contrast-level oracles T-oracle5 (shift) + T-oracle6 (IPSI), `skip_if_not_installed("lmtp")`; DESCRIPTION add lmtp to `Suggests:` | **pending** |
@@ -326,19 +328,19 @@ The reconnaissance pass (between commit 6e3d42b and Chunk 3c) identified these t
 
 - [x] `R/treatment_model.R` — fit treatment density model via `propensity_model_fn`; `evaluate_density()` for any treatment value. **Binary + continuous landed in the foundation chunk**; categorical (multinomial) branch is the next sub-chunk and currently hard-aborts with `causatr_phase4_categorical_pending`.
 - [x] `R/ipw_weights.R` — density-ratio weight computation + `make_weight_fn()` closure factory. Three branches: HT indicator (discrete point-mass interventions), smooth pushforward with correct sign + Jacobian (continuous MTPs), IPSI closed form. `check_intervention_family_compat()` enforces the intervention × family compatibility matrix in §4.
-- [ ] Rewrite `R/ipw.R` — single self-contained engine handling static + shift + scale_by + dynamic + ipsi via density-ratio weights and an explicit weighted MSM. Must populate `fit$details$propensity_model`, `fit$details$alpha_hat`, and `fit$details$weight_fn`. Drop the WeightIt runtime call.
-- [ ] Add `propensity_model_fn` argument to `causat()` (default = `model_fn`, per the **Option B** decision in §4); plumb through to `fit_ipw()`.
-- [ ] Fill in the body of `prepare_propensity_if_self_contained()` in `R/variance_if.R` per §7.
-- [ ] Unblock `apply_single_intervention()` for `ipsi` (`R/interventions.R`) — it currently hard-aborts — and drop the `ipsi()` "dead-end" `rlang::inform()` from the constructor.
+- [x] Rewrite `R/ipw.R` — single self-contained engine handling static + shift + scale_by + dynamic + ipsi via density-ratio weights and an explicit weighted MSM. Populates `fit$details$propensity_model`, `fit$details$treatment_model`, `fit$details$weight_fn`, `fit$details$propensity_model_fn`. WeightIt runtime call removed (chunk 3c.i, commit `d9732bf`).
+- [x] Add `propensity_model_fn` argument to `causat()` (default = `model_fn`, per the **Option B** decision in §4); plumbed through to `fit_ipw()` (chunk 3c.i).
+- [x] IPW Channel-2 IF lives in `compute_ipw_if_self_contained_one()` (chunk 3b, commit `6e3d42b`); the `variance_if()` dispatcher routes IPW to a single straight loop `variance_if_ipw()` and the Branch A primitives (`prepare_propensity_if*`, `apply_propensity_correction()`) are deleted (chunk 3c.ii, commit `b23660b`).
+- [x] Unblocked `apply_single_intervention()` for `ipsi` (`R/interventions.R`) — the constructor `rlang::inform()` was dropped during foundation cleanup; the IPW engine handles IPSI via the closed-form weight branch in `compute_density_ratio_weights()` and never calls `apply_single_intervention()` on the treatment column itself. The remaining ipsi branch in `apply_single_intervention()` aborts with a flat error pointing at `estimator = "ipw"` for callers that try to materialize a counterfactual treatment column under gcomp / matching.
 
 **Estimand + safety checks**
 
-- [ ] `check_estimand_intervention_compat()` — reject ATT/ATC for non-static interventions at contrast time (error class `causatr_bad_estimand_intervention`).
+- [x] `check_estimand_intervention_compat()` — rejects ATT/ATC for non-static interventions at contrast time (error class `causatr_bad_estimand_intervention`); landed in the foundation chunk (commit `28eefb6`).
 
 **Categorical treatment + IPSI**
 
-- [ ] Categorical treatment support across checks + IPW path via multinomial density model. Unblocks the `categorical` branch of `fit_treatment_model()` / `evaluate_density()` / `make_weight_fn()`.
-- [ ] IPSI implementation wiring through `fit_ipw()` (the closed-form weight itself already exists in `R/ipw_weights.R`).
+- [ ] Categorical treatment support across checks + IPW path via multinomial density model. Unblocks the `categorical` branch of `fit_treatment_model()` / `evaluate_density()` / `make_weight_fn()`. **Sub-chunk 3e.**
+- [x] IPSI implementation wiring through `fit_ipw()` — the closed-form weight in `R/ipw_weights.R` is consumed by the per-intervention MSM refit in `compute_contrast()`'s IPW path (chunk 3c.i).
 
 **Dependencies**
 
@@ -347,7 +349,7 @@ The reconnaissance pass (between commit 6e3d42b and Chunk 3c) identified these t
 
 **Diagnostics + docs**
 
-- [ ] `diagnose()` weight summaries for the new engine (min / max / quartiles / 99th percentile / extreme-weight count + optional user truncation at a percentile).
+- [x] `diagnose()` weight summaries for the new engine — minimal shim (`diagnose_ipw_point()` in `R/diagnose.R`) covering the binary static ATE case (PS distribution, treated/control/overall HT weight summary with mean / sd / min / max / ESS) shipped in chunk 3c.iii (commit `9055f1f`). Non-binary treatment families abort with `causatr_diag_unsupported_family`. Extreme-weight count + percentile truncation are part of the full Phase 9 rewrite.
 - [x] Update `FEATURE_COVERAGE_MATRIX.md` — collapse the two IPW columns into one, add rows for shift / scale_by / dynamic / ipsi under IPW, add estimand rejection rows, add `threshold()` rejection row under IPW, add T-oracle3/4 rows. (Initial pass in the foundation chunk; the final pass lands alongside the `fit_ipw()` rewrite.)
 - [ ] Vignette: `interventions.qmd` — shift, scale, dynamic (binary), IPSI examples. `threshold()` is documented under the gcomp vignette only.
 
@@ -356,11 +358,11 @@ The reconnaissance pass (between commit 6e3d42b and Chunk 3c) identified these t
 - [x] Unit tests for `R/treatment_model.R` and `R/ipw_weights.R` (foundation chunk — 79 assertions across both files).
 - [ ] T-oracle1, T-oracle2 (WeightIt, `skip_if_not_installed`)
 - [ ] T-oracle3, T-oracle4 (lmtp, `skip_if_not_installed`)
-- [ ] T-A_β_α hand-derived vs numerical
-- [ ] T-end-to-end stacked sandwich by hand
-- [ ] T-non-static IF > delta-only shortcut
-- [ ] Bootstrap parity
-- [ ] Estimand × intervention rejection snapshot
+- [x] T-A_β_α hand-derived vs numerical (chunk 3a, commit `4090e51`, `test-ipw-cross-derivative.R`, 12 assertions at 1e-6).
+- [x] T-end-to-end stacked sandwich by hand (chunk 3b, commit `6e3d42b`, `test-ipw-branch-b.R`, 4 assertions at 1e-6).
+- [ ] T-non-static IF > delta-only shortcut. **Chunk 3g.**
+- [ ] Bootstrap parity test (sandwich vs bootstrap on the same shift / IPSI DGP). **Chunk 3g.** The unified bootstrap pipeline itself shipped in 3c.iii — `refit_ipw()` → `compute_ipw_contrast_point()` — but the truth-based parity assertion is still pending.
+- [x] Estimand × intervention rejection snapshot (`test-estimand-intervention-compat.R`, foundation chunk).
 
 **Deferred (explicitly not Phase 4 scope)**
 

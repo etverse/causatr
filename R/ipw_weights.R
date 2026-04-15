@@ -46,6 +46,22 @@
 #'   continuous dynamic rules, or rewrite the rule as a smooth
 #'   `shift()` / `scale_by()` / `threshold()`.
 #'
+#'   **Terminology note.** The causal-inference literature uses
+#'   "dynamic regime" loosely. Two distinct objects share the name:
+#'   (1) deterministic rules `d(L_i)` that pick out a single
+#'   counterfactual treatment value per individual (Robins; Murphy;
+#'   Hernán & Robins Ch. 21), and (2) **modified treatment policies**
+#'   (MTPs) — Díaz & van der Laan; Haneuse & Rotnitzky; Kennedy 2019
+#'   — which are stochastic / smooth transformations of the observed
+#'   exposure (e.g. `A → A + δ`, `A → δ·A`, an incremental
+#'   propensity-score shift). MTPs on continuous treatment **are**
+#'   well-defined under IPW because the pushforward of a continuous
+#'   density under a diffeomorphism has a Lebesgue density and a
+#'   Jacobian. causatr exposes those as `shift()`, `scale_by()`, and
+#'   `ipsi()` — not `dynamic()`. The `dynamic()` constructor is
+#'   reserved for the deterministic-rule sense (1), which is why it
+#'   is rejected on continuous treatment.
+#'
 #' The upstream `check_intervention_family_compat()` is the gate
 #' that enforces this; the body below assumes its invariants hold.
 #'

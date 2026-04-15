@@ -126,9 +126,16 @@ the supported intervention / variance shapes differ across methods.
 
 ## Method 2 — Inverse probability weighting (`estimator = "ipw"`)
 
+The Phase 4 chunk 3c rewrite landed the self-contained IPW engine: a
+single density-ratio + weighted-MSM path (no WeightIt runtime) covering
+static (HT indicator), shift / scale_by (continuous pushforward with
+Jacobian), dynamic (binary HT indicator), and ipsi (closed-form weight).
+Variance goes through one `variance_if_ipw()` loop calling
+`compute_ipw_if_self_contained_one()` — no Branch A / Branch B split.
+
 | Treatment | Outcome | Intervention | Estimand | Contrast | Variance | Weights | Status | Test file |
 |---|---|---|---|---|---|---|---|---|
-| binary | gaussian | static | ATE | difference | sandwich | none | ✅ truth | test-simulation.R |
+| binary | gaussian | static | ATE | difference | sandwich (HT + self-contained IF) | none | ✅ truth | test-simulation.R, test-ipw.R, test-ipw-weights.R, test-treatment-model.R |
 | binary | gaussian | static | ATE | difference | bootstrap | none | ✅ truth | test-simulation.R |
 | binary | gaussian | static | ATT | difference | sandwich | none | ✅ truth | test-simulation.R |
 | binary | gaussian | static | ATC | difference | sandwich | none | ✅ truth | test-simulation.R |
@@ -137,13 +144,20 @@ the supported intervention / variance shapes differ across methods.
 | binary | binomial | static | ATE | ratio | sandwich | none | ✅ truth | test-simulation.R |
 | binary | binomial | static | ATE | OR | sandwich | none | ✅ truth | test-simulation.R |
 | binary | binomial | static | ATE | difference | bootstrap | none | ✅ truth | test-simulation.R |
+| binary | gaussian | dynamic | ATE | difference | sandwich (HT indicator) | none | ✅ truth | test-simulation.R, test-ipw-weights.R |
+| binary | gaussian | ipsi(δ) | ATE | difference | sandwich (closed-form weight) | none | ✅ truth | test-simulation.R, test-ipw-weights.R |
+| continuous | gaussian | shift | ATE | difference | sandwich (pushforward ratio) | none | ✅ truth | test-simulation.R, test-ipw-weights.R |
+| continuous | gaussian | scale_by | ATE | difference | sandwich (pushforward + Jacobian) | none | ✅ truth | test-simulation.R, test-ipw-weights.R |
 | categorical (k>2) | gaussian | static | ATE | difference | sandwich | none | ✅ truth | test-simulation.R |
 | continuous | gaussian | static (specific levels) | ATE | difference | sandwich | none | ✅ truth | test-simulation.R |
-| binary | gaussian | shift / scale / threshold / dynamic / ipsi | — | — | — | — | ⛔ **rejected** (Phase 4) | test-ipw.R, test-contrast.R |
-| binary | gaussian | static | ATE | difference | sandwich (non-Mparts WeightIt method) | none | ✅ e2e smoke (finite understated SE + bootstrap fallback) | test-ipw.R |
+| Self-contained IPW sandwich variance (single path) | — | — | — | sandwich | ✅ truth (T-A_β_α hand-derived cross-derivative + T-end-to-end stacked-sandwich by hand) | test-ipw-branch-b.R, test-ipw-cross-derivative.R, test-variance-if.R |
+| continuous | gaussian | static | — | — | — | — | ⛔ **rejected** (HT indicator degenerate on continuous treatment) | test-ipw.R |
+| continuous | gaussian | threshold | — | — | — | — | ⛔ **rejected** (pushforward under clamp is a mixed measure; use gcomp) | test-ipw.R |
+| continuous | gaussian | dynamic | — | — | — | — | ⛔ **rejected** (deterministic rule on continuous treatment is a Dirac pushforward; use gcomp) | test-ipw.R |
+| any | any | shift / scale_by / dynamic / ipsi | ATT or ATC | any | any | any | ⛔ **rejected** — `check_estimand_intervention_compat()` aborts with `causatr_bad_estimand_intervention` | test-estimand-intervention-compat.R |
 | any | any | any — with `A:modifier` in `confounders` | any | any | any | any | ⛔ **rejected** (Phase 8; saturated MSM cannot represent effect modification — use gcomp) | test-ipw.R |
-| multivariate | any | any | any | any | any | any | ⛔ **rejected** (Phase 4) | test-s3-methods.R, test-multivariate.R |
-| longitudinal (any shape) | any | any | any | any | any | any | ⛔ **rejected** (Phase 4) | test-ipw.R |
+| multivariate | any | any | any | any | any | any | ⛔ **rejected** (Phase 7) | test-s3-methods.R, test-multivariate.R |
+| longitudinal (any shape) | any | any | any | any | any | any | ⛔ **rejected** (deferred — pooled-over-time MSM not yet implemented) | test-ipw.R |
 
 ---
 
@@ -237,14 +251,12 @@ the supported intervention / variance shapes differ across methods.
 | `contrast()` rejects bad estimand × method combos | ✅ snapshots | test-contrast.R |
 | `contrast()` rejects bad reference / intervention shape | ✅ snapshots | test-contrast.R |
 | `diagnose()` for gcomp / matching | ✅ smoke + snapshots | test-diagnose.R |
-| `diagnose()` for IPW (Phase 3 runtime via WeightIt) | ✅ smoke + snapshots | test-diagnose.R |
-| `diagnose()` for IPW (Phase 4 runtime via shim) | 🟡 smoke only on binary static ATE; full rewrite deferred to **Phase 9** (`PHASE_9_DIAGNOSE.md`) | test-diagnose.R (to be updated in Chunk 3c) |
+| `diagnose()` for IPW (self-contained runtime via `diagnose_ipw_point()` shim on binary static ATE) | 🟡 smoke + snapshots; full rewrite deferred to **Phase 9** (`PHASE_9_DIAGNOSE.md`) | test-diagnose.R |
 | `diagnose()` intervention-aware (`intervention =` arg, per-intervention panels) | ❌ planned (**Phase 9**) | — |
 | `diagnose()` for longitudinal | ⛔ **rejected** today; full longitudinal dispatch planned for **Phase 9** | test-diagnose.R |
 | `diagnose()` treatment-type-aware dispatch via `detect_treatment_family()` (binary / categorical / continuous) | 🟡 shim in Phase 4; full dispatch in **Phase 9** | — |
 | `diagnose()` estimand-aware balance (ATE vs ATT vs ATC reference populations) | ❌ planned (**Phase 9**) | — |
 | `diagnose()` effect-modification-aware stratification (`by = "modifier"`) | ❌ planned (**Phase 9**, depends on Phase 8) | — |
-| `diagnose()` aborts on missing WeightIt treat.type | ⛔ **obsolete** after Chunk 3c — no more WeightIt runtime path; the check becomes a no-op / is deleted | test-diagnose.R (to be deleted in Chunk 3c) |
 | S3 methods: print, summary, plot, coef, vcov, confint, tidy, glance | ✅ smoke | test-s3-methods.R |
 | `confint()` respects `level` arg (sandwich path) | ✅ smoke | test-s3-methods.R |
 | `confint()` consistency between sandwich and bootstrap on `level` | ✅ unit + monotonicity | test-s3-methods.R |
@@ -269,32 +281,26 @@ are listed here so (a) the matrix reflects the full design intent, not
 just what's shipped, and (b) a future PR that lands the implementation
 has an explicit checklist to fill in.
 
-### Phase 4 — Self-contained IPW for non-static interventions
+### Phase 4 — Self-contained IPW (remaining work)
 
-Phase 4 collapses the existing "IPW (WeightIt)" and "IPW (self-contained)"
-split into a single unified IPW engine. Every row below will be tested
-against the variance-engine hand-derivation (T-A_β_α / T-end-to-end /
-T-non-static / bootstrap parity) and, where applicable, against the
-independent oracles listed in `PHASE_4_INTERVENTIONS_SELF_IPW.md §9`
-(WeightIt for static binary; lmtp for shift / IPSI point estimates).
+The Phase 4 chunk 3c runtime rewrite has shipped — the shipped rows now
+live in the main IPW method table above. The rows below are the Phase 4
+items still outstanding after 3c (categorical sub-chunk 3e, contrast-
+level oracles 3d / 3f, non-static regression tests 3g, bootstrap parity,
+and multivariate / longitudinal IPW).
 
 | Treatment | Outcome | Intervention | Estimand | Variance | Status | Notes |
 |---|---|---|---|---|---|---|
-| continuous | gaussian | shift | ATE | sandwich | ❌ planned | pushforward density ratio (weight formula landed in foundation chunk); lmtp oracle (T-oracle3) |
-| continuous | gaussian | scale_by | ATE | sandwich | ❌ planned | pushforward density ratio with `1/|c|` Jacobian |
-| continuous | gaussian | threshold | — | — | ⛔ **rejected** | pushforward of continuous `f(a\|l)` under boundary clamp is a mixed measure (point masses at `lo`/`hi`); density ratio w.r.t. Lebesgue is not well-defined. Use `estimator = "gcomp"`; test: snapshot error |
-| continuous | gaussian | dynamic | — | — | ⛔ **rejected** | deterministic per-individual rule is a Dirac per individual — same pushforward degeneracy as threshold. Use `gcomp`; test: snapshot error |
-| binary | gaussian | static | ATE | sandwich | ❌ planned | Horvitz–Thompson indicator weight (weight formula landed in foundation chunk) |
-| binary | binomial | static | ATE | sandwich | ❌ planned | same HT path, binomial outcome |
-| binary | gaussian | dynamic | ATE | sandwich | ❌ planned | HT indicator weight on deterministic rule (binary treatment only) |
-| binary | gaussian | ipsi(δ) | ATE | sandwich | ❌ planned | closed-form weight shortcut (formula landed in foundation chunk); T-oracle4 |
-| continuous | gaussian | static | — | — | ⛔ **rejected** | nobody is observed exactly at the static value; HT indicator is 0 almost surely. Use `shift()` / `scale_by()`; test: snapshot error |
-| categorical (k>2) | gaussian | static | ATE | sandwich | ❌ planned (categorical sub-chunk) | multinomial density via `nnet::multinom` through `propensity_model_fn`; `fit_treatment_model()` currently aborts with `causatr_phase4_categorical_pending` |
-| categorical (k>2) | gaussian | dynamic | ATE | sandwich | ❌ planned (categorical sub-chunk) | HT indicator weight on deterministic rule |
-| multivariate | gaussian | any | any | any | ❌ planned | IPW multivariate; matching multivariate is Phase 7 |
+| categorical (k>2) | gaussian | static | ATE | sandwich | ❌ planned (chunk 3e) | multinomial density via `nnet::multinom` through `propensity_model_fn`; `fit_treatment_model()` currently aborts with `causatr_phase4_categorical_pending` |
+| categorical (k>2) | gaussian | dynamic | ATE | sandwich | ❌ planned (chunk 3e) | HT indicator weight on deterministic rule |
+| binary | gaussian | static | ATE × {ATE/ATT/ATC} | sandwich | ❌ planned (chunk 3d) | T-oracle1..3: contrast-level parity vs `WeightIt::glm_weightit()` |
+| binary | gaussian | static | ATE | sandwich | ❌ planned (chunk 3d) | T-oracle4: `propensity_model_fn = mgcv::gam` |
+| continuous | gaussian | shift | ATE | sandwich | ❌ planned (chunk 3f) | T-oracle5: `lmtp::lmtp_ipw()` point-estimate parity |
+| binary | gaussian | ipsi(δ) | ATE | sandwich | ❌ planned (chunk 3f) | T-oracle6: manual IPSI weight parity |
+| non-static IPW | — | shift / ipsi | ATE | sandwich | ❌ planned (chunk 3g) | T-non-static: full IF variance must materially exceed the `J V_β Jᵀ` delta-only shortcut |
+| non-static IPW | — | shift / ipsi | ATE | bootstrap | ❌ planned (chunk 3g) | bootstrap parity: `ci_method = "bootstrap"` agrees with `ci_method = "sandwich"` within Monte Carlo error |
+| multivariate | any | any | any | any | ❌ deferred (Phase 7) | IPW multivariate needs density-ratio engine with joint treatment density |
 | longitudinal | any | any | any | any | ❌ deferred | extends density-ratio machinery to pooled-over-time MSM; explicitly out of Phase 4 scope |
-| variance engine Branch B (self-contained IPW) | — | — | — | sandwich | ❌ planned | `prepare_propensity_if_self_contained()` stub exists; tests T-A_β_α / T-end-to-end / T-non-static / bootstrap parity from `PHASE_4_INTERVENTIONS_SELF_IPW.md §11` |
-| any | any | shift / scale_by / dynamic / ipsi | ATT or ATC | any | ❌ planned rejection | `check_estimand_intervention_compat()` aborts with `causatr_bad_estimand_intervention`; test: snapshot error |
 
 ### Phase 6 — Survival contrasts and competing risks
 

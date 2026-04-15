@@ -17,7 +17,7 @@
 
 - A **causal effect estimation package** supporting multiple methods for methodological triangulation
 - **Primary engine:** outcome-model-based g-computation — the parametric g-formula (point treatments) and iterated conditional expectation (ICE) g-computation (longitudinal treatments)
-- **Also supports IPW and matching** for triangulation — owns the IPW pipeline end-to-end (treatment density model, density-ratio weights, weighted MSM) and delegates only matching to `MatchIt`. WeightIt is a Suggests-only test oracle after Phase 4.
+- **Also supports IPW and matching** for triangulation — owns the IPW pipeline end-to-end (treatment density model, density-ratio weights, per-intervention weighted MSM) and delegates only matching to `MatchIt`. `WeightIt` is invoked only by tests as a contrast-level reference for the static binary case.
 - Provides a **unified two-step API** (`causat()` → `contrast()`) across all methods
 - Supports multiple **inference approaches**: sandwich (default), bootstrap
 - Includes **diagnostics**: positivity checks, covariate balance summaries (via `cobalt` integration)
@@ -27,7 +27,7 @@
 
 ### IS NOT
 
-- Not reimplementing the WeightIt propensity-method zoo — we DO own the IPW pipeline (treatment density model fit via the user's `propensity_model_fn`, density-ratio weights, weighted MSM), but stick to GLM/GAM-class fitters via `model_fn`. WeightIt remains as a Suggests-only test oracle for the static binary case (Phase 4 onward).
+- Not reimplementing the WeightIt propensity-method zoo — we DO own the IPW pipeline (treatment density model fit via the user's `propensity_model_fn`, density-ratio weights, weighted MSM), but stick to GLM/GAM-class fitters via `model_fn`. WeightIt is a test-only contrast-level reference for the static binary case.
 - Not reimplementing matching algorithms — `MatchIt` does matching, we estimate effects on matched data
 - Not a TMLE/debiased ML package — `lmtp` exists for this; totally out of scope
 - Not a mediation package — out of scope
@@ -44,7 +44,7 @@
 fit_gcomp <- causat(data, outcome = "Y", treatment = "A", confounders = ~ L1 + L2,
                     estimator = "gcomp")
 
-# IPW (weights from WeightIt)
+# IPW (density-ratio weights from a self-contained treatment density model)
 fit_ipw <- causat(data, outcome = "Y", treatment = "A", confounders = ~ L1 + L2,
                   estimator = "ipw")
 
@@ -95,7 +95,7 @@ Using black-box ML (random forests, neural nets) directly in g-computation does 
 
 | Need | Package | Relationship to causatr |
 |---|---|---|
-| Weight estimation | `WeightIt` | **Suggests** (Phase 4 onward): test oracle only. `causat(estimator = "ipw")` runs a self-contained density-ratio engine using `model_fn` / `propensity_model_fn` (default `stats::glm`). |
+| Weight estimation | `WeightIt` | Test oracle only — `causat(estimator = "ipw")` runs a self-contained density-ratio engine using `model_fn` / `propensity_model_fn` (default `stats::glm`). WeightIt is invoked only by tests as a contrast-level reference for the static binary case. |
 | Matching | `MatchIt` | **Imports**: `causat(estimator = "matching")` calls `MatchIt::matchit()` internally |
 | Balance diagnostics | `cobalt` | **Suggests**: `diagnose()` calls `cobalt::bal.tab()` for balance summaries |
 | Semiparametric/TMLE | `lmtp` | Out of scope. Complementary package, not a competitor. |
@@ -148,15 +148,16 @@ Suggests:
 | Point treatment | Yes | Standard g-computation (Ch. 13) |
 | Longitudinal treatment | Yes (Phase 5) | ICE g-computation (Zivich et al.) |
 | **Intervention types** | | |
-| Static intervention | Yes | Set A=a for all (e.g., "always treat") |
-| Dynamic intervention | Yes (gcomp only) | A_k = g(L̄_k) (e.g., "treat if CD4 < 200") |
-| Modified treatment policy | Yes (gcomp only) | d(a, l) shifts observed treatment (e.g., "reduce by 10%") |
-| Incremental propensity score | Planned (Phase 4) | Multiply treatment odds by δ; constructor exists, self-contained IPW engine pending |
+| Static intervention | Yes (gcomp / IPW / matching) | Set A=a for all (e.g., "always treat") |
+| Dynamic intervention | Yes (gcomp; IPW for binary treatment via HT indicator) | Deterministic per-individual rule `A_k = d(L̄_k)` (e.g., "treat if CD4 < 200"). Continuous treatment under IPW is rejected — see the dynamic vs MTP note below. |
+| Modified treatment policy (`shift`, `scale_by`) | Yes (gcomp / IPW) | Smooth diffeomorphic transformations of the observed treatment (e.g., `shift(δ)` = "add δ to every dose"). IPW handles them via the pushforward density ratio with the correct Jacobian. |
+| Threshold intervention | Yes (gcomp only) | `threshold(lo, hi)` clamps continuous treatment into a range. Rejected under IPW because the pushforward of a continuous density under a clamp is a mixed measure (point masses at `lo` / `hi` plus a truncated density), so the density ratio w.r.t. Lebesgue is not well-defined. |
+| Incremental propensity score (IPSI) | Yes (IPW only, binary) | Kennedy 2019 closed-form weight `w_i = (δ·A_i + (1−A_i)) / (δ·p_i + (1−p_i))`. Multiplies the treatment odds by δ. |
 | **Treatment types** | | |
 | Binary treatment | Yes | All methods |
 | Continuous treatment | Yes (g-comp, IPW via GPS) | Matching rejects continuous with an explicit error (MatchIt is binary-only) |
 | Categorical treatment (k > 2) | Yes (g-comp, IPW via multinomial PS) | Matching rejects categorical with an explicit error (MatchIt is binary-only) |
-| Multivariate treatment | Yes (g-comp); IPW and matching rejected | IPW/multivariate is Phase 4; multivariate matching is Phase 7 |
+| Multivariate treatment | Yes (g-comp); IPW and matching rejected | Multivariate IPW and multivariate matching are Phase 7 work. |
 | **Outcome types** | | |
 | Continuous outcome | Yes | family = "gaussian" |
 | Binary outcome | Yes | family = "binomial" (logit / probit / cloglog all tested) |
@@ -169,7 +170,7 @@ Suggests:
 | Ordinal outcome | Planned (Phase 7) | Ordered categories via `MASS::polr()` or `ordinal::clm()` |
 | **Estimation methods** | | |
 | G-computation | Yes | Core engine; supports all intervention types |
-| IPW (self-contained density-ratio engine) | Yes (static today; shift / scale / threshold / dynamic / IPSI in Phase 4) | One engine for all intervention types; treatment density model + weighted MSM. Pre-Phase 4: wraps WeightIt for static only. |
+| IPW (self-contained density-ratio engine) | Yes — `static`, `shift`, `scale_by`, `dynamic` (binary), `ipsi`. `threshold` and continuous `static` / `dynamic` rejected by design. Categorical treatment pending the multinomial sub-chunk. | One engine for every supported intervention type: treatment density model via `fit_treatment_model()` + density-ratio weight builder + per-intervention `Y ~ 1` Hájek MSM refit. WeightIt is a contrast-level test oracle, not on the runtime path. |
 | Matching (via MatchIt) | Yes | Static interventions only |
 | **Effect modification** | | |
 | Effect modification (A × baseline modifier) | Partial | Point gcomp: yes; IPW / matching: **hard-abort** on any `A:modifier` term in `confounders` via `check_confounders_no_treatment()` (MSM hardcoded to `Y ~ A` cannot carry it); ICE: current-period A only, lags miss the interaction. Unified API planned in **Phase 8** — see `PHASE_8_INTERACTIONS.md`. |
@@ -180,6 +181,15 @@ Suggests:
 | Survey weights | Planned (Phase 7) | Pass through to outcome model fitting |
 | Clustered data | Planned (Phase 7) | Cluster-robust sandwich variance |
 | Parallel processing | Partial | `boot::boot(parallel=, ncpus=)` done; optional `future` backend in Phase 7 |
+
+### Dynamic regimes vs modified treatment policies — terminology gotcha
+
+The causal-inference literature uses "dynamic regime" loosely for two distinct objects:
+
+1. **Deterministic rules** `d(L_i)` that pick out a single counterfactual treatment value per individual (Robins; Murphy; Hernán & Robins Ch. 21). On a binary treatment the output is 0 or 1; on a continuous treatment it is a single specific real number per individual.
+2. **Modified treatment policies (MTPs)** — smooth / stochastic transformations of the observed exposure such as `A → A + δ`, `A → δ·A`, or incremental propensity-score shifts (Díaz & van der Laan; Haneuse & Rotnitzky; Kennedy 2019).
+
+`causatr`'s `dynamic()` constructor is reserved for sense (1), which is why it rejects continuous treatment under IPW — a deterministic rule on a continuous A is a Dirac per individual with no Lebesgue density, so the density ratio in the IPW weight is degenerate. MTPs in sense (2) **are** fully supported under IPW on continuous treatment via `shift()`, `scale_by()`, and `ipsi()` — they go through the smooth pushforward branch in `R/ipw_weights.R` with the correct Jacobian and serve the same scientific use cases the literature's "continuous dynamic regimes" usually mean. Users coming from an MTP background should reach for `shift()` / `scale_by()` / `ipsi()`, not `dynamic()`.
 
 ---
 
@@ -195,7 +205,7 @@ Suggests:
 
 **Method-specific V_β:**
 - **G-comp**: `sandwich::sandwich(model)` — standard Huber–White HC0
-- **IPW**: per-individual influence function = MSM Channel-2 + propensity Channel-2, the latter built from a `numDeriv::jacobian()` cross-derivative `A_{βα}` against the user's treatment density model. Phase 3 wraps `WeightIt::glm_weightit()` for the static binary path; Phase 4 replaces it with the self-contained engine for **all** intervention types.
+- **IPW**: per-individual influence function on the stacked `(α, β)` M-estimation system, built by `compute_ipw_if_self_contained_one()` — Channel 1 from the propensity score via `sandwich::estfun` + `sandwich::bread` on the propensity model, Channel 2 from the cross-derivative `A_{βα}` of the per-intervention weight closure via `numDeriv::jacobian`. The dispatcher routes every IPW fit through a single straight loop `variance_if_ipw()` that aggregates IFs via `vcov_from_if()`.
 - **Matching**: `sandwich::vcovCL(model, cluster = subclass)` — cluster-robust SE on matched-pair subclass
 
 **Contrast SE:** For risk differences, the delta method gradient is trivial ([1, -1]). For risk ratios and odds ratios, the gradient involves the ratio/odds formula — applied automatically in `compute_contrast()`.
@@ -246,14 +256,14 @@ result <- contrast(fit, interventions, ci_method = "bootstrap", n_boot = 500)
 15. Comprehensive simulation-based tests (binary/continuous outcome, all contrast types, all estimands) ✓
 16. `diagnose()` — positivity, balance (cobalt), weight distribution, match quality, Love plots (`R/diagnose.R`) ✓
 
-### Phase 4: Intervention Types + Self-Contained IPW — PENDING
-16. Self-contained IPW engine — **single** density-ratio + weighted-MSM path covering static + shift + scale_by + threshold + dynamic + IPSI. Replaces the Phase 3 WeightIt wrapper at runtime; WeightIt moves to Suggests as a test oracle for the static binary case.
-17. `R/treatment_model.R` + `R/ipw_weights.R` — treatment density model (binary / continuous / categorical) via the user's `propensity_model_fn` (default = `model_fn`) + density-ratio weight builder.
-18. Explicit weighted MSM fit (no collapse to weighted means) so non-saturated dose-response MSMs and Phase 8 effect-modification MSMs have a slot to live in.
-19. IPSI (incremental propensity score interventions) on top of the same density-ratio engine.
-20. Categorical treatment support across checks + IPW path.
-21. `prepare_propensity_if_self_contained()` body in `R/variance_if.R` — `numDeriv::jacobian` cross-derivative `A_{βα}` + derived-gradient propensity correction. Dispatcher already routes here.
-22. Vignette: `interventions.qmd`. See `PHASE_4_INTERVENTIONS_SELF_IPW.md`.
+### Phase 4: Intervention Types + Self-Contained IPW — RUNTIME SHIPPED
+16. Self-contained IPW engine — **single** density-ratio + per-intervention weighted-MSM path covering `static` + `shift` + `scale_by` + `dynamic` (binary) + `ipsi`. WeightIt is no longer on the runtime path; it remains as a contrast-level test oracle for the static binary case. ✓ (chunks 3c.i–3c.iii)
+17. `R/treatment_model.R` + `R/ipw_weights.R` — treatment density model via the user's `propensity_model_fn` (default = `model_fn`) + density-ratio weight builder with HT-indicator / smooth-pushforward / IPSI-closed-form branches. ✓ (foundation chunk; categorical multinomial branch pending in chunk 3e)
+18. Per-intervention `Y ~ 1` Hájek MSM refit in `compute_contrast()` — recovers each counterfactual marginal mean from a weighted intercept; uniform across HT and pushforward weights. ✓ (chunk 3c.i)
+19. IPSI (incremental propensity score interventions) via the closed-form weight, consumed by the unified `compute_ipw_contrast_point()` path. ✓ (chunk 3c.i)
+20. Categorical treatment support across checks + IPW path. **Pending — chunk 3e.**
+21. Single-path IPW sandwich variance: `variance_if_ipw()` straight loop calling `compute_ipw_if_self_contained_one()` (Channel 1 + Channel 2 IF on the stacked `(α, β)` system). ✓ (chunk 3b helper, chunks 3c.i–3c.ii dispatcher unification, ≈213 lines of Branch A scaffolding deleted from `R/variance_if.R`)
+22. Vignettes: `interventions.qmd` (intervention-type tour), `ipw-variance-theory.qmd` (density-ratio derivation + cross-derivative). **Pending — chunks 3h / 3i.**
 
 ### Phase 5: Longitudinal / ICE — DONE
 21. ICE g-computation engine (`R/ice.R`) ✓
@@ -335,7 +345,7 @@ result <- contrast(fit, interventions, ci_method = "bootstrap", n_boot = 500)
 | ICE over forward simulation | Fewer models, sandwich variance, faster |
 | GLMs/GAMs over ML | Valid sandwich inference without debiasing; users wanting ML should use `lmtp` |
 | Three estimation methods | Triangulation: gcomp (outcome model), IPW (treatment model), matching (both). Agreement → confidence. |
-| MatchIt as Imports; WeightIt as Suggests test oracle (Phase 4 onward) | Matching is genuinely hard and we delegate. IPW we own end-to-end via a single density-ratio engine that handles static + shift + scale + threshold + dynamic + IPSI uniformly — reusing `model_fn` / `propensity_model_fn` for the treatment density model. WeightIt stays as an independent reference for the static binary case in tests, never on the runtime path. |
+| MatchIt delegated; WeightIt as test oracle | Matching is genuinely hard and we delegate. IPW we own end-to-end via a single density-ratio engine that handles `static` + `shift` + `scale_by` + `dynamic` (binary) + `ipsi` uniformly — reusing `model_fn` / `propensity_model_fn` for the treatment density model. `threshold` and continuous `dynamic` / `static` are rejected by design (mixed measure / Dirac pushforward). WeightIt is an independent reference for the static binary case in tests and is not on the runtime path. |
 | `model_fn` parameter | User passes fitting function (glm, gam, etc.) — no hardcoded model detection |
 | Sandwich via J V_β Jᵀ | `sandwich` package for V_β, `numDeriv` for J. Asymptotically equivalent to stacked EE (Zivich et al. 2024). |
 | ci_method: sandwich + bootstrap only | Delta method applied internally for ratio/OR contrasts; not a separate ci_method. |
