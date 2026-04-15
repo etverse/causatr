@@ -5,7 +5,7 @@
 
 ## Scope
 
-A single self-contained IPW engine that handles **all** intervention types — `static`, `shift`, `scale_by`, `threshold`, `dynamic`, `ipsi` — via density-ratio weights and an explicit MSM. WeightIt is removed from the runtime path and kept only as a test oracle for the static binary case. Adds categorical treatment support and the interventions vignette.
+A single self-contained IPW engine that handles `static`, `shift`, `scale_by`, `dynamic`, and `ipsi` via density-ratio weights and an explicit MSM. `threshold()` is explicitly **not** supported under IPW — the pushforward of a continuous density under a boundary clamp is a mixed measure (point masses at `lo`/`hi`), so the density ratio w.r.t. the fitted `f(a|l)` is not well-defined. Users who want the clamped-treatment counterfactual should switch to `estimator = "gcomp"`, where it is handled cleanly via predict-then-average on the outcome model. WeightIt is removed from the runtime path and kept only as a test oracle for the static binary case. Adds categorical treatment support and the interventions vignette.
 
 ## Why a single engine instead of "WeightIt for static, ours for dynamic"
 
@@ -95,14 +95,24 @@ The MSM formula defaults to `Y ~ A` (saturated), with a Phase 8 hook for `Y ~ A 
 
 | Intervention | G-comp | IPW | Matching |
 |---|---|---|---|
-| `static()`    | ✓ | ✓ | ✓ |
-| `shift()`     | ✓ | ✓ | — |
-| `scale_by()`  | ✓ | ✓ | — |
-| `threshold()` | ✓ | ✓ | — |
-| `dynamic()`   | ✓ | ✓ | — |
-| `ipsi()`      | — | ✓ | — |
+| `static()`    | ✓ | ✓ (binary / categorical) | ✓ (binary) |
+| `shift()`     | ✓ | ✓ (continuous) | — |
+| `scale_by()`  | ✓ | ✓ (continuous) | — |
+| `threshold()` | ✓ | ⛔ (use gcomp — pushforward has point masses) | — |
+| `dynamic()`   | ✓ | ✓ (binary / categorical only) | — |
+| `ipsi()`      | — | ✓ (binary) | — |
 
 There is no longer a separate "IPW (WeightIt)" vs "IPW (self-contained)" column — there's just IPW.
+
+The two ⛔ / "family restriction" notes reflect a genuine architectural limit of the density-ratio framework, not a scope decision:
+
+- **`threshold()` under IPW** is rejected because the pushforward of a continuous `f(a|l)` under a boundary clamp is a mixed measure — continuous density on `(lo, hi)` plus point masses at the boundaries — so the density ratio w.r.t. the fitted Gaussian is not well-defined. `gcomp` handles it cleanly via `predict(outcome_model, newdata = clamped)` and is the correct tool for this intervention.
+- **`dynamic()` under IPW** is only defined on binary / categorical treatments, where the HT indicator weight `I(A_obs = rule_i) / f(A_obs | L)` is well-posed. Deterministic rules on continuous treatments are a Dirac per individual, which has the same pushforward-degeneracy problem as `threshold()` — users should either rewrite the rule as a smooth `shift()` / `scale_by()`, or switch to `gcomp`.
+- **`static(v)` under IPW** is rejected on continuous treatments (nobody is observed exactly at `v`, so the HT indicator is zero almost surely).
+- **`shift()` / `scale_by()`** are continuous-only because their density-ratio formulas rely on the Gaussian pdf; they have no meaning on a binary treatment.
+- **`ipsi()`** is binary-only — Kennedy (2019)'s closed form is Bernoulli-specific.
+
+All of these are enforced at contrast time by `check_intervention_family_compat()` in `R/ipw_weights.R`, which aborts with an actionable pointer.
 
 ### 5. Categorical treatment support
 
@@ -205,13 +215,13 @@ After Phase 4 lands, `WeightIt` moves from `Imports:` to `Suggests:` in `DESCRIP
 
 The causatr variance story stays anchored to (a) T-A_β_α elementwise hand-derivation, (b) T-end-to-end stacked sandwich by hand, (c) T-non-static IF > delta-only shortcut, (d) bootstrap parity — none of which depend on lmtp.
 
-### 10. Stabilization, diagnostics, threshold caveat, IPSI shortcut
+### 10. Stabilization, diagnostics, pushforward sign, IPSI shortcut
 
 Four implementation notes that would otherwise get rediscovered mid-PR:
 
-- **Stabilization: start nonstabilized.** Weights are `f(d(A,L)|L) / f(A|L)`, no marginal numerator. Hájek normalization (`sum(wY)/sum(w)`) already controls finite-sample variance for the saturated MSM cases. A stabilization option (`stabilize = TRUE`) is a follow-up, not Phase 4 scope.
+- **Stabilization: start nonstabilized.** Weights are `f_d(A|L) / f(A|L)`, no marginal numerator. Hájek normalization (`sum(wY)/sum(w)`) already controls finite-sample variance for the saturated MSM cases. A stabilization option (`stabilize = TRUE`) is a follow-up, not Phase 4 scope.
 - **Weight diagnostics.** `diagnose()` on an IPW fit adds weight-distribution summaries: min / max / quartiles / 99th percentile / count of weights > 99th percentile. Optional user-side truncation at a given percentile is exposed as an argument to `diagnose()`, not baked into the fit.
-- **Threshold caveat.** `threshold(lower, upper)` produces a point mass at the boundaries for any individual whose observed treatment is outside the clamp range. The density ratio at the boundary can be extreme when the Gaussian propensity puts little mass there. Emit an `rlang::warn()` at fit time if the maximum weight exceeds a configurable threshold (default: 100× the median).
+- **Pushforward sign + Jacobian (critical).** For continuous MTPs, the weight is `f_d(A_obs | L) / f(A_obs | L)` where `f_d` is the **pushforward** of `f` under the intervention — *not* `f(d(A_obs) | L) / f(A_obs | L)`. For `shift(δ)` this means evaluating the fitted density at `A_obs − δ` (because `d⁻¹(y) = y − δ`), and for `scale_by(c)` it means evaluating at `A_obs / c` and multiplying by the Jacobian `|1/c|`. The naive "evaluate at the intervened value" formula gives `E[Y^{shift(−δ)}]` instead of `E[Y^{shift(δ)}]` — it's a sign trap that is easy to write and hard to notice without the truth-based Hájek test. The `compute_density_ratio_weights()` and `make_weight_fn()` bodies both carry a comment block pointing at this derivation.
 - **IPSI closed-form shortcut.** For `ipsi(δ)` the density ratio collapses to `w_i = (δ·A_i + (1 − A_i)) / (δ·p_i + (1 − p_i))`. Use this closed form inside the unified engine instead of evaluating the density at two transformed points — it is faster and avoids numerical near-1 ratios on both sides of the ratio. The `weight_fn` closure used by the variance engine evaluates the same closed form at candidate `α` values.
 
 ### 11. Tests to add
@@ -232,17 +242,20 @@ Four implementation notes that would otherwise get rediscovered mid-PR:
 
 - `contrast()` with an ATT or ATC fit + a non-static intervention aborts with error class `causatr_bad_estimand_intervention` (snapshot).
 
-**Threshold weight-mass warning:**
+**Intervention × family rejection:**
 
-- `threshold()` fit on a heavily-clamped DGP emits `rlang::warn()` when the max weight exceeds `100 *` the median weight.
+- `threshold()` under IPW aborts at contrast time with a pointer to `estimator = "gcomp"` (snapshot).
+- `dynamic()` on continuous treatment under IPW aborts with a pointer to `gcomp` or smooth MTPs (snapshot).
+- `static(v)` on continuous treatment under IPW aborts with a pointer to `shift()` / `scale_by()` (snapshot).
+- `shift()` / `scale_by()` / `ipsi()` on non-matching treatment families abort with a family-specific pointer (snapshot).
 
 ## Items
 
 **Core engine**
 
-- [ ] `R/treatment_model.R` — fit treatment density model (binary / continuous / categorical) via `propensity_model_fn`; `evaluate_density()` for any treatment value; closed-form IPSI shortcut lives inside the weight builder, not the density model.
-- [ ] `R/ipw_weights.R` — density-ratio weight computation + `make_weight_fn()` closure factory (one closure per intervention type, including IPSI's closed form).
-- [ ] Rewrite `R/ipw.R` — single self-contained engine handling static + shift + scale_by + threshold + dynamic + ipsi via density-ratio weights and an explicit weighted MSM. Must populate `fit$details$propensity_model`, `fit$details$alpha_hat`, and `fit$details$weight_fn`. Drop the WeightIt runtime call.
+- [x] `R/treatment_model.R` — fit treatment density model via `propensity_model_fn`; `evaluate_density()` for any treatment value. **Binary + continuous landed in the foundation chunk**; categorical (multinomial) branch is the next sub-chunk and currently hard-aborts with `causatr_phase4_categorical_pending`.
+- [x] `R/ipw_weights.R` — density-ratio weight computation + `make_weight_fn()` closure factory. Three branches: HT indicator (discrete point-mass interventions), smooth pushforward with correct sign + Jacobian (continuous MTPs), IPSI closed form. `check_intervention_family_compat()` enforces the intervention × family compatibility matrix in §4.
+- [ ] Rewrite `R/ipw.R` — single self-contained engine handling static + shift + scale_by + dynamic + ipsi via density-ratio weights and an explicit weighted MSM. Must populate `fit$details$propensity_model`, `fit$details$alpha_hat`, and `fit$details$weight_fn`. Drop the WeightIt runtime call.
 - [ ] Add `propensity_model_fn` argument to `causat()` (default = `model_fn`, per the **Option B** decision in §4); plumb through to `fit_ipw()`.
 - [ ] Fill in the body of `prepare_propensity_if_self_contained()` in `R/variance_if.R` per §7.
 - [ ] Unblock `apply_single_intervention()` for `ipsi` (`R/interventions.R`) — it currently hard-aborts — and drop the `ipsi()` "dead-end" `rlang::inform()` from the constructor.
@@ -250,12 +263,11 @@ Four implementation notes that would otherwise get rediscovered mid-PR:
 **Estimand + safety checks**
 
 - [ ] `check_estimand_intervention_compat()` — reject ATT/ATC for non-static interventions at contrast time (error class `causatr_bad_estimand_intervention`).
-- [ ] Threshold weight-mass warning inside `fit_ipw()`.
 
 **Categorical treatment + IPSI**
 
-- [ ] Categorical treatment support across checks + IPW path via multinomial density model.
-- [ ] IPSI implementation using the closed-form shortcut inside the unified engine.
+- [ ] Categorical treatment support across checks + IPW path via multinomial density model. Unblocks the `categorical` branch of `fit_treatment_model()` / `evaluate_density()` / `make_weight_fn()`.
+- [ ] IPSI implementation wiring through `fit_ipw()` (the closed-form weight itself already exists in `R/ipw_weights.R`).
 
 **Dependencies**
 
@@ -265,11 +277,12 @@ Four implementation notes that would otherwise get rediscovered mid-PR:
 **Diagnostics + docs**
 
 - [ ] `diagnose()` weight summaries for the new engine (min / max / quartiles / 99th percentile / extreme-weight count + optional user truncation at a percentile).
-- [ ] Update `FEATURE_COVERAGE_MATRIX.md` — collapse the two IPW columns into one, add rows for shift / scale_by / threshold / dynamic / ipsi under IPW, add estimand rejection rows, add T-oracle3/4 rows.
-- [ ] Vignette: `interventions.qmd` — shift, scale, threshold, dynamic, IPSI examples.
+- [x] Update `FEATURE_COVERAGE_MATRIX.md` — collapse the two IPW columns into one, add rows for shift / scale_by / dynamic / ipsi under IPW, add estimand rejection rows, add `threshold()` rejection row under IPW, add T-oracle3/4 rows. (Initial pass in the foundation chunk; the final pass lands alongside the `fit_ipw()` rewrite.)
+- [ ] Vignette: `interventions.qmd` — shift, scale, dynamic (binary), IPSI examples. `threshold()` is documented under the gcomp vignette only.
 
 **Tests** (see §11 for the full list)
 
+- [x] Unit tests for `R/treatment_model.R` and `R/ipw_weights.R` (foundation chunk — 79 assertions across both files).
 - [ ] T-oracle1, T-oracle2 (WeightIt, `skip_if_not_installed`)
 - [ ] T-oracle3, T-oracle4 (lmtp, `skip_if_not_installed`)
 - [ ] T-A_β_α hand-derived vs numerical
@@ -277,9 +290,9 @@ Four implementation notes that would otherwise get rediscovered mid-PR:
 - [ ] T-non-static IF > delta-only shortcut
 - [ ] Bootstrap parity
 - [ ] Estimand × intervention rejection snapshot
-- [ ] Threshold weight-mass warning snapshot
 
 **Deferred (explicitly not Phase 4 scope)**
 
+- [ ] `threshold()` under IPW — rejected architecturally, not deferred. The intervention is well-defined under `gcomp`; there is no meaningful density-ratio path.
 - [ ] Stabilized weights (`stabilize = TRUE` option).
 - [ ] IPW for time-varying treatments — extend the same density-ratio machinery to longitudinal IPW (pooled-over-time MSM); deferred from Phase 5.

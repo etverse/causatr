@@ -274,20 +274,21 @@ independent oracles listed in `PHASE_4_INTERVENTIONS_SELF_IPW.md §9`
 
 | Treatment | Outcome | Intervention | Estimand | Variance | Status | Notes |
 |---|---|---|---|---|---|---|
-| binary | gaussian | shift | ATE | sandwich | ❌ planned | density-ratio weight engine pending; lmtp oracle (T-oracle3) |
-| binary | gaussian | scale_by | ATE | sandwich | ❌ planned | — |
-| binary | gaussian | threshold | ATE | sandwich | ❌ planned | emits weight-mass warning on heavy clamping |
-| binary | gaussian | dynamic | ATE | sandwich | ❌ planned | — |
-| binary | gaussian | ipsi(δ) | ATE | sandwich | ❌ planned | closed-form weight shortcut; T-oracle4 |
-| continuous | gaussian | shift / MTP | ATE | sandwich | ❌ planned | Gaussian density assumption (Ch. 12) |
-| continuous | gaussian | scale_by / threshold / dynamic | ATE | sandwich | ❌ planned | — |
-| binary | binomial | shift / MTP / IPSI | ATE | sandwich | ❌ planned | — |
-| categorical (k>2) | gaussian | static | ATE | sandwich | ❌ planned | multinomial density via `nnet::multinom` through `propensity_model_fn` |
-| multivariate | gaussian | any | any | any | ❌ planned | IPW multivariate (this row); matching multivariate is Phase 7 |
+| continuous | gaussian | shift | ATE | sandwich | ❌ planned | pushforward density ratio (weight formula landed in foundation chunk); lmtp oracle (T-oracle3) |
+| continuous | gaussian | scale_by | ATE | sandwich | ❌ planned | pushforward density ratio with `1/|c|` Jacobian |
+| continuous | gaussian | threshold | — | — | ⛔ **rejected** | pushforward of continuous `f(a\|l)` under boundary clamp is a mixed measure (point masses at `lo`/`hi`); density ratio w.r.t. Lebesgue is not well-defined. Use `estimator = "gcomp"`; test: snapshot error |
+| continuous | gaussian | dynamic | — | — | ⛔ **rejected** | deterministic per-individual rule is a Dirac per individual — same pushforward degeneracy as threshold. Use `gcomp`; test: snapshot error |
+| binary | gaussian | static | ATE | sandwich | ❌ planned | Horvitz–Thompson indicator weight (weight formula landed in foundation chunk) |
+| binary | binomial | static | ATE | sandwich | ❌ planned | same HT path, binomial outcome |
+| binary | gaussian | dynamic | ATE | sandwich | ❌ planned | HT indicator weight on deterministic rule (binary treatment only) |
+| binary | gaussian | ipsi(δ) | ATE | sandwich | ❌ planned | closed-form weight shortcut (formula landed in foundation chunk); T-oracle4 |
+| continuous | gaussian | static | — | — | ⛔ **rejected** | nobody is observed exactly at the static value; HT indicator is 0 almost surely. Use `shift()` / `scale_by()`; test: snapshot error |
+| categorical (k>2) | gaussian | static | ATE | sandwich | ❌ planned (categorical sub-chunk) | multinomial density via `nnet::multinom` through `propensity_model_fn`; `fit_treatment_model()` currently aborts with `causatr_phase4_categorical_pending` |
+| categorical (k>2) | gaussian | dynamic | ATE | sandwich | ❌ planned (categorical sub-chunk) | HT indicator weight on deterministic rule |
+| multivariate | gaussian | any | any | any | ❌ planned | IPW multivariate; matching multivariate is Phase 7 |
 | longitudinal | any | any | any | any | ❌ deferred | extends density-ratio machinery to pooled-over-time MSM; explicitly out of Phase 4 scope |
 | variance engine Branch B (self-contained IPW) | — | — | — | sandwich | ❌ planned | `prepare_propensity_if_self_contained()` stub exists; tests T-A_β_α / T-end-to-end / T-non-static / bootstrap parity from `PHASE_4_INTERVENTIONS_SELF_IPW.md §11` |
-| any | any | shift / scale_by / threshold / dynamic / ipsi | ATT or ATC | any | ❌ planned rejection | `check_estimand_intervention_compat()` aborts with `causatr_bad_estimand_intervention`; test: snapshot error |
-| binary | gaussian | threshold (heavy clamping) | ATE | sandwich | ❌ planned warning | `rlang::warn()` when max weight > 100× median; test: snapshot warning |
+| any | any | shift / scale_by / dynamic / ipsi | ATT or ATC | any | ❌ planned rejection | `check_estimand_intervention_compat()` aborts with `causatr_bad_estimand_intervention`; test: snapshot error |
 
 ### Phase 6 — Survival contrasts and competing risks
 
