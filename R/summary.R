@@ -43,10 +43,6 @@ summary.causatr_fit <- function(object, ...) {
     cat("\nOutcome model:\n")
     print(summary(object$model))
   }
-  if (!is.null(object$weights_obj)) {
-    cat("\nPropensity weights:\n")
-    print(summary(object$weights_obj))
-  }
   if (!is.null(object$match_obj)) {
     cat("\nMatching:\n")
     print(summary(object$match_obj))

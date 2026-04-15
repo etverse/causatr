@@ -45,8 +45,10 @@ Computes diagnostics appropriate to the causal estimator:
 \itemize{
 \item \strong{All estimators}: positivity checks (flags covariate strata where the
 probability of treatment is near 0 or 1).
-\item \code{"ipw"}: covariate balance before and after weighting (via \code{cobalt}),
-weight distribution summary (mean, SD, max, effective sample size).
+\item \code{"ipw"} with binary treatment: covariate balance via \code{cobalt} on the
+propensity formula, plus an observed-treatment weight distribution
+summary (\code{1/p} on treated rows, \code{1/(1-p)} on controls) with mean, SD,
+min, max, and effective sample size.
 \item \code{"matching"}: covariate balance before and after matching (via \code{cobalt}),
 match quality summary (\% matched, caliper info).
 \item \code{"gcomp"}: unadjusted covariate imbalance between treatment groups.
@@ -55,6 +57,11 @@ match quality summary (\% matched, caliper info).
 \strong{Point-treatment fits only.} \code{diagnose()} aborts on a longitudinal
 (ICE) \code{fit}. For longitudinal data, inspect per-period propensity /
 balance tables manually.
+
+\strong{Binary treatment only for IPW weight summaries.} Continuous and
+categorical IPW fits abort with \code{causatr_diag_unsupported_family}: the
+density-ratio weight under those families depends on the intervention,
+and \code{diagnose()} is an intervention-free diagnostic.
 }
 \details{
 \subsection{Positivity}{

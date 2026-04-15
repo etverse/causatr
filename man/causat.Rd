@@ -114,16 +114,19 @@ used to build density-ratio weights. Must accept the same
 propensity.}
 
 \item{...}{Additional arguments passed to the underlying estimation
-function: \code{WeightIt::weightit()} for \code{estimator = "ipw"} (e.g.
-\code{method = "glm"} or \code{method = "cbps"}); \code{MatchIt::matchit()} for
-\code{estimator = "matching"} (e.g. \code{method = "nearest"}, \code{ratio = 1}).}
+function. For \code{estimator = "ipw"}, dots are forwarded into the
+user's \code{propensity_model_fn} via \code{fit_treatment_model()} (e.g.
+smoothing arguments for \code{mgcv::gam}). For \code{estimator = "matching"},
+dots are forwarded into \code{MatchIt::matchit()} (e.g.
+\code{method = "nearest"}, \code{ratio = 1}, \code{caliper = 0.2}).}
 }
 \value{
 A \code{causatr_fit} object with slots:
 \describe{
 \item{\code{model}}{Fitted model object(s): \code{glm}/\code{gam} for \code{"gcomp"};
-\code{NULL} for \code{"ipw"} and \code{"matching"} (weights/matched data are
-stored in \code{weights_obj} / \code{match_obj} instead).}
+a placeholder \code{Y ~ A} weighted MSM for \code{"ipw"} (the density
+model lives in \code{details$propensity_model}); the matched-data
+outcome model for \code{"matching"}.}
 \item{\code{data}}{data.table used for fitting.}
 \item{\code{treatment}, \code{outcome}, \code{confounders}, \code{confounders_tv},
 \code{family}}{Model spec.}
@@ -133,7 +136,7 @@ stored in \code{weights_obj} / \code{match_obj} instead).}
 \item{\code{id}, \code{time}, \code{censoring}}{Longitudinal identifiers.}
 \item{\code{history}}{Markov order for longitudinal ICE models.}
 \item{\code{numerator}}{Numerator formula for longitudinal IPW.}
-\item{\code{weights_obj}}{\code{weightit} object (IPW only).}
+\item{\code{weights_obj}}{Legacy slot, always \code{NULL}.}
 \item{\code{match_obj}}{\code{matchit} object (matching only).}
 \item{\code{call}}{The original call.}
 \item{\code{details}}{Internal diagnostics list.}

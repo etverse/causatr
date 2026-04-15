@@ -111,9 +111,9 @@ test_that("gcomp bootstrap replays user `...` via replay_fit (end to end)", {
 
 # IPW `method = cbps` replay test removed: self-contained IPW no
 # longer routes through `WeightIt::weightit()`, so the `method =`
-# dots-replay path has no target. IPW bootstrap replicates run
-# through `ipw_boot_replicate()` which forwards dots directly into
-# `fit_treatment_model()`.
+# dots-replay path has no target. IPW bootstrap replicates call
+# `refit_ipw()`, which replays `fit_ipw()` on the resampled data
+# with the stashed `dots` forwarded into `fit_treatment_model()`.
 
 test_that("replay_fit: R3 — base R catches unknown dots at fit time", {
   # Confirms the dots audit R3 finding: stats::glm's glm.control

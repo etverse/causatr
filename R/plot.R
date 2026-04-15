@@ -221,16 +221,13 @@ get_cobalt_object <- function(diag) {
     return(NULL)
   }
 
-  if (fit$estimator == "ipw" && !is.null(fit$weights_obj)) {
-    return(fit$weights_obj)
-  }
   if (fit$estimator == "ipw" && !is.null(fit$details$treatment_model)) {
-    # Self-contained IPW has no `weightit` object. Feed
-    # `cobalt::love.plot()` the propensity formula directly — this
-    # reproduces the "unadjusted" love plot (SMDs before weighting),
-    # which is the most universal balance view the density-ratio
-    # engine can surface without committing to a specific
-    # intervention's post-weighting balance.
+    # The self-contained density-ratio engine has no `weightit` object
+    # to hand to `cobalt::love.plot()`. Feed it the propensity formula
+    # directly — this reproduces the "unadjusted" love plot (SMDs
+    # before weighting), the most universal balance view the engine
+    # can surface without committing to one intervention's
+    # post-weighting balance.
     ps_formula <- build_ps_formula(fit$confounders, fit$treatment)
     fit_rows <- fit$details$fit_rows
     return(list(

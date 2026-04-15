@@ -102,8 +102,9 @@ test_that("B2: bootstrap refit replays user's ... (gcomp quasipoisson)", {
 # B2 (WeightIt dots replay on IPW bootstrap) removed: self-contained
 # IPW no longer routes through `WeightIt::weightit()`, so there is no
 # `method = / stabilize =` user call to replay. The equivalent dots-
-# replay path now lives in `ipw_boot_replicate()` which forwards `...`
-# into `fit_treatment_model()` directly.
+# replay path now lives in `refit_ipw()`, which replays `fit_ipw()`
+# on the resampled data with the stashed `dots` forwarded into
+# `fit_treatment_model()`.
 
 test_that("B5: causat_survival drops all rows at/after first censor", {
   # Build a tiny long panel where id=1 is censored at t=2.

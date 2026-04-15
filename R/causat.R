@@ -84,15 +84,18 @@
 #'   (default) reuses `model_fn`. Pass `mgcv::gam` for a flexible
 #'   propensity.
 #' @param ... Additional arguments passed to the underlying estimation
-#'   function: `WeightIt::weightit()` for `estimator = "ipw"` (e.g.
-#'   `method = "glm"` or `method = "cbps"`); `MatchIt::matchit()` for
-#'   `estimator = "matching"` (e.g. `method = "nearest"`, `ratio = 1`).
+#'   function. For `estimator = "ipw"`, dots are forwarded into the
+#'   user's `propensity_model_fn` via `fit_treatment_model()` (e.g.
+#'   smoothing arguments for `mgcv::gam`). For `estimator = "matching"`,
+#'   dots are forwarded into `MatchIt::matchit()` (e.g.
+#'   `method = "nearest"`, `ratio = 1`, `caliper = 0.2`).
 #'
 #' @return A `causatr_fit` object with slots:
 #'   \describe{
 #'     \item{`model`}{Fitted model object(s): `glm`/`gam` for `"gcomp"`;
-#'       `NULL` for `"ipw"` and `"matching"` (weights/matched data are
-#'       stored in `weights_obj` / `match_obj` instead).}
+#'       a placeholder `Y ~ A` weighted MSM for `"ipw"` (the density
+#'       model lives in `details$propensity_model`); the matched-data
+#'       outcome model for `"matching"`.}
 #'     \item{`data`}{data.table used for fitting.}
 #'     \item{`treatment`, `outcome`, `confounders`, `confounders_tv`,
 #'       `family`}{Model spec.}
@@ -102,7 +105,7 @@
 #'     \item{`id`, `time`, `censoring`}{Longitudinal identifiers.}
 #'     \item{`history`}{Markov order for longitudinal ICE models.}
 #'     \item{`numerator`}{Numerator formula for longitudinal IPW.}
-#'     \item{`weights_obj`}{`weightit` object (IPW only).}
+#'     \item{`weights_obj`}{Legacy slot, always `NULL`.}
 #'     \item{`match_obj`}{`matchit` object (matching only).}
 #'     \item{`call`}{The original call.}
 #'     \item{`details`}{Internal diagnostics list.}

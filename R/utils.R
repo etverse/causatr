@@ -131,7 +131,8 @@ check_reserved_cols <- function(data, which = CAUSATR_RESERVED_COLS) {
 #' @param censoring Character censoring column name or `NULL`.
 #' @param history Integer Markov order for longitudinal.
 #' @param numerator One-sided formula for stabilised weights or `NULL`.
-#' @param weights_obj A `weightit` object (IPW) or `NULL`.
+#' @param weights_obj Legacy slot retained for `causatr_fit` backward
+#'   compatibility; always `NULL` now that IPW is self-contained.
 #' @param match_obj A `matchit` object (matching) or `NULL`.
 #' @param call The original `causat()` call environment.
 #' @param details Named list of estimator-specific metadata.

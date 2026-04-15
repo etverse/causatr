@@ -295,7 +295,12 @@ test_that("print.causatr_result shows estimand", {
   expect_true(any(grepl("ATE", out)))
 })
 
-test_that("weight summary handles continuous treatment IPW", {
+test_that("diagnose() aborts on continuous treatment IPW", {
+  # The self-contained density-ratio engine's weight summary is only
+  # well-defined for binary bernoulli density models; under a gaussian
+  # density the "IPW weight" depends on the intervention, which
+  # `diagnose()` is not scoped to. The dispatcher aborts with a flat
+  # factual error carrying class `causatr_diag_unsupported_family`.
   set.seed(42)
   df <- data.frame(
     Y = rnorm(100),
@@ -309,10 +314,10 @@ test_that("weight summary handles continuous treatment IPW", {
     confounders = ~L,
     estimator = "ipw"
   )
-  diag <- diagnose(fit)
-
-  expect_true(!is.null(diag$weights))
-  expect_true(any(diag$weights$group == "overall"))
+  expect_error(
+    diagnose(fit),
+    class = "causatr_diag_unsupported_family"
+  )
 })
 
 test_that("coef.causatr_result returns named numeric vector", {
