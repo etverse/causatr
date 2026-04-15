@@ -263,11 +263,25 @@ causat_survival <- function(
 
   model_weights <- if (!is.null(weights)) weights[fit_rows] else NULL
 
+  # T6 (2026-04-15 third-round review): use `quasibinomial()` when
+  # external weights are present. Base-R `binomial()` emits
+  # "non-integer #successes in a binomial glm!" whenever the weight
+  # vector is non-integer (the typical survey / IPCW case). The score
+  # equations, coefficients, and standard errors are unchanged under
+  # quasibinomial — only the "integer successes" check is dropped and
+  # dispersion is estimated freely. Unweighted fits keep plain
+  # binomial for dispersion = 1.
+  hazard_family <- if (!is.null(weights)) {
+    stats::quasibinomial()
+  } else {
+    stats::binomial()
+  }
+
   # Fit the pooled logistic regression (discrete hazard model).
   model <- stats::glm(
     model_formula,
     data = fit_data,
-    family = stats::binomial(),
+    family = hazard_family,
     weights = model_weights,
     ...
   )
@@ -275,14 +289,12 @@ causat_survival <- function(
   # Store time points for prediction.
   time_points <- sort(unique(data[[time]]))
 
-  # C12 (2026-04-15 second-round review): strip causatr-internal
-  # bookkeeping columns before handing `data` back to the user via
-  # `fit$data`. They were needed for the fit_rows computation above
-  # and nothing downstream consumes them.
-  internal_cols <- intersect(
-    c(".causatr_prev_event", ".causatr_prev_cens"),
-    names(data)
-  )
+  # C12 (2026-04-15 second-round review) + T9 (third-round): strip
+  # causatr-internal bookkeeping columns before handing `data` back to
+  # the user via `fit$data`. Sourced from `CAUSATR_SURVIVAL_INTERNAL_COLS`
+  # in `R/utils.R` so adding a new internal column propagates here
+  # automatically.
+  internal_cols <- intersect(CAUSATR_SURVIVAL_INTERNAL_COLS, names(data))
   if (length(internal_cols) > 0L) {
     data[, (internal_cols) := NULL]
   }

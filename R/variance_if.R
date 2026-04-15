@@ -154,6 +154,7 @@ bread_inv <- function(model, X_fit) {
             "for NA coefficients."
           )
         ),
+        class = "causatr_singular_bread",
         .frequency = "once",
         .frequency_id = "causatr_bread_inv_singular"
       )

@@ -14,6 +14,82 @@ CAUSATR_RESERVED_COLS <- c(
   ".causatr_prev_cens"
 )
 
+#' Column names stripped from `fit$data` before returning a survival fit
+#'
+#' @description
+#' Subset of `CAUSATR_RESERVED_COLS` used by `causat_survival()` for
+#' within-id risk-set bookkeeping. Excludes `.pseudo_y` (ICE-only). Kept
+#' as a derived constant so adding a new reserved column propagates
+#' automatically to the survival cleanup path. See T9 in the 2026-04-15
+#' third-round critical review.
+#'
+#' @noRd
+CAUSATR_SURVIVAL_INTERNAL_COLS <- setdiff(
+  CAUSATR_RESERVED_COLS,
+  ".pseudo_y"
+)
+
+#' Safely replay a fit function with stashed `...` arguments
+#'
+#' @description
+#' Centralises the "combine base args + user `...` then `do.call()`"
+#' pattern used by `ice_iterate()`, `refit_gcomp()`, `refit_ipw()`, and
+#' `refit_matching()`. Hand-written `c(args, dots)` compositions repeated
+#' across four sites had three known footguns (see the 2026-04-15
+#' third-round dots audit):
+#'
+#'  - **R1** (T2): positional / unnamed entries in `dots` survive the
+#'    `setdiff(names(dots), ...)` strip and collide with NSE in the
+#'    target function's first argument (e.g. `stats::glm`'s `formula`).
+#'  - **R2** (C5): duplicate named args silently take the first via
+#'    `do.call()`, which is correct today but drifts if any of the four
+#'    strip lists falls out of sync.
+#'  - **R4**: the four strip lists are manually maintained and can
+#'    diverge; adding a new reserved key to one site but forgetting
+#'    another is a silent regression.
+#'
+#' This helper collapses all three into one place: unnamed entries are
+#' dropped, any key already present in `base_args` (or explicitly listed
+#' in `reserved`) is stripped from `dots`, and the rest flow through
+#' `do.call()`.
+#'
+#' @param fn The function to call (e.g. `stats::glm`, `WeightIt::weightit`,
+#'   `MatchIt::matchit`, `mgcv::gam`).
+#' @param base_args Named list of arguments the caller is supplying
+#'   explicitly. These always win over `dots` in case of name collision.
+#'   Unnamed elements in `base_args` are preserved (they are meant to be
+#'   positional, e.g. the first `formula` argument to `glm`).
+#' @param dots User-supplied `...` list captured via `list(...)` at fit
+#'   time and stashed on `fit$details$dots`. Can be `NULL`.
+#' @param reserved Character vector of additional argument names to
+#'   strip from `dots` — useful for target-function parameters the
+#'   caller sets implicitly (e.g. `WeightIt::weightit`'s `s.weights`,
+#'   which `refit_ipw()` assigns after the composition).
+#'
+#' @return The return value of `do.call(fn, ...)`.
+#'
+#' @noRd
+replay_fit <- function(fn, base_args, dots = NULL, reserved = NULL) {
+  dots <- dots %||% list()
+  if (length(dots) > 0L) {
+    # Drop unnamed entries (T2): `do.call(glm, list(formula, ..., ""=1))`
+    # is unpredictable because glm uses NSE on its first (unnamed)
+    # argument. Users should not be passing positional dots to
+    # `causat()`, but defending against it is cheap.
+    keep_named <- nzchar(names(dots))
+    dots <- dots[keep_named]
+    # Drop keys the caller set explicitly. `do.call()` takes the first
+    # named duplicate, so today this is belt-and-braces — but forgetting
+    # the strip at a new call site would silently pick up the
+    # user-supplied value and ignore the caller's.
+    blocked <- c(names(base_args), reserved)
+    if (length(blocked) > 0L) {
+      dots <- dots[setdiff(names(dots), blocked)]
+    }
+  }
+  do.call(fn, c(base_args, dots))
+}
+
 #' Assert that `data` does not carry any causatr-reserved column names
 #'
 #' @param data A data.frame / data.table.

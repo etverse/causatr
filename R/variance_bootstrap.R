@@ -188,6 +188,12 @@ variance_bootstrap <- function(
         model_b <- withCallingHandlers(
           refit_model(fit, d_b, weights = w_b),
           warning = function(w) {
+            # T7 (2026-04-15 third-round review): match the singular
+            # bread warning by its `causatr_singular_bread` class,
+            # not by substring — refactor-safe.
+            if (inherits(w, "causatr_singular_bread")) {
+              invokeRestart("muffleWarning")
+            }
             msg <- conditionMessage(w)
             if (
               grepl(
@@ -195,7 +201,6 @@ variance_bootstrap <- function(
                 msg,
                 fixed = TRUE
               ) ||
-                grepl("X'WX` is singular", msg, fixed = TRUE) ||
                 grepl("Fewer (control|treated) units", msg)
             ) {
               invokeRestart("muffleWarning")
@@ -287,17 +292,10 @@ refit_gcomp <- function(fit, d_b, weights = NULL) {
   if (!is.null(weights)) {
     args$weights <- weights[fit_rows_b]
   }
-  # Forward the original `...` from the user's `causat()` call so
-  # bootstrap replicates use the same model_fn specification as the
-  # point estimate. Without this, bootstrap SEs for e.g. `mgcv::gam`
-  # with a non-default `method` or `gamma` silently corresponded to
-  # a *different* estimator. See B2 in the 2026-04-15 critical review.
-  #
-  # C5 (2026-04-15 second-round review): strip any duplicate keys from
-  # dots so `do.call` can't carry two bindings of the same name.
-  dots <- fit$details$dots %||% list()
-  dots <- dots[setdiff(names(dots), names(args))]
-  do.call(model_fn, c(args, dots))
+  # Replay the user's original `...` via the central `replay_fit()`
+  # helper so duplicate-key / positional-dot handling is identical to
+  # every other refit site. See the 2026-04-15 third-round dots audit.
+  replay_fit(model_fn, args, fit$details$dots)
 }
 
 #' Refit IPW propensity weights and MSM on a bootstrap sample
@@ -312,23 +310,23 @@ refit_ipw <- function(fit, d_b, weights = NULL) {
   fit_rows_b <- get_fit_rows(d_b, fit$outcome)
   fit_data_b <- d_b[fit_rows_b]
 
-  # Replay the original `...` from the user's `causat()` call so
-  # bootstrap replicates use the same WeightIt method / link /
-  # stabilisation as the point estimate. See B2 in the 2026-04-15
-  # critical review. C5 (second-round review): strip duplicate keys
-  # from dots before the `c()` so the explicit `s.weights` assignment
-  # below can't be shadowed by a user-supplied `s.weights` in `...`.
+  # Replay the user's original `...` via the central `replay_fit()`
+  # helper. `s.weights` is put into `base_args` when external weights
+  # are present so it wins over any user-supplied `s.weights` in dots,
+  # and declared `reserved` when absent so dots can't smuggle one in.
   base_args <- list(ps_formula, data = fit_data_b, estimand = fit$estimand)
-  dots <- fit$details$dots %||% list()
-  dots <- dots[setdiff(names(dots), c("data", "estimand", "s.weights"))]
-  weightit_args <- c(base_args, dots)
-  # External weights enter propensity M-estimation as s.weights —
-  # matching the B6 fix in fit_ipw(). Post-multiplying would silently
-  # under-correct the Mparts IF for survey-weighted IPW.
+  reserved <- character()
   if (!is.null(weights)) {
-    weightit_args$s.weights <- weights[fit_rows_b]
+    base_args$s.weights <- weights[fit_rows_b]
+  } else {
+    reserved <- "s.weights"
   }
-  w_b <- do.call(WeightIt::weightit, weightit_args)
+  w_b <- replay_fit(
+    WeightIt::weightit,
+    base_args,
+    fit$details$dots,
+    reserved = reserved
+  )
 
   # Mirror the alignment guard in `fit_ipw()` (R/ipw.R). Abort the
   # bootstrap replicate on misalignment; the outer `tryCatch` in
@@ -370,22 +368,14 @@ refit_matching <- function(fit, d_b, weights = NULL) {
   fit_data_b <- as.data.frame(d_b[fit_rows_b])
 
   # Replay the original MatchIt arguments stashed by `fit_matching()`
-  # (caliper, ratio, distance, method overrides, ...). Without this,
-  # bootstrap SEs for any non-default matching spec silently corresponded
-  # to plain nearest-neighbor matching. See B2 in the 2026-04-15 review.
-  stashed_dots <- fit$details$dots %||% list()
-  match_args <- c(
-    list(ps_formula, data = fit_data_b, estimand = fit$estimand),
-    stashed_dots
-  )
-  # If the user didn't pre-specify a method and the estimand is ATE,
-  # default to "full" — mirrors fit_matching(). Harmless no-op when
-  # stashed_dots already carries `method =`.
-  if (fit$estimand == "ATE" && is.null(match_args$method)) {
+  # (caliper, ratio, distance, method overrides, ...). `fit_matching()`
+  # captures `dots` AFTER the ATE->"full" defaulting, so the stashed
+  # dots already carry `method =` when required. See B2 / audit E.
+  base_args <- list(ps_formula, data = fit_data_b, estimand = fit$estimand)
+  if (fit$estimand == "ATE") {
     check_pkg("optmatch")
-    match_args$method <- "full"
   }
-  m_b <- do.call(MatchIt::matchit, match_args)
+  m_b <- replay_fit(MatchIt::matchit, base_args, fit$details$dots)
   matched_b <- MatchIt::match.data(m_b)
 
   # Combine match weights with external weights via the shared helper

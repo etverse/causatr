@@ -91,18 +91,20 @@ fit_ipw <- function(
   # full weight vector the weightit was fit against. Post-multiplication
   # silently under-corrected the survey-weighted propensity uncertainty
   # (see B6 in the 2026-04-15 critical review).
-  # Strip duplicate keys from dots so the explicit `s.weights`
-  # assignment below cannot be shadowed by a user-supplied `s.weights`
-  # in `...`. See C5 in the 2026-04-15 second-round critical review.
-  dots_ipw <- dots[setdiff(names(dots), c("data", "estimand", "s.weights"))]
-  weightit_args <- c(
-    list(ps_formula, data = fit_data, estimand = estimand),
-    dots_ipw
-  )
+  # Compose via the central `replay_fit()` helper so the
+  # duplicate-key / positional-dot handling is identical to the
+  # bootstrap refit site. `s.weights` is declared in `base_args` when
+  # the user supplied external weights (so it wins over any
+  # dots-supplied one) and in `reserved` otherwise (so dots can't
+  # sneak one in).
+  base_args <- list(ps_formula, data = fit_data, estimand = estimand)
+  reserved <- character()
   if (!is.null(weights)) {
-    weightit_args$s.weights <- weights[fit_rows]
+    base_args$s.weights <- weights[fit_rows]
+  } else {
+    reserved <- "s.weights"
   }
-  w <- do.call(WeightIt::weightit, weightit_args)
+  w <- replay_fit(WeightIt::weightit, base_args, dots, reserved = reserved)
 
   # `get_fit_rows()` only excludes rows with missing outcome, but
   # WeightIt drops rows with missing PS-formula covariates as well.

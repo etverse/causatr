@@ -1,5 +1,60 @@
 # causatr (development version)
 
+## 2026-04-15 — Third-round critical review: dots audit + `replay_fit()` helper + T6/T7/T9
+
+A full audit of the `fit$details$dots` plumbing (capture sites in
+`fit_gcomp_point()` / `fit_ipw()` / `fit_matching()` / `fit_ice()`,
+replay sites in `refit_gcomp()` / `refit_ipw()` / `refit_matching()` /
+`ice_iterate()`) flagged three systemic risks:
+
+- **R1 (T2)**: positional dots with empty names slipped through the
+  hand-written `setdiff(names(dots), ...)` strips.
+- **R2 (C5)**: four duplicate-strip blocks had to stay in sync by hand.
+- **R4**: the strip lists were drifting — adding a new reserved key to
+  one site but forgetting the others was a silent regression.
+
+**Fix — Alternative E in the audit: one central helper.** New
+`replay_fit(fn, base_args, dots, reserved)` in `R/utils.R` owns the
+`c(base_args, dots) + do.call(fn, ...)` composition. All four refit
+sites (plus `fit_ipw()` itself) now call it. Behavior:
+
+- Unnamed (positional) entries in `dots` are dropped. Fixes T2.
+- Keys already present in `base_args` are stripped from `dots` so the
+  caller's explicit value always wins. Covers C5 centrally.
+- A `reserved` vector lets callers block additional keys the target
+  function uses implicitly (e.g. `WeightIt::weightit`'s `s.weights`
+  when external weights are not supplied).
+
+Other non-dots fixes in the same pass:
+
+- **T6** — `causat_survival()` now uses `stats::quasibinomial()` when
+  external weights are supplied, suppressing the spurious
+  "non-integer #successes in a binomial glm" warning without
+  changing coefficients or SEs (same score equations, free dispersion).
+- **T7** — `bread_inv()`'s singular-bread warning now carries a
+  `causatr_singular_bread` class. The bootstrap `withCallingHandlers`
+  in `variance_bootstrap()` matches on class, not on the English
+  substring, so a future wording change cannot silently break the
+  demotion.
+- **T9** — `causat_survival()`'s internal-column strip now sources the
+  list from a new `CAUSATR_SURVIVAL_INTERNAL_COLS` constant in
+  `R/utils.R` (derived as `setdiff(CAUSATR_RESERVED_COLS, ".pseudo_y")`),
+  so adding a new reserved column propagates automatically.
+
+Audit items R3 (unknown dots silently ignored by target function), R5
+(backward-compat with old `fit` objects missing `$dots`), R6 (replay
+opacity), and R7 (arg aliasing across target functions) were verified
+as non-bugs via direct R scripts — base R catches unknown args at fit
+time, `%||% list()` handles missing `$dots`, `fit$details$dots` is
+inspectable, and explicit `base_args` locks override dots.
+
+**Tests.** New `tests/testthat/test-replay-fit.R` adds 14 unit tests
+pinning `replay_fit()` edge cases (base-wins precedence, positional
+dots dropping, reserved-key blocking, NULL dots, `glm.control` catching
+unknown args, backward-compat with missing `$dots`, end-to-end gcomp
+and IPW bootstrap replay). All 44 earlier critical-review +
+weight-edge-case tests still pass unchanged.
+
 ## 2026-04-15 — Second-round critical-review follow-ups (C3, C5, C12) + B7 gradient fix + weight edge-case tests
 
 A second-round self-review of the 2026-04-15 critical-review sweep

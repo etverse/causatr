@@ -377,16 +377,10 @@ ice_iterate <- function(fit, intervention) {
   family_outcome <- details$family_outcome
   family_pseudo <- details$family_pseudo
   external_weights <- details$weights
-  # User's stashed `...` for `model_fn`. Empty list if none were passed.
-  # Strip any keys that overlap with the args we pass explicitly
-  # (`formula`, `data`, `family`, `weights`) so `do.call(..., c(args,
-  # dots))` cannot silently carry two entries of the same name — in
-  # `do.call` the first wins, but having a second silently-ignored
-  # binding is a footgun. See C5 in the 2026-04-15 second-round review.
-  model_fn_dots <- details$dots %||% list()
-  model_fn_dots <- model_fn_dots[
-    setdiff(names(model_fn_dots), c("formula", "data", "family", "weights"))
-  ]
+  # User's stashed `...` for `model_fn`. The per-step `replay_fit()`
+  # calls below take care of duplicate-key stripping in one place
+  # (R/utils.R).
+  model_fn_dots <- details$dots
 
   # Build the intervention-modified person-period frame once. `data_iv`
   # has the counterfactual treatment column and matching lags, but the
@@ -463,7 +457,7 @@ ice_iterate <- function(fit, intervention) {
   if (!is.null(external_weights)) {
     model_args$weights <- external_weights[fit_mask]
   }
-  models[[n_times]] <- do.call(model_fn, c(model_args, model_fn_dots))
+  models[[n_times]] <- replay_fit(model_fn, model_args, model_fn_dots)
 
   # Predict under the intervention for ALL uncensored individuals at
   # the final time (not just those in the fitting set). This is the
@@ -551,7 +545,7 @@ ice_iterate <- function(fit, intervention) {
     if (!is.null(external_weights)) {
       model_args_k$weights <- external_weights[mask_uncens][has_pseudo]
     }
-    models[[step_i]] <- do.call(model_fn, c(model_args_k, model_fn_dots))
+    models[[step_i]] <- replay_fit(model_fn, model_args_k, model_fn_dots)
 
     # Predict under intervention for ALL individuals at the current
     # time point (not just the fitting subset). This keeps the
