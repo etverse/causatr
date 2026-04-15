@@ -545,3 +545,68 @@ check_weights <- function(weights, n, call = rlang::caller_env()) {
   }
   invisible(NULL)
 }
+
+
+#' Reject `na.action = na.exclude` forwarded through `...`
+#'
+#' @description
+#' `stats::glm(..., na.action = na.exclude)` pads `residuals(model, "working")`
+#' with `NA`s so its length equals the original data, *not* the post-omit
+#' `model.matrix(model)` row count. The variance engine's
+#' `prepare_model_if()` computes `r_score = residuals * working_weights`
+#' and then relies on `length(r_score) == nrow(X_fit)` — under `na.exclude`
+#' this invariant breaks, recycling silently corrupts the IF, and R only
+#' emits a "longer object length is not a multiple of shorter object length"
+#' warning. Downstream SEs are meaningless.
+#'
+#' Rather than harden every place we touch residuals, we refuse `na.exclude`
+#' at the `causat()` / `causat_survival()` boundary. `na.omit` (the default)
+#' and `na.fail` are the only sensible choices for a pipeline that builds
+#' its own row-alignment bookkeeping from `fit_rows` / `model$na.action`.
+#'
+#' Verified via `/tmp/causatr_repro_issue7.R` on 2026-04-15: under
+#' `na.action = na.exclude`, `prepare_model_if()` triggered the recycling
+#' warning and returned a silently-wrong correction vector.
+#'
+#' @param ... Dots forwarded to `causat()` / `causat_survival()`.
+#' @param call Caller environment for error messages.
+#'
+#' @return `NULL` invisibly; aborts on `na.action = na.exclude`.
+#'
+#' @noRd
+check_dots_na_action <- function(..., call = rlang::caller_env()) {
+  dots <- list(...)
+  if (!"na.action" %in% names(dots)) {
+    return(invisible(NULL))
+  }
+  na_action <- dots$na.action
+  # Accept `na.omit` (default) and `na.fail` (hard stop on NA).
+  # Reject anything else — notably `na.exclude`, the only other
+  # base-R na.action, and any user-supplied function we can't reason
+  # about. Match by identity to both the function and the name so
+  # `na.action = na.exclude` and `na.action = "na.exclude"` both fail.
+  ok <- FALSE
+  if (is.function(na_action)) {
+    ok <- identical(na_action, stats::na.omit) ||
+      identical(na_action, stats::na.fail)
+  } else if (is.character(na_action) && length(na_action) == 1L) {
+    ok <- na_action %in% c("na.omit", "na.fail")
+  }
+  if (!ok) {
+    rlang::abort(
+      c(
+        "`na.action` must be `na.omit` (default) or `na.fail`.",
+        i = paste0(
+          "causatr builds its own row-alignment bookkeeping from ",
+          "`fit_rows` and the fitted model's `na.action` attribute. ",
+          "`na.exclude` pads working residuals with NA and silently ",
+          "corrupts the sandwich variance."
+        ),
+        i = "Drop NA rows before calling `causat()` or use `na.action = na.omit`."
+      ),
+      class = "causatr_bad_na_action",
+      call = call
+    )
+  }
+  invisible(NULL)
+}

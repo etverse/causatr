@@ -1,5 +1,19 @@
 # causatr (development version)
 
+## 2026-04-15 — Fourth-round critical review: reject `na.action = na.exclude`
+
+`causat()` and `causat_survival()` now abort via `check_dots_na_action()`
+when `na.action = na.exclude` is forwarded through `...`. Under
+`na.exclude`, `stats::residuals(model, "working")` is padded with NAs to
+the original data length while `model.matrix(model)` drops NA rows — the
+length mismatch propagated into `prepare_model_if()`'s `r_score` and
+then silently corrupted the Channel-2 correction via R's recycling (only
+a "longer object length" warning, no abort). Sandwich SEs were
+mathematically wrong. Only `na.omit` (default) and `na.fail` are
+accepted now; users with NAs should drop them explicitly before calling
+`causat()`. New error class `causatr_bad_na_action`. Regression test in
+`tests/testthat/test-causat.R`.
+
 ## 2026-04-15 — Third-round critical review: dots audit + `replay_fit()` helper + T6/T7/T9
 
 A full audit of the `fit$details$dots` plumbing (capture sites in

@@ -218,3 +218,65 @@ test_that("causat_survival() aborts on non-NULL competing= until Phase 6", {
     )
   )
 })
+
+
+test_that("causat() rejects na.action = na.exclude forwarded through ...", {
+  # Regression guard for the 2026-04-15 critical review Issue #7.
+  # Under na.exclude, `residuals(model, 'working')` is padded with NAs
+  # to the original data length, while `model.matrix(model)` drops NA
+  # rows. `prepare_model_if()`'s `r_score <- residuals * weights`
+  # then has a different length than `X_fit`, and
+  # `apply_model_correction()`'s `d_fit * r_score` silently recycles
+  # — R emits only a "longer object length is not a multiple" warning
+  # and returns a mathematically wrong correction vector. Reproduced
+  # numerically in /tmp/causatr_repro_issue7.R: baseline na.omit gave
+  # SE = 0.0590, na.exclude triggered the recycling warning. Fix is
+  # a hard abort at `check_dots_na_action()` in `causat()` /
+  # `causat_survival()` — refuse `na.exclude` at the causatr boundary
+  # rather than hardening every residuals() call site.
+  set.seed(1)
+  n <- 200
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, stats::plogis(0.3 * L))
+  Y <- 1 + 0.5 * L + 0.8 * A + stats::rnorm(n, sd = 0.5)
+  L[sample(n, 20)] <- NA
+  d <- data.frame(L = L, A = A, Y = Y)
+
+  # Function form of na.exclude.
+  expect_error(
+    causat(
+      d,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~L,
+      estimator = "gcomp",
+      na.action = stats::na.exclude
+    ),
+    class = "causatr_bad_na_action"
+  )
+
+  # String form — same rejection path.
+  expect_error(
+    causat(
+      d,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~L,
+      estimator = "gcomp",
+      na.action = "na.exclude"
+    ),
+    class = "causatr_bad_na_action"
+  )
+
+  # na.omit (the default) and na.fail must still be accepted.
+  expect_no_error(
+    causat(
+      d,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~L,
+      estimator = "gcomp",
+      na.action = stats::na.omit
+    )
+  )
+})

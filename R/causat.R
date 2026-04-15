@@ -334,6 +334,13 @@ causat <- function(
   # the problem.
   check_weights(weights, nrow(data))
 
+  # Refuse `na.action = na.exclude` forwarded through `...`. The
+  # variance engine assumes `length(residuals(m, "working")) ==
+  # nrow(model.matrix(m))`, which `na.exclude` violates by padding with
+  # NAs — recycling then silently corrupts the IF and sandwich SEs.
+  # See check_dots_na_action() for the full rationale.
+  check_dots_na_action(..., call = call)
+
   # Dispatch to the estimator-specific fitter. Each returns a
   # `causatr_fit` with the same S3 class and slot structure, which
   # contrast() and diagnose() then consume uniformly.

@@ -112,6 +112,10 @@ causat_survival <- function(
   # specific error instead of a cryptic GLM abort.
   check_weights(weights, nrow(data))
 
+  # Refuse `na.action = na.exclude` forwarded through `...` — would
+  # corrupt the sandwich IF downstream. See check_dots_na_action().
+  check_dots_na_action(...)
+
   # `competing` is reserved for Phase 6 (sub-distribution hazard /
   # Aalen-Johansen). The pooled-logistic path here does NOT apply
   # any competing-risks adjustment, so accepting a non-NULL value
