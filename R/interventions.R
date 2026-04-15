@@ -427,30 +427,98 @@ apply_single_intervention <- function(data, trt_col, iv) {
     },
     dynamic = {
       # 2026-04-15 fourth-round critical review Issue #10: previously
-      # only validated the return type, not the original column type.
-      # A `dynamic()` rule returning numeric on a character/factor
-      # treatment column silently coerced the column to numeric — the
-      # downstream outcome-model `predict()` then either errored with
-      # a cryptic factor-level message or, worse, re-matched unexpected
-      # levels. Gate at the column type instead: `dynamic()` is
-      # numeric-only, matching `shift()` / `scale_by()` / `threshold()`.
+      # only validated the return type, not that it matched the
+      # treatment column's type. A `dynamic()` rule returning numeric
+      # on a character / factor treatment column silently coerced the
+      # column to numeric; downstream `predict()` then either errored
+      # with a cryptic factor-level mismatch or silently evaluated at
+      # a numeric dummy the outcome model never saw.
+      #
+      # Fix: require type-compatible return. Character / factor
+      # treatments ARE a first-class use case (see `static()` character
+      # support and IPW's multinomial path), so dynamic() must support
+      # them — just without silent coercion. For factor columns we
+      # accept either a factor return with identical levels, or a
+      # character return whose unique values are all existing levels
+      # (coerced back on assignment). Unknown levels abort rather than
+      # becoming NA silently.
       orig_trt <- data[[trt_col]]
-      if (!is.numeric(orig_trt)) {
+      new_trt <- iv$rule(data, orig_trt)
+
+      if (is.numeric(orig_trt)) {
+        if (!is.numeric(new_trt)) {
+          rlang::abort(
+            paste0(
+              "`dynamic()` rule returned ",
+              typeof(new_trt),
+              " but treatment column `",
+              trt_col,
+              "` is numeric."
+            ),
+            .call = FALSE
+          )
+        }
+      } else if (is.factor(orig_trt)) {
+        if (is.character(new_trt)) {
+          unknown <- setdiff(unique(new_trt), levels(orig_trt))
+          if (length(unknown) > 0L) {
+            rlang::abort(
+              paste0(
+                "`dynamic()` rule returned value(s) not present as ",
+                "levels of factor treatment `",
+                trt_col,
+                "`: ",
+                paste(shQuote(unknown), collapse = ", "),
+                "."
+              ),
+              .call = FALSE
+            )
+          }
+          new_trt <- factor(new_trt, levels = levels(orig_trt))
+        } else if (is.factor(new_trt)) {
+          if (!identical(levels(new_trt), levels(orig_trt))) {
+            rlang::abort(
+              paste0(
+                "`dynamic()` rule returned a factor with levels that ",
+                "do not match treatment column `",
+                trt_col,
+                "`."
+              ),
+              .call = FALSE
+            )
+          }
+        } else {
+          rlang::abort(
+            paste0(
+              "`dynamic()` rule returned ",
+              typeof(new_trt),
+              " but treatment column `",
+              trt_col,
+              "` is a factor — return a character or factor vector."
+            ),
+            .call = FALSE
+          )
+        }
+      } else if (is.character(orig_trt)) {
+        if (!is.character(new_trt)) {
+          rlang::abort(
+            paste0(
+              "`dynamic()` rule returned ",
+              typeof(new_trt),
+              " but treatment column `",
+              trt_col,
+              "` is character."
+            ),
+            .call = FALSE
+          )
+        }
+      } else {
         rlang::abort(
           paste0(
-            "`dynamic()` requires a numeric treatment column; `",
-            trt_col,
-            "` is of type ",
+            "`dynamic()` does not support treatment columns of type ",
             typeof(orig_trt),
-            ". Use `static()` for character / factor treatments."
+            "."
           ),
-          .call = FALSE
-        )
-      }
-      new_trt <- iv$rule(data, orig_trt)
-      if (!is.numeric(new_trt)) {
-        rlang::abort(
-          "`dynamic()` rule must return a numeric vector.",
           .call = FALSE
         )
       }

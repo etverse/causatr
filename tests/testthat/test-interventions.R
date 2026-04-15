@@ -51,39 +51,69 @@ test_that("ipsi() rejects non-positive delta", {
   expect_snapshot(error = TRUE, ipsi(-1))
 })
 
-test_that("dynamic() refuses non-numeric treatment columns", {
+test_that("dynamic() enforces type compatibility with treatment column", {
   # 2026-04-15 fourth-round critical review Issue #10: previously
   # `apply_single_intervention()` only validated the return type of
-  # the dynamic rule, not the treatment column's own type. A rule
-  # returning numeric silently coerced a character / factor column,
-  # which then blew up downstream in `predict()` with a cryptic
-  # factor-level mismatch (or, worse, silently predicted on a numeric
-  # dummy the outcome model never saw). Repro: character treatment
-  # "low"/"high", rule returning `rep(1, n)`. Pre-fix behavior: column
-  # overwritten to `c(1,1,1,1)`, class numeric. Fix: abort at apply
-  # time with a clean pointer to `static()`.
-  d <- data.table::data.table(A = c("low", "high", "low", "high"), Y = 1:4)
-  iv <- dynamic(function(data, trt) rep(1, nrow(data)))
-  expect_error(
-    apply_intervention(d, "A", iv),
-    "numeric treatment column"
-  )
+  # the dynamic rule, not that it matched the treatment column's type.
+  # A rule returning numeric on a character / factor column silently
+  # coerced it, and downstream `predict()` either errored with a
+  # cryptic factor-level mismatch or (worse) silently evaluated at a
+  # numeric dummy the outcome model never saw. Fix: require
+  # type-compatible returns — numeric→numeric, character→character,
+  # factor accepts factor-with-matching-levels or character whose
+  # values are all existing levels.
 
-  # Factor treatment — same rejection path.
-  d2 <- data.table::data.table(
-    A = factor(c("low", "high", "low", "high")),
+  iv_num <- dynamic(function(data, trt) rep(1, nrow(data)))
+
+  # Numeric treatment still works.
+  d_num <- data.table::data.table(A = c(0.1, 0.5, 0.9, 0.3), Y = 1:4)
+  iv_rule <- dynamic(function(data, trt) as.numeric(trt > 0.4))
+  expect_equal(apply_intervention(d_num, "A", iv_rule)$A, c(0, 1, 1, 0))
+
+  # Character → numeric: rejected.
+  d_chr <- data.table::data.table(
+    A = c("low", "high", "low", "high"),
     Y = 1:4
   )
   expect_error(
-    apply_intervention(d2, "A", iv),
-    "numeric treatment column"
+    apply_intervention(d_chr, "A", iv_num),
+    "character"
   )
 
-  # Numeric treatment still works (regression guard).
-  d3 <- data.table::data.table(A = c(0.1, 0.5, 0.9, 0.3), Y = 1:4)
-  iv_num <- dynamic(function(data, trt) as.numeric(trt > 0.4))
-  res <- apply_intervention(d3, "A", iv_num)
-  expect_equal(res$A, c(0, 1, 1, 0))
+  # Character → character: accepted (the real use case the earlier,
+  # too-restrictive fix was blocking).
+  iv_chr_rule <- dynamic(function(data, trt) {
+    ifelse(seq_len(nrow(data)) %% 2L == 0L, "high", "low")
+  })
+  res_chr <- apply_intervention(d_chr, "A", iv_chr_rule)
+  expect_equal(res_chr$A, c("low", "high", "low", "high"))
+  expect_type(res_chr$A, "character")
+
+  # Factor → numeric: rejected.
+  d_fct <- data.table::data.table(
+    A = factor(c("low", "high", "low", "high"), levels = c("low", "high")),
+    Y = 1:4
+  )
+  expect_error(
+    apply_intervention(d_fct, "A", iv_num),
+    "factor"
+  )
+
+  # Factor → character with existing levels: accepted, coerced back to
+  # factor with the original levels preserved.
+  iv_fct_rule <- dynamic(function(data, trt) rep("high", nrow(data)))
+  res_fct <- apply_intervention(d_fct, "A", iv_fct_rule)
+  expect_s3_class(res_fct$A, "factor")
+  expect_equal(levels(res_fct$A), c("low", "high"))
+  expect_equal(as.character(res_fct$A), rep("high", 4))
+
+  # Factor → character with an unknown level: rejected (rather than
+  # silently becoming NA on coercion).
+  iv_unknown <- dynamic(function(data, trt) rep("medium", nrow(data)))
+  expect_error(
+    apply_intervention(d_fct, "A", iv_unknown),
+    "not present as levels"
+  )
 })
 
 test_that("ipsi() rejects NA / NaN delta with a clean message", {
