@@ -55,8 +55,10 @@
 #' caller is responsible for aligning it to the MSM's own fit rows —
 #' today those coincide because `fit_ipw()` uses the same
 #' `get_fit_rows()` convention for both the propensity and the MSM.
-#' If that ever changes, `fit_ipw()` must reconcile via the same
-#' `na.action` path that `prepare_propensity_if_weightit()` uses.
+#' If that ever changes, `fit_ipw()` must reconcile the two row sets
+#' via `model$na.action` before the variance engine sees them —
+#' `compute_ipw_if_self_contained_one()` asserts `n_msm == n_ps ==
+#' n_total` and aborts on mismatch.
 #'
 #' @param treatment_model A `causatr_treatment_model` from
 #'   `fit_treatment_model()`.
@@ -253,10 +255,9 @@ check_density_positivity <- function(f, context) {
 #'
 #' @description
 #' Returns a closure that recomputes the density-ratio weight vector
-#' under a candidate propensity parameter `alpha`. The variance
-#' engine's Branch B body (`prepare_propensity_if_self_contained()`)
-#' hands this closure to `numDeriv::jacobian()` to compute the
-#' cross-derivative
+#' under a candidate propensity parameter `alpha`.
+#' `compute_ipw_if_self_contained_one()` hands this closure to
+#' `numDeriv::jacobian()` to compute the cross-derivative
 #' \deqn{A_{\beta\alpha} = -\nabla_\alpha \bar\psi_\beta(\alpha)}
 #' that the propensity-uncertainty correction needs.
 #'

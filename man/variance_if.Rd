@@ -34,10 +34,7 @@ model-local row indices, asserting the \code{na.action} invariant).
 two-tier numerical fallback.
 \item The dispatcher \code{variance_if()} with branches for g-computation,
 matching (cluster-robust), ICE (chained forward sensitivity
-recursion), and IPW.
-\item The IPW-specific \code{prepare_propensity_if()} /
-\code{apply_propensity_correction()} pair (Branch A: WeightIt shortcut;
-Branch B: self-contained).
+recursion), and IPW (density-ratio stacked sandwich).
 }
 }
 \section{Layout}{
@@ -77,25 +74,18 @@ back to \verb{V1 + J V_\\beta J^T}).
 \itemize{
 \item \code{variance_if()} — single entry point, routes to one of the four.
 \item \code{build_point_channel_pieces()}, \code{prepare_point_variance()} —
-shared point-treatment plumbing for gcomp / IPW / matching.
+shared point-treatment plumbing for gcomp / matching.
 \item \code{variance_if_gcomp()} — g-computation branch.
 \item \code{variance_if_matching()} — matching branch; cluster-robust on
 \code{subclass}.
 \item \code{variance_if_ice()} / \code{variance_if_ice_one()} — ICE forward
 sensitivity recursion; cycles models rather than interventions so
 prep-hoisting does not apply.
-\item \code{variance_if_ipw()} — IPW branch; delegates Channel 2 to the
-propensity-specific pair below.
-}
-
-\strong{IPW Channel-2 pair (propensity-specific).}
-\itemize{
-\item \code{prepare_propensity_if()} — dispatcher; Branch A for Mparts-capable
-WeightIt methods, Branch B for the self-contained engine.
-\item \code{apply_propensity_correction()} — per-intervention application.
-\item \code{prepare_propensity_if_weightit()} — Branch A: \code{sandwich::estfun( asympt = TRUE)} + \code{sandwich::bread()} shortcut.
-\item \code{prepare_propensity_if_self_contained()} — Branch B: self-contained
-IF.
+\item \code{variance_if_ipw()} / \code{compute_ipw_if_self_contained_one()} — IPW
+density-ratio stacked sandwich; per-intervention workhorse assembles
+Channel 1 + MSM correction + propensity correction via
+\code{apply_model_correction()} and a numerical cross-derivative
+\eqn{A_{\beta\alpha}} from \code{numDeriv::jacobian()}.
 }
 }
 

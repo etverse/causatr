@@ -18,10 +18,11 @@
 #'
 #' - `"gcomp"`: standard `glm`/`gam` on the full data; one-model IF
 #'   correction via `prepare_model_if()` + `apply_model_correction()`.
-#' - `"ipw"`: `glm_weightit()` fit weighted for the target estimand (ATE/ATT);
-#'   IF Channel 2 delegated to `prepare_propensity_if()` (WeightIt shortcut via
-#'   `sandwich::estfun(asympt = TRUE)`), which already accounts for weight
-#'   estimation uncertainty.
+#' - `"ipw"`: density-ratio weighted MSM refit per intervention; IF
+#'   Channel 2 is the stacked-sandwich MSM-plus-propensity correction
+#'   assembled by `compute_ipw_if_self_contained_one()`, with the
+#'   cross-derivative \eqn{A_{\beta\alpha}} computed numerically by
+#'   `numDeriv::jacobian()`.
 #' - `"matching"`: `glm()` on the matched sample with match weights; IF is
 #'   computed on the matched sample and aggregated cluster-robustly on
 #'   `matched$subclass` via `vcov_from_if(cluster = ...)`.
@@ -762,14 +763,12 @@ compute_contrast <- function(
       boot_info <- boot_res$boot_info
     }
   } else if (fit$estimator == "ipw") {
-    # ── Point-treatment self-contained IPW.
-    # The density-ratio weights depend on the intervention, so we
-    # refit a weighted MSM per intervention here. Each refit
-    # consumes the density-ratio weight vector from
-    # `compute_density_ratio_weights()` multiplied by any external
-    # weights (survey / IPCW). The variance engine's IPW branch
-    # consumes the resulting per-intervention MSMs + weight closures
-    # via `compute_ipw_if_self_contained_one()`.
+    # Point-treatment IPW. The density-ratio weights depend on the
+    # intervention, so `compute_ipw_contrast_point()` refits a weighted
+    # MSM per intervention and returns one bundle per intervention.
+    # Variance dispatch then goes through `variance_if()` (sandwich)
+    # or `variance_bootstrap()` (bootstrap), uniformly with the other
+    # estimators.
     target_idx <- get_target_idx(data, fit$treatment, est, subset, subset_env)
     n_target <- sum(target_idx)
     if (n_target == 0L) {
@@ -779,22 +778,36 @@ compute_contrast <- function(
       )
     }
 
-    ipw_res <- compute_ipw_contrast_point(
-      fit,
-      interventions,
-      target_idx,
-      ci_method,
-      est,
-      subset,
-      n_boot,
-      parallel,
-      ncpus,
-      subset_env
-    )
-    mu_hat <- ipw_res$mu_hat
-    vcov_mat <- ipw_res$vcov
-    boot_t <- ipw_res$boot_t
-    boot_info <- ipw_res$boot_info
+    ipw_point <- compute_ipw_contrast_point(fit, interventions, target_idx)
+    mu_hat <- ipw_point$mu_hat
+
+    boot_t <- NULL
+    boot_info <- NULL
+    if (ci_method == "sandwich") {
+      vcov_mat <- variance_if(
+        fit,
+        target_idx = target_idx,
+        mu_hat = mu_hat,
+        ipw_bundles = ipw_point$bundles,
+        ipw_fit_idx = ipw_point$fit_idx,
+        ipw_n_total = ipw_point$n_total
+      )
+    } else {
+      boot_res <- variance_bootstrap(
+        fit,
+        interventions,
+        n_boot,
+        target_idx,
+        est,
+        subset,
+        parallel,
+        ncpus,
+        subset_env = subset_env
+      )
+      vcov_mat <- boot_res$vcov
+      boot_t <- boot_res$boot_t
+      boot_info <- boot_res$boot_info
+    }
   } else {
     # ── Point-treatment g-computation / matching.
     # Single outcome model, predict once per intervention, average

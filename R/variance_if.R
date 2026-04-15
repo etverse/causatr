@@ -30,10 +30,7 @@
 #'   two-tier numerical fallback.
 #' - The dispatcher `variance_if()` with branches for g-computation,
 #'   matching (cluster-robust), ICE (chained forward sensitivity
-#'   recursion), and IPW.
-#' - The IPW-specific `prepare_propensity_if()` /
-#'   `apply_propensity_correction()` pair (Branch A: WeightIt shortcut;
-#'   Branch B: self-contained).
+#'   recursion), and IPW (density-ratio stacked sandwich).
 #'
 #' @section Layout:
 #' Functions appear in this file in the order below. Grep for the name
@@ -64,24 +61,18 @@
 #' **Dispatcher and per-method branches.**
 #' - `variance_if()` — single entry point, routes to one of the four.
 #' - `build_point_channel_pieces()`, `prepare_point_variance()` —
-#'   shared point-treatment plumbing for gcomp / IPW / matching.
+#'   shared point-treatment plumbing for gcomp / matching.
 #' - `variance_if_gcomp()` — g-computation branch.
 #' - `variance_if_matching()` — matching branch; cluster-robust on
 #'   `subclass`.
 #' - `variance_if_ice()` / `variance_if_ice_one()` — ICE forward
 #'   sensitivity recursion; cycles models rather than interventions so
 #'   prep-hoisting does not apply.
-#' - `variance_if_ipw()` — IPW branch; delegates Channel 2 to the
-#'   propensity-specific pair below.
-#'
-#' **IPW Channel-2 pair (propensity-specific).**
-#' - `prepare_propensity_if()` — dispatcher; Branch A for Mparts-capable
-#'   WeightIt methods, Branch B for the self-contained engine.
-#' - `apply_propensity_correction()` — per-intervention application.
-#' - `prepare_propensity_if_weightit()` — Branch A: `sandwich::estfun(
-#'   asympt = TRUE)` + `sandwich::bread()` shortcut.
-#' - `prepare_propensity_if_self_contained()` — Branch B: self-contained
-#'   IF.
+#' - `variance_if_ipw()` / `compute_ipw_if_self_contained_one()` — IPW
+#'   density-ratio stacked sandwich; per-intervention workhorse assembles
+#'   Channel 1 + MSM correction + propensity correction via
+#'   `apply_model_correction()` and a numerical cross-derivative
+#'   \eqn{A_{\beta\alpha}} from `numDeriv::jacobian()`.
 #'
 #' @name variance_if
 #' @keywords internal
@@ -95,8 +86,9 @@ NULL
 #' IWLS working weights \eqn{(d\mu/d\eta)^2 / V(\mu)}. For GAMs returns the
 #' penalized Bayesian covariance `model$Vp = (X'WX + \lambda S)^{-1}`.
 #'
-#' This is the building block for `correct_model()` and the `IF_\beta`
-#' construction inside `prepare_propensity_if()` Branch B.
+#' This is the building block for `correct_model()` and for the MSM
+#' plus propensity Channel-2 pair inside
+#' `compute_ipw_if_self_contained_one()`.
 #'
 #' @param model A fitted model with a `family` object (GLM or GAM).
 #' @param X_fit Design matrix from `model.matrix(model)`.
@@ -309,7 +301,8 @@ prepare_model_if <- function(model, fit_idx, n_total) {
 #' from `prepare_model_if()` and a sensitivity gradient
 #' \eqn{g = \partial\hat\mu/\partial\beta}, and returns the per-individual
 #' correction vector along with `d` and `h` (needed by ICE and by
-#' `prepare_propensity_if()` Branch B).
+#' `compute_ipw_if_self_contained_one()` for the MSM-to-propensity
+#' cross-term).
 #'
 #' Following the three-line template of vignette Section 4:
 #'
@@ -629,10 +622,11 @@ variance_if_numeric <- function(
 #'   block-triangular bread is inverted by back-substitution from the
 #'   mean equation downward (vignette Section 5.4 / D2).
 #' - **IPW** (`variance_if_ipw`): same Channel 1 shape as g-comp;
-#'   Channel 2 (the combined MSM correction + propensity correction)
-#'   is delegated to `prepare_propensity_if()` / `apply_propensity_correction()`,
-#'   which dispatch between Branch A (WeightIt shortcut via
-#'   `sandwich::estfun(asympt = TRUE)`) and Branch B (self-contained).
+#'   Channel 2 is the density-ratio stacked sandwich — the MSM
+#'   correction plus the propensity correction tied together by a
+#'   numerical cross-derivative \eqn{A_{\beta\alpha}} from
+#'   `numDeriv::jacobian()`. Per-intervention assembly lives in
+#'   `compute_ipw_if_self_contained_one()`.
 #'
 #' Non-GLM models without `family$mu.eta` and without `$Vp` are routed to
 #' `variance_if_numeric()`.
@@ -664,7 +658,10 @@ variance_if <- function(
   mu_hat = NULL,
   target_idx = NULL,
   ice_results = NULL,
-  target_within_first = NULL
+  target_within_first = NULL,
+  ipw_bundles = NULL,
+  ipw_fit_idx = NULL,
+  ipw_n_total = NULL
 ) {
   if (fit$type == "longitudinal") {
     return(variance_if_ice(fit, ice_results, target_within_first))
@@ -687,15 +684,14 @@ variance_if <- function(
   }
 
   if (estimator == "ipw") {
-    # IPW variance is computed directly inside
-    # `compute_ipw_contrast_point()` via
-    # `variance_if_ipw_self_contained()`, which needs the per-
-    # intervention MSM bundles that the dispatcher signature does
-    # not carry. The dispatcher therefore never runs the IPW branch
-    # under the standard pipeline; this abort catches any drift.
-    rlang::abort(
-      "Internal error: IPW variance must be routed through `compute_ipw_contrast_point()`, not the `variance_if()` dispatcher."
-    )
+    return(variance_if_ipw(
+      fit,
+      ipw_bundles,
+      target_idx,
+      mu_hat,
+      ipw_fit_idx,
+      ipw_n_total
+    ))
   }
 
   rlang::abort(paste0("Unknown estimator '", estimator, "' in variance_if()."))
@@ -716,13 +712,14 @@ variance_if <- function(
 #'   via \eqn{X^{*T}(d\mu/d\eta)} averaged over the target population.
 #' - `fit_idx`, `n`: the row-alignment scope the Channel-2 call will use.
 #'
-#' Factoring this out keeps `variance_if_gcomp()` and `variance_if_ipw()`
-#' identical up to the final Channel-2 call — they both call
-#' `build_point_channel_pieces()` and then loop over
-#' `apply_model_correction(prep, grad_list[[j]])` (g-comp) or
-#' `apply_propensity_correction(prop_prep, grad_list[[j]])` (IPW).
-#' Any future Channel-1 fix lands in one place instead of drifting
-#' between two near-duplicate loops.
+#' Used by `variance_if_gcomp()` to build Channel 1 and the
+#' per-intervention marginal-mean Jacobian off a single fitted
+#' outcome model, so the Channel-2 step is just a loop over
+#' `apply_model_correction(prep, grad_list[[j]])`. `variance_if_ipw()`
+#' does not share this plumbing because its MSM is refit per
+#' intervention on a density-ratio-weighted dataset — it builds its
+#' own Channel 1 / Jacobian pieces row-locally on the MSM fit-row
+#' subset.
 #'
 #' @param fit A `causatr_fit` object.
 #' @param data_a_list Named list of counterfactual data.tables.
@@ -840,12 +837,11 @@ build_point_channel_pieces <- function(
 #' them were computed differently. This helper bundles the two into one
 #' call so the alignment is structural, not by convention.
 #'
-#' The WeightIt-shortcut IPW branch does *not* use this bundler because
-#' it routes its Channel 2 through `prepare_propensity_if()`, not
-#' through `prepare_model_if()`. The self-contained IPW engine — which
-#' fits a plain weighted GLM as the MSM — reuses this bundler for the
-#' MSM term alongside a parallel `prepare_propensity_if()` call for the
-#' propensity term.
+#' The IPW branch does not use this bundler because it routes its
+#' Channel 1 / Jacobian construction through
+#' `variance_if_ipw()` directly on the MSM fit-row subset — the MSM is
+#' refit per intervention on a density-ratio-weighted dataset, so the
+#' shared point-treatment plumbing does not apply.
 #'
 #' @inheritParams build_point_channel_pieces
 #' @param model The fitted outcome (or MSM) model to prepare.
@@ -1218,50 +1214,10 @@ variance_if_ice_one <- function(fit, ice_result, target) {
 #' IPW branch of variance_if()
 #'
 #' @description
-#' Channel 1 + Channel 2 IF for IPW. Shares the Channel-1 / Jacobian
-#' construction with the g-comp branch via `build_point_channel_pieces()`
-#' — the two branches differ only in whether Channel 2 routes through
-#' `apply_model_correction()` (g-comp) or `apply_propensity_correction()`
-#' (IPW, combined MSM + propensity correction). The prep step is hoisted
-#' out of the intervention loop so `sandwich::estfun()` / `sandwich::bread()`
-#' run once regardless of `k`.
-#'
-#' For a saturated MSM (`Y ~ A`) with a static intervention predictions
-#' are constant within each treatment level so Channel 1 is identically
-#' zero. The `build_point_channel_pieces()` call still computes `X_star`
-#' and `J_j` via `iv_design_matrix()` and `crossprod()`, which is
-#' technically redundant in the saturated case but architecturally
-#' consistent with non-static interventions (shift, MTP, IPSI, dynamic),
-#' where Channel 1 is nonzero and `J_j` carries real information.
-#' Keeping one code path handles both shapes without special-casing.
-#'
-#' @noRd
-variance_if_ipw <- function(
-  fit,
-  data_a_list,
-  preds_list,
-  mu_hat,
-  target_idx
-) {
-  # Self-contained IPW routes variance through
-  # `variance_if_ipw_self_contained()` inside `compute_ipw_contrast_point()`;
-  # the `variance_if()` dispatcher's IPW branch is unreachable under the
-  # current pipeline. Kept so any accidental call surfaces immediately
-  # instead of silently rebuilding variance via the old WeightIt path.
-  rlang::abort(
-    "Internal error: `variance_if_ipw()` should not be reached. IPW variance is routed through `variance_if_ipw_self_contained()` inside `compute_ipw_contrast_point()`."
-  )
-}
-
-
-#' Self-contained IPW sandwich variance — straight per-intervention loop
-#'
-#' @description
-#' Per-intervention driver for the self-contained IPW engine. Called by
-#' `compute_ipw_contrast_point()` once the per-intervention MSMs have
-#' been refit. Builds the three pieces
-#' `compute_ipw_if_self_contained_one()` needs — Channel 1, marginal-
-#' mean Jacobian `J`, and the `weight_fn` closure — from the
+#' Straight per-intervention loop over the density-ratio stacked
+#' sandwich. For each intervention, builds the three pieces
+#' `compute_ipw_if_self_contained_one()` needs — Channel 1, the
+#' marginal-mean Jacobian `J`, and the `weight_fn` closure — from the
 #' per-intervention bundle, then aggregates via `vcov_from_if()`.
 #'
 #' ## Scale convention
@@ -1276,7 +1232,7 @@ variance_if_ipw <- function(
 #' outcomes).
 #'
 #' @param fit A `causatr_fit` of estimator `"ipw"`.
-#' @param bundles Named list of per-intervention bundles from
+#' @param bundles Named list of per-intervention bundles built by
 #'   `compute_ipw_contrast_point()`. Each carries `intervention`,
 #'   `msm_model`, `weights_final`, `mu_hat`.
 #' @param target_idx Logical vector (length `nrow(fit$data)`) flagging
@@ -1289,7 +1245,7 @@ variance_if_ipw <- function(
 #' @return A `k x k` variance-covariance matrix.
 #'
 #' @noRd
-variance_if_ipw_self_contained <- function(
+variance_if_ipw <- function(
   fit,
   bundles,
   target_idx,
@@ -1326,7 +1282,7 @@ variance_if_ipw_self_contained <- function(
   }
   if (sum_w_target <= 0) {
     rlang::abort(
-      "variance_if_ipw_self_contained(): target-population weights sum to 0.",
+      "variance_if_ipw(): target-population weights sum to 0.",
       class = "causatr_empty_target"
     )
   }
@@ -1407,203 +1363,35 @@ variance_if_ipw_self_contained <- function(
 }
 
 
-#' Precompute the gradient-independent IPW Channel 2 ingredients
+#' Per-individual IF for one IPW intervention
 #'
 #' @description
-#' Gradient-independent half of the IPW Channel 2 computation (MSM
-#' correction + propensity correction). Builds the per-observation
-#' adjusted-score IF matrix \eqn{\mathrm{IF}_{\beta,i} = A_{\beta\beta}^{-1}
-#' (\psi_{\beta,i} + A_{\beta\alpha}A_{\alpha\alpha}^{-1}\psi_{\alpha,i})},
-#' pays the `sandwich::estfun()` / `sandwich::bread()` cost once, and
-#' returns an opaque `prop_prep` list that `apply_propensity_correction()`
-#' consumes per intervention.
-#'
-#' Two branches:
-#'
-#' - **Branch A — WeightIt shortcut.** When `fit$model` is a
-#'   `glm_weightit`, `WeightIt::glm_weightit()` already implements
-#'   Wooldridge's (2010, eq. 12.41) stacked M-estimation correction
-#'   internally. `sandwich::estfun(model, asympt = TRUE)` returns the
-#'   **adjusted** per-observation score matrix in a single call, and
-#'   `sandwich::bread(model)` returns \eqn{A_{\beta\beta}^{-1}}. Their
-#'   product is the full per-observation IF matrix. Covers binary /
-#'   multinomial / continuous static IPW with any Mparts-supporting
-#'   WeightIt method (`glm`, `cbps`, `ipt`, `ebal`).
-#'
-#' - **Branch B — self-contained.** When `fit$model` is a plain weighted
-#'   GLM (no `glm_weightit` class), handles the non-static interventions
-#'   (shift, MTP, IPSI, dynamic rules) that WeightIt does not support.
-#'   Currently aborts.
-#'
-#' @param fit A `causatr_fit` of estimator `"ipw"`.
-#' @param fit_idx Integer vector of row indices used by the MSM (in
-#'   `1..n_total`).
-#' @param n_total Integer. Total length of the IF vector.
-#'
-#' @return A list with `IF_beta` (n_fit x p matrix), `fit_idx`, `n_total`.
-#'
-#' @noRd
-prepare_propensity_if <- function(fit, fit_idx, n_total) {
-  if (inherits(fit$model, "glm_weightit")) {
-    return(prepare_propensity_if_weightit(fit, fit_idx, n_total))
-  }
-  prepare_propensity_if_self_contained(fit, fit_idx, n_total)
-}
-
-
-#' Apply a prepared IPW Channel 2 correction to a single gradient
-#'
-#' @description
-#' Returns the per-individual IPW Channel 2 contribution for a single
-#' marginal-mean Jacobian `J`:
-#'
-#' \deqn{\mathrm{Ch.2}_i =
-#'   J\,A_{\beta\beta}^{-1}\,\psi_{\beta,i}
-#'   + J\,A_{\beta\beta}^{-1}\,A_{\beta\alpha}\,A_{\alpha\alpha}^{-1}\,
-#'     \psi_{\alpha,i}}
-#'
-#' Both terms are carried inside `prep$IF_beta` via the adjusted-score
-#' identity (see `prepare_propensity_if()`).
-#'
-#' @param prep Output of `prepare_propensity_if()`.
-#' @param J Numeric `p`-vector. The marginal-mean Jacobian
-#'   \eqn{J = \partial\hat\mu/\partial\beta} for one intervention.
-#'
-#' @return A numeric vector of length `prep$n_total`. Zero outside
-#'   `prep$fit_idx`.
-#'
-#' @noRd
-apply_propensity_correction <- function(prep, J) {
-  Ch2_fit <- as.numeric(prep$IF_beta %*% J)
-  Ch2 <- rep(0, prep$n_total)
-  Ch2[prep$fit_idx] <- Ch2_fit
-  Ch2
-}
-
-
-#' Branch A: WeightIt shortcut for `prepare_propensity_if()`
-#'
-#' @noRd
-prepare_propensity_if_weightit <- function(fit, fit_idx, n_total) {
-  model <- fit$model
-
-  # `sandwich::bread()` returns `n * (X'WX)^{-1}` per the Hessian-scale
-  # convention in `?sandwich::bread`, so `psi_i %*% bread` already
-  # carries the factor of n needed by `apply_propensity_correction()`,
-  # which therefore omits the explicit `* n_total` multiplication that
-  # the numeric Tier-1 path applies. The end result matches the
-  # analytic g-comp / matching path:
-  #
-  #   Ch.2_i = J %*% IF_beta_i
-  #          = J %*% (n * (X'WX)^{-1}) %*% psi_i
-  #          = n * d_i * r^score_i
-  #
-  # Do NOT divide by `nobs(model)` here — the two conventions differ
-  # only in where the factor of n is absorbed.
-  E <- sandwich::estfun(model, asympt = TRUE)
-  IF_beta <- E %*% sandwich::bread(model)
-
-  # R3 (2026-04-15 review): the MSM (`glm_weightit`) and the propensity
-  # model can drop different rows if a non-PS covariate carries NAs
-  # that one fit tolerates and the other doesn't. Instead of aborting,
-  # reconcile on the MSM's own kept rows via `model$na.action` and
-  # intersect with `fit_idx`. If the intersection is empty something
-  # is genuinely broken upstream — only then do we abort.
-  if (nrow(IF_beta) != length(fit_idx)) {
-    na_act <- stats::na.action(model)
-    if (!is.null(na_act)) {
-      dropped <- as.integer(na_act)
-      aligned_idx <- setdiff(fit_idx, fit_idx[dropped])
-      if (length(aligned_idx) == nrow(IF_beta)) {
-        return(list(
-          IF_beta = IF_beta,
-          fit_idx = aligned_idx,
-          n_total = n_total
-        ))
-      }
-    }
-    rlang::abort(
-      paste0(
-        "prepare_propensity_if() Branch A: estfun() returned ",
-        nrow(IF_beta),
-        " rows but fit_idx has ",
-        length(fit_idx),
-        ", and `na.action` did not reconcile the row sets. This ",
-        "indicates a divergence between the MSM fit data and the ",
-        "propensity fit data. Clean or impute NAs in confounders / ",
-        "outcome before calling `causat()`."
-      )
-    )
-  }
-
-  list(IF_beta = IF_beta, fit_idx = fit_idx, n_total = n_total)
-}
-
-
-#' Branch B: self-contained IPW IF placeholder
-#'
-#' @description
-#' Dispatcher stub for the self-contained IPW IF path. The per-
-#' intervention workhorse is `compute_ipw_if_self_contained_one()`;
-#' this entry point currently aborts because the end-to-end wiring
-#' in `variance_if_ipw()` routes through the WeightIt-backed
-#' `prepare_propensity_if_weightit()` branch.
-#'
-#' @noRd
-prepare_propensity_if_self_contained <- function(fit, fit_idx, n_total) {
-  rlang::abort(
-    paste0(
-      "Self-contained IPW sandwich IF for non-static interventions ",
-      "(shift, MTP, IPSI, dynamic) is not supported. Use ",
-      "`ci_method = 'bootstrap'`, or fit with a WeightIt method that ",
-      "supports the Mparts correction (`glm`, `cbps`, `ipt`, `ebal`)."
-    )
-  )
-}
-
-
-#' Per-individual IF for one self-contained IPW intervention
-#'
-#' @description
-#' Branch B workhorse. Returns the length-`n_total` per-individual
-#' influence function for ONE intervention, assembled from three
-#' channels following @eq-if-ipw in the variance theory vignette:
+#' Returns the length-`n_total` per-individual influence function for
+#' ONE intervention, assembled from three channels following
+#' the IF decomposition in the variance theory vignette (Section 4):
 #'
 #' \deqn{\mathrm{IF}_i = \underbrace{\mathrm{Ch.1}_i}_{\text{direct}}
 #'       + \underbrace{J^{\mathsf T}\,A_{\beta\beta}^{-1}\,\psi_{\beta,i}}_{\text{MSM correction}}
 #'       + \underbrace{J^{\mathsf T}\,A_{\beta\beta}^{-1}\,A_{\beta\alpha}\,A_{\alpha\alpha}^{-1}\,\psi_{\alpha,i}}_{\text{propensity correction}}.}
 #'
 #' The interesting piece is the cross-derivative
-#' \eqn{A_{\beta\alpha} = -\partial\bar\psi_\beta/\partial\alpha}. In
-#' Branch A (`prepare_propensity_if_weightit()`) it is absorbed
-#' implicitly by `WeightIt::glm_weightit()` via
-#' `sandwich::estfun(asympt = TRUE)` — Wooldridge's stacked
-#' adjusted-score trick. Branch B cannot use that shortcut because
-#' the unified engine no longer routes through `glm_weightit`, so we
-#' compute \eqn{A_{\beta\alpha}} numerically via
-#' `numDeriv::jacobian()` on a closure that recomputes the average
-#' weighted MSM score as a function of candidate propensity
-#' parameters \eqn{\alpha}. That closure is the `weight_fn` built by
-#' `make_weight_fn()` for this specific intervention, wrapped with
-#' the fixed-at-`beta_hat` residual/linkinv machinery.
+#' \eqn{A_{\beta\alpha} = -\partial\bar\psi_\beta/\partial\alpha}.
+#' We compute it numerically via `numDeriv::jacobian()` on a closure
+#' that recomputes the average weighted MSM score as a function of
+#' candidate propensity parameters \eqn{\alpha}. That closure is the
+#' `weight_fn` built by `make_weight_fn()` for this specific
+#' intervention, wrapped with the fixed-at-`beta_hat` residual /
+#' linkinv machinery.
 #'
 #' ## Why this function uses `apply_model_correction()` twice
 #'
-#' Every other variance branch in causatr — gcomp, ICE, matching —
-#' goes through the `prepare_model_if()` / `apply_model_correction()`
-#' primitive pair. Branch A (the WeightIt adjusted-score shortcut) is
-#' the only branch that leans on `sandwich::estfun` / `sandwich::bread`
-#' directly, and it gets away with it because `glm_weightit` wraps
-#' the stacked M-estimation machinery cleanly.
-#'
-#' Branch B has no such wrapper — the user's treatment density model
-#' is a plain `glm` — so using `sandwich::bread.glm` here lands us in
-#' the zero-weight-dispersion sharp edge (`summary.glm$dispersion`
-#' computed on the effective-weight subset, vs
-#' `sandwich::bread.glm`'s use of nominal degrees of freedom). The
-#' two disagree by a ratio of effective-to-nominal n, which is non-
-#' trivial on HT-weighted fits where half the rows have `w = 0`.
-#' Rather than patch around that, we use causatr's own
+#' The user's treatment density model is a plain `glm`, so using
+#' `sandwich::bread.glm` here would land in the zero-weight-dispersion
+#' sharp edge (`summary.glm$dispersion` computed on the effective-
+#' weight subset, vs `sandwich::bread.glm`'s use of nominal degrees of
+#' freedom). The two disagree by a ratio of effective-to-nominal n,
+#' which is non-trivial on HT-weighted fits where half the rows have
+#' `w = 0`. Rather than patch around that, we use causatr's own
 #' `apply_model_correction()`, which computes the same quantity from
 #' the GLM's working residuals + working weights directly — no
 #' `summary.glm` intermediary — and handles zero-weight rows by
@@ -1680,13 +1468,13 @@ prepare_propensity_if_self_contained <- function(fit, fit_idx, n_total) {
 #' The caller owns the per-intervention loop.
 #'
 #' @param msm_model Fitted weighted GLM for this intervention. Must
-#'   support `sandwich::estfun()`, `sandwich::bread()`,
-#'   `stats::coef()`, `stats::model.matrix()`, and
-#'   `stats::model.response(stats::model.frame(.))`.
+#'   support `stats::coef()`, `stats::model.matrix()`,
+#'   `stats::model.response(stats::model.frame(.))`, and the GLM
+#'   working-residual / working-weight accessors used by
+#'   `prepare_model_if()`.
 #' @param propensity_model Fitted treatment density model (typically
-#'   `tm$model` from `fit_treatment_model()`). Must support the same
-#'   `sandwich::estfun()` / `sandwich::bread()` / `stats::coef()`
-#'   contract.
+#'   `tm$model` from `fit_treatment_model()`). Same GLM accessor
+#'   contract as `msm_model`.
 #' @param weight_fn Closure `alpha -> w_i(alpha)` built by
 #'   `make_weight_fn()` for this intervention. The closure must
 #'   return a length-`n_fit` vector for any candidate `alpha` of the
@@ -1710,8 +1498,7 @@ prepare_propensity_if_self_contained <- function(fit, fit_idx, n_total) {
 #' @param n_total Integer. Length of the returned IF vector.
 #'
 #' @return Numeric vector of length `n_total`, the per-individual
-#'   influence function for one intervention under the self-contained
-#'   IPW engine.
+#'   influence function for one intervention under the IPW engine.
 #'
 #' @noRd
 compute_ipw_if_self_contained_one <- function(
@@ -1791,9 +1578,9 @@ compute_ipw_if_self_contained_one <- function(
         nrow(X_msm),
         ") != n_total (",
         n_total,
-        "). The self-contained IPW engine currently assumes the MSM ",
-        "fits on the same row set as the full data. Drop NA rows in ",
-        "`causat()` before the IPW path builds the MSM."
+        "). The IPW sandwich engine assumes the MSM fits on the same ",
+        "row set as the full data. Drop NA rows in `causat()` before ",
+        "the IPW path builds the MSM."
       )
     )
   }

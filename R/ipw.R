@@ -236,52 +236,44 @@ fit_ipw <- function(
 }
 
 
-#' Compute IPW marginal-mean contrasts for point-treatment data
+#' Compute IPW per-intervention bundles for point-treatment data
 #'
 #' @description
-#' Per-intervention workhorse behind `compute_contrast()`'s IPW branch.
+#' Per-intervention builder behind `compute_contrast()`'s IPW branch.
 #' For each intervention:
 #'
 #' 1. Build the density-ratio weight vector via
 #'    `compute_density_ratio_weights(tm, data, intervention)`.
 #' 2. Multiply in external (survey / IPCW) weights when present.
-#' 3. Refit a weighted MSM. Static on binary uses the saturated
-#'    `Y ~ A`; non-static and static-on-non-binary use an intercept-
-#'    only `Y ~ 1` (which under a weighted Hájek estimator recovers
-#'    the marginal counterfactual mean \eqn{E[Y^d]}).
+#' 3. Refit a weighted MSM on `Y ~ 1`, which under a weighted Hájek
+#'    estimator recovers the marginal counterfactual mean
+#'    \eqn{E[Y^d]}.
 #' 4. Compute \eqn{\hat\mu_a} by predict-then-average over the target
-#'    population: for `Y ~ A` this averages `beta_0 + beta_1 * a_i`
-#'    over target rows; for `Y ~ 1` it is `beta_0`.
+#'    population.
 #'
-#' The result carries enough state for `variance_if_ipw()` and the
-#' bootstrap path to build their own variance estimates without
-#' re-running the weight / MSM machinery.
+#' Returns the per-intervention bundles plus the scalars
+#' `compute_contrast()` needs to dispatch variance: `fit_idx`,
+#' `n_total`, and the marginal-mean vector. Variance itself is
+#' computed by `compute_contrast()` via `variance_if()` (sandwich) or
+#' `variance_bootstrap()` (bootstrap), uniformly with the other
+#' estimators.
 #'
 #' @param fit A `causatr_fit` from `fit_ipw()`.
 #' @param interventions Named list of `causatr_intervention` objects
 #'   (or `NULL` entries for natural course).
 #' @param target_idx Logical vector (length `nrow(fit$data)`) flagging
 #'   target-population rows.
-#' @param ci_method `"sandwich"` or `"bootstrap"`.
-#' @param est,subset,n_boot,parallel,ncpus,subset_env Passed through
-#'   to `variance_bootstrap()` for the bootstrap path.
 #'
-#' @return A list with components `mu_hat` (named numeric vector),
-#'   `vcov` (k x k matrix), `boot_t` / `boot_info` (non-NULL only
-#'   under bootstrap).
+#' @return A list with components `bundles` (named list of per-
+#'   intervention results), `mu_hat` (named numeric vector),
+#'   `fit_idx` (integer MSM fit-row indices), and `n_total`
+#'   (`nrow(fit$data)`).
 #'
 #' @noRd
 compute_ipw_contrast_point <- function(
   fit,
   interventions,
-  target_idx,
-  ci_method,
-  est,
-  subset,
-  n_boot,
-  parallel,
-  ncpus,
-  subset_env
+  target_idx
 ) {
   data <- fit$data
   treatment <- fit$treatment
@@ -367,38 +359,10 @@ compute_ipw_contrast_point <- function(
   mu_hat <- vapply(bundles, function(b) b$mu_hat, numeric(1))
   names(mu_hat) <- int_names
 
-  boot_t <- NULL
-  boot_info <- NULL
-  if (ci_method == "sandwich") {
-    vcov_mat <- variance_if_ipw_self_contained(
-      fit,
-      bundles,
-      target_idx,
-      mu_hat,
-      fit_idx,
-      n_total
-    )
-  } else {
-    boot_res <- variance_bootstrap(
-      fit,
-      interventions,
-      n_boot,
-      target_idx,
-      est,
-      subset,
-      parallel,
-      ncpus,
-      subset_env = subset_env
-    )
-    vcov_mat <- boot_res$vcov
-    boot_t <- boot_res$boot_t
-    boot_info <- boot_res$boot_info
-  }
-
   list(
+    bundles = bundles,
     mu_hat = mu_hat,
-    vcov = vcov_mat,
-    boot_t = boot_t,
-    boot_info = boot_info
+    fit_idx = fit_idx,
+    n_total = n_total
   )
 }

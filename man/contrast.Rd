@@ -132,10 +132,11 @@ point. See \code{vignettes/variance-theory.qmd} for the derivation and the
 \itemize{
 \item \code{"gcomp"}: standard \code{glm}/\code{gam} on the full data; one-model IF
 correction via \code{prepare_model_if()} + \code{apply_model_correction()}.
-\item \code{"ipw"}: \code{glm_weightit()} fit weighted for the target estimand (ATE/ATT);
-IF Channel 2 delegated to \code{prepare_propensity_if()} (WeightIt shortcut via
-\code{sandwich::estfun(asympt = TRUE)}), which already accounts for weight
-estimation uncertainty.
+\item \code{"ipw"}: density-ratio weighted MSM refit per intervention; IF
+Channel 2 is the stacked-sandwich MSM-plus-propensity correction
+assembled by \code{compute_ipw_if_self_contained_one()}, with the
+cross-derivative \eqn{A_{\beta\alpha}} computed numerically by
+\code{numDeriv::jacobian()}.
 \item \code{"matching"}: \code{glm()} on the matched sample with match weights; IF is
 computed on the matched sample and aggregated cluster-robustly on
 \code{matched$subclass} via \code{vcov_from_if(cluster = ...)}.
