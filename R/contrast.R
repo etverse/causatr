@@ -48,13 +48,11 @@
 #'   For IPW and matching, the weights/matched sets were estimated under the
 #'   observed treatment distribution; applying a different regime requires
 #'   re-calling [causat()] with updated data. `ipsi()` additionally requires
-#'   a fitted propensity model that is not yet wired through any engine
-#'   (Phase 4) and currently aborts for all estimators.
+#'   a fitted propensity model and currently aborts for all estimators.
 #'
-#'   **Survival contrasts are not yet implemented.** `contrast()` on a
+#'   **Survival contrasts are not implemented.** `contrast()` on a
 #'   `causatr_fit` returned by [causat_survival()] aborts with an
-#'   informative error. The pooled logistic fit itself works; only the
-#'   survival-curve contrast step is pending.
+#'   informative error. The pooled logistic fit itself works.
 #' @param type Character. The contrast scale: `"difference"` (default),
 #'   `"ratio"`, or `"or"` (odds ratio). All pairwise contrasts are reported.
 #' @param estimand Character or `NULL`. The target estimand: `"ATE"`,
@@ -302,7 +300,7 @@ contrast <- function(
   check_intervention_list(interventions)
   check_interventions_compat(fit$estimator, interventions)
 
-  # Estimand × intervention gate (Phase 4, PHASE_4_INTERVENTIONS_SELF_IPW.md §8).
+  # Estimand × intervention gate.
   # ATT / ATC are only well-defined under static interventions for the IPW
   # and matching engines; silently falling back to ATE weights under an
   # ATT request would return a pooled effect when the user asked for a
@@ -420,8 +418,6 @@ check_interventions_compat <- function(
       # shift / MTP / dynamic rule, because the density ratio or
       # balancing property no longer holds. G-comp's outcome model is
       # intervention-agnostic, so it handles all regimes uniformly.
-      # Phase 4 plan: self-contained IPW for non-static interventions
-      # (see PHASE_4_INTERVENTIONS_SELF_IPW.md).
       rlang::abort(
         paste0(
           "Non-static interventions (shift, dynamic, scale, threshold, ipsi) ",
@@ -662,9 +658,9 @@ compute_contrast <- function(
   if (fit$type == "survival") {
     rlang::abort(
       paste0(
-        "Survival curve estimation via contrast() is not yet implemented. ",
-        "causat_survival() currently fits a pooled logistic model; survival ",
-        "curve contrasts are planned for a future release."
+        "Survival curve estimation via contrast() is not implemented. ",
+        "causat_survival() fits a pooled logistic model; survival curve ",
+        "contrasts are reserved for a future release."
       ),
       .call = FALSE
     )

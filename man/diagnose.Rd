@@ -52,11 +52,9 @@ match quality summary (\% matched, caliper info).
 \item \code{"gcomp"}: unadjusted covariate imbalance between treatment groups.
 }
 
-\strong{Point-treatment fits only.} Diagnostics for longitudinal (ICE) fits
-are not yet implemented and \code{diagnose()} aborts with an informative
-error on a longitudinal \code{fit}. For longitudinal data, inspect
-per-period propensity / balance tables manually until a dedicated
-longitudinal path lands.
+\strong{Point-treatment fits only.} \code{diagnose()} aborts on a longitudinal
+(ICE) \code{fit}. For longitudinal data, inspect per-period propensity /
+balance tables manually.
 }
 \details{
 \subsection{Positivity}{

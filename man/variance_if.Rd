@@ -37,7 +37,7 @@ matching (cluster-robust), ICE (chained forward sensitivity
 recursion), and IPW.
 \item The IPW-specific \code{prepare_propensity_if()} /
 \code{apply_propensity_correction()} pair (Branch A: WeightIt shortcut;
-Branch B: self-contained, deferred to Phase 4).
+Branch B: self-contained).
 }
 }
 \section{Layout}{
@@ -91,11 +91,11 @@ propensity-specific pair below.
 \strong{IPW Channel-2 pair (propensity-specific).}
 \itemize{
 \item \code{prepare_propensity_if()} — dispatcher; Branch A for Mparts-capable
-WeightIt methods, Branch B deferred.
+WeightIt methods, Branch B for the self-contained engine.
 \item \code{apply_propensity_correction()} — per-intervention application.
 \item \code{prepare_propensity_if_weightit()} — Branch A: \code{sandwich::estfun( asympt = TRUE)} + \code{sandwich::bread()} shortcut.
 \item \code{prepare_propensity_if_self_contained()} — Branch B: self-contained
-IF, placeholder for Phase 4.
+IF.
 }
 }
 

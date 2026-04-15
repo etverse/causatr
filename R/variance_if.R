@@ -33,7 +33,7 @@
 #'   recursion), and IPW.
 #' - The IPW-specific `prepare_propensity_if()` /
 #'   `apply_propensity_correction()` pair (Branch A: WeightIt shortcut;
-#'   Branch B: self-contained, deferred to Phase 4).
+#'   Branch B: self-contained).
 #'
 #' @section Layout:
 #' Functions appear in this file in the order below. Grep for the name
@@ -76,12 +76,12 @@
 #'
 #' **IPW Channel-2 pair (propensity-specific).**
 #' - `prepare_propensity_if()` — dispatcher; Branch A for Mparts-capable
-#'   WeightIt methods, Branch B deferred.
+#'   WeightIt methods, Branch B for the self-contained engine.
 #' - `apply_propensity_correction()` — per-intervention application.
 #' - `prepare_propensity_if_weightit()` — Branch A: `sandwich::estfun(
 #'   asympt = TRUE)` + `sandwich::bread()` shortcut.
 #' - `prepare_propensity_if_self_contained()` — Branch B: self-contained
-#'   IF, placeholder for Phase 4.
+#'   IF.
 #'
 #' @name variance_if
 #' @keywords internal
@@ -632,8 +632,7 @@ variance_if_numeric <- function(
 #'   Channel 2 (the combined MSM correction + propensity correction)
 #'   is delegated to `prepare_propensity_if()` / `apply_propensity_correction()`,
 #'   which dispatch between Branch A (WeightIt shortcut via
-#'   `sandwich::estfun(asympt = TRUE)`) and Branch B (self-contained,
-#'   deferred to Phase 4).
+#'   `sandwich::estfun(asympt = TRUE)`) and Branch B (self-contained).
 #'
 #' Non-GLM models without `family$mu.eta` and without `$Vp` are routed to
 #' `variance_if_numeric()`.
@@ -839,12 +838,12 @@ build_point_channel_pieces <- function(
 #' them were computed differently. This helper bundles the two into one
 #' call so the alignment is structural, not by convention.
 #'
-#' **Phase 3 IPW** does *not* use this bundler because it routes its
-#' Channel 2 through `prepare_propensity_if()` (WeightIt shortcut), not
-#' through `prepare_model_if()`. **Phase 4's self-contained IPW** — which
-#' fits a plain weighted GLM as the MSM — will reuse this bundler for
-#' the MSM term alongside a parallel `prepare_propensity_if()` call for
-#' the propensity term; see `PHASE_4_INTERVENTIONS_SELF_IPW.md`.
+#' The WeightIt-shortcut IPW branch does *not* use this bundler because
+#' it routes its Channel 2 through `prepare_propensity_if()`, not
+#' through `prepare_model_if()`. The self-contained IPW engine — which
+#' fits a plain weighted GLM as the MSM — reuses this bundler for the
+#' MSM term alongside a parallel `prepare_propensity_if()` call for the
+#' propensity term.
 #'
 #' @inheritParams build_point_channel_pieces
 #' @param model The fitted outcome (or MSM) model to prepare.
@@ -1225,15 +1224,14 @@ variance_if_ice_one <- function(fit, ice_result, target) {
 #' out of the intervention loop so `sandwich::estfun()` / `sandwich::bread()`
 #' run once regardless of `k`.
 #'
-#' For a saturated MSM (`Y ~ A`) with a static intervention — the only
-#' shape supported in Phase 3 — predictions are constant within each
-#' treatment level so Channel 1 is identically zero. The
-#' `build_point_channel_pieces()` call still computes `X_star` and `J_j`
-#' via `iv_design_matrix()` and `crossprod()`, which is technically
-#' redundant in the saturated case but architecturally consistent with
-#' Phase 4's non-static interventions (shift, MTP, IPSI, dynamic), where
-#' Channel 1 is nonzero and `J_j` carries real information. Keeping one
-#' code path handles both shapes without special-casing.
+#' For a saturated MSM (`Y ~ A`) with a static intervention predictions
+#' are constant within each treatment level so Channel 1 is identically
+#' zero. The `build_point_channel_pieces()` call still computes `X_star`
+#' and `J_j` via `iv_design_matrix()` and `crossprod()`, which is
+#' technically redundant in the saturated case but architecturally
+#' consistent with non-static interventions (shift, MTP, IPSI, dynamic),
+#' where Channel 1 is nonzero and `J_j` carries real information.
+#' Keeping one code path handles both shapes without special-casing.
 #'
 #' @noRd
 variance_if_ipw <- function(
@@ -1287,11 +1285,9 @@ variance_if_ipw <- function(
 #'   multinomial / continuous static IPW with any Mparts-supporting
 #'   WeightIt method (`glm`, `cbps`, `ipt`, `ebal`).
 #'
-#' - **Branch B — self-contained, deferred to Phase 4.** When
-#'   `fit$model` is a plain weighted GLM (no `glm_weightit` class),
-#'   handles the non-static interventions (shift, MTP, IPSI, dynamic
-#'   rules) that WeightIt does not support. See
-#'   `PHASE_4_INTERVENTIONS_SELF_IPW.md` for the implementation plan.
+#' - **Branch B — self-contained.** When `fit$model` is a plain weighted
+#'   GLM (no `glm_weightit` class), handles the non-static interventions
+#'   (shift, MTP, IPSI, dynamic rules) that WeightIt does not support.
 #'   Currently aborts.
 #'
 #' @param fit A `causatr_fit` of estimator `"ipw"`.
@@ -1399,38 +1395,23 @@ prepare_propensity_if_weightit <- function(fit, fit_idx, n_total) {
 }
 
 
-#' Branch B scaffold: self-contained IPW IF for Phase 4
+#' Branch B: self-contained IPW IF placeholder
 #'
 #' @description
-#' Phase 4 will fill in this body. The dispatcher in
-#' `prepare_propensity_if()` already routes any non-`glm_weightit` MSM
-#' here, so once the body is implemented Phase 4's self-contained IPW
-#' (for shift/MTP/IPSI/dynamic interventions) plugs in without touching
-#' `variance_if()` itself.
-#'
-#' Implementation steps (summarised from `PHASE_4_INTERVENTIONS_SELF_IPW.md`):
-#'
-#' 1. Pull the MSM, the propensity model, and the closure
-#'    \eqn{\alpha \mapsto w_i(\alpha)} from `fit$details`.
-#' 2. **MSM term.** Reuse `prepare_model_if(msm)` + a per-intervention
-#'    `apply_model_correction()` for the MSM correction, keeping
-#'    `h_msm = A_{ββ}^{-1} J`.
-#' 3. **Cross-derivative.** Compute `A_beta_alpha` numerically via
-#'    `numDeriv::jacobian()` on the averaged weighted score, generalising
-#'    to any intervention shape.
-#' 4. **Propensity term.** Form `g_prop = t(A_beta_alpha) %*% h_msm` and
-#'    call `apply_model_correction(prep_prop, g_prop)`.
-#' 5. Assemble a `prop_prep` list whose `apply_propensity_correction()`
-#'    returns the combined MSM + propensity correction per individual.
+#' Dispatcher stub for the self-contained IPW IF path. The per-
+#' intervention workhorse is `compute_ipw_if_self_contained_one()`;
+#' this entry point currently aborts because the end-to-end wiring
+#' in `variance_if_ipw()` routes through the WeightIt-backed
+#' `prepare_propensity_if_weightit()` branch.
 #'
 #' @noRd
 prepare_propensity_if_self_contained <- function(fit, fit_idx, n_total) {
   rlang::abort(
     paste0(
-      "Self-contained IPW IF (for non-static interventions: shift, MTP, ",
-      "IPSI, dynamic) is planned for Phase 4. Use `ci_method = 'bootstrap'` ",
-      "in the meantime, or fit with a WeightIt method that supports the ",
-      "Mparts correction (`glm`, `cbps`, `ipt`, `ebal`)."
+      "Self-contained IPW sandwich IF for non-static interventions ",
+      "(shift, MTP, IPSI, dynamic) is not supported. Use ",
+      "`ci_method = 'bootstrap'`, or fit with a WeightIt method that ",
+      "supports the Mparts correction (`glm`, `cbps`, `ipt`, `ebal`)."
     )
   )
 }
@@ -1439,10 +1420,9 @@ prepare_propensity_if_self_contained <- function(fit, fit_idx, n_total) {
 #' Per-individual IF for one self-contained IPW intervention
 #'
 #' @description
-#' Phase 4 Branch B workhorse. Returns the length-`n_total`
-#' per-individual influence function for ONE intervention, assembled
-#' from three channels following @eq-if-ipw in the variance theory
-#' vignette:
+#' Branch B workhorse. Returns the length-`n_total` per-individual
+#' influence function for ONE intervention, assembled from three
+#' channels following @eq-if-ipw in the variance theory vignette:
 #'
 #' \deqn{\mathrm{IF}_i = \underbrace{\mathrm{Ch.1}_i}_{\text{direct}}
 #'       + \underbrace{J^{\mathsf T}\,A_{\beta\beta}^{-1}\,\psi_{\beta,i}}_{\text{MSM correction}}
@@ -1483,8 +1463,7 @@ prepare_propensity_if_self_contained <- function(fit, fit_idx, n_total) {
 #' the GLM's working residuals + working weights directly — no
 #' `summary.glm` intermediary — and handles zero-weight rows by
 #' simply letting `r_score_i = (Y_i - mu_i) * 0 = 0` for those rows.
-#' That matches the Phase 3 gcomp / ICE / matching convention
-#' exactly.
+#' That matches the gcomp / ICE / matching convention exactly.
 #'
 #' Both channels go through the same primitive:
 #'
@@ -1539,8 +1518,8 @@ prepare_propensity_if_self_contained <- function(fit, fit_idx, n_total) {
 #'
 #' All three channels are thus in the same scaling convention. Under
 #' the invariant `n_fit == n_ps == n_total` (enforced upstream by
-#' Phase 4's `fit_ipw()`), `vcov_from_if(IF_list, n_total)`
-#' reproduces the classical stacked sandwich variance.
+#' `fit_ipw()`), `vcov_from_if(IF_list, n_total)` reproduces the
+#' classical stacked sandwich variance.
 #'
 #' ## Scope (what this function does NOT do)
 #'
@@ -1553,8 +1532,7 @@ prepare_propensity_if_self_contained <- function(fit, fit_idx, n_total) {
 #'   intervention's IF.
 #' - It does not iterate over interventions. One call per intervention.
 #'
-#' The caller (`variance_if_ipw_self_contained()`, to be added in
-#' Chunk 3c) owns the per-intervention loop.
+#' The caller owns the per-intervention loop.
 #'
 #' @param msm_model Fitted weighted GLM for this intervention. Must
 #'   support `sandwich::estfun()`, `sandwich::bread()`,
@@ -1580,7 +1558,7 @@ prepare_propensity_if_self_contained <- function(fit, fit_idx, n_total) {
 #'   outside the target population and (for saturated static MSMs
 #'   with predictions constant per treatment level) zero everywhere.
 #' @param fit_idx Integer vector. Indices of MSM fit rows in
-#'   `1..n_total`. Typically `seq_len(n_total)` under Phase 4's
+#'   `1..n_total`. Typically `seq_len(n_total)` under the
 #'   "same row set for both models" invariant.
 #' @param fit_idx_ps Integer vector. Indices of propensity fit rows
 #'   in `1..n_total`. Same invariant as `fit_idx`.
@@ -1658,7 +1636,7 @@ compute_ipw_if_self_contained_one <- function(
 
   # ---- Assemble ---------------------------------------------------
   # Invariant check: every channel must be in n_total scaling. That
-  # holds as long as `n_fit == n_ps == n_total`, which is Phase 4's
+  # holds as long as `n_fit == n_ps == n_total`, which is the
   # "same row set for both models" invariant. Violating it would
   # silently mis-scale the cross-model composition.
   if (nrow(X_msm) != n_total) {

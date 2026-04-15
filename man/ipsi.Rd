@@ -16,14 +16,17 @@ A \code{causatr_intervention} object.
 Creates an incremental propensity score intervention (IPSI) that multiplies
 each individual's odds of treatment by \code{delta}. Values of \code{delta > 1}
 increase the probability of treatment; \code{delta < 1} decrease it. This is a
-stochastic modified treatment policy indexed by a single scalar.
+stochastic modified treatment policy indexed by a single scalar, and
+corresponds to the "shift-the-odds" counterfactual studied by
+Kennedy (2019).
 
-\strong{Status: not yet applicable} (planned Phase 4). The constructor is
-implemented and will appear in \code{fit$interventions}, but
-\code{\link[=contrast]{contrast()}} currently aborts when handed an \code{ipsi()} intervention
-because application requires a fitted propensity model that is not yet
-wired through the estimation engines. Use \code{\link[=shift]{shift()}}, \code{\link[=scale_by]{scale_by()}}, or
-\code{\link[=static]{static()}} with \code{estimator = "gcomp"} in the meantime.
+IPSI is \strong{binary-only} and is only meaningful under
+\code{estimator = "ipw"} — the IPW engine computes the Kennedy closed-form
+weight
+\eqn{w_i = (\delta A_i + (1 - A_i)) / (\delta p_i + (1 - p_i))}
+directly from the fitted propensity, with no counterfactual
+treatment value to predict at. \code{estimator = "gcomp"} and
+\code{estimator = "matching"} therefore do not support \code{ipsi()}.
 }
 \examples{
 \dontrun{

@@ -1,14 +1,12 @@
-#' Fit causal models across multiply-imputed datasets (not yet implemented)
+#' Fit causal models across multiply-imputed datasets (not implemented)
 #'
 #' @description
-#' **Status: not yet implemented.** This function is an internal placeholder
-#' for the planned multiple-imputation workflow. Calling it always errors.
-#' Do not rely on it; the signature may change before the first working
-#' release. Until this ships, handle missing data with a complete-case
-#' analysis or impute upstream and call [causat()] on a single completed
-#' dataset.
+#' **Not implemented.** This function is an internal placeholder for a
+#' multiple-imputation workflow. Calling it always errors. Handle
+#' missing data with a complete-case analysis or impute upstream and
+#' call [causat()] on a single completed dataset.
 #'
-#' @section Planned design:
+#' @section Design sketch:
 #' Apply [causat()] and [contrast()] across all imputed datasets in a
 #' `mids` object (from `mice::mice()`), then pool point estimates and
 #' variances using Rubin's rules:
@@ -101,7 +99,7 @@ causat_mice <- function(
   }
 
   rlang::abort(
-    "causat_mice() is not yet implemented.",
+    "causat_mice() is not implemented.",
     .call = FALSE
   )
 }

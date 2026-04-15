@@ -2,7 +2,7 @@
 #'
 #' @description
 #' Fits a parametric model for the conditional density
-#' \eqn{f(A \mid L)} used by the self-contained IPW engine (Phase 4).
+#' \eqn{f(A \mid L)} used by the self-contained IPW engine.
 #' The returned `causatr_treatment_model` object exposes enough
 #' metadata to (a) evaluate the density at arbitrary treatment
 #' values and (b) rebuild those evaluations at a candidate propensity
@@ -23,8 +23,7 @@
 #'   (Hernán & Robins Ch. 12 §12.4); users who need something else can
 #'   pass their own `propensity_model_fn` in `causat()`.
 #' - **Categorical** (factor or character with \eqn{k > 2} levels):
-#'   scaffolded but **not yet implemented** in this first Phase 4
-#'   chunk. Aborts with a pointer to the planned multinomial branch.
+#'   **not supported**. Aborts.
 #'
 #' @param data data.table (already prepared by `prepare_data()`) holding
 #'   all model variables. Rows with missing treatment or confounder
@@ -138,9 +137,8 @@ fit_treatment_model <- function(
     ),
     categorical = rlang::abort(
       c(
-        "Categorical treatment in the self-contained IPW engine is not yet implemented.",
-        i = "Phase 4 first lands binary + continuous; the multinomial branch is the next sub-chunk.",
-        i = "In the meantime use `estimator = 'gcomp'` for categorical treatments."
+        "Categorical treatment is not supported under `estimator = 'ipw'`.",
+        i = "Use `estimator = 'gcomp'` for categorical treatments."
       ),
       class = "causatr_phase4_categorical_pending"
     )

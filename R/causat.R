@@ -121,16 +121,10 @@
 #' in [contrast()], because the weights were estimated under the observed
 #' treatment distribution.
 #'
-#' **Longitudinal IPW is not yet implemented** (planned Phase 4). The
-#' design below describes the target API; `estimator = "ipw"` with `id` and
-#' `time` currently aborts with an informative error. Use
+#' **Longitudinal IPW is not supported.** `estimator = "ipw"` with `id`
+#' and `time` aborts with an informative error. Use
 #' `estimator = "gcomp"` (which uses ICE g-computation for longitudinal
-#' data) in the meantime. When implemented, `WeightIt::weightitMSM()` will
-#' fit a denominator model at each time `k` that includes baseline
-#' confounders, concurrent time-varying confounders, and lagged treatment.
-#' The numerator model will include only baseline confounders and lagged
-#' treatment (standard stabilized weights), unless overridden via
-#' `numerator`.
+#' data) for time-varying treatments.
 #'
 #' ## Matching (`estimator = "matching"`)
 #' Calls `MatchIt::matchit()` to create matched sets. The estimand is

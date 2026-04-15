@@ -14,5 +14,5 @@
         interventions = list(a1 = static(1)))
     Condition
       Error in `causat_mice()`:
-      ! causat_mice() is not yet implemented.
+      ! causat_mice() is not implemented.
 

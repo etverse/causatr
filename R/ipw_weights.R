@@ -137,7 +137,8 @@ compute_density_ratio_weights <- function(
   # Rows with A_obs != target get zero weight and drop out of the
   # Hájek mean — which is exactly what the Horvitz-Thompson
   # estimator of E[Y^{d}] wants.
-  is_ht <- iv_type %in% c("static", "dynamic") &&
+  is_ht <- iv_type %in%
+    c("static", "dynamic") &&
     family_tag %in% c("bernoulli", "categorical")
   if (is_ht) {
     # Resolve target values per individual. Static is trivially
@@ -170,7 +171,7 @@ compute_density_ratio_weights <- function(
   # treatment" formula gives. The difference is a sign (for shift)
   # and a Jacobian (for scale_by), and using the naive form gives
   # E[Y^{shift(-delta)}] instead of E[Y^{shift(delta)}]. Verified
-  # analytically in the design notes for Phase 4.
+  # analytically in the design notes.
   if (iv_type == "shift") {
     delta <- intervention$delta
     # shift: d(a) = a + delta, d^{-1}(y) = y - delta, |Jac| = 1.
@@ -342,7 +343,8 @@ make_weight_fn <- function(treatment_model, data, intervention) {
   # indicator mask once at closure-creation time — it depends on
   # `data` and `intervention` only, so it is invariant under the
   # numDeriv perturbations of `alpha`.
-  is_ht <- iv_type %in% c("static", "dynamic") &&
+  is_ht <- iv_type %in%
+    c("static", "dynamic") &&
     family_tag %in% c("bernoulli", "categorical")
   if (is_ht) {
     target <- apply_intervention_to_values(intervention, fit_data, a_obs)
@@ -358,12 +360,10 @@ make_weight_fn <- function(treatment_model, data, intervention) {
       })
     }
 
-    # Categorical branch is scaffolded for the next Phase 4 sub-chunk:
-    # `evaluate_density()` does not yet have a multinomial arm. When
-    # it does, this branch will do the same `ind / f_obs` reduction
-    # using a multinomial `p_k` at each row's observed level.
+    # Categorical is not supported: `evaluate_density()` has no
+    # multinomial arm.
     rlang::abort(
-      "Categorical HT weight closure is not yet wired — pending the multinomial density branch."
+      "Categorical HT weight closure is not supported."
     )
   }
 
@@ -415,7 +415,7 @@ make_weight_fn <- function(treatment_model, data, intervention) {
 
   rlang::abort(
     paste0(
-      "`make_weight_fn()` does not yet handle (intervention = '",
+      "`make_weight_fn()` does not handle (intervention = '",
       iv_type,
       "', family = '",
       family_tag,
@@ -573,11 +573,11 @@ ipsi_weight_formula <- function(a_obs, p, delta) {
 #'
 #' | intervention    | bernoulli | gaussian         | categorical |
 #' |-----------------|-----------|------------------|-------------|
-#' | `static()`      | ✓ HT      | ⛔                | ✓ HT (next sub-chunk) |
+#' | `static()`      | ✓ HT      | ⛔                | ⛔           |
 #' | `shift()`       | ⛔         | ✓ smooth ratio   | ⛔           |
 #' | `scale_by()`    | ⛔         | ✓ smooth ratio   | ⛔           |
 #' | `threshold()`   | ⛔         | ⛔ (use gcomp)    | ⛔           |
-#' | `dynamic()`     | ✓ HT      | ⛔ (use gcomp)    | ✓ HT (next sub-chunk) |
+#' | `dynamic()`     | ✓ HT      | ⛔ (use gcomp)    | ⛔           |
 #' | `ipsi()`        | ✓ Kennedy | ⛔                | ⛔           |
 #'
 #' The rationale for each ⛔:

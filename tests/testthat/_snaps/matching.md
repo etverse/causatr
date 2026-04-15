@@ -4,7 +4,7 @@
       causat(df, outcome = "Y", treatment = "A", confounders = ~L, estimator = "matching")
     Condition
       Error in `fit_matching()`:
-      ! Matching supports only binary treatments, but `A` has 3 levels. Use `estimator = "gcomp"` or `estimator = "ipw"` for categorical treatments (Phase 4 / Phase 7 will revisit multi-category matching).
+      ! Matching supports only binary treatments, but `A` has 3 levels. Use `estimator = "gcomp"` or `estimator = "ipw"` for categorical treatments.
 
 # matching rejects A:modifier interaction terms in confounders
 
@@ -17,5 +17,4 @@
       x Offending term(s): sex:A.
       i IPW and matching wrap a saturated MSM `Y ~ A` around the propensity/match model, so treatment-by-modifier interactions cannot be estimated here.
       i Use `estimator = "gcomp"` for heterogeneous treatment effects, or `by = "modifier"` in `contrast()` for stratum-specific summaries of a homogeneous effect.
-      i See `PHASE_8_INTERACTIONS.md` for the planned unified API.
 

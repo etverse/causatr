@@ -52,7 +52,7 @@ fit_ipw <- function(
 ) {
   if (type == "longitudinal") {
     rlang::abort(
-      "Longitudinal IPW (via WeightIt::weightitMSM) is not yet implemented.",
+      "Longitudinal IPW is not supported. Use `estimator = 'gcomp'` with `type = 'longitudinal'` for time-varying treatments.",
       .call = FALSE
     )
   }
@@ -60,9 +60,9 @@ fit_ipw <- function(
   # Reject A-touching terms in `confounders` before building the PS
   # formula. IPW's saturated MSM `Y ~ A` has nowhere to put an
   # `A:modifier` interaction, so any such term would be silently
-  # dropped from the effect estimate. Abort early with a Phase-8
-  # pointer rather than returning a wrong answer. See
-  # `check_confounders_no_treatment()` in `R/utils.R`.
+  # dropped from the effect estimate. Abort early rather than
+  # returning a wrong answer. See `check_confounders_no_treatment()`
+  # in `R/utils.R`.
   check_confounders_no_treatment(confounders, treatment, estimator = "ipw")
 
   # Build the treatment model formula: A ~ confounders.

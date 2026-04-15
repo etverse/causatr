@@ -400,9 +400,8 @@ check_treatment_nas <- function(
   # marginal mean. Two legitimate handling paths today:
   #   1. Censoring indicator -> IPCW via `censoring = "col"`
   #   2. Manual complete-case subset -> user removes rows before calling
-  # (Multiple imputation via `causat_mice()` is planned for a future
-  # release; the stub is unexported so it is not advertised in the
-  # abort hint.)
+  # (Multiple imputation via `causat_mice()` is not implemented; the
+  # stub is unexported so it is not advertised in the abort hint.)
   trt_cols <- treatment
   for (col in trt_cols) {
     n_na <- sum(is.na(data[[col]]))
@@ -464,9 +463,9 @@ check_causat_inputs <- function(
   # catches the "only one present" mistake.
   type <- if (!is.null(id) && !is.null(time)) "longitudinal" else "point"
 
-  # Estimator × type compatibility: longitudinal data is ICE-only for
-  # now. IPW/matching for longitudinal would need weightitMSM/matchit
-  # for repeated measures, which is Phase 4+ territory.
+  # Estimator × type compatibility: longitudinal data is ICE-only.
+  # IPW/matching for longitudinal would need weightitMSM/matchit for
+  # repeated measures, which is not supported.
   if (type == "longitudinal" && estimator %in% c("ipw", "matching")) {
     rlang::abort(
       paste0(
@@ -478,13 +477,13 @@ check_causat_inputs <- function(
     )
   }
 
-  # Multivariate treatments for IPW/matching are also Phase 4+; the
+  # Multivariate treatments for IPW/matching are not supported; the
   # propensity / matched-design story is more involved than simple
   # per-component application.
   if (length(treatment) > 1L && estimator %in% c("ipw", "matching")) {
     rlang::abort(
       paste0(
-        "Multivariate treatments are not yet supported for estimator = '",
+        "Multivariate treatments are not supported for estimator = '",
         estimator,
         "'. Use estimator = 'gcomp' for joint interventions on multiple ",
         "treatments, or fit separate models for each treatment."

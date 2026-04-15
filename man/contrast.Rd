@@ -45,13 +45,11 @@ every treatment variable specified in \code{causat()}.
 For IPW and matching, the weights/matched sets were estimated under the
 observed treatment distribution; applying a different regime requires
 re-calling \code{\link[=causat]{causat()}} with updated data. \code{ipsi()} additionally requires
-a fitted propensity model that is not yet wired through any engine
-(Phase 4) and currently aborts for all estimators.
+a fitted propensity model and currently aborts for all estimators.
 
-\strong{Survival contrasts are not yet implemented.} \code{contrast()} on a
+\strong{Survival contrasts are not implemented.} \code{contrast()} on a
 \code{causatr_fit} returned by \code{\link[=causat_survival]{causat_survival()}} aborts with an
-informative error. The pooled logistic fit itself works; only the
-survival-curve contrast step is pending.}
+informative error. The pooled logistic fit itself works.}
 
 \item{type}{Character. The contrast scale: \code{"difference"} (default),
 \code{"ratio"}, or \code{"or"} (odds ratio). All pairwise contrasts are reported.}

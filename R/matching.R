@@ -69,8 +69,7 @@ fit_matching <- function(
         "` has ",
         length(trt_levels),
         " levels. Use `estimator = \"gcomp\"` or `estimator = \"ipw\"` ",
-        "for categorical treatments (Phase 4 / Phase 7 will revisit ",
-        "multi-category matching)."
+        "for categorical treatments."
       ),
       .call = FALSE
     )
@@ -79,9 +78,9 @@ fit_matching <- function(
   # Reject A-touching terms in `confounders` before building the PS
   # formula. Matching's saturated MSM `Y ~ A` has nowhere to put an
   # `A:modifier` interaction, so any such term would be silently
-  # dropped from the effect estimate. Abort early with a Phase-8
-  # pointer rather than returning a wrong answer. See
-  # `check_confounders_no_treatment()` in `R/utils.R`.
+  # dropped from the effect estimate. Abort early rather than
+  # returning a wrong answer. See `check_confounders_no_treatment()`
+  # in `R/utils.R`.
   check_confounders_no_treatment(
     confounders,
     treatment,

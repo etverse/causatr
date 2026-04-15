@@ -294,16 +294,16 @@ test_that("variance_if IPW path matches WeightIt vcov + J V_beta J^T at saturate
 })
 
 
-# ── prepare_propensity_if() Branch B — Phase 4 scaffold aborts informatively ──
+# ── prepare_propensity_if() Branch B aborts informatively ──
 
-test_that("prepare_propensity_if() Branch B aborts with a Phase 4 message", {
+test_that("prepare_propensity_if() Branch B aborts informatively", {
   fake_fit <- list(
     model = structure(list(), class = "lm"),
     estimator = "ipw"
   )
   expect_error(
     prepare_propensity_if(fake_fit, fit_idx = 1L, n_total = 1L),
-    "Phase 4"
+    "Self-contained IPW sandwich IF"
   )
 })
 

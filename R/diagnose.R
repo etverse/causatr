@@ -10,11 +10,9 @@
 #'   match quality summary (% matched, caliper info).
 #' - `"gcomp"`: unadjusted covariate imbalance between treatment groups.
 #'
-#' **Point-treatment fits only.** Diagnostics for longitudinal (ICE) fits
-#' are not yet implemented and `diagnose()` aborts with an informative
-#' error on a longitudinal `fit`. For longitudinal data, inspect
-#' per-period propensity / balance tables manually until a dedicated
-#' longitudinal path lands.
+#' **Point-treatment fits only.** `diagnose()` aborts on a longitudinal
+#' (ICE) `fit`. For longitudinal data, inspect per-period propensity /
+#' balance tables manually.
 #'
 #' @param fit A `causatr_fit` object returned by [causat()].
 #' @param stats Character vector. Balance statistics to compute. Passed to
@@ -89,21 +87,16 @@ diagnose <- function(
     rlang::abort("`fit` must be a `causatr_fit` object returned by `causat()`.")
   }
 
-  # Longitudinal fits need per-period positivity and per-period
-  # balance tables, which are not implemented yet (planned for a
-  # later phase alongside the diagnose.longitudinal design). Reject
-  # up front rather than running the point-treatment path on a
-  # longitudinal fit, which silently produces a degenerate positivity
-  # table and crashes in cobalt's printer (see FEATURE_COVERAGE_MATRIX.md).
+  # Reject longitudinal fits up front rather than running the
+  # point-treatment path on them, which silently produces a degenerate
+  # positivity table and crashes in cobalt's printer.
   if (identical(fit$type, "longitudinal")) {
     rlang::abort(
       c(
-        "`diagnose()` is not yet supported for longitudinal fits.",
+        "`diagnose()` is not supported for longitudinal fits.",
         i = paste0(
-          "Per-period positivity and per-period balance tables ",
-          "will land in a future phase. For now, run `diagnose()` ",
-          "on a point-treatment subset of the data (e.g. baseline ",
-          "with `time == min(time)`)."
+          "Run `diagnose()` on a point-treatment subset of the data ",
+          "(e.g. baseline with `time == min(time)`)."
         )
       ),
       .call = FALSE

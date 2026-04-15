@@ -166,16 +166,10 @@ Supports binary, categorical, and continuous treatments (anything
 in \code{\link[=contrast]{contrast()}}, because the weights were estimated under the observed
 treatment distribution.
 
-\strong{Longitudinal IPW is not yet implemented} (planned Phase 4). The
-design below describes the target API; \code{estimator = "ipw"} with \code{id} and
-\code{time} currently aborts with an informative error. Use
+\strong{Longitudinal IPW is not supported.} \code{estimator = "ipw"} with \code{id}
+and \code{time} aborts with an informative error. Use
 \code{estimator = "gcomp"} (which uses ICE g-computation for longitudinal
-data) in the meantime. When implemented, \code{WeightIt::weightitMSM()} will
-fit a denominator model at each time \code{k} that includes baseline
-confounders, concurrent time-varying confounders, and lagged treatment.
-The numerator model will include only baseline confounders and lagged
-treatment (standard stabilized weights), unless overridden via
-\code{numerator}.
+data) for time-varying treatments.
 }
 
 \subsection{Matching (\code{estimator = "matching"})}{

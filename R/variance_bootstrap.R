@@ -264,7 +264,7 @@ refit_model <- function(fit, d_b, weights = NULL) {
   } else {
     rlang::abort(
       paste0(
-        "Bootstrap not yet supported for estimator = '",
+        "Bootstrap is not supported for estimator = '",
         fit$estimator,
         "'."
       ),

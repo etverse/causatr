@@ -17,7 +17,6 @@
       x Offending term(s): sex:A.
       i IPW and matching wrap a saturated MSM `Y ~ A` around the propensity/match model, so treatment-by-modifier interactions cannot be estimated here.
       i Use `estimator = "gcomp"` for heterogeneous treatment effects, or `by = "modifier"` in `contrast()` for stratum-specific summaries of a homogeneous effect.
-      i See `PHASE_8_INTERACTIONS.md` for the planned unified API.
 
 # IPW rejects bare treatment in confounders
 
@@ -29,5 +28,4 @@
       x Offending term(s): A.
       i IPW and matching wrap a saturated MSM `Y ~ A` around the propensity/match model, so treatment-by-modifier interactions cannot be estimated here.
       i Use `estimator = "gcomp"` for heterogeneous treatment effects, or `by = "modifier"` in `contrast()` for stratum-specific summaries of a homogeneous effect.
-      i See `PHASE_8_INTERACTIONS.md` for the planned unified API.
 

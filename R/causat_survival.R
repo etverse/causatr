@@ -4,12 +4,11 @@
 #' Convenience wrapper for causal survival analysis using pooled logistic
 #' regression as a discrete-time hazard model (Hernán & Robins Ch. 17).
 #'
-#' **Status: scaffolded.** The pooled logistic fit itself is implemented,
-#' but the survival-curve contrast step in [contrast()] is not yet wired
-#' up and aborts with an informative error. Competing-risks analysis (the
-#' `competing` argument) is also not yet implemented and aborts at fit
-#' time when supplied. Treat this function as experimental until both
-#' paths land.
+#' The pooled logistic hazard model is fit at this step. The
+#' survival-curve contrast step in [contrast()] is not implemented and
+#' aborts with an informative error. Competing-risks analysis (the
+#' `competing` argument) is also not implemented and aborts at fit time
+#' when supplied. Treat this function as experimental.
 #'
 #' ## Algorithm
 #'
@@ -40,9 +39,9 @@
 #'   If provided, rows where `censoring == 1` are excluded from fitting,
 #'   and subsequent rows for that individual are also dropped.
 #' @param competing Character or `NULL`. Name of a variable indicating the
-#'   type of competing event (for competing risks analysis). **Not yet
-#'   implemented**: supplying a non-`NULL` value currently aborts. Reserved
-#'   for a future release.
+#'   type of competing event (for competing risks analysis). **Not
+#'   implemented**: supplying a non-`NULL` value aborts. Reserved for a
+#'   future release.
 #' @param time_formula A one-sided formula specifying how time enters the
 #'   hazard model. Default `~ splines::ns(time, 4)`. Use `~ factor(time)`
 #'   for a fully saturated (non-parametric) baseline hazard.
@@ -116,34 +115,31 @@ causat_survival <- function(
   # corrupt the sandwich IF downstream. See check_dots_na_action().
   check_dots_na_action(...)
 
-  # `competing` is reserved for Phase 6 (sub-distribution hazard /
-  # Aalen-Johansen). The pooled-logistic path here does NOT apply
-  # any competing-risks adjustment, so accepting a non-NULL value
+  # `competing` is reserved for a future release (sub-distribution
+  # hazard / Aalen-Johansen). The pooled-logistic path here does NOT
+  # apply any competing-risks adjustment, so accepting a non-NULL value
   # would return a cause-deleted hazard model masquerading as a
-  # competing-risks estimator. Abort until the implementation lands.
+  # competing-risks estimator.
   if (!is.null(competing)) {
     rlang::abort(
       paste0(
-        "Competing-risks survival analysis is not yet implemented ",
-        "(planned for Phase 6). The `competing` argument is reserved ",
-        "but currently has no effect; re-running with `competing = NULL` ",
-        "would silently fit a plain cause-deleted hazard model, which ",
-        "is biased in the presence of competing events. Track progress ",
-        "in PHASE_6_SURVIVAL.md."
+        "Competing-risks survival analysis is not supported. The ",
+        "`competing` argument is reserved but has no effect; running ",
+        "with `competing = NULL` would silently fit a plain cause-",
+        "deleted hazard model, which is biased in the presence of ",
+        "competing events."
       ),
       .call = FALSE
     )
   }
 
-  # Phase 6 is scaffolded: the pooled-logistic fit below runs to
-  # completion, but `contrast()` on the resulting fit will abort with a
-  # scaffold message. Warn at fit time as well so users learn about the
-  # limitation before investing in a long fit rather than after.
+  # The pooled-logistic fit below runs to completion, but `contrast()`
+  # on the resulting fit aborts with an informative error. Warn at fit
+  # time as well so users learn about the limitation before investing
+  # in a long fit rather than after.
   rlang::inform(
     c(
-      "`causat_survival()` is scaffolded (Phase 6).",
-      i = "The pooled-logistic hazard model will fit, but `contrast()` on survival fits is not yet implemented.",
-      i = "Track progress in PHASE_6_SURVIVAL.md."
+      "`causat_survival()` fits the pooled-logistic hazard model, but `contrast()` on survival fits is not implemented."
     ),
     .frequency = "regularly",
     .frequency_id = "causat_survival_scaffold"

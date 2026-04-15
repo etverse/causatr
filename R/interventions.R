@@ -210,16 +210,7 @@ dynamic <- function(rule) {
 #' \eqn{w_i = (\delta A_i + (1 - A_i)) / (\delta p_i + (1 - p_i))}
 #' directly from the fitted propensity, with no counterfactual
 #' treatment value to predict at. `estimator = "gcomp"` and
-#' `estimator = "matching"` therefore do not support `ipsi()` — the
-#' `PHASE_4 §4` intervention × method matrix leaves those columns
-#' blank.
-#'
-#' Until the Phase 4 `fit_ipw()` rewrite lands, the full IPSI path
-#' (propensity model → density-ratio weights → weighted MSM → sandwich)
-#' is not yet wired end-to-end. The constructor, `check_intervention_family_compat()`,
-#' `compute_density_ratio_weights()`, `make_weight_fn()`, and the
-#' `ipsi_weight_formula()` helper all exist; the remaining work is
-#' plumbing them into `fit_ipw()` + `prepare_propensity_if_self_contained()`.
+#' `estimator = "matching"` therefore do not support `ipsi()`.
 #'
 #' @param delta Positive numeric. The odds multiplier.
 #'
@@ -256,8 +247,7 @@ ipsi <- function(delta) {
   #   w_i = (delta * A_i + (1 - A_i)) / (delta * p_i + (1 - p_i)),
   # which is only defined for binary treatments and is only usable
   # from the IPW engine (there is no counterfactual treatment value
-  # for g-comp to predict at, so `PHASE_4 §4` leaves the gcomp column
-  # for ipsi empty).
+  # for g-comp to predict at).
   #
   # Reject NA/NaN up front with a clean message — otherwise the next
   # `delta <= 0` comparison evaluates to `NA` and users see the cryptic
@@ -548,8 +538,7 @@ apply_single_intervention <- function(data, trt_col, iv) {
       # and never calls `apply_single_intervention()` on the
       # treatment column at all. If we reach this branch, the caller
       # is one of the non-IPW estimators (gcomp, matching), which do
-      # not support IPSI (see `PHASE_4 §4` — IPSI's gcomp / matching
-      # columns are blank).
+      # not support IPSI.
       rlang::abort(
         c(
           "`ipsi()` interventions are only supported under `estimator = 'ipw'`.",

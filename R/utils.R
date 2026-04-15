@@ -379,10 +379,9 @@ build_ps_formula <- function(confounders, treatment) {
 #' `confounders`-driven propensity/match model. Any interaction term the user
 #' writes as `A:modifier` (or `A * modifier`) cannot land anywhere useful:
 #' it pollutes the PS formula with the treatment on both sides, and it is
-#' silently dropped from the MSM, which `contrast()` averages over. That is
-#' the core Phase 8 limitation (see `PHASE_8_INTERACTIONS.md`). Until Phase
-#' 8 lands we abort early with a pointer to `estimator = "gcomp"` so users
-#' do not silently get a homogeneous-effect estimate when they asked for a
+#' silently dropped from the MSM, which `contrast()` averages over. We
+#' abort early with a pointer to `estimator = "gcomp"` so users do not
+#' silently get a homogeneous-effect estimate when they asked for a
 #' heterogeneous one.
 #'
 #' Bare treatment terms in `confounders` (e.g. `~ L + A`) are also rejected
@@ -433,8 +432,7 @@ check_confounders_no_treatment <- function(confounders, treatment, estimator) {
           "Use `estimator = \"gcomp\"` for heterogeneous treatment effects, ",
           "or `by = \"modifier\"` in `contrast()` for stratum-specific ",
           "summaries of a homogeneous effect."
-        ),
-        i = "See `PHASE_8_INTERACTIONS.md` for the planned unified API."
+        )
       ),
       .call = FALSE
     )
