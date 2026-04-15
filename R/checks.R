@@ -258,6 +258,128 @@ check_estimand_trt_compat <- function(
   }
 }
 
+#' Check compatibility between estimand and intervention types
+#'
+#' @description
+#' Under the IPW / matching engines, the ATT and ATC estimands are
+#' only well-defined when the intervention is static on a binary
+#' treatment. The reasoning:
+#'
+#' - ATT = "the average treatment effect among those who actually
+#'   received treatment". This requires (a) an unambiguous "treated"
+#'   subpopulation (binary coding), and (b) a counterfactual
+#'   treatment value that the subpopulation's observed treatment is
+#'   being compared against — i.e. a static target. For MTPs
+#'   (`shift`, `scale_by`, `threshold`, `dynamic`, `ipsi`) the
+#'   "among the treated" restriction is either undefined or exotic
+#'   and the MTP literature does not use it.
+#' - ATC is the symmetric statement for the untreated.
+#'
+#' Silently falling back to ATE weights under an ATT request would
+#' return a pooled effect when the user asked for effect within a
+#' subpopulation — a silent estimand swap, exactly the kind of
+#' mistake the package boundary checks exist to prevent. So we abort
+#' at contrast time with `class = "causatr_bad_estimand_intervention"`
+#' and point users to either `estimand = "ATE"` or
+#' `estimator = "gcomp"` (which handles ATT/ATC under any
+#' intervention natively via predict-then-average on the outcome
+#' model).
+#'
+#' For `estimator = "gcomp"` the function is a no-op.
+#'
+#' Natural-course entries (`NULL`) are always allowed: the observed
+#' marginal mean among the treated / controls is a well-defined
+#' quantity for any estimator.
+#'
+#' @param estimand Character scalar: `"ATE"`, `"ATT"`, or `"ATC"`.
+#'   Typically the *effective* estimand at contrast time — i.e. the
+#'   user's `estimand = ` override if present, otherwise
+#'   `fit$estimand`.
+#' @param interventions Named list of interventions from `contrast()`.
+#'   Each element is a `causatr_intervention`, `NULL` (natural
+#'   course), or a named list of `causatr_intervention` objects
+#'   (multivariate treatment).
+#' @param estimator Character scalar: `"gcomp"`, `"ipw"`, or
+#'   `"matching"`.
+#' @param call Caller environment for error messages.
+#'
+#' @return `NULL` invisibly; aborts with class
+#'   `"causatr_bad_estimand_intervention"` on an invalid combination.
+#'
+#' @noRd
+check_estimand_intervention_compat <- function(
+  estimand,
+  interventions,
+  estimator,
+  call = rlang::caller_env()
+) {
+  # G-comp handles every (estimand, intervention) combination
+  # natively: the outcome model is estimand-agnostic, and the
+  # estimand only affects which rows we average predictions over in
+  # `compute_contrast()`. No gating needed.
+  if (estimator == "gcomp") {
+    return(invisible(NULL))
+  }
+
+  # ATE is well-defined under every intervention supported by the
+  # IPW and matching engines.
+  if (estimand == "ATE") {
+    return(invisible(NULL))
+  }
+
+  # Collect non-static interventions (if any). Three shapes to
+  # handle, mirroring `check_interventions_compat()`:
+  #   - NULL                                → natural course, skip
+  #   - `causatr_intervention`              → inspect `$type`
+  #   - list of `causatr_intervention`      → multivariate treatment;
+  #                                           any non-static sub-intervention
+  #                                           flags the whole regime
+  bad <- character()
+  for (nm in names(interventions)) {
+    iv <- interventions[[nm]]
+    if (is.null(iv)) {
+      next
+    }
+    if (is.list(iv) && !inherits(iv, "causatr_intervention")) {
+      for (sub_nm in names(iv)) {
+        if (iv[[sub_nm]]$type != "static") {
+          bad <- c(bad, paste0(nm, "$", sub_nm))
+        }
+      }
+      next
+    }
+    if (iv$type != "static") {
+      bad <- c(bad, nm)
+    }
+  }
+
+  if (length(bad) == 0L) {
+    return(invisible(NULL))
+  }
+
+  rlang::abort(
+    c(
+      paste0(
+        "`estimand = '",
+        estimand,
+        "'` under `estimator = '",
+        estimator,
+        "'` only accepts static interventions."
+      ),
+      x = paste0(
+        "Non-static intervention(s): ",
+        paste0("'", bad, "'", collapse = ", "),
+        "."
+      ),
+      i = "Use `estimand = 'ATE'` if you want the MTP / shift / IPSI effect on the full population.",
+      i = "Use `estimator = 'gcomp'` if you need ATT/ATC under a non-static intervention — gcomp handles this via predict-then-average on the outcome model, which works for any estimand × intervention combination."
+    ),
+    class = "causatr_bad_estimand_intervention",
+    call = call
+  )
+}
+
+
 #' Check for missing treatment values
 #'
 #' @param data A data.frame or data.table.

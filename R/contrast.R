@@ -302,6 +302,22 @@ contrast <- function(
   check_intervention_list(interventions)
   check_interventions_compat(fit$estimator, interventions)
 
+  # Estimand × intervention gate (Phase 4, PHASE_4_INTERVENTIONS_SELF_IPW.md §8).
+  # ATT / ATC are only well-defined under static interventions for the IPW
+  # and matching engines; silently falling back to ATE weights under an
+  # ATT request would return a pooled effect when the user asked for a
+  # subpopulation effect. Abort upfront with the
+  # `causatr_bad_estimand_intervention` class. We pass the **effective**
+  # estimand — the user's `estimand = ` override if present, otherwise
+  # `fit$estimand` — so a fit made under ATT that is contrast-time
+  # overridden to ATE (gcomp only) still goes through the right branch.
+  effective_estimand <- if (is.null(estimand)) fit$estimand else estimand
+  check_estimand_intervention_compat(
+    effective_estimand,
+    interventions,
+    fit$estimator
+  )
+
   # `reference` names the intervention used as the contrast denominator
   # (pairwise a_j vs a_ref). Must exist in the named list.
   if (!is.null(reference) && !reference %in% names(interventions)) {
