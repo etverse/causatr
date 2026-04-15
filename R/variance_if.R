@@ -1434,3 +1434,261 @@ prepare_propensity_if_self_contained <- function(fit, fit_idx, n_total) {
     )
   )
 }
+
+
+#' Per-individual IF for one self-contained IPW intervention
+#'
+#' @description
+#' Phase 4 Branch B workhorse. Returns the length-`n_total`
+#' per-individual influence function for ONE intervention, assembled
+#' from three channels following @eq-if-ipw in the variance theory
+#' vignette:
+#'
+#' \deqn{\mathrm{IF}_i = \underbrace{\mathrm{Ch.1}_i}_{\text{direct}}
+#'       + \underbrace{J^{\mathsf T}\,A_{\beta\beta}^{-1}\,\psi_{\beta,i}}_{\text{MSM correction}}
+#'       + \underbrace{J^{\mathsf T}\,A_{\beta\beta}^{-1}\,A_{\beta\alpha}\,A_{\alpha\alpha}^{-1}\,\psi_{\alpha,i}}_{\text{propensity correction}}.}
+#'
+#' The interesting piece is the cross-derivative
+#' \eqn{A_{\beta\alpha} = -\partial\bar\psi_\beta/\partial\alpha}. In
+#' Branch A (`prepare_propensity_if_weightit()`) it is absorbed
+#' implicitly by `WeightIt::glm_weightit()` via
+#' `sandwich::estfun(asympt = TRUE)` — Wooldridge's stacked
+#' adjusted-score trick. Branch B cannot use that shortcut because
+#' the unified engine no longer routes through `glm_weightit`, so we
+#' compute \eqn{A_{\beta\alpha}} numerically via
+#' `numDeriv::jacobian()` on a closure that recomputes the average
+#' weighted MSM score as a function of candidate propensity
+#' parameters \eqn{\alpha}. That closure is the `weight_fn` built by
+#' `make_weight_fn()` for this specific intervention, wrapped with
+#' the fixed-at-`beta_hat` residual/linkinv machinery.
+#'
+#' ## Why this function uses `apply_model_correction()` twice
+#'
+#' Every other variance branch in causatr — gcomp, ICE, matching —
+#' goes through the `prepare_model_if()` / `apply_model_correction()`
+#' primitive pair. Branch A (the WeightIt adjusted-score shortcut) is
+#' the only branch that leans on `sandwich::estfun` / `sandwich::bread`
+#' directly, and it gets away with it because `glm_weightit` wraps
+#' the stacked M-estimation machinery cleanly.
+#'
+#' Branch B has no such wrapper — the user's treatment density model
+#' is a plain `glm` — so using `sandwich::bread.glm` here lands us in
+#' the zero-weight-dispersion sharp edge (`summary.glm$dispersion`
+#' computed on the effective-weight subset, vs
+#' `sandwich::bread.glm`'s use of nominal degrees of freedom). The
+#' two disagree by a ratio of effective-to-nominal n, which is non-
+#' trivial on HT-weighted fits where half the rows have `w = 0`.
+#' Rather than patch around that, we use causatr's own
+#' `apply_model_correction()`, which computes the same quantity from
+#' the GLM's working residuals + working weights directly — no
+#' `summary.glm` intermediary — and handles zero-weight rows by
+#' simply letting `r_score_i = (Y_i - mu_i) * 0 = 0` for those rows.
+#' That matches the Phase 3 gcomp / ICE / matching convention
+#' exactly.
+#'
+#' Both channels go through the same primitive:
+#'
+#' - **MSM correction.** `apply_model_correction(msm_prep, J)`. The
+#'   gradient `J` is the per-intervention Jacobian
+#'   \eqn{\partial\hat\mu/\partial\beta}. Returns `$correction`
+#'   (per-individual MSM-side IF contribution) and `$h = B_{\text{inv}} J
+#'   = (X^{\mathsf T}WX)^{-1} J`.
+#'
+#' - **Propensity correction.** `apply_model_correction(prop_prep, g_prop)`.
+#'   The gradient `g_prop` is the cross-derivative-projected MSM
+#'   Jacobian, \eqn{A_{\beta\alpha}^{\mathsf T}\,h_{\text{msm}}}. Under
+#'   causatr's convention `msm_res$h = A_{\beta\beta}^{-1} J / n_{\text{fit}}`
+#'   (because `bread_inv` returns the raw `(X^{\mathsf T}WX)^{-1}`, not
+#'   `n \cdot (X^{\mathsf T}WX)^{-1}`), so we multiply by `n_fit` once
+#'   to recover the "true" \eqn{A_{\beta\beta}^{-1} J}.
+#'
+#' ## Sign of the propensity correction
+#'
+#' The full IF for the beta block of a stacked M-estimator with
+#' block-lower-triangular bread
+#' \eqn{A = \begin{pmatrix} A_{\alpha\alpha} & 0 \\ A_{\beta\alpha} & A_{\beta\beta} \end{pmatrix}}
+#' is
+#' \deqn{\mathrm{IF}_i(\beta) = A_{\beta\beta}^{-1}\,\bigl(\psi_{\beta,i}
+#'       - A_{\beta\alpha}\,A_{\alpha\alpha}^{-1}\,\psi_{\alpha,i}\bigr),}
+#' i.e. the propensity correction is **subtracted** from the MSM
+#' term. This comes out of the block inversion
+#' \eqn{A^{-1} = \begin{pmatrix} A_{\alpha\alpha}^{-1} & 0 \\ -A_{\beta\beta}^{-1} A_{\beta\alpha} A_{\alpha\alpha}^{-1} & A_{\beta\beta}^{-1} \end{pmatrix}}
+#' applied to \eqn{\psi_i = (\psi_{\alpha,i}, \psi_{\beta,i})}. We
+#' return `msm_res$correction - prop_res$correction` at the end.
+#'
+#' (The existing `variance-theory.qmd §4.2` writes the IF with a
+#' `+` sign because it uses Wooldridge's convention
+#' \eqn{A_{\beta\alpha}^{\text{W}} = +(1/n)\sum \partial\psi_\beta/\partial\alpha},
+#' whereas we use the negative-Hessian convention
+#' \eqn{A_{\beta\alpha} = -(1/n)\sum \partial\psi_\beta/\partial\alpha}
+#' that `numDeriv::jacobian(phi_bar)` naturally gives. The two
+#' conventions differ by a sign on `A_{beta,alpha}`, which flips the
+#' composition sign. The numerical result is the same; the code
+#' must just be self-consistent.)
+#'
+#' ## Channel scaling
+#'
+#' - **Channel 1** comes from `build_point_channel_pieces()` and is
+#'   \eqn{n_{\text{total}}}-scaled
+#'   (`Ch1_list[[j]] = n_total * target_w * (p - mu_hat[j])`). For a
+#'   saturated MSM with static intervention Ch1 is identically zero.
+#' - **MSM correction** from `apply_model_correction()` is also
+#'   \eqn{n_{\text{total}}}-scaled (`correction[fit_idx] <- n_total *
+#'   d_fit * r_score`).
+#' - **Propensity correction** same story.
+#'
+#' All three channels are thus in the same scaling convention. Under
+#' the invariant `n_fit == n_ps == n_total` (enforced upstream by
+#' Phase 4's `fit_ipw()`), `vcov_from_if(IF_list, n_total)`
+#' reproduces the classical stacked sandwich variance.
+#'
+#' ## Scope (what this function does NOT do)
+#'
+#' - It does not fit any model. The MSM and the propensity model are
+#'   passed in fully fitted.
+#' - It does not build `Ch1_i`. That comes from
+#'   `build_point_channel_pieces()` in the usual `variance_if_*` flow.
+#' - It does not aggregate IFs into a vcov. The caller hands the
+#'   returned vector to `vcov_from_if()` alongside every other
+#'   intervention's IF.
+#' - It does not iterate over interventions. One call per intervention.
+#'
+#' The caller (`variance_if_ipw_self_contained()`, to be added in
+#' Chunk 3c) owns the per-intervention loop.
+#'
+#' @param msm_model Fitted weighted GLM for this intervention. Must
+#'   support `sandwich::estfun()`, `sandwich::bread()`,
+#'   `stats::coef()`, `stats::model.matrix()`, and
+#'   `stats::model.response(stats::model.frame(.))`.
+#' @param propensity_model Fitted treatment density model (typically
+#'   `tm$model` from `fit_treatment_model()`). Must support the same
+#'   `sandwich::estfun()` / `sandwich::bread()` / `stats::coef()`
+#'   contract.
+#' @param weight_fn Closure `alpha -> w_i(alpha)` built by
+#'   `make_weight_fn()` for this intervention. The closure must
+#'   return a length-`n_fit` vector for any candidate `alpha` of the
+#'   same length as `stats::coef(propensity_model)`.
+#' @param J Numeric `p_beta`-vector. The per-intervention Jacobian
+#'   \eqn{J = \partial\hat\mu_a/\partial\beta}. For a saturated MSM
+#'   with static binary treatment, `J` is the counterfactual design
+#'   row averaged over the target population. For an intercept-only
+#'   MSM under a non-saturated intervention (shift, MTP, IPSI), `J =
+#'   dmu/dbeta_0` which for an identity-link Gaussian is `1` and for
+#'   a logit-link binomial is `mu_hat * (1 - mu_hat)`.
+#' @param Ch1_i Numeric vector of length `n_total`. The Channel 1
+#'   contribution from `build_point_channel_pieces()`. Zero on rows
+#'   outside the target population and (for saturated static MSMs
+#'   with predictions constant per treatment level) zero everywhere.
+#' @param fit_idx Integer vector. Indices of MSM fit rows in
+#'   `1..n_total`. Typically `seq_len(n_total)` under Phase 4's
+#'   "same row set for both models" invariant.
+#' @param fit_idx_ps Integer vector. Indices of propensity fit rows
+#'   in `1..n_total`. Same invariant as `fit_idx`.
+#' @param n_total Integer. Length of the returned IF vector.
+#'
+#' @return Numeric vector of length `n_total`, the per-individual
+#'   influence function for one intervention under the self-contained
+#'   IPW engine.
+#'
+#' @noRd
+compute_ipw_if_self_contained_one <- function(
+  msm_model,
+  propensity_model,
+  weight_fn,
+  J,
+  Ch1_i,
+  fit_idx,
+  fit_idx_ps,
+  n_total
+) {
+  # ---- MSM correction via causatr's primitive --------------------
+  # `apply_model_correction()` returns:
+  #   $correction: per-individual MSM-side contribution
+  #                (n_total-scaled, zero off `fit_idx`)
+  #   $h:          bread_inv %*% J = (X'WX)^{-1} J
+  # The "true" A_bb^{-1} J is n_fit * $h because `bread_inv` returns
+  # the raw (X'WX)^{-1} without the factor of n that the M-estimation
+  # definition of A_bb carries.
+  msm_prep <- prepare_model_if(msm_model, fit_idx, n_total)
+  msm_res <- apply_model_correction(msm_prep, J)
+  n_fit <- nrow(msm_prep$X_fit)
+
+  # ---- Cross-derivative A_{beta, alpha} via numDeriv -------------
+  # Phi_bar(alpha) = (1/n_fit) sum_i psi_beta_i(alpha, beta_hat).
+  # For a GLM with canonical / non-canonical link,
+  #   psi_beta_i = X_i * w_i(alpha) * (Y_i - mu_i) * mu_eta_i / var_mu_i
+  # where mu, mu_eta, var_mu, Y - mu are all functions of beta_hat
+  # (fixed inside the closure). Only `w_i(alpha)` varies with alpha,
+  # so numDeriv only has to re-run the weight formula per perturbation.
+  beta_hat <- stats::coef(msm_model)
+  X_msm <- msm_prep$X_fit
+  y_fit <- stats::model.response(stats::model.frame(msm_model))
+  fam <- msm_model$family
+  eta <- as.numeric(X_msm %*% beta_hat)
+  mu <- fam$linkinv(eta)
+  mu_eta <- fam$mu.eta(eta)
+  var_mu <- fam$variance(mu)
+  r_fit <- y_fit - mu
+
+  phi_bar <- function(alpha) {
+    w_alpha <- weight_fn(alpha)
+    s_per_i <- w_alpha * mu_eta * r_fit / var_mu
+    as.numeric(crossprod(X_msm, s_per_i)) / n_fit
+  }
+  alpha_hat <- stats::coef(propensity_model)
+  # Negative-Hessian convention: A_{beta, alpha} = -(1/n) sum d psi/d alpha.
+  # numDeriv::jacobian(phi_bar, alpha) = d phi_bar/d alpha = +(1/n) sum d psi/d alpha.
+  # Flipping the sign gives A_{beta, alpha}.
+  A_beta_alpha <- -numDeriv::jacobian(phi_bar, x = alpha_hat)
+
+  # ---- Propensity correction via causatr's primitive --------------
+  # h_msm_true = A_{beta, beta}^{-1} J. msm_res$h holds
+  # (X'WX)^{-1} J = A_bb^{-1} J / n_fit, so multiply by n_fit to
+  # recover the "true" h.
+  h_msm_true <- n_fit * msm_res$h
+  # g_prop = A_{beta, alpha}^T h_msm_true is a p_alpha-vector. Feeding
+  # it as the "sensitivity gradient" to `apply_model_correction()` on
+  # the propensity model returns
+  #   prop_res$correction_i = g_prop^T A_{alpha, alpha}^{-1} psi_{alpha, i}
+  # which is exactly the quantity we need (up to sign; see below).
+  g_prop <- as.numeric(crossprod(A_beta_alpha, h_msm_true))
+
+  prop_prep <- prepare_model_if(propensity_model, fit_idx_ps, n_total)
+  prop_res <- apply_model_correction(prop_prep, g_prop)
+
+  # ---- Assemble ---------------------------------------------------
+  # Invariant check: every channel must be in n_total scaling. That
+  # holds as long as `n_fit == n_ps == n_total`, which is Phase 4's
+  # "same row set for both models" invariant. Violating it would
+  # silently mis-scale the cross-model composition.
+  if (nrow(X_msm) != n_total) {
+    rlang::abort(
+      paste0(
+        "compute_ipw_if_self_contained_one(): n_fit (",
+        nrow(X_msm),
+        ") != n_total (",
+        n_total,
+        "). The self-contained IPW engine currently assumes the MSM ",
+        "fits on the same row set as the full data. Drop NA rows in ",
+        "`causat()` before the IPW path builds the MSM."
+      )
+    )
+  }
+  if (nrow(prop_prep$X_fit) != n_total) {
+    rlang::abort(
+      paste0(
+        "compute_ipw_if_self_contained_one(): n_ps (",
+        nrow(prop_prep$X_fit),
+        ") != n_total (",
+        n_total,
+        "). Same row-alignment invariant as the MSM above."
+      )
+    )
+  }
+
+  # Block-lower-triangular M-estimation result:
+  #   IF_beta_i = A_bb^{-1}(psi_beta_i - A_{beta, alpha} A_aa^{-1} psi_alpha_i)
+  # i.e. the propensity correction is SUBTRACTED. See the docstring
+  # note on the sign convention.
+  Ch1_i + msm_res$correction - prop_res$correction
+}
