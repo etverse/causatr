@@ -265,18 +265,29 @@ has an explicit checklist to fill in.
 
 ### Phase 4 — Self-contained IPW for non-static interventions
 
-| Treatment | Outcome | Intervention | Variance | Status | Notes |
-|---|---|---|---|---|---|
-| binary | gaussian | shift | sandwich | ❌ planned | density-ratio weight engine pending |
-| binary | gaussian | scale_by | sandwich | ❌ planned | — |
-| binary | gaussian | threshold | sandwich | ❌ planned | — |
-| binary | gaussian | dynamic | sandwich | ❌ planned | — |
-| binary | gaussian | ipsi(δ) | sandwich | ❌ planned | requires propensity density model |
-| continuous | gaussian | shift / MTP | sandwich | ❌ planned | — |
-| binary | binomial | shift / MTP | sandwich | ❌ planned | — |
-| multivariate | gaussian | any | any | ❌ planned | IPW multivariate (this row); matching multivariate is Phase 7 |
-| longitudinal | any | static | sandwich | ❌ planned | delegate to `WeightIt::weightitMSM()` |
-| variance engine Branch B (self-contained IPW) | — | — | sandwich | ❌ planned | `correct_propensity_self_contained()` stub exists; tests T1–T4 from `PHASE_4_INTERVENTIONS_SELF_IPW.md` |
+Phase 4 collapses the existing "IPW (WeightIt)" and "IPW (self-contained)"
+split into a single unified IPW engine. Every row below will be tested
+against the variance-engine hand-derivation (T-A_β_α / T-end-to-end /
+T-non-static / bootstrap parity) and, where applicable, against the
+independent oracles listed in `PHASE_4_INTERVENTIONS_SELF_IPW.md §9`
+(WeightIt for static binary; lmtp for shift / IPSI point estimates).
+
+| Treatment | Outcome | Intervention | Estimand | Variance | Status | Notes |
+|---|---|---|---|---|---|---|
+| binary | gaussian | shift | ATE | sandwich | ❌ planned | density-ratio weight engine pending; lmtp oracle (T-oracle3) |
+| binary | gaussian | scale_by | ATE | sandwich | ❌ planned | — |
+| binary | gaussian | threshold | ATE | sandwich | ❌ planned | emits weight-mass warning on heavy clamping |
+| binary | gaussian | dynamic | ATE | sandwich | ❌ planned | — |
+| binary | gaussian | ipsi(δ) | ATE | sandwich | ❌ planned | closed-form weight shortcut; T-oracle4 |
+| continuous | gaussian | shift / MTP | ATE | sandwich | ❌ planned | Gaussian density assumption (Ch. 12) |
+| continuous | gaussian | scale_by / threshold / dynamic | ATE | sandwich | ❌ planned | — |
+| binary | binomial | shift / MTP / IPSI | ATE | sandwich | ❌ planned | — |
+| categorical (k>2) | gaussian | static | ATE | sandwich | ❌ planned | multinomial density via `nnet::multinom` through `propensity_model_fn` |
+| multivariate | gaussian | any | any | any | ❌ planned | IPW multivariate (this row); matching multivariate is Phase 7 |
+| longitudinal | any | any | any | any | ❌ deferred | extends density-ratio machinery to pooled-over-time MSM; explicitly out of Phase 4 scope |
+| variance engine Branch B (self-contained IPW) | — | — | — | sandwich | ❌ planned | `prepare_propensity_if_self_contained()` stub exists; tests T-A_β_α / T-end-to-end / T-non-static / bootstrap parity from `PHASE_4_INTERVENTIONS_SELF_IPW.md §11` |
+| any | any | shift / scale_by / threshold / dynamic / ipsi | ATT or ATC | any | ❌ planned rejection | `check_estimand_intervention_compat()` aborts with `causatr_bad_estimand_intervention`; test: snapshot error |
+| binary | gaussian | threshold (heavy clamping) | ATE | sandwich | ❌ planned warning | `rlang::warn()` when max weight > 100× median; test: snapshot warning |
 
 ### Phase 6 — Survival contrasts and competing risks
 
