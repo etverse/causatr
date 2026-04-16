@@ -304,9 +304,9 @@ Phase 4 lands as a sequence of focused commits rather than one big-bang rewrite,
 | 3e | Categorical (multinomial) branch in `fit_treatment_model()` + `make_weight_fn()` + `evaluate_density()`; multinomial-specific variance engine (`prepare_model_if_multinom()`); `nnet::multinom` as default categorical fitter; truth-based test (static) + smoke test (dynamic) | **done** |
 | 3f | lmtp contrast-level oracles T-oracle5 (shift via `lmtp::lmtp_sdr()`, `skip_if_not_installed("lmtp")`) + T-oracle6 (manual IPSI weight parity). lmtp already in `Suggests:`. Also fixed a latent bug where `apply_intervention()` aborted for `ipsi()` in `compute_ipw_contrast_point()` and `variance_if_ipw()` — IPSI does not materialize a counterfactual treatment value, so the intercept-only MSM path now skips the treatment-column modification. | **done** |
 | 3g | Non-static variance regression tests — T-non-static (propensity correction materially changes SE) + bootstrap parity for shift and IPSI | **done** |
-| 3h | User-facing vignette `vignettes/interventions.qmd` — intervention-type tour with estimator-by-estimator examples | **pending** |
-| 3i | Theory vignette `vignettes/ipw-variance-theory.qmd` — density-ratio derivation, pushforward sign + Jacobian, HT indicator form, IPSI closed form, `make_weight_fn` closure design, numerical `A_{β,α}` verification. Cross-reference from `vignettes/variance-theory.qmd` §4.2 | **pending** |
-| 3j | Count treatment (Poisson + negative binomial) density branch via explicit `propensity_family = "poisson"` / `"negbin"` opt-in on `causat()`; `fit_count_density()` + `evaluate_density()` Poisson/NB branches; count closure in `make_weight_fn()`; non-integer shift/scale rejection in `check_intervention_family_compat()`; truth-based Poisson DGP test + NB parity + rejection snapshot tests. See §5a for full design. | **pending** |
+| 3h | User-facing vignette `vignettes/interventions.qmd` — intervention-type tour with estimator-by-estimator examples; also rewrote `vignettes/ipw.qmd` to remove stale WeightIt references and reflect the Phase 4 self-contained engine | **done** |
+| 3i | Theory vignette `vignettes/ipw-variance-theory.qmd` — density-ratio derivation, pushforward sign + Jacobian, HT indicator form, IPSI closed form, `make_weight_fn` closure design, numerical `A_{β,α}` verification. Cross-reference from `vignettes/variance-theory.qmd` §4.2. Also updated stale `WeightIt::glm_weightit()` references in `variance-theory.qmd` §4.2 to reflect the self-contained engine. | **done** |
+| 3j | Count treatment (Poisson + negative binomial) density branch via explicit `propensity_family = "poisson"` / `"negbin"` opt-in on `causat()`; `fit_count_density()` + `evaluate_density()` Poisson/NB branches; count closure in `make_weight_fn()`; non-integer shift/scale rejection in `check_intervention_family_compat()`; truth-based Poisson DGP test + NB parity + rejection snapshot tests. See §5a for full design. | **done** |
 
 The chunk boundary is deliberately where the runtime architecture flips (3c). Chunks 3a and 3b validate the new variance machinery against first-principles references **before** any runtime code changes, so chunk 3c can focus on plumbing without also debugging the math.
 
@@ -318,7 +318,9 @@ The chunk boundary is deliberately where the runtime architecture flips (3c). Ch
 - **3e**: categorical abort test in `test-treatment-model.R` replaced with positive multinomial tests; categorical abort in `test-simulation.R` replaced with truth-based static ATE test + dynamic smoke test. New DGP `simulate_categorical_continuous()` in `helper-dgp.R`.
 - **3f**: new `test-ipw-lmtp-oracle.R` + `helper-ipw-lmtp-oracle.R` added. T-oracle5 uses `lmtp::lmtp_sdr()` (SDR replaced the defunct `lmtp_ipw()` in lmtp >= 1.5.0). T-oracle6 uses a manual Kennedy (2019) closed-form weight oracle. Also fixed IPSI `apply_intervention()` abort in `R/ipw.R` and `R/variance_if.R` — IPSI skips treatment-column modification since the `Y ~ 1` MSM doesn't use it.
 - **3g**: `test-ipw-variance-regression.R` added. T-non-static (shift + IPSI) and bootstrap parity (shift + IPSI). 4 test_that blocks, 10 assertions.
-- **3j**: new feature tests land as the features themselves do.
+- **3h**: new `vignettes/interventions.qmd` created; `vignettes/ipw.qmd` rewritten; `vignettes/introduction.qmd` updated. No test file changes.
+- **3i**: new `vignettes/ipw-variance-theory.qmd` created; `vignettes/variance-theory.qmd` cross-references added and stale WeightIt references updated. No test file changes.
+- **3j**: new `test-ipw-count.R` added. `simulate_count_treatment()` DGP in `helper-dgp.R`. Truth-based Poisson shift test, NB parity test, 6 rejection snapshot tests, unit tests for `fit_treatment_model()` and `evaluate_density()` Poisson/NB branches, `scale_by(1)` no-op positive test.
 
 ### 12. Phase 3 tests that need attention in Chunk 3c
 
@@ -384,7 +386,7 @@ The reconnaissance pass (between commit 6e3d42b and Chunk 3c) identified these t
 **Categorical treatment + IPSI**
 
 - [x] Categorical treatment support across checks + IPW path via multinomial density model. Landed in chunk 3e: `fit_categorical_density()`, `evaluate_categorical_density()`, categorical HT closure in `make_weight_fn()`, `prepare_model_if_multinom()` in the variance engine, `nnet` added to `Imports:`.
-- [ ] Count treatment (Poisson / negative binomial) density branch via explicit `propensity_family` opt-in. **Sub-chunk 3j.** See §5a for full design.
+- [x] Count treatment (Poisson / negative binomial) density branch via explicit `propensity_family` opt-in. **Sub-chunk 3j.** `fit_count_density()` for Poisson (`stats::poisson()`) and NB (`MASS::glm.nb`), `evaluate_density()` Poisson/NB branches, count closure in `make_weight_fn()` with log-link `lambda = exp(X %*% alpha)`, non-integer shift/scale rejection in `check_intervention_family_compat()`, `propensity_family` parameter threaded from `causat()` through `fit_ipw()` to `fit_treatment_model()` with MASS::glm.nb auto-selection for negbin.
 - [x] IPSI implementation wiring through `fit_ipw()` — the closed-form weight in `R/ipw_weights.R` is consumed by the per-intervention MSM refit in `compute_contrast()`'s IPW path (chunk 3c.i).
 
 **Dependencies**
@@ -396,7 +398,7 @@ The reconnaissance pass (between commit 6e3d42b and Chunk 3c) identified these t
 
 - [x] `diagnose()` weight summaries for the new engine — minimal shim (`diagnose_ipw_point()` in `R/diagnose.R`) covering the binary static ATE case (PS distribution, treated/control/overall HT weight summary with mean / sd / min / max / ESS) shipped in chunk 3c.iii (commit `9055f1f`). Non-binary treatment families abort with `causatr_diag_unsupported_family`. Extreme-weight count + percentile truncation are part of the full Phase 9 rewrite.
 - [x] Update `FEATURE_COVERAGE_MATRIX.md` — collapse the two IPW columns into one, add rows for shift / scale_by / dynamic / ipsi under IPW, add estimand rejection rows, add `threshold()` rejection row under IPW, add T-oracle3/4 rows. (Initial pass in the foundation chunk; the final pass lands alongside the `fit_ipw()` rewrite.)
-- [ ] Vignette: `interventions.qmd` — shift, scale, dynamic (binary), IPSI examples. `threshold()` is documented under the gcomp vignette only.
+- [x] Vignette: `interventions.qmd` — shift, scale, dynamic (binary), IPSI examples. `threshold()` is documented under the gcomp vignette only. Also rewrote `ipw.qmd` to remove all stale WeightIt references and reflect the Phase 4 architecture.
 
 **Tests** (see §11 for the full list)
 
@@ -409,9 +411,9 @@ The reconnaissance pass (between commit 6e3d42b and Chunk 3c) identified these t
 - [x] T-non-static propensity correction materially changes SE. **Chunk 3g.** Shift: per-intervention SE drops ~5-8%. IPSI: contrast SE drops ~90% via off-diagonal covariance through shared propensity model. `test-ipw-variance-regression.R`.
 - [x] Bootstrap parity test (sandwich vs bootstrap on the same shift / IPSI DGP). **Chunk 3g.** `ci_method = "bootstrap"` (n_boot=299) agrees with `ci_method = "sandwich"` within 30% Monte Carlo tolerance. `test-ipw-variance-regression.R`.
 - [x] Estimand × intervention rejection snapshot (`test-estimand-intervention-compat.R`, foundation chunk).
-- [ ] T-count-poisson: truth-based Poisson count treatment DGP + integer `shift()` parity. **Chunk 3j.**
-- [ ] T-count-negbin: NB fit on same DGP agrees with Poisson within tolerance (NB nests Poisson). **Chunk 3j.**
-- [ ] T-count-reject: non-integer `shift(0.5)` and non-integer-preserving `scale_by(1.5)` on count treatment abort with snapshot. **Chunk 3j.**
+- [x] T-count-poisson: truth-based Poisson count treatment DGP + integer `shift(1)` recovers ATE = 1.5. **Chunk 3j.** `test-ipw-count.R`.
+- [x] T-count-negbin: NB fit on same DGP agrees with Poisson within tolerance (NB nests Poisson). **Chunk 3j.** `test-ipw-count.R`.
+- [x] T-count-reject: non-integer `shift(0.5)`, non-integer-preserving `scale_by(2)`, `static()`, `dynamic()`, `threshold()`, `ipsi()` on count treatment all abort with snapshot. **Chunk 3j.** `test-ipw-count.R`.
 
 **Deferred (explicitly not Phase 4 scope)**
 

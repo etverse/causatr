@@ -10,7 +10,7 @@
 #' `numDeriv::jacobian()` call requires to compute the cross-derivative
 #' \eqn{A_{\beta\alpha}}.
 #'
-#' Three treatment families are handled:
+#' Five treatment families are handled:
 #'
 #' - **Binary** (integer / logical 0/1): fit by a logistic GLM via
 #'   `model_fn` with `family = stats::binomial()`. Density is the
@@ -29,6 +29,18 @@
 #'   `nnet::multinom`). Density is the multinomial pmf
 #'   \eqn{p_k = P(A = k \mid L)}, read from
 #'   `predict(model, type = "probs")`.
+#' - **Poisson** (opt-in via `propensity_family = "poisson"`): fit by
+#'   a Poisson GLM via `model_fn` with `family = stats::poisson()`.
+#'   Density is the Poisson pmf
+#'   \eqn{f(a \mid L) = \lambda^a e^{-\lambda} / a!} with
+#'   \eqn{\lambda = \exp(X \hat\alpha)}.
+#' - **Negative binomial** (opt-in via `propensity_family = "negbin"`):
+#'   fit by `MASS::glm.nb()` (auto-selected when
+#'   `propensity_model_fn = NULL`). Density is the NB pmf with
+#'   \eqn{\mu = \exp(X \hat\alpha)} and dispersion parameter
+#'   \eqn{\theta} estimated by MLE. \eqn{\theta} is treated as fixed
+#'   in the variance engine (perturbed via `alpha` only, not `theta`),
+#'   matching the convention for \eqn{\sigma} in the Gaussian case.
 #'
 #' @param data data.table (already prepared by `prepare_data()`) holding
 #'   all model variables. Rows with missing treatment or confounder
@@ -43,6 +55,13 @@
 #'   `stats::glm`. Must return an object supporting `predict(type =
 #'   "response")`, `coef()`, `model.matrix()`, and (for continuous
 #'   treatments) `residuals(type = "response")`.
+#' @param propensity_family Character or `NULL`. Explicit treatment
+#'   density family override. `NULL` (default) auto-detects from the
+#'   treatment values via `detect_treatment_family()`. Pass `"poisson"`
+#'   or `"negbin"` to opt into a count regression for integer-valued
+#'   treatments (dose levels, event counts, visit counts). Auto-detect
+#'   never infers count — non-negative integers like age in years are
+#'   legitimately modelled as Gaussian.
 #' @param weights Optional numeric vector of observation weights to
 #'   forward into `model_fn` (survey weights / external IPCW). `NULL`
 #'   means unweighted.
@@ -51,8 +70,8 @@
 #' @return A `causatr_treatment_model` S3 object (a list) with slots:
 #'   \describe{
 #'     \item{`model`}{The fitted density model.}
-#'     \item{`family`}{Character tag: `"bernoulli"`, `"gaussian"`, or
-#'       `"categorical"`.}
+#'     \item{`family`}{Character tag: `"bernoulli"`, `"gaussian"`,
+#'       `"categorical"`, `"poisson"`, or `"negbin"`.}
 #'     \item{`treatment`}{Treatment column name.}
 #'     \item{`ps_formula`}{The `A ~ confounders` formula used.}
 #'     \item{`alpha_hat`}{Numeric vector. Fitted propensity parameters
@@ -63,8 +82,12 @@
 #'       here so `make_weight_fn()` can recompute predictions at
 #'       candidate `alpha` values without re-forming the matrix.}
 #'     \item{`sigma`}{Residual standard deviation (continuous only;
-#'       `NULL` for binary / categorical). Treated as fixed at fit time:
-#'       the variance engine perturbs `alpha` only, not `sigma`.}
+#'       `NULL` for binary / categorical / count). Treated as fixed at
+#'       fit time: the variance engine perturbs `alpha` only, not
+#'       `sigma`.}
+#'     \item{`theta`}{NB dispersion parameter (negbin only; `NULL`
+#'       otherwise). Treated as fixed at fit time, matching the
+#'       `sigma` convention.}
 #'     \item{`levels`}{Character vector of levels (categorical only;
 #'       `NULL` otherwise).}
 #'     \item{`fit_rows`}{Logical vector indicating which rows of `data`
@@ -84,6 +107,7 @@ fit_treatment_model <- function(
   treatment,
   confounders,
   model_fn = stats::glm,
+  propensity_family = NULL,
   weights = NULL,
   ...
 ) {
@@ -113,9 +137,21 @@ fit_treatment_model <- function(
 
   ps_formula <- build_ps_formula(confounders, treatment)
 
-  family_tag <- detect_treatment_family(trt_vals)
+  # When the user declares a `propensity_family`, it overrides
+  # auto-detection. This is the only path to Poisson / NB treatment
+  # densities, because auto-detect never infers count (too many
+  # legitimate non-count integers: age, years of education, etc.).
+  if (!is.null(propensity_family)) {
+    propensity_family <- match.arg(
+      propensity_family,
+      c("poisson", "negbin")
+    )
+    family_tag <- propensity_family
+  } else {
+    family_tag <- detect_treatment_family(trt_vals)
+  }
 
-  # Compose model_fn arguments uniformly across the three density
+  # Compose model_fn arguments uniformly across the density
   # families. `weights` is only attached when the user actually passed
   # a vector — otherwise the sub-setted vector would need to be aligned
   # to `fit_rows`, and we let `model_fn`'s own NULL default take over.
@@ -146,6 +182,22 @@ fit_treatment_model <- function(
       model_fn,
       weights_fit,
       ...
+    ),
+    poisson = fit_count_density(
+      ps_formula,
+      fit_data,
+      model_fn,
+      weights_fit,
+      family_tag = "poisson",
+      ...
+    ),
+    negbin = fit_count_density(
+      ps_formula,
+      fit_data,
+      model_fn,
+      weights_fit,
+      family_tag = "negbin",
+      ...
     )
   )
 
@@ -159,6 +211,19 @@ fit_treatment_model <- function(
   sigma <- NULL
   if (family_tag == "gaussian") {
     sigma <- extract_sigma(model)
+  }
+
+  # For negative binomial, extract the dispersion parameter theta.
+  # Treated as fixed in the variance engine (perturbing only alpha,
+  # not theta) — same convention as sigma for Gaussian.
+  theta <- NULL
+  if (family_tag == "negbin") {
+    theta <- model$theta
+    if (is.null(theta) || !is.finite(theta) || theta <= 0) {
+      rlang::abort(
+        "Could not extract dispersion parameter `theta` from the negative binomial model."
+      )
+    }
   }
 
   # Capture the propensity design matrix ONCE at fit time. The
@@ -222,6 +287,7 @@ fit_treatment_model <- function(
       alpha_hat = alpha_hat,
       X_prop = X_prop,
       sigma = sigma,
+      theta = theta,
       levels = trt_levels,
       fit_rows = fit_rows
     ),
@@ -396,6 +462,52 @@ fit_categorical_density <- function(
 }
 
 
+#' Fit a count (Poisson or negative binomial) density model
+#'
+#' @description
+#' Wrapper for count treatment densities. For Poisson, uses `model_fn`
+#' with `family = stats::poisson()`. For negative binomial, uses
+#' `MASS::glm.nb` (or the user's `model_fn` if explicitly provided),
+#' which does **not** accept a `family` argument.
+#'
+#' @inheritParams fit_bernoulli_density
+#' @param family_tag Character. `"poisson"` or `"negbin"`.
+#' @return The fitted model object.
+#' @noRd
+fit_count_density <- function(
+  ps_formula,
+  fit_data,
+  model_fn,
+  weights_fit,
+  family_tag,
+  ...
+) {
+  if (family_tag == "poisson") {
+    base_args <- list(
+      formula = ps_formula,
+      data = fit_data,
+      family = stats::poisson()
+    )
+    if (!is.null(weights_fit)) {
+      base_args$weights <- weights_fit
+    }
+    return(do.call(model_fn, c(base_args, list(...))))
+  }
+
+  # Negative binomial: `MASS::glm.nb` does not take a `family` arg
+  # (the NB family is implicit). Same pattern as categorical /
+  # `nnet::multinom`.
+  base_args <- list(
+    formula = ps_formula,
+    data = fit_data
+  )
+  if (!is.null(weights_fit)) {
+    base_args$weights <- weights_fit
+  }
+  do.call(model_fn, c(base_args, list(...)))
+}
+
+
 #' Number of coefficient rows per design-matrix column
 #'
 #' @description
@@ -564,6 +676,21 @@ evaluate_density <- function(treatment_model, treatment_values, newdata) {
     ))
   }
 
+  if (family_tag == "poisson") {
+    # Poisson pmf: f(a | L) = dpois(a, lambda) with lambda = E[A|L].
+    lambda <- stats::predict(model, newdata = newdata, type = "response")
+    return(stats::dpois(treatment_values, lambda))
+  }
+
+  if (family_tag == "negbin") {
+    # Negative binomial pmf: f(a | L) = dnbinom(a, mu = lambda,
+    # size = theta) with lambda = E[A|L] and theta estimated by MLE
+    # at fit time.
+    lambda <- stats::predict(model, newdata = newdata, type = "response")
+    theta <- treatment_model$theta
+    return(stats::dnbinom(treatment_values, mu = lambda, size = theta))
+  }
+
   rlang::abort(
     paste0("Unknown treatment family '", family_tag, "'.")
   )
@@ -648,6 +775,9 @@ print.causatr_treatment_model <- function(x, ...) {
   cat("  p_alpha:   ", length(x$alpha_hat), "\n", sep = "")
   if (!is.null(x$sigma)) {
     cat("  sigma:     ", format(x$sigma, digits = 4), "\n", sep = "")
+  }
+  if (!is.null(x$theta)) {
+    cat("  theta:     ", format(x$theta, digits = 4), "\n", sep = "")
   }
   if (!is.null(x$levels)) {
     cat("  levels:    ", paste(x$levels, collapse = ", "), "\n", sep = "")

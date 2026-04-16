@@ -82,6 +82,7 @@ fit_ipw <- function(
   weights,
   model_fn,
   propensity_model_fn,
+  propensity_family = NULL,
   call,
   ...
 ) {
@@ -127,6 +128,8 @@ fit_ipw <- function(
   # both the outcome and the propensity. For **categorical** treatments
   # the fitter must be a multinomial model (`nnet::multinom` by
   # default) because `stats::glm` cannot fit a multinomial response.
+  # For **negative binomial** treatments the fitter must be
+  # `MASS::glm.nb` which estimates theta by MLE (no `family` arg).
   # When the user passes an explicit `propensity_model_fn`, it takes
   # precedence regardless of treatment family.
   trt_family <- detect_treatment_family(data[[treatment]])
@@ -134,6 +137,9 @@ fit_ipw <- function(
     propensity_model_fn
   } else if (trt_family == "categorical") {
     nnet::multinom
+  } else if (identical(propensity_family, "negbin")) {
+    check_pkg("MASS")
+    MASS::glm.nb
   } else {
     model_fn
   }
@@ -153,7 +159,8 @@ fit_ipw <- function(
     data = fit_data,
     treatment = treatment,
     confounders = confounders,
-    model_fn = prop_model_fn
+    model_fn = prop_model_fn,
+    propensity_family = propensity_family
   )
   if (!is.null(weights)) {
     tm_args$weights <- weights[fit_rows]
@@ -236,6 +243,7 @@ fit_ipw <- function(
       treatment_model = tm,
       propensity_model = tm$model,
       propensity_model_fn = prop_model_fn,
+      propensity_family = propensity_family,
       model_fn = model_fn
     )
   )
@@ -369,7 +377,11 @@ compute_ipw_contrast_point <- function(
     # the original data directly. For all other interventions, the
     # treatment column is modified to its counterfactual value.
     iv_type <- if (inherits(iv, "causatr_intervention")) iv$type else NULL
-    data_a <- if (identical(iv_type, "ipsi")) data else apply_intervention(data, treatment, iv)
+    data_a <- if (identical(iv_type, "ipsi")) {
+      data
+    } else {
+      apply_intervention(data, treatment, iv)
+    }
     preds <- stats::predict(msm_model, newdata = data_a, type = "response")
     valid <- target_idx & !is.na(preds)
     w_target <- if (!is.null(ext_w)) ext_w[valid] else NULL

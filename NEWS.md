@@ -1,5 +1,32 @@
 # causatr (development version)
 
+## 2026-04-16 — Phase 4 chunk 3j: count treatment IPW (Poisson / negative binomial)
+
+`causat()` gains a `propensity_family` parameter (`"poisson"` or
+`"negbin"`) that enables IPW estimation on integer-valued count
+treatments. Auto-detection never infers count (non-negative integers
+like age are legitimately Gaussian), so this is an explicit opt-in.
+
+**Runtime:**
+- `fit_count_density()` fits either `stats::glm(family = poisson())` or
+  `MASS::glm.nb()` (auto-selected for `"negbin"` when
+  `propensity_model_fn = NULL`).
+- `evaluate_density()` gains Poisson (`dpois`) and NB (`dnbinom`)
+  branches.
+- `make_weight_fn()` gains a count closure using the log link
+  `lambda = exp(X %*% alpha)`.
+- `check_intervention_family_compat()` allows `shift()` (integer delta
+  only) and `scale_by()` (inverse must preserve integer support) on
+  count treatments; rejects `static`, `dynamic`, `threshold`, `ipsi`.
+
+**Variance:** no changes needed — Poisson and NB GLMs inherit from
+`glm`, so `bread_inv()` and `prepare_model_if()` work out of the box.
+NB `theta` is treated as fixed (same convention as Gaussian `sigma`).
+
+**Tests:** truth-based Poisson DGP (`shift(1)` recovers ATE = 1.5),
+NB parity (NB nests Poisson on the same DGP), 6 rejection snapshot
+tests for disallowed intervention types.
+
 ## 2026-04-16 — Fifth-round critical review S2: near-zero intervened density warning
 
 `compute_density_ratio_weights()` now warns (class

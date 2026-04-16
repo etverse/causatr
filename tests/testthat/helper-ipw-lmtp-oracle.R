@@ -7,7 +7,6 @@
 # form weights from the same propensity model causatr fits internally.
 # See PHASE_4_INTERVENTIONS_SELF_IPW.md §9 for the design rationale.
 
-
 #' Run lmtp::lmtp_sdr() for a point-treatment shift and extract E[Y(A+delta)]
 #'
 #' @description

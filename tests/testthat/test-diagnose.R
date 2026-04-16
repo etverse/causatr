@@ -362,8 +362,14 @@ test_that("diagnose() excludes censored rows for gcomp with censoring", {
     C = c(rep(0L, 150), rep(1L, 50))
   )
 
-  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L,
-                estimator = "gcomp", censoring = "C")
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "gcomp",
+    censoring = "C"
+  )
 
   # The main pipeline should have fit on 150 rows (excluding C == 1)
   expect_equal(sum(fit$details$fit_rows), 150L)
@@ -374,8 +380,11 @@ test_that("diagnose() excludes censored rows for gcomp with censoring", {
   # observations in the positivity table equals the fit-row count.
   ps_formula <- build_ps_formula(fit$confounders, fit$treatment)
   fit_rows <- get_fit_rows(fit$data, fit$outcome, fit$censoring)
-  ps_model <- stats::glm(ps_formula, data = fit$data[fit_rows],
-                          family = stats::binomial())
+  ps_model <- stats::glm(
+    ps_formula,
+    data = fit$data[fit_rows],
+    family = stats::binomial()
+  )
   expect_equal(length(stats::fitted(ps_model)), 150L)
 
   # Balance should also use 150 rows
@@ -386,8 +395,11 @@ test_that("diagnose() excludes censored rows for gcomp with censoring", {
   # verifying directly:
   d_uncensored <- d[d$C == 0]
   smd_manual <- (mean(d_uncensored$L[d_uncensored$A == 1]) -
-                   mean(d_uncensored$L[d_uncensored$A == 0])) /
-    sqrt((var(d_uncensored$L[d_uncensored$A == 1]) +
-            var(d_uncensored$L[d_uncensored$A == 0])) / 2)
+    mean(d_uncensored$L[d_uncensored$A == 0])) /
+    sqrt(
+      (var(d_uncensored$L[d_uncensored$A == 1]) +
+        var(d_uncensored$L[d_uncensored$A == 0])) /
+        2
+    )
   expect_equal(bal$smd[bal$variable == "L"], smd_manual, tolerance = 1e-10)
 })

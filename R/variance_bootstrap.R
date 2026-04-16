@@ -398,6 +398,7 @@ refit_ipw <- function(fit, d_b, weights = NULL) {
     weights = weights,
     model_fn = fit$details$model_fn,
     propensity_model_fn = fit$details$propensity_model_fn,
+    propensity_family = fit$details$propensity_family,
     call = NULL
   )
   fit_b <- do.call(fit_ipw, c(args, fit$details$dots))

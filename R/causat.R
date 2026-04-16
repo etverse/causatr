@@ -92,6 +92,14 @@
 #'   `(formula, data, family, weights, ...)` signature. `NULL`
 #'   (default) reuses `model_fn`. Pass `mgcv::gam` for a flexible
 #'   propensity.
+#' @param propensity_family Character or `NULL`. IPW only. Explicit
+#'   treatment density family: `"poisson"` or `"negbin"` for count
+#'   treatments. `NULL` (default) auto-detects from the treatment
+#'   values (bernoulli / gaussian / categorical). Auto-detection never
+#'   infers count — use this parameter to opt in. For `"negbin"`,
+#'   `MASS::glm.nb` is auto-selected as the propensity fitter unless
+#'   `propensity_model_fn` is explicitly provided. Ignored for
+#'   `"gcomp"` and `"matching"`.
 #' @param ... Additional arguments passed to the underlying estimation
 #'   function. For `estimator = "ipw"`, dots are forwarded into the
 #'   user's `propensity_model_fn` via `fit_treatment_model()` (e.g.
@@ -307,6 +315,7 @@ causat <- function(
   type = NULL,
   model_fn = stats::glm,
   propensity_model_fn = NULL,
+  propensity_family = NULL,
   ...
 ) {
   # Capture the call for later display in print/summary of the result.
@@ -428,6 +437,7 @@ causat <- function(
       weights,
       model_fn,
       propensity_model_fn,
+      propensity_family,
       call,
       ...
     ),

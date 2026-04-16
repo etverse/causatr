@@ -15,23 +15,20 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 
 Inverse probability weighting (IPW) estimates causal effects by reweighting
 the observed data so that the distribution of confounders is balanced across
-treatment groups. causatr delegates weight estimation to
-[WeightIt](https://ngreifer.github.io/WeightIt/) and fits a weighted marginal
-structural model (MSM) via `WeightIt::glm_weightit()`, which provides
-M-estimation sandwich SEs that account for weight estimation uncertainty.
+treatment groups. causatr ships a self-contained density-ratio engine that
+fits the conditional treatment density via the user's `propensity_model_fn`
+(default `stats::glm`) and builds per-intervention Hájek weights for an
+intercept-only marginal structural model (MSM) refit inside `contrast()`.
 
 This vignette demonstrates IPW in causatr using the NHEFS dataset from Hernán
 & Robins (2025), covering every supported combination of treatment type,
 outcome type, contrast scale, and inference method for time-fixed treatments.
 
-**Note:** IPW currently supports only `static()` interventions because the
-weights are estimated once under the observed treatment distribution.
-For modified treatment policies (shift, scale, threshold, dynamic, MTP), use
-g-computation (see `vignette("gcomp")`); self-contained IPW for non-static
-interventions is planned for Phase 4.
+For non-static interventions (shift, scale, dynamic, IPSI), see
+`vignette("interventions")`.
 
 **Note:** IPW and matching reject an `A:modifier` term inside `confounders`
-up front — the saturated `Y ~ A` MSM has no slot for the interaction.
+up front --- the intercept-only MSM has no slot for the interaction.
 Use `estimator = "gcomp"` for heterogeneous treatment effects, or `by =
 "modifier"` below for stratum-specific summaries of a homogeneous effect.
 
@@ -44,7 +41,7 @@ library(tinyplot)
 
 data("nhefs")
 
-nhefs_complete <- nhefs[!is.na(nhefs$wt82_71), ]
+nhefs_complete <- nhefs[!is.na(nhefs$wt82_71) & !is.na(nhefs$education), ]
 
 nhefs_complete$gained_weight <- as.integer(nhefs_complete$wt82_71 > 0)
 
@@ -81,7 +78,7 @@ res_ate_sw <- contrast(
 res_ate_sw
 ```
 
-The book reports an IPW estimate of ATE $\approx$ 3.4 kg (95% CI: 2.4, 4.5).
+The book reports an IPW estimate of ATE ≈ 3.4 kg (95% CI: 2.4, 4.5).
 
 ### ATE with bootstrap SE
 
@@ -174,17 +171,12 @@ glance(res_ate_sw)
 
 ## Binary treatment, binary outcome
 
-Using the `gained_weight` indicator as a binary outcome. With IPW, the MSM
-is `Y ~ A` (a linear probability / logistic model), so `contrast()` computes
+Using the `gained_weight` indicator as a binary outcome. The IPW engine
+refits an intercept-only weighted MSM per intervention; `contrast()` computes
 marginal risks and derives contrasts via the unified influence-function
-variance engine (`variance_if()`), which for IPW delegates Channel 2 to
-`prepare_propensity_if()` / `apply_propensity_correction()`. Branch A (the
-default) uses WeightIt's own M-estimation shortcut
-(`sandwich::estfun(asympt = TRUE)` + `sandwich::bread()`) so weight-estimation
-uncertainty propagates into the reported SEs automatically. Non-Mparts
-WeightIt methods (`gbm`, `super`, `bart`, `optweight`, `energy`, `npcbps`)
-fall back to treating weights as fixed and emit a warning at fit time — use
-`ci_method = "bootstrap"` for valid inference on those.
+variance engine (`variance_if()`), which for IPW uses
+`compute_ipw_if_self_contained_one()` to build the per-individual IF on the
+stacked propensity + MSM M-estimation system.
 
 ### Risk difference (sandwich)
 
@@ -288,10 +280,10 @@ on for every `contrast()` call without per-call plumbing.
 
 ## Categorical treatment (k > 2 levels)
 
-WeightIt estimates a multinomial propensity score for categorical
-treatments and causatr passes them through to `glm_weightit()` as-is.
-The MSM is still `Y ~ A` — a per-level marginal mean — so `contrast()`
-can compute any pairwise contrast against a user-chosen reference level.
+The density-ratio engine auto-selects a multinomial propensity model (via
+`nnet::multinom`) when the treatment is a factor or character column. The
+per-intervention MSM is intercept-only, so `contrast()` computes any pairwise
+difference against a user-chosen reference level.
 
 ```{r}
 set.seed(42)
@@ -327,13 +319,13 @@ res_ipw_cat <- contrast(
 res_ipw_cat
 ```
 
-## Continuous treatment (generalised propensity score)
+## Continuous treatment (shift / scale MTPs)
 
-For continuous treatments WeightIt fits a generalised propensity score
-(the default is a density-ratio model). IPW still only supports `static()`
-interventions — the weights are valid for the observed treatment
-distribution, not for a shifted one. Use `static(value)` at specific
-levels of the continuous variable and read off pairwise differences.
+For continuous treatments the engine fits a Gaussian treatment density model
+and uses density-ratio weights for modified treatment policies. `static()`
+interventions on continuous treatments are rejected (nobody is observed
+exactly at the target value, so the HT indicator is zero almost surely).
+Use `shift()` or `scale_by()` instead:
 
 ```{r}
 set.seed(5)
@@ -351,25 +343,135 @@ fit_ipw_cont <- causat(
   estimator = "ipw"
 )
 
-res_ipw_cont <- contrast(
+res_shift <- contrast(
   fit_ipw_cont,
-  interventions = list(a_low = static(0), a_mid = static(1), a_high = static(2)),
-  reference = "a_low",
+  interventions = list(up1 = shift(1), observed = NULL),
+  reference = "observed",
   type = "difference"
 )
-res_ipw_cont
+res_shift
+
+res_scale <- contrast(
+  fit_ipw_cont,
+  interventions = list(doubled = scale_by(2), observed = NULL),
+  reference = "observed",
+  type = "difference"
+)
+res_scale
 ```
 
-Structural truth: `E[Y(a)] = 1 + 2a`, so `a_mid − a_low = 2` and
-`a_high − a_low = 4`.
+Structural truth: `E[Y(A+1)] - E[Y(A)] = 2` (the coefficient on `A`).
+
+See `vignette("interventions")` for a full tour of shift, scale, dynamic,
+and IPSI interventions with side-by-side g-comp and IPW examples.
+
+## Count treatment (Poisson / negative binomial)
+
+Integer-valued treatments --- dose levels, event counts, visit counts --- default
+to a Gaussian treatment density, which works when the support is dense enough
+that the Normal approximation is harmless (age in years, cigarettes/day). For
+sparse count data (0--5 doses), the Gaussian pdf evaluates between integers that
+carry zero probability, producing badly calibrated density ratios.
+
+Pass `propensity_family = "poisson"` or `propensity_family = "negbin"` to opt
+into a Poisson or negative binomial treatment density model:
+
+```{r}
+set.seed(6)
+n <- 3000
+L <- rnorm(n)
+A <- rpois(n, exp(0.5 * L))
+Y <- 2 + 1.5 * A + L + rnorm(n)
+count_df <- data.frame(Y = Y, A = A, L = L)
+
+fit_pois <- causat(
+  count_df,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L,
+  estimator = "ipw",
+  propensity_family = "poisson"
+)
+
+res_pois <- contrast(
+  fit_pois,
+  interventions = list(plus1 = shift(1), observed = NULL),
+  reference = "observed",
+  type = "difference"
+)
+res_pois
+```
+
+Structural truth: `E[Y(A+1)] - E[Y(A)] = 1.5`.
+
+For negative binomial (which nests Poisson when theta is large), pass
+`propensity_family = "negbin"`. `MASS::glm.nb` is auto-selected as the
+propensity fitter:
+
+```{r}
+#| eval: !expr requireNamespace("MASS", quietly = TRUE)
+fit_nb <- causat(
+  count_df,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L,
+  estimator = "ipw",
+  propensity_family = "negbin"
+)
+
+res_nb <- contrast(
+  fit_nb,
+  interventions = list(plus1 = shift(1), observed = NULL),
+  reference = "observed",
+  type = "difference"
+)
+res_nb
+```
+
+::: {.callout-important}
+## Integer constraints on count interventions
+
+Only `shift()` with an integer delta and `scale_by()` where `A / factor` is
+integer for every observation are allowed. `static()`, `dynamic()`,
+`threshold()`, and `ipsi()` are rejected because the count pmf is zero at
+non-integer arguments and the HT indicator / IPSI closed form require
+binary structure. Use `estimator = "gcomp"` for those intervention types on
+count data.
+:::
+
+## GAM propensity model
+
+Pass `propensity_model_fn = mgcv::gam` to use a GAM for the treatment
+density model while keeping the default `stats::glm` for the outcome MSM:
+
+```{r}
+#| eval: !expr requireNamespace("mgcv", quietly = TRUE)
+fit_gam_ps <- causat(
+  nhefs_complete,
+  outcome = "wt82_71",
+  treatment = "qsmk",
+  confounders = ~ sex + s(age) + race + factor(education) +
+    s(smokeintensity) + s(smokeyrs) + factor(exercise) +
+    factor(active) + s(wt71),
+  estimator = "ipw",
+  propensity_model_fn = mgcv::gam
+)
+
+res_gam_ps <- contrast(
+  fit_gam_ps,
+  interventions = list(quit = static(1), continue = static(0)),
+  reference = "continue",
+  type = "difference"
+)
+res_gam_ps
+```
 
 ## External (survey) weights
 
 Pre-computed survey weights are passed via `weights =`; causatr validates
 them via `check_weights()` and **multiplies** them element-wise with the
-WeightIt-estimated IPW weights. The combined weight then drives both the
-`glm_weightit()` MSM fit and the influence-function variance via
-`sandwich::estfun(asympt = TRUE)`.
+estimated density-ratio weights. The combined weight drives both the
+per-intervention MSM fit and the influence-function sandwich variance.
 
 ```{r}
 set.seed(6)
@@ -396,60 +498,6 @@ res_ipw_sv <- contrast(
   type = "difference"
 )
 res_ipw_sv
-```
-
-## Non-Mparts WeightIt methods and the bootstrap fallback
-
-WeightIt's M-estimation shortcut (`glm_weightit`'s `Mparts`) is only wired
-up for a subset of methods (`glm`, `cbps`, `ipt`, `ebal`). For anything
-else (`gbm`, `super`, `bart`, `optweight`, `energy`, `npcbps`, `cfd`)
-causatr emits a warning at fit time so you know the sandwich SE will treat the
-weights as fixed:
-
-```
-Warning: WeightIt method 'gbm' does not implement the M-estimation
-correction (no `Mparts` attribute). Sandwich SEs from `ci_method =
-'sandwich'` will treat the weights as fixed and may underestimate the
-variance. Use `ci_method = 'bootstrap'` for valid inference, or switch
-to a method that supports Mparts (`glm`, `cbps`, `ipt`, `ebal`).
-```
-
-When you see this warning, switch to `ci_method = "bootstrap"` — the
-bootstrap resamples the full pipeline (including the weight-estimation
-step) and is always valid, regardless of whether Mparts is wired up.
-See `FEATURE_COVERAGE_MATRIX.md` entry for "non-Mparts WeightIt method"
-for the end-to-end smoke test.
-
-## Forwarding WeightIt arguments (CBPS)
-
-Any extra arguments passed to `causat()` flow through `...` straight
-into `WeightIt::weightit()`. Because the causatr argument is now
-`estimator` (not `method`), WeightIt's own `method = "..."` is free
-and you can pick a non-default propensity score estimator. The example
-below uses covariate-balancing propensity scores (Imai & Ratkovic, 2014),
-which support Mparts, so sandwich SEs remain valid with no warning.
-
-```{r}
-fit_cbps <- causat(
-  nhefs_complete,
-  outcome = "wt82_71",
-  treatment = "qsmk",
-  confounders = ~ sex + age + I(age^2) + race + factor(education) +
-    smokeintensity + I(smokeintensity^2) + smokeyrs + I(smokeyrs^2) +
-    factor(exercise) + factor(active) + wt71 + I(wt71^2),
-  estimator = "ipw",
-  estimand = "ATE",
-  method = "cbps"  # forwarded to WeightIt::weightit()
-)
-
-res_cbps <- contrast(
-  fit_cbps,
-  interventions = list(quit = static(1), continue = static(0)),
-  reference = "continue",
-  type = "difference",
-  ci_method = "sandwich"
-)
-res_cbps
 ```
 
 ## Comparing estimands
@@ -496,17 +544,16 @@ abline(h = 0, lty = 2, col = "grey40")
 ## IPW effect modification is a Phase 8 feature
 
 The `by` argument stratifies the causal effect estimates that fall out of
-the fitted marginal structural model (MSM). causatr currently hardcodes a
-*saturated* MSM, `Y ~ A`, for IPW — so predictions are flat per
+the fitted marginal structural model (MSM). causatr currently uses an
+intercept-only MSM (`Y ~ 1`) for IPW --- so predictions are flat per
 intervention, and averaging them over any subset returns the same pooled
-ATE. In other words, `by = "sex"` is a no-op for IPW until the MSM can
-carry an interaction term (e.g. `Y ~ A + A:sex` or `Y ~ A * time`).
+estimate. In other words, `by = "sex"` is a no-op for IPW until the MSM can
+carry an interaction term (e.g. `Y ~ A + A:sex`).
 
 This is a causatr implementation limitation, not a methodological one.
 Unified effect-modification support across IPW, matching, and ICE is
-planned for Phase 8 (`PHASE_8_INTERACTIONS.md`). In the meantime, use
-`estimator = "gcomp"` with an `A:modifier` term in `confounders` if you
-need heterogeneous treatment effects.
+planned. In the meantime, use `estimator = "gcomp"` with an `A:modifier`
+term in `confounders` if you need heterogeneous treatment effects.
 :::
 
 ## Tidy and glance
@@ -557,7 +604,7 @@ plot(diag)
 ### Weight distribution
 
 Extreme weights can inflate variance. The weight summary shows the effective
-sample size (ESS) — a large drop from the nominal sample size suggests
+sample size (ESS) --- a large drop from the nominal sample size suggests
 influential weights.
 
 ```{r}
@@ -582,12 +629,20 @@ diag$weights
 | Binary | Binary | Static | ATE | Ratio | Sandwich | none | ✅ |
 | Binary | Binary | Static | ATE | OR | Sandwich | none | ✅ |
 | Binary | Binary | Static | ATE | Ratio | Bootstrap | none | ✅ |
+| Binary | Continuous | Dynamic | ATE | Difference | Sandwich | none | ✅ |
+| Binary | Continuous | IPSI(δ) | ATE | Difference | Sandwich | none | ✅ |
+| Continuous | Continuous | Shift | ATE | Difference | Sandwich | none | ✅ |
+| Continuous | Continuous | Scale | ATE | Difference | Sandwich | none | ✅ |
 | Categorical (k>2) | Continuous | Static | ATE | Difference | Sandwich | none | ✅ |
-| Continuous (static levels) | Continuous | Static | ATE | Difference | Sandwich | none | ✅ |
-| Binary (non-Mparts WeightIt) | Continuous | Static | ATE | Difference | Bootstrap | none | 🟡 |
-| Any | Any | Any | Any (with `A:modifier`) | — | — | — | ⛔ Phase 8 |
-| Multivariate / Longitudinal | — | — | — | — | — | — | ⛔ Phase 4 |
-| Any | — | Dynamic / Shift / Scale / Threshold / IPSI | — | — | — | — | ⛔ Phase 4 |
+| Categorical (k>2) | Continuous | Dynamic | ATE | Difference | Sandwich | none | 🟡 |
+| Count (Poisson) | Continuous | Shift | ATE | Difference | Sandwich | none | ✅ |
+| Count (NB) | Continuous | Shift | ATE | Difference | Sandwich | none | ✅ |
+| Any | --- | Threshold | --- | --- | --- | --- | ⛔ (use gcomp) |
+| Continuous | --- | Static | --- | --- | --- | --- | ⛔ (use shift/scale) |
+| Continuous | --- | Dynamic | --- | --- | --- | --- | ⛔ (use shift/scale) |
+| Any | --- | Any (with `A:modifier`) | --- | --- | --- | --- | ⛔ (Phase 8) |
+| Multivariate | --- | --- | --- | --- | --- | --- | ⛔ (Phase 7) |
+| Longitudinal | --- | --- | --- | --- | --- | --- | ⛔ (use ICE) |
 
 See [`FEATURE_COVERAGE_MATRIX.md`](https://github.com/etverse/causatr/blob/main/FEATURE_COVERAGE_MATRIX.md)
 for the authoritative coverage status of every method × treatment × outcome
@@ -598,5 +653,10 @@ for the authoritative coverage status of every method × treatment × outcome
 Hernán MA, Robins JM (2025). *Causal Inference: What If*. Chapman & Hall/CRC.
 Chapter 12: IP weighting and marginal structural models.
 
-Greifer N (2024). WeightIt: Weighting Methods for Covariate Balancing.
-<https://ngreifer.github.io/WeightIt/>
+Kennedy EH (2019). Nonparametric causal effects based on incremental
+propensity score interventions. *Journal of the American Statistical
+Association* 114:645--656.
+
+Díaz I, Williams N, Hoffman KL, Schenck EJ (2023). Non-parametric causal
+effects based on longitudinal modified treatment policies. *Journal of the
+American Statistical Association* 118:846--857.

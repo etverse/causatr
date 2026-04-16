@@ -10,7 +10,6 @@
 ^docs$
 ^altdoc$
 ^CLAUDE\.md$
-^CAUSATR_SCAFFOLD\.md$
 ^PHASE_.*\.md$
 ^Makefile$
 ^skills$

@@ -414,14 +414,21 @@ test_that("shift with extreme delta warns about near-zero intervened density", {
   Y <- 2 + 0.5 * A + L + rnorm(n)
   d <- data.table::data.table(Y = Y, A = A, L = L)
 
-  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L,
-                estimator = "ipw")
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw"
+  )
 
   # shift(-6) pushes treatment well outside the support
   expect_warning(
-    contrast(fit,
+    contrast(
+      fit,
       interventions = list(shifted = shift(-6), baseline = shift(0)),
-      type = "difference"),
+      type = "difference"
+    ),
     class = "causatr_near_zero_intervened_density"
   )
 })

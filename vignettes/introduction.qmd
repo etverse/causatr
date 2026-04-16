@@ -78,7 +78,8 @@ causatr supports several intervention types for g-computation:
 | `dynamic(rule)` | Apply a user-defined rule | `dynamic(\(d, a) ifelse(d$L > 0, 1, 0))` |
 | `NULL` | Natural course (observed values) | — |
 
-IPW and matching currently support only `static()` interventions.
+IPW supports `static()`, `shift()`, `scale_by()`, `dynamic()`, and `ipsi()`.
+Matching supports only `static()` interventions.
 
 ## Contrast types
 
@@ -116,7 +117,7 @@ causatr supports binary, continuous, categorical, and multivariate treatments:
 | Binary (0/1) | Yes | Yes | Yes |
 | Continuous | Yes | Yes (GPS) | No (MatchIt binary-only) |
 | Categorical (k > 2) | Yes | Yes | No (MatchIt binary-only) |
-| Multivariate (joint) | Yes | Not yet (Phase 4) | Not yet (Phase 7) |
+| Multivariate (joint) | Yes | Not yet | Not yet |
 
 For multivariate treatments (e.g. `treatment = c("A1", "A2")`), supply
 interventions as named lists with one element per treatment variable.

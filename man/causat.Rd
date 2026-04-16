@@ -22,6 +22,7 @@ causat(
   type = NULL,
   model_fn = stats::glm,
   propensity_model_fn = NULL,
+  propensity_family = NULL,
   ...
 )
 }
@@ -120,6 +121,15 @@ used to build density-ratio weights. Must accept the same
 \verb{(formula, data, family, weights, ...)} signature. \code{NULL}
 (default) reuses \code{model_fn}. Pass \code{mgcv::gam} for a flexible
 propensity.}
+
+\item{propensity_family}{Character or \code{NULL}. IPW only. Explicit
+treatment density family: \code{"poisson"} or \code{"negbin"} for count
+treatments. \code{NULL} (default) auto-detects from the treatment
+values (bernoulli / gaussian / categorical). Auto-detection never
+infers count — use this parameter to opt in. For \code{"negbin"},
+\code{MASS::glm.nb} is auto-selected as the propensity fitter unless
+\code{propensity_model_fn} is explicitly provided. Ignored for
+\code{"gcomp"} and \code{"matching"}.}
 
 \item{...}{Additional arguments passed to the underlying estimation
 function. For \code{estimator = "ipw"}, dots are forwarded into the

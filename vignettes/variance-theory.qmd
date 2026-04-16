@@ -1465,6 +1465,14 @@ $\color{#31A354}{J} V_\beta \color{#31A354}{J^T}$ underestimates.
 IPW is more complex because two models are involved, and the uncertainty from
 the first (propensity scores) must propagate into the second (MSM).
 
+::: {.callout-tip}
+### Companion vignette
+The density-ratio weight formulas (Horvitz--Thompson indicator,
+pushforward with sign/Jacobian, IPSI closed form), the `make_weight_fn()`
+closure design, and the numerical $A_{\beta\alpha}$ verification are
+developed in `vignette("ipw-variance-theory")`.
+:::
+
 #### The two-model setup
 
 1. **Propensity score model**: estimate $\hat\alpha$ ($q$-vector) from
@@ -1543,8 +1551,12 @@ $\text{Var}(\hat\beta)$ through the $A_{\beta\alpha}$ block.
 
 ::: {.callout-tip}
 ### In practice
-`WeightIt::glm_weightit()` fits the stacked system and its `vcov()` method
-returns the M-estimation sandwich that accounts for weight uncertainty.
+causatr's self-contained IPW engine computes this stacked sandwich
+directly via `compute_ipw_if_self_contained_one()`, which uses
+`numDeriv::jacobian()` on the `make_weight_fn()` closure to evaluate
+the $A_{\beta\alpha}$ block numerically. See
+`vignette("ipw-variance-theory")` for the closure design and
+verification.
 :::
 
 #### The full IF for $\hat\mu_a$
@@ -1659,9 +1671,10 @@ $$
 $$
 
 and the IF of $\hat\mu_1$ is the Channel-1 + propensity-corrected
-Channel-2 form given in @eq-if-ipw. causatr routes this through
-`WeightIt::glm_weightit()` + `sandwich::estfun(asympt = TRUE)`, which
-returns per-individual IFs already adjusted for propensity estimation.
+Channel-2 form given in @eq-if-ipw. causatr computes this via
+`compute_ipw_if_self_contained_one()`, which assembles the adjusted
+score per individual using `numDeriv::jacobian()` on the
+`make_weight_fn()` closure (see `vignette("ipw-variance-theory")`).
 
 ## Code
 

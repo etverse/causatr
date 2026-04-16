@@ -78,11 +78,16 @@ Rejections: invalid family string ✅, missing outcome/treatment col ✅ (test-g
 | cat | gauss | static | ATE | diff | sandwich | — | ✅ | test-simulation.R |
 | cat | gauss | dynamic | ATE | diff | sandwich | — | 🟡 | test-simulation.R |
 | cont | gauss | static | ATE | diff | sandwich | — | ✅ | test-simulation.R |
+| count (pois) | gauss | shift | ATE | diff | sandwich | — | ✅ | test-ipw-count.R |
+| count (negbin) | gauss | shift | ATE | diff | sandwich | — | ✅ | test-ipw-count.R |
 
 Variance internals: self-contained IF ✅ (hand-derived cross-derivative + end-to-end stacked-sandwich; test-ipw-branch-b.R, test-ipw-cross-derivative.R, test-variance-if.R). Non-static variance regression ✅ (shift ~5-8% SE reduction, IPSI ~90% off-diagonal covariance; test-ipw-variance-regression.R). Bootstrap parity ✅ (within 30% MC tolerance; test-ipw-variance-regression.R).
 
 Rejections (all ✅ tested):
 - `static`/`threshold`/`dynamic` on continuous → test-ipw.R
+- `static`/`threshold`/`dynamic`/`ipsi` on count → test-ipw-count.R
+- non-integer `shift()` on count → test-ipw-count.R
+- non-integer-preserving `scale_by()` on count → test-ipw-count.R
 - shift/scale_by/dynamic/ipsi + ATT/ATC → test-estimand-intervention-compat.R
 - `A:modifier` in confounders → test-ipw.R
 - multivariate → test-s3-methods.R, test-multivariate.R

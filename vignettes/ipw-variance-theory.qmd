@@ -1,0 +1,627 @@
+---
+title: "IPW density-ratio weights and variance theory"
+toc-depth: 4
+code-fold: show
+code-tools: true
+vignette: >
+  %\VignetteIndexEntry{IPW density-ratio weights and variance theory}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{=html}
+<style>
+mjx-container[jax="CHTML"][display="true"] {
+  overflow-x: auto;
+  overflow-y: visible;
+  padding: 0.5em 0;
+}
+</style>
+```
+
+```{r}
+#| include: false
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+This vignette develops the density-ratio weight formulas behind causatr's
+self-contained IPW engine and shows how they feed into the sandwich variance
+estimator. It is a companion to `vignette("variance-theory")`, which
+derives the general stacked M-estimation framework for IPW in Section 4.2.
+Here we zoom into the pieces that Section 4.2 treats as black boxes: the
+weight formulas themselves, the `make_weight_fn()` closure that the variance
+engine differentiates through, and the numerical cross-derivative
+$A_{\beta\alpha}$ that propagates propensity-score uncertainty into the
+final standard error.
+
+For practical usage examples see `vignette("ipw")` and
+`vignette("interventions")`.
+
+## 1. Density-ratio weights: the general idea
+
+IPW reweights the observed sample so that, under the reweighted
+distribution, confounders are balanced and the weighted mean of $Y$
+estimates the counterfactual mean $E[Y^d]$ under intervention $d$.
+The key object is the **density-ratio weight**:
+
+$$
+w_i = \frac{f_d(A_i^{\text{obs}} \mid L_i)}{f(A_i^{\text{obs}} \mid L_i)},
+$$
+
+where $f(\cdot \mid L)$ is the conditional treatment density under the
+observed data and $f_d(\cdot \mid L)$ is the density of the treatment
+**under intervention $d$**. The nature of $f_d$ depends on the
+intervention type:
+
+- For **point-mass interventions** (static, dynamic) the intervened
+  distribution is a Dirac, and the weight collapses to a
+  Horvitz--Thompson indicator.
+- For **smooth MTPs** (shift, scale) the intervened distribution is a
+  pushforward of $f$ under a diffeomorphism, and the weight is a smooth
+  density ratio.
+- For **IPSI** (incremental propensity-score interventions) the weight
+  has a closed-form expression that bypasses density evaluation entirely.
+
+The rest of this section works through each case.
+
+### 1.1 Horvitz--Thompson indicator form (static, dynamic)
+
+When the intervention sets each individual's treatment to a deterministic
+value $a^* = d(A_i, L_i)$, the intervened "density" is a point mass
+$\delta_{a^*}$. The Radon--Nikodym derivative of a point mass w.r.t. a
+density $f$ is:
+
+$$
+\frac{d\delta_{a^*}}{df}(A_i^{\text{obs}})
+= \frac{\mathbb{1}\{A_i = a^*\}}{f(a^* \mid L_i)}.
+$$
+
+For binary treatment with `static(1)`, this becomes the familiar
+$w_i = A_i / e(L_i)$ where $e(L_i) = P(A_i=1 \mid L_i)$ is the
+propensity score.
+
+#### Estimand-specific numerator (ATE / ATT / ATC)
+
+The ATE targets the whole population; ATT and ATC target subpopulations.
+To recover $E[Y^a \mid A = A^*]$ from observed data, the standard
+Bayes-rule rewrite (Imbens 2004; Hernán & Robins Ch. 12) gives a
+per-individual numerator $f^*_i$:
+
+$$
+w_i = \frac{\mathbb{1}\{A_i = a\} \cdot f^*_i}{f(A_i \mid L_i)},
+$$
+
+where:
+
+| Estimand | Target subpopulation | $f^*_i$ |
+|---|---|---|
+| ATE | Whole population | $1$ |
+| ATT | The treated ($A^* = 1$) | $p(L_i)$ |
+| ATC | The controls ($A^* = 0$) | $1 - p(L_i)$ |
+
+This single formula reproduces all three per-arm weight schemes in one
+branch. For the degenerate arm (e.g. ATT with `static(1)` on the $A=1$
+rows), $f^* = p$ and $f(1 \mid L) = p$ cancel, giving $w_i = A_i$ ---
+the direct sample functional $E[Y \mid A=1]$ with no propensity
+uncertainty, as expected.
+
+causatr enforces ATT/ATC only for `static()` on binary 0/1 treatment.
+All other interventions are ATE-only; non-ATE requests are rejected
+by `check_estimand_intervention_compat()`.
+
+::: {.callout-note}
+### Categorical treatment
+
+For a categorical treatment with $K$ levels, the same HT form applies:
+$w_i = \mathbb{1}\{A_i = a^*\} / P(A_i = a^* \mid L_i)$, where the
+multinomial probabilities come from a `nnet::multinom` model. Only ATE
+is supported (ATT/ATC are ambiguous when there are more than two treatment
+levels).
+:::
+
+### 1.2 Smooth pushforward (shift, scale_by) {#sec-pushforward}
+
+When the intervention is a smooth, invertible map $d: a \mapsto d(a, l)$
+on a continuous treatment, the intervened density is the **pushforward**
+of $f$ under $d$. By the change-of-variables formula:
+
+$$
+f_d(y \mid l) = f\bigl(d^{-1}(y, l) \mid l\bigr) \cdot \lvert\det Dd^{-1}(y, l)\rvert.
+$$
+
+Evaluating at $y = A_i^{\text{obs}}$ gives the weight:
+
+$$
+w_i = \frac{f\bigl(d^{-1}(A_i, L_i) \mid L_i\bigr) \cdot |\text{Jac}|}{f(A_i \mid L_i)}.
+$$ {#eq-pushforward}
+
+For the two MTPs causatr supports:
+
+| Intervention | Map $d(a)$ | Inverse $d^{-1}(y)$ | Jacobian $\lvert\det Dd^{-1}\rvert$ |
+|---|---|---|---|
+| `shift(delta)` | $a + \delta$ | $y - \delta$ | $1$ |
+| `scale_by(c)` | $c \cdot a$ | $y / c$ | $1 / \lvert c \rvert$ |
+
+::: {.callout-warning}
+### The pushforward sign trap
+
+A common mistake is to compute $f(d(A_i) \mid L_i) / f(A_i \mid L_i)$
+--- i.e. evaluating the fitted density at the **intervened** treatment
+value. This is wrong: the correct formula evaluates at
+$d^{-1}(A_i^{\text{obs}})$, not $d(A_i^{\text{obs}})$.
+
+For `shift(delta)`, the difference is a sign flip: evaluating at
+$A_i + \delta$ gives $E[Y^{\text{shift}(-\delta)}]$ instead of
+$E[Y^{\text{shift}(\delta)}]$. The mistake is easy to write and hard
+to catch without a truth-based simulation test.
+
+In `compute_density_ratio_weights()`:
+
+```r
+# shift: d(a) = a + delta, d^{-1}(y) = y - delta, |Jac| = 1.
+# f_d(A_obs | l) = f(A_obs - delta | l).
+a_eval <- a_obs - delta                       # <-- d^{-1}, not d
+f_int  <- evaluate_density(tm, a_eval, data)
+w      <- f_int / f_obs
+```
+
+For `scale_by(c)`:
+
+```r
+# d(a) = c*a, d^{-1}(y) = y/c, |Jac| = 1/|c|.
+a_eval <- a_obs / fct                         # <-- d^{-1}, not d
+f_int  <- evaluate_density(tm, a_eval, data)
+w      <- (f_int / f_obs) / abs(fct)
+```
+:::
+
+#### Why `threshold()` and `dynamic()` are rejected on continuous treatment
+
+`threshold(lo, hi)` clamps $A$ to $[\text{lo}, \text{hi}]$. The
+pushforward of a continuous density under a boundary clamp is a **mixed
+measure**: continuous on $(\text{lo}, \text{hi})$ plus point masses at the
+boundaries (from all the probability mass outside the interval that gets
+piled up at the clamp points). A mixed measure has no Lebesgue density,
+so the density ratio in @eq-pushforward is not defined. Users should
+switch to `estimator = "gcomp"`, where the clamped-treatment
+counterfactual is handled cleanly via predict-then-average on the outcome
+model.
+
+Similarly, `dynamic(rule)` on a continuous treatment defines a Dirac
+$\delta_{d(L_i)}$ per individual --- a degenerate "density" with zero
+Lebesgue density. The weight is zero almost surely. Users should rewrite
+the rule as a smooth `shift()` or `scale_by()`, or switch to `gcomp`.
+
+### 1.3 IPSI closed form (Kennedy 2019) {#sec-ipsi}
+
+Incremental propensity-score interventions (Kennedy 2019) act on the
+**propensity score** rather than on the treatment value. The intervention
+multiplies the odds of treatment by a factor $\delta > 0$:
+
+$$
+\text{odds}_d(L_i) = \delta \cdot \text{odds}(L_i)
+\quad\Rightarrow\quad
+p_d(L_i) = \frac{\delta \, p(L_i)}{1 - p(L_i) + \delta \, p(L_i)}.
+$$
+
+Because the intervention is defined in terms of the propensity score
+rather than a counterfactual treatment value, there is no pushforward
+density to evaluate. The density-ratio weight simplifies to a closed
+form:
+
+$$
+w_i = \frac{\delta \, A_i + (1 - A_i)}{\delta \, p_i + (1 - p_i)},
+$$ {#eq-ipsi-weight}
+
+where $p_i = P(A_i = 1 \mid L_i)$ is the fitted propensity score.
+
+This formula has several appealing properties:
+
+- **No density evaluation.** Unlike `shift()` / `scale_by()`, IPSI never
+  evaluates $f(a \mid L)$ at a counterfactual treatment value. The weight
+  is a direct function of the propensity.
+- **Finite weights.** For finite $\delta > 0$, the denominator
+  $\delta \, p + (1-p)$ is bounded between $\min(1, \delta)$ and
+  $\max(1, \delta)$, so the weight is always finite. No positivity
+  guard needed.
+- **Smooth in $\delta$.** The dose--response curve
+  $\delta \mapsto E[Y^{d_\delta}]$ is smooth, making it a natural
+  candidate for a marginal structural model across a grid of $\delta$
+  values.
+
+In causatr:
+
+```r
+ipsi_weight_formula <- function(a_obs, p, delta) {
+  (delta * a_obs + (1 - a_obs)) / (delta * p + (1 - p))
+}
+```
+
+## 2. The `make_weight_fn()` closure {#sec-closure}
+
+The sandwich variance estimator needs the cross-derivative
+$A_{\beta\alpha} = -\partial\bar\psi_\beta/\partial\alpha$, which
+captures how the MSM score changes when the propensity parameters shift.
+causatr computes this numerically via `numDeriv::jacobian()`. The
+numerical Jacobian needs a function $\alpha \mapsto w_i(\alpha)$ that
+recomputes the weight vector under a candidate propensity parameter.
+
+`make_weight_fn()` builds this closure. It captures everything it needs
+**by value** at creation time:
+
+| Captured quantity | Description | Varies under $\alpha$ perturbation? |
+|---|---|---|
+| `X_prop` | Propensity design matrix ($n \times q$) | No --- matrix is fixed |
+| `a_obs` | Observed treatment values | No |
+| `a_int` / `a_eval` | Intervened or inverse-intervened values | No --- intervention is fixed |
+| `sigma` | Residual SD (continuous treatments) | No --- fixed at fit time |
+| `delta` | Odds multiplier (IPSI only) | No |
+| `family` tag | Dispatches to the right formula | No |
+
+The only quantity that varies is $\alpha$ itself. Inside the closure,
+predictions are recomputed from $\alpha$ via a single matrix multiply
+`X_prop %*% alpha`, avoiding formula parsing on every `numDeriv` step.
+
+### Closure branches
+
+**IPSI:**
+
+```r
+function(alpha) {
+  eta <- as.numeric(X_prop %*% alpha)
+  p   <- plogis(eta)
+  ipsi_weight_formula(a_obs, p, delta)
+}
+```
+
+**HT indicator (Bernoulli):**
+
+```r
+function(alpha) {
+  eta   <- as.numeric(X_prop %*% alpha)
+  p     <- plogis(eta)
+  f_obs <- ifelse(a_obs == 1, p, 1 - p)
+  ind * f_star_fn(p) / f_obs
+}
+```
+
+Here `ind` (the HT indicator $\mathbb{1}\{A_i = a^*\}$) and
+`f_star_fn` (the estimand-specific Bayes numerator) are captured at
+creation time. For ATE, `f_star_fn(p) = 1`; for ATT, `f_star_fn(p) = p`;
+for ATC, `f_star_fn(p) = 1 - p`. Baking the ATT/ATC numerator into the
+closure ensures that `numDeriv::jacobian()` picks up the
+propensity-dependence of the numerator correctly.
+
+**HT indicator (categorical/multinomial):**
+
+```r
+function(alpha) {
+  alpha_mat <- matrix(alpha, nrow = K-1, ncol = p, byrow = TRUE)
+  eta       <- X_prop %*% t(alpha_mat)
+  exp_eta   <- exp(eta)
+  denom     <- 1 + rowSums(exp_eta)
+  prob_mat  <- cbind(1/denom, exp_eta/denom)     # softmax
+  f_obs     <- prob_mat[cbind(1:n, col_idx)]
+  ind / f_obs                                    # ATE only
+}
+```
+
+The flattened $\alpha$ vector encodes $(K-1) \times p$ coefficients
+(row-major). Each `numDeriv` step perturbs one entry; the closure
+reconstructs the coefficient matrix, applies the softmax, and extracts
+the per-individual probability at the observed treatment level.
+
+**Smooth pushforward (Gaussian):**
+
+```r
+function(alpha) {
+  mu    <- as.numeric(X_prop %*% alpha)
+  f_obs <- dnorm(a_obs, mean = mu, sd = sigma)
+  f_eval <- dnorm(a_eval, mean = mu, sd = sigma)
+  (f_eval / f_obs) * jac_abs
+}
+```
+
+Here `a_eval` ($= d^{-1}(A_i^{\text{obs}})$) and `jac_abs` are
+precomputed once. The residual SD `sigma` is held fixed under $\alpha$
+perturbation. Treating $\sigma$ as an additional nuisance parameter would
+require a joint $(\mu, \sigma)$ M-estimation setup --- deferred.
+
+::: {.callout-note}
+### Why `sigma` is fixed
+
+The conditional treatment density is $A_i \mid L_i \sim N(\mu_i, \sigma^2)$
+where $\mu_i = L_i^T\alpha$. Under maximum likelihood the score for
+$\alpha$ and the score for $\sigma$ are orthogonal (information matrix
+is block-diagonal in $(\alpha, \sigma)$). Fixing $\sigma$ at its MLE and
+treating only $\alpha$ as the propensity nuisance is equivalent to
+profiling out $\sigma$ --- the resulting sandwich is asymptotically
+correct for $\hat\mu_a$ up to an $O(n^{-1})$ term from the profiled
+$\sigma$ uncertainty (Liang & Zeger 1986). In practice the effect on the
+SE is negligible because $\sigma$ enters the weight ratio only through the
+Normal pdf, where it cancels to leading order.
+:::
+
+## 3. The cross-derivative $A_{\beta\alpha}$ {#sec-cross}
+
+`vignette("variance-theory")` Section 4.2 derives the full IF for
+$\hat\mu_a$ under IPW as a three-term sum (Channel 1 + MSM correction +
+propensity correction). The propensity correction chain is:
+
+$$
+\text{propensity correction}_i
+= J \, A_{\beta\beta}^{-1} \, A_{\beta\alpha} \, A_{\alpha\alpha}^{-1}
+  \, \psi_{\alpha,i},
+$$
+
+where $A_{\beta\alpha}$ is the cross-derivative of the weighted MSM
+score w.r.t. the propensity parameters:
+
+$$
+A_{\beta\alpha}
+= -\frac{1}{n} \sum_{i=1}^{n}
+  \frac{\partial \psi_{\beta,i}}{\partial \alpha^T}
+= -\frac{1}{n} \sum_{i=1}^{n}
+  X_i \, \frac{\partial w_i}{\partial \alpha^T} \,
+  \frac{(Y_i - \mu_i)\,\mu'(\eta_i)}{V(\mu_i)}.
+$$
+
+The weight derivative $\partial w_i / \partial\alpha^T$ depends on
+the intervention type (HT indicator, smooth pushforward, IPSI --- each
+is a different function of $\alpha$). Rather than deriving a closed-form
+formula for each case, causatr evaluates $A_{\beta\alpha}$ numerically
+via `numDeriv::jacobian()` on a function that computes the average
+weighted MSM score as a function of $\alpha$:
+
+$$
+\bar\psi_\beta(\alpha)
+= \frac{1}{n} \sum_{i=1}^{n}
+  X_i \, w_i(\alpha) \,
+  \frac{(Y_i - \hat\mu_i)\,\mu'(\hat\eta_i)}{V(\hat\mu_i)}.
+$$
+
+Everything except $w_i(\alpha)$ is held fixed at $\hat\beta$. The
+Jacobian of $\bar\psi_\beta$ w.r.t. $\alpha$ is
+$+\partial\bar\psi_\beta/\partial\alpha$, so the negative-Hessian
+convention gives:
+
+$$
+A_{\beta\alpha} = -\texttt{numDeriv::jacobian}(\bar\psi_\beta, \hat\alpha).
+$$
+
+```r
+phi_bar <- function(alpha) {
+  w_alpha <- weight_fn(alpha)
+  s_per_i <- w_alpha * mu_eta * r_fit / var_mu
+  as.numeric(crossprod(X_msm, s_per_i)) / n_fit
+}
+A_beta_alpha <- -numDeriv::jacobian(phi_bar, x = alpha_hat)
+```
+
+The `weight_fn` here is the closure from @sec-closure, which encodes
+the intervention-specific weight formula. By building the closure once
+and handing it to `numDeriv::jacobian()`, we get a single code path
+for the cross-derivative across all intervention types.
+
+### Numerical verification {#sec-verify-cross}
+
+causatr's test suite (`test-ipw-cross-derivative.R`) verifies the
+numerical $A_{\beta\alpha}$ against hand-derived analytic formulas for
+the static binary case, where the closed form is available:
+
+$$
+(A_{\beta\alpha})_{j,k}
+= -\frac{1}{n}\sum_{i=1}^{n}
+  X_{i,j}^{\text{msm}} \cdot
+  \frac{(Y_i - \hat\mu_i)\,\mu'(\hat\eta_i)}{V(\hat\mu_i)} \cdot
+  \frac{\partial w_i}{\partial \alpha_k}.
+$$
+
+For `static(1)` with Bernoulli treatment ($w_i = A_i / p_i$):
+
+$$
+\frac{\partial w_i}{\partial \alpha_k}
+= -\frac{A_i}{p_i^2} \cdot p_i(1-p_i) \cdot X_{i,k}^{\text{prop}}
+= -\frac{A_i(1-p_i)}{p_i} \cdot X_{i,k}^{\text{prop}}.
+$$
+
+For `shift(delta)` with Gaussian treatment ($w_i = \phi(a_i - \delta; \mu_i, \sigma) / \phi(a_i; \mu_i, \sigma)$):
+
+$$
+\frac{\partial w_i}{\partial \alpha_k}
+= w_i \cdot \frac{\delta}{\sigma^2} \cdot X_{i,k}^{\text{prop}}.
+$$
+
+For IPSI with Bernoulli treatment:
+
+$$
+\frac{\partial w_i}{\partial \alpha_k}
+= \frac{(\delta A_i + 1 - A_i) \cdot (-1)(\delta - 1) \cdot p_i(1-p_i)}
+       {(\delta p_i + 1 - p_i)^2}
+  \cdot X_{i,k}^{\text{prop}}.
+$$
+
+The test asserts agreement at $\sim 10^{-6}$ tolerance across all five
+weight branches (static(1), static(0), shift, IPSI, natural course).
+
+::: {.panel-tabset}
+
+## Code
+
+```{r}
+#| label: verify-cross-deriv
+library(causatr)
+
+set.seed(42)
+n <- 200
+L <- rnorm(n)
+A <- rbinom(n, 1, plogis(0.5 * L))
+Y <- 2 + 3 * A + L + rnorm(n)
+dat <- data.table::data.table(Y = Y, A = A, L = L)
+
+fit <- causat(dat, outcome = "Y", treatment = "A", confounders = ~ L,
+              estimator = "ipw")
+res <- contrast(fit, interventions = list(a1 = static(1), a0 = static(0)),
+                reference = "a0", ci_method = "sandwich")
+
+tm <- fit$details$treatment_model
+p <- as.numeric(stats::predict(tm$model, type = "response"))
+
+# Hand-derived dw/dalpha for static(1): -A*(1-p)/p * X_prop
+X_prop <- tm$X_prop
+dw_dalpha_hand <- sweep(X_prop, 1, -A * (1 - p) / p, "*")
+
+# Numerical dw/dalpha via the make_weight_fn closure
+wfn <- causatr:::make_weight_fn(tm, dat, static(1))
+dw_dalpha_num <- numDeriv::jacobian(wfn, x = tm$alpha_hat)
+
+max_diff <- max(abs(dw_dalpha_hand - dw_dalpha_num))
+```
+
+## Result
+
+```{r}
+#| label: verify-cross-deriv-result
+#| echo: false
+cat(sprintf(
+  "Max |hand - numerical| for dw/dalpha under static(1): %.2e\n",
+  max_diff
+))
+```
+
+:::
+
+## 4. Assembly: the full IF for $\hat\mu_a$ under IPW {#sec-assembly}
+
+`compute_ipw_if_self_contained_one()` assembles the per-individual
+influence function for one intervention. The three channels, following
+the derivation in `vignette("variance-theory")` @eq-if-ipw, are:
+
+$$
+\text{IF}_i(\hat\mu_a) =
+\underbrace{g^{-1}(X_i^{*T}\hat\beta) - \hat\mu_a}_{\text{Channel 1}}
++ \underbrace{J \, A_{\beta\beta}^{-1} \, \psi_{\beta,i}}_{\text{MSM correction}}
+- \underbrace{J \, A_{\beta\beta}^{-1} \, A_{\beta\alpha} \,
+  A_{\alpha\alpha}^{-1} \, \psi_{\alpha,i}}_{\text{propensity correction}}.
+$$
+
+Note the **minus** sign on the propensity correction. This comes from
+block inversion of the lower-triangular bread:
+
+$$
+A^{-1} =
+\begin{pmatrix}
+A_{\alpha\alpha}^{-1} & 0 \\
+-A_{\beta\beta}^{-1} A_{\beta\alpha} A_{\alpha\alpha}^{-1} & A_{\beta\beta}^{-1}
+\end{pmatrix}.
+$$
+
+::: {.callout-note}
+### Sign convention
+
+`vignette("variance-theory")` writes the IF with a **plus** sign on the
+propensity correction because it uses Wooldridge's convention
+$A_{\beta\alpha}^W = +(1/n)\sum \partial\psi_\beta/\partial\alpha$,
+whereas the code uses the negative-Hessian convention
+$A_{\beta\alpha} = -(1/n)\sum \partial\psi_\beta/\partial\alpha$. The two
+differ by a sign on $A_{\beta\alpha}$, which flips the composition sign.
+The numerical result is the same.
+:::
+
+### Implementation walkthrough
+
+1. **MSM correction.** `prepare_model_if(msm_model)` + `apply_model_correction(msm_prep, J)` gives
+   $A_{\beta\beta}^{-1}\psi_{\beta,i}$ projected onto the gradient $J$. This is the same primitive used by
+   g-comp and matching --- one code path for all estimators.
+
+2. **Cross-derivative.** `numDeriv::jacobian(phi_bar, alpha_hat)` gives
+   $A_{\beta\alpha}$ numerically, using the `weight_fn` closure from @sec-closure.
+   The per-step cost is $O(n \cdot q)$ for a $q$-parameter propensity model ---
+   one matrix multiply per perturbation.
+
+3. **Propensity correction.** Form the gradient
+   $g_{\text{prop}} = A_{\beta\alpha}^T \cdot h_{\text{msm}}$ where
+   $h_{\text{msm}} = n \cdot A_{\beta\beta}^{-1} J$ (the $n$-scaling
+   accounts for `bread_inv()` returning the raw $(X^TWX)^{-1}$). Then
+   `apply_model_correction(prop_prep, g_prop)` gives
+   $g_{\text{prop}}^T A_{\alpha\alpha}^{-1} \psi_{\alpha,i}$ per
+   individual --- the propensity channel.
+
+4. **Assembly.** `Ch1_i + msm_res$correction - prop_res$correction`.
+
+### When does the propensity correction matter?
+
+For static binary ATE, the propensity correction **reduces** the SE
+(Lunceford & Davidian 2004; Hirano et al. 2003). Using estimated rather
+than known propensity scores is more efficient, so the naive sandwich
+(which ignores propensity uncertainty) is conservative.
+
+For non-static interventions the picture is richer:
+
+- **Shift:** the per-intervention SE typically drops 5--8% from the
+  propensity correction (the negative cross-term from the stacked
+  M-estimation outweighs the added propensity-uncertainty term).
+- **IPSI:** the per-intervention effect on the SE is small, but the
+  **contrast** SE can drop dramatically ($\sim$90%) because the shared
+  propensity model induces large positive covariance between the IPSI
+  and natural-course marginal means. When you subtract two marginal means
+  that share the same propensity noise, the noise largely cancels.
+
+Both effects are verified in `test-ipw-variance-regression.R`, which
+asserts that the full IF-based SE materially differs from the
+$J V_\beta J^T$ shortcut (which omits the propensity correction).
+
+## 5. Intervention × family compatibility matrix
+
+Not every combination of intervention type and treatment family is
+valid under density-ratio IPW. The compatibility matrix, enforced by
+`check_intervention_family_compat()`, is:
+
+| Intervention | Bernoulli | Gaussian | Categorical |
+|---|---|---|---|
+| `static()` | $\checkmark$ HT | $\times$ | $\checkmark$ HT |
+| `shift()` | $\times$ | $\checkmark$ pushforward | $\times$ |
+| `scale_by()` | $\times$ | $\checkmark$ pushforward | $\times$ |
+| `threshold()` | $\times$ | $\times$ | $\times$ |
+| `dynamic()` | $\checkmark$ HT | $\times$ | $\checkmark$ HT |
+| `ipsi()` | $\checkmark$ Kennedy | $\times$ | $\times$ |
+
+Each $\times$ has a specific reason rooted in the density-ratio
+framework:
+
+- **`static(v)` on continuous**: the HT indicator $\mathbb{1}\{A_i = v\}$
+  is zero almost surely for a continuous treatment.
+- **`shift()` / `scale_by()` on discrete**: factors have no additive or
+  multiplicative structure.
+- **`threshold()` on continuous**: pushforward is a mixed measure
+  (point masses at the clamp boundaries), so there is no Lebesgue
+  density for the ratio.
+- **`dynamic()` on continuous**: a deterministic per-individual rule
+  is a Dirac per individual. Same pushforward degeneracy as `threshold()`.
+- **`ipsi()` on non-binary**: Kennedy's (2019) closed-form formula
+  (@eq-ipsi-weight) is Bernoulli-specific.
+
+All rejections point the user to the right alternative (typically
+`estimator = "gcomp"` or a smooth MTP constructor).
+
+## References
+
+- Hernán MA, Robins JM (2025). *Causal Inference: What If.* Chapman &
+  Hall/CRC. Ch. 12 (IP weighting).
+- Hirano K, Imbens GW, Ridder G (2003). Efficient estimation of average
+  treatment effects using the estimated propensity score. *Econometrica*
+  71:1161--1189.
+- Imbens GW (2004). Nonparametric estimation of average treatment
+  effects under exogeneity: a review. *Review of Economics and
+  Statistics* 86:4--29.
+- Kennedy EH (2019). Nonparametric causal effects based on incremental
+  propensity score interventions. *JASA* 114:645--656.
+- Lunceford JK, Davidian M (2004). Stratification and weighting via the
+  propensity score in estimation of causal treatment effects: a
+  comparative study. *Statistics in Medicine* 23:2937--2960.
+- Díaz I, Williams N, Hoffman KL, Schenck EJ (2023). Non-parametric
+  causal effects based on longitudinal modified treatment policies.
+  *JASA* 118:846--857.
+- Haneuse S, Rotnitzky A (2013). Estimation of the effect of
+  interventions that modify the received treatment. *Statistics in
+  Medicine* 32:5260--5277.

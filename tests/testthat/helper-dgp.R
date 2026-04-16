@@ -277,6 +277,24 @@ make_continuous_scm <- function(n = 5000, seed = 42) {
   )
 }
 
+# DGP 8: Count (Poisson) treatment, continuous outcome
+#   L ~ N(0, 1)
+#   A | L ~ Poisson(exp(0.5 * L))
+#   Y | A, L ~ N(2 + 1.5*A + L, sd = 1)
+#
+# True E[Y(shift(delta))] = 2 + 1.5*(E[A] + delta)
+#   where E[A] = E[exp(0.5*L)] = exp(0.125)  (MGF of N(0,1) at t=0.5)
+# True shift(1) vs shift(0) difference = 1.5
+# True scale_by(2) vs natural course = 1.5 * E[A] = 1.5 * exp(0.125)
+
+simulate_count_treatment <- function(n = 3000, seed = 42) {
+  set.seed(seed)
+  L <- rnorm(n)
+  A <- rpois(n, exp(0.5 * L))
+  Y <- 2 + 1.5 * A + L + rnorm(n)
+  data.frame(Y = Y, A = A, L = L)
+}
+
 # Missing-data DGPs
 #
 # These DGPs produce data with explicit missingness mechanisms (MCAR, MAR)

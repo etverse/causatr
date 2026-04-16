@@ -211,11 +211,12 @@ compute_density_ratio_weights <- function(
     return(ind * f_star / f_obs)
   }
 
-  # Smooth pushforward branch. Covers `shift()` and `scale_by()` on
-  # continuous treatments. The weight is
+  # Pushforward branch. Covers `shift()` and `scale_by()` on
+  # continuous (gaussian) and count (poisson / negbin) treatments.
+  # The weight is
   #   w_i = f_d(A_obs_i | L_i) / f(A_obs_i | L_i)
   # where f_d is the pushforward of f under the intervention map d.
-  # For an invertible, smooth map,
+  # For an invertible map,
   #   f_d(y | l) = f(d^{-1}(y, l) | l) * |det D d^{-1}(y, l)|,
   # so evaluating at y = A_obs gives
   #   w_i = f(d^{-1}(A_obs_i, L_i) | L_i) * |Jac| / f(A_obs_i | L_i).
@@ -226,6 +227,12 @@ compute_density_ratio_weights <- function(
   # and a Jacobian (for scale_by), and using the naive form gives
   # E[Y^{shift(-delta)}] instead of E[Y^{shift(delta)}]. Verified
   # analytically in the design notes.
+  #
+  # For count treatments (Poisson / NB) the same pushforward formula
+  # applies. `check_intervention_family_compat()` has already verified
+  # that the shift is integer (for Poisson/NB) and that scale_by
+  # preserves integer support, so `a_eval` is always integer-valued
+  # and `dpois()` / `dnbinom()` return valid pmf values.
   if (iv_type == "shift") {
     delta <- intervention$delta
     # shift: d(a) = a + delta, d^{-1}(y) = y - delta, |Jac| = 1.
@@ -563,6 +570,55 @@ make_weight_fn <- function(
     })
   }
 
+  # ---- Count pushforward branch (Poisson / negative binomial) ------
+  # Same pushforward structure as the Gaussian branch, but with a
+  # log link: lambda = exp(X %*% alpha). `dpois()` / `dnbinom()` are
+  # the density evaluators. The Jacobian |Jac| = 1 for integer shift
+  # and 1/|c| for integer-preserving scale, same as Gaussian.
+  # `theta` (NB only) is held fixed under alpha perturbation.
+  if (family_tag %in% c("poisson", "negbin")) {
+    theta <- treatment_model$theta
+
+    if (iv_type == "shift") {
+      delta <- intervention$delta
+      a_eval <- a_obs - delta
+      jac_abs <- 1
+    } else if (iv_type == "scale") {
+      fct <- intervention$factor
+      if (fct == 0) {
+        rlang::abort(
+          "`scale_by(0)` collapses the treatment support; not a valid MTP."
+        )
+      }
+      a_eval <- a_obs / fct
+      jac_abs <- abs(1 / fct)
+    } else {
+      rlang::abort(
+        paste0(
+          "Internal error: `make_weight_fn()` has no count branch for '",
+          iv_type,
+          "'. check_intervention_family_compat() should have rejected this."
+        )
+      )
+    }
+
+    if (family_tag == "poisson") {
+      return(function(alpha) {
+        lambda <- as.numeric(exp(X_prop %*% alpha))
+        f_obs <- stats::dpois(a_obs, lambda)
+        f_eval <- stats::dpois(a_eval, lambda)
+        (f_eval / f_obs) * jac_abs
+      })
+    }
+    # negbin
+    return(function(alpha) {
+      lambda <- as.numeric(exp(X_prop %*% alpha))
+      f_obs <- stats::dnbinom(a_obs, mu = lambda, size = theta)
+      f_eval <- stats::dnbinom(a_eval, mu = lambda, size = theta)
+      (f_eval / f_obs) * jac_abs
+    })
+  }
+
   rlang::abort(
     paste0(
       "`make_weight_fn()` does not handle (intervention = '",
@@ -789,38 +845,14 @@ ht_bayes_numerator <- function(
 #' alternative. The compatibility matrix the self-contained IPW
 #' engine supports is:
 #'
-#' | intervention    | bernoulli | gaussian         | categorical |
-#' |-----------------|-----------|------------------|-------------|
-#' | `static()`      | ✓ HT      | ⛔                | ✓ HT        |
-#' | `shift()`       | ⛔         | ✓ smooth ratio   | ⛔           |
-#' | `scale_by()`    | ⛔         | ✓ smooth ratio   | ⛔           |
-#' | `threshold()`   | ⛔         | ⛔ (use gcomp)    | ⛔           |
-#' | `dynamic()`     | ✓ HT      | ⛔ (use gcomp)    | ✓ HT        |
-#' | `ipsi()`        | ✓ Kennedy | ⛔                | ⛔           |
-#'
-#' The rationale for each ⛔:
-#'
-#' - `static(v)` on a continuous treatment: no one is observed
-#'   exactly at `v`, so the Horvitz–Thompson indicator is 0 almost
-#'   surely. The user almost certainly wanted a smooth shift.
-#' - `shift()` / `scale_by()` / `threshold()` on a non-numeric
-#'   treatment: factor / character treatments have no additive,
-#'   multiplicative, or clamp structure.
-#' - `threshold(lo, hi)` on continuous: the pushforward of a
-#'   continuous density under a boundary clamp is a mixed measure
-#'   (continuous density on `(lo, hi)` plus point masses at the
-#'   boundaries), so there is no Lebesgue density and the density
-#'   ratio w.r.t. the fitted `f(a|l)` is not well-defined. Users
-#'   should use `estimator = "gcomp"` — the clamped-treatment
-#'   counterfactual has a clean `predict(outcome_model, newdata =
-#'   clamped)` interpretation there. This is a genuine gap vs
-#'   `gcomp`, not a scope decision, and is documented in the
-#'   FEATURE_COVERAGE_MATRIX as a rejection row.
-#' - `dynamic()` on continuous: a deterministic per-individual
-#'   target is a Dirac per individual; same pushforward problem as
-#'   `threshold()`.
-#' - `ipsi()` on anything but binary: the Kennedy (2019) closed-form
-#'   formula is Bernoulli-specific.
+#' | intervention    | bernoulli | gaussian         | categorical | poisson / negbin    |
+#' |-----------------|-----------|------------------|-------------|---------------------|
+#' | `static()`      | ✓ HT      | ⛔                | ✓ HT        | ⛔                   |
+#' | `shift()`       | ⛔         | ✓ smooth ratio   | ⛔           | ✓ integer only      |
+#' | `scale_by()`    | ⛔         | ✓ smooth ratio   | ⛔           | ✓ integer-preserving|
+#' | `threshold()`   | ⛔         | ⛔ (use gcomp)    | ⛔           | ⛔ (use gcomp)       |
+#' | `dynamic()`     | ✓ HT      | ⛔ (use gcomp)    | ✓ HT        | ⛔ (use gcomp)       |
+#' | `ipsi()`        | ✓ Kennedy | ⛔                | ⛔           | ⛔                   |
 #'
 #' @param intervention A `causatr_intervention`.
 #' @param treatment_model A `causatr_treatment_model`.
@@ -834,6 +866,7 @@ check_intervention_family_compat <- function(
 ) {
   iv_type <- intervention$type
   fam <- treatment_model$family
+  is_count <- fam %in% c("poisson", "negbin")
 
   if (iv_type == "ipsi" && fam != "bernoulli") {
     rlang::abort(
@@ -848,7 +881,13 @@ check_intervention_family_compat <- function(
     )
   }
 
-  if (iv_type %in% c("shift", "scale", "threshold") && fam != "gaussian") {
+  # shift / scale_by require a numeric treatment with a well-defined
+  # density: gaussian or count (poisson / negbin).
+  if (
+    iv_type %in%
+      c("shift", "scale") &&
+      !fam %in% c("gaussian", "poisson", "negbin")
+  ) {
     rlang::abort(
       c(
         paste0(
@@ -859,10 +898,112 @@ check_intervention_family_compat <- function(
         i = paste0(
           "The treatment column is classified as '",
           fam,
+          "'. Use `static()` for binary / categorical treatments, ",
+          "or pass `propensity_family = 'poisson'` / `'negbin'` for count treatments."
+        )
+      )
+    )
+  }
+
+  # threshold on any non-gcomp-compatible family
+  if (iv_type == "threshold" && fam != "gaussian" && !is_count) {
+    rlang::abort(
+      c(
+        paste0(
+          "`threshold()` interventions require a numeric continuous treatment."
+        ),
+        i = paste0(
+          "The treatment column is classified as '",
+          fam,
           "'. Use `static()` for binary / categorical treatments."
         )
       )
     )
+  }
+
+  # Count-specific guards: shift must be integer, scale must preserve
+  # integer support, threshold and dynamic are rejected.
+  if (is_count) {
+    if (iv_type == "static") {
+      rlang::abort(
+        c(
+          paste0(
+            "`static(v)` on a count treatment is degenerate for IPW."
+          ),
+          i = "The Horvitz-Thompson indicator weight is zero for almost all observations.",
+          i = "Use `shift()` for integer shifts, or switch to `estimator = 'gcomp'`."
+        )
+      )
+    }
+    if (iv_type == "threshold") {
+      rlang::abort(
+        c(
+          "`threshold()` on a count treatment is not supported by the IPW engine.",
+          i = "The pushforward of a count density under a boundary clamp is a mixed measure.",
+          i = "Use `estimator = 'gcomp'`."
+        )
+      )
+    }
+    if (iv_type == "dynamic") {
+      rlang::abort(
+        c(
+          "`dynamic()` rules on count treatments are not supported by the IPW engine.",
+          i = "Use `shift()` for integer shifts, or switch to `estimator = 'gcomp'` for deterministic rules."
+        )
+      )
+    }
+    if (iv_type == "shift") {
+      delta <- intervention$delta
+      if (delta != round(delta)) {
+        rlang::abort(
+          c(
+            paste0(
+              "`shift(",
+              delta,
+              ")` is not integer-valued."
+            ),
+            i = paste0(
+              "Count treatments (",
+              fam,
+              ") require integer shift deltas because `dpois()` / `dnbinom()` return 0 at non-integer arguments."
+            ),
+            i = "Use `estimator = 'gcomp'` for fractional shifts on count data."
+          )
+        )
+      }
+    }
+    if (iv_type == "scale") {
+      fct <- intervention$factor
+      a_obs <- treatment_model$model$data[[treatment_model$treatment]]
+      if (is.null(a_obs)) {
+        a_obs <- stats::model.response(stats::model.frame(
+          treatment_model$model
+        ))
+      }
+      # The density ratio evaluates dpois(a_obs / factor, lambda).
+      # For dpois to return a non-zero value, a_obs / factor must be
+      # a non-negative integer for every observed treatment value.
+      inv_scaled <- a_obs / fct
+      if (!all(inv_scaled == round(inv_scaled) & inv_scaled >= 0)) {
+        rlang::abort(
+          c(
+            paste0(
+              "`scale_by(",
+              fct,
+              ")` does not produce integer inverse values (A / ",
+              fct,
+              ") for all observed treatment values."
+            ),
+            i = paste0(
+              "Count treatments (",
+              fam,
+              ") require that A / factor is a non-negative integer for every observation, because the density ratio evaluates the pmf at A / factor."
+            ),
+            i = "Use `estimator = 'gcomp'` for non-integer-preserving scales on count data."
+          )
+        )
+      }
+    }
   }
 
   if (iv_type == "static" && fam == "gaussian") {

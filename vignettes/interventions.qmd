@@ -1,0 +1,571 @@
+---
+title: "Intervention types in causatr"
+code-fold: show
+code-tools: true
+vignette: >
+  %\VignetteIndexEntry{Intervention types in causatr}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r}
+#| include: false
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+causatr separates model fitting (`causat()`) from causal contrasts
+(`contrast()`). The intervention --- the hypothetical change in treatment ---
+is specified at contrast time, not fit time. This design lets you fit once and
+contrast under many different interventions without re-estimating nuisance
+models.
+
+This vignette tours every intervention constructor, shows which estimators
+support it, and demonstrates the calling pattern on real and simulated data.
+
+## Intervention constructors at a glance
+
+| Constructor | What it does | G-comp | IPW | Matching |
+|---|---|---|---|---|
+| `static(v)` | Set treatment to `v` for everyone | All types | Binary, categorical | Binary |
+| `shift(d)` | Add `d` to observed treatment | Continuous | Continuous, count (integer `d`) | --- |
+| `scale_by(c)` | Multiply observed treatment by `c` | Continuous | Continuous, count (integer-preserving) | --- |
+| `threshold(lo, hi)` | Clamp treatment to `[lo, hi]` | Continuous | --- | --- |
+| `dynamic(rule)` | Apply a user-defined deterministic rule | All types | Binary, categorical | --- |
+| `ipsi(d)` | Multiply odds of treatment by `d` | --- | Binary | --- |
+| `NULL` | Natural course (observed values) | All types | All types | --- |
+
+## Setup
+
+```{r}
+#| message: false
+library(causatr)
+library(tinyplot)
+
+data("nhefs")
+
+nhefs_complete <- nhefs[!is.na(nhefs$wt82_71) & !is.na(nhefs$education), ]
+```
+
+We use the NHEFS dataset throughout, dropping rows with missing outcome or
+education (the only covariate with NA values). `qsmk` (binary) is the
+treatment for the static, dynamic, and IPSI examples. `smokeintensity`
+(continuous) is the treatment for shift, scale, and threshold examples.
+
+## `static()` --- set treatment to a fixed value
+
+The simplest and most common intervention. `static(1)` means "everyone is
+treated"; `static(0)` means "no one is treated". For categorical treatments,
+pass the level name as a string (e.g. `static("B")`).
+
+### G-computation
+
+```{r}
+fit_gc <- causat(
+  nhefs_complete,
+  outcome = "wt82_71",
+  treatment = "qsmk",
+  confounders = ~ sex + age + I(age^2) + race + factor(education) +
+    smokeintensity + I(smokeintensity^2) + smokeyrs + I(smokeyrs^2) +
+    factor(exercise) + factor(active) + wt71 + I(wt71^2)
+)
+
+contrast(
+  fit_gc,
+  interventions = list(quit = static(1), continue = static(0)),
+  reference = "continue",
+  type = "difference"
+)
+```
+
+### IPW
+
+```{r}
+fit_ipw <- causat(
+  nhefs_complete,
+  outcome = "wt82_71",
+  treatment = "qsmk",
+  confounders = ~ sex + age + I(age^2) + race + factor(education) +
+    smokeintensity + I(smokeintensity^2) + smokeyrs + I(smokeyrs^2) +
+    factor(exercise) + factor(active) + wt71 + I(wt71^2),
+  estimator = "ipw"
+)
+
+contrast(
+  fit_ipw,
+  interventions = list(quit = static(1), continue = static(0)),
+  reference = "continue",
+  type = "difference"
+)
+```
+
+### Matching
+
+```{r}
+fit_match <- causat(
+  nhefs_complete,
+  outcome = "wt82_71",
+  treatment = "qsmk",
+  confounders = ~ sex + age + I(age^2) + race + factor(education) +
+    smokeintensity + I(smokeintensity^2) + smokeyrs + I(smokeyrs^2) +
+    factor(exercise) + factor(active) + wt71 + I(wt71^2),
+  estimator = "matching",
+  estimand = "ATT"
+)
+
+contrast(
+  fit_match,
+  interventions = list(quit = static(1), continue = static(0)),
+  reference = "continue",
+  type = "difference"
+)
+```
+
+All three methods should give broadly similar estimates (methodological
+triangulation). Discrepancies signal model misspecification in one or more
+approaches.
+
+## `shift()` --- add a constant to observed treatment
+
+A modified treatment policy (MTP) that shifts each individual's observed
+treatment by a fixed amount. For continuous treatments, this answers "what
+would happen if everyone's exposure increased (or decreased) by `delta`
+units?"
+
+### G-computation
+
+```{r}
+fit_gc_cont <- causat(
+  nhefs_complete,
+  outcome = "wt82_71",
+  treatment = "smokeintensity",
+  confounders = ~ sex + age + I(age^2) + race + factor(education) +
+    smokeyrs + I(smokeyrs^2) + factor(exercise) + factor(active) +
+    wt71 + I(wt71^2)
+)
+
+res_shift_gc <- contrast(
+  fit_gc_cont,
+  interventions = list(reduce10 = shift(-10), observed = NULL),
+  reference = "observed",
+  type = "difference"
+)
+res_shift_gc
+```
+
+### IPW
+
+Under IPW, `shift(delta)` uses a density-ratio weight: the ratio of the
+treatment density evaluated at the inverse-shifted value to the density at
+the observed value. The pushforward sign matters --- `shift(delta)` evaluates
+at `A - delta`, not `A + delta` --- because the weight uses the inverse map.
+
+```{r}
+fit_ipw_cont <- causat(
+  nhefs_complete,
+  outcome = "wt82_71",
+  treatment = "smokeintensity",
+  confounders = ~ sex + age + I(age^2) + race + factor(education) +
+    smokeyrs + I(smokeyrs^2) + factor(exercise) + factor(active) +
+    wt71 + I(wt71^2),
+  estimator = "ipw"
+)
+
+res_shift_ipw <- contrast(
+  fit_ipw_cont,
+  interventions = list(reduce10 = shift(-10), observed = NULL),
+  reference = "observed",
+  type = "difference"
+)
+res_shift_ipw
+```
+
+### Comparing shifts across methods
+
+```{r}
+#| fig-width: 7
+#| fig-height: 3
+#| fig-alt: "Point estimates and confidence intervals for a shift(-10) intervention under g-computation and IPW."
+est <- data.frame(
+  method = c("G-comp", "IPW"),
+  estimate = c(
+    res_shift_gc$contrasts$estimate[1],
+    res_shift_ipw$contrasts$estimate[1]
+  ),
+  ci_lower = c(
+    res_shift_gc$contrasts$ci_lower[1],
+    res_shift_ipw$contrasts$ci_lower[1]
+  ),
+  ci_upper = c(
+    res_shift_gc$contrasts$ci_upper[1],
+    res_shift_ipw$contrasts$ci_upper[1]
+  )
+)
+
+tinyplot(
+  estimate ~ method,
+  data = est,
+  type = "pointrange",
+  ymin = est$ci_lower,
+  ymax = est$ci_upper,
+  xlab = "Method",
+  ylab = "Difference in weight change (kg)",
+  main = "shift(-10): reduce smoking by 10 cigs/day"
+)
+abline(h = 0, lty = 2, col = "grey40")
+```
+
+::: {.callout-note}
+`threshold()` is **not supported** under IPW because the pushforward of a
+continuous density under a boundary clamp is a mixed measure (point masses at
+the bounds plus continuous density in the interior). Use
+`estimator = "gcomp"` for threshold interventions.
+:::
+
+### Count treatment (Poisson / negative binomial)
+
+For integer-valued count treatments, pass `propensity_family = "poisson"` or
+`"negbin"` to use a count density model instead of the default Gaussian:
+
+```{r}
+set.seed(6)
+n <- 3000
+L <- rnorm(n)
+A <- rpois(n, exp(0.5 * L))
+Y <- 2 + 1.5 * A + L + rnorm(n)
+count_df <- data.frame(Y = Y, A = A, L = L)
+
+fit_pois <- causat(
+  count_df,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L,
+  estimator = "ipw",
+  propensity_family = "poisson"
+)
+
+res_pois <- contrast(
+  fit_pois,
+  interventions = list(plus1 = shift(1), observed = NULL),
+  reference = "observed",
+  type = "difference"
+)
+res_pois
+```
+
+The shift delta must be integer --- `shift(0.5)` on a count treatment aborts
+because `dpois()` returns 0 at non-integer arguments.
+
+## `scale_by()` --- multiply observed treatment by a factor
+
+A proportional MTP. `scale_by(0.5)` halves each individual's exposure;
+`scale_by(2)` doubles it.
+
+### G-computation
+
+```{r}
+res_scale_gc <- contrast(
+  fit_gc_cont,
+  interventions = list(halved = scale_by(0.5), observed = NULL),
+  reference = "observed",
+  type = "difference"
+)
+res_scale_gc
+```
+
+### IPW
+
+Under IPW, `scale_by(c)` evaluates the density at `A / c` and includes the
+Jacobian `|1/c|` in the density-ratio weight.
+
+```{r}
+res_scale_ipw <- contrast(
+  fit_ipw_cont,
+  interventions = list(halved = scale_by(0.5), observed = NULL),
+  reference = "observed",
+  type = "difference"
+)
+res_scale_ipw
+```
+
+## `threshold()` --- clamp treatment within bounds (g-comp only)
+
+Caps treatment at a ceiling and/or floor. `threshold(0, 20)` means "nobody
+smokes more than 20 cigarettes per day; those below 0 are set to 0".
+
+```{r}
+res_thresh <- contrast(
+  fit_gc_cont,
+  interventions = list(cap20 = threshold(0, 20), observed = NULL),
+  reference = "observed",
+  type = "difference"
+)
+res_thresh
+```
+
+This intervention is only available under g-computation. Under IPW, the
+density-ratio weight is not well-defined at the boundary clamp points
+(point-mass discontinuity in the pushforward density). causatr rejects
+`threshold()` under `estimator = "ipw"` with an informative error pointing
+at g-comp.
+
+## `dynamic()` --- deterministic treatment rule
+
+A dynamic intervention assigns treatment based on individual characteristics.
+The `rule` function receives two arguments --- the full data and the observed
+treatment vector --- and returns a vector of counterfactual treatment values.
+
+### G-computation (binary treatment)
+
+Assign quitting only to heavy smokers (> 20 cigarettes/day at baseline):
+
+```{r}
+res_dyn_gc <- contrast(
+  fit_gc,
+  interventions = list(
+    rule = dynamic(\(data, trt) ifelse(data$smokeintensity > 20, 1, 0)),
+    all_quit = static(1)
+  ),
+  reference = "all_quit",
+  type = "difference"
+)
+res_dyn_gc
+```
+
+### IPW (binary treatment)
+
+Under IPW, `dynamic()` on a binary treatment uses Horwitz--Thompson indicator
+weights: `w_i = I(A_i = rule_i) / f(A_i | L_i)`. This is well-defined
+because the treatment takes only two values and each individual's
+counterfactual is deterministic.
+
+```{r}
+res_dyn_ipw <- contrast(
+  fit_ipw,
+  interventions = list(
+    rule = dynamic(\(data, trt) ifelse(data$smokeintensity > 20, 1, 0)),
+    all_quit = static(1)
+  ),
+  reference = "all_quit",
+  type = "difference"
+)
+res_dyn_ipw
+```
+
+### G-computation (continuous treatment)
+
+Dynamic rules on continuous treatments work under g-comp (predict-then-average
+on the outcome model). Here, heavy smokers are reduced to 20 while others keep
+their observed level:
+
+```{r}
+res_dyn_cont <- contrast(
+  fit_gc_cont,
+  interventions = list(
+    capped = dynamic(\(data, trt) pmin(trt, 20)),
+    observed = NULL
+  ),
+  reference = "observed",
+  type = "difference"
+)
+res_dyn_cont
+```
+
+::: {.callout-note}
+`dynamic()` on continuous treatment is **not supported** under IPW. A
+deterministic rule on a continuous treatment is a Dirac per individual,
+which has no Lebesgue density --- the density ratio is not defined. Rewrite
+the rule as a smooth `shift()` or `scale_by()`, or use
+`estimator = "gcomp"`.
+:::
+
+## `ipsi()` --- incremental propensity score intervention (IPW only)
+
+Kennedy (2019)'s incremental propensity score intervention multiplies each
+individual's *odds of treatment* by `delta`. It is a stochastic MTP that
+never materialises a specific counterfactual treatment value --- instead,
+it shifts the entire propensity score distribution.
+
+The closed-form weight is:
+$$w_i = \frac{\delta \cdot A_i + (1 - A_i)}{\delta \cdot p_i + (1 - p_i)}$$
+
+where $p_i = P(A = 1 \mid L_i)$ is the fitted propensity.
+
+IPSI is **binary-treatment, IPW-only** --- g-comp and matching cannot evaluate
+it because there is no counterfactual treatment column to predict at.
+
+### Doubling the odds of quitting
+
+```{r}
+res_ipsi_2 <- contrast(
+  fit_ipw,
+  interventions = list(double_odds = ipsi(2), natural = NULL),
+  reference = "natural",
+  type = "difference"
+)
+res_ipsi_2
+```
+
+### Halving the odds of quitting
+
+```{r}
+res_ipsi_half <- contrast(
+  fit_ipw,
+  interventions = list(half_odds = ipsi(0.5), natural = NULL),
+  reference = "natural",
+  type = "difference"
+)
+res_ipsi_half
+```
+
+### IPSI dose-response
+
+Varying `delta` traces out a dose-response curve on the odds scale:
+
+```{r}
+#| fig-width: 7
+#| fig-height: 4
+#| fig-alt: "Dose-response curve showing the estimated effect of incrementally shifting the odds of quitting smoking."
+deltas <- c(0.25, 0.5, 1, 2, 4)
+ipsi_results <- lapply(deltas, function(d) {
+  res <- contrast(
+    fit_ipw,
+    interventions = list(shifted = ipsi(d), natural = NULL),
+    reference = "natural",
+    type = "difference"
+  )
+  data.frame(
+    delta = d,
+    estimate = res$contrasts$estimate[1],
+    ci_lower = res$contrasts$ci_lower[1],
+    ci_upper = res$contrasts$ci_upper[1]
+  )
+})
+ipsi_df <- do.call(rbind, ipsi_results)
+
+tinyplot(
+  estimate ~ delta,
+  data = ipsi_df,
+  type = "pointrange",
+  ymin = ipsi_df$ci_lower,
+  ymax = ipsi_df$ci_upper,
+  xlab = expression(delta ~ "(odds multiplier)"),
+  ylab = "E[Y(IPSI)] - E[Y(natural)] (kg)",
+  main = "IPSI dose-response: effect on weight change"
+)
+abline(h = 0, lty = 2, col = "grey40")
+```
+
+At `delta = 1` the intervention is the natural course, so the contrast is
+zero. Larger `delta` makes quitting more likely and the effect on weight
+gain grows.
+
+## `NULL` --- the natural course
+
+`NULL` means "do not intervene; use the observed treatment values". It is the
+natural reference for MTPs:
+
+```{r}
+res_multi <- contrast(
+  fit_gc_cont,
+  interventions = list(
+    reduce10 = shift(-10),
+    halved   = scale_by(0.5),
+    cap20    = threshold(0, 20),
+    observed = NULL
+  ),
+  reference = "observed",
+  type = "difference"
+)
+res_multi
+```
+
+## Combining interventions in one contrast
+
+Both g-comp and IPW support multiple interventions in a single `contrast()`
+call. All pairwise differences against the reference are computed, and the
+variance-covariance matrix covers all interventions jointly.
+
+### G-computation
+
+```{r}
+#| fig-width: 7
+#| fig-height: 4
+#| fig-alt: "Point estimates and confidence intervals for multiple continuous-treatment interventions under g-computation."
+est <- res_multi$contrasts
+tinyplot(
+  estimate ~ comparison,
+  data = est,
+  type = "pointrange",
+  ymin = est$ci_lower,
+  ymax = est$ci_upper,
+  xlab = "Comparison",
+  ylab = "Difference in weight change (kg)",
+  main = "Multiple interventions (g-comp)"
+)
+abline(h = 0, lty = 2, col = "grey40")
+```
+
+### IPW
+
+```{r}
+res_multi_ipw <- contrast(
+  fit_ipw_cont,
+  interventions = list(
+    reduce10 = shift(-10),
+    halved   = scale_by(0.5),
+    observed = NULL
+  ),
+  reference = "observed",
+  type = "difference"
+)
+res_multi_ipw
+```
+
+## Intervention support by estimator
+
+The table below summarises which combinations are supported and which are
+rejected with an informative error. The restrictions reflect genuine
+architectural limits of the density-ratio framework, not implementation
+gaps.
+
+| Intervention | G-comp (point) | G-comp (longitudinal) | IPW | Matching |
+|---|---|---|---|---|
+| `static()` | All treatment types | All treatment types | Binary, categorical | Binary only |
+| `shift()` | Continuous | Continuous | Continuous, count (integer delta) | --- |
+| `scale_by()` | Continuous | Continuous | Continuous, count (integer-preserving) | --- |
+| `threshold()` | Continuous | Continuous | --- (mixed pushforward) | --- |
+| `dynamic()` | All treatment types | All treatment types | Binary, categorical | --- |
+| `ipsi()` | --- | --- | Binary only | --- |
+| `NULL` | All | All | All | --- |
+
+**Why some combinations are rejected:**
+
+- **`threshold()` under IPW:** The pushforward of a continuous density under
+  a boundary clamp is a mixed measure --- point masses at `lo`/`hi` plus
+  continuous density in the interior. The density ratio is not well-defined.
+- **`dynamic()` on continuous treatment under IPW:** A deterministic rule on
+  a continuous treatment is a Dirac per individual with no Lebesgue density.
+- **`static(v)` on continuous treatment under IPW:** Nobody is observed
+  exactly at `v`, so the HT indicator `I(A = v)` is zero almost surely.
+- **`ipsi()` under g-comp/matching:** IPSI shifts the propensity, not the
+  treatment value. There is no counterfactual treatment column to predict at.
+- **`static()` / `dynamic()` / `threshold()` / `ipsi()` on count treatments:**
+  Count treatments (enabled via `propensity_family = "poisson"` or `"negbin"`)
+  use `dpois()` / `dnbinom()` for the density ratio. `static()` is degenerate
+  (HT indicator is zero almost surely on a count distribution). `dynamic()` has
+  the same Dirac problem as on continuous. `threshold()` has the same mixed-
+  measure problem. `ipsi()` is Bernoulli-specific. Only `shift()` (integer
+  delta) and `scale_by()` (where `A / factor` is integer for every observation)
+  are well-defined.
+
+## References
+
+Hernán MA, Robins JM (2025). *Causal Inference: What If*. Chapman & Hall/CRC.
+
+Kennedy EH (2019). Nonparametric causal effects based on incremental
+propensity score interventions. *Journal of the American Statistical
+Association* 114:645--656.
+
+Díaz I, Williams N, Hoffman KL, Schenck EJ (2023). Non-parametric causal
+effects based on longitudinal modified treatment policies. *Journal of the
+American Statistical Association* 118:846--857.
