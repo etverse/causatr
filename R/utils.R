@@ -361,84 +361,57 @@ is_binary_family <- function(family) {
 
 #' Build a propensity score formula from confounders and treatment
 #'
+#' Strips any terms that involve the treatment variable before building
+#' the two-sided formula `A ~ confounders`. When `confounders` includes
+#' effect-modification terms like `A:sex`, those are excluded from the
+#' propensity RHS (the treatment cannot appear on both sides). The
+#' pure confounder terms (`L`, `sex`, `I(age^2)`, `L1:L2`) pass through.
+#'
 #' @param confounders One-sided formula of confounders.
-#' @param treatment Character treatment column name.
+#' @param treatment Character vector of treatment column name(s).
 #' @return A two-sided formula: `treatment ~ confounder_terms`.
 #' @noRd
 build_ps_formula <- function(confounders, treatment) {
-  # Turn `~ L1 + L2 + I(age^2)` (confounders) and `"A"` (treatment)
-  # into `A ~ L1 + L2 + I(age^2)`. `term.labels` preserves user
-  # transformations and interactions, which `reformulate()` then
-  # reassembles verbatim into a two-sided formula.
-  confounder_terms <- attr(stats::terms(confounders), "term.labels")
-  stats::reformulate(confounder_terms, response = treatment)
+  em_info <- parse_effect_mod(confounders, treatment)
+  # Use only the non-EM terms for the propensity model RHS. Modifier
+  # main effects that appear as standalone terms (e.g. `sex` in
+  # `~ L + sex + A:sex`) are already in `confounder_terms` because
+  # `parse_effect_mod` only classifies the interaction itself as EM.
+  ps_terms <- em_info$confounder_terms
+  if (length(ps_terms) == 0L) {
+    # Edge case: confounders formula had only EM terms (e.g. `~ A:sex`).
+    # `reformulate("1", ...)` gives intercept-only, which is valid.
+    ps_terms <- "1"
+  }
+  stats::reformulate(ps_terms, response = treatment)
 }
 
-#' Abort if `confounders` contains a term involving the treatment
+#' Parse and validate confounders for treatment-touching terms
 #'
-#' IPW and matching fitters wrap a hardcoded saturated MSM (`Y ~ A`) around a
-#' `confounders`-driven propensity/match model. Any interaction term the user
-#' writes as `A:modifier` (or `A * modifier`) cannot land anywhere useful:
-#' it pollutes the PS formula with the treatment on both sides, and it is
-#' silently dropped from the MSM, which `contrast()` averages over. We
-#' abort early with a pointer to `estimator = "gcomp"` so users do not
-#' silently get a homogeneous-effect estimate when they asked for a
-#' heterogeneous one.
-#'
-#' Bare treatment terms in `confounders` (e.g. `~ L + A`) are also rejected
-#' because `A` has no place in a propensity model of `A`.
+#' Delegates to `parse_effect_mod()` to detect effect-modification terms,
+#' then calls `check_em_compat()` to reject bare treatment terms (always
+#' invalid). Returns the parsed `causatr_em_info` so callers can decide
+#' whether to support or reject the EM terms for their method.
 #'
 #' @param confounders One-sided formula passed by the user.
 #' @param treatment Character vector of treatment column name(s).
-#' @param estimator Character. `"ipw"` or `"matching"`; used in the error text.
-#' @return `invisible(NULL)` on success; aborts otherwise.
+#' @param estimator Character. `"ipw"` or `"matching"`; used by downstream
+#'   callers for method-specific validation.
+#' @param data Optional data.frame/data.table for method-specific checks.
+#' @return A `causatr_em_info` object (invisibly). Aborts if bare treatment
+#'   terms are found.
 #' @noRd
-check_confounders_no_treatment <- function(confounders, treatment, estimator) {
-  term_labels <- attr(stats::terms(confounders), "term.labels")
-  if (length(term_labels) == 0L) {
-    return(invisible(NULL))
-  }
-
-  # For each term, extract the variables it references via `all.vars()` on
-  # the parsed expression. This catches `A:sex`, `sex:A`, `A*sex` (which
-  # `terms()` has already expanded to main effects + interaction), and bare
-  # `A`. It does not catch `I(A + 1)` on purpose: `I()` wraps are opaque to
-  # `terms()` and users reaching for them are doing something advanced.
-  offenders <- vapply(
-    term_labels,
-    function(tl) {
-      vars <- all.vars(parse(text = tl)[[1L]])
-      any(vars %in% treatment)
-    },
-    logical(1L)
-  )
-
-  if (any(offenders)) {
-    bad <- term_labels[offenders]
-    rlang::abort(
-      c(
-        paste0(
-          "`confounders` contains term(s) involving the treatment, which ",
-          "are not supported for `estimator = \"",
-          estimator,
-          "\"`."
-        ),
-        x = paste0("Offending term(s): ", paste(bad, collapse = ", "), "."),
-        i = paste0(
-          "IPW and matching wrap a saturated MSM `Y ~ A` around the ",
-          "propensity/match model, so treatment-by-modifier interactions ",
-          "cannot be estimated here."
-        ),
-        i = paste0(
-          "Use `estimator = \"gcomp\"` for heterogeneous treatment effects, ",
-          "or `by = \"modifier\"` in `contrast()` for stratum-specific ",
-          "summaries of a homogeneous effect."
-        )
-      ),
-      .call = FALSE
-    )
-  }
-  invisible(NULL)
+check_confounders_treatment <- function(
+  confounders,
+  treatment,
+  estimator = NULL,
+  data = NULL
+) {
+  em_info <- parse_effect_mod(confounders, treatment)
+  # Bare treatment in confounders (e.g. `~ L + A`) is always invalid:
+  # it puts A on both sides of the propensity model.
+  check_em_compat(em_info, treatment, estimator, data)
+  em_info
 }
 
 #' Get the logical vector of fitting rows

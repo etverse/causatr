@@ -6,15 +6,3 @@
       Error in `fit_matching()`:
       ! Matching supports only binary treatments, but `A` has 3 levels. Use `estimator = "gcomp"` or `estimator = "ipw"` for categorical treatments.
 
-# matching rejects A:modifier interaction terms in confounders
-
-    Code
-      causat(d, outcome = "Y", treatment = "A", confounders = ~ L + sex + A:sex,
-      estimator = "matching")
-    Condition
-      Error in `check_confounders_no_treatment()`:
-      ! `confounders` contains term(s) involving the treatment, which are not supported for `estimator = "matching"`.
-      x Offending term(s): sex:A.
-      i IPW and matching wrap a saturated MSM `Y ~ A` around the propensity/match model, so treatment-by-modifier interactions cannot be estimated here.
-      i Use `estimator = "gcomp"` for heterogeneous treatment effects, or `by = "modifier"` in `contrast()` for stratum-specific summaries of a homogeneous effect.
-

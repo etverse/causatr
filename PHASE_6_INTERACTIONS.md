@@ -31,11 +31,31 @@ The root cause in each case is different, which is part of why this needs a dedi
 3. **Leave (B) and (C) alone.** Interactions *among confounders* (e.g. `L1:L2`) and *within the current period* (e.g. `A:L` where L is TV) already work across methods. This phase only touches the `A × baseline` (and its time-varying analogs) case.
 4. **No breaking changes to existing tests.** Every truth-test currently in the matrix must still pass after the refactor. Correct behavior under additive models collapses to the current behavior by construction.
 
-## Plan
+## Design correction: IPW MSM is `Y ~ 1`, not `Y ~ A`
 
-### 1. Introduce a shared helper for parsing effect-modification terms
+The original draft described the IPW MSM as `Y ~ A`. In practice, the self-contained
+IPW engine refits an **intercept-only** `Y ~ 1` per intervention (Hájek mean),
+because the density-ratio weights collapse every nonzero row onto the same
+counterfactual treatment value. A saturated `Y ~ A` would be rank-deficient under
+HT weights on a binary treatment.
 
-In `R/checks.R` (or a new `R/effect_modification.R`), add:
+This means the EM expansion for IPW is:
+
+- **Without EM:** `Y ~ 1` per intervention (unchanged).
+- **With EM:** `Y ~ 1 + modifier_main_effects` per intervention (e.g. `Y ~ 1 + sex`).
+  The modifier main effect interacts with the intercept, so `predict()` on the
+  target population returns stratum-specific counterfactual means. No treatment
+  term goes into the MSM — the weights absorb it.
+
+For matching, the MSM is already `Y ~ A`, so the expansion is `Y ~ A + sex + A:sex`.
+
+## Plan — chunk sequence
+
+### Chunk 6a — `parse_effect_mod()` helper + gate refactoring
+
+**Scope:** parser infrastructure only; no estimation changes.
+
+In a new `R/effect_modification.R`, add:
 
 ```r
 parse_effect_mod <- function(confounders, treatment) {
@@ -45,57 +65,145 @@ parse_effect_mod <- function(confounders, treatment) {
   #   $treatment_var: the matching treatment variable
   #   $modifier_vars: the other variables in the interaction
   # Terms without any treatment variable are left alone.
+  # Returns a list of class "causatr_em_info":
+  #   $em_terms — list of parsed EM terms (each with $term, $treatment_var, $modifier_vars)
+  #   $confounder_terms — character vector of non-EM term labels
+  #   $modifier_vars — unique modifier variable names across all EM terms
+  #   $has_em — logical scalar
 }
 ```
 
-This is the canonical detector every method will consult. Anchoring it here (rather than ad-hoc regex in each fitter) keeps the convention consistent and makes future extensions (e.g. three-way interactions) mechanical.
+This is the canonical detector every method will consult. Anchoring it here (rather
+than ad-hoc regex in each fitter) keeps the convention consistent and makes future
+extensions (e.g. three-way interactions) mechanical.
 
-### 2. Fix point IPW and matching
+Refactor `check_confounders_no_treatment()` in `R/utils.R`: instead of aborting
+unconditionally for IPW/matching, call `parse_effect_mod()` and only abort for
+*genuinely unsupported* EM patterns (EM + multivariate treatment under IPW,
+EM + non-binary treatment under matching, EM + non-static intervention under IPW).
+The function becomes a targeted guard rather than a blanket ban.
 
-The MSM formula in `fit_ipw()` and `fit_matching()` currently ignores everything except the treatment. Change both so:
+**Tests:**
 
-- If `parse_effect_mod(confounders, treatment)` returns any EM terms, build the MSM formula as `reformulate(c(treatment, EM terms, modifier main effects), response = outcome)` — e.g. `Y ~ A + sex + A:sex`.
-- Otherwise, keep the saturated `Y ~ A` (no regression in shape; this is what every existing test expects).
+- Unit tests for `parse_effect_mod()` on various formula shapes: `A:sex`, `sex:A`,
+  `A:I(age>65)`, `A:sex + A:race`, `L1:L2` (no treatment), multivariate `c("A1","A2")`.
+- The existing hard-abort tests in `test-ipw.R` and `test-matching.R` must be updated
+  to reflect the new (narrower) rejection conditions.
+- Regression: all existing tests must still pass — no estimation paths change.
 
-The weighted outcome fit (`WeightIt::glm_weightit()` for IPW, plain weighted `stats::glm()` for matching) already supports arbitrary MSM formulas; the only change is the formula construction itself.
+**Files touched:** `R/effect_modification.R` (new), `R/utils.R`, `tests/testthat/test-effect-modification.R` (new).
 
-Tests to add:
+---
 
-- IPW × binary × binary-modifier × gcomp-matched truth test (shares DGP with the existing point gcomp × by test).
-- Matching × binary × binary-modifier × gcomp-matched truth test.
-- IPW × saturated MSM sanity check — a DGP without EM terms must still give the exact result the current tests pin.
+### Chunk 6b — IPW MSM expansion for effect modification
 
-### 3. Fix ICE longitudinal
+**Scope:** IPW estimation path only.
 
-Extend `ice_build_formula()` in `R/ice.R` so that when a baseline term of the form `treatment:modifier` appears, it auto-expands to include the same interaction with every currently-available lag:
+In `compute_ipw_contrast_point()`, when `parse_effect_mod()` detects EM terms,
+expand the per-intervention MSM from `Y ~ 1` to `Y ~ 1 + modifier_main_effects`
+(e.g. `Y ~ 1 + sex`). Predict on the full target population (modifier-aware), then
+average per stratum under `by` or overall.
+
+Wire `parse_effect_mod()` into `fit_ipw()` so the detected modifiers are stored in
+`fit$details$em_info` for downstream use by `compute_ipw_contrast_point()` and
+`variance_if_ipw()`.
+
+**Variance:** `variance_if_ipw()` needs the expanded MSM's score/bread. Since it
+already works with arbitrary `glm` MSMs via `sandwich::estfun` / `sandwich::bread`,
+this should flow through — verify.
+
+**Tests:**
+
+- Truth-based: binary treatment × binary modifier × IPW sandwich — DGP with known
+  stratum-specific ATE, cross-checked against gcomp.
+- Truth-based: IPW bootstrap on same DGP.
+- Regression guard: IPW without EM terms produces identical results.
+
+**Files touched:** `R/ipw.R`, `R/variance_if.R` (if needed), `tests/testthat/test-effect-modification.R`.
+
+---
+
+### Chunk 6c — Matching MSM expansion for effect modification
+
+**Scope:** matching estimation path only.
+
+In `fit_matching()`, when `parse_effect_mod()` detects EM terms, expand the outcome
+MSM from `Y ~ A` to `Y ~ A + modifier + A:modifier`.
+
+Store the EM metadata in `fit$details$em_info`.
+
+**Variance:** matching already uses `cluster = subclass` with `prepare_model_if()` on
+the weighted GLM — the expanded formula should flow through.
+
+**Tests:**
+
+- Truth-based: binary treatment × binary modifier × matching sandwich — same DGP as 6b.
+- Truth-based: matching bootstrap on same DGP.
+- Regression guard: matching without EM terms gives identical results.
+
+**Files touched:** `R/matching.R`, `tests/testthat/test-effect-modification.R`.
+
+---
+
+### Chunk 6d — ICE lag auto-expansion for `A:modifier` terms
+
+**Scope:** ICE formula builder only.
+
+Extend `ice_build_formula()` in `R/ice.R` so that when a baseline term of the form
+`treatment:modifier` appears, it auto-expands to include the same interaction with
+every currently-available lag:
 
 ```r
 # At time_idx = 2, max_lag = 2, treatment = "A", term = "A:sex":
 #   emit "A:sex", "lag1_A:sex", "lag2_A:sex"
 ```
 
-The expansion is per-period (later periods have more lags) and defaults to "this interaction applies uniformly across time". This handles the **time-invariant effect modifier** semantics. The rarer **time-varying effect modifier** semantics (different functional form per period) remains out of scope until a per-period formula DSL lands — document the limitation and point users at wide-format + point gcomp in the meantime.
+The expansion is per-period (later periods have more lags) and defaults to "this
+interaction applies uniformly across time". This handles the **time-invariant effect
+modifier** semantics. The rarer **time-varying effect modifier** semantics (different
+functional form per period) remains out of scope until a per-period formula DSL
+lands — document the limitation and point users at wide-format + point gcomp in the
+meantime.
 
-Tests to add:
+**Tests:**
 
-- ICE × 2-period DGP × `(1 + γ·sex)·A_k` × `by(sex)` — must recover the stratum-specific contrast to ~5% of MC truth (vs the current ~30% compression).
-- ICE × DGP without EM — additive-model case must give identical numbers before and after the refactor (regression guard).
-- ICE × `A:sex + A:age` — multiple EM terms stacked; auto-expansion must handle both.
+- Truth-based: ICE × 2-period DGP × `(1 + γ·sex)·A_k` × `by(sex)` — must recover
+  stratum-specific contrast to ~5% of MC truth (vs current ~30% compression).
+- Truth-based: ICE × 3-period DGP for deeper lag coverage.
+- Regression guard: ICE without EM terms gives identical numbers pre/post refactor.
+- ICE bootstrap on the EM DGP.
+- ICE × `A:sex + A:age` — multiple EM terms; auto-expansion handles both.
 
-### 4. Unify `by()` stratification across methods
+**Files touched:** `R/ice.R`, `tests/testthat/test-effect-modification.R`.
 
-Once (2) and (3) are in place, the `by` branch in `compute_contrast()` just works — it already averages predictions per stratum, and after the MSM fix the predictions actually depend on the stratum. No changes to `by` itself.
+---
 
-Add a cross-method truth test:
+### Chunk 6e — Cross-method triangulation test + docs + matrix update
 
-- gcomp, IPW, matching, ICE all run on the same EM DGP with the same formula; their stratum-specific contrasts agree to within the usual cross-method tolerance.
+**Scope:** integration testing and documentation.
 
-### 5. Documentation
+Once chunks 6b–6d are done, the `by` branch in `compute_contrast()` just works — it
+already averages predictions per stratum, and the MSM fix ensures predictions depend
+on the stratum. No changes to `by` itself.
 
-- New vignette section in `vignettes/gcomp.qmd`, `vignettes/ipw.qmd`, `vignettes/matching.qmd`, and `vignettes/longitudinal.qmd` showing how to specify effect modification for each method.
+**Tests:**
+
+- Cross-method truth test: gcomp, IPW, matching, ICE all run on the same EM DGP with
+  the same formula; stratum-specific contrasts agree within cross-method tolerance.
+
+**Documentation:**
+
+- Update `FEATURE_COVERAGE_MATRIX.md`: upgrade the three EM cells + add cross-method row.
+- Update `NEWS.md` to reflect the fix.
+- Update `CLAUDE.md` architecture notes (Phase 6 status, EM design notes).
+- Mark all items in this Phase 6 doc as done.
+- New vignette section in `vignettes/gcomp.qmd`, `vignettes/ipw.qmd`,
+  `vignettes/matching.qmd`, and `vignettes/longitudinal.qmd` showing how to specify
+  effect modification for each method.
 - Expand `vignettes/triangulation.qmd` with an EM example.
-- Rewrite the "Known limitations" note in `NEWS.md` to reflect the fix.
-- Update `FEATURE_COVERAGE_MATRIX.md`: replace the three ❌/⚠️ EM rows with ✅ truth and add a unified cross-method EM row.
+
+**Files touched:** `tests/testthat/test-effect-modification.R`, `FEATURE_COVERAGE_MATRIX.md`,
+`NEWS.md`, `CLAUDE.md`, `PHASE_6_INTERACTIONS.md`, vignettes.
 
 ## Out of scope for Phase 6
 
@@ -125,11 +233,29 @@ Add a cross-method truth test:
 
 ## Items
 
-- [ ] `R/effect_modification.R` — shared `parse_effect_mod()` helper
-- [ ] `R/ipw.R` — MSM formula expansion
-- [ ] `R/matching.R` — MSM formula expansion
+### Chunk 6a — parser + gate refactoring
+- [x] `R/effect_modification.R` — `parse_effect_mod()` + `build_ipw_msm_formula()` + `build_matching_msm_formula()` + `check_em_compat()` + `em_confounder_terms()`
+- [x] `R/utils.R` — replaced `check_confounders_no_treatment()` with `check_confounders_treatment()` + `build_ps_formula()` now strips EM terms
+- [x] `tests/testthat/test-effect-modification.R` — 65 parser unit tests + updated rejection tests
+- [x] All existing tests pass (no estimation changes)
+
+### Chunk 6b — IPW MSM expansion
+- [ ] `R/ipw.R` — `compute_ipw_contrast_point()` MSM expansion + `fit$details$em_info`
+- [ ] `R/variance_if.R` — verify expanded MSM flows through `variance_if_ipw()`
+- [ ] `tests/testthat/test-effect-modification.R` — IPW truth + bootstrap + regression guard
+
+### Chunk 6c — Matching MSM expansion
+- [ ] `R/matching.R` — `fit_matching()` MSM expansion + `fit$details$em_info`
+- [ ] `tests/testthat/test-effect-modification.R` — matching truth + bootstrap + regression guard
+
+### Chunk 6d — ICE lag auto-expansion
 - [ ] `R/ice.R` — `ice_build_formula()` auto-expansion of `A:modifier` across lags
-- [ ] `tests/testthat/test-effect-modification.R` — new file with the rows above
-- [ ] `FEATURE_COVERAGE_MATRIX.md` — upgrade the three EM cells + add the cross-method row
-- [ ] Vignette updates per section 5 above
-- [ ] Regression guards: every DGP in `FEATURE_COVERAGE_MATRIX.md` that does NOT use EM must give exactly the same numbers pre- and post-refactor (a non-EM fit must produce the saturated Y~A as before)
+- [ ] `tests/testthat/test-effect-modification.R` — ICE truth (2-period, 3-period) + bootstrap + regression guard
+
+### Chunk 6e — Cross-method triangulation + docs + matrix
+- [ ] `tests/testthat/test-effect-modification.R` — cross-method triangulation test
+- [ ] `FEATURE_COVERAGE_MATRIX.md` — upgrade EM cells + add cross-method row
+- [ ] `NEWS.md` — document the EM unification
+- [ ] `CLAUDE.md` — update Phase 6 status + EM architecture notes
+- [ ] `PHASE_6_INTERACTIONS.md` — mark all items done
+- [ ] Vignette updates (gcomp, ipw, matching, longitudinal, triangulation)

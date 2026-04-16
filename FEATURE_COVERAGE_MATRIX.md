@@ -89,7 +89,7 @@ Rejections (all ✅ tested):
 - non-integer `shift()` on count → test-ipw-count.R
 - non-integer-preserving `scale_by()` on count → test-ipw-count.R
 - shift/scale_by/dynamic/ipsi + ATT/ATC → test-estimand-intervention-compat.R
-- `A:modifier` in confounders → test-ipw.R
+- `A:modifier` in confounders → test-ipw.R, test-effect-modification.R
 - multivariate → test-s3-methods.R, test-multivariate.R
 - longitudinal → test-ipw.R
 
@@ -113,7 +113,7 @@ Rejections (all ✅ tested):
 - categorical treatment → test-matching.R
 - continuous treatment → test-matching.R
 - non-static interventions → test-contrast.R
-- `A:modifier` in confounders → test-matching.R
+- `A:modifier` in confounders → test-matching.R, test-effect-modification.R
 - multivariate → test-s3-methods.R
 - longitudinal → test-matching.R
 

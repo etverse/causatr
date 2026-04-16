@@ -79,6 +79,10 @@ R/
 ├── tidy.R                  # tidy.causatr_result + glance.causatr_result
 ├── knit_print.R            # knit_print.causatr_result (tinytable HTML for Quarto/knitr)
 │
+├── # ── Effect modification ──────────────────────────
+├── effect_modification.R  # parse_effect_mod(), build_ipw_msm_formula(),
+│                           # build_matching_msm_formula(), check_em_compat()
+│
 └── # ── Helpers ──────────────────────────────────────
     ├── utils.R             # S3 class constructors + misc internals
     ├── checks.R            # input validation helpers

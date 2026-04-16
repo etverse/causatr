@@ -134,33 +134,33 @@ test_that("IPW rejects static(1) on a continuous treatment", {
 })
 
 test_that("IPW rejects A:modifier interaction terms in confounders", {
-  # IPW wraps a saturated MSM `Y ~ A`, so `A:sex`
-  # has nowhere to land and was previously silently dropped. We abort
-  # at fit time with a pointer to `estimator = "gcomp"`.
+  # EM terms are detected but not yet supported under IPW. The error
+  # class will change from `causatr_em_unsupported` to supported
+  # behavior once chunk 6b lands.
   d <- simulate_binary_continuous(n = 200, seed = 1)
   d$sex <- rbinom(nrow(d), 1, 0.5)
-  expect_snapshot(
-    error = TRUE,
+  expect_error(
     causat(
       d,
       outcome = "Y",
       treatment = "A",
       confounders = ~ L + sex + A:sex,
       estimator = "ipw"
-    )
+    ),
+    class = "causatr_em_unsupported"
   )
 })
 
 test_that("IPW rejects bare treatment in confounders", {
   d <- simulate_binary_continuous(n = 200, seed = 2)
-  expect_snapshot(
-    error = TRUE,
+  expect_error(
     causat(
       d,
       outcome = "Y",
       treatment = "A",
       confounders = ~ L + A,
       estimator = "ipw"
-    )
+    ),
+    class = "causatr_bare_treatment_in_confounders"
   )
 })

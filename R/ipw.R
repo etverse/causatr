@@ -106,14 +106,43 @@ fit_ipw <- function(
     )
   }
 
-  # Reject A-touching terms in `confounders` before building the PS
-  # formula. The MSM refits inside `contrast()` use either `Y ~ A`
-  # (saturated, static binary) or `Y ~ 1` (non-static and non-binary
-  # static), neither of which has room for an `A:modifier` slot.
-  # Silently dropping the term would return a pooled ATE under an
-  # effect-modification request. See `check_confounders_no_treatment()`
-  # in `R/utils.R`.
-  check_confounders_no_treatment(confounders, treatment, estimator = "ipw")
+  # Parse effect-modification terms and reject bare treatment in
+  # confounders (`~ L + A`). True EM terms (`A:sex`) are detected
+  # and stored for downstream MSM expansion. The propensity formula
+  # strips EM terms automatically via `build_ps_formula()`.
+  em_info <- check_confounders_treatment(
+    confounders,
+    treatment,
+    estimator = "ipw"
+  )
+
+  # IPW effect modification is wired in `compute_ipw_contrast_point()`:
+  # the per-intervention MSM expands from `Y ~ 1` to `Y ~ 1 + modifier`
+  # when EM terms are present. For now, reject EM terms until the MSM
+  # expansion is implemented.
+  if (em_info$has_em) {
+    em_labels <- vapply(em_info$em_terms, function(x) x$term, character(1L))
+    rlang::abort(
+      c(
+        paste0(
+          "Effect modification via `A:modifier` is not yet supported ",
+          "for `estimator = \"ipw\"`."
+        ),
+        x = paste0(
+          "Offending term(s): ",
+          paste(em_labels, collapse = ", "),
+          "."
+        ),
+        i = paste0(
+          "Use `estimator = \"gcomp\"` for heterogeneous treatment effects, ",
+          "or `by = \"modifier\"` in `contrast()` for stratum-specific ",
+          "summaries of a homogeneous effect."
+        )
+      ),
+      class = "causatr_em_unsupported",
+      .call = FALSE
+    )
+  }
 
   # Fit rows: exclude missing outcomes for the MSM. `fit_treatment_model()`
   # applies its own propensity-side row mask (missing treatment /

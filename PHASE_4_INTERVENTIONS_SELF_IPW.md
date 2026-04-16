@@ -1,6 +1,6 @@
 # Phase 4 — Extended Interventions + Self-Contained IPW Engine
 
-> **Status: PENDING**
+> **Status: DONE**
 > Book chapters: 12 (density ratio weights), 19 (dynamic strategies), Díaz et al. 2023 (MTPs), Kennedy 2019 (IPSI)
 
 ## Scope

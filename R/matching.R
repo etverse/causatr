@@ -75,17 +75,42 @@ fit_matching <- function(
     )
   }
 
-  # Reject A-touching terms in `confounders` before building the PS
-  # formula. Matching's saturated MSM `Y ~ A` has nowhere to put an
-  # `A:modifier` interaction, so any such term would be silently
-  # dropped from the effect estimate. Abort early rather than
-  # returning a wrong answer. See `check_confounders_no_treatment()`
-  # in `R/utils.R`.
-  check_confounders_no_treatment(
+  # Parse effect-modification terms and reject bare treatment in
+  # confounders (`~ L + A`). True EM terms (`A:sex`) are detected
+  # and stored for downstream MSM expansion. The propensity formula
+  # strips EM terms automatically via `build_ps_formula()`.
+  em_info <- check_confounders_treatment(
     confounders,
     treatment,
     estimator = "matching"
   )
+
+  # Matching effect modification is wired via MSM expansion from
+  # `Y ~ A` to `Y ~ A + modifier + A:modifier`. For now, reject EM
+  # terms until the MSM expansion is implemented.
+  if (em_info$has_em) {
+    em_labels <- vapply(em_info$em_terms, function(x) x$term, character(1L))
+    rlang::abort(
+      c(
+        paste0(
+          "Effect modification via `A:modifier` is not yet supported ",
+          "for `estimator = \"matching\"`."
+        ),
+        x = paste0(
+          "Offending term(s): ",
+          paste(em_labels, collapse = ", "),
+          "."
+        ),
+        i = paste0(
+          "Use `estimator = \"gcomp\"` for heterogeneous treatment effects, ",
+          "or `by = \"modifier\"` in `contrast()` for stratum-specific ",
+          "summaries of a homogeneous effect."
+        )
+      ),
+      class = "causatr_em_unsupported",
+      .call = FALSE
+    )
+  }
 
   # Build the treatment model formula: A ~ confounders.
   # MatchIt uses this to estimate propensity scores for matching.
