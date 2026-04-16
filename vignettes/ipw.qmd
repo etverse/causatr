@@ -541,7 +541,7 @@ abline(h = 0, lty = 2, col = "grey40")
 ## Effect modification with `by`
 
 ::: {.callout-important}
-## IPW effect modification is a Phase 8 feature
+## IPW effect modification is a Phase 6 feature
 
 The `by` argument stratifies the causal effect estimates that fall out of
 the fitted marginal structural model (MSM). causatr currently uses an
@@ -640,7 +640,7 @@ diag$weights
 | Any | --- | Threshold | --- | --- | --- | --- | ⛔ (use gcomp) |
 | Continuous | --- | Static | --- | --- | --- | --- | ⛔ (use shift/scale) |
 | Continuous | --- | Dynamic | --- | --- | --- | --- | ⛔ (use shift/scale) |
-| Any | --- | Any (with `A:modifier`) | --- | --- | --- | --- | ⛔ (Phase 8) |
+| Any | --- | Any (with `A:modifier`) | --- | --- | --- | --- | ⛔ (Phase 6) |
 | Multivariate | --- | --- | --- | --- | --- | --- | ⛔ (Phase 7) |
 | Longitudinal | --- | --- | --- | --- | --- | --- | ⛔ (use ICE) |
 

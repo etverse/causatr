@@ -134,7 +134,7 @@ test_that("IPW rejects static(1) on a continuous treatment", {
 })
 
 test_that("IPW rejects A:modifier interaction terms in confounders", {
-  # Phase 8 limitation: IPW wraps a saturated MSM `Y ~ A`, so `A:sex`
+  # IPW wraps a saturated MSM `Y ~ A`, so `A:sex`
   # has nowhere to land and was previously silently dropped. We abort
   # at fit time with a pointer to `estimator = "gcomp"`.
   d <- simulate_binary_continuous(n = 200, seed = 1)

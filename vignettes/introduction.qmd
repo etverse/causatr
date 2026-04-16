@@ -127,7 +127,7 @@ is currently supported only for g-computation. IPW and matching wrap a
 saturated `Y ~ A` MSM around the propensity / matched design, and reject an
 `A:modifier` term up front — use `estimator = "gcomp"` for heterogeneous effects,
 or `by = "modifier"` below for stratum-specific summaries of a homogeneous
-effect. See `PHASE_8_INTERACTIONS.md` for the planned unified API.
+effect. See `PHASE_6_INTERACTIONS.md` for the planned unified API.
 
 ## Effect modification
 

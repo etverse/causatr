@@ -251,7 +251,7 @@ MAR (censoring depends on A and/or L), g-computation with a correctly
 specified outcome model is still consistent because the regression
 surface E[Y | A, L] is unchanged by the censoring mechanism (Hernán &
 Robins, Ch. 13). For IPW under MAR, IPCW weights are needed — supply
-them via \verb{weights =} (built-in IPCW is planned for Phase 11). The
+them via \verb{weights =}. The
 \verb{censoring =} parameter is a \strong{row filter}, not IPCW: no censoring
 model is fit internally.
 

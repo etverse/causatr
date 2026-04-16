@@ -1,4 +1,4 @@
-# Phase 11 — Built-in IPCW for MAR outcome censoring
+# Phase 14 — Built-in IPCW for MAR outcome censoring
 
 ## Motivation
 

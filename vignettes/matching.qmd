@@ -386,14 +386,14 @@ Any additional MatchIt knobs (`ratio`, `replace`, `caliper`, `distance`,
 ## Effect modification with `by`
 
 ::: {.callout-important}
-## Matching effect modification is a Phase 8 feature
+## Matching effect modification is a Phase 6 feature
 
 As with IPW, causatr currently wraps matching in a saturated outcome model
 (`Y ~ A` on the matched sample), so `by = "sex"` just averages a flat
 prediction surface over each subset and returns the pooled ATT/ATE twice.
 Genuine effect modification via matching would require the outcome model
-to carry an `A:sex` interaction term, which is scheduled for Phase 8
-(`PHASE_8_INTERACTIONS.md`).
+to carry an `A:sex` interaction term, which is scheduled for Phase 6
+(`PHASE_6_INTERACTIONS.md`).
 
 For heterogeneous treatment effects right now, use
 `estimator = "gcomp"` with an `A:modifier` term in `confounders` — see
@@ -466,7 +466,7 @@ diag$match_quality
 | Binary | Binary | Static | ATT | Ratio | Sandwich | none | ✅ |
 | Binary | Binary | Static | ATT | OR | Sandwich | none | ✅ |
 | Binary | Binary | Static | ATT | Ratio | Bootstrap | none | ✅ |
-| Any | Any | Any | Any (with `A:modifier`) | — | — | — | ⛔ Phase 8 |
+| Any | Any | Any | Any (with `A:modifier`) | — | — | — | ⛔ Phase 6 |
 | Categorical (k>2) / Continuous | — | — | — | — | — | — | ⛔ binary only |
 | Any | — | Dynamic / Shift / Scale / Threshold / IPSI | — | — | — | — | ⛔ Phase 4 |
 

@@ -1,4 +1,4 @@
-# Phase 6 — Causal Survival Analysis
+# Phase 7 — Causal Survival Analysis
 
 > **Status: SCAFFOLDED** (`causat_survival()` fits pooled logistic; `to_person_period()` done; survival curves in `contrast()` pending)
 > Book chapter: 17

@@ -150,7 +150,7 @@ test_that("matching aborts on continuous treatment", {
 })
 
 test_that("matching rejects A:modifier interaction terms in confounders", {
-  # Phase 8 limitation: matching wraps a saturated MSM `Y ~ A`, so
+  # Matching wraps a saturated MSM `Y ~ A`, so
   # `A:sex` has nowhere to land and was previously silently dropped.
   # We now abort at fit time with a pointer to `estimator = "gcomp"`.
   d <- simulate_binary_continuous(n = 200, seed = 1)

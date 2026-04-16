@@ -28,7 +28,7 @@ g(E[Y^{d}]) = β₀ + β₁ s(d)      # MSM, fit by weighted GLM
 Reasons:
 
 1. **Non-saturated MSMs are the whole point of MTPs.** A family of shifts `shift(δ)` for δ ∈ {-10, ..., 10} only becomes a dose-response curve when you fit `Y ~ ns(δ, 3)` across the pooled pseudo-populations. Collapsing to weighted means throws that away.
-2. **Effect modification (Phase 8).** The MSM is the natural slot to carry `Y ~ A + V + A:V`. Hard-coding weighted means would re-create the exact `check_confounders_no_treatment()` abort we're trying to remove in Phase 8.
+2. **Effect modification (Phase 6).** The MSM is the natural slot to carry `Y ~ A + V + A:V`. Hard-coding weighted means would re-create the exact `check_confounders_no_treatment()` abort we're trying to remove in Phase 6.
 3. **Architectural symmetry.** `compute_contrast()` already predicts-then-averages from a fitted model for every estimator (gcomp, IPW, matching) — keeping IPW on that pattern means one contrast machinery, not two.
 
 For static binary the MSM degenerates to the saturated `Y ~ A` we have today, so nothing breaks for current users.
@@ -89,7 +89,7 @@ For static binary this collapses to `1/p` (treated arm) and `1/(1-p)` (control a
 3. Pool weighted observations across interventions (or fit one MSM per intervention for the saturated case) and fit the MSM via `model_fn` on `(Y, design from the MSM formula, weights = w_i)`.
 4. Hand the fitted MSM to `compute_contrast()`'s standard predict-then-average machinery — same code path as gcomp.
 
-The MSM formula defaults to `Y ~ A` (saturated), with a Phase 8 hook for `Y ~ A + V + A:V` once `parse_effect_mod()` lands.
+The MSM formula defaults to `Y ~ A` (saturated), with a Phase 6 hook for `Y ~ A + V + A:V` once `parse_effect_mod()` lands.
 
 ### 4. Supported intervention × method combinations after Phase 4
 
@@ -284,7 +284,7 @@ All `skip_if_not_installed("lmtp")` — lmtp is also test-only.
 Four implementation notes that would otherwise get rediscovered mid-PR:
 
 - **Stabilization: start nonstabilized.** Weights are `f_d(A|L) / f(A|L)`, no marginal numerator. Hájek normalization (`sum(wY)/sum(w)`) already controls finite-sample variance for the saturated MSM cases. A stabilization option (`stabilize = TRUE`) is a follow-up, not Phase 4 scope.
-- **Weight diagnostics (minimal shim only in Phase 4).** `diagnose()` on a Phase 4 IPW fit ships a **minimal shim** that reads `fit$details$propensity_model` (instead of `fit$weights_obj`), computes default weights via `compute_density_ratio_weights(tm, data, static(1))` for binary fits or `compute_density_ratio_weights(tm, data, NULL)` for non-binary fits, and dispatches between treatment-type-specific panels via `detect_treatment_family()`. The shim covers the common binary static ATE case so existing `causat(estimator = "ipw") |> diagnose()` calls keep working. The **full intervention-aware / treatment-type-aware / estimand-aware / longitudinal-aware rewrite**, including a new `intervention =` argument mirroring `contrast()`, is scoped in [`PHASE_9_DIAGNOSE.md`](PHASE_9_DIAGNOSE.md) and deferred to a later phase. The deferral is intentional: a proper `diagnose()` rewrite touches every estimator and every treatment type and interacts with Phase 8 effect modification — too large to fit into the Phase 4 IPW engine push.
+- **Weight diagnostics (minimal shim only in Phase 4).** `diagnose()` on a Phase 4 IPW fit ships a **minimal shim** that reads `fit$details$propensity_model` (instead of `fit$weights_obj`), computes default weights via `compute_density_ratio_weights(tm, data, static(1))` for binary fits or `compute_density_ratio_weights(tm, data, NULL)` for non-binary fits, and dispatches between treatment-type-specific panels via `detect_treatment_family()`. The shim covers the common binary static ATE case so existing `causat(estimator = "ipw") |> diagnose()` calls keep working. The **full intervention-aware / treatment-type-aware / estimand-aware / longitudinal-aware rewrite**, including a new `intervention =` argument mirroring `contrast()`, is scoped in [`PHASE_11_DIAGNOSE.md`](PHASE_11_DIAGNOSE.md) and deferred to a later phase. The deferral is intentional: a proper `diagnose()` rewrite touches every estimator and every treatment type and interacts with effect modification (Phase 6) — too large to fit into the Phase 4 IPW engine push.
 - **Pushforward sign + Jacobian (critical).** For continuous MTPs, the weight is `f_d(A_obs | L) / f(A_obs | L)` where `f_d` is the **pushforward** of `f` under the intervention — *not* `f(d(A_obs) | L) / f(A_obs | L)`. For `shift(δ)` this means evaluating the fitted density at `A_obs − δ` (because `d⁻¹(y) = y − δ`), and for `scale_by(c)` it means evaluating at `A_obs / c` and multiplying by the Jacobian `|1/c|`. The naive "evaluate at the intervened value" formula gives `E[Y^{shift(−δ)}]` instead of `E[Y^{shift(δ)}]` — it's a sign trap that is easy to write and hard to notice without the truth-based Hájek test. The `compute_density_ratio_weights()` and `make_weight_fn()` bodies both carry a comment block pointing at this derivation.
 - **IPSI closed-form shortcut.** For `ipsi(δ)` the density ratio collapses to `w_i = (δ·A_i + (1 − A_i)) / (δ·p_i + (1 − p_i))`. Use this closed form inside the unified engine instead of evaluating the density at two transformed points — it is faster and avoids numerical near-1 ratios on both sides of the ratio. The `weight_fn` closure used by the variance engine evaluates the same closed form at candidate `α` values.
 
@@ -396,7 +396,7 @@ The reconnaissance pass (between commit 6e3d42b and Chunk 3c) identified these t
 
 **Diagnostics + docs**
 
-- [x] `diagnose()` weight summaries for the new engine — minimal shim (`diagnose_ipw_point()` in `R/diagnose.R`) covering the binary static ATE case (PS distribution, treated/control/overall HT weight summary with mean / sd / min / max / ESS) shipped in chunk 3c.iii (commit `9055f1f`). Non-binary treatment families abort with `causatr_diag_unsupported_family`. Extreme-weight count + percentile truncation are part of the full Phase 9 rewrite.
+- [x] `diagnose()` weight summaries for the new engine — minimal shim (`diagnose_ipw_point()` in `R/diagnose.R`) covering the binary static ATE case (PS distribution, treated/control/overall HT weight summary with mean / sd / min / max / ESS) shipped in chunk 3c.iii (commit `9055f1f`). Non-binary treatment families abort with `causatr_diag_unsupported_family`. Extreme-weight count + percentile truncation are part of the full Phase 11 rewrite.
 - [x] Update `FEATURE_COVERAGE_MATRIX.md` — collapse the two IPW columns into one, add rows for shift / scale_by / dynamic / ipsi under IPW, add estimand rejection rows, add `threshold()` rejection row under IPW, add T-oracle3/4 rows. (Initial pass in the foundation chunk; the final pass lands alongside the `fit_ipw()` rewrite.)
 - [x] Vignette: `interventions.qmd` — shift, scale, dynamic (binary), IPSI examples. `threshold()` is documented under the gcomp vignette only. Also rewrote `ipw.qmd` to remove all stale WeightIt references and reflect the Phase 4 architecture.
 

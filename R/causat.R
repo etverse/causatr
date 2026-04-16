@@ -195,7 +195,7 @@
 #' specified outcome model is still consistent because the regression
 #' surface E\[Y | A, L\] is unchanged by the censoring mechanism (Hernán &
 #' Robins, Ch. 13). For IPW under MAR, IPCW weights are needed — supply
-#' them via `weights =` (built-in IPCW is planned for Phase 11). The
+#' them via `weights =`. The
 #' `censoring =` parameter is a **row filter**, not IPCW: no censoring
 #' model is fit internally.
 #'

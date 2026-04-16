@@ -465,7 +465,7 @@ remaining variation coming only from indirect interactions like
 `qsmk:smokeintensity` combined with differing covariate distributions).
 Only point g-computation currently supports treatment × modifier
 interactions directly; for IPW and matching the unified interaction API
-is scheduled for Phase 8.
+is scheduled for Phase 6.
 :::
 
 ## Tidy and glance

@@ -1,4 +1,4 @@
-# Phase 8 — Unified Effect-Modification API
+# Phase 6 — Unified Effect-Modification API
 
 > **Status: PENDING (design doc)**
 > Book chapters: 13 (standardization + effect modification), 15 (matching-based effect modification), 21 (ICE effect modification across time)
@@ -9,7 +9,7 @@ Unify how causatr handles effect modification (EM) — i.e. interactions between
 
 This phase does **not** introduce new interventions, methods, or outcome families. It's entirely about getting the existing methods to correctly surface effect modification via a consistent user-facing API.
 
-## Today's state (pre-Phase 8)
+## Today's state (pre-Phase 6)
 
 The test matrix in `FEATURE_COVERAGE_MATRIX.md` currently marks `by(L)` as "✅ truth" only for point gcomp. The other cells either hard-abort (IPW / matching) or return partially correct numbers (ICE).
 
@@ -20,7 +20,7 @@ The test matrix in `FEATURE_COVERAGE_MATRIX.md` currently marks `by(L)` as "✅ 
 | **Point matching** | ⛔ Same MSM shape as IPW: `msm_formula <- stats::reformulate(treatment, response = outcome)`. `fit_matching()` also calls `check_confounders_no_treatment()` and aborts upfront. | Hard error with a Phase-8 pointer. |
 | **Longitudinal ICE** | ⚠️ `ice_build_formula()` injects `baseline_terms` verbatim at every period. `A:sex` resolves to `A_k:sex` — the **current-period** treatment × modifier. Lagged treatments (`lag1_A`, `lag2_A`, ...) do NOT get a corresponding `lag1_A:sex` term. | Partial. Current-period effect modification is captured; earlier-period contributions are collapsed. MC evidence: 2-period DGP with persistent `(1 + 1.5·sex)·A_k` effect returns contrasts 2.81 / 4.43 vs structural truth 2.10 / 5.10 — roughly half the intended heterogeneity. |
 
-Phase 8 will replace the hard-abort path with a proper MSM builder that honors `A:modifier` terms for IPW and matching, and will auto-expand `lag{k}_A:modifier` for ICE.
+Phase 6 will replace the hard-abort path with a proper MSM builder that honors `A:modifier` terms for IPW and matching, and will auto-expand `lag{k}_A:modifier` for ICE.
 
 The root cause in each case is different, which is part of why this needs a dedicated phase rather than four scattered fixes.
 
@@ -74,7 +74,7 @@ Extend `ice_build_formula()` in `R/ice.R` so that when a baseline term of the fo
 #   emit "A:sex", "lag1_A:sex", "lag2_A:sex"
 ```
 
-The expansion is per-period (later periods have more lags) and defaults to "this interaction applies uniformly across time". This handles the **time-invariant effect modifier** semantics discussed in Phase 8's companion conversation. The rarer **time-varying effect modifier** semantics (different functional form per period) remains out of scope until a per-period formula DSL lands — document the limitation and point users at wide-format + point gcomp in the meantime.
+The expansion is per-period (later periods have more lags) and defaults to "this interaction applies uniformly across time". This handles the **time-invariant effect modifier** semantics. The rarer **time-varying effect modifier** semantics (different functional form per period) remains out of scope until a per-period formula DSL lands — document the limitation and point users at wide-format + point gcomp in the meantime.
 
 Tests to add:
 
@@ -97,17 +97,17 @@ Add a cross-method truth test:
 - Rewrite the "Known limitations" note in `NEWS.md` to reflect the fix.
 - Update `FEATURE_COVERAGE_MATRIX.md`: replace the three ❌/⚠️ EM rows with ✅ truth and add a unified cross-method EM row.
 
-## Out of scope for Phase 8
+## Out of scope for Phase 6
 
 | Topic | Reason | Deferred to |
 |---|---|---|
-| Per-period formula DSL (different EM shape per time period) | Requires a new formula syntax and a model-list parameter | Future, possibly Phase 7 |
+| Per-period formula DSL (different EM shape per time period) | Requires a new formula syntax and a model-list parameter | Future |
 | Effect modification by a **continuous** modifier interpreted as a smooth function | Requires GAM interior-smooth terms or tensor product bases | Works via GAM already in point gcomp; no API change needed |
-| EM for multivariate treatment (joint A1:L, A2:L) | Needs the multivariate treatment expansion in Phase 4/7 | Phase 4/7 |
-| EM for self-contained IPW with non-static interventions | Requires density ratio weights from Phase 4 | Phase 4 |
-| EM for survival contrasts | Survival contrasts themselves are Phase 6 | Phase 6 |
+| EM for multivariate treatment (joint A1:L, A2:L) | Needs the multivariate treatment expansion in Phase 8 | Phase 8 |
+| EM for self-contained IPW with non-static interventions | Requires density ratio weights from Phase 4 (done) | — |
+| EM for survival contrasts | Survival contrasts themselves are Phase 7 | Phase 7 |
 
-## Test matrix rows added by Phase 8
+## Test matrix rows added by Phase 6
 
 | Method | Treatment | Modifier | Variance | Status (target) |
 |---|---|---|---|---|

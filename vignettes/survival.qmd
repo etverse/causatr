@@ -14,11 +14,11 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 ```
 
 This vignette covers causal survival analysis in causatr. The current
-implementation (Phase 6 scaffolding) exposes a fit-only path via
+implementation (Phase 7 scaffolding) exposes a fit-only path via
 `causat_survival()`; the survival-curve contrast step (needed to produce
 counterfactual survival curves, risk differences, and risk ratios under each
 intervention) is still in development and currently aborts with an
-informative error. Competing-risks analysis is also reserved for Phase 6.
+informative error. Competing-risks analysis is also reserved for Phase 7.
 
 The intended end-to-end workflow, once the contrast path lands, is a direct
 translation of Chapter 17 of Hernán & Robins (2025): a discrete-time hazard
@@ -73,7 +73,7 @@ Key arguments:
 - `competing`: reserved for competing-risks analysis. Supplying a non-`NULL`
   value currently aborts — the plain pooled-logistic model it would wrap
   is biased under competing events, so causatr refuses to fit it until the
-  proper sub-distribution / Aalen–Johansen path is implemented in Phase 6.
+  proper sub-distribution / Aalen–Johansen path is implemented in Phase 7.
 
 Under the hood, `causat_survival()` builds the risk set by dropping rows
 after the first event for each individual (`prev_event > 0`), merges with
@@ -96,11 +96,11 @@ compute, for each named intervention:
    the delta-method variance propagated from the hazard model's vcov.
 
 Today, attempting `contrast(fit_surv, ...)` returns an informative error
-pointing to this open scope. Track progress in `PHASE_6_SURVIVAL.md`.
+pointing to this open scope. Track progress in `PHASE_7_SURVIVAL.md`.
 
 ```{r}
 #| eval: false
-# Will abort until Phase 6 contrast support lands:
+# Will abort until Phase 7 contrast support lands:
 result <- contrast(
   fit_surv,
   interventions = list(quit = static(1), continue = static(0)),
@@ -119,16 +119,16 @@ summary(fit_surv$model)
 coef(fit_surv$model)
 ```
 
-For a quick sanity check before the Phase 6 contrast path is wired up, you
+For a quick sanity check before the Phase 7 contrast path is wired up, you
 can extract the predicted hazard under each intervention manually, then
 compute the cumulative survival in base R. This is exactly the loop that
 will eventually move into `contrast()`.
 
-## Tracking Phase 6
+## Tracking Phase 7
 
 The survival path is tracked in:
 
-- `PHASE_6_SURVIVAL.md` — design notes and the outstanding work list.
+- `PHASE_7_SURVIVAL.md` — design notes and the outstanding work list.
 - `FEATURE_COVERAGE_MATRIX.md` §"Method 5 — Survival" — current fit-only
   coverage and the contrast rows marked as ❌ / GAP.
 - `test-simulation.R` and `test-s3-methods.R` — fit-only smoke tests that

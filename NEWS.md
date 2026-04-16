@@ -311,7 +311,7 @@ Quarto / knitr documents.
     with a Phase 8 callout explaining that IPW and matching wrap a
     saturated `Y ~ A` MSM and so `by = "sex"` is a no-op until the
     unified effect-modification API lands
-    (`PHASE_8_INTERACTIONS.md`).
+    (`PHASE_6_INTERACTIONS.md`).
 
 - **Unified "Summary of covered combinations" tables.** gcomp, ipw,
   matching, and longitudinal now share one 8-column schema
@@ -494,7 +494,7 @@ so future drift between the matrix and the test files fails loudly.
 
 ### Doc drift — `A:modifier` behaviour (R1)
 
-`CLAUDE.md`, `NEWS.md` (this file's older entries), `PHASE_8_INTERACTIONS.md`,
+`CLAUDE.md`, `NEWS.md` (this file's older entries), `PHASE_6_INTERACTIONS.md`,
 and `CAUSATR_SCAFFOLD.md` all still described IPW and matching as
 "silently ignoring" `A:modifier` interaction terms in `confounders`.
 That code path was hardened months ago: `fit_ipw()` and `fit_matching()`
@@ -586,7 +586,7 @@ every combination supported by `FEATURE_COVERAGE_MATRIX.md`:
 - **`vignettes/variance-theory.qmd` Section 5.4** now derives the
   ICE cascade gradient with the explicit `w_{k-1}` factor and the
   pseudo-code shows the `prior.weights` lookup.
-- **`PHASE_8_INTERACTIONS.md` design doc.** Plans a unified
+- **`PHASE_6_INTERACTIONS.md` design doc.** Plans a unified
   effect-modification API across gcomp / IPW / matching / ICE. IPW
   and matching currently hardcode a saturated `Y ~ A` MSM and
   **hard-abort** on any `A:modifier` term in `confounders` via

@@ -1,7 +1,7 @@
-# Phase 9 — Full `diagnose()` rewrite for the Phase 4 architecture
+# Phase 11 — Full `diagnose()` rewrite
 
 > **Status: PENDING** (design doc)
-> Dependencies: Phase 4 (self-contained IPW engine), Phase 5 (ICE longitudinal), Phase 8 (effect modification)
+> Dependencies: Phase 4 (done), Phase 5 (done), Phase 6 (effect modification), Phase 8 (multivariate IPW), Phase 10 (longitudinal IPW)
 
 ## Why this deserves its own phase
 
@@ -11,7 +11,7 @@
 - Per-intervention diagnostics — the current implementation assumes a fit-time weight vector exists (true for Phase 3 IPW via WeightIt) and shows that one vector regardless of which intervention the user will eventually hand to `contrast()`. Under Phase 4's deferred-MSM architecture, weights are per-intervention, so the "which weights to show" question becomes real.
 - Treatment-type-aware diagnostics — the current implementation reads `fit$weights_obj$treat` and `attr(..., "treat.type")` from WeightIt to dispatch between binary / categorical / continuous summaries. Under Phase 4 this dispatch lives in `R/treatment_model.R:detect_treatment_family()` and has to be re-wired.
 - Estimand-aware diagnostics — balance diagnostics under ATT vs ATE are fundamentally different (standardized mean difference within the treated vs across the full pseudo-population). The current implementation partially handles this via `cobalt::bal.tab()`'s `estimand = ` argument on the `weightit` object, which we'll lose when WeightIt moves to Suggests.
-- Effect-modification-aware diagnostics (Phase 8 interaction) — when the outcome model carries `A:modifier` terms, balance should be reported within each modifier stratum, not just overall.
+- Effect-modification-aware diagnostics (Phase 6 interaction) — when the outcome model carries `A:modifier` terms, balance should be reported within each modifier stratum, not just overall.
 
 All of these are real user-facing needs. Lumping them into the Phase 4 IPW engine rewrite risks under-scoping the diagnostic story: we'd either ship a Phase 4 `diagnose()` that silently works differently than Phase 3 users expect, or bolt on a dozen conditional branches for each new feature as it lands. Cleaner to call out the full rewrite as its own phase and commit to a comprehensive redesign.
 
@@ -27,13 +27,13 @@ Phase 4 (Chunk 3c) delivers a **minimal shim** so `diagnose()` keeps working on 
 - For `estimator = "gcomp"` and `estimator = "matching"` fits: no changes (still uses `fit$model` / `fit$match_obj` / `fit$weights_obj` for matching).
 - Balance diagnostics still go through `cobalt::bal.tab()` but the weight vector passed in comes from the new pipeline, not from a `weightit` object.
 
-The shim is explicitly marked as incomplete in the `diagnose()` docstring with a pointer to Phase 9. Tests in `test-diagnose.R` are updated for the new slot layout but their coverage stays the same — binary static ATE on a cross-sectional fit, the bread-and-butter case.
+The shim is explicitly marked as incomplete in the `diagnose()` docstring. Tests in `test-diagnose.R` are updated for the new slot layout but their coverage stays the same — binary static ATE on a cross-sectional fit, the bread-and-butter case.
 
-## Phase 9 full rewrite scope
+## Phase 11 full rewrite scope
 
 ### 1. Intervention-aware diagnostics
 
-Currently `diagnose()` takes `(fit)`. Under Phase 9 it takes `(fit, interventions = NULL)`, mirroring `contrast()`'s signature:
+Currently `diagnose()` takes `(fit)`. Under Phase 11 it takes `(fit, interventions = NULL)`, mirroring `contrast()`'s signature:
 
 ```r
 diag <- diagnose(fit, interventions = list(a1 = static(1), a0 = static(0)))
@@ -49,7 +49,7 @@ For longitudinal (ICE) fits, per-time-point diagnostics:
 - Positivity check per time step (per-period weight distribution).
 - Covariate balance at each time step after weighting.
 - Censoring diagnostics (fraction lost by each step).
-- Visit-process diagnostics (grace-period violations if applicable, see `PHASE_7_ADVANCED.md`).
+- Visit-process diagnostics (grace-period violations if applicable).
 
 The longitudinal diagnostic is inherently bigger than a single plot or table — probably a gt/tinytable report with a collapsible section per time step.
 
@@ -82,7 +82,7 @@ The rejection gates from Phase 4 `check_estimand_intervention_compat()` carry ov
 
 ### 5. Effect-modification awareness
 
-When the outcome model carries interaction terms (Phase 8: `confounders = ~ L + sex + A:sex`), `diagnose()` should optionally report balance **within each modifier stratum**. Surface-level invocation:
+When the outcome model carries interaction terms (Phase 6: `confounders = ~ L + sex + A:sex`), `diagnose()` should optionally report balance **within each modifier stratum**. Surface-level invocation:
 
 ```r
 diagnose(fit, interventions = list(a1 = static(1)), by = "sex")
@@ -92,7 +92,7 @@ Under the hood: `cobalt::bal.tab(..., cluster = "sex")` or equivalent.
 
 ### 6. Output shape
 
-Phase 3's `diagnose()` returns a `causatr_diag` object with `$positivity`, `$balance`, `$weights` slots. Phase 9 generalizes this to a nested structure:
+Phase 3's `diagnose()` returns a `causatr_diag` object with `$positivity`, `$balance`, `$weights` slots. Phase 11 generalizes this to a nested structure:
 
 ```
 causatr_diag
@@ -115,7 +115,7 @@ Print / summary / plot methods dispatch appropriately.
 
 ### 7. Plot methods
 
-Phase 3's `plot.causatr_diag()` produces a Love plot via `cobalt` when balance data is present. Phase 9 extends this to:
+Phase 3's `plot.causatr_diag()` produces a Love plot via `cobalt` when balance data is present. Phase 11 extends this to:
 
 - Propensity-score histogram (facet by intervention).
 - Weight-distribution histogram (log-scale option).
@@ -124,9 +124,9 @@ Phase 3's `plot.causatr_diag()` produces a Love plot via `cobalt` when balance d
 
 ### 8. Backwards compatibility
 
-The Phase 4 shim keeps `diagnose(fit)` working on the common binary static ATE case. Phase 9's `diagnose(fit)` (no `interventions = ` argument) should produce the same output it does today — the new signature is additive, not a breaking change. Tests in `test-diagnose.R` from Phase 4 survive into Phase 9 as regression anchors.
+The Phase 4 shim keeps `diagnose(fit)` working on the common binary static ATE case. Phase 11's `diagnose(fit)` (no `interventions = ` argument) should produce the same output it does today — the new signature is additive, not a breaking change. Tests in `test-diagnose.R` from Phase 4 survive into Phase 11 as regression anchors.
 
-## Items (to be landed in Phase 9)
+## Items (to be landed in Phase 11)
 
 **Design:**
 - [ ] Decide on the final shape of `causatr_diag` (probably nested list of named sub-diagnostics per intervention, with a print method that dispatches on presence/absence of longitudinal / modifier panels).
@@ -150,5 +150,5 @@ The Phase 4 shim keeps `diagnose(fit)` working on the common binary static ATE c
 ## Open questions
 
 - Should `diagnose()` be pipe-friendly? (`fit |> diagnose() |> plot()`.) Current behavior is pipe-friendly for the simple case; confirm it survives the rewrite.
-- Should per-intervention diagnostics be computed lazily or eagerly? Eager is simpler; lazy saves compute when the user only looks at one of many intervention panels. Probably eager for Phase 9 with an optional `keep = c("positivity", "balance", "weights")` arg for users who want to disable some.
-- How does Phase 9 interact with the survey-weight / clustered-data work in Phase 7? Balance diagnostics under survey weights need the survey weights to enter the SMD computation; clustered diagnostics need cluster-robust balance. Both are natural extensions but should be scoped inside Phase 7, not Phase 9.
+- Should per-intervention diagnostics be computed lazily or eagerly? Eager is simpler; lazy saves compute when the user only looks at one of many intervention panels. Probably eager for Phase 11 with an optional `keep = c("positivity", "balance", "weights")` arg for users who want to disable some.
+- How does Phase 11 interact with the survey-weight / clustered-data work in Phase 9? Balance diagnostics under survey weights need the survey weights to enter the SMD computation; clustered diagnostics need cluster-robust balance. Both are natural extensions but should be scoped inside Phase 9, not Phase 11.

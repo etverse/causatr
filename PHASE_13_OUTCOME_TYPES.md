@@ -1,4 +1,4 @@
-# Phase 10b — Beta Regression and Negative Binomial Outcomes
+# Phase 13 — Beta Regression, Negative Binomial, and Extended Outcome Types
 
 > **Status: PENDING (design doc)**
 >

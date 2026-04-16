@@ -153,7 +153,7 @@ Fit path (pooled logistic hazard):
 | bin | none | none | 🟡 | test-s3-methods.R, test-simulation.R |
 | bin | present (row filter) | none | 🟡 | test-simulation.R |
 
-Contrast path: ❌ all pending (Phase 6). `contrast()` on survival fit aborts today ✅ (test-contrast.R). `competing != NULL` rejected ✅ (test-causat.R).
+Contrast path: ❌ all pending (Phase 7). `contrast()` on survival fit aborts today ✅ (test-contrast.R). `competing != NULL` rejected ✅ (test-causat.R).
 
 ---
 
@@ -220,7 +220,7 @@ Contrast path: ❌ all pending (Phase 6). `contrast()` on survival fit aborts to
 | MAR, correct outcome model | test-gcomp.R (complete-case) | ✅ | test-missing-data.R |
 | MAR, manual IPCW weights | test-gcomp.R (weighted) | ✅ | test-missing-data.R |
 | MAR longitudinal, manual IPCW | ICE (weighted) | ✅ | test-missing-data.R |
-| Built-in IPCW (Phase 11) | any | ❌ | — |
+| Built-in IPCW (Phase 14) | any | ❌ | — |
 
 ---
 
@@ -266,20 +266,35 @@ Supplementary: `test-weights-edge-cases.R` (external weights edge cases), `test-
 
 ## Planned (future phases)
 
-### Phase 6 — Survival contrasts
+### Phase 6 — Effect modification
+Unified `A:modifier` API across gcomp / IPW / matching / ICE. MSM expansion for IPW/matching, lag auto-expansion for ICE. All ❌.
+
+### Phase 7 — Survival contrasts
 Survival curves S^a(t), risk at time t, risk difference/ratio, competing risks CIF, dynamic strategies, NHEFS Ch. 17 replication. All ❌.
 
-### Phase 7 — Advanced
-Survey design integration, general cluster-robust sandwich, `future` backend, test-multivariate.R IPW/matching, continuous treatment vignette, `target_trial()`, sequential positivity warnings, stratified ICE, multinomial/ordinal outcomes. Mix of ❌ and partial.
+### Phase 8 — Multivariate treatment IPW
+Joint density via sequential factorisation, product density-ratio weights, multi-model propensity sandwich. All ❌.
 
-### Phase 10a — Stochastic interventions
+### Phase 9 — Inference infrastructure
+Survey design integration, general cluster-robust sandwich, `future` backend. Mix of ❌ and partial.
+
+### Phase 10 — Longitudinal IPW
+Sequential density-ratio weights, cumulative product weights, stabilized weights, time-varying MSM. All ❌.
+
+### Phase 11 — diagnose() rewrite
+Intervention-aware, treatment-type-aware, estimand-aware, longitudinal-aware diagnostics. All ❌.
+
+### Phase 12 — Stochastic interventions
 `stochastic()` under test-gcomp.R (point + ICE), MC g-formula, MC-averaged IFs. IPW/matching rejected. All ❌.
 
-### Phase 10b — Outcome types
-Negative binomial tests, beta regression (`resolve_family("beta")`). All ❌.
+### Phase 13 — Outcome types
+Negative binomial tests, beta regression (`resolve_family("beta")`), multinomial/ordinal outcomes. All ❌.
 
-### Phase 11 — Built-in IPCW
+### Phase 14 — Built-in IPCW
 Internal censoring model, stabilized IPCW weights, stacked EE sandwich extension. All ❌.
+
+### Phase 15 — Polish and documentation
+Continuous treatment vignette, `target_trial()` helper, misc release-prep. All ❌.
 
 ### `causat_mice()` — Multiple imputation
 Pool across `mice` imputations via Rubin's rules. All ❌.

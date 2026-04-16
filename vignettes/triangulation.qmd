@@ -163,8 +163,8 @@ plot(diag_m)
 | Non-static interventions (shift / scale / threshold / dynamic) | Yes | No (Phase 4) | No (Phase 4) |
 | Continuous treatment | Yes | Yes (GPS, static only) | No (MatchIt binary-only) |
 | Categorical (k > 2) treatment | Yes | Yes | No (MatchIt binary-only) |
-| Effect modification via `A:modifier` in `confounders` | Yes | Rejected (Phase 8) | Rejected (Phase 8) |
-| Longitudinal (time-varying) treatments | Yes (ICE) | No (Phase 4) | No |
+| Effect modification via `A:modifier` in `confounders` | Yes | Rejected (Phase 6) | Rejected (Phase 6) |
+| Longitudinal (time-varying) treatments | Yes (ICE) | No (Phase 10) | No |
 | Variance estimation | Sandwich (IF engine) or bootstrap | M-estimation sandwich via WeightIt's `glm_weightit` | Cluster-robust sandwich on matched subclass |
 | Robustness to | Treatment model misspecification | Outcome model misspecification | Outcome model misspecification |
 
