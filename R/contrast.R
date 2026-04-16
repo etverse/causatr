@@ -139,8 +139,8 @@
 #' | Method | Treatment types | Intervention types |
 #' |---|---|---|
 #' | `"gcomp"` | binary, categorical, continuous, multivariate | all |
-#' | `"ipw"` | binary, categorical, continuous (WeightIt) | `static()` only |
-#' | `"matching"` | binary, categorical, continuous | `static()` only |
+#' | `"ipw"` | binary, continuous | binary: `static()` / `dynamic()` / `ipsi()`; continuous: `shift()` / `scale_by()` |
+#' | `"matching"` | binary | `static()` only |
 #'
 #' ## Variance estimation
 #' - `"sandwich"`: The unified influence-function engine `variance_if()`.
@@ -158,9 +158,6 @@
 #' @references
 #' Hernán MA, Robins JM (2025). *Causal Inference: What If*. Chapman &
 #' Hall/CRC. Chapters 12–13.
-#'
-#' Greifer N (2024). WeightIt: Weighting Methods for Covariate Balancing.
-#' \url{https://ngreifer.github.io/WeightIt/}
 #'
 #' Imai K, King G, Stuart EA (2011). Misunderstandings between experimentalists
 #' and observationalists about causal inference. *Journal of the Royal

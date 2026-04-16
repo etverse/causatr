@@ -260,7 +260,7 @@ Phase 4 lands as a sequence of focused commits rather than one big-bang rewrite,
 | 3c.i | `fit_ipw()` rewrite on `fit_treatment_model()` + `make_weight_fn()`; `propensity_model_fn` arg on `causat()`; `compute_contrast()` IPW path rewrite via density-ratio weights + per-intervention `Y ~ 1` Hájek MSM; `variance_if_ipw()` straight loop via `compute_ipw_if_self_contained_one()`; Phase 3 IPW test suite adapted; `ipw.md` / `s3-methods.md` snapshots regenerated | **done** (commit `d9732bf`) |
 | 3c.ii | Delete `prepare_propensity_if()` / `prepare_propensity_if_weightit()` / `prepare_propensity_if_self_contained()` / `apply_propensity_correction()` from `R/variance_if.R`; unify the `variance_if()` dispatcher so IPW routes through a single live `variance_if_ipw()`; route `compute_contrast()`'s IPW path through the dispatcher uniformly; sweep Branch-A narration from roxygen | **done** (commit `b23660b`, ≈213 lines deleted) |
 | 3c.iii | Unify bootstrap IPW path: rewrite `refit_ipw()` to replay `fit_ipw()` on resampled data, delete `ipw_boot_replicate()` special case, route bootstrap through `compute_ipw_contrast_point()` uniformly with the sandwich path; extract `diagnose()` IPW shim into `diagnose_ipw_point()` helper for the binary static ATE case; regenerate `_snaps/diagnose.md` (no-op); sweep orphaned Phase-3-era narration | **done** (commit `9055f1f`) |
-| 3d | `tests/testthat/helper-ipw-weightit-oracle.R` + contrast-level oracle tests T-oracle1..4 (binary ATE/ATT/ATC + GAM propensity, `skip_if_not_installed("WeightIt")`); DESCRIPTION move WeightIt `Imports:` → `Suggests:` | **pending** |
+| 3d | `tests/testthat/helper-ipw-weightit-oracle.R` + contrast-level oracle tests T-oracle1..4 (binary ATE/ATT/ATC + GAM propensity, `skip_if_not_installed("WeightIt")`); DESCRIPTION move WeightIt `Imports:` → `Suggests:`; sweep stale `WeightIt` roxygen/comments from `R/`. Also surfaced and fixed a latent correctness bug: the chunk 3c.i runtime silently returned the ATE for ATT / ATC fits because `compute_density_ratio_weights()` / `make_weight_fn()` did not consume `fit$estimand`. The fix threads `estimand` through both weight builders and adds `ht_bayes_numerator(estimand, tm, fit_data, family_tag)` — the unified Bayes-rule numerator `f*(L) = f(A* \| L)` derived in the `compute_density_ratio_weights()` roxygen header. ATE/ATT/ATC now match `WeightIt::glm_weightit()` to ~1e-6 on point estimates and sandwich SEs on the same propensity model; ATT bootstrap SE tracks the sandwich SE within Monte Carlo error (verified manually before committing). | **done** |
 | 3e | Categorical (multinomial) branch in `fit_treatment_model()` + `make_weight_fn()` + `evaluate_density()`; `check_estimand_trt_compat()` update; new tests for categorical static HT | **pending** |
 | 3f | lmtp contrast-level oracles T-oracle5 (shift) + T-oracle6 (IPSI), `skip_if_not_installed("lmtp")`; DESCRIPTION add lmtp to `Suggests:` | **pending** |
 | 3g | Non-static variance regression tests — T-non-static (IF > delta-only shortcut) + bootstrap parity for shift and IPSI | **pending** |
@@ -344,7 +344,7 @@ The reconnaissance pass (between commit 6e3d42b and Chunk 3c) identified these t
 
 **Dependencies**
 
-- [ ] Move `WeightIt` from `Imports:` to `Suggests:` in `DESCRIPTION`; update `R/causatr-package.R` `@importFrom` tags accordingly.
+- [x] Move `WeightIt` from `Imports:` to `Suggests:` in `DESCRIPTION`; update `R/causatr-package.R` `@importFrom` tags accordingly. (Chunk 3d — there were no `@importFrom WeightIt` tags in causatr-package.R; the stale roxygen prose in `R/causat.R`, `R/contrast.R`, `R/utils.R`, `R/checks.R`, and the `IPW (WeightIt)` print label in `R/print.R` were swept in the same chunk.)
 - [ ] Add `lmtp` to `Suggests:` for the non-static point-estimate oracle tests.
 
 **Diagnostics + docs**
@@ -356,8 +356,9 @@ The reconnaissance pass (between commit 6e3d42b and Chunk 3c) identified these t
 **Tests** (see §11 for the full list)
 
 - [x] Unit tests for `R/treatment_model.R` and `R/ipw_weights.R` (foundation chunk — 79 assertions across both files).
-- [ ] T-oracle1, T-oracle2 (WeightIt, `skip_if_not_installed`)
-- [ ] T-oracle3, T-oracle4 (lmtp, `skip_if_not_installed`)
+- [x] T-oracle1, T-oracle2, T-oracle3 (WeightIt static binary ATE/ATT/ATC), `skip_if_not_installed("WeightIt")` (chunk 3d, `test-ipw-weightit-oracle.R`).
+- [x] T-oracle4 (GAM propensity + WeightIt GLM-PS soft match), `skip_if_not_installed("WeightIt")` + `skip_if_not_installed("mgcv")` (chunk 3d).
+- [ ] T-oracle5, T-oracle6 (lmtp shift / IPSI point-estimate parity, `skip_if_not_installed("lmtp")`, chunk 3f).
 - [x] T-A_β_α hand-derived vs numerical (chunk 3a, commit `4090e51`, `test-ipw-cross-derivative.R`, 12 assertions at 1e-6).
 - [x] T-end-to-end stacked sandwich by hand (chunk 3b, commit `6e3d42b`, `test-ipw-branch-b.R`, 4 assertions at 1e-6).
 - [ ] T-non-static IF > delta-only shortcut. **Chunk 3g.**

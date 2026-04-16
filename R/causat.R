@@ -3,10 +3,11 @@
 #' @description
 #' Prepares the causal estimation pipeline for a given estimator. For
 #' `"gcomp"`, fits the conditional outcome model E\[Y | A, L\] that will be
-#' used by [contrast()] for standardisation. For `"ipw"`, estimates
-#' propensity-score-based weights (via `WeightIt::weightit()`) that will be
-#' used for weighted estimation in [contrast()]. For `"matching"`, creates
-#' matched sets (via `MatchIt::matchit()`) that will be used for matched
+#' used by [contrast()] for standardisation. For `"ipw"`, fits the
+#' conditional treatment density \eqn{f(A \mid L)} that the self-contained
+#' density-ratio engine uses to build per-intervention Hájek weights for
+#' the MSM refit inside [contrast()]. For `"matching"`, creates matched
+#' sets (via `MatchIt::matchit()`) that will be used for matched
 #' estimation in [contrast()].
 #'
 #' For longitudinal data (`id` and `time` provided), `"gcomp"` uses ICE
@@ -29,15 +30,16 @@
 #'   ICE step alongside their lagged values (controlled by `history`). Ignored
 #'   for point treatments. If `NULL`, no time-varying confounders are used.
 #' @param estimator Character. Causal estimator: `"gcomp"` (default), `"ipw"`,
-#'   or `"matching"`. IPW requires the `WeightIt` package; matching requires
-#'   the `MatchIt` package. Note: `"matching"` is restricted to **binary
+#'   or `"matching"`. IPW uses a self-contained density-ratio engine
+#'   (no runtime dependency on `WeightIt`); matching requires the
+#'   `MatchIt` package. Note: `"matching"` is restricted to **binary
 #'   point treatments** (MatchIt does not support multi-category or
 #'   continuous treatments); use `"gcomp"` or `"ipw"` for those cases.
 #' @param family Character or family object. The outcome model family
 #'   (e.g. `"gaussian"`, `"binomial"`, `stats::quasibinomial()`). Used by
-#'   all methods: passed to the outcome model for `"gcomp"`, to the MSM for
-#'   `"ipw"` (via `WeightIt::glm_weightit()`), and to the outcome model on
-#'   matched data for `"matching"`.
+#'   all methods: passed to the outcome model for `"gcomp"`, to the
+#'   per-intervention weighted MSM refit for `"ipw"`, and to the outcome
+#'   model on matched data for `"matching"`.
 #' @param estimand Character. The target estimand: `"ATE"` (default),
 #'   `"ATT"`, or `"ATC"`. `"ATT"` and `"ATC"` are only defined for binary
 #'   point treatments. For `"gcomp"`, the estimand stored here is used as the
@@ -198,9 +200,10 @@
 #'   estimand = "ATT"
 #' )
 #'
-#' # IPW (requires WeightIt) — estimand fixed at fit time.
-#' # Extra args in `...` are forwarded to `WeightIt::weightit()` — e.g.
-#' # `method = "cbps"` selects covariate-balancing propensity scores.
+#' # IPW — self-contained density-ratio engine; estimand fixed at
+#' # fit time. A non-default `propensity_model_fn` (e.g. `mgcv::gam`)
+#' # swaps in a smooth propensity model without touching the rest of
+#' # the pipeline.
 #' fit_ipw <- causat(
 #'   nhefs,
 #'   outcome = "wt82_71",
@@ -208,8 +211,7 @@
 #'   confounders = ~ sex + age + race + education +
 #'     smokeintensity + smokeyrs + exercise + active + wt71,
 #'   estimator = "ipw",
-#'   estimand = "ATE",
-#'   method = "cbps"
+#'   estimand = "ATE"
 #' )
 #'
 #' # Matching (requires MatchIt). `method = "nearest"` is MatchIt's own arg.

@@ -47,16 +47,17 @@ ICE step alongside their lagged values (controlled by \code{history}). Ignored
 for point treatments. If \code{NULL}, no time-varying confounders are used.}
 
 \item{estimator}{Character. Causal estimator: \code{"gcomp"} (default), \code{"ipw"},
-or \code{"matching"}. IPW requires the \code{WeightIt} package; matching requires
-the \code{MatchIt} package. Note: \code{"matching"} is restricted to \strong{binary
+or \code{"matching"}. IPW uses a self-contained density-ratio engine
+(no runtime dependency on \code{WeightIt}); matching requires the
+\code{MatchIt} package. Note: \code{"matching"} is restricted to \strong{binary
 point treatments} (MatchIt does not support multi-category or
 continuous treatments); use \code{"gcomp"} or \code{"ipw"} for those cases.}
 
 \item{family}{Character or family object. The outcome model family
 (e.g. \code{"gaussian"}, \code{"binomial"}, \code{stats::quasibinomial()}). Used by
-all methods: passed to the outcome model for \code{"gcomp"}, to the MSM for
-\code{"ipw"} (via \code{WeightIt::glm_weightit()}), and to the outcome model on
-matched data for \code{"matching"}.}
+all methods: passed to the outcome model for \code{"gcomp"}, to the
+per-intervention weighted MSM refit for \code{"ipw"}, and to the outcome
+model on matched data for \code{"matching"}.}
 
 \item{estimand}{Character. The target estimand: \code{"ATE"} (default),
 \code{"ATT"}, or \code{"ATC"}. \code{"ATT"} and \code{"ATC"} are only defined for binary
@@ -145,10 +146,11 @@ outcome model for \code{"matching"}.}
 \description{
 Prepares the causal estimation pipeline for a given estimator. For
 \code{"gcomp"}, fits the conditional outcome model E[Y | A, L] that will be
-used by \code{\link[=contrast]{contrast()}} for standardisation. For \code{"ipw"}, estimates
-propensity-score-based weights (via \code{WeightIt::weightit()}) that will be
-used for weighted estimation in \code{\link[=contrast]{contrast()}}. For \code{"matching"}, creates
-matched sets (via \code{MatchIt::matchit()}) that will be used for matched
+used by \code{\link[=contrast]{contrast()}} for standardisation. For \code{"ipw"}, fits the
+conditional treatment density \eqn{f(A \mid L)} that the self-contained
+density-ratio engine uses to build per-intervention Hájek weights for
+the MSM refit inside \code{\link[=contrast]{contrast()}}. For \code{"matching"}, creates matched
+sets (via \code{MatchIt::matchit()}) that will be used for matched
 estimation in \code{\link[=contrast]{contrast()}}.
 
 For longitudinal data (\code{id} and \code{time} provided), \code{"gcomp"} uses ICE
@@ -244,9 +246,10 @@ fit_att <- causat(
   estimand = "ATT"
 )
 
-# IPW (requires WeightIt) — estimand fixed at fit time.
-# Extra args in `...` are forwarded to `WeightIt::weightit()` — e.g.
-# `method = "cbps"` selects covariate-balancing propensity scores.
+# IPW — self-contained density-ratio engine; estimand fixed at
+# fit time. A non-default `propensity_model_fn` (e.g. `mgcv::gam`)
+# swaps in a smooth propensity model without touching the rest of
+# the pipeline.
 fit_ipw <- causat(
   nhefs,
   outcome = "wt82_71",
@@ -254,8 +257,7 @@ fit_ipw <- causat(
   confounders = ~ sex + age + race + education +
     smokeintensity + smokeyrs + exercise + active + wt71,
   estimator = "ipw",
-  estimand = "ATE",
-  method = "cbps"
+  estimand = "ATE"
 )
 
 # Matching (requires MatchIt). `method = "nearest"` is MatchIt's own arg.

@@ -7,8 +7,9 @@ Authors@R:
 Description: Estimates causal effects via g-computation, inverse probability
     weighting, and matching for methodological triangulation. Primary engine
     is the parametric g-formula and iterated conditional expectation (ICE)
-    g-computation with empirical sandwich variance estimation. Integrates
-    WeightIt for IPW and MatchIt for matching. Supports binary, continuous,
+    g-computation with empirical sandwich variance estimation. Ships a
+    self-contained density-ratio IPW engine and delegates matching to
+    MatchIt. Supports binary, continuous,
     categorical, and multivariate treatments (multivariate is g-computation
     only); static, dynamic, and modified treatment interventions; continuous,
     binary, count, quasibinomial (fractional), and Gamma outcomes; and
@@ -25,8 +26,7 @@ Imports:
     numDeriv,
     rlang (>= 1.0.0),
     sandwich,
-    stats,
-    WeightIt
+    stats
 Suggests:
     cobalt,
     forrest,
@@ -43,6 +43,7 @@ Suggests:
     survival,
     tinyplot,
     tinytable,
+    WeightIt,
     testthat (>= 3.0.0)
 VignetteBuilder: quarto
 Config/testthat/edition: 3

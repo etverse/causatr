@@ -122,12 +122,12 @@ Imports:
     numDeriv,
     rlang (>= 1.0.0),
     sandwich,
-    stats,
-    WeightIt
+    stats
 Suggests:
     cobalt,
     forrest,
     knitr,
+    lmtp,
     MASS,
     mgcv,
     mice,
@@ -135,6 +135,7 @@ Suggests:
     quarto,
     survival,
     tinyplot,
+    WeightIt,
     testthat (>= 3.0.0)
 ```
 
@@ -250,7 +251,7 @@ result <- contrast(fit, interventions, ci_method = "bootstrap", n_boot = 500)
 11. `model_fn` parameter for pluggable fitting functions
 
 ### Phase 3: IPW + Matching (Triangulation) — DONE
-12. `causat(estimator = "ipw")` — wraps WeightIt (`R/ipw.R`) ✓
+12. `causat(estimator = "ipw")` — original Phase 3 implementation delegated to WeightIt (`R/ipw.R`); Phase 4 chunks 3c.i–3c.iii replaced the runtime with a self-contained density-ratio engine and chunk 3d moved `WeightIt` to `Suggests:`. ✓
 13. `causat(estimator = "matching")` — wraps MatchIt (`R/matching.R`) ✓
 14. Vignettes: `ipw.qmd`, `matching.qmd`, `triangulation.qmd` ✓
 15. Comprehensive simulation-based tests (binary/continuous outcome, all contrast types, all estimands) ✓
@@ -263,7 +264,8 @@ result <- contrast(fit, interventions, ci_method = "bootstrap", n_boot = 500)
 19. IPSI (incremental propensity score interventions) via the closed-form weight, consumed by the unified `compute_ipw_contrast_point()` path. ✓ (chunk 3c.i)
 20. Categorical treatment support across checks + IPW path. **Pending — chunk 3e.**
 21. Single-path IPW sandwich variance: `variance_if_ipw()` straight loop calling `compute_ipw_if_self_contained_one()` (Channel 1 + Channel 2 IF on the stacked `(α, β)` system). ✓ (chunk 3b helper, chunks 3c.i–3c.ii dispatcher unification, ≈213 lines of Branch A scaffolding deleted from `R/variance_if.R`)
-22. Vignettes: `interventions.qmd` (intervention-type tour), `ipw-variance-theory.qmd` (density-ratio derivation + cross-derivative). **Pending — chunks 3h / 3i.**
+22. `WeightIt::glm_weightit()` contrast-level oracle tests (T-oracle1..4) for the static-binary ATE / ATT / ATC + GAM propensity cases, `WeightIt` moved from `Imports:` to `Suggests:`, and a latent correctness fix: the HT weight branch now carries a per-estimand Bayes-rule numerator `f*(L) = f(A* \| L)` so ATT / ATC produce the textbook conditional-mean weighted sums instead of silently collapsing to the ATE. Sandwich SEs agree with `glm_weightit` on the same propensity model to ~1e-6. ✓ (chunk 3d)
+23. Vignettes: `interventions.qmd` (intervention-type tour), `ipw-variance-theory.qmd` (density-ratio derivation + cross-derivative). **Pending — chunks 3h / 3i.**
 
 ### Phase 5: Longitudinal / ICE — DONE
 21. ICE g-computation engine (`R/ice.R`) ✓

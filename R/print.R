@@ -17,7 +17,7 @@ print.causatr_fit <- function(x, ...) {
   estimator_label <- switch(
     x$estimator,
     gcomp = "G-computation",
-    ipw = "IPW (WeightIt)",
+    ipw = "IPW",
     matching = "Matching (MatchIt)",
     x$estimator
   )

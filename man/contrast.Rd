@@ -180,8 +180,8 @@ be changed after fitting.
 \subsection{Treatment types and intervention support}{\tabular{lll}{
    Method \tab Treatment types \tab Intervention types \cr
    \code{"gcomp"} \tab binary, categorical, continuous, multivariate \tab all \cr
-   \code{"ipw"} \tab binary, categorical, continuous (WeightIt) \tab \code{static()} only \cr
-   \code{"matching"} \tab binary, categorical, continuous \tab \code{static()} only \cr
+   \code{"ipw"} \tab binary, continuous \tab binary: \code{static()} / \code{dynamic()} / \code{ipsi()}; continuous: \code{shift()} / \code{scale_by()} \cr
+   \code{"matching"} \tab binary \tab \code{static()} only \cr
 }
 
 }
@@ -248,9 +248,6 @@ contrast(fit_cat,
 \references{
 Hernán MA, Robins JM (2025). \emph{Causal Inference: What If}. Chapman &
 Hall/CRC. Chapters 12–13.
-
-Greifer N (2024). WeightIt: Weighting Methods for Covariate Balancing.
-\url{https://ngreifer.github.io/WeightIt/}
 
 Imai K, King G, Stuart EA (2011). Misunderstandings between experimentalists
 and observationalists about causal inference. \emph{Journal of the Royal

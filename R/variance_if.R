@@ -1258,6 +1258,13 @@ variance_if_ipw <- function(
   tm <- fit$details$treatment_model
   propensity_model <- tm$model
   ext_w <- fit$details$weights
+  # Same estimand threading as `compute_ipw_contrast_point()` — the
+  # weight closure must match the weights the MSM was fit with, or the
+  # cross-derivative `A_{beta, alpha}` is computed for the wrong weight
+  # formula and the propensity correction drifts. For ATT / ATC the
+  # closure's f*(p) term picks up the propensity-score dependence that
+  # makes the sandwich SE agree with `WeightIt::glm_weightit`.
+  estimand <- fit$estimand
 
   # Subset to the MSM fit rows. Everything below operates in the
   # length-`n_sub` space.
@@ -1328,7 +1335,7 @@ variance_if_ipw <- function(
     # returns a `function(alpha)` that `compute_ipw_if_self_contained_one()`
     # feeds into `numDeriv::jacobian()` for the cross-derivative
     # `A_{beta, alpha}`.
-    wfn <- make_weight_fn(tm, data, b$intervention)
+    wfn <- make_weight_fn(tm, data, b$intervention, estimand = estimand)
 
     # The causatr weight closure covers only the density-ratio
     # piece, not the external survey weight. For the cross-

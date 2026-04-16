@@ -53,8 +53,8 @@ CAUSATR_SURVIVAL_INTERNAL_COLS <- setdiff(
 #' in `reserved`) is stripped from `dots`, and the rest flow through
 #' `do.call()`.
 #'
-#' @param fn The function to call (e.g. `stats::glm`, `WeightIt::weightit`,
-#'   `MatchIt::matchit`, `mgcv::gam`).
+#' @param fn The function to call (e.g. `stats::glm`, `MatchIt::matchit`,
+#'   `mgcv::gam`).
 #' @param base_args Named list of arguments the caller is supplying
 #'   explicitly. These always win over `dots` in case of name collision.
 #'   Unnamed elements in `base_args` are preserved (they are meant to be
@@ -63,8 +63,8 @@ CAUSATR_SURVIVAL_INTERNAL_COLS <- setdiff(
 #'   time and stashed on `fit$details$dots`. Can be `NULL`.
 #' @param reserved Character vector of additional argument names to
 #'   strip from `dots` — useful for target-function parameters the
-#'   caller sets implicitly (e.g. `WeightIt::weightit`'s `s.weights`,
-#'   which `refit_ipw()` assigns after the composition).
+#'   caller sets implicitly (e.g. `MatchIt::matchit`'s `distance`, set
+#'   by `refit_matching()` after the composition).
 #'
 #' @return The return value of `do.call(fn, ...)`.
 #'

@@ -290,6 +290,16 @@ compute_ipw_contrast_point <- function(
   ext_w_fit <- if (is.null(ext_w)) NULL else ext_w[fit_rows]
   fam_obj <- resolve_family(fit$family)
   model_fn <- fit$details$model_fn
+  # Fit-time estimand threads into the density-ratio weight branch via
+  # the HT Bayes-numerator `f*_i`. For ATE this is 1 (unchanged from
+  # Phase 4's original flow); for ATT / ATC on static binary it
+  # becomes `p(L_i)` / `1 - p(L_i)`, implementing the per-arm weight
+  # tables derived in `compute_density_ratio_weights()`'s roxygen.
+  # `check_estimand_intervention_compat()` has already rejected
+  # ATT/ATC on anything but static binary by the time we get here,
+  # so the other branches (IPSI, shift/scale) see `estimand = "ATE"`
+  # in practice and are unaffected.
+  estimand <- fit$estimand
   n_total <- nrow(data)
   fit_idx <- which(fit_rows)
   n_fit <- length(fit_idx)
@@ -304,8 +314,10 @@ compute_ipw_contrast_point <- function(
 
     # Density-ratio weights (length n_fit). Natural-course returns
     # all ones; `compute_density_ratio_weights()` dispatches on
-    # intervention type and treatment family.
-    w_iv <- compute_density_ratio_weights(tm, data, iv)
+    # intervention type and treatment family. The `estimand` argument
+    # selects the Bayes numerator `f*` so the same HT branch produces
+    # ATE / ATT / ATC weights uniformly.
+    w_iv <- compute_density_ratio_weights(tm, data, iv, estimand = estimand)
 
     # Compose with external weights. The density-ratio weights enter
     # multiplicatively because survey / IPCW weights represent an

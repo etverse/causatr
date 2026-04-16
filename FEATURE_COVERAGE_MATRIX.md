@@ -132,13 +132,24 @@ static (HT indicator), shift / scale_by (continuous pushforward with
 Jacobian), dynamic (binary HT indicator), and ipsi (closed-form weight).
 Variance goes through one `variance_if_ipw()` loop calling
 `compute_ipw_if_self_contained_one()` — no Branch A / Branch B split.
+Chunk 3d added `WeightIt::glm_weightit()` contrast-level oracle tests
+for the static-binary ATE / ATT / ATC cases (T-oracle1..3) and a
+`mgcv::gam` propensity smoke test (T-oracle4); `WeightIt` moved from
+`Imports:` to `Suggests:` in the same chunk. The oracle forced a
+correctness fix to the ATT / ATC density-ratio weights: the HT indicator
+branch now carries the Bayes-rule numerator `f*(L) = f(A* | L)` so ATT
+uses `p(L)` and ATC uses `1 - p(L)`, making the per-arm Hájek sums
+equal to the textbook conditional-mean weighted sums (Imbens 2004;
+Hernán & Robins Ch. 12) and matching `glm_weightit` on the same PS
+model to ~1e-6 on point estimates and SEs.
 
 | Treatment | Outcome | Intervention | Estimand | Contrast | Variance | Weights | Status | Test file |
 |---|---|---|---|---|---|---|---|---|
-| binary | gaussian | static | ATE | difference | sandwich (HT + self-contained IF) | none | ✅ truth | test-simulation.R, test-ipw.R, test-ipw-weights.R, test-treatment-model.R |
+| binary | gaussian | static | ATE | difference | sandwich (HT + self-contained IF) | none | ✅ truth + WeightIt oracle (T-oracle1) | test-simulation.R, test-ipw.R, test-ipw-weights.R, test-ipw-weightit-oracle.R, test-treatment-model.R |
 | binary | gaussian | static | ATE | difference | bootstrap | none | ✅ truth | test-simulation.R |
-| binary | gaussian | static | ATT | difference | sandwich | none | ✅ truth | test-simulation.R |
-| binary | gaussian | static | ATC | difference | sandwich | none | ✅ truth | test-simulation.R |
+| binary | gaussian | static | ATT | difference | sandwich (HT, ATT Bayes numerator) | none | ✅ truth + WeightIt oracle (T-oracle2) | test-simulation.R, test-ipw-weightit-oracle.R |
+| binary | gaussian | static | ATC | difference | sandwich (HT, ATC Bayes numerator) | none | ✅ truth + WeightIt oracle (T-oracle3) | test-simulation.R, test-ipw-weightit-oracle.R |
+| binary | gaussian | static | ATE | difference | sandwich (mgcv::gam propensity) | none | ✅ sanity + WeightIt GLM-PS soft match (T-oracle4) | test-ipw.R, test-ipw-weightit-oracle.R |
 | binary | gaussian | static | ATE | difference | sandwich | survey | ✅ truth | test-simulation.R |
 | binary | binomial | static | ATE | difference (RD) | sandwich | none | ✅ truth | test-simulation.R |
 | binary | binomial | static | ATE | ratio | sandwich | none | ✅ truth | test-simulation.R |

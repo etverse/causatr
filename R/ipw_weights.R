@@ -11,7 +11,13 @@
 #'    distribution is a Dirac at a per-individual target value,
 #'    so the Radon–Nikodym derivative w.r.t. the fitted density
 #'    is
-#'    \deqn{w_i = \frac{\mathbb 1\{A_i = d(A_i, L_i)\}}{f(A_i \mid L_i)}.}
+#'    \deqn{w_i = \frac{\mathbb 1\{A_i = d(A_i, L_i)\} \cdot f^\*_i}{f(A_i \mid L_i)},}
+#'    where the numerator \eqn{f^\*_i} encodes the estimand's
+#'    target subpopulation via Bayes' rule:
+#'    \deqn{E[Y^a \mid A = A^\*] = \frac{E[\mathbb 1\{A=a\}\,Y\,f(A^\*\mid L)/f(a\mid L)]}{E[\mathbb 1\{A=a\}\,f(A^\*\mid L)/f(a\mid L)]}.}
+#'    For ATE (\eqn{A^\*} is the whole population) \eqn{f^\*_i=1};
+#'    for ATT (conditioning on \eqn{A^\*=1}) \eqn{f^\*_i = p(L_i)};
+#'    for ATC (conditioning on \eqn{A^\*=0}) \eqn{f^\*_i = 1 - p(L_i)}.
 #'    Rows whose observed treatment does not match the target
 #'    contribute zero to the Hájek mean, as they should. Covers:
 #'    - `static(value)` on binary / categorical treatments
@@ -85,6 +91,11 @@
 #'   `treatment_model$fit_rows`.
 #' @param intervention A `causatr_intervention` object, or `NULL` for
 #'   natural course.
+#' @param estimand Character scalar in `c("ATE", "ATT", "ATC")`. Only
+#'   the HT indicator branch on Bernoulli treatment consumes this —
+#'   all other branches (IPSI, shift/scale pushforward) are ATE-only
+#'   and `check_estimand_intervention_compat()` has already rejected
+#'   non-ATE requests by the time we get here.
 #'
 #' @return Numeric vector of weights, length equal to the number of
 #'   rows used by the treatment-density fit.
@@ -98,11 +109,16 @@
 #' causal effects based on longitudinal modified treatment policies.
 #' *JASA* 118:846–857.
 #'
+#' Imbens GW (2004). Nonparametric estimation of average treatment
+#' effects under exogeneity: a review. *Review of Economics and
+#' Statistics* 86:4–29. (Per-estimand weight forms for ATT / ATC.)
+#'
 #' @noRd
 compute_density_ratio_weights <- function(
   treatment_model,
   data,
-  intervention
+  intervention,
+  estimand = "ATE"
 ) {
   if (!inherits(treatment_model, "causatr_treatment_model")) {
     rlang::abort(
@@ -151,10 +167,17 @@ compute_density_ratio_weights <- function(
   # interventions on discrete treatments: static and deterministic
   # dynamic rules on Bernoulli / categorical. The intervened
   # distribution is a Dirac at `target_i`, so the correct weight is
-  #   w_i = I(A_obs_i = target_i) / f(A_obs_i | L_i).
-  # Rows with A_obs != target get zero weight and drop out of the
-  # Hájek mean — which is exactly what the Horvitz-Thompson
-  # estimator of E[Y^{d}] wants.
+  #   w_i = I(A_obs_i = target_i) * f_star_i / f(A_obs_i | L_i)
+  # where f_star_i is the Bayes-rule numerator that encodes the
+  # estimand's target subpopulation (see Imbens 2004):
+  #   ATE: f_star = 1                          (target = whole pop)
+  #   ATT: f_star = p(L)          (A* = 1)    (target = the treated)
+  #   ATC: f_star = 1 - p(L)      (A* = 0)    (target = the controls)
+  # This single formula reproduces all three per-arm weight schemes
+  # in one branch; the roxygen header carries the derivation.
+  # `check_estimand_intervention_compat()` has already rejected
+  # ATT/ATC + non-static or non-binary, so the only case where
+  # f_star != 1 is static on a Bernoulli treatment.
   is_ht <- iv_type %in%
     c("static", "dynamic") &&
     family_tag %in% c("bernoulli", "categorical")
@@ -172,7 +195,20 @@ compute_density_ratio_weights <- function(
     # `==` on numeric 0/1 and character / factor treatments both
     # return logical — `as.numeric()` collapses to the HT indicator.
     ind <- as.numeric(a_obs == target)
-    return(ind / f_obs)
+
+    # Estimand-specific Bayes numerator. For Bernoulli `f(A*|L)` is
+    # `p` when A* = 1 and `1-p` when A* = 0. For the degenerate
+    # A=A* arm the resulting weight collapses to `ind` alone
+    # (e.g. ATT + static(1): f_star = p, f_obs = p on A=1 rows ->
+    # w = A), which is the direct sample functional `E[Y|A=1]` as
+    # expected — no propensity uncertainty for that arm.
+    f_star <- ht_bayes_numerator(
+      estimand,
+      treatment_model,
+      fit_data,
+      family_tag
+    )
+    return(ind * f_star / f_obs)
   }
 
   # Smooth pushforward branch. Covers `shift()` and `scale_by()` on
@@ -310,7 +346,12 @@ check_density_positivity <- function(f, context) {
 #'   `sum(treatment_model$fit_rows)`.
 #'
 #' @noRd
-make_weight_fn <- function(treatment_model, data, intervention) {
+make_weight_fn <- function(
+  treatment_model,
+  data,
+  intervention,
+  estimand = "ATE"
+) {
   if (!inherits(treatment_model, "causatr_treatment_model")) {
     rlang::abort(
       "`treatment_model` must be a `causatr_treatment_model`."
@@ -368,12 +409,33 @@ make_weight_fn <- function(treatment_model, data, intervention) {
     ind <- as.numeric(a_obs == target)
 
     if (family_tag == "bernoulli") {
+      # Estimand-specific Bayes numerator f*_i = f(A* | L_i) baked
+      # into the closure so `numDeriv::jacobian()` picks up the
+      # ATT / ATC propensity-dependence in `p` correctly. For ATE
+      # f_star = 1 and the closure reduces to the original
+      # `ind / f_obs` form. For ATT / ATC the numerator depends on
+      # alpha, and the closure's elementwise product `ind * f_star /
+      # f_obs` is exactly the weight formula from
+      # `compute_density_ratio_weights()` — the variance engine stays
+      # consistent because the same closed form drives both. See the
+      # `ht_bayes_numerator()` helper for the runtime equivalent and
+      # the roxygen header on `compute_density_ratio_weights()` for
+      # the Bayes derivation.
+      f_star_fn <- switch(
+        estimand,
+        ATE = function(p) 1,
+        ATT = function(p) p,
+        ATC = function(p) 1 - p,
+        rlang::abort(
+          paste0("Internal error: unknown estimand '", estimand, "'.")
+        )
+      )
       return(function(alpha) {
         eta <- as.numeric(X_prop %*% alpha)
         p <- stats::plogis(eta)
         # f_obs for a Bernoulli(p) at observed 0/1 value A_obs.
         f_obs <- ifelse(a_obs == 1, p, 1 - p)
-        ind / f_obs
+        ind * f_star_fn(p) / f_obs
       })
     }
 
@@ -577,6 +639,74 @@ apply_intervention_to_values <- function(intervention, data, a_obs) {
 #' @noRd
 ipsi_weight_formula <- function(a_obs, p, delta) {
   (delta * a_obs + (1 - a_obs)) / (delta * p + (1 - p))
+}
+
+
+#' Bayes-rule numerator f*(L) for the HT estimand weight
+#'
+#' @description
+#' Returns the per-individual multiplier `f_star_i = f(A* | L_i)` that
+#' converts the ATE density-ratio weight into an ATT or ATC weight:
+#'
+#' \deqn{w_i = \mathbb 1\{A_i = a\} \cdot f^\*_i / f(a \mid L_i).}
+#'
+#' The derivation is the standard Bayes-rule rewrite of
+#' \eqn{E[Y^a \mid A = A^\*]} (Imbens 2004; Hernán & Robins Ch. 12).
+#' For ATE the target is the whole population and \eqn{f^\* \equiv 1};
+#' for ATT the target is the treated and \eqn{f^\*_i = p(L_i)}; for
+#' ATC the target is the controls and \eqn{f^\*_i = 1 - p(L_i)}.
+#'
+#' Only the Bernoulli treatment family is supported because
+#' `check_estimand_intervention_compat()` has already rejected ATT /
+#' ATC for non-binary static interventions — hitting the fallback
+#' `rlang::abort` here would indicate a missed upstream guard.
+#'
+#' @param estimand Character scalar in `c("ATE", "ATT", "ATC")`.
+#' @param treatment_model A `causatr_treatment_model`.
+#' @param fit_data The `fit_rows`-subset `data.table` the caller is
+#'   building weights for.
+#' @param family_tag Character. The treatment family tag from
+#'   `treatment_model$family`.
+#'
+#' @return Numeric vector of length `nrow(fit_data)` (or a length-1
+#'   vector of `1` for ATE, which `R`'s recycling promotes to the
+#'   correct per-row constant without allocating).
+#'
+#' @noRd
+ht_bayes_numerator <- function(
+  estimand,
+  treatment_model,
+  fit_data,
+  family_tag
+) {
+  if (estimand == "ATE") {
+    return(1)
+  }
+  if (family_tag != "bernoulli") {
+    rlang::abort(
+      paste0(
+        "Internal error: ATT / ATC Bayes numerator requested for a non-",
+        "Bernoulli treatment family ('",
+        family_tag,
+        "'). `check_estimand_intervention_compat()` should have ",
+        "rejected this upstream."
+      )
+    )
+  }
+  p <- unname(stats::predict(
+    treatment_model$model,
+    newdata = fit_data,
+    type = "response"
+  ))
+  if (estimand == "ATT") {
+    return(p)
+  }
+  if (estimand == "ATC") {
+    return(1 - p)
+  }
+  rlang::abort(
+    paste0("Internal error: unknown estimand '", estimand, "'.")
+  )
 }
 
 

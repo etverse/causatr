@@ -600,11 +600,11 @@ check_causat_inputs <- function(
 #'
 #' @description
 #' Up-front check on the `weights` argument passed to `causat()` or
-#' `causat_survival()`. Historically non-finite or negative weights
-#' silently fell through to the downstream GLM or to `WeightIt`, which
-#' either aborted with a cryptic message or (worse) produced NaN
-#' estimates. Reject at the causatr boundary so users see a specific
-#' error with the failing call site.
+#' `causat_survival()`. Without this guard, non-finite or negative
+#' weights silently fall through to the downstream GLM, which either
+#' aborts with a cryptic message or (worse) produces NaN estimates.
+#' Reject at the causatr boundary so users see a specific error with
+#' the failing call site.
 #'
 #' Zero weights are allowed as a pass-through even though they carry
 #' no information on their own — users sometimes use zero weights to
