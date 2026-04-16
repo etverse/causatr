@@ -156,8 +156,8 @@ model to ~1e-6 on point estimates and SEs.
 | binary | binomial | static | ATE | OR | sandwich | none | ✅ truth | test-simulation.R |
 | binary | binomial | static | ATE | difference | bootstrap | none | ✅ truth | test-simulation.R |
 | binary | gaussian | dynamic | ATE | difference | sandwich (HT indicator) | none | ✅ truth | test-simulation.R, test-ipw-weights.R |
-| binary | gaussian | ipsi(δ) | ATE | difference | sandwich (closed-form weight) | none | ✅ truth | test-simulation.R, test-ipw-weights.R |
-| continuous | gaussian | shift | ATE | difference | sandwich (pushforward ratio) | none | ✅ truth | test-simulation.R, test-ipw-weights.R |
+| binary | gaussian | ipsi(δ) | ATE | difference | sandwich (closed-form weight) | none | ✅ truth + manual IPSI oracle (T-oracle6) | test-simulation.R, test-ipw-weights.R, test-ipw-lmtp-oracle.R |
+| continuous | gaussian | shift | ATE | difference | sandwich (pushforward ratio) | none | ✅ truth + lmtp SDR oracle (T-oracle5) | test-simulation.R, test-ipw-weights.R, test-ipw-lmtp-oracle.R |
 | continuous | gaussian | scale_by | ATE | difference | sandwich (pushforward + Jacobian) | none | ✅ truth | test-simulation.R, test-ipw-weights.R |
 | categorical (k>2) | gaussian | static | ATE | difference | sandwich | none | ✅ truth | test-simulation.R |
 | categorical (k>2) | gaussian | dynamic | ATE | difference | sandwich | none | ✅ smoke | test-simulation.R |
@@ -395,12 +395,12 @@ and multivariate / longitudinal IPW).
 |---|---|---|---|---|---|---|
 | categorical (k>2) | gaussian | static | ATE | sandwich | ✅ truth (chunk 3e) | multinomial density via `nnet::multinom`; truth-based test in `test-simulation.R` |
 | categorical (k>2) | gaussian | dynamic | ATE | sandwich | ✅ smoke (chunk 3e) | HT indicator weight on deterministic rule; smoke test in `test-simulation.R` |
-| binary | gaussian | static | ATE × {ATE/ATT/ATC} | sandwich | ❌ planned (chunk 3d) | T-oracle1..3: contrast-level parity vs `WeightIt::glm_weightit()` |
-| binary | gaussian | static | ATE | sandwich | ❌ planned (chunk 3d) | T-oracle4: `propensity_model_fn = mgcv::gam` |
-| continuous | gaussian | shift | ATE | sandwich | ❌ planned (chunk 3f) | T-oracle5: `lmtp::lmtp_ipw()` point-estimate parity |
-| binary | gaussian | ipsi(δ) | ATE | sandwich | ❌ planned (chunk 3f) | T-oracle6: manual IPSI weight parity |
-| non-static IPW | — | shift / ipsi | ATE | sandwich | ❌ planned (chunk 3g) | T-non-static: full IF variance must materially exceed the `J V_β Jᵀ` delta-only shortcut |
-| non-static IPW | — | shift / ipsi | ATE | bootstrap | ❌ planned (chunk 3g) | bootstrap parity: `ci_method = "bootstrap"` agrees with `ci_method = "sandwich"` within Monte Carlo error |
+| binary | gaussian | static | ATE × {ATE/ATT/ATC} | sandwich | ✅ done (chunk 3d) | T-oracle1..3: contrast-level parity vs `WeightIt::glm_weightit()` (`test-ipw-weightit-oracle.R`) |
+| binary | gaussian | static | ATE | sandwich | ✅ done (chunk 3d) | T-oracle4: `propensity_model_fn = mgcv::gam` (`test-ipw-weightit-oracle.R`) |
+| continuous | gaussian | shift | ATE | sandwich | ✅ done (chunk 3f) | T-oracle5: `lmtp::lmtp_sdr()` point-estimate parity (`test-ipw-lmtp-oracle.R`) |
+| binary | gaussian | ipsi(δ) | ATE | sandwich | ✅ done (chunk 3f) | T-oracle6: manual IPSI weight parity (`test-ipw-lmtp-oracle.R`) |
+| non-static IPW | — | shift / ipsi | ATE | sandwich | ✅ done (chunk 3g) | T-non-static: propensity correction materially changes SE (shift: ~5-8% reduction; IPSI contrast: ~90% reduction via off-diagonal covariance). `test-ipw-variance-regression.R` |
+| non-static IPW | — | shift / ipsi | ATE | bootstrap | ✅ done (chunk 3g) | bootstrap parity: `ci_method = "bootstrap"` agrees with `ci_method = "sandwich"` within 30% Monte Carlo tolerance. `test-ipw-variance-regression.R` |
 | multivariate | any | any | any | any | ❌ deferred (Phase 7) | IPW multivariate needs density-ratio engine with joint treatment density |
 | longitudinal | any | any | any | any | ❌ deferred | extends density-ratio machinery to pooled-over-time MSM; explicitly out of Phase 4 scope |
 

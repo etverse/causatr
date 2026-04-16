@@ -361,7 +361,15 @@ compute_ipw_contrast_point <- function(
     # `beta_0 + beta_1 * target_value`, and under `Y ~ 1` it
     # collapses to `beta_0`, but running the generic path keeps the
     # code uniform with the rest of `compute_contrast()`.
-    data_a <- apply_intervention(data, treatment, iv)
+    #
+    # IPSI does not materialize a counterfactual treatment value — the
+    # intervention acts on the propensity, not on A itself. Since the
+    # MSM is intercept-only (`Y ~ 1`), prediction doesn't depend on
+    # the treatment column, so we skip `apply_intervention()` and use
+    # the original data directly. For all other interventions, the
+    # treatment column is modified to its counterfactual value.
+    iv_type <- if (inherits(iv, "causatr_intervention")) iv$type else NULL
+    data_a <- if (identical(iv_type, "ipsi")) data else apply_intervention(data, treatment, iv)
     preds <- stats::predict(msm_model, newdata = data_a, type = "response")
     valid <- target_idx & !is.na(preds)
     w_target <- if (!is.null(ext_w)) ext_w[valid] else NULL

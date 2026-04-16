@@ -1436,7 +1436,22 @@ variance_if_ipw <- function(
     # single column of ones. `iv_design_matrix()` handles both.
     # `apply_intervention()` runs on the full data; we subset to the
     # fit rows to keep lengths aligned with the MSM row count.
-    data_a_full <- apply_intervention(data, fit$treatment, b$intervention)
+    #
+    # IPSI does not materialize a counterfactual treatment value — the
+    # intervention acts on the propensity, not on A itself. Since the
+    # MSM is intercept-only (`Y ~ 1`), the design matrix is a column
+    # of ones regardless of the treatment column, so we skip
+    # `apply_intervention()` and use the original data.
+    iv_type_v <- if (inherits(b$intervention, "causatr_intervention")) {
+      b$intervention$type
+    } else {
+      NULL
+    }
+    data_a_full <- if (identical(iv_type_v, "ipsi")) {
+      data
+    } else {
+      apply_intervention(data, fit$treatment, b$intervention)
+    }
     data_a_sub <- data_a_full[fit_rows]
     X_star <- iv_design_matrix(msm_model, data_a_sub)
 
