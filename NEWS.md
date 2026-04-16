@@ -1,5 +1,18 @@
 # causatr (development version)
 
+## 2026-04-16 — Fifth-round critical review R1: `diagnose()` censoring alignment
+
+`diagnose()` now correctly excludes censored rows when computing
+positivity, balance, and simple-balance diagnostics for gcomp fits that
+use a `censoring` column. Previously, `compute_positivity()`,
+`compute_balance()`, and `compute_balance_simple()` called
+`get_fit_rows(data, outcome)` without passing `fit$censoring`, so
+diagnostics were computed on the full non-NA-outcome sample (including
+censored individuals) while the main gcomp pipeline excluded them. The
+diagnostics thus described a different sample than the one used for
+estimation. All three sites now call `get_fit_rows(data, outcome,
+fit$censoring)`. Regression test in `tests/testthat/test-diagnose.R`.
+
 ## 2026-04-15 — Fourth-round critical review: reject `na.action = na.exclude`
 
 `causat()` and `causat_survival()` now abort via `check_dots_na_action()`

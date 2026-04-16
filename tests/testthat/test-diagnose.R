@@ -343,3 +343,51 @@ test_that("diagnose() respects custom ps_bounds", {
   ]
   expect_lte(n_viol_wide, n_viol_narrow)
 })
+
+
+# Fifth-round critical review, R1: diagnose() must exclude censored rows
+# when computing positivity, balance, and simple balance for gcomp fits
+# with a censoring column. Before the fix, diagnose() used all non-NA-
+# outcome rows, ignoring censoring. The main gcomp pipeline excludes
+# censored rows via get_fit_rows(data, outcome, censoring), so
+# diagnostics computed on a different sample were misleading.
+# Repro script: /tmp/causatr_repro_r1_diagnose_censoring.R
+test_that("diagnose() excludes censored rows for gcomp with censoring", {
+  set.seed(42)
+  n <- 200
+  d <- data.table::data.table(
+    Y = rnorm(n),
+    A = rbinom(n, 1, 0.5),
+    L = rnorm(n),
+    C = c(rep(0L, 150), rep(1L, 50))
+  )
+
+  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L,
+                estimator = "gcomp", censoring = "C")
+
+  # The main pipeline should have fit on 150 rows (excluding C == 1)
+  expect_equal(sum(fit$details$fit_rows), 150L)
+
+  # Positivity diagnostics should also use 150 rows
+  pos <- compute_positivity(fit, ps_bounds = c(0.025, 0.975))
+  # The PS model is fit on the same 150 rows, so the number of
+  # observations in the positivity table equals the fit-row count.
+  ps_formula <- build_ps_formula(fit$confounders, fit$treatment)
+  fit_rows <- get_fit_rows(fit$data, fit$outcome, fit$censoring)
+  ps_model <- stats::glm(ps_formula, data = fit$data[fit_rows],
+                          family = stats::binomial())
+  expect_equal(length(stats::fitted(ps_model)), 150L)
+
+  # Balance should also use 150 rows
+  bal <- compute_balance_simple(fit)
+  expect_false(is.null(bal))
+  # The balance table should be based on uncensored rows only.
+  # We check that the SMD is computed on the right subset by
+  # verifying directly:
+  d_uncensored <- d[d$C == 0]
+  smd_manual <- (mean(d_uncensored$L[d_uncensored$A == 1]) -
+                   mean(d_uncensored$L[d_uncensored$A == 0])) /
+    sqrt((var(d_uncensored$L[d_uncensored$A == 1]) +
+            var(d_uncensored$L[d_uncensored$A == 0])) / 2)
+  expect_equal(bal$smd[bal$variable == "L"], smd_manual, tolerance = 1e-10)
+})

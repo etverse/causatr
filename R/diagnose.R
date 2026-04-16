@@ -180,7 +180,7 @@ compute_positivity <- function(fit, ps_bounds) {
     if (is.null(ps) || length(ps) == 0L) return(NULL)
   } else {
     ps_formula <- build_ps_formula(fit$confounders, treatment)
-    fit_rows <- get_fit_rows(data, fit$outcome)
+    fit_rows <- get_fit_rows(data, fit$outcome, fit$censoring)
     ps_model <- stats::glm(
       ps_formula,
       data = data[fit_rows],
@@ -262,7 +262,7 @@ compute_balance <- function(fit, stats, thresholds) {
     )
   } else {
     ps_formula <- build_ps_formula(fit$confounders, fit$treatment)
-    fit_rows <- get_fit_rows(fit$data, fit$outcome)
+    fit_rows <- get_fit_rows(fit$data, fit$outcome, fit$censoring)
     cobalt::bal.tab(
       ps_formula,
       data = as.data.frame(fit$data[fit_rows]),
@@ -299,10 +299,10 @@ compute_balance_simple <- function(fit) {
     return(NULL)
   }
 
-  # Drop rows with missing outcome — same fitting-row definition as
-  # the main pipeline, so balance is computed on the analysis sample
-  # (not the pre-filter raw data).
-  fit_rows <- !is.na(data[[outcome]])
+  # Drop rows with missing outcome and censored rows — same
+  # fitting-row definition as the main pipeline, so balance is
+  # computed on the analysis sample (not the pre-filter raw data).
+  fit_rows <- get_fit_rows(data, outcome, fit$censoring)
   d <- data[fit_rows]
   confounder_vars <- all.vars(fit$confounders)
   confounder_vars <- intersect(confounder_vars, names(d))
