@@ -96,8 +96,8 @@ The MSM formula defaults to `Y ~ A` (saturated), with a Phase 8 hook for `Y ~ A 
 | Intervention | G-comp | IPW | Matching |
 |---|---|---|---|
 | `static()`    | ✓ | ✓ (binary / categorical) | ✓ (binary) |
-| `shift()`     | ✓ | ✓ (continuous) | — |
-| `scale_by()`  | ✓ | ✓ (continuous) | — |
+| `shift()`     | ✓ | ✓ (continuous / count — integer shifts only on count) | — |
+| `scale_by()`  | ✓ | ✓ (continuous / count — integer-preserving scales only on count) | — |
 | `threshold()` | ✓ | ⛔ (use gcomp — pushforward has point masses) | — |
 | `dynamic()`   | ✓ | ✓ (binary / categorical only) | — |
 | `ipsi()`      | — | ✓ (binary) | — |
@@ -109,7 +109,7 @@ The two ⛔ / "family restriction" notes reflect a genuine architectural limit o
 - **`threshold()` under IPW** is rejected because the pushforward of a continuous `f(a|l)` under a boundary clamp is a mixed measure — continuous density on `(lo, hi)` plus point masses at the boundaries — so the density ratio w.r.t. the fitted Gaussian is not well-defined. `gcomp` handles it cleanly via `predict(outcome_model, newdata = clamped)` and is the correct tool for this intervention.
 - **`dynamic()` under IPW** is only defined on binary / categorical treatments, where the HT indicator weight `I(A_obs = rule_i) / f(A_obs | L)` is well-posed. Deterministic rules on continuous treatments are a Dirac per individual, which has the same pushforward-degeneracy problem as `threshold()` — users should either rewrite the rule as a smooth `shift()` / `scale_by()`, or switch to `gcomp`.
 - **`static(v)` under IPW** is rejected on continuous treatments (nobody is observed exactly at `v`, so the HT indicator is zero almost surely).
-- **`shift()` / `scale_by()`** are continuous-only because their density-ratio formulas rely on the Gaussian pdf; they have no meaning on a binary treatment.
+- **`shift()` / `scale_by()`** require a numeric treatment with a well-defined density. On continuous (Gaussian) treatments the density ratio uses the Gaussian pdf. On count treatments (Poisson / negative binomial, opt-in via `propensity_family`), the density ratio uses `dpois()` / `dnbinom()` — but only for shifts/scales that preserve the integer support (non-integer shifts on count treatments are rejected because `dpois()` at non-integer values returns 0). These interventions have no meaning on binary or categorical treatments.
 - **`ipsi()`** is binary-only — Kennedy (2019)'s closed form is Bernoulli-specific.
 
 All of these are enforced at contrast time by `check_intervention_family_compat()` in `R/ipw_weights.R`, which aborts with an actionable pointer.
@@ -120,6 +120,46 @@ All of these are enforced at contrast time by `check_intervention_family_compat(
 - IPW: multinomial treatment density model via `nnet::multinom` or `VGAM::vglm` plugged in through `propensity_model_fn`; categorical density evaluation in `evaluate_density()`.
 - Matching: stays binary-only (MatchIt limitation; we already error out cleanly in `fit_matching()`).
 - Update `check_estimand_trt_compat()` to allow categorical + ATE.
+
+### 5a. Count treatment support (Poisson / negative binomial)
+
+Integer-valued treatments (dose levels, event counts, visit counts) currently fall through `detect_treatment_family()` to `"gaussian"` and get a Normal density model. This works when the integer support is dense enough that the Gaussian approximation is harmless (age in years, cigarettes/day). It breaks down on sparse count data (0–5 doses) where the Gaussian pdf evaluates between integers that carry zero true probability mass, producing badly calibrated density ratios.
+
+**Design decisions (settled):**
+
+1. **Explicit opt-in, not auto-detection.** A new `propensity_family` argument on `causat()` lets the user declare `propensity_family = "poisson"` or `propensity_family = "negbin"`. Auto-detecting count data from the values is fragile (age in years, income in thousands are all non-negative integers but should not get a Poisson density). The existing auto-detect for bernoulli / gaussian / categorical stays unchanged — those are unambiguous from the data. `propensity_family = NULL` (default) preserves the current behaviour.
+
+2. **Both Poisson and negative binomial.** Poisson is a one-parameter model (`lambda = exp(X %*% alpha)`, no dispersion). Negative binomial adds a `theta` (size) parameter estimated by `MASS::glm.nb()`. Theta is treated as fixed in the variance engine — same convention as the Gaussian `sigma` — because perturbing `theta` inside `numDeriv::jacobian` would require a joint `(alpha, theta)` M-estimation setup. `MASS::glm.nb` is a recommended package (ships with R, like `nnet`).
+
+3. **Non-integer shifts/scales are rejected.** `shift(delta)` on a count treatment is only valid when `delta` is an integer, because `dpois(a - delta, lambda)` returns 0 for non-integer arguments. Similarly `scale_by(factor)` is only valid when `a_obs * factor` is integer for every observed value. `check_intervention_family_compat()` enforces this with a clear error pointing at `estimator = "gcomp"` as the fallback for fractional shifts on count data (g-comp handles it via predict-then-average on the outcome model, no density ratio needed).
+
+**Implementation plan:**
+
+Touch points (5 functions modified, 1 new):
+
+| File | Function | Change |
+|---|---|---|
+| `R/treatment_model.R` | `fit_treatment_model()` | Add `propensity_family` parameter; when `"poisson"`, call `fit_count_density(family = poisson())`; when `"negbin"`, call `fit_count_density(family = NULL)` with `model_fn = MASS::glm.nb` |
+| `R/treatment_model.R` | `fit_count_density()` | **New.** Thin wrapper like `fit_bernoulli_density()`. For Poisson: `model_fn(formula, data, family = poisson(), weights, ...)`. For NB: `MASS::glm.nb(formula, data, weights, ...)` (no `family` arg, same pattern as `nnet::multinom`). Extracts `theta` from the fitted model for NB (`model$theta`). |
+| `R/treatment_model.R` | `evaluate_density()` | Add `"poisson"` branch: `lambda = predict(model, type = "response"); dpois(treatment_values, lambda)`. Add `"negbin"` branch: `lambda = predict(model, type = "response"); dnbinom(treatment_values, mu = lambda, size = theta)`. |
+| `R/ipw_weights.R` | `make_weight_fn()` | Add count closure parallel to the Gaussian one. Key difference: `lambda = exp(X_prop %*% alpha)` (log link) instead of `mu = X_prop %*% alpha` (identity link). Density: `dpois(a, lambda)` or `dnbinom(a, mu = lambda, size = theta)`. Same pushforward structure: `f(d^{-1}(A_obs) | L) / f(A_obs | L)` with `|Jac| = 1` for integer shift. |
+| `R/ipw_weights.R` | `check_intervention_family_compat()` | Allow `shift()` / `scale_by()` on `"poisson"` / `"negbin"`, with an additional guard: reject non-integer delta (for shift) and reject scale factors that produce non-integer `a_obs * factor` (for scale_by). |
+| `R/ipw.R` | `fit_ipw()` | Thread `propensity_family` through to `fit_treatment_model()`. When `propensity_family = "negbin"` and `propensity_model_fn` is NULL, auto-select `MASS::glm.nb` (same pattern as categorical auto-selecting `nnet::multinom`). |
+| `R/causat.R` | `causat()` | Add `propensity_family = NULL` argument, plumbed through to `fit_ipw()`. |
+
+**Variance engine:** no changes needed. The Poisson and NB GLMs are standard GLMs with `$family`, `$linear.predictors`, working weights, etc. — `prepare_model_if()` and `bread_inv()` work out of the box. (`MASS::glm.nb` returns a `negbin` object inheriting from `glm`.)
+
+**Tests (chunk 3j):**
+
+- Truth-based DGP: count treatment `A ~ Poisson(exp(0.5*L))`, continuous outcome `Y = 2 + 1.5*A + L + eps`. True `E[Y(shift(1))] - E[Y(shift(0))]` derivable analytically from the Poisson MTP.
+- NB parity: same DGP fit with `propensity_family = "negbin"` should agree with Poisson within tolerance (NB nests Poisson).
+- Rejection tests: `shift(0.5)` on count treatment aborts; `scale_by(1.5)` on integer data with odd values aborts.
+
+**References:**
+
+- Díaz I, van der Laan MJ (2012). Population intervention causal effects based on stochastic interventions. *Biometrics* 68:541–549. — density-ratio framework for parametric treatment models, applicable to any exponential-family density.
+- Haneuse S, Rotnitzky A (2013). Estimation of the effect of interventions that modify the received treatment. *Statistics in Medicine* 32:5260–5277. — modified treatment policies with explicit density-ratio weights under parametric treatment models.
+- Cameron AC, Trivedi PK (2013). *Regression Analysis of Count Data.* Cambridge University Press. — Poisson and NB regression as parametric density models for count treatments.
 
 ### 6. IPSI (incremental propensity score interventions)
 
@@ -261,11 +301,12 @@ Phase 4 lands as a sequence of focused commits rather than one big-bang rewrite,
 | 3c.ii | Delete `prepare_propensity_if()` / `prepare_propensity_if_weightit()` / `prepare_propensity_if_self_contained()` / `apply_propensity_correction()` from `R/variance_if.R`; unify the `variance_if()` dispatcher so IPW routes through a single live `variance_if_ipw()`; route `compute_contrast()`'s IPW path through the dispatcher uniformly; sweep Branch-A narration from roxygen | **done** (commit `b23660b`, ≈213 lines deleted) |
 | 3c.iii | Unify bootstrap IPW path: rewrite `refit_ipw()` to replay `fit_ipw()` on resampled data, delete `ipw_boot_replicate()` special case, route bootstrap through `compute_ipw_contrast_point()` uniformly with the sandwich path; extract `diagnose()` IPW shim into `diagnose_ipw_point()` helper for the binary static ATE case; regenerate `_snaps/diagnose.md` (no-op); sweep orphaned Phase-3-era narration | **done** (commit `9055f1f`) |
 | 3d | `tests/testthat/helper-ipw-weightit-oracle.R` + contrast-level oracle tests T-oracle1..4 (binary ATE/ATT/ATC + GAM propensity, `skip_if_not_installed("WeightIt")`); DESCRIPTION move WeightIt `Imports:` → `Suggests:`; sweep stale `WeightIt` roxygen/comments from `R/`. Also surfaced and fixed a latent correctness bug: the chunk 3c.i runtime silently returned the ATE for ATT / ATC fits because `compute_density_ratio_weights()` / `make_weight_fn()` did not consume `fit$estimand`. The fix threads `estimand` through both weight builders and adds `ht_bayes_numerator(estimand, tm, fit_data, family_tag)` — the unified Bayes-rule numerator `f*(L) = f(A* \| L)` derived in the `compute_density_ratio_weights()` roxygen header. ATE/ATT/ATC now match `WeightIt::glm_weightit()` to ~1e-6 on point estimates and sandwich SEs on the same propensity model; ATT bootstrap SE tracks the sandwich SE within Monte Carlo error (verified manually before committing). | **done** |
-| 3e | Categorical (multinomial) branch in `fit_treatment_model()` + `make_weight_fn()` + `evaluate_density()`; `check_estimand_trt_compat()` update; new tests for categorical static HT | **pending** |
+| 3e | Categorical (multinomial) branch in `fit_treatment_model()` + `make_weight_fn()` + `evaluate_density()`; multinomial-specific variance engine (`prepare_model_if_multinom()`); `nnet::multinom` as default categorical fitter; truth-based test (static) + smoke test (dynamic) | **done** |
 | 3f | lmtp contrast-level oracles T-oracle5 (shift) + T-oracle6 (IPSI), `skip_if_not_installed("lmtp")`; DESCRIPTION add lmtp to `Suggests:` | **pending** |
 | 3g | Non-static variance regression tests — T-non-static (IF > delta-only shortcut) + bootstrap parity for shift and IPSI | **pending** |
 | 3h | User-facing vignette `vignettes/interventions.qmd` — intervention-type tour with estimator-by-estimator examples | **pending** |
 | 3i | Theory vignette `vignettes/ipw-variance-theory.qmd` — density-ratio derivation, pushforward sign + Jacobian, HT indicator form, IPSI closed form, `make_weight_fn` closure design, numerical `A_{β,α}` verification. Cross-reference from `vignettes/variance-theory.qmd` §4.2 | **pending** |
+| 3j | Count treatment (Poisson + negative binomial) density branch via explicit `propensity_family = "poisson"` / `"negbin"` opt-in on `causat()`; `fit_count_density()` + `evaluate_density()` Poisson/NB branches; count closure in `make_weight_fn()`; non-integer shift/scale rejection in `check_intervention_family_compat()`; truth-based Poisson DGP test + NB parity + rejection snapshot tests. See §5a for full design. | **pending** |
 
 The chunk boundary is deliberately where the runtime architecture flips (3c). Chunks 3a and 3b validate the new variance machinery against first-principles references **before** any runtime code changes, so chunk 3c can focus on plumbing without also debugging the math.
 
@@ -274,7 +315,8 @@ The chunk boundary is deliberately where the runtime architecture flips (3c). Ch
 - **Foundation** and **3a/3b**: add `test-treatment-model.R`, `test-ipw-weights.R`, `test-ipw-cross-derivative.R`, `test-ipw-branch-b.R`, `test-estimand-intervention-compat.R`. All existing Phase 3 tests still pass because nothing in runtime R/ code changed at the IPW path yet.
 - **3c**: all existing Phase 3 IPW tests are either rewritten for the new architecture or deleted (see §12). Snapshots regenerated. Simulation/by-estimand tolerances audited and widened where necessary.
 - **3d**: new `test-ipw-weightit-oracle.R` added. WeightIt no longer on the runtime path.
-- **3e/3f/3g**: new feature tests land as the features themselves do.
+- **3e**: categorical abort test in `test-treatment-model.R` replaced with positive multinomial tests; categorical abort in `test-simulation.R` replaced with truth-based static ATE test + dynamic smoke test. New DGP `simulate_categorical_continuous()` in `helper-dgp.R`.
+- **3f/3g/3j**: new feature tests land as the features themselves do.
 
 ### 12. Phase 3 tests that need attention in Chunk 3c
 
@@ -326,7 +368,7 @@ The reconnaissance pass (between commit 6e3d42b and Chunk 3c) identified these t
 
 **Core engine**
 
-- [x] `R/treatment_model.R` — fit treatment density model via `propensity_model_fn`; `evaluate_density()` for any treatment value. **Binary + continuous landed in the foundation chunk**; categorical (multinomial) branch is the next sub-chunk and currently hard-aborts with `causatr_phase4_categorical_pending`.
+- [x] `R/treatment_model.R` — fit treatment density model via `propensity_model_fn`; `evaluate_density()` for any treatment value. Binary + continuous landed in the foundation chunk; categorical (multinomial) landed in chunk 3e via `nnet::multinom` + `evaluate_categorical_density()` + `prepare_model_if_multinom()` for sandwich variance.
 - [x] `R/ipw_weights.R` — density-ratio weight computation + `make_weight_fn()` closure factory. Three branches: HT indicator (discrete point-mass interventions), smooth pushforward with correct sign + Jacobian (continuous MTPs), IPSI closed form. `check_intervention_family_compat()` enforces the intervention × family compatibility matrix in §4.
 - [x] Rewrite `R/ipw.R` — single self-contained engine handling static + shift + scale_by + dynamic + ipsi via density-ratio weights and an explicit weighted MSM. Populates `fit$details$propensity_model`, `fit$details$treatment_model`, `fit$details$weight_fn`, `fit$details$propensity_model_fn`. WeightIt runtime call removed (chunk 3c.i, commit `d9732bf`).
 - [x] Add `propensity_model_fn` argument to `causat()` (default = `model_fn`, per the **Option B** decision in §4); plumbed through to `fit_ipw()` (chunk 3c.i).
@@ -339,7 +381,8 @@ The reconnaissance pass (between commit 6e3d42b and Chunk 3c) identified these t
 
 **Categorical treatment + IPSI**
 
-- [ ] Categorical treatment support across checks + IPW path via multinomial density model. Unblocks the `categorical` branch of `fit_treatment_model()` / `evaluate_density()` / `make_weight_fn()`. **Sub-chunk 3e.**
+- [x] Categorical treatment support across checks + IPW path via multinomial density model. Landed in chunk 3e: `fit_categorical_density()`, `evaluate_categorical_density()`, categorical HT closure in `make_weight_fn()`, `prepare_model_if_multinom()` in the variance engine, `nnet` added to `Imports:`.
+- [ ] Count treatment (Poisson / negative binomial) density branch via explicit `propensity_family` opt-in. **Sub-chunk 3j.** See §5a for full design.
 - [x] IPSI implementation wiring through `fit_ipw()` — the closed-form weight in `R/ipw_weights.R` is consumed by the per-intervention MSM refit in `compute_contrast()`'s IPW path (chunk 3c.i).
 
 **Dependencies**
@@ -364,9 +407,14 @@ The reconnaissance pass (between commit 6e3d42b and Chunk 3c) identified these t
 - [ ] T-non-static IF > delta-only shortcut. **Chunk 3g.**
 - [ ] Bootstrap parity test (sandwich vs bootstrap on the same shift / IPSI DGP). **Chunk 3g.** The unified bootstrap pipeline itself shipped in 3c.iii — `refit_ipw()` → `compute_ipw_contrast_point()` — but the truth-based parity assertion is still pending.
 - [x] Estimand × intervention rejection snapshot (`test-estimand-intervention-compat.R`, foundation chunk).
+- [ ] T-count-poisson: truth-based Poisson count treatment DGP + integer `shift()` parity. **Chunk 3j.**
+- [ ] T-count-negbin: NB fit on same DGP agrees with Poisson within tolerance (NB nests Poisson). **Chunk 3j.**
+- [ ] T-count-reject: non-integer `shift(0.5)` and non-integer-preserving `scale_by(1.5)` on count treatment abort with snapshot. **Chunk 3j.**
 
 **Deferred (explicitly not Phase 4 scope)**
 
 - [ ] `threshold()` under IPW — rejected architecturally, not deferred. The intervention is well-defined under `gcomp`; there is no meaningful density-ratio path.
+- [ ] `threshold()` on count treatments — same mixed-measure problem as continuous. Rejected.
+- [ ] `dynamic()` on count treatments — deterministic rule on a discrete-but-large support. Could work via HT indicators if the support is enumerable, but the cost–benefit vs g-comp is poor. Rejected for now; revisit if demand arises.
 - [ ] Stabilized weights (`stabilize = TRUE` option).
 - [ ] IPW for time-varying treatments — extend the same density-ratio machinery to longitudinal IPW (pooled-over-time MSM); deferred from Phase 5.

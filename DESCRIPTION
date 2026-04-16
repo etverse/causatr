@@ -23,6 +23,7 @@ Imports:
     data.table (>= 1.14.0),
     generics,
     MatchIt,
+    nnet,
     numDeriv,
     rlang (>= 1.0.0),
     sandwich,

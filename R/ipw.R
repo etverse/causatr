@@ -16,8 +16,9 @@
 #'    - **Bernoulli** (0/1 numeric): logistic GLM.
 #'    - **Gaussian** (continuous numeric with > 2 distinct values):
 #'      linear GLM with residual SD.
-#'    - **Categorical** (factor / character): aborts — users with
-#'      categorical treatments should use `estimator = "gcomp"`.
+#'    - **Categorical** (factor / character): multinomial logistic via
+#'      `nnet::multinom` (auto-selected when `propensity_model_fn` is
+#'      `NULL`; the user can override with any multinomial fitter).
 #' 2. Stash the treatment model in `fit$details$treatment_model` so
 #'    `contrast()` can build intervention-specific density-ratio
 #'    weight vectors via `compute_density_ratio_weights()` /
@@ -120,16 +121,21 @@ fit_ipw <- function(
   fit_rows <- get_fit_rows(data, outcome)
   fit_data <- data[fit_rows]
 
-  # Resolve the propensity fitter. Default to the user's `model_fn`
-  # so a single `causat(..., model_fn = mgcv::gam)` call flexibly
-  # models both the outcome (in gcomp) and the propensity (in ipw)
-  # without a second argument. A caller who wants asymmetric shapes —
-  # e.g. plain `glm` outcome but `mgcv::gam` propensity — supplies
-  # `propensity_model_fn` explicitly.
-  prop_model_fn <- if (is.null(propensity_model_fn)) {
-    model_fn
-  } else {
+  # Resolve the propensity fitter. For binary / continuous treatments
+  # the default is the user's `model_fn` (typically stats::glm), so a
+  # single `causat(..., model_fn = mgcv::gam)` call flexibly models
+  # both the outcome and the propensity. For **categorical** treatments
+  # the fitter must be a multinomial model (`nnet::multinom` by
+  # default) because `stats::glm` cannot fit a multinomial response.
+  # When the user passes an explicit `propensity_model_fn`, it takes
+  # precedence regardless of treatment family.
+  trt_family <- detect_treatment_family(data[[treatment]])
+  prop_model_fn <- if (!is.null(propensity_model_fn)) {
     propensity_model_fn
+  } else if (trt_family == "categorical") {
+    nnet::multinom
+  } else {
+    model_fn
   }
 
   # Capture the user's `...` once. Stashed in `fit$details$dots` so

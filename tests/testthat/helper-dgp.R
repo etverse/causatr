@@ -113,7 +113,38 @@ simulate_het_binary <- function(n = 5000, seed = 42) {
   data.frame(Y = Y, A = A, L = L, sex = sex)
 }
 
-# ── Longitudinal DGPs ───────────────────────────────────────────────────────
+# DGP 7: Categorical (3-level) treatment, continuous outcome
+#   L ~ N(0, 1)
+#   A | L ~ Multinomial("a","b","c") via softmax(0, 0.5*L, -0.3*L)
+#   Y | A, L ~ N(mu_A + 1.5*L, sd = 1)
+#     mu_A = 2 if A="a", 5 if A="b", 3 if A="c"
+#
+# True counterfactual means (marginalise over L ~ N(0,1)):
+#   E[Y("a")] = 2,  E[Y("b")] = 5,  E[Y("c")] = 3
+# True ATE("b" vs "a") = 3
+
+simulate_categorical_continuous <- function(n = 5000, seed = 42) {
+  set.seed(seed)
+  L <- rnorm(n)
+  # Multinomial logit: log-odds vs reference "a"
+  eta_b <- 0.5 * L
+  eta_c <- -0.3 * L
+  denom <- 1 + exp(eta_b) + exp(eta_c)
+  p_a <- 1 / denom
+  p_b <- exp(eta_b) / denom
+  p_c <- exp(eta_c) / denom
+  probs <- cbind(p_a, p_b, p_c)
+  A <- factor(
+    apply(probs, 1, function(p) sample(c("a", "b", "c"), 1, prob = p)),
+    levels = c("a", "b", "c")
+  )
+  mu <- ifelse(A == "a", 2, ifelse(A == "b", 5, 3))
+  Y <- mu + 1.5 * L + rnorm(n)
+  data.frame(Y = Y, A = A, L = L)
+}
+
+
+# Longitudinal DGPs
 
 # Table 20.1 from Hernán & Robins (2025).
 # 2 time points, true causal effect = 0.

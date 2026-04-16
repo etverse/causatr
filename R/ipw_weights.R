@@ -439,11 +439,39 @@ make_weight_fn <- function(
       })
     }
 
-    # Categorical is not supported: `evaluate_density()` has no
-    # multinomial arm.
-    rlang::abort(
-      "Categorical HT weight closure is not supported."
-    )
+    if (family_tag == "categorical") {
+      # Multinomial HT closure. The flattened `alpha` vector encodes
+      # (K-1) x p coefficients (row-major). Each numDeriv step
+      # perturbs one entry; we reconstruct the (K-1) x p matrix,
+      # compute log-odds `eta = X_prop %*% t(alpha_mat)`, and apply
+      # the softmax to recover per-level probabilities. The density
+      # at the observed treatment is then the column corresponding to
+      # `a_obs[i]`'s level.
+      trt_levels <- treatment_model$levels
+      K <- length(trt_levels)
+      Km1 <- K - 1L
+      p_cols <- ncol(X_prop)
+      # `a_obs` is factor or character — convert to character indices
+      # for column lookup in the probability matrix.
+      a_obs_char <- as.character(a_obs)
+      col_idx <- match(a_obs_char, trt_levels)
+
+      return(function(alpha) {
+        alpha_mat <- matrix(alpha, nrow = Km1, ncol = p_cols, byrow = TRUE)
+        # eta: n x (K-1) matrix of log-odds vs reference level.
+        eta <- X_prop %*% t(alpha_mat)
+        # Softmax: P(level_k) = exp(eta_k) / (1 + sum(exp(eta_j))).
+        exp_eta <- exp(eta)
+        denom <- 1 + rowSums(exp_eta)
+        # n x K probability matrix: reference level first, then K-1
+        # non-reference levels.
+        prob_mat <- cbind(1 / denom, exp_eta / denom)
+        # f_obs = P(A = a_obs_i | L_i)
+        f_obs <- prob_mat[cbind(seq_len(n_fit), col_idx)]
+        # ATE-only for categorical: f_star = 1.
+        ind / f_obs
+      })
+    }
   }
 
   # ---- Smooth pushforward branch (continuous treatments) -----------
@@ -720,11 +748,11 @@ ht_bayes_numerator <- function(
 #'
 #' | intervention    | bernoulli | gaussian         | categorical |
 #' |-----------------|-----------|------------------|-------------|
-#' | `static()`      | ✓ HT      | ⛔                | ⛔           |
+#' | `static()`      | ✓ HT      | ⛔                | ✓ HT        |
 #' | `shift()`       | ⛔         | ✓ smooth ratio   | ⛔           |
 #' | `scale_by()`    | ⛔         | ✓ smooth ratio   | ⛔           |
 #' | `threshold()`   | ⛔         | ⛔ (use gcomp)    | ⛔           |
-#' | `dynamic()`     | ✓ HT      | ⛔ (use gcomp)    | ⛔           |
+#' | `dynamic()`     | ✓ HT      | ⛔ (use gcomp)    | ✓ HT        |
 #' | `ipsi()`        | ✓ Kennedy | ⛔                | ⛔           |
 #'
 #' The rationale for each ⛔:

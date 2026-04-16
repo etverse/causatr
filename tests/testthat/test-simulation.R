@@ -1114,28 +1114,71 @@ test_that("ipw × continuous trt × shift recovers the linear MTP contrast", {
 })
 
 
-test_that("ipw aborts on categorical treatment with a pointer to gcomp", {
-  # Categorical treatment is not implemented in the self-contained
-  # IPW engine (the density evaluator has no multinomial arm).
-  # Users get an explicit rejection from `fit_treatment_model()`
-  # with a pointer at `estimator = "gcomp"`.
-  set.seed(100)
-  n <- 300
-  df <- data.frame(
-    A = factor(sample(c("0", "1", "2"), n, replace = TRUE)),
-    L = stats::rnorm(n),
-    Y = stats::rnorm(n)
+test_that("ipw × categorical × static × ATE × sandwich recovers truth", {
+  # DGP 7: 3-level categorical treatment, continuous outcome.
+  # True E[Y("a")] = 2, E[Y("b")] = 5, E[Y("c")] = 3.
+  # True ATE("b" vs "a") = 3.
+  d <- simulate_categorical_continuous(n = 8000, seed = 100)
+
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw"
   )
-  expect_error(
-    causat(
-      df,
-      outcome = "Y",
-      treatment = "A",
-      confounders = ~L,
-      estimator = "ipw"
+
+  res <- contrast(
+    fit,
+    interventions = list(b = static("b"), a = static("a")),
+    type = "difference",
+    ci_method = "sandwich"
+  )
+
+  est <- res$estimates
+  ctr <- res$contrasts
+  # Point estimate within 0.3 of truth (large-sample tolerance).
+  expect_equal(est[est$intervention == "b", ]$estimate, 5, tolerance = 0.3)
+  expect_equal(est[est$intervention == "a", ]$estimate, 2, tolerance = 0.3)
+  # Contrast is "a vs b" = E[Y(a)] - E[Y(b)] = 2 - 5 = -3
+  expect_equal(ctr$estimate, -3, tolerance = 0.3)
+  # SE is finite and positive
+  expect_true(ctr$se > 0 && is.finite(ctr$se))
+  # CI covers the truth
+  expect_true(ctr$ci_lower < -3 && ctr$ci_upper > -3)
+})
+
+test_that("ipw × categorical × dynamic × ATE × sandwich works", {
+  # Dynamic rule on categorical: assign "c" to everyone with L > 0,
+  # "a" otherwise.
+  d <- simulate_categorical_continuous(n = 5000, seed = 101)
+
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw"
+  )
+
+  rule <- function(data, trt) {
+    ifelse(data$L > 0, "c", "a")
+  }
+
+  res <- contrast(
+    fit,
+    interventions = list(
+      dyn = dynamic(rule),
+      all_a = static("a")
     ),
-    class = "causatr_phase4_categorical_pending"
+    type = "difference",
+    ci_method = "sandwich"
   )
+
+  # Smoke test: runs, finite estimates, finite SE
+  expect_true(all(is.finite(res$estimates$estimate)))
+  expect_true(all(res$estimates$std_error > 0))
+  expect_true(all(is.finite(res$contrasts$estimate)))
 })
 
 

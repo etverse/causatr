@@ -160,6 +160,7 @@ model to ~1e-6 on point estimates and SEs.
 | continuous | gaussian | shift | ATE | difference | sandwich (pushforward ratio) | none | ✅ truth | test-simulation.R, test-ipw-weights.R |
 | continuous | gaussian | scale_by | ATE | difference | sandwich (pushforward + Jacobian) | none | ✅ truth | test-simulation.R, test-ipw-weights.R |
 | categorical (k>2) | gaussian | static | ATE | difference | sandwich | none | ✅ truth | test-simulation.R |
+| categorical (k>2) | gaussian | dynamic | ATE | difference | sandwich | none | ✅ smoke | test-simulation.R |
 | continuous | gaussian | static (specific levels) | ATE | difference | sandwich | none | ✅ truth | test-simulation.R |
 | Self-contained IPW sandwich variance (single path) | — | — | — | sandwich | ✅ truth (T-A_β_α hand-derived cross-derivative + T-end-to-end stacked-sandwich by hand) | test-ipw-branch-b.R, test-ipw-cross-derivative.R, test-variance-if.R |
 | continuous | gaussian | static | — | — | — | — | ⛔ **rejected** (HT indicator degenerate on continuous treatment) | test-ipw.R |
@@ -302,8 +303,8 @@ and multivariate / longitudinal IPW).
 
 | Treatment | Outcome | Intervention | Estimand | Variance | Status | Notes |
 |---|---|---|---|---|---|---|
-| categorical (k>2) | gaussian | static | ATE | sandwich | ❌ planned (chunk 3e) | multinomial density via `nnet::multinom` through `propensity_model_fn`; `fit_treatment_model()` currently aborts with `causatr_phase4_categorical_pending` |
-| categorical (k>2) | gaussian | dynamic | ATE | sandwich | ❌ planned (chunk 3e) | HT indicator weight on deterministic rule |
+| categorical (k>2) | gaussian | static | ATE | sandwich | ✅ truth (chunk 3e) | multinomial density via `nnet::multinom`; truth-based test in `test-simulation.R` |
+| categorical (k>2) | gaussian | dynamic | ATE | sandwich | ✅ smoke (chunk 3e) | HT indicator weight on deterministic rule; smoke test in `test-simulation.R` |
 | binary | gaussian | static | ATE × {ATE/ATT/ATC} | sandwich | ❌ planned (chunk 3d) | T-oracle1..3: contrast-level parity vs `WeightIt::glm_weightit()` |
 | binary | gaussian | static | ATE | sandwich | ❌ planned (chunk 3d) | T-oracle4: `propensity_model_fn = mgcv::gam` |
 | continuous | gaussian | shift | ATE | sandwich | ❌ planned (chunk 3f) | T-oracle5: `lmtp::lmtp_ipw()` point-estimate parity |

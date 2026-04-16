@@ -294,6 +294,137 @@ prepare_model_if <- function(model, fit_idx, n_total) {
 }
 
 
+#' Precompute the IF ingredients for a multinomial propensity model
+#'
+#' @description
+#' Parallel to `prepare_model_if()` but for `nnet::multinom` models,
+#' which are not GLMs and lack `$family`, `$linear.predictors`, and
+#' IWLS working weights. Computes bread and score from the multinomial
+#' log-likelihood directly.
+#'
+#' The multinomial logit score for observation i and non-reference
+#' class k is
+#' \deqn{s_{ik} = (I(A_i = k) - p_{ik}) X_i,}
+#' stacked into a (K-1)*p vector. The expected information (bread) is
+#' \deqn{H = \sum_i \mathrm{diag}(p_i) - p_i p_i^T) \otimes X_i X_i^T,}
+#' where the Kronecker product is over the K-1 non-reference classes.
+#'
+#' The return value has the same shape as `prepare_model_if()` so
+#' `apply_model_correction()` can consume it transparently.
+#'
+#' @param model A fitted `nnet::multinom` model.
+#' @param fit_idx Integer vector. Row indices in `1..n_total`.
+#' @param n_total Integer. Total row count for scaling.
+#'
+#' @return A list with `model`, `X_fit`, `B_inv`, `r_score`, `fit_idx`,
+#'   `n_total`. `X_fit` is the n x ((K-1)*p) stacked design matrix so
+#'   the standard `apply_model_correction()` algebra works.
+#'
+#' @noRd
+prepare_model_if_multinom <- function(model, fit_idx, n_total) {
+  X_base <- stats::model.matrix(model)
+  n <- nrow(X_base)
+  p <- ncol(X_base)
+
+  # Predicted probabilities: n x K matrix.
+  prob_raw <- stats::predict(model, type = "probs")
+  cc <- stats::coef(model)
+  if (is.null(dim(cc))) {
+    Km1 <- 1L
+    # 2-level: prob_raw is P(second level), need full matrix
+    trt_levels <- model$lev
+    prob_mat <- cbind(1 - prob_raw, prob_raw)
+  } else {
+    Km1 <- nrow(cc)
+    prob_mat <- prob_raw
+    trt_levels <- model$lev
+  }
+
+  # Response indicators: n x (K-1) matrix, I(A_i = level_k) for each
+  # non-reference class. Reference level is `model$lev[1]`.
+  response <- stats::model.response(stats::model.frame(model))
+  response_char <- as.character(response)
+  # Non-reference levels are trt_levels[2:K]
+  non_ref <- trt_levels[-1]
+  Y_mat <- matrix(0, nrow = n, ncol = Km1)
+  for (k in seq_len(Km1)) {
+    Y_mat[, k] <- as.numeric(response_char == non_ref[k])
+  }
+
+  # Non-reference probabilities: n x (K-1)
+  P_non_ref <- prob_mat[, -1, drop = FALSE]
+
+  # Score residual matrix: n x (K-1), each column is (I(A=k) - p_k)
+  R_mat <- Y_mat - P_non_ref
+
+  # Stacked score: n x ((K-1)*p). Row i of R_score is the Kronecker
+  # product of the K-1 residuals with X_i. We stack column-major
+  # within each row to match the row-major alpha flattening:
+  # (r_{i,1}*X_i, r_{i,2}*X_i, ...).
+  X_stacked <- matrix(0, nrow = n, ncol = Km1 * p)
+  for (k in seq_len(Km1)) {
+    cols <- ((k - 1L) * p + 1L):(k * p)
+    X_stacked[, cols] <- X_base * R_mat[, k]
+  }
+
+  # Bread: information matrix of the multinomial logit. For the (j,k)
+  # block (p x p each):
+  #   H_{jk} = -sum_i (delta_{jk} * p_{ij} - p_{ij} * p_{ik}) * X_i X_i'
+  # where j, k are 1-indexed non-reference classes.
+  # We build H as a (Km1*p) x (Km1*p) matrix.
+  H <- matrix(0, nrow = Km1 * p, ncol = Km1 * p)
+  for (j in seq_len(Km1)) {
+    for (k in seq_len(Km1)) {
+      j_cols <- ((j - 1L) * p + 1L):(j * p)
+      k_cols <- ((k - 1L) * p + 1L):(k * p)
+      if (j == k) {
+        w_jk <- P_non_ref[, j] * (1 - P_non_ref[, j])
+      } else {
+        w_jk <- -P_non_ref[, j] * P_non_ref[, k]
+      }
+      H[j_cols, k_cols] <- crossprod(X_base, X_base * w_jk)
+    }
+  }
+
+  B_inv <- tryCatch(
+    solve(H),
+    error = function(e) {
+      rlang::warn(
+        c(
+          "Multinomial information matrix is singular; using `MASS::ginv()` fallback.",
+          i = "Inspect the propensity model for collinear confounders."
+        ),
+        class = "causatr_singular_bread",
+        .frequency = "once",
+        .frequency_id = "causatr_multinom_bread_singular"
+      )
+      MASS::ginv(H)
+    }
+  )
+
+  # `r_score` in the standard prep is a length-n vector of per-obs
+  # scores. For multinomial, the score is (K-1)*p-dimensional per obs.
+  # `apply_model_correction()` computes `d_fit = X_fit %*% h` then
+  # correction = (d_fit * r_score) summed over fit_idx. For the
+  # stacked system, `X_fit` = X_stacked (n x (Km1*p)), `r_score` = 1
+  # (a scalar) because the score is already embedded in X_stacked.
+  # This is equivalent to saying: each row of X_stacked IS the per-obs
+  # score vector (the estimating equation). The prep/apply split needs
+  # `r_score * X_fit` = the n x (Km1*p) score matrix. We achieve this
+  # by setting r_score = rep(1, n).
+  r_score <- rep(1, n)
+
+  list(
+    model = model,
+    X_fit = X_stacked,
+    B_inv = B_inv,
+    r_score = r_score,
+    fit_idx = fit_idx,
+    n_total = n_total
+  )
+}
+
+
 #' Apply a prepared model correction to a single gradient
 #'
 #' @description
@@ -1552,7 +1683,14 @@ compute_ipw_if_self_contained_one <- function(
     s_per_i <- w_alpha * mu_eta * r_fit / var_mu
     as.numeric(crossprod(X_msm, s_per_i)) / n_fit
   }
-  alpha_hat <- stats::coef(propensity_model)
+  # For multinomial models `coef()` returns a matrix; flatten to match
+  # `make_weight_fn()`'s convention (row-major: `as.vector(t(coef_mat))`).
+  alpha_hat_raw <- stats::coef(propensity_model)
+  if (!is.null(dim(alpha_hat_raw))) {
+    alpha_hat <- as.vector(t(alpha_hat_raw))
+  } else {
+    alpha_hat <- alpha_hat_raw
+  }
   # Negative-Hessian convention: A_{beta, alpha} = -(1/n) sum d psi/d alpha.
   # numDeriv::jacobian(phi_bar, alpha) = d phi_bar/d alpha = +(1/n) sum d psi/d alpha.
   # Flipping the sign gives A_{beta, alpha}.
@@ -1570,7 +1708,20 @@ compute_ipw_if_self_contained_one <- function(
   # which is exactly the quantity we need (up to sign; see below).
   g_prop <- as.numeric(crossprod(A_beta_alpha, h_msm_true))
 
-  prop_prep <- prepare_model_if(propensity_model, fit_idx_ps, n_total)
+  # Route to the multinomial-specific prep when the propensity model
+  # is from `nnet::multinom` (which is not a GLM and lacks `$family`,
+  # working weights, and the other internals that `prepare_model_if()`
+  # relies on). The multinomial prep computes bread and estfun from the
+  # multinomial log-likelihood score equations directly.
+  if (inherits(propensity_model, "multinom")) {
+    prop_prep <- prepare_model_if_multinom(
+      propensity_model,
+      fit_idx_ps,
+      n_total
+    )
+  } else {
+    prop_prep <- prepare_model_if(propensity_model, fit_idx_ps, n_total)
+  }
   prop_res <- apply_model_correction(prop_prep, g_prop)
 
   # ---- Assemble ---------------------------------------------------

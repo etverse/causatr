@@ -22,8 +22,13 @@
 #'   of the fit. The Gaussian assumption is the standard book recipe
 #'   (Hernán & Robins Ch. 12 §12.4); users who need something else can
 #'   pass their own `propensity_model_fn` in `causat()`.
-#' - **Categorical** (factor or character with \eqn{k > 2} levels):
-#'   **not supported**. Aborts.
+#' - **Categorical** (factor or character with \eqn{k \ge 2} levels):
+#'   fit by a multinomial logistic model via `model_fn` with **no
+#'   `family` argument** (the categorical `model_fn` must accept
+#'   `function(formula, data, weights, ...)`; the default is
+#'   `nnet::multinom`). Density is the multinomial pmf
+#'   \eqn{p_k = P(A = k \mid L)}, read from
+#'   `predict(model, type = "probs")`.
 #'
 #' @param data data.table (already prepared by `prepare_data()`) holding
 #'   all model variables. Rows with missing treatment or confounder
@@ -135,12 +140,12 @@ fit_treatment_model <- function(
       weights_fit,
       ...
     ),
-    categorical = rlang::abort(
-      c(
-        "Categorical treatment is not supported under `estimator = 'ipw'`.",
-        i = "Use `estimator = 'gcomp'` for categorical treatments."
-      ),
-      class = "causatr_phase4_categorical_pending"
+    categorical = fit_categorical_density(
+      ps_formula,
+      fit_data,
+      model_fn,
+      weights_fit,
+      ...
     )
   )
 
@@ -164,22 +169,48 @@ fit_treatment_model <- function(
   # jacobian step, which is expensive on large datasets.
   X_prop <- stats::model.matrix(model)
 
-  # `coef()` strips NA coefficients on fits with aliased columns; we
-  # assume no aliasing (the caller is passing a valid confounder
-  # formula). The length check catches "confounder degenerate under
-  # the treatment stratum" edge cases early.
+  # For multinomial models, `coef()` returns a (K-1) x p matrix where
+
+  # K is the number of levels and p is the number of design-matrix
+  # columns. The variance engine needs a flat vector so it can perturb
+  # each scalar entry independently via `numDeriv::jacobian()`. We
+  # flatten row-major: `as.vector(t(coef_mat))` interleaves
+  # (intercept_2, beta_L_2, intercept_3, beta_L_3, ...) so that the
+  # reshaping in `make_weight_fn()`'s categorical closure can recover
+  # the matrix via `matrix(alpha, nrow = K-1, ncol = p, byrow = TRUE)`.
+  # For Bernoulli / Gaussian, `coef()` already returns a vector.
   alpha_hat <- stats::coef(model)
-  if (ncol(X_prop) != length(alpha_hat)) {
+  if (family_tag == "categorical") {
+    # `nnet::multinom` with 2 levels returns a plain vector (not a
+    # matrix). Normalise to a 1-row matrix so downstream code always
+    # sees a consistent shape.
+    if (is.null(dim(alpha_hat))) {
+      alpha_hat <- matrix(alpha_hat, nrow = 1L)
+    }
+    alpha_hat <- as.vector(t(alpha_hat))
+  }
+
+  if (ncol(X_prop) * n_alpha_rows(family_tag, model) != length(alpha_hat)) {
     rlang::abort(
       paste0(
         "Treatment density model has ",
         length(alpha_hat),
         " coefficients but the design matrix has ",
         ncol(X_prop),
-        " columns — this usually means a column was aliased or dropped. ",
+        " columns (expected ",
+        ncol(X_prop) * n_alpha_rows(family_tag, model),
+        " total) — this usually means a column was aliased or dropped. ",
         "Drop the offending confounder and refit."
       )
     )
+  }
+
+  # Capture treatment levels for categorical (needed by
+  # `evaluate_density()` and `make_weight_fn()` to map predicted
+  # probability columns back to treatment values).
+  trt_levels <- NULL
+  if (family_tag == "categorical") {
+    trt_levels <- levels(factor(trt_vals))
   }
 
   structure(
@@ -191,7 +222,7 @@ fit_treatment_model <- function(
       alpha_hat = alpha_hat,
       X_prop = X_prop,
       sigma = sigma,
-      levels = NULL,
+      levels = trt_levels,
       fit_rows = fit_rows
     ),
     class = "causatr_treatment_model"
@@ -321,6 +352,79 @@ fit_gaussian_density <- function(
 }
 
 
+#' Fit a multinomial (categorical) density model
+#'
+#' @description
+#' Thin wrapper around `model_fn(A ~ L, ...)` for categorical
+#' treatments. Unlike the Bernoulli and Gaussian helpers, the
+#' multinomial fitter does **not** receive a `family` argument
+#' because `nnet::multinom` (the default categorical fitter)
+#' does not accept one. The returned model must support
+#' `predict(model, newdata, type = "probs")` returning an
+#' n x K matrix of category probabilities (or a length-n vector
+#' for the K = 2 case, giving P(Y = second level)).
+#'
+#' @inheritParams fit_bernoulli_density
+#' @return The fitted model object.
+#' @noRd
+fit_categorical_density <- function(
+  ps_formula,
+  fit_data,
+  model_fn,
+  weights_fit,
+  ...
+) {
+  # Multinomial fitters (nnet::multinom, VGAM::vglm) do not take a
+  # `family` argument — the family is implicit in the model class.
+  # We therefore build the call without `family`, unlike the Bernoulli
+  # and Gaussian helpers.
+  base_args <- list(
+    formula = ps_formula,
+    data = fit_data
+  )
+  if (!is.null(weights_fit)) {
+    base_args$weights <- weights_fit
+  }
+  # Suppress the iteration trace that nnet::multinom prints by default
+  # via `trace = FALSE`. If the user's `model_fn` does not accept
+  # `trace`, it will silently absorb it through `...`.
+  extra <- list(...)
+  if (!"trace" %in% names(extra)) {
+    extra$trace <- FALSE
+  }
+  do.call(model_fn, c(base_args, extra))
+}
+
+
+#' Number of coefficient rows per design-matrix column
+#'
+#' @description
+#' For Bernoulli / Gaussian models `coef()` returns p scalars (one
+#' per design-matrix column). For a multinomial model with K levels,
+#' `coef()` returns a (K-1) x p matrix — K-1 log-odds equations,
+#' each with p coefficients. This helper returns 1 for non-
+#' categorical fits and K-1 for categorical, so the length check in
+#' `fit_treatment_model()` can validate the flattened `alpha_hat`
+#' length against `ncol(X_prop)`.
+#'
+#' @param family_tag Character. `"bernoulli"`, `"gaussian"`, or
+#'   `"categorical"`.
+#' @param model Fitted model object.
+#' @return Positive integer.
+#' @noRd
+n_alpha_rows <- function(family_tag, model) {
+  if (family_tag != "categorical") {
+    return(1L)
+  }
+  cc <- stats::coef(model)
+  if (is.null(dim(cc))) {
+    # 2-level multinomial: coef is a plain vector (1 equation)
+    return(1L)
+  }
+  nrow(cc)
+}
+
+
 #' Extract the residual standard deviation from a fitted density model
 #'
 #' @description
@@ -446,9 +550,88 @@ evaluate_density <- function(treatment_model, treatment_values, newdata) {
     return(stats::dnorm(treatment_values, mean = mu, sd = sigma))
   }
 
+  if (family_tag == "categorical") {
+    # Multinomial pmf: f(a_i | L_i) = P(A = a_i | L_i), read from
+    # the predicted probability matrix. `predict(type = "probs")`
+    # returns an n x K matrix for K > 2 levels, or a length-n vector
+    # for K = 2 (giving P(second level)). We normalise both shapes
+    # into an n x K matrix with columns named by the factor levels.
+    return(evaluate_categorical_density(
+      model,
+      treatment_model$levels,
+      treatment_values,
+      newdata
+    ))
+  }
+
   rlang::abort(
     paste0("Unknown treatment family '", family_tag, "'.")
   )
+}
+
+
+#' Evaluate the multinomial density at per-row treatment values
+#'
+#' @description
+#' Given a fitted multinomial model and a vector of treatment values
+#' (character or factor), returns \eqn{P(A = a_i \mid L_i)} for each
+#' row. The predicted probability matrix from `predict(model,
+#' type = "probs")` is indexed per row to extract the column matching
+#' `treatment_values[i]`.
+#'
+#' Handles the `nnet::multinom` K = 2 edge case where `predict()`
+#' returns a vector (P(second level)) rather than a matrix.
+#'
+#' @param model Fitted multinomial model.
+#' @param trt_levels Character vector of all factor levels (in order).
+#' @param treatment_values Character or factor vector of length
+#'   `nrow(newdata)`.
+#' @param newdata Data frame of confounder values.
+#'
+#' @return Numeric vector of densities, length `nrow(newdata)`.
+#'
+#' @noRd
+evaluate_categorical_density <- function(
+  model,
+  trt_levels,
+  treatment_values,
+  newdata
+) {
+  n <- nrow(newdata)
+  K <- length(trt_levels)
+
+  prob_raw <- stats::predict(model, newdata = newdata, type = "probs")
+
+  # Normalise to an n x K matrix. nnet::multinom returns a vector for
+  # K = 2 giving P(second level), and a matrix for K > 2.
+  if (is.null(dim(prob_raw))) {
+    # K = 2: prob_raw is P(level_2). Build the full n x 2 matrix.
+    prob_mat <- cbind(1 - prob_raw, prob_raw)
+    colnames(prob_mat) <- trt_levels
+  } else {
+    prob_mat <- prob_raw
+  }
+
+  # Look up the probability corresponding to each row's treatment
+  # value. Convert to character for uniform matching against column
+  # names.
+  tv_char <- as.character(treatment_values)
+  col_idx <- match(tv_char, colnames(prob_mat))
+  if (anyNA(col_idx)) {
+    bad <- unique(tv_char[is.na(col_idx)])
+    rlang::abort(
+      paste0(
+        "Treatment value(s) not found in model levels: ",
+        paste(shQuote(bad), collapse = ", "),
+        ". Known levels: ",
+        paste(shQuote(colnames(prob_mat)), collapse = ", "),
+        "."
+      )
+    )
+  }
+
+  # Row-wise indexing: prob_mat[i, col_idx[i]].
+  prob_mat[cbind(seq_len(n), col_idx)]
 }
 
 
@@ -465,6 +648,9 @@ print.causatr_treatment_model <- function(x, ...) {
   cat("  p_alpha:   ", length(x$alpha_hat), "\n", sep = "")
   if (!is.null(x$sigma)) {
     cat("  sigma:     ", format(x$sigma, digits = 4), "\n", sep = "")
+  }
+  if (!is.null(x$levels)) {
+    cat("  levels:    ", paste(x$levels, collapse = ", "), "\n", sep = "")
   }
   invisible(x)
 }

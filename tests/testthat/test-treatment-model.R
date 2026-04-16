@@ -91,15 +91,45 @@ test_that("fit_treatment_model() on continuous treatment recovers sigma", {
   )
 })
 
-test_that("fit_treatment_model() aborts on categorical (Phase 4 pending)", {
+test_that("fit_treatment_model() on categorical treatment returns a multinomial fit", {
+  d <- simulate_categorical_continuous(n = 500, seed = 10)
+  dt <- data.table::as.data.table(d)
+
+  tm <- fit_treatment_model(
+    dt,
+    treatment = "A",
+    confounders = ~L,
+    model_fn = nnet::multinom
+  )
+
+  expect_s3_class(tm, "causatr_treatment_model")
+  expect_identical(tm$family, "categorical")
+  expect_identical(tm$treatment, "A")
+  expect_null(tm$sigma)
+  expect_identical(tm$levels, c("a", "b", "c"))
+  expect_equal(sum(tm$fit_rows), nrow(d))
+  # alpha_hat is flattened (K-1) * p = 2 * 2 = 4 for 3-level, 2-col design
+  expect_equal(length(tm$alpha_hat), 4L)
+})
+
+test_that("fit_treatment_model() on 2-level factor returns categorical", {
+  set.seed(11)
   dt <- data.table::data.table(
-    A = factor(sample(c("a", "b", "c"), 50, replace = TRUE)),
-    L = rnorm(50)
+    A = factor(sample(c("ctrl", "trt"), 200, replace = TRUE)),
+    L = rnorm(200)
   )
-  expect_error(
-    fit_treatment_model(dt, treatment = "A", confounders = ~L),
-    class = "causatr_phase4_categorical_pending"
+
+  tm <- fit_treatment_model(
+    dt,
+    treatment = "A",
+    confounders = ~L,
+    model_fn = nnet::multinom
   )
+
+  expect_identical(tm$family, "categorical")
+  expect_identical(tm$levels, c("ctrl", "trt"))
+  # 2-level factor: (K-1) * p = 1 * 2 = 2 params
+  expect_equal(length(tm$alpha_hat), 2L)
 })
 
 test_that("fit_treatment_model() drops rows with NA treatment / NA confounders", {
@@ -158,6 +188,42 @@ test_that("evaluate_density() continuous returns Gaussian pdf per row", {
     stats::dnorm(a_obs - 0.5, mean = mu, sd = tm$sigma),
     tolerance = 1e-12
   )
+})
+
+test_that("evaluate_density() categorical returns multinomial pmf per row", {
+  d <- simulate_categorical_continuous(n = 500, seed = 12)
+  dt <- data.table::as.data.table(d)
+  tm <- fit_treatment_model(
+    dt,
+    treatment = "A",
+    confounders = ~L,
+    model_fn = nnet::multinom
+  )
+
+  fit_data <- dt[tm$fit_rows]
+  a_obs <- fit_data$A
+
+  # Density at observed treatment should match the predict(type="probs")
+  # column for each row's observed level.
+  probs_raw <- predict(tm$model, newdata = fit_data, type = "probs")
+  a_char <- as.character(a_obs)
+  expected <- vapply(
+    seq_len(nrow(fit_data)),
+    function(i) probs_raw[i, a_char[i]],
+    numeric(1)
+  )
+
+  f_obs <- evaluate_density(tm, a_obs, fit_data)
+  expect_equal(f_obs, expected, tolerance = 1e-12)
+
+  # Density at a fixed level "b" for all rows should be the "b" column
+  f_b <- evaluate_density(tm, rep("b", nrow(fit_data)), fit_data)
+  expect_equal(f_b, unname(probs_raw[, "b"]), tolerance = 1e-12)
+
+  # All probabilities sum to ~1 per row
+  f_a <- evaluate_density(tm, rep("a", nrow(fit_data)), fit_data)
+  f_c <- evaluate_density(tm, rep("c", nrow(fit_data)), fit_data)
+  expect_equal(f_a + f_b + f_c, rep(1, nrow(fit_data)), tolerance = 1e-12)
 })
 
 test_that("evaluate_density() rejects length mismatch", {
