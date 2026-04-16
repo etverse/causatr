@@ -1,5 +1,17 @@
 # causatr (development version)
 
+## 2026-04-16 — Fifth-round critical review S2: near-zero intervened density warning
+
+`compute_density_ratio_weights()` now warns (class
+`causatr_near_zero_intervened_density`) when > 80% of observations have
+near-zero density at the intervened treatment value under `shift()` or
+`scale_by()`. This catches the case where the intervention pushes
+treatment far outside the fitted distribution's support, producing
+density-ratio weights that are effectively zero for the entire sample.
+The Hájek estimator still runs (the math is valid — zero weights just
+mean no contribution), but the resulting estimate is degenerate and
+should not be interpreted. Previously this situation was silent.
+
 ## 2026-04-16 — Fifth-round critical review R1: `diagnose()` censoring alignment
 
 `diagnose()` now correctly excludes censored rows when computing

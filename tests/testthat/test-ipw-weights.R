@@ -386,3 +386,42 @@ test_that("check_density_positivity() aborts on zero / non-finite values", {
   )
   expect_silent(check_density_positivity(c(0.5, 0.6, 0.7), "test"))
 })
+
+
+# Fifth-round critical review, S2: warn when the intervened density is
+# near-zero for most observations, indicating the intervention pushes
+# treatment outside the fitted distribution's support.
+# Repro script: /tmp/causatr_repro_s2_f_int_positivity.R
+test_that("warn_intervened_density_near_zero fires when > 80% near-zero", {
+  # All near-zero: should warn
+  f_bad <- rep(1e-15, 100)
+  expect_warning(
+    warn_intervened_density_near_zero(f_bad, "test"),
+    class = "causatr_near_zero_intervened_density"
+  )
+})
+
+test_that("warn_intervened_density_near_zero is silent for healthy densities", {
+  f_good <- rep(0.5, 100)
+  expect_silent(warn_intervened_density_near_zero(f_good, "test"))
+})
+
+test_that("shift with extreme delta warns about near-zero intervened density", {
+  set.seed(42)
+  n <- 200
+  L <- rnorm(n)
+  A <- 5 + 0.5 * L + rnorm(n, sd = 0.5)
+  Y <- 2 + 0.5 * A + L + rnorm(n)
+  d <- data.table::data.table(Y = Y, A = A, L = L)
+
+  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L,
+                estimator = "ipw")
+
+  # shift(-6) pushes treatment well outside the support
+  expect_warning(
+    contrast(fit,
+      interventions = list(shifted = shift(-6), baseline = shift(0)),
+      type = "difference"),
+    class = "causatr_near_zero_intervened_density"
+  )
+})

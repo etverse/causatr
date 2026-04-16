@@ -234,6 +234,7 @@ compute_density_ratio_weights <- function(
     f_obs <- evaluate_density(treatment_model, a_obs, fit_data)
     f_int <- evaluate_density(treatment_model, a_eval, fit_data)
     check_density_positivity(f_obs, "shift density ratio")
+    warn_intervened_density_near_zero(f_int, "shift")
     return(f_int / f_obs)
   }
 
@@ -250,6 +251,7 @@ compute_density_ratio_weights <- function(
     f_obs <- evaluate_density(treatment_model, a_obs, fit_data)
     f_int <- evaluate_density(treatment_model, a_eval, fit_data)
     check_density_positivity(f_obs, "scale_by density ratio")
+    warn_intervened_density_near_zero(f_int, "scale_by")
     return((f_int / f_obs) / abs(fct))
   }
 
@@ -300,6 +302,47 @@ check_density_positivity <- function(f, context) {
       "truncate the treatment range) before refitting."
     )
   )
+}
+
+
+#' Warn when the intervened density is near-zero for many observations
+#'
+#' @description
+#' The density at the intervened treatment value f(d⁻¹(A_obs) | L) can
+#' be near zero when the intervention pushes treatment far outside the
+#' fitted distribution's support. The resulting density-ratio weights
+#' are all near zero, producing a degenerate Hájek estimator with no
+#' effective observations. This is a practical positivity violation at
+#' the counterfactual treatment value — the population support
+#' assumption fails because the model assigns negligible probability
+#' to the intervened exposure. Warn when > 80% of observations have
+#' f_int < 1e-10. Fires at most once per session.
+#'
+#' @param f_int Numeric vector of intervened densities.
+#' @param context Character label for the warning message.
+#'
+#' @return `NULL` invisibly.
+#' @noRd
+warn_intervened_density_near_zero <- function(f_int, context) {
+  n_near_zero <- sum(f_int < 1e-10, na.rm = TRUE)
+  n_total <- length(f_int)
+  if (n_near_zero > 0.8 * n_total) {
+    rlang::warn(
+      paste0(
+        n_near_zero,
+        " of ",
+        n_total,
+        " observation(s) have near-zero density at the intervened ",
+        "treatment value (",
+        context,
+        "). The density-ratio weights are effectively zero for most ",
+        "of the sample, producing a degenerate estimator. Consider a ",
+        "smaller intervention shift or a wider treatment model."
+      ),
+      class = "causatr_near_zero_intervened_density"
+    )
+  }
+  invisible(NULL)
 }
 
 
