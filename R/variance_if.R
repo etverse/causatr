@@ -1492,16 +1492,16 @@ variance_if_ipw <- function(
       estimand = estimand
     )
 
-    # The causatr weight closure covers only the density-ratio
-    # piece, not the external survey weight. For the cross-
-    # derivative A_{beta, alpha} only the piece that depends on
-    # alpha matters, and that is the density ratio; the external
-    # weight enters as a constant multiplier of `psi_beta` and is
-    # absorbed inside `compute_ipw_if_self_contained_one()`'s
-    # `apply_model_correction()` call on the MSM side via the
-    # refitted `msm_model`'s own IWLS working weights (which
-    # already include the external factor). So passing `wfn`
-    # unmodified here is correct.
+    # The base weight closure covers only the density-ratio piece.
+    # The MSM score is psi_beta_i = (ext_w * DR_w) * X * r * mu_eta / var_mu,
+    # so the cross-derivative A_{beta,alpha} = -(1/n) sum d psi_beta / d alpha
+    # needs ext_w as a constant multiplier of the alpha-varying DR_w term.
+    # Without ext_w in the closure, phi_bar() inside
+    # compute_ipw_if_self_contained_one() would compute A_{beta,alpha}
+    # on the wrong (unweighted) score, and the propensity correction
+    # would be under-scaled by ext_w. The MSM bread A_{beta,beta}
+    # already has ext_w baked in (via the MSM model's IWLS weights),
+    # and A_{beta,alpha} must be computed on the same scale.
     if (!is.null(ext_w_sub)) {
       ext_w_closure <- ext_w_sub
       base_wfn <- wfn
