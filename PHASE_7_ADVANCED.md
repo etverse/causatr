@@ -21,6 +21,8 @@ Survey weights, clustered data, parallel bootstrap, multivariate treatment, docu
 - [ ] Stratified ICE option (`causat(..., stratified = TRUE)`) (deferred from Phase 5)
 - [ ] Multinomial outcomes: support multi-category outcomes across all methods (g-comp, IPW, matching) via `nnet::multinom()` or `VGAM::vglm(multinomial())`. Requires generalising `compute_contrast()` to handle vector-valued predictions, per-category marginal means, and adapted sandwich/bootstrap variance. Category-specific and pairwise contrasts (risk differences, relative risks) should be supported.
 - [ ] Ordinal outcomes: support ordered categorical outcomes via `MASS::polr()` or `ordinal::clm()`. Cumulative probability contrasts and category-specific marginal means.
+- [ ] Negative binomial outcomes: already works via `model_fn = MASS::glm.nb` (analytic sandwich path), needs truth-based test coverage. See `PHASE_10_OUTCOME_TYPES.md` for the full plan.
+- [ ] Beta regression outcomes: bounded-continuous outcomes in (0,1) via `betareg::betar()` family or `betareg::betareg()` as `model_fn`. Extend `resolve_family()` to accept `"beta"` string, add `betareg` to Suggests. See `PHASE_10_OUTCOME_TYPES.md` for the full plan.
 - [ ] Grace period / visit process interventions: for longitudinal data, support interventions that allow missed visits (carry forward last treatment) and censor after exceeding a maximum number of consecutive missed visits (cf. gfoRmula `visitprocess`).
 - [ ] Percent intervened on: diagnostic tracking what fraction of the population has their treatment modified under each intervention (feasibility metric, cf. gfoRmula).
 

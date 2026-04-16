@@ -215,11 +215,13 @@ variance_bootstrap <- function(
                 invokeRestart("muffleWarning")
               }
               msg <- conditionMessage(w)
-              if (grepl(
-                "non-integer #successes in a binomial glm",
-                msg,
-                fixed = TRUE
-              )) {
+              if (
+                grepl(
+                  "non-integer #successes in a binomial glm",
+                  msg,
+                  fixed = TRUE
+                )
+              ) {
                 invokeRestart("muffleWarning")
               }
             }
