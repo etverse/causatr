@@ -323,7 +323,11 @@ compute_ipw_contrast_point <- function(
     # intervention type and treatment family. The `estimand` argument
     # selects the Bayes numerator `f*` so the same HT branch produces
     # ATE / ATT / ATC weights uniformly.
-    w_iv <- compute_density_ratio_weights(tm, data, iv, estimand = estimand)
+    # `tm$fit_rows` is relative to `fit_data` (the outcome-clean
+    # subset), so the density-ratio computation must receive
+    # `fit_data`, not the full `data`. Without this, outcome NAs
+    # create a length mismatch between `tm$fit_rows` and `nrow(data)`.
+    w_iv <- compute_density_ratio_weights(tm, fit_data, iv, estimand = estimand)
 
     # Compose with external weights. The density-ratio weights enter
     # multiplicatively because survey / IPCW weights represent an

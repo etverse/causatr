@@ -285,6 +285,96 @@ model to ~1e-6 on point estimates and SEs.
 
 ---
 
+## Missing data handling
+
+causatr does NOT silently drop rows with missing data. Treatment NAs
+require explicit handling (censoring indicator or manual removal); outcome
+and covariate NAs are handled via standard complete-case analysis (glm's
+`na.omit` default). `na.action = na.exclude` is rejected at the boundary.
+
+### Rejection paths
+
+| Condition | Behaviour | Status | Test file |
+|---|---|---|---|
+| Treatment NAs without `censoring =` | ⛔ abort (per-estimator) | ✅ snapshot | test-missing-data.R, test-causat.R |
+| Weight NAs | ⛔ abort | ✅ snapshot | test-weights-edge-cases.R, test-causat.R |
+| `na.action = na.exclude` | ⛔ abort (`causatr_bad_na_action`) | ✅ snapshot | test-causat.R |
+| IPW: covariate NAs diverge from outcome mask | ⛔ abort (row-alignment guard) | ✅ | test-missing-data.R |
+
+### G-comp with missing data
+
+| Treatment | Outcome | NA in | Model | Intervention | Variance | Status | Test file |
+|---|---|---|---|---|---|---|---|
+| binary | gaussian | outcome (MCAR 15%) | GLM | static | sandwich | ✅ truth (ATE ≈ 3) | test-missing-data.R |
+| binary | binomial | outcome (MCAR 15%) | GLM | static | sandwich | ✅ truth (RD ≈ 0.333) | test-missing-data.R |
+| binary | gaussian | covariate (MCAR 10%) | GLM | static | sandwich | ✅ truth (ATE ≈ 3) | test-missing-data.R |
+| binary | gaussian | outcome + covariate (MCAR 10% each) | GLM | static | sandwich | ✅ truth (ATE ≈ 3) | test-missing-data.R |
+| binary | gaussian | outcome (MCAR 10%) | GLM | static | bootstrap | ✅ truth (ATE ≈ 3) | test-missing-data.R |
+| continuous | gaussian | covariate (MCAR 10%) | GLM | shift | sandwich | ✅ truth (diff ≈ −2) | test-missing-data.R |
+| binary | gaussian | outcome (MCAR 10%) | GLM | static | sandwich (ATT) | ✅ truth (ATT ≈ 3) | test-missing-data.R |
+| binary | gaussian | outcome (MCAR 10%) | GLM | static | sandwich (ATC) | ✅ truth (ATC ≈ 3) | test-missing-data.R |
+| binary | gaussian | outcome (MCAR 10%) | GLM | static + `by` | sandwich | ✅ truth (stratified) | test-missing-data.R |
+| multivariate | gaussian | outcome (MCAR 10%) | GLM | static | sandwich | ✅ truth (ATE ≈ 3.5) | test-missing-data.R |
+| binary | binomial | outcome (MCAR 10%) | GLM | static | sandwich (ratio, OR) | ✅ smoke (finite) | test-missing-data.R |
+| categorical | gaussian | outcome (MCAR 10%) | GLM | static | sandwich | ✅ truth (ATE ≈ 3) | test-missing-data.R |
+| binary | gaussian | outcome (MCAR 10%) | GLM | static | sandwich (survey weights) | ✅ truth (ATE ≈ 3) | test-missing-data.R |
+| binary | gaussian | outcome (MCAR 10%) | GAM | static | sandwich | ✅ truth (ATE ≈ 3) | test-missing-data.R |
+| binary | poisson | outcome (MCAR 10%) | GLM | static | sandwich (ratio) | ✅ truth (RR ≈ exp(0.3)) | test-missing-data.R |
+
+### IPW with missing data
+
+| Treatment | Outcome | NA in | Intervention | Variance | Status | Test file |
+|---|---|---|---|---|---|---|
+| binary | gaussian | outcome (MCAR 15%) | static | sandwich | ✅ truth (ATE ≈ 3) | test-missing-data.R |
+| binary | gaussian | outcome + covariate (same rows) | static | sandwich | ✅ truth (ATE ≈ 3) | test-missing-data.R |
+| continuous | gaussian | outcome (MCAR 10%) | shift | sandwich | ✅ truth (diff ≈ −2) | test-missing-data.R |
+| categorical | gaussian | outcome (MCAR 10%) | static | sandwich | ✅ truth (ATE ≈ 3) | test-missing-data.R |
+
+### Matching with missing data
+
+| Treatment | Outcome | NA in | Estimand | Variance | Status | Test file |
+|---|---|---|---|---|---|---|
+| binary | gaussian | outcome (MCAR 10%) | ATT | sandwich | ✅ truth (ATT ≈ 3) | test-missing-data.R |
+| binary | gaussian | covariate (MCAR 5%) | ATT | sandwich | 🟡 smoke (MatchIt handles internally) | test-missing-data.R |
+
+### ICE with missing data
+
+| Treatment | Outcome | NA in | Intervention | Variance | Status | Test file |
+|---|---|---|---|---|---|---|
+| binary | gaussian | outcome at final time (MCAR 10%) | static | sandwich | ✅ truth (ATE ≈ 5) | test-missing-data.R |
+| binary | gaussian | time-varying covariate (MCAR 8%) | static | bootstrap | ✅ truth (ATE ≈ 5) | test-missing-data.R |
+| binary | gaussian | outcome at final time (MCAR 10%) | static | bootstrap | ✅ truth (ATE ≈ 5) | test-missing-data.R |
+| binary | gaussian | time-varying covariate (MCAR) | static | sandwich | ❌ known issue (ICE cascade gradient subscript alignment) | — |
+
+### MAR outcome censoring (IPCW motivation)
+
+| Scenario | Estimator | Approach | Status | Test file |
+|---|---|---|---|---|
+| MAR outcome, correctly specified outcome model | gcomp (complete-case) | Model-based: E[Y\|A,L] unchanged by censoring | ✅ truth (ATE ≈ 3) | test-missing-data.R |
+| MAR outcome, stabilized IPCW via `weights=` | gcomp (IPCW-weighted) | w = P(C=0) / P(C=0\|A,L) | ✅ truth (ATE ≈ 3) | test-missing-data.R |
+| MAR outcome (longitudinal), IPCW via `weights=` | ICE (IPCW-weighted) | Per-step IPCW | ✅ truth (ATE ≈ 5) | test-missing-data.R |
+| Built-in IPCW: model P(C=0\|A,L) internally | any | `ipcw = TRUE` or `censoring_model_fn` | ❌ planned (Phase 11) | — |
+
+### Planned: multiple imputation (`causat_mice()`)
+
+| Feature | Status | Notes |
+|---|---|---|
+| `causat_mice()` wrapper — pool estimates across `mice` imputations via Rubin's rules | ❌ planned | stub exists; see `R/causat_mice.R` |
+| MICE + gcomp | ❌ planned | fit per imputed dataset, pool contrasts |
+| MICE + IPW | ❌ planned | fit per imputed dataset, pool contrasts |
+| MICE + matching | ❌ planned | fit per imputed dataset, pool contrasts |
+| MICE + ICE | ❌ planned | fit per imputed dataset, pool contrasts |
+
+### Planned: external reference comparisons for missing data
+
+| Scenario | Reference package | Status | Notes |
+|---|---|---|---|
+| IPCW point treatment | `lmtp::lmtp_tmle()` with `cens =` column | ❌ planned | cross-check once built-in IPCW is implemented |
+| IPCW longitudinal dropout | `lmtp::lmtp_tmle()` | ❌ planned | multi-step IPCW weights |
+| MI pooling (Rubin's rules) | `mice::pool()` | ❌ planned | cross-check once `causat_mice()` is implemented |
+
+---
+
 ## Planned coverage (future phases)
 
 These rows capture the target coverage for features the scaffold and
@@ -345,11 +435,43 @@ and multivariate / longitudinal IPW).
 | Documentation: ML in g-formula → `lmtp` | ❌ planned | Ch. 18 |
 | Sequential positivity warnings (longitudinal) | ❌ planned | Phase 7 (deferred from Phase 5) |
 | Stratified ICE option (`stratified = TRUE`) | ❌ planned | Phase 7 (deferred from Phase 5) |
-| Multinomial outcomes across methods | ❌ planned | `nnet::multinom()` or `VGAM::vglm(multinomial())` |
-| Ordinal outcomes (cumulative probability contrasts) | ❌ planned | `MASS::polr()` / `ordinal::clm()` |
+| Multinomial outcomes across methods | ❌ planned | `nnet::multinom()` or `VGAM::vglm(multinomial())`; major restructuring of contrasts/variance |
+| Ordinal outcomes (cumulative probability contrasts) | ❌ planned | `MASS::polr()` / `ordinal::clm()`; requires new contrast types |
+| Negative binomial outcomes (test coverage) | ❌ planned (Phase 10b) | already works via `model_fn = MASS::glm.nb`; needs truth-based tests |
+| Beta regression outcomes | ❌ planned (Phase 10b) | `resolve_family("beta")` extension + `betareg` in Suggests; needs truth-based tests |
 | Grace period / visit process interventions | ❌ planned | cf. `gfoRmula` visitprocess |
 | "% intervened on" feasibility diagnostic | ❌ planned | cf. `gfoRmula` |
 | ICE: auto-expand treatment × baseline-modifier interaction to all lag periods | ❌ planned | current behavior handles current-period A × modifier only; lagged treatments do not get auto-expanded modifier interactions. See the `~ A:sex` discussion in the longitudinal section — the fix is a formula-template expansion in `ice_build_formula()` |
+
+### Phase 10a — Stochastic interventions under g-computation
+
+| Method | Treatment | Outcome | Intervention | Estimand | Variance | Status | Notes |
+|---|---|---|---|---|---|---|---|
+| gcomp (point) | binary | gaussian | `stochastic()` | ATE | sandwich (MC-averaged IF) | ❌ planned | MC g-formula; analytical truth via `integrate()` against N(0,1) density |
+| gcomp (point) | binary | gaussian | `stochastic()` | ATE | bootstrap | ❌ planned | natural — MC sampling inside each replicate |
+| gcomp (point) | binary | gaussian | `stochastic()` | ATT | sandwich | ❌ planned | same MC path, different target rows |
+| gcomp (point) | binary | binomial | `stochastic()` | ATE | sandwich | ❌ planned | RD, RR, OR all valid |
+| gcomp (point) | continuous | gaussian | `stochastic()` | ATE | sandwich | ❌ planned | e.g. `A* = A + ε`, ε ~ N(0,σ²) |
+| ICE | binary | gaussian | `stochastic()` | ATE | sandwich | ❌ planned | per-step MC averaging in backward iteration; validated vs `lmtp::lmtp_tmle()` |
+| ICE | binary | gaussian | `stochastic()` | ATE | bootstrap | ❌ planned | clustered bootstrap with MC integration |
+| IPW | any | any | `stochastic()` | any | any | ⛔ **rejected** | density-ratio requires deterministic map or closed-form weight |
+| matching | any | any | `stochastic()` | any | any | ⛔ **rejected** | match weights fixed at fit time |
+
+### Phase 10b — Beta regression + negative binomial outcomes
+
+| Method | Treatment | Outcome | Model | Intervention | Estimand | Contrast | Variance | Status | Notes |
+|---|---|---|---|---|---|---|---|---|---|
+| gcomp | binary | neg. binomial | `MASS::glm.nb` (model_fn) | static | ATE | difference | sandwich | ❌ planned | analytic GLM path (family$mu.eta exists); truth = `exp(0.5+0.3*a)*MGF` |
+| gcomp | binary | neg. binomial | `MASS::glm.nb` | static | ATE | ratio | sandwich | ❌ planned | natural scale for count; truth ≈ exp(β_A) |
+| gcomp | binary | neg. binomial | `MASS::glm.nb` | static | ATE | difference | bootstrap | ❌ planned | bootstrap SE within 20% of sandwich |
+| IPW | binary | neg. binomial | GLM (outcome MSM) | static | ATE | difference | sandwich | ❌ planned | point estimate agrees with gcomp |
+| matching | binary | neg. binomial | GLM | static | ATT | difference | sandwich | ❌ planned | smoke test |
+| gcomp | binary | beta | `glm(family = betareg::betar())` | static | ATE | difference | sandwich | ❌ planned | analytic GLM path; truth via `integrate()` over expit |
+| gcomp | binary | beta | `glm(family = betareg::betar())` | static | ATE | ratio | sandwich | ❌ planned | valid (means positive) |
+| gcomp | binary | beta | `glm(family = betareg::betar())` | static | ATE | OR | sandwich | ❌ planned | valid (means in (0,1)) |
+| IPW | binary | beta | GLM (outcome MSM) | static | ATE | difference | sandwich | ❌ planned | point estimate agrees with gcomp |
+| gcomp | binary | beta | `betareg::betareg()` (model_fn) | static | ATE | difference | numeric Tier 1 | ❌ planned | smoke test; `sandwich::estfun.betareg` exists |
+| `resolve_family("beta")` string support | — | — | — | — | — | — | — | ❌ planned | extend `resolve_family()` to look up `betareg::betar()` |
 
 ---
 

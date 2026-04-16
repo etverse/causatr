@@ -276,3 +276,109 @@ make_continuous_scm <- function(n = 5000, seed = 42) {
     )
   )
 }
+
+# Missing-data DGPs
+#
+# These DGPs produce data with explicit missingness mechanisms (MCAR, MAR)
+# and known censoring models so the analytical truth is available under
+# each mechanism.
+
+# DGP-M1: MCAR outcome censoring.
+#   Same SCM as DGP 1 (binary trt, continuous outcome, ATE = 3).
+#   C ~ Bernoulli(p_cens), independent of everything.
+#   Y set to NA when C = 1.
+#
+# Truth: ATE = 3 (complete-case is unbiased under MCAR).
+simulate_mcar_outcome <- function(n = 2000, p_cens = 0.15, seed = 42) {
+  set.seed(seed)
+  L <- rnorm(n)
+  A <- rbinom(n, 1, plogis(0.5 * L))
+  Y_full <- 2 + 3 * A + 1.5 * L + rnorm(n)
+  C <- rbinom(n, 1, p_cens)
+  Y <- ifelse(C == 1, NA_real_, Y_full)
+  data.frame(Y = Y, A = A, L = L, C = C)
+}
+
+# DGP-M2: MAR outcome censoring (informative).
+#   Same SCM as DGP 1 for the structural model.
+#   Censoring depends on A and L:
+#     C | A, L ~ Bernoulli(expit(-2 + 0.8*A + 0.6*L))
+#
+# Under MAR censoring, complete-case analysis IS biased because the
+# observed sample over-represents individuals with low A and low L.
+# IPCW with the correct censoring model recovers the truth.
+#
+# Truth: ATE = 3 (the structural effect is unchanged; censoring only
+# affects which rows are observed, not the SCM).
+#
+# Manual IPCW weights: w_i = 1 / P(C=0 | A_i, L_i)
+#   = 1 / (1 - expit(-2 + 0.8*A_i + 0.6*L_i))
+simulate_mar_outcome <- function(n = 5000, seed = 42) {
+  set.seed(seed)
+  L <- rnorm(n)
+  A <- rbinom(n, 1, plogis(0.5 * L))
+  Y_full <- 2 + 3 * A + 1.5 * L + rnorm(n)
+  # Strong differential censoring: treated (A=1) and high-L individuals
+  # are censored much more often. The intercept (-0.5) keeps overall
+  # censoring at ~30-40% so the bias is detectable at n=10000.
+  p_cens <- plogis(-0.5 + 1.5 * A + 1.0 * L)
+  C <- rbinom(n, 1, p_cens)
+  Y <- ifelse(C == 1, NA_real_, Y_full)
+  data.frame(Y = Y, Y_full = Y_full, A = A, L = L, C = C, p_cens = p_cens)
+}
+
+# DGP-M3: MCAR covariate missingness.
+#   Same SCM as DGP 1.
+#   L_obs = L with some entries set to NA at random.
+#   The FULL L is available for truth computation.
+#
+# Truth: ATE = 3.
+simulate_mcar_covariate <- function(n = 2000, p_miss = 0.10, seed = 42) {
+  set.seed(seed)
+  L <- rnorm(n)
+  A <- rbinom(n, 1, plogis(0.5 * L))
+  Y <- 2 + 3 * A + 1.5 * L + rnorm(n)
+  L_obs <- L
+  miss_idx <- sample(n, size = floor(n * p_miss))
+  L_obs[miss_idx] <- NA
+  data.frame(Y = Y, A = A, L = L_obs, L_full = L)
+}
+
+# DGP-M4: Longitudinal MCAR outcome censoring.
+#   Linear SCM (same as make_linear_scm), with random dropout at final time.
+#   True ATE (always vs never, 2 periods) = 5.
+simulate_longitudinal_mcar_outcome <- function(
+  n = 3000,
+  p_cens = 0.10,
+  seed = 42
+) {
+  d <- make_linear_scm(n = n, n_times = 2, seed = seed)
+  # Censor some individuals at the final time step
+  set.seed(seed + 1L)
+  ids_to_censor <- sample(n, size = floor(n * p_cens))
+  final_mask <- d$time == 1 & d$id %in% ids_to_censor
+  d$C <- 0L
+  d$C[final_mask] <- 1L
+  d$Y[final_mask] <- NA_real_
+  d
+}
+
+# DGP-M5: Longitudinal MAR outcome censoring (informative dropout).
+#   Linear SCM with dropout depending on treatment and baseline covariate.
+#   C_1 | A_0, L_0 ~ Bernoulli(expit(-2 + A_0 + 0.5*L_0))
+#   True ATE = 5 (structural, censoring does not change the SCM).
+simulate_longitudinal_mar_outcome <- function(n = 5000, seed = 42) {
+  d <- make_linear_scm(n = n, n_times = 2, seed = seed)
+  # Informative censoring at t = 1 depends on A_0 and L_0.
+  # Strong coefficients to produce detectable bias under complete-case.
+  t0 <- d[d$time == 0, ]
+  set.seed(seed + 1L)
+  p_cens <- plogis(-0.5 + 1.5 * t0$A + 0.8 * t0$L0)
+  C1 <- rbinom(n, 1, p_cens)
+  d$C <- 0L
+  d$C[d$time == 1 & d$id %in% t0$id[C1 == 1L]] <- 1L
+  d$Y[d$C == 1L] <- NA_real_
+  d$p_cens <- 0
+  d$p_cens[d$time == 1] <- p_cens
+  d
+}

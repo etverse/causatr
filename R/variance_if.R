@@ -1466,7 +1466,16 @@ variance_if_ipw <- function(
     # returns a `function(alpha)` that `compute_ipw_if_self_contained_one()`
     # feeds into `numDeriv::jacobian()` for the cross-derivative
     # `A_{beta, alpha}`.
-    wfn <- make_weight_fn(tm, data, b$intervention, estimand = estimand)
+    # `tm$fit_rows` is relative to the outcome-filtered subset, so
+    # the weight closure must receive `data[fit_rows]` (not the full
+    # `data`). Without this, outcome NAs create a length mismatch.
+    fit_data_local <- data[fit_rows]
+    wfn <- make_weight_fn(
+      tm,
+      fit_data_local,
+      b$intervention,
+      estimand = estimand
+    )
 
     # The causatr weight closure covers only the density-ratio
     # piece, not the external survey weight. For the cross-

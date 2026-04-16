@@ -73,9 +73,16 @@ provided together with \code{time} for longitudinal data.}
 provided together with \code{id} for longitudinal data.}
 
 \item{censoring}{Character or \code{NULL}. Name of the censoring indicator
-variable (1 = censored, 0 = uncensored). For longitudinal data,
-censoring is time-varying: \code{C_k = 1} means the individual dropped out
-at time \code{k}.}
+variable (1 = censored, 0 = uncensored). \strong{This is a row filter, not
+IPCW:} rows where \code{censoring != 0} are excluded from model fitting,
+but no censoring model is fit and no inverse-probability weights are
+computed. For g-computation with a correctly specified outcome model,
+this is sufficient under MAR censoring (the regression surface is
+unchanged). For IPW under MAR censoring, supply pre-computed IPCW
+weights via \verb{weights =}. For longitudinal data, censoring is
+time-varying: \code{C_k = 1} means the individual dropped out at time \code{k};
+ICE backward iteration restricts each step's model to uncensored
+individuals (Zivich et al., 2024).}
 
 \item{history}{Positive integer or \code{Inf}. Markov order for longitudinal
 models: how many lagged time points of treatment and time-varying
@@ -221,6 +228,39 @@ L), (2) positivity (every individual has positive probability of each
 treatment value given L), (3) consistency (the observed outcome under the
 observed treatment equals the potential outcome). Positivity is checked
 automatically and a warning is issued if near-violations are detected.
+}
+
+\subsection{Missing data handling}{
+
+\strong{Outcome (Y) missing.} Rows with \code{NA} outcome are excluded from model
+fitting via \code{get_fit_rows()}. If a \code{censoring} column is provided, rows
+with \code{censoring != 0} are also excluded. \code{\link[=contrast]{contrast()}} predicts on ALL
+rows (including those with missing Y) and standardizes over the target
+population. Under MCAR, this complete-case analysis is unbiased. Under
+MAR (censoring depends on A and/or L), g-computation with a correctly
+specified outcome model is still consistent because the regression
+surface E[Y | A, L] is unchanged by the censoring mechanism (Hernán &
+Robins, Ch. 13). For IPW under MAR, IPCW weights are needed — supply
+them via \verb{weights =} (built-in IPCW is planned for Phase 11). The
+\verb{censoring =} parameter is a \strong{row filter}, not IPCW: no censoring
+model is fit internally.
+
+\strong{Treatment (A) missing.} \code{causat()} aborts if any treatment values
+are \code{NA} and no \code{censoring} column is provided. You cannot define a
+counterfactual without knowing the treatment value. Remove rows with
+missing A before calling \code{causat()} (unbiased under MCAR), or use
+multiple imputation (planned via \code{causat_mice()}).
+
+\strong{Covariates (L) missing.} For \code{estimator = "gcomp"}, the outcome
+model's \code{na.action = na.omit} drops rows with NA covariates at fit
+time. \code{predict()} returns NA for rows with missing L, which
+\code{\link[=contrast]{contrast()}} excludes from the target population. Under MCAR this is
+unbiased. For \code{estimator = "ipw"}, the propensity model also drops
+NA-covariate rows; if this creates a row-count mismatch with the
+outcome mask, \code{causat()} aborts with a clear error. For
+\code{estimator = "matching"}, MatchIt handles covariate NAs internally.
+Under MAR, multiple imputation is needed (planned via
+\code{causat_mice()}).
 }
 }
 \examples{

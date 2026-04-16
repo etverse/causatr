@@ -51,9 +51,16 @@
 #' @param time Character or `NULL`. Name of the time variable. Must be
 #'   provided together with `id` for longitudinal data.
 #' @param censoring Character or `NULL`. Name of the censoring indicator
-#'   variable (1 = censored, 0 = uncensored). For longitudinal data,
-#'   censoring is time-varying: `C_k = 1` means the individual dropped out
-#'   at time `k`.
+#'   variable (1 = censored, 0 = uncensored). **This is a row filter, not
+#'   IPCW:** rows where `censoring != 0` are excluded from model fitting,
+#'   but no censoring model is fit and no inverse-probability weights are
+#'   computed. For g-computation with a correctly specified outcome model,
+#'   this is sufficient under MAR censoring (the regression surface is
+#'   unchanged). For IPW under MAR censoring, supply pre-computed IPCW
+#'   weights via `weights =`. For longitudinal data, censoring is
+#'   time-varying: `C_k = 1` means the individual dropped out at time `k`;
+#'   ICE backward iteration restricts each step's model to uncensored
+#'   individuals (Zivich et al., 2024).
 #' @param history Positive integer or `Inf`. Markov order for longitudinal
 #'   models: how many lagged time points of treatment and time-varying
 #'   confounders to include in each ICE outcome model. Default `1` (one lag).
@@ -168,6 +175,38 @@
 #' treatment value given L), (3) consistency (the observed outcome under the
 #' observed treatment equals the potential outcome). Positivity is checked
 #' automatically and a warning is issued if near-violations are detected.
+#'
+#' ## Missing data handling
+#'
+#' **Outcome (Y) missing.** Rows with `NA` outcome are excluded from model
+#' fitting via `get_fit_rows()`. If a `censoring` column is provided, rows
+#' with `censoring != 0` are also excluded. [contrast()] predicts on ALL
+#' rows (including those with missing Y) and standardizes over the target
+#' population. Under MCAR, this complete-case analysis is unbiased. Under
+#' MAR (censoring depends on A and/or L), g-computation with a correctly
+#' specified outcome model is still consistent because the regression
+#' surface E\[Y | A, L\] is unchanged by the censoring mechanism (Hernán &
+#' Robins, Ch. 13). For IPW under MAR, IPCW weights are needed — supply
+#' them via `weights =` (built-in IPCW is planned for Phase 11). The
+#' `censoring =` parameter is a **row filter**, not IPCW: no censoring
+#' model is fit internally.
+#'
+#' **Treatment (A) missing.** `causat()` aborts if any treatment values
+#' are `NA` and no `censoring` column is provided. You cannot define a
+#' counterfactual without knowing the treatment value. Remove rows with
+#' missing A before calling `causat()` (unbiased under MCAR), or use
+#' multiple imputation (planned via `causat_mice()`).
+#'
+#' **Covariates (L) missing.** For `estimator = "gcomp"`, the outcome
+#' model's `na.action = na.omit` drops rows with NA covariates at fit
+#' time. `predict()` returns NA for rows with missing L, which
+#' [contrast()] excludes from the target population. Under MCAR this is
+#' unbiased. For `estimator = "ipw"`, the propensity model also drops
+#' NA-covariate rows; if this creates a row-count mismatch with the
+#' outcome mask, `causat()` aborts with a clear error. For
+#' `estimator = "matching"`, MatchIt handles covariate NAs internally.
+#' Under MAR, multiple imputation is needed (planned via
+#' `causat_mice()`).
 #'
 #' @references
 #' Hernán MA, Robins JM (2025). *Causal Inference: What If*. Chapman &
