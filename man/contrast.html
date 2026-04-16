@@ -106,6 +106,35 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   }
 }</script>
 
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
 
 </head>
 
@@ -484,7 +513,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p><code>“gcomp”</code>: standard <code>glm</code>/<code>gam</code> on the full data; one-model IF correction via <code>prepare_model_if()</code> + <code>apply_model_correction()</code>.</p>
 </li>
 <li>
-<p><code>“ipw”</code>: <code>glm_weightit()</code> fit weighted for the target estimand (ATE/ATT); IF Channel 2 delegated to <code>prepare_propensity_if()</code> (WeightIt shortcut via <code>sandwich::estfun(asympt = TRUE)</code>), which already accounts for weight estimation uncertainty.</p>
+<p><code>“ipw”</code>: density-ratio weighted MSM refit per intervention; IF Channel 2 is the stacked-sandwich MSM-plus-propensity correction assembled by <code>compute_ipw_if_self_contained_one()</code>, with the cross-derivative <span class="math inline">\(A_{\beta\alpha}\)</span> computed numerically by <code>numDeriv::jacobian()</code>.</p>
 </li>
 <li>
 <p><code>“matching”</code>: <code>glm()</code> on the matched sample with match weights; IF is computed on the matched sample and aggregated cluster-robustly on <code>matched$subclass</code> via <code>vcov_from_if(cluster = …)</code>.</p>
@@ -537,8 +566,8 @@ A <code>causatr_fit</code> object returned by <code>causat()</code>.
 <p>A named list of <code>causatr_intervention</code> objects, one per treatment variable, for multivariate (joint) treatments. Each sub-list must name every treatment variable specified in <code>causat()</code>.</p>
 </li>
 </ul>
-<p><strong>Note:</strong> Non-static interventions (<code>shift()</code>, <code>scale_by()</code>, <code>threshold()</code>, <code>dynamic()</code>, <code>ipsi()</code>) are only supported for <code>estimator = “gcomp”</code>. For IPW and matching, the weights/matched sets were estimated under the observed treatment distribution; applying a different regime requires re-calling <code>causat()</code> with updated data. <code>ipsi()</code> additionally requires a fitted propensity model that is not yet wired through any engine (Phase 4) and currently aborts for all estimators.</p>
-<strong>Survival contrasts are not yet implemented.</strong> <code>contrast()</code> on a <code>causatr_fit</code> returned by <code>causat_survival()</code> aborts with an informative error. The pooled logistic fit itself works; only the survival-curve contrast step is pending.
+<p><strong>Note:</strong> Non-static interventions (<code>shift()</code>, <code>scale_by()</code>, <code>threshold()</code>, <code>dynamic()</code>, <code>ipsi()</code>) are only supported for <code>estimator = “gcomp”</code>. For IPW and matching, the weights/matched sets were estimated under the observed treatment distribution; applying a different regime requires re-calling <code>causat()</code> with updated data. <code>ipsi()</code> additionally requires a fitted propensity model and currently aborts for all estimators.</p>
+<strong>Survival contrasts are not implemented.</strong> <code>contrast()</code> on a <code>causatr_fit</code> returned by <code>causat_survival()</code> aborts with an informative error. The pooled logistic fit itself works.
 </td>
 </tr>
 <tr>
@@ -769,10 +798,10 @@ all
 <code>“ipw”</code>
 </td>
 <td style="text-align: left;">
-binary, categorical, continuous (WeightIt)
+binary, continuous
 </td>
 <td style="text-align: left;">
-<code>static()</code> only
+binary: <code>static()</code> / <code>dynamic()</code> / <code>ipsi()</code>; continuous: <code>shift()</code> / <code>scale_by()</code>
 </td>
 </tr>
 <tr>
@@ -780,7 +809,7 @@ binary, categorical, continuous (WeightIt)
 <code>“matching”</code>
 </td>
 <td style="text-align: left;">
-binary, categorical, continuous
+binary
 </td>
 <td style="text-align: left;">
 <code>static()</code> only
@@ -877,7 +906,6 @@ The original call.
 <section id="references" class="level3">
 <h3 class="anchored" data-anchor-id="references">References</h3>
 <p>Hernán MA, Robins JM (2025). <em>Causal Inference: What If</em>. Chapman &amp; Hall/CRC. Chapters 12–13.</p>
-<p>Greifer N (2024). WeightIt: Weighting Methods for Covariate Balancing. <a href="https://ngreifer.github.io/WeightIt/">https://ngreifer.github.io/WeightIt/</a></p>
 <p>Imai K, King G, Stuart EA (2011). Misunderstandings between experimentalists and observationalists about causal inference. <em>Journal of the Royal Statistical Society</em> Series A 171:481–502.</p>
 <p>Zivich PN, Ross RK, Shook-Sa BE, Cole SR, Edwards JK (2024). Empirical sandwich variance estimator for iterated conditional expectation g-computation. <em>Statistics in Medicine</em> 43:5562–5572.</p>
 </section>

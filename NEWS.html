@@ -106,6 +106,35 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   }
 }</script>
 
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
 
 </head>
 
@@ -455,6 +484,25 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul>
   <li><a href="#causatr-development-version" id="toc-causatr-development-version" class="nav-link active" data-scroll-target="#causatr-development-version">causatr (development version)</a>
   <ul class="collapse">
+  <li><a href="#phase-4-chunk-3j-count-treatment-ipw-poisson-negative-binomial" id="toc-phase-4-chunk-3j-count-treatment-ipw-poisson-negative-binomial" class="nav-link" data-scroll-target="#phase-4-chunk-3j-count-treatment-ipw-poisson-negative-binomial">2026-04-16 — Phase 4 chunk 3j: count treatment IPW (Poisson / negative binomial)</a></li>
+  <li><a href="#fifth-round-critical-review-s2-near-zero-intervened-density-warning" id="toc-fifth-round-critical-review-s2-near-zero-intervened-density-warning" class="nav-link" data-scroll-target="#fifth-round-critical-review-s2-near-zero-intervened-density-warning">2026-04-16 — Fifth-round critical review S2: near-zero intervened density warning</a></li>
+  <li><a href="#fifth-round-critical-review-r1-diagnose-censoring-alignment" id="toc-fifth-round-critical-review-r1-diagnose-censoring-alignment" class="nav-link" data-scroll-target="#fifth-round-critical-review-r1-diagnose-censoring-alignment">2026-04-16 — Fifth-round critical review R1: <code>diagnose()</code> censoring alignment</a></li>
+  <li><a href="#fourth-round-critical-review-reject-na.action-na.exclude" id="toc-fourth-round-critical-review-reject-na.action-na.exclude" class="nav-link" data-scroll-target="#fourth-round-critical-review-reject-na.action-na.exclude">2026-04-15 — Fourth-round critical review: reject <code>na.action = na.exclude</code></a></li>
+  <li><a href="#third-round-critical-review-dots-audit-replay_fit-helper-t6t7t9" id="toc-third-round-critical-review-dots-audit-replay_fit-helper-t6t7t9" class="nav-link" data-scroll-target="#third-round-critical-review-dots-audit-replay_fit-helper-t6t7t9">2026-04-15 — Third-round critical review: dots audit + <code>replay_fit()</code> helper + T6/T7/T9</a></li>
+  <li><a href="#second-round-critical-review-follow-ups-c3-c5-c12-b7-gradient-fix-weight-edge-case-tests" id="toc-second-round-critical-review-follow-ups-c3-c5-c12-b7-gradient-fix-weight-edge-case-tests" class="nav-link" data-scroll-target="#second-round-critical-review-follow-ups-c3-c5-c12-b7-gradient-fix-weight-edge-case-tests">2026-04-15 — Second-round critical-review follow-ups (C3, C5, C12) + B7 gradient fix + weight edge-case tests</a></li>
+  <li><a href="#critical-review-sweep-b1-b8-r3-r12" id="toc-critical-review-sweep-b1-b8-r3-r12" class="nav-link" data-scroll-target="#critical-review-sweep-b1-b8-r3-r12">2026-04-15 — Critical-review sweep (B1-B8, R3-R12)</a>
+  <ul class="collapse">
+  <li><a href="#blocking-correctness-fixes" id="toc-blocking-correctness-fixes" class="nav-link" data-scroll-target="#blocking-correctness-fixes">Blocking correctness fixes</a></li>
+  <li><a href="#required-robustness-fixes" id="toc-required-robustness-fixes" class="nav-link" data-scroll-target="#required-robustness-fixes">Required robustness fixes</a></li>
+  <li><a href="#suggestions-addressed" id="toc-suggestions-addressed" class="nav-link" data-scroll-target="#suggestions-addressed">Suggestions addressed</a></li>
+  </ul></li>
+  <li><a href="#documentation-overhaul-vignettes-math-rendering-and-knit_print" id="toc-documentation-overhaul-vignettes-math-rendering-and-knit_print" class="nav-link" data-scroll-target="#documentation-overhaul-vignettes-math-rendering-and-knit_print">2026-04-15 — Documentation overhaul: vignettes, math rendering, and <code>knit_print</code></a>
+  <ul class="collapse">
+  <li><a href="#new-package-feature-knitr-aware-causatr_result-rendering" id="toc-new-package-feature-knitr-aware-causatr_result-rendering" class="nav-link" data-scroll-target="#new-package-feature-knitr-aware-causatr_result-rendering">New package feature: knitr-aware <code>causatr_result</code> rendering</a></li>
+  <li><a href="#vignette-fixes-no-behavioural-changes-to-the-engine" id="toc-vignette-fixes-no-behavioural-changes-to-the-engine" class="nav-link" data-scroll-target="#vignette-fixes-no-behavioural-changes-to-the-engine">Vignette fixes (no behavioural changes to the engine)</a></li>
+  <li><a href="#variance-theory.qmd-roadmap-verified-numerics" id="toc-variance-theory.qmd-roadmap-verified-numerics" class="nav-link" data-scroll-target="#variance-theory.qmd-roadmap-verified-numerics"><code>variance-theory.qmd</code> — roadmap + verified numerics</a></li>
+  <li><a href="#validation.qmd-tinytable-comparisons" id="toc-validation.qmd-tinytable-comparisons" class="nav-link" data-scroll-target="#validation.qmd-tinytable-comparisons"><code>validation.qmd</code> — tinytable comparisons</a></li>
+  </ul></li>
   <li><a href="#breaking-causat-causat_survival-argument-method-renamed-to-estimator" id="toc-breaking-causat-causat_survival-argument-method-renamed-to-estimator" class="nav-link" data-scroll-target="#breaking-causat-causat_survival-argument-method-renamed-to-estimator">Breaking: <code>causat()</code> / <code>causat_survival()</code> argument <code>method</code> renamed to <code>estimator</code></a></li>
   <li><a href="#critical-review-sweep-r1r9-s1s9" id="toc-critical-review-sweep-r1r9-s1s9" class="nav-link" data-scroll-target="#critical-review-sweep-r1r9-s1s9">2026-04-14 — Critical review sweep (R1–R9 + S1–S9)</a>
   <ul class="collapse">
@@ -484,6 +532,145 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <section id="causatr-development-version" class="level1">
 <h1>causatr (development version)</h1>
+<section id="phase-4-chunk-3j-count-treatment-ipw-poisson-negative-binomial" class="level2">
+<h2 class="anchored" data-anchor-id="phase-4-chunk-3j-count-treatment-ipw-poisson-negative-binomial">2026-04-16 — Phase 4 chunk 3j: count treatment IPW (Poisson / negative binomial)</h2>
+<p><code>causat()</code> gains a <code>propensity_family</code> parameter (<code>"poisson"</code> or <code>"negbin"</code>) that enables IPW estimation on integer-valued count treatments. Auto-detection never infers count (non-negative integers like age are legitimately Gaussian), so this is an explicit opt-in.</p>
+<p><strong>Runtime:</strong> - <code>fit_count_density()</code> fits either <code>stats::glm(family = poisson())</code> or <code>MASS::glm.nb()</code> (auto-selected for <code>"negbin"</code> when <code>propensity_model_fn = NULL</code>). - <code>evaluate_density()</code> gains Poisson (<code>dpois</code>) and NB (<code>dnbinom</code>) branches. - <code>make_weight_fn()</code> gains a count closure using the log link <code>lambda = exp(X %*% alpha)</code>. - <code>check_intervention_family_compat()</code> allows <code>shift()</code> (integer delta only) and <code>scale_by()</code> (inverse must preserve integer support) on count treatments; rejects <code>static</code>, <code>dynamic</code>, <code>threshold</code>, <code>ipsi</code>.</p>
+<p><strong>Variance:</strong> no changes needed — Poisson and NB GLMs inherit from <code>glm</code>, so <code>bread_inv()</code> and <code>prepare_model_if()</code> work out of the box. NB <code>theta</code> is treated as fixed (same convention as Gaussian <code>sigma</code>).</p>
+<p><strong>Tests:</strong> truth-based Poisson DGP (<code>shift(1)</code> recovers ATE = 1.5), NB parity (NB nests Poisson on the same DGP), 6 rejection snapshot tests for disallowed intervention types.</p>
+</section>
+<section id="fifth-round-critical-review-s2-near-zero-intervened-density-warning" class="level2">
+<h2 class="anchored" data-anchor-id="fifth-round-critical-review-s2-near-zero-intervened-density-warning">2026-04-16 — Fifth-round critical review S2: near-zero intervened density warning</h2>
+<p><code>compute_density_ratio_weights()</code> now warns (class <code>causatr_near_zero_intervened_density</code>) when &gt; 80% of observations have near-zero density at the intervened treatment value under <code>shift()</code> or <code>scale_by()</code>. This catches the case where the intervention pushes treatment far outside the fitted distribution’s support, producing density-ratio weights that are effectively zero for the entire sample. The Hájek estimator still runs (the math is valid — zero weights just mean no contribution), but the resulting estimate is degenerate and should not be interpreted. Previously this situation was silent.</p>
+</section>
+<section id="fifth-round-critical-review-r1-diagnose-censoring-alignment" class="level2">
+<h2 class="anchored" data-anchor-id="fifth-round-critical-review-r1-diagnose-censoring-alignment">2026-04-16 — Fifth-round critical review R1: <code>diagnose()</code> censoring alignment</h2>
+<p><code>diagnose()</code> now correctly excludes censored rows when computing positivity, balance, and simple-balance diagnostics for gcomp fits that use a <code>censoring</code> column. Previously, <code>compute_positivity()</code>, <code>compute_balance()</code>, and <code>compute_balance_simple()</code> called <code>get_fit_rows(data, outcome)</code> without passing <code>fit$censoring</code>, so diagnostics were computed on the full non-NA-outcome sample (including censored individuals) while the main gcomp pipeline excluded them. The diagnostics thus described a different sample than the one used for estimation. All three sites now call <code>get_fit_rows(data, outcome, fit$censoring)</code>. Regression test in <code>tests/testthat/test-diagnose.R</code>.</p>
+</section>
+<section id="fourth-round-critical-review-reject-na.action-na.exclude" class="level2">
+<h2 class="anchored" data-anchor-id="fourth-round-critical-review-reject-na.action-na.exclude">2026-04-15 — Fourth-round critical review: reject <code>na.action = na.exclude</code></h2>
+<p><code>causat()</code> and <code>causat_survival()</code> now abort via <code>check_dots_na_action()</code> when <code>na.action = na.exclude</code> is forwarded through <code>...</code>. Under <code>na.exclude</code>, <code>stats::residuals(model, "working")</code> is padded with NAs to the original data length while <code>model.matrix(model)</code> drops NA rows — the length mismatch propagated into <code>prepare_model_if()</code>’s <code>r_score</code> and then silently corrupted the Channel-2 correction via R’s recycling (only a “longer object length” warning, no abort). Sandwich SEs were mathematically wrong. Only <code>na.omit</code> (default) and <code>na.fail</code> are accepted now; users with NAs should drop them explicitly before calling <code>causat()</code>. New error class <code>causatr_bad_na_action</code>. Regression test in <code>tests/testthat/test-causat.R</code>.</p>
+</section>
+<section id="third-round-critical-review-dots-audit-replay_fit-helper-t6t7t9" class="level2">
+<h2 class="anchored" data-anchor-id="third-round-critical-review-dots-audit-replay_fit-helper-t6t7t9">2026-04-15 — Third-round critical review: dots audit + <code>replay_fit()</code> helper + T6/T7/T9</h2>
+<p>A full audit of the <code>fit$details$dots</code> plumbing (capture sites in <code>fit_gcomp_point()</code> / <code>fit_ipw()</code> / <code>fit_matching()</code> / <code>fit_ice()</code>, replay sites in <code>refit_gcomp()</code> / <code>refit_ipw()</code> / <code>refit_matching()</code> / <code>ice_iterate()</code>) flagged three systemic risks:</p>
+<ul>
+<li><strong>R1 (T2)</strong>: positional dots with empty names slipped through the hand-written <code>setdiff(names(dots), ...)</code> strips.</li>
+<li><strong>R2 (C5)</strong>: four duplicate-strip blocks had to stay in sync by hand.</li>
+<li><strong>R4</strong>: the strip lists were drifting — adding a new reserved key to one site but forgetting the others was a silent regression.</li>
+</ul>
+<p><strong>Fix — Alternative E in the audit: one central helper.</strong> New <code>replay_fit(fn, base_args, dots, reserved)</code> in <code>R/utils.R</code> owns the <code>c(base_args, dots) + do.call(fn, ...)</code> composition. All four refit sites (plus <code>fit_ipw()</code> itself) now call it. Behavior:</p>
+<ul>
+<li>Unnamed (positional) entries in <code>dots</code> are dropped. Fixes T2.</li>
+<li>Keys already present in <code>base_args</code> are stripped from <code>dots</code> so the caller’s explicit value always wins. Covers C5 centrally.</li>
+<li>A <code>reserved</code> vector lets callers block additional keys the target function uses implicitly (e.g.&nbsp;<code>WeightIt::weightit</code>’s <code>s.weights</code> when external weights are not supplied).</li>
+</ul>
+<p>Other non-dots fixes in the same pass:</p>
+<ul>
+<li><strong>T6</strong> — <code>causat_survival()</code> now uses <code>stats::quasibinomial()</code> when external weights are supplied, suppressing the spurious “non-integer #successes in a binomial glm” warning without changing coefficients or SEs (same score equations, free dispersion).</li>
+<li><strong>T7</strong> — <code>bread_inv()</code>’s singular-bread warning now carries a <code>causatr_singular_bread</code> class. The bootstrap <code>withCallingHandlers</code> in <code>variance_bootstrap()</code> matches on class, not on the English substring, so a future wording change cannot silently break the demotion.</li>
+<li><strong>T9</strong> — <code>causat_survival()</code>’s internal-column strip now sources the list from a new <code>CAUSATR_SURVIVAL_INTERNAL_COLS</code> constant in <code>R/utils.R</code> (derived as <code>setdiff(CAUSATR_RESERVED_COLS, ".pseudo_y")</code>), so adding a new reserved column propagates automatically.</li>
+</ul>
+<p>Audit items R3 (unknown dots silently ignored by target function), R5 (backward-compat with old <code>fit</code> objects missing <code>$dots</code>), R6 (replay opacity), and R7 (arg aliasing across target functions) were verified as non-bugs via direct R scripts — base R catches unknown args at fit time, <code>%||% list()</code> handles missing <code>$dots</code>, <code>fit$details$dots</code> is inspectable, and explicit <code>base_args</code> locks override dots.</p>
+<p><strong>Tests.</strong> New <code>tests/testthat/test-replay-fit.R</code> adds 14 unit tests pinning <code>replay_fit()</code> edge cases (base-wins precedence, positional dots dropping, reserved-key blocking, NULL dots, <code>glm.control</code> catching unknown args, backward-compat with missing <code>$dots</code>, end-to-end gcomp and IPW bootstrap replay). All 44 earlier critical-review + weight-edge-case tests still pass unchanged.</p>
+</section>
+<section id="second-round-critical-review-follow-ups-c3-c5-c12-b7-gradient-fix-weight-edge-case-tests" class="level2">
+<h2 class="anchored" data-anchor-id="second-round-critical-review-follow-ups-c3-c5-c12-b7-gradient-fix-weight-edge-case-tests">2026-04-15 — Second-round critical-review follow-ups (C3, C5, C12) + B7 gradient fix + weight edge-case tests</h2>
+<p>A second-round self-review of the 2026-04-15 critical-review sweep flagged twelve concerns (C1–C12). C1, C2, C4, C6, C7, C8, C9, C10, C11 were either false alarms (misread R semantics) or acceptable as-is. C3, C5, and C12 landed as real fixes; running the regression tests also surfaced an incomplete B7 fix. A new <code>tests/testthat/test-weights-edge-cases.R</code> adds 24 weight-specific tests covering every branch the critical review flagged as weight-sensitive.</p>
+<ul>
+<li><p><strong>C3 — Classed abort for empty target population.</strong> <code>build_point_channel_pieces()</code> now emits <code>rlang::abort(class = "causatr_empty_target", ...)</code>, and the <code>by</code> skip path in <code>compute_contrast()</code> matches on class, not on the English message text. Any future wording drift can no longer silently turn skipped strata into real aborts.</p></li>
+<li><p><strong>C5 — Duplicate key stripping in <code>c(args, dots)</code> compositions.</strong> <code>fit_ipw()</code>, <code>refit_ipw()</code>, <code>refit_gcomp()</code>, and <code>ice_iterate()</code> now strip keys already present in <code>args</code> from the stashed <code>dots</code> before the <code>c()</code>. <code>do.call()</code> always takes the first named duplicate, so the previous behavior was correct but fragile — explicit stripping makes the precedence unambiguous.</p></li>
+<li><p><strong>C12 — <code>.causatr_prev_event</code> / <code>.causatr_prev_cens</code> stripped from <code>fit$data</code>.</strong> The within-id risk-set bookkeeping columns in <code>causat_survival()</code> are now dropped before the <code>causatr_fit</code> is returned, so they no longer leak into user-visible state.</p></li>
+<li><p><strong>B7 gradient follow-up — unify ICE step_i == 1 gradient on the weighted form.</strong> The B7 fix in the first sweep only touched the Channel-1 IF vector, not the corresponding sensitivity gradient computed at step 1 of the backward iteration, which still used <code>n_target</code> (now removed from the enclosing scope). Running the new regression test surfaced a <code>n_target not found</code> abort. The gradient is now computed via the same <code>w_t * mu_eta / sum_w_target</code> form and reduces to the original unweighted expression when <code>w_t = 1</code>.</p></li>
+<li><p><strong>Weight edge-case coverage.</strong> New test file exercises: NA / Inf / NaN / negative / non-numeric / wrong-length weights rejected by <code>check_weights()</code>; zero weights as row exclusion; uniform weights producing identical SEs to the unweighted path (gcomp + ICE); heterogeneous weights changing SEs non-trivially; IPW survey weights attaching as <code>s.weights</code>; matched outcome model carrying <code>match_weight * external_weight</code>; <code>causat_survival()</code> weight plumbing to the hazard fit.</p></li>
+</ul>
+</section>
+<section id="critical-review-sweep-b1-b8-r3-r12" class="level2">
+<h2 class="anchored" data-anchor-id="critical-review-sweep-b1-b8-r3-r12">2026-04-15 — Critical-review sweep (B1-B8, R3-R12)</h2>
+<p>A second full-codebase critical review flagged ~twenty correctness and robustness issues across the variance engine, bootstrap refit path, <code>contrast()</code> dispatch, and <code>causat_survival()</code>. Every blocking fix ships with a regression test in <code>tests/testthat/test-critical-review-2026-04.R</code>.</p>
+<section id="blocking-correctness-fixes" class="level3">
+<h3 class="anchored" data-anchor-id="blocking-correctness-fixes">Blocking correctness fixes</h3>
+<ul>
+<li><p><strong>B1 — <code>subset</code> expressions now resolve caller-scoped variables.</strong> <code>contrast(fit, subset = quote(age &gt; cutoff))</code> previously evaluated <code>subset</code> with <code>parent.frame()</code> deep inside internal dispatch frames, so <code>cutoff</code> (defined in the user’s session) failed to resolve. The caller’s frame is now captured once at <code>contrast()</code>’s top level and threaded through <code>compute_contrast()</code>, <code>get_target_idx()</code>, <code>variance_bootstrap()</code>, and <code>ice_variance_bootstrap()</code> as an explicit <code>subset_env</code> argument. <code>get_target_idx()</code> also validates that the evaluated expression has length <code>nrow(data)</code> so a scalar <code>TRUE</code> cannot recycle silently.</p></li>
+<li><p><strong>B2 — Bootstrap replicates replay the user’s <code>...</code> verbatim.</strong> <code>refit_gcomp()</code>, <code>refit_ipw()</code>, and <code>refit_matching()</code> previously dropped the user’s extras (<code>method = "cbps"</code>, <code>stabilize = TRUE</code>, <code>caliper</code>, <code>ratio</code>, <code>gamma</code>, GAM smoothing, etc.), so bootstrap SEs for any non-default estimator silently corresponded to a different estimator than the point estimate. <code>fit_ipw()</code> / <code>fit_matching()</code> / <code>fit_gcomp_point()</code> now stash <code>list(...)</code> onto <code>fit$details$dots</code> and each refit function threads those back through <code>do.call()</code>.</p></li>
+<li><p><strong>B5 — <code>causat_survival()</code> implements the documented censoring rule.</strong> The roxygen promised “subsequent rows for that individual are also dropped”, but the implementation only excluded the current row. A <code>.causatr_prev_cens</code> within-id cumsum + lag column now drops all rows at and after the first censor per id.</p></li>
+<li><p><strong>B6 — External weights enter WeightIt as <code>s.weights</code>.</strong> <code>fit_ipw()</code> post-multiplied external weights onto <code>w$weights</code> <em>after</em> <code>WeightIt::weightit()</code> had finished, so the Mparts sandwich correction silently under-corrected survey-weighted IPW. External weights now flow in as <code>s.weights</code>, and <code>refit_ipw()</code> mirrors the change at bootstrap time.</p></li>
+<li><p><strong>B7 — ICE Channel-1 IF unified on a single formula.</strong> <code>variance_if_ice_one()</code> previously used <code>(n / n_target) * (Y - mu)</code> unweighted and <code>n * (w / sum_w) * (Y - mu)</code> weighted. These agree only when <code>sum(w) == n_target</code>, so heterogeneous weights mis-scaled the Channel-1/Channel-2 cross-term. The unweighted branch now sets <code>w = 1</code> and shares the weighted formula. A regression test pins uniform-weighted and unweighted SEs to machine precision.</p></li>
+<li><p><strong>B8 — <code>by</code> skips empty strata instead of aborting the whole call.</strong> <code>by_vals</code> is now enumerated from <code>fit$details$fit_rows</code> (not the full data), and any per-level call that still ends up with an empty target is caught by a <code>tryCatch</code>, collected into a single <code>rlang::warn()</code> at the end, and dropped from the combined result.</p></li>
+</ul>
+</section>
+<section id="required-robustness-fixes" class="level3">
+<h3 class="anchored" data-anchor-id="required-robustness-fixes">Required robustness fixes</h3>
+<ul>
+<li><p><strong>R3 — Branch-A propensity IF reconciles via <code>na.action</code>.</strong> When the MSM and propensity fits drop different rows, <code>prepare_propensity_if_weightit()</code> now intersects <code>fit_idx</code> with the MSM’s <code>na.action</code> instead of aborting.</p></li>
+<li><p><strong>R6 — OR validation no longer aborts on NA <code>mu_hat</code>.</strong> The <code>mu_hat &gt;= 1</code> check now pre-filters NAs consistently with the <code>&lt;= 0</code> check.</p></li>
+<li><p><strong>R7 — <code>bread_inv()</code> prefers <code>weights(model, type = "working")</code>.</strong> Keeps GLM subclasses (<code>glm_weightit</code>, glmnet’s glm wrapper) correctly aligned with the sandwich convention.</p></li>
+<li><p><strong>R8 — Matched cluster aggregation uses a first-seen factor.</strong> <code>vcov_from_if(..., cluster = subclass)</code> no longer sorts the cluster levels alphabetically / numerically, which had desynchronised <code>rowsum(..., reorder = FALSE)</code> from <code>IF_mat</code>’s row order.</p></li>
+<li><p><strong>R9 — <code>causat_survival()</code> sorts once up front via <code>setkeyv()</code>.</strong> Previously two <code>by = id</code> aggregations relied on data.table’s group-order staying consistent between calls.</p></li>
+<li><p><strong>R10 — Robust Mparts detection.</strong> Handles both list-shaped and flag-shaped <code>attr(w, "Mparts")</code> across WeightIt versions.</p></li>
+<li><p><strong>R11 — Dead <code>is.integer</code> branch removed in <code>interventions.R</code>.</strong> <code>is.integer(x)</code> already implies <code>is.numeric(x)</code>.</p></li>
+<li><p><strong>R12 — Reserved column names centralised.</strong> New constant <code>CAUSATR_RESERVED_COLS</code> and helper <code>check_reserved_cols()</code> in <code>R/utils.R</code>, called from <code>prepare_data()</code>, <code>fit_ice()</code>, and <code>causat_survival()</code>. The previously-unprefixed <code>prev_event</code> internal column was renamed to <code>.causatr_prev_event</code>.</p></li>
+</ul>
+</section>
+<section id="suggestions-addressed" class="level3">
+<h3 class="anchored" data-anchor-id="suggestions-addressed">Suggestions addressed</h3>
+<ul>
+<li><strong>S1</strong> — <code>subset</code> length validated in <code>get_target_idx()</code>.</li>
+<li><strong>S5</strong> — <code>Reduce(</code>&amp;<code>, ...)</code> in <code>compute_contrast()</code> gets an explicit <code>init = rep(TRUE, nrow(data))</code> so an empty <code>preds_list</code> falls through cleanly.</li>
+</ul>
+</section>
+</section>
+<section id="documentation-overhaul-vignettes-math-rendering-and-knit_print" class="level2">
+<h2 class="anchored" data-anchor-id="documentation-overhaul-vignettes-math-rendering-and-knit_print">2026-04-15 — Documentation overhaul: vignettes, math rendering, and <code>knit_print</code></h2>
+<p>A pass over every package vignette plus a small package-level addition so that <code>causatr_result</code> objects render as readable HTML tables inside Quarto / knitr documents.</p>
+<section id="new-package-feature-knitr-aware-causatr_result-rendering" class="level3">
+<h3 class="anchored" data-anchor-id="new-package-feature-knitr-aware-causatr_result-rendering">New package feature: knitr-aware <code>causatr_result</code> rendering</h3>
+<ul>
+<li><strong><code>R/knit_print.R</code></strong> defines a <code>knit_print.causatr_result()</code> S3 method that renders a <code>causat() |&gt; contrast()</code> result as a metadata header plus two tinytable HTML tables (intervention means + contrasts) when the result object is evaluated inside a knitr chunk. The method degrades gracefully to the existing <code>print.causatr_result()</code> if tinytable or knitr is unavailable.</li>
+<li><strong><code>R/zzz.R</code></strong> conditionally registers the method via <code>.onLoad()</code> (<code>requireNamespace("knitr", quietly = TRUE)</code>), so the dependency on knitr stays Suggests-only.</li>
+<li><strong><code>DESCRIPTION</code></strong> adds <code>tinytable</code> and <code>litedown</code> to <code>Suggests</code> (the latter is needed by <code>tinytable::format_tt(markdown = TRUE)</code>, which the variance-theory vignette uses for math-in-cells rendering).</li>
+</ul>
+</section>
+<section id="vignette-fixes-no-behavioural-changes-to-the-engine" class="level3">
+<h3 class="anchored" data-anchor-id="vignette-fixes-no-behavioural-changes-to-the-engine">Vignette fixes (no behavioural changes to the engine)</h3>
+<ul>
+<li><p><strong><code>longitudinal.qmd</code> — Table 20.1 null-effect section rewritten.</strong> The previous explanation claimed “individual effects of A_0 and A_1 are both zero” and that naive regression gives non-zero estimates for both. In fact (i) the true <em>marginal counterfactual</em> means are all equal to 60, not the conditional effects, (ii) <code>lm(Y ~ A0 + A1 + L1)</code> gives <code>A1 = 0</code> exactly (in the DGP Y does not depend on A1), and</p>
+<ol start="3" type="i">
+<li>the bias shows up in <code>A0</code> only, as the conditional-within-L1 effect of −8. The section now shows <em>both</em> naive strategies (unadjusted and L1-adjusted) failing, demonstrating the null paradox as stated in Hernán &amp; Robins Chapter 20.</li>
+</ol></li>
+<li><p><strong><code>by = "sex"</code> examples fixed across three vignettes.</strong></p>
+<ul>
+<li><code>gcomp.qmd</code> now refits with an explicit <code>qsmk:sex</code> term in <code>confounders</code>, so the stratified estimates actually move (Male ≈ 3.61, Female ≈ 3.44).</li>
+<li><code>ipw.qmd</code> and <code>matching.qmd</code> replace the <code>by = "sex"</code> code chunks with a Phase 8 callout explaining that IPW and matching wrap a saturated <code>Y ~ A</code> MSM and so <code>by = "sex"</code> is a no-op until the unified effect-modification API lands (<code>PHASE_6_INTERACTIONS.md</code>).</li>
+</ul></li>
+<li><p><strong>Unified “Summary of covered combinations” tables.</strong> gcomp, ipw, matching, and longitudinal now share one 8-column schema (Treatment | Outcome | Intervention | Estimand | Contrast | Inference | Weights | Status) with a common ✅ / 🟡 / ⛔ legend and a pointer to <code>FEATURE_COVERAGE_MATRIX.md</code>.</p></li>
+<li><p><strong><code>code-fold: show</code> + <code>code-tools: true</code> in every vignette YAML.</strong> Combined with the new <code>knit_print</code> hook, readers can fold the R code of any example chunk and still see a nicely formatted result table.</p></li>
+</ul>
+</section>
+<section id="variance-theory.qmd-roadmap-verified-numerics" class="level3">
+<h3 class="anchored" data-anchor-id="variance-theory.qmd-roadmap-verified-numerics"><code>variance-theory.qmd</code> — roadmap + verified numerics</h3>
+<ul>
+<li>New <strong>Section 0 “Roadmap”</strong> walks through Sections 1 → 6 as a single narrative and introduces the running example (a small logistic GLM) used by every verification block below.</li>
+<li>Eight new <strong>Math / Code / Result</strong> tabset panels, each of which instantiates a key equation on the running example and checks it against either <code>sandwich::sandwich()</code>, <code>sandwich::vcovCL()</code>, or <code>causatr::variance_if()</code>:
+<ol type="1">
+<li><strong>Sec 1.4</strong> — Sandwich variance of β̂ vs <code>sandwich::sandwich(fit)</code> (agreement ≲ 1e-8).</li>
+<li><strong>Sec 2.3</strong> — <code>(1/n²) Σ IFᵢ IFᵢᵀ</code> equals the sandwich to machine precision.</li>
+<li><strong>Sec 2.4</strong> — IF for a sample mean reproduces the textbook <span class="math inline">\(s/\sqrt n\)</span> up to the <span class="math inline">\((n-1)/n\)</span> d.f. correction.</li>
+<li><strong>Sec 3.2</strong> — Two-channel IF for g-comp <span class="math inline">\(\hat\mu_1\)</span> matches causatr’s sandwich SE to $$1e-9.</li>
+<li><strong>Sec 3.3</strong> — Delta-method decomposition: shows numerically that <code>J V_β Jᵀ</code> equals <code>Ch.2²</code>, and that dropping <code>Ch.1²</code> + cross term underestimates the SE by about 3% on this example.</li>
+<li><strong>Sec 4.2</strong> — Horvitz-Thompson IPW <span class="math inline">\(\hat\mu_1\)</span> equals causatr’s IPW point estimate, with SE from the propensity-corrected adjusted score.</li>
+<li><strong>Sec 4.3</strong> — Cluster-robust sandwich: per-cluster IFs summed before squaring reproduce <code>sandwich::vcovCL(..., cadjust = FALSE)</code> on a toy subclass assignment.</li>
+<li><strong>Sec 5.5</strong> — ICE chained IF on a 2-period linear-Gaussian DGP recovers the structural truth <span class="math inline">\(0.8 + 0.6 = 1.4\)</span> within the sandwich CI.</li>
+</ol></li>
+</ul>
+</section>
+<section id="validation.qmd-tinytable-comparisons" class="level3">
+<h3 class="anchored" data-anchor-id="validation.qmd-tinytable-comparisons"><code>validation.qmd</code> — tinytable comparisons</h3>
+<ul>
+<li><code>compare_row()</code> now returns a tinytable with a third row of <strong>absolute differences</strong> between causatr and each reference implementation (stdReg2, WeightIt, marginaleffects, lmtp). Agreement — or the lack of it — is readable without having to compare 6 decimal places by eye.</li>
+</ul>
+</section>
+</section>
 <section id="breaking-causat-causat_survival-argument-method-renamed-to-estimator" class="level2">
 <h2 class="anchored" data-anchor-id="breaking-causat-causat_survival-argument-method-renamed-to-estimator">Breaking: <code>causat()</code> / <code>causat_survival()</code> argument <code>method</code> renamed to <code>estimator</code></h2>
 <p><code>causat(method = ...)</code> shadowed <code>WeightIt::weightit(method = ...)</code> and <code>MatchIt::matchit(method = ...)</code>, making it impossible to forward those packages’ own <code>method</code> selector through <code>...</code>. The causatr argument has been renamed to <code>estimator</code>; extra <code>...</code> arguments now flow cleanly into WeightIt / MatchIt. This is a hard rename with no deprecation shim — update call sites from <code>method = "gcomp" | "ipw" | "matching"</code> to <code>estimator = "..."</code>, and from <code>fit$method</code> / <code>result$method</code> / <code>diag$method</code> to <code>fit$estimator</code> / <code>result$estimator</code> / <code>diag$estimator</code>. The <code>glance.causatr_result()</code> output column is renamed in the same way.</p>
@@ -524,7 +711,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="doc-drift-amodifier-behaviour-r1" class="level3">
 <h3 class="anchored" data-anchor-id="doc-drift-amodifier-behaviour-r1">Doc drift — <code>A:modifier</code> behaviour (R1)</h3>
-<p><code>CLAUDE.md</code>, <code>NEWS.md</code> (this file’s older entries), <code>PHASE_8_INTERACTIONS.md</code>, and <code>CAUSATR_SCAFFOLD.md</code> all still described IPW and matching as “silently ignoring” <code>A:modifier</code> interaction terms in <code>confounders</code>. That code path was hardened months ago: <code>fit_ipw()</code> and <code>fit_matching()</code> now call <code>check_confounders_no_treatment()</code> and <strong>abort</strong> upfront with a Phase-8 pointer. Every doc that mis-described the old behavior has been updated to match the current behavior.</p>
+<p><code>CLAUDE.md</code>, <code>NEWS.md</code> (this file’s older entries), <code>PHASE_6_INTERACTIONS.md</code>, and <code>CAUSATR_SCAFFOLD.md</code> all still described IPW and matching as “silently ignoring” <code>A:modifier</code> interaction terms in <code>confounders</code>. That code path was hardened months ago: <code>fit_ipw()</code> and <code>fit_matching()</code> now call <code>check_confounders_no_treatment()</code> and <strong>abort</strong> upfront with a Phase-8 pointer. Every doc that mis-described the old behavior has been updated to match the current behavior.</p>
 </section>
 <section id="vignette-expansion" class="level3">
 <h3 class="anchored" data-anchor-id="vignette-expansion">Vignette expansion</h3>
@@ -560,7 +747,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><strong><code>~ sex + A:sex</code> no longer triggers a false-positive</strong> “Baseline confounder ‘A’ varies within some individuals” warning. Treatment columns are now excluded from <code>warn_confounder_variation()</code>.</li>
 <li><strong>altdoc sidebar fix.</strong> Single-item sections (“Getting started”, “Theory”) were silently dropped from the deployed site because <code>yaml::yaml.load()</code> collapses a one-element scalar sequence into a scalar that Quarto’s sidebar can’t parse. Both sections now use the explicit <code>text:</code>/<code>file:</code> form, making the <code>variance-theory</code> vignette visible on the website.</li>
 <li><strong><code>vignettes/variance-theory.qmd</code> Section 5.4</strong> now derives the ICE cascade gradient with the explicit <code>w_{k-1}</code> factor and the pseudo-code shows the <code>prior.weights</code> lookup.</li>
-<li><strong><code>PHASE_8_INTERACTIONS.md</code> design doc.</strong> Plans a unified effect-modification API across gcomp / IPW / matching / ICE. IPW and matching currently hardcode a saturated <code>Y ~ A</code> MSM and <strong>hard-abort</strong> on any <code>A:modifier</code> term in <code>confounders</code> via <code>check_confounders_no_treatment()</code> (rather than silently dropping it and returning a pooled ATE); ICE handles current-period A × modifier but not lagged A × modifier. Phase 8 will replace both the abort and the lag-gap with a proper MSM builder.</li>
+<li><strong><code>PHASE_6_INTERACTIONS.md</code> design doc.</strong> Plans a unified effect-modification API across gcomp / IPW / matching / ICE. IPW and matching currently hardcode a saturated <code>Y ~ A</code> MSM and <strong>hard-abort</strong> on any <code>A:modifier</code> term in <code>confounders</code> via <code>check_confounders_no_treatment()</code> (rather than silently dropping it and returning a pooled ATE); ICE handles current-period A × modifier but not lagged A × modifier. Phase 8 will replace both the abort and the lag-gap with a proper MSM builder.</li>
 </ul>
 </section>
 <section id="variance-engine-unification" class="level2">

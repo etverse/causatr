@@ -506,7 +506,7 @@ window.Quarto = {
 <section id="description" class="level3">
 <h3 class="anchored" data-anchor-id="description">Description</h3>
 <p>Convenience wrapper for causal survival analysis using pooled logistic regression as a discrete-time hazard model (Hernán &amp; Robins Ch. 17).</p>
-<p><strong>Status: scaffolded.</strong> The pooled logistic fit itself is implemented, but the survival-curve contrast step in <code>contrast()</code> is not yet wired up and aborts with an informative error. Competing-risks analysis (the <code>competing</code> argument) is also not yet implemented and aborts at fit time when supplied. Treat this function as experimental until both paths land.</p>
+<p>The pooled logistic hazard model is fit at this step. The survival-curve contrast step in <code>contrast()</code> is not implemented and aborts with an informative error. Competing-risks analysis (the <code>competing</code> argument) is also not implemented and aborts at fit time when supplied. Treat this function as experimental.</p>
 <h4 class="anchored">
 Algorithm
 </h4>
@@ -607,7 +607,7 @@ Character or <code>NULL</code>. Name of the censoring indicator. If provided, ro
 <code id="competing">competing</code>
 </td>
 <td>
-Character or <code>NULL</code>. Name of a variable indicating the type of competing event (for competing risks analysis). <strong>Not yet implemented</strong>: supplying a non-<code>NULL</code> value currently aborts. Reserved for a future release.
+Character or <code>NULL</code>. Name of a variable indicating the type of competing event (for competing risks analysis). <strong>Not implemented</strong>: supplying a non-<code>NULL</code> value aborts. Reserved for a future release.
 </td>
 </tr>
 <tr>

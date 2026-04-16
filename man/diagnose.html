@@ -483,7 +483,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p><strong>All estimators</strong>: positivity checks (flags covariate strata where the probability of treatment is near 0 or 1).</p>
 </li>
 <li>
-<p><code>“ipw”</code>: covariate balance before and after weighting (via <code>cobalt</code>), weight distribution summary (mean, SD, max, effective sample size).</p>
+<p><code>“ipw”</code> with binary treatment: covariate balance via <code>cobalt</code> on the propensity formula, plus an observed-treatment weight distribution summary (<code>1/p</code> on treated rows, <code>1/(1-p)</code> on controls) with mean, SD, min, max, and effective sample size.</p>
 </li>
 <li>
 <p><code>“matching”</code>: covariate balance before and after matching (via <code>cobalt</code>), match quality summary (% matched, caliper info).</p>
@@ -492,7 +492,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p><code>“gcomp”</code>: unadjusted covariate imbalance between treatment groups.</p>
 </li>
 </ul>
-<p><strong>Point-treatment fits only.</strong> Diagnostics for longitudinal (ICE) fits are not yet implemented and <code>diagnose()</code> aborts with an informative error on a longitudinal <code>fit</code>. For longitudinal data, inspect per-period propensity / balance tables manually until a dedicated longitudinal path lands.</p>
+<p><strong>Point-treatment fits only.</strong> <code>diagnose()</code> aborts on a longitudinal (ICE) <code>fit</code>. For longitudinal data, inspect per-period propensity / balance tables manually.</p>
+<p><strong>Binary treatment only for IPW weight summaries.</strong> Continuous and categorical IPW fits abort with <code>causatr_diag_unsupported_family</code>: the density-ratio weight under those families depends on the intervention, and <code>diagnose()</code> is an intervention-free diagnostic.</p>
 </section>
 <section id="usage" class="level3">
 <h3 class="anchored" data-anchor-id="usage">Usage</h3>

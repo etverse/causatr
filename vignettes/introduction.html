@@ -501,7 +501,7 @@ window.Quarto = {
 
 <header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../vignettes/introduction.html">Getting started</a></li><li class="breadcrumb-item"><a href="../vignettes/introduction.html">Introduction</a></li></ol></nav>
 <div class="quarto-title">
-<h1 class="title">Introduction to causatr</h1>
+<div class="quarto-title-block"><div><h1 class="title">Introduction to causatr</h1><button type="button" class="btn code-tools-button dropdown-toggle" id="quarto-code-tools-menu" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi"></i> Code</button><ul class="dropdown-menu dropdown-menu-end" aria-labelelledby="quarto-code-tools-menu"><li><a id="quarto-show-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Show All Code</a></li><li><a id="quarto-hide-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Hide All Code</a></li><li><hr class="dropdown-divider"></li><li><a id="quarto-view-source" class="dropdown-item" href="javascript:void(0)" role="button">View Source</a></li></ul></div></div>
 </div>
 
 
@@ -540,6 +540,8 @@ window.Quarto = {
 <section id="quick-example" class="level2">
 <h2 class="anchored" data-anchor-id="quick-example">Quick example</h2>
 <div class="cell">
+<details open="" class="code-fold">
+<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(causatr)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"nhefs"</span>)</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -557,24 +559,128 @@ window.Quarto = {
 <span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">quit =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">continue =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
 <span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="st">"continue"</span></span>
 <span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>result</span>
-<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; &lt;causatr_result&gt;</span></span>
-<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  Estimator: G-computation</span></span>
-<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  Estimand:  ATE</span></span>
-<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  Contrast:  Difference</span></span>
-<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  CI method: sandwich</span></span>
-<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  N:         1746</span></span>
-<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Intervention means:</span></span>
-<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    intervention estimate     se ci_lower ci_upper</span></span>
-<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;          &lt;char&gt;    &lt;num&gt;  &lt;num&gt;    &lt;num&gt;    &lt;num&gt;</span></span>
-<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1:         quit    5.033 0.4041    4.241    5.825</span></span>
-<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2:     continue    1.877 0.2091    1.467    2.287</span></span>
-<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Contrasts:</span></span>
-<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;          comparison estimate     se ci_lower ci_upper</span></span>
-<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;              &lt;char&gt;    &lt;num&gt;  &lt;num&gt;    &lt;num&gt;    &lt;num&gt;</span></span>
-<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1: quit vs continue    3.156 0.4488    2.276    4.035</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>result</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<p><strong>Estimator:</strong> gcomp &nbsp;·&nbsp; <strong>Estimand:</strong> ATE &nbsp;·&nbsp; <strong>Contrast:</strong> difference &nbsp;·&nbsp; <strong>CI method:</strong> sandwich &nbsp;·&nbsp; <strong>N:</strong> 1746</p>
+<!-- preamble start -->
+
+    <script src="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.js"></script>
+
+    <script>
+      // Create table-specific functions using external factory
+      const tableFns_ufxwm7rskrqg78ib6kzg = TinyTable.createTableFunctions("tinytable_ufxwm7rskrqg78ib6kzg");
+      // tinytable span after
+      window.addEventListener('load', function () {
+          var cellsToStyle = [
+            // tinytable style arrays after
+          { positions: [ { i: '2', j: 1 }, { i: '2', j: 2 }, { i: '2', j: 3 }, { i: '2', j: 4 }, { i: '2', j: 5 } ], css_id: 'tinytable_css_v3zjtoj4x1piimt43kny',}, 
+          { positions: [ { i: '0', j: 1 }, { i: '0', j: 2 }, { i: '0', j: 3 }, { i: '0', j: 4 }, { i: '0', j: 5 } ], css_id: 'tinytable_css_m8kk76zinepld321s89s',}, 
+          ];
+
+          // Loop over the arrays to style the cells
+          cellsToStyle.forEach(function (group) {
+              group.positions.forEach(function (cell) {
+                  tableFns_ufxwm7rskrqg78ib6kzg.styleCell(cell.i, cell.j, group.css_id);
+              });
+          });
+      });
+    </script>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.css">
+    <style>
+    /* tinytable css entries after */
+    #tinytable_ufxwm7rskrqg78ib6kzg td.tinytable_css_v3zjtoj4x1piimt43kny, #tinytable_ufxwm7rskrqg78ib6kzg th.tinytable_css_v3zjtoj4x1piimt43kny {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
+    #tinytable_ufxwm7rskrqg78ib6kzg td.tinytable_css_m8kk76zinepld321s89s, #tinytable_ufxwm7rskrqg78ib6kzg th.tinytable_css_m8kk76zinepld321s89s {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
+    </style>
+    <div class="container">
+      <table class="tinytable" id="tinytable_ufxwm7rskrqg78ib6kzg" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
+        <caption>Intervention means</caption>
+        <thead>
+              <tr>
+                <th scope="col" data-row="0" data-col="1">intervention</th>
+                <th scope="col" data-row="0" data-col="2">estimate</th>
+                <th scope="col" data-row="0" data-col="3">se</th>
+                <th scope="col" data-row="0" data-col="4">ci_lower</th>
+                <th scope="col" data-row="0" data-col="5">ci_upper</th>
+              </tr>
+        </thead>
+        
+        <tbody>
+                <tr>
+                  <td data-row="1" data-col="1">quit</td>
+                  <td data-row="1" data-col="2">5.033</td>
+                  <td data-row="1" data-col="3">0.404</td>
+                  <td data-row="1" data-col="4">4.241</td>
+                  <td data-row="1" data-col="5">5.825</td>
+                </tr>
+                <tr>
+                  <td data-row="2" data-col="1">continue</td>
+                  <td data-row="2" data-col="2">1.877</td>
+                  <td data-row="2" data-col="3">0.209</td>
+                  <td data-row="2" data-col="4">1.467</td>
+                  <td data-row="2" data-col="5">2.287</td>
+                </tr>
+        </tbody>
+      </table>
+    </div>
+<!-- hack to avoid NA insertion in last line -->
+<!-- preamble start -->
+
+    <script src="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.js"></script>
+
+    <script>
+      // Create table-specific functions using external factory
+      const tableFns_ukt1lq5rqiwyc9ppytkg = TinyTable.createTableFunctions("tinytable_ukt1lq5rqiwyc9ppytkg");
+      // tinytable span after
+      window.addEventListener('load', function () {
+          var cellsToStyle = [
+            // tinytable style arrays after
+          { positions: [ { i: '1', j: 1 }, { i: '1', j: 2 }, { i: '1', j: 3 }, { i: '1', j: 4 }, { i: '1', j: 5 } ], css_id: 'tinytable_css_3jf7z5wh46fbe2ncv3lm',}, 
+          { positions: [ { i: '0', j: 1 }, { i: '0', j: 2 }, { i: '0', j: 3 }, { i: '0', j: 4 }, { i: '0', j: 5 } ], css_id: 'tinytable_css_z5p58muaikzkae0hgraa',}, 
+          ];
+
+          // Loop over the arrays to style the cells
+          cellsToStyle.forEach(function (group) {
+              group.positions.forEach(function (cell) {
+                  tableFns_ukt1lq5rqiwyc9ppytkg.styleCell(cell.i, cell.j, group.css_id);
+              });
+          });
+      });
+    </script>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.css">
+    <style>
+    /* tinytable css entries after */
+    #tinytable_ukt1lq5rqiwyc9ppytkg td.tinytable_css_3jf7z5wh46fbe2ncv3lm, #tinytable_ukt1lq5rqiwyc9ppytkg th.tinytable_css_3jf7z5wh46fbe2ncv3lm {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
+    #tinytable_ukt1lq5rqiwyc9ppytkg td.tinytable_css_z5p58muaikzkae0hgraa, #tinytable_ukt1lq5rqiwyc9ppytkg th.tinytable_css_z5p58muaikzkae0hgraa {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
+    </style>
+    <div class="container">
+      <table class="tinytable" id="tinytable_ukt1lq5rqiwyc9ppytkg" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
+        <caption>Contrasts</caption>
+        <thead>
+              <tr>
+                <th scope="col" data-row="0" data-col="1">comparison</th>
+                <th scope="col" data-row="0" data-col="2">estimate</th>
+                <th scope="col" data-row="0" data-col="3">se</th>
+                <th scope="col" data-row="0" data-col="4">ci_lower</th>
+                <th scope="col" data-row="0" data-col="5">ci_upper</th>
+              </tr>
+        </thead>
+        
+        <tbody>
+                <tr>
+                  <td data-row="1" data-col="1">quit vs continue</td>
+                  <td data-row="1" data-col="2">3.156</td>
+                  <td data-row="1" data-col="3">0.449</td>
+                  <td data-row="1" data-col="4">2.276</td>
+                  <td data-row="1" data-col="5">4.035</td>
+                </tr>
+        </tbody>
+      </table>
+    </div>
+<!-- hack to avoid NA insertion in last line -->
+</div>
 </div>
 </section>
 <section id="intervention-types" class="level2">
@@ -626,7 +732,7 @@ window.Quarto = {
 </tr>
 </tbody>
 </table>
-<p>IPW and matching currently support only <code>static()</code> interventions.</p>
+<p>IPW supports <code>static()</code>, <code>shift()</code>, <code>scale_by()</code>, <code>dynamic()</code>, and <code>ipsi()</code>. Matching supports only <code>static()</code> interventions.</p>
 </section>
 <section id="contrast-types" class="level2">
 <h2 class="anchored" data-anchor-id="contrast-types">Contrast types</h2>
@@ -743,31 +849,37 @@ window.Quarto = {
 <tr class="even">
 <td>Multivariate (joint)</td>
 <td>Yes</td>
-<td>Not yet (Phase 4)</td>
-<td>Not yet (Phase 7)</td>
+<td>Not yet</td>
+<td>Not yet</td>
 </tr>
 </tbody>
 </table>
 <p>For multivariate treatments (e.g.&nbsp;<code>treatment = c("A1", "A2")</code>), supply interventions as named lists with one element per treatment variable.</p>
-<p>Effect modification in the outcome / MSM model itself (e.g.&nbsp;<code>~ L + sex + A:sex</code>) is currently supported only for g-computation. IPW and matching wrap a saturated <code>Y ~ A</code> MSM around the propensity / matched design, and reject an <code>A:modifier</code> term up front — use <code>estimator = "gcomp"</code> for heterogeneous effects, or <code>by = "modifier"</code> below for stratum-specific summaries of a homogeneous effect. See <code>PHASE_8_INTERACTIONS.md</code> for the planned unified API.</p>
+<p>Effect modification in the outcome / MSM model itself (e.g.&nbsp;<code>~ L + sex + A:sex</code>) is currently supported only for g-computation. IPW and matching wrap a saturated <code>Y ~ A</code> MSM around the propensity / matched design, and reject an <code>A:modifier</code> term up front — use <code>estimator = "gcomp"</code> for heterogeneous effects, or <code>by = "modifier"</code> below for stratum-specific summaries of a homogeneous effect. See <code>PHASE_6_INTERACTIONS.md</code> for the planned unified API.</p>
 </section>
 <section id="effect-modification" class="level2">
 <h2 class="anchored" data-anchor-id="effect-modification">Effect modification</h2>
 <p>The <code>by</code> argument in <code>contrast()</code> stratifies estimates by levels of a variable, producing subgroup-specific effects:</p>
 <div class="cell">
+<details open="" class="code-fold">
+<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit,</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">quit =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">continue =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">by =</span> <span class="st">"sex"</span></span>
 <span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
 </div>
 </section>
 <section id="diagnostics" class="level2">
 <h2 class="anchored" data-anchor-id="diagnostics">Diagnostics</h2>
 <p>Use <code>diagnose()</code> to check positivity and covariate balance after fitting:</p>
 <div class="cell">
+<details open="" class="code-fold">
+<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>diag <span class="ot">&lt;-</span> <span class="fu">diagnose</span>(fit)</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>diag          <span class="co"># print positivity + balance summary</span></span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(diag)    <span class="co"># Love plot (requires cobalt)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
 </div>
 <p>For IPW and matching, balance is computed via <a href="https://ngreifer.github.io/cobalt/">cobalt</a> and includes standardised mean differences before and after adjustment.</p>
 </section>
@@ -785,6 +897,8 @@ window.Quarto = {
 <h2 class="anchored" data-anchor-id="learning-more">Learning more</h2>
 <p>causatr includes detailed vignettes for each estimation method: g-computation, IPW, matching, longitudinal ICE, and methodological triangulation. Use <code>vignette(package = "causatr")</code> to see all available vignettes.</p>
 
+
+<!-- -->
 
 </section>
 
@@ -859,6 +973,57 @@ window.Quarto = {
         container: window.document.getElementById('quarto-embedded-source-code-modal')
       });
       clipboardModal.on('success', onCopySuccess);
+    }
+    const viewSource = window.document.getElementById('quarto-view-source') ||
+                       window.document.getElementById('quarto-code-tools-source');
+    if (viewSource) {
+      const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
+      viewSource.addEventListener("click", function(e) {
+        if (sourceUrl) {
+          // rstudio viewer pane
+          if (/\bcapabilities=\b/.test(window.location)) {
+            window.open(sourceUrl);
+          } else {
+            window.location.href = sourceUrl;
+          }
+        } else {
+          const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
+          modal.show();
+        }
+        return false;
+      });
+    }
+    function toggleCodeHandler(show) {
+      return function(e) {
+        const detailsSrc = window.document.querySelectorAll(".cell > details > .sourceCode");
+        for (let i=0; i<detailsSrc.length; i++) {
+          const details = detailsSrc[i].parentElement;
+          if (show) {
+            details.open = true;
+          } else {
+            details.removeAttribute("open");
+          }
+        }
+        const cellCodeDivs = window.document.querySelectorAll(".cell > .sourceCode");
+        const fromCls = show ? "hidden" : "unhidden";
+        const toCls = show ? "unhidden" : "hidden";
+        for (let i=0; i<cellCodeDivs.length; i++) {
+          const codeDiv = cellCodeDivs[i];
+          if (codeDiv.classList.contains(fromCls)) {
+            codeDiv.classList.remove(fromCls);
+            codeDiv.classList.add(toCls);
+          } 
+        }
+        return false;
+      }
+    }
+    const hideAllCode = window.document.getElementById("quarto-hide-all-code");
+    if (hideAllCode) {
+      hideAllCode.addEventListener("click", toggleCodeHandler(false));
+    }
+    const showAllCode = window.document.getElementById("quarto-show-all-code");
+    if (showAllCode) {
+      showAllCode.addEventListener("click", toggleCodeHandler(true));
     }
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
       var mailtoRegex = new RegExp(/^mailto:/);
@@ -1188,7 +1353,186 @@ window.Quarto = {
       }
     }
   });
-  </script>
+  </script><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "Introduction to causatr"</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="an">code-fold:</span><span class="co"> show</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="an">code-tools:</span><span class="co"> true</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="an">vignette:</span><span class="co"> &gt;</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="co">  %\VignetteIndexEntry{Introduction to causatr}</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="co">  %\VignetteEngine{quarto::html}</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="co">  %\VignetteEncoding{UTF-8}</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: false</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span>opts_chunk<span class="sc">$</span><span class="fu">set</span>(<span class="at">collapse =</span> <span class="cn">TRUE</span>, <span class="at">comment =</span> <span class="st">"#&gt;"</span>)</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>causatr provides a unified interface for causal effect estimation via three</span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>complementary methods:</span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**G-computation** (parametric g-formula) — fits an outcome model</span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>  $E<span class="co">[</span><span class="ot">Y | A, L</span><span class="co">]</span>$ and standardises predictions over the target population.</span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Inverse probability weighting (IPW)** — reweights the data using</span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>  propensity scores so that confounders are balanced across treatment groups.</span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Propensity score matching** — pairs treated and control units with similar</span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a>  propensity scores.</span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a>When all three methods agree, you can be more confident in your findings.</span>
+<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a>This is called **methodological triangulation**.</span>
+<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a><span class="fu">## Two-step API</span></span>
+<span id="cb6-32"><a href="#cb6-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-33"><a href="#cb6-33" aria-hidden="true" tabindex="-1"></a>All analyses follow the same two-step pattern:</span>
+<span id="cb6-34"><a href="#cb6-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-35"><a href="#cb6-35" aria-hidden="true" tabindex="-1"></a><span class="in">```r</span></span>
+<span id="cb6-36"><a href="#cb6-36" aria-hidden="true" tabindex="-1"></a><span class="co"># Step 1: Fit</span></span>
+<span id="cb6-37"><a href="#cb6-37" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(data, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>, <span class="at">confounders =</span> <span class="sc">~</span> L1 <span class="sc">+</span> L2,</span>
+<span id="cb6-38"><a href="#cb6-38" aria-hidden="true" tabindex="-1"></a>              <span class="at">estimator =</span> <span class="st">"gcomp"</span>)</span>
+<span id="cb6-39"><a href="#cb6-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-40"><a href="#cb6-40" aria-hidden="true" tabindex="-1"></a><span class="co"># Step 2: Contrast</span></span>
+<span id="cb6-41"><a href="#cb6-41" aria-hidden="true" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit,</span>
+<span id="cb6-42"><a href="#cb6-42" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">treated =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">control =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
+<span id="cb6-43"><a href="#cb6-43" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="st">"control"</span>)</span>
+<span id="cb6-44"><a href="#cb6-44" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb6-45"><a href="#cb6-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-46"><a href="#cb6-46" aria-hidden="true" tabindex="-1"></a><span class="fu">## Quick example</span></span>
+<span id="cb6-47"><a href="#cb6-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-50"><a href="#cb6-50" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb6-51"><a href="#cb6-51" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb6-52"><a href="#cb6-52" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(causatr)</span>
+<span id="cb6-53"><a href="#cb6-53" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"nhefs"</span>)</span>
+<span id="cb6-54"><a href="#cb6-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-55"><a href="#cb6-55" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(</span>
+<span id="cb6-56"><a href="#cb6-56" aria-hidden="true" tabindex="-1"></a>  nhefs,</span>
+<span id="cb6-57"><a href="#cb6-57" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"wt82_71"</span>,</span>
+<span id="cb6-58"><a href="#cb6-58" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"qsmk"</span>,</span>
+<span id="cb6-59"><a href="#cb6-59" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> <span class="sc">~</span> sex <span class="sc">+</span> age <span class="sc">+</span> race <span class="sc">+</span> smokeintensity <span class="sc">+</span> smokeyrs <span class="sc">+</span></span>
+<span id="cb6-60"><a href="#cb6-60" aria-hidden="true" tabindex="-1"></a>    <span class="fu">factor</span>(exercise) <span class="sc">+</span> <span class="fu">factor</span>(active) <span class="sc">+</span> wt71,</span>
+<span id="cb6-61"><a href="#cb6-61" aria-hidden="true" tabindex="-1"></a>  <span class="at">censoring =</span> <span class="st">"censored"</span></span>
+<span id="cb6-62"><a href="#cb6-62" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb6-63"><a href="#cb6-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-64"><a href="#cb6-64" aria-hidden="true" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">contrast</span>(</span>
+<span id="cb6-65"><a href="#cb6-65" aria-hidden="true" tabindex="-1"></a>  fit,</span>
+<span id="cb6-66"><a href="#cb6-66" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">quit =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">continue =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
+<span id="cb6-67"><a href="#cb6-67" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="st">"continue"</span></span>
+<span id="cb6-68"><a href="#cb6-68" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb6-69"><a href="#cb6-69" aria-hidden="true" tabindex="-1"></a>result</span>
+<span id="cb6-70"><a href="#cb6-70" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb6-71"><a href="#cb6-71" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-72"><a href="#cb6-72" aria-hidden="true" tabindex="-1"></a><span class="fu">## Intervention types</span></span>
+<span id="cb6-73"><a href="#cb6-73" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-74"><a href="#cb6-74" aria-hidden="true" tabindex="-1"></a>causatr supports several intervention types for g-computation:</span>
+<span id="cb6-75"><a href="#cb6-75" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-76"><a href="#cb6-76" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Function <span class="pp">|</span> Description <span class="pp">|</span> Example <span class="pp">|</span></span>
+<span id="cb6-77"><a href="#cb6-77" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|</span></span>
+<span id="cb6-78"><a href="#cb6-78" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`static(value)`</span> <span class="pp">|</span> Set treatment to a fixed value <span class="pp">|</span> <span class="in">`static(1)`</span> <span class="pp">|</span></span>
+<span id="cb6-79"><a href="#cb6-79" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`shift(delta)`</span> <span class="pp">|</span> Add a constant to observed treatment <span class="pp">|</span> <span class="in">`shift(-10)`</span> <span class="pp">|</span></span>
+<span id="cb6-80"><a href="#cb6-80" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`scale_by(factor)`</span> <span class="pp">|</span> Multiply observed treatment <span class="pp">|</span> <span class="in">`scale_by(0.5)`</span> <span class="pp">|</span></span>
+<span id="cb6-81"><a href="#cb6-81" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`threshold(lower, upper)`</span> <span class="pp">|</span> Clamp treatment within bounds <span class="pp">|</span> <span class="in">`threshold(0, 20)`</span> <span class="pp">|</span></span>
+<span id="cb6-82"><a href="#cb6-82" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`dynamic(rule)`</span> <span class="pp">|</span> Apply a user-defined rule <span class="pp">|</span> <span class="in">`dynamic(\(d, a) ifelse(d$L &gt; 0, 1, 0))`</span> <span class="pp">|</span></span>
+<span id="cb6-83"><a href="#cb6-83" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`NULL`</span> <span class="pp">|</span> Natural course (observed values) <span class="pp">|</span> — <span class="pp">|</span></span>
+<span id="cb6-84"><a href="#cb6-84" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-85"><a href="#cb6-85" aria-hidden="true" tabindex="-1"></a>IPW supports <span class="in">`static()`</span>, <span class="in">`shift()`</span>, <span class="in">`scale_by()`</span>, <span class="in">`dynamic()`</span>, and <span class="in">`ipsi()`</span>.</span>
+<span id="cb6-86"><a href="#cb6-86" aria-hidden="true" tabindex="-1"></a>Matching supports only <span class="in">`static()`</span> interventions.</span>
+<span id="cb6-87"><a href="#cb6-87" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-88"><a href="#cb6-88" aria-hidden="true" tabindex="-1"></a><span class="fu">## Contrast types</span></span>
+<span id="cb6-89"><a href="#cb6-89" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-90"><a href="#cb6-90" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Type <span class="pp">|</span> Meaning <span class="pp">|</span></span>
+<span id="cb6-91"><a href="#cb6-91" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|</span></span>
+<span id="cb6-92"><a href="#cb6-92" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`"difference"`</span> <span class="pp">|</span> Risk/mean difference (default) <span class="pp">|</span></span>
+<span id="cb6-93"><a href="#cb6-93" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`"ratio"`</span> <span class="pp">|</span> Risk ratio <span class="pp">|</span></span>
+<span id="cb6-94"><a href="#cb6-94" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`"or"`</span> <span class="pp">|</span> Odds ratio (binary outcomes) <span class="pp">|</span></span>
+<span id="cb6-95"><a href="#cb6-95" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-96"><a href="#cb6-96" aria-hidden="true" tabindex="-1"></a><span class="fu">## Inference methods</span></span>
+<span id="cb6-97"><a href="#cb6-97" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-98"><a href="#cb6-98" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Method <span class="pp">|</span> Description <span class="pp">|</span></span>
+<span id="cb6-99"><a href="#cb6-99" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|</span></span>
+<span id="cb6-100"><a href="#cb6-100" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`"sandwich"`</span> <span class="pp">|</span> Robust sandwich SE (default, fast) <span class="pp">|</span></span>
+<span id="cb6-101"><a href="#cb6-101" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`"bootstrap"`</span> <span class="pp">|</span> Nonparametric bootstrap (resamples full pipeline) <span class="pp">|</span></span>
+<span id="cb6-102"><a href="#cb6-102" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-103"><a href="#cb6-103" aria-hidden="true" tabindex="-1"></a><span class="fu">## Estimands</span></span>
+<span id="cb6-104"><a href="#cb6-104" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-105"><a href="#cb6-105" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Estimand <span class="pp">|</span> Population <span class="pp">|</span> Applicability <span class="pp">|</span></span>
+<span id="cb6-106"><a href="#cb6-106" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|</span></span>
+<span id="cb6-107"><a href="#cb6-107" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`"ATE"`</span> <span class="pp">|</span> All individuals <span class="pp">|</span> Always (default) <span class="pp">|</span></span>
+<span id="cb6-108"><a href="#cb6-108" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`"ATT"`</span> <span class="pp">|</span> Observed treated (A = 1) <span class="pp">|</span> Binary point treatment only <span class="pp">|</span></span>
+<span id="cb6-109"><a href="#cb6-109" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`"ATC"`</span> <span class="pp">|</span> Observed controls (A = 0) <span class="pp">|</span> Binary point treatment only <span class="pp">|</span></span>
+<span id="cb6-110"><a href="#cb6-110" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`subset = quote(...)`</span> <span class="pp">|</span> Custom subgroup <span class="pp">|</span> Always <span class="pp">|</span></span>
+<span id="cb6-111"><a href="#cb6-111" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-112"><a href="#cb6-112" aria-hidden="true" tabindex="-1"></a>For g-computation, the estimand can be changed in <span class="in">`contrast()`</span> without</span>
+<span id="cb6-113"><a href="#cb6-113" aria-hidden="true" tabindex="-1"></a>refitting. For IPW and matching, refit with <span class="in">`causat(estimand = ...)`</span>.</span>
+<span id="cb6-114"><a href="#cb6-114" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-115"><a href="#cb6-115" aria-hidden="true" tabindex="-1"></a><span class="fu">## Treatment types</span></span>
+<span id="cb6-116"><a href="#cb6-116" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-117"><a href="#cb6-117" aria-hidden="true" tabindex="-1"></a>causatr supports binary, continuous, categorical, and multivariate treatments:</span>
+<span id="cb6-118"><a href="#cb6-118" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-119"><a href="#cb6-119" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Treatment type <span class="pp">|</span> G-comp <span class="pp">|</span> IPW <span class="pp">|</span> Matching <span class="pp">|</span></span>
+<span id="cb6-120"><a href="#cb6-120" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|---|</span></span>
+<span id="cb6-121"><a href="#cb6-121" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Binary (0/1) <span class="pp">|</span> Yes <span class="pp">|</span> Yes <span class="pp">|</span> Yes <span class="pp">|</span></span>
+<span id="cb6-122"><a href="#cb6-122" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Continuous <span class="pp">|</span> Yes <span class="pp">|</span> Yes (GPS) <span class="pp">|</span> No (MatchIt binary-only) <span class="pp">|</span></span>
+<span id="cb6-123"><a href="#cb6-123" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Categorical (k &gt; 2) <span class="pp">|</span> Yes <span class="pp">|</span> Yes <span class="pp">|</span> No (MatchIt binary-only) <span class="pp">|</span></span>
+<span id="cb6-124"><a href="#cb6-124" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Multivariate (joint) <span class="pp">|</span> Yes <span class="pp">|</span> Not yet <span class="pp">|</span> Not yet <span class="pp">|</span></span>
+<span id="cb6-125"><a href="#cb6-125" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-126"><a href="#cb6-126" aria-hidden="true" tabindex="-1"></a>For multivariate treatments (e.g. <span class="in">`treatment = c("A1", "A2")`</span>), supply</span>
+<span id="cb6-127"><a href="#cb6-127" aria-hidden="true" tabindex="-1"></a>interventions as named lists with one element per treatment variable.</span>
+<span id="cb6-128"><a href="#cb6-128" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-129"><a href="#cb6-129" aria-hidden="true" tabindex="-1"></a>Effect modification in the outcome / MSM model itself (e.g. <span class="in">`~ L + sex + A:sex`</span>)</span>
+<span id="cb6-130"><a href="#cb6-130" aria-hidden="true" tabindex="-1"></a>is currently supported only for g-computation. IPW and matching wrap a</span>
+<span id="cb6-131"><a href="#cb6-131" aria-hidden="true" tabindex="-1"></a>saturated <span class="in">`Y ~ A`</span> MSM around the propensity / matched design, and reject an</span>
+<span id="cb6-132"><a href="#cb6-132" aria-hidden="true" tabindex="-1"></a><span class="in">`A:modifier`</span> term up front — use <span class="in">`estimator = "gcomp"`</span> for heterogeneous effects,</span>
+<span id="cb6-133"><a href="#cb6-133" aria-hidden="true" tabindex="-1"></a>or <span class="in">`by = "modifier"`</span> below for stratum-specific summaries of a homogeneous</span>
+<span id="cb6-134"><a href="#cb6-134" aria-hidden="true" tabindex="-1"></a>effect. See <span class="in">`PHASE_6_INTERACTIONS.md`</span> for the planned unified API.</span>
+<span id="cb6-135"><a href="#cb6-135" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-136"><a href="#cb6-136" aria-hidden="true" tabindex="-1"></a><span class="fu">## Effect modification</span></span>
+<span id="cb6-137"><a href="#cb6-137" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-138"><a href="#cb6-138" aria-hidden="true" tabindex="-1"></a>The <span class="in">`by`</span> argument in <span class="in">`contrast()`</span> stratifies estimates by levels of a</span>
+<span id="cb6-139"><a href="#cb6-139" aria-hidden="true" tabindex="-1"></a>variable, producing subgroup-specific effects:</span>
+<span id="cb6-140"><a href="#cb6-140" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-143"><a href="#cb6-143" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb6-144"><a href="#cb6-144" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: false</span></span>
+<span id="cb6-145"><a href="#cb6-145" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit,</span>
+<span id="cb6-146"><a href="#cb6-146" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">quit =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">continue =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
+<span id="cb6-147"><a href="#cb6-147" aria-hidden="true" tabindex="-1"></a>  <span class="at">by =</span> <span class="st">"sex"</span></span>
+<span id="cb6-148"><a href="#cb6-148" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb6-149"><a href="#cb6-149" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb6-150"><a href="#cb6-150" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-151"><a href="#cb6-151" aria-hidden="true" tabindex="-1"></a><span class="fu">## Diagnostics</span></span>
+<span id="cb6-152"><a href="#cb6-152" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-153"><a href="#cb6-153" aria-hidden="true" tabindex="-1"></a>Use <span class="in">`diagnose()`</span> to check positivity and covariate balance after fitting:</span>
+<span id="cb6-154"><a href="#cb6-154" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-157"><a href="#cb6-157" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb6-158"><a href="#cb6-158" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: false</span></span>
+<span id="cb6-159"><a href="#cb6-159" aria-hidden="true" tabindex="-1"></a>diag <span class="ot">&lt;-</span> <span class="fu">diagnose</span>(fit)</span>
+<span id="cb6-160"><a href="#cb6-160" aria-hidden="true" tabindex="-1"></a>diag          <span class="co"># print positivity + balance summary</span></span>
+<span id="cb6-161"><a href="#cb6-161" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(diag)    <span class="co"># Love plot (requires cobalt)</span></span>
+<span id="cb6-162"><a href="#cb6-162" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb6-163"><a href="#cb6-163" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-164"><a href="#cb6-164" aria-hidden="true" tabindex="-1"></a>For IPW and matching, balance is computed via</span>
+<span id="cb6-165"><a href="#cb6-165" aria-hidden="true" tabindex="-1"></a><span class="co">[</span><span class="ot">cobalt</span><span class="co">](https://ngreifer.github.io/cobalt/)</span> and includes standardised mean</span>
+<span id="cb6-166"><a href="#cb6-166" aria-hidden="true" tabindex="-1"></a>differences before and after adjustment.</span>
+<span id="cb6-167"><a href="#cb6-167" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-168"><a href="#cb6-168" aria-hidden="true" tabindex="-1"></a><span class="fu">## Extracting results</span></span>
+<span id="cb6-169"><a href="#cb6-169" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-170"><a href="#cb6-170" aria-hidden="true" tabindex="-1"></a>causatr result objects support standard R generics:</span>
+<span id="cb6-171"><a href="#cb6-171" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-172"><a href="#cb6-172" aria-hidden="true" tabindex="-1"></a><span class="in">```r</span></span>
+<span id="cb6-173"><a href="#cb6-173" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(result)       <span class="co"># named vector of E[Y^a]</span></span>
+<span id="cb6-174"><a href="#cb6-174" aria-hidden="true" tabindex="-1"></a><span class="fu">confint</span>(result)    <span class="co"># CI matrix (respects custom `level`)</span></span>
+<span id="cb6-175"><a href="#cb6-175" aria-hidden="true" tabindex="-1"></a><span class="fu">vcov</span>(result)       <span class="co"># vcov of marginal means</span></span>
+<span id="cb6-176"><a href="#cb6-176" aria-hidden="true" tabindex="-1"></a><span class="fu">tidy</span>(result)       <span class="co"># broom-style tidy data frame</span></span>
+<span id="cb6-177"><a href="#cb6-177" aria-hidden="true" tabindex="-1"></a><span class="fu">glance</span>(result)     <span class="co"># broom-style one-row summary</span></span>
+<span id="cb6-178"><a href="#cb6-178" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(result)       <span class="co"># forest plot (requires forrest package)</span></span>
+<span id="cb6-179"><a href="#cb6-179" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb6-180"><a href="#cb6-180" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-181"><a href="#cb6-181" aria-hidden="true" tabindex="-1"></a><span class="fu">## Learning more</span></span>
+<span id="cb6-182"><a href="#cb6-182" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-183"><a href="#cb6-183" aria-hidden="true" tabindex="-1"></a>causatr includes detailed vignettes for each estimation method: g-computation,</span>
+<span id="cb6-184"><a href="#cb6-184" aria-hidden="true" tabindex="-1"></a>IPW, matching, longitudinal ICE, and methodological triangulation. Use</span>
+<span id="cb6-185"><a href="#cb6-185" aria-hidden="true" tabindex="-1"></a><span class="in">`vignette(package = "causatr")`</span> to see all available vignettes.</span>
+</code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
+</div></div></div></div></div>
 </div> <!-- /content -->
 
 

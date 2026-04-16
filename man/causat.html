@@ -106,6 +106,35 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   }
 }</script>
 
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
 
 </head>
 
@@ -477,7 +506,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="unnumbered anchored" data-anchor-id="fit-a-causal-model">Fit a causal model</h2>
 <section id="description" class="level3">
 <h3 class="anchored" data-anchor-id="description">Description</h3>
-<p>Prepares the causal estimation pipeline for a given estimator. For <code>“gcomp”</code>, fits the conditional outcome model E[Y | A, L] that will be used by <code>contrast()</code> for standardisation. For <code>“ipw”</code>, estimates propensity-score-based weights (via <code>WeightIt::weightit()</code>) that will be used for weighted estimation in <code>contrast()</code>. For <code>“matching”</code>, creates matched sets (via <code>MatchIt::matchit()</code>) that will be used for matched estimation in <code>contrast()</code>.</p>
+<p>Prepares the causal estimation pipeline for a given estimator. For <code>“gcomp”</code>, fits the conditional outcome model E[Y | A, L] that will be used by <code>contrast()</code> for standardisation. For <code>“ipw”</code>, fits the conditional treatment density <span class="math inline">\(f(A \mid L)\)</span> that the self-contained density-ratio engine uses to build per-intervention Hájek weights for the MSM refit inside <code>contrast()</code>. For <code>“matching”</code>, creates matched sets (via <code>MatchIt::matchit()</code>) that will be used for matched estimation in <code>contrast()</code>.</p>
 <p>For longitudinal data (<code>id</code> and <code>time</code> provided), <code>“gcomp”</code> uses ICE g-computation (Zivich et al., 2024): outcome models are fitted at each time point via backward iteration.</p>
 </section>
 <section id="usage" class="level3">
@@ -499,6 +528,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   weights = NULL,
   type = NULL,
   model_fn = stats::glm,
+  propensity_model_fn = NULL,
+  propensity_family = NULL,
   ...
 )
 </code></pre>
@@ -551,7 +582,7 @@ A one-sided formula or <code>NULL</code>. Time-varying confounders for longitudi
 <code id="estimator">estimator</code>
 </td>
 <td>
-Character. Causal estimator: <code>“gcomp”</code> (default), <code>“ipw”</code>, or <code>“matching”</code>. IPW requires the <code>WeightIt</code> package; matching requires the <code>MatchIt</code> package. Note: <code>“matching”</code> is restricted to <strong>binary point treatments</strong> (MatchIt does not support multi-category or continuous treatments); use <code>“gcomp”</code> or <code>“ipw”</code> for those cases.
+Character. Causal estimator: <code>“gcomp”</code> (default), <code>“ipw”</code>, or <code>“matching”</code>. IPW uses a self-contained density-ratio engine (no runtime dependency on <code>WeightIt</code>); matching requires the <code>MatchIt</code> package. Note: <code>“matching”</code> is restricted to <strong>binary point treatments</strong> (MatchIt does not support multi-category or continuous treatments); use <code>“gcomp”</code> or <code>“ipw”</code> for those cases.
 </td>
 </tr>
 <tr>
@@ -559,7 +590,7 @@ Character. Causal estimator: <code>“gcomp”</code> (default), <code>“ipw”
 <code id="family">family</code>
 </td>
 <td>
-Character or family object. The outcome model family (e.g.&nbsp;<code>“gaussian”</code>, <code>“binomial”</code>, <code>stats::quasibinomial()</code>). Used by all methods: passed to the outcome model for <code>“gcomp”</code>, to the MSM for <code>“ipw”</code> (via <code>WeightIt::glm_weightit()</code>), and to the outcome model on matched data for <code>“matching”</code>.
+Character or family object. The outcome model family (e.g.&nbsp;<code>“gaussian”</code>, <code>“binomial”</code>, <code>stats::quasibinomial()</code>). Used by all methods: passed to the outcome model for <code>“gcomp”</code>, to the per-intervention weighted MSM refit for <code>“ipw”</code>, and to the outcome model on matched data for <code>“matching”</code>.
 </td>
 </tr>
 <tr>
@@ -591,7 +622,7 @@ Character or <code>NULL</code>. Name of the time variable. Must be provided toge
 <code id="censoring">censoring</code>
 </td>
 <td>
-Character or <code>NULL</code>. Name of the censoring indicator variable (1 = censored, 0 = uncensored). For longitudinal data, censoring is time-varying: <code>C_k = 1</code> means the individual dropped out at time <code>k</code>.
+Character or <code>NULL</code>. Name of the censoring indicator variable (1 = censored, 0 = uncensored). <strong>This is a row filter, not IPCW:</strong> rows where <code>censoring != 0</code> are excluded from model fitting, but no censoring model is fit and no inverse-probability weights are computed. For g-computation with a correctly specified outcome model, this is sufficient under MAR censoring (the regression surface is unchanged). For IPW under MAR censoring, supply pre-computed IPCW weights via <code style="white-space: pre;">weights =</code>. For longitudinal data, censoring is time-varying: <code>C_k = 1</code> means the individual dropped out at time <code>k</code>; ICE backward iteration restricts each step’s model to uncensored individuals (Zivich et al., 2024).
 </td>
 </tr>
 <tr>
@@ -631,7 +662,23 @@ Character or <code>NULL</code>. Whether the data are <code>“point”</code> (s
 <code id="model_fn">model_fn</code>
 </td>
 <td>
-Function. The fitting function for the outcome model in g-computation. Must accept <code style="white-space: pre;">(formula, data, family, weights, …)</code>. Default <code>stats::glm</code>; pass <code>mgcv::gam</code> for GAMs, <code>MASS::glm.nb</code> for negative-binomial, etc. Ignored for <code>“ipw”</code> and <code>“matching”</code>.
+Function. The fitting function for the outcome model in g-computation. Must accept <code style="white-space: pre;">(formula, data, family, weights, …)</code>. Default <code>stats::glm</code>; pass <code>mgcv::gam</code> for GAMs, <code>MASS::glm.nb</code> for negative-binomial, etc. For <code>“ipw”</code>, <code>model_fn</code> also fits the placeholder <code>Y ~ A</code> display model and is the default propensity fitter when <code>propensity_model_fn</code> is <code>NULL</code>. Ignored for <code>“matching”</code>.
+</td>
+</tr>
+<tr>
+<td style="white-space: collapse; font-family: monospace; vertical-align: top">
+<code id="propensity_model_fn">propensity_model_fn</code>
+</td>
+<td>
+Function or <code>NULL</code>. IPW only. The fitting function for the conditional treatment density <span class="math inline">\(f(A \mid L)\)</span> used to build density-ratio weights. Must accept the same <code style="white-space: pre;">(formula, data, family, weights, …)</code> signature. <code>NULL</code> (default) reuses <code>model_fn</code>. Pass <code>mgcv::gam</code> for a flexible propensity.
+</td>
+</tr>
+<tr>
+<td style="white-space: collapse; font-family: monospace; vertical-align: top">
+<code id="propensity_family">propensity_family</code>
+</td>
+<td>
+Character or <code>NULL</code>. IPW only. Explicit treatment density family: <code>“poisson”</code> or <code>“negbin”</code> for count treatments. <code>NULL</code> (default) auto-detects from the treatment values (bernoulli / gaussian / categorical). Auto-detection never infers count — use this parameter to opt in. For <code>“negbin”</code>, <code>MASS::glm.nb</code> is auto-selected as the propensity fitter unless <code>propensity_model_fn</code> is explicitly provided. Ignored for <code>“gcomp”</code> and <code>“matching”</code>.
 </td>
 </tr>
 <tr>
@@ -639,7 +686,7 @@ Function. The fitting function for the outcome model in g-computation. Must acce
 <code id="...">…</code>
 </td>
 <td>
-Additional arguments passed to the underlying estimation function: <code>WeightIt::weightit()</code> for <code>estimator = “ipw”</code> (e.g. <code>method = “glm”</code> or <code>method = “cbps”</code>); <code>MatchIt::matchit()</code> for <code>estimator = “matching”</code> (e.g.&nbsp;<code>method = “nearest”</code>, <code>ratio = 1</code>).
+Additional arguments passed to the underlying estimation function. For <code>estimator = “ipw”</code>, dots are forwarded into the user’s <code>propensity_model_fn</code> via <code>fit_treatment_model()</code> (e.g. smoothing arguments for <code>mgcv::gam</code>). For <code>estimator = “matching”</code>, dots are forwarded into <code>MatchIt::matchit()</code> (e.g. <code>method = “nearest”</code>, <code>ratio = 1</code>, <code>caliper = 0.2</code>).
 </td>
 </tr>
 </tbody></table>
@@ -654,8 +701,8 @@ G-computation (<code>estimator = “gcomp”</code>)
 <h4 class="anchored">
 IPW (<code>estimator = “ipw”</code>)
 </h4>
-<p>Calls <code>WeightIt::weightit()</code> to estimate propensity-score-based weights for the desired <code>estimand</code>, then fits a weighted outcome model via <code>WeightIt::glm_weightit()</code>. The estimand is fixed at fitting time. Supports binary, categorical, and continuous treatments (anything <code>WeightIt</code> supports). Only <code>static()</code> interventions are supported in <code>contrast()</code>, because the weights were estimated under the observed treatment distribution.</p>
-<p><strong>Longitudinal IPW is not yet implemented</strong> (planned Phase 4). The design below describes the target API; <code>estimator = “ipw”</code> with <code>id</code> and <code>time</code> currently aborts with an informative error. Use <code>estimator = “gcomp”</code> (which uses ICE g-computation for longitudinal data) in the meantime. When implemented, <code>WeightIt::weightitMSM()</code> will fit a denominator model at each time <code>k</code> that includes baseline confounders, concurrent time-varying confounders, and lagged treatment. The numerator model will include only baseline confounders and lagged treatment (standard stabilized weights), unless overridden via <code>numerator</code>.</p>
+<p>Fits a conditional treatment density <span class="math inline">\(f(A \mid L)\)</span> via <code>propensity_model_fn</code> (defaults to <code>model_fn</code>). Each intervention requested in <code>contrast()</code> builds its own density-ratio weight vector and refits a weighted marginal structural model. Supports binary (via HT or IPSI), continuous (via smooth shift / scale_by), and dynamic-on-binary interventions. <code>threshold()</code> and continuous <code>dynamic()</code> rules are routed to <code>estimator = “gcomp”</code> with a pointer. Categorical treatments are not supported under IPW; <code>estimator = “gcomp”</code> handles them via predict-then-average.</p>
+<p><strong>Longitudinal IPW is not supported.</strong> <code>estimator = “ipw”</code> with <code>id</code> and <code>time</code> aborts with an informative error. Use <code>estimator = “gcomp”</code> (which uses ICE g-computation for longitudinal data) for time-varying treatments.</p>
 <h4 class="anchored">
 Matching (<code>estimator = “matching”</code>)
 </h4>
@@ -714,6 +761,12 @@ Binary point treatment only
 Identifiability assumptions
 </h4>
 <p>All methods assume: (1) exchangeability (no unmeasured confounding given L), (2) positivity (every individual has positive probability of each treatment value given L), (3) consistency (the observed outcome under the observed treatment equals the potential outcome). Positivity is checked automatically and a warning is issued if near-violations are detected.</p>
+<h4 class="anchored">
+Missing data handling
+</h4>
+<p><strong>Outcome (Y) missing.</strong> Rows with <code>NA</code> outcome are excluded from model fitting via <code>get_fit_rows()</code>. If a <code>censoring</code> column is provided, rows with <code>censoring != 0</code> are also excluded. <code>contrast()</code> predicts on ALL rows (including those with missing Y) and standardizes over the target population. Under MCAR, this complete-case analysis is unbiased. Under MAR (censoring depends on A and/or L), g-computation with a correctly specified outcome model is still consistent because the regression surface E[Y | A, L] is unchanged by the censoring mechanism (Hernán &amp; Robins, Ch. 13). For IPW under MAR, IPCW weights are needed — supply them via <code style="white-space: pre;">weights =</code>. The <code style="white-space: pre;">censoring =</code> parameter is a <strong>row filter</strong>, not IPCW: no censoring model is fit internally.</p>
+<p><strong>Treatment (A) missing.</strong> <code>causat()</code> aborts if any treatment values are <code>NA</code> and no <code>censoring</code> column is provided. You cannot define a counterfactual without knowing the treatment value. Remove rows with missing A before calling <code>causat()</code> (unbiased under MCAR), or use multiple imputation (planned via <code>causat_mice()</code>).</p>
+<p><strong>Covariates (L) missing.</strong> For <code>estimator = “gcomp”</code>, the outcome model’s <code>na.action = na.omit</code> drops rows with NA covariates at fit time. <code>predict()</code> returns NA for rows with missing L, which <code>contrast()</code> excludes from the target population. Under MCAR this is unbiased. For <code>estimator = “ipw”</code>, the propensity model also drops NA-covariate rows; if this creates a row-count mismatch with the outcome mask, <code>causat()</code> aborts with a clear error. For <code>estimator = “matching”</code>, MatchIt handles covariate NAs internally. Under MAR, multiple imputation is needed (planned via <code>causat_mice()</code>).</p>
 </section>
 <section id="value" class="level3">
 <h3 class="anchored" data-anchor-id="value">Value</h3>
@@ -723,7 +776,7 @@ Identifiability assumptions
 <code>model</code>
 </dt>
 <dd>
-Fitted model object(s): <code>glm</code>/<code>gam</code> for <code>“gcomp”</code>; <code>NULL</code> for <code>“ipw”</code> and <code>“matching”</code> (weights/matched data are stored in <code>weights_obj</code> / <code>match_obj</code> instead).
+Fitted model object(s): <code>glm</code>/<code>gam</code> for <code>“gcomp”</code>; a placeholder <code>Y ~ A</code> weighted MSM for <code>“ipw”</code> (the density model lives in <code>details$propensity_model</code>); the matched-data outcome model for <code>“matching”</code>.
 </dd>
 <dt>
 <code>data</code>
@@ -777,7 +830,7 @@ Numerator formula for longitudinal IPW.
 <code>weights_obj</code>
 </dt>
 <dd>
-<code>weightit</code> object (IPW only).
+Legacy slot, always <code>NULL</code>.
 </dd>
 <dt>
 <code>match_obj</code>
@@ -834,18 +887,18 @@ Internal diagnostics list.
 <span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimand =</span> <span class="st">"ATT"</span></span>
 <span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a><span class="co"># IPW (requires WeightIt) — estimand fixed at fit time.</span></span>
-<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a><span class="co"># Extra args in `...` are forwarded to `WeightIt::weightit()` — e.g.</span></span>
-<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a><span class="co"># `method = "cbps"` selects covariate-balancing propensity scores.</span></span>
-<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>fit_ipw <span class="ot">&lt;-</span> <span class="fu">causat</span>(</span>
-<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>  nhefs,</span>
-<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"wt82_71"</span>,</span>
-<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"qsmk"</span>,</span>
-<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> <span class="sc">~</span> sex <span class="sc">+</span> age <span class="sc">+</span> race <span class="sc">+</span> education <span class="sc">+</span></span>
-<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>    smokeintensity <span class="sc">+</span> smokeyrs <span class="sc">+</span> exercise <span class="sc">+</span> active <span class="sc">+</span> wt71,</span>
-<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimator =</span> <span class="st">"ipw"</span>,</span>
-<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimand =</span> <span class="st">"ATE"</span>,</span>
-<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>  <span class="at">method =</span> <span class="st">"cbps"</span></span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a><span class="co"># IPW — self-contained density-ratio engine; estimand fixed at</span></span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a><span class="co"># fit time. A non-default `propensity_model_fn` (e.g. `mgcv::gam`)</span></span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a><span class="co"># swaps in a smooth propensity model without touching the rest of</span></span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a><span class="co"># the pipeline.</span></span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>fit_ipw <span class="ot">&lt;-</span> <span class="fu">causat</span>(</span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>  nhefs,</span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"wt82_71"</span>,</span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"qsmk"</span>,</span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> <span class="sc">~</span> sex <span class="sc">+</span> age <span class="sc">+</span> race <span class="sc">+</span> education <span class="sc">+</span></span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>    smokeintensity <span class="sc">+</span> smokeyrs <span class="sc">+</span> exercise <span class="sc">+</span> active <span class="sc">+</span> wt71,</span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimator =</span> <span class="st">"ipw"</span>,</span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimand =</span> <span class="st">"ATE"</span></span>
 <span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a><span class="co"># Matching (requires MatchIt). `method = "nearest"` is MatchIt's own arg.</span></span>
