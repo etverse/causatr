@@ -209,12 +209,29 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
             <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="false">
- <span class="menu-text">Advanced topics</span></a>
+ <span class="menu-text">Interventions</span></a>
           <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
       <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../vignettes/interventions.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Intervention types</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false">
+ <span class="menu-text">Advanced topics</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../vignettes/triangulation.html" class="sidebar-item-text sidebar-link">
@@ -225,6 +242,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="sidebar-item-container"> 
   <a href="../vignettes/longitudinal.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Longitudinal treatments: ICE g-computation</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../vignettes/missing-data.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Handling missing data</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -243,30 +266,36 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false">
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false">
  <span class="menu-text">Theory</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 ">  
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../vignettes/variance-theory.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Variance estimation</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../vignettes/ipw-variance-theory.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IPW variance theory</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true">
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true">
  <span class="menu-text">Reference</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../man/causat_survival.html" class="sidebar-item-text sidebar-link">
@@ -475,7 +504,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="unnumbered anchored" data-anchor-id="nhefs-national-health-and-nutrition-examination-survey-epidemiologic-follow-up-study">NHEFS: National Health and Nutrition Examination Survey Epidemiologic Follow-up Study</h2>
 <section id="description" class="level3">
 <h3 class="anchored" data-anchor-id="description">Description</h3>
-<p>A subset of the NHEFS dataset used throughout Hernán &amp; Robins (2025) to illustrate causal effect estimation methods. Contains 1,746 cigarette smokers aged 25–74 who completed a baseline survey (1971–75) and a follow-up survey (1982). Of these, 117 have missing education values; the book analyses typically use the 1,629-row subset with complete education.</p>
+<p>A subset of the NHEFS dataset used throughout Hernan &amp; Robins (2025) to illustrate causal effect estimation methods. Contains 1,746 cigarette smokers aged 25-74 who completed a baseline survey (1971-75) and a follow-up survey (1982). Of these, 117 have missing education values; the book analyses typically use the 1,629-row subset with complete education.</p>
 </section>
 <section id="usage" class="level3">
 <h3 class="anchored" data-anchor-id="usage">Usage</h3>
@@ -526,7 +555,7 @@ Race (0 = white, 1 = other).
 <code>education</code>
 </dt>
 <dd>
-Education level (1–5, from less than high school to college or more).
+Education level (1-5, from less than high school to college or more).
 </dd>
 <dt>
 <code>smokeintensity</code>
@@ -568,23 +597,23 @@ Lost to follow-up indicator (1 = censored, 0 = not).
 </section>
 <section id="details" class="level3">
 <h3 class="anchored" data-anchor-id="details">Details</h3>
-<p>The dataset is used as the running example in Hernán &amp; Robins (2025). Key results to replicate:</p>
+<p>The dataset is used as the running example in Hernan &amp; Robins (2025). Key results to replicate:</p>
 <ul>
 <li>
-<p>Observed mean difference E[Y|A=1] − E[Y|A=0] ≈ 2.5 kg (crude).</p>
+<p>Observed mean difference E[Y|A=1] - E[Y|A=0] ~ 2.5 kg (crude).</p>
 </li>
 <li>
-<p>G-formula (standardised) estimate ≈ 3.5 kg (Chapter 13).</p>
+<p>G-formula (standardised) estimate ~ 3.5 kg (Chapter 13).</p>
 </li>
 <li>
-<p>IPW estimate ≈ 3.4 kg (Chapter 12).</p>
+<p>IPW estimate ~ 3.4 kg (Chapter 12).</p>
 </li>
 </ul>
 <p>The full NHEFS dataset is publicly available from the book’s website: <a href="https://www.hsph.harvard.edu/miguel-hernan/causal-inference-book/">https://www.hsph.harvard.edu/miguel-hernan/causal-inference-book/</a></p>
 </section>
 <section id="references" class="level3">
 <h3 class="anchored" data-anchor-id="references">References</h3>
-<p>Hernán MA, Robins JM (2025). <em>Causal Inference: What If</em>. Chapman &amp; Hall/CRC.</p>
+<p>Hernan MA, Robins JM (2025). <em>Causal Inference: What If</em>. Chapman &amp; Hall/CRC.</p>
 </section>
 <section id="examples" class="level3">
 <h3 class="anchored" data-anchor-id="examples">Examples</h3>

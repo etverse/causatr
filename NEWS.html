@@ -238,12 +238,29 @@ window.Quarto = {
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
             <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="false">
- <span class="menu-text">Advanced topics</span></a>
+ <span class="menu-text">Interventions</span></a>
           <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
       <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./vignettes/interventions.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Intervention types</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false">
+ <span class="menu-text">Advanced topics</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./vignettes/triangulation.html" class="sidebar-item-text sidebar-link">
@@ -254,6 +271,12 @@ window.Quarto = {
   <div class="sidebar-item-container"> 
   <a href="./vignettes/longitudinal.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Longitudinal treatments: ICE g-computation</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./vignettes/missing-data.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Handling missing data</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -272,30 +295,36 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false">
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false">
  <span class="menu-text">Theory</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 ">  
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./vignettes/variance-theory.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Variance estimation</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./vignettes/ipw-variance-theory.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IPW variance theory</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false">
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="false">
  <span class="menu-text">Reference</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 ">  
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./man/causat_survival.html" class="sidebar-item-text sidebar-link">
@@ -484,6 +513,10 @@ window.Quarto = {
   <ul>
   <li><a href="#causatr-development-version" id="toc-causatr-development-version" class="nav-link active" data-scroll-target="#causatr-development-version">causatr (development version)</a>
   <ul class="collapse">
+  <li><a href="#phase-6-chunks-6a6b-effect-modification-infrastructure-ipw-msm-expansion" id="toc-phase-6-chunks-6a6b-effect-modification-infrastructure-ipw-msm-expansion" class="nav-link" data-scroll-target="#phase-6-chunks-6a6b-effect-modification-infrastructure-ipw-msm-expansion">2026-04-17 — Phase 6 chunks 6a–6b: effect modification infrastructure + IPW MSM expansion</a></li>
+  <li><a href="#cran-compliance-non-ascii-character-cleanup" id="toc-cran-compliance-non-ascii-character-cleanup" class="nav-link" data-scroll-target="#cran-compliance-non-ascii-character-cleanup">2026-04-17 — CRAN compliance: non-ASCII character cleanup</a></li>
+  <li><a href="#documentation-overhaul" id="toc-documentation-overhaul" class="nav-link" data-scroll-target="#documentation-overhaul">2026-04-17 — Documentation overhaul</a></li>
+  <li><a href="#print.causatr_result-uses-digits-3" id="toc-print.causatr_result-uses-digits-3" class="nav-link" data-scroll-target="#print.causatr_result-uses-digits-3">2026-04-17 — <code>print.causatr_result()</code> uses <code>digits = 3</code></a></li>
   <li><a href="#phase-4-chunk-3j-count-treatment-ipw-poisson-negative-binomial" id="toc-phase-4-chunk-3j-count-treatment-ipw-poisson-negative-binomial" class="nav-link" data-scroll-target="#phase-4-chunk-3j-count-treatment-ipw-poisson-negative-binomial">2026-04-16 — Phase 4 chunk 3j: count treatment IPW (Poisson / negative binomial)</a></li>
   <li><a href="#fifth-round-critical-review-s2-near-zero-intervened-density-warning" id="toc-fifth-round-critical-review-s2-near-zero-intervened-density-warning" class="nav-link" data-scroll-target="#fifth-round-critical-review-s2-near-zero-intervened-density-warning">2026-04-16 — Fifth-round critical review S2: near-zero intervened density warning</a></li>
   <li><a href="#fifth-round-critical-review-r1-diagnose-censoring-alignment" id="toc-fifth-round-critical-review-r1-diagnose-censoring-alignment" class="nav-link" data-scroll-target="#fifth-round-critical-review-r1-diagnose-censoring-alignment">2026-04-16 — Fifth-round critical review R1: <code>diagnose()</code> censoring alignment</a></li>
@@ -532,6 +565,48 @@ window.Quarto = {
 
 <section id="causatr-development-version" class="level1">
 <h1>causatr (development version)</h1>
+<section id="phase-6-chunks-6a6b-effect-modification-infrastructure-ipw-msm-expansion" class="level2">
+<h2 class="anchored" data-anchor-id="phase-6-chunks-6a6b-effect-modification-infrastructure-ipw-msm-expansion">2026-04-17 — Phase 6 chunks 6a–6b: effect modification infrastructure + IPW MSM expansion</h2>
+<p><strong>Phase 6 chunk 6a — <code>parse_effect_mod()</code> infrastructure + gate refactoring.</strong></p>
+<ul>
+<li>New <code>R/effect_modification.R</code> with the shared effect-modification parser that all four estimation methods consult. <code>parse_effect_mod()</code> classifies each term in <code>confounders</code> as either a pure confounder or an effect-modification interaction (<code>A:modifier</code>), returning a structured <code>causatr_em_info</code> object.</li>
+<li>Companion helpers: <code>build_ipw_msm_formula()</code>, <code>build_matching_msm_formula()</code>, and <code>check_em_compat()</code> provide method-specific MSM construction and validation logic.</li>
+<li>The old blanket-reject <code>check_confounders_no_treatment()</code> is refactored into <code>check_confounders_treatment()</code>, which delegates to the new parser. Bare treatment terms (<code>~ L + A</code>) are still rejected; true EM terms (<code>A:sex</code>) now pass through the parser for method-specific dispatch.</li>
+</ul>
+<p><strong>Phase 6 chunk 6b — IPW MSM expansion for effect modification.</strong></p>
+<ul>
+<li>The IPW MSM expands from intercept-only (<code>Y ~ 1</code>) to <code>Y ~ A + modifier + A:modifier</code> when <code>parse_effect_mod()</code> detects an interaction term. <code>build_ipw_msm_formula()</code> constructs the expanded formula; <code>compute_ipw_contrast_point()</code> passes it to the per-intervention weighted GLM refit.</li>
+<li>The variance engine (<code>variance_if_ipw</code>) generalises unchanged: <code>J</code>, <code>X_star</code>, and <code>phi_bar</code> all extend from <code>p_beta = 1</code> to <code>p_beta &gt; 1</code>.</li>
+<li>Tests: DGP-4 truth-based simulation (binary treatment x binary modifier, sandwich SE), bootstrap parity, gcomp cross-check.</li>
+</ul>
+</section>
+<section id="cran-compliance-non-ascii-character-cleanup" class="level2">
+<h2 class="anchored" data-anchor-id="cran-compliance-non-ascii-character-cleanup">2026-04-17 — CRAN compliance: non-ASCII character cleanup</h2>
+<p><code>R CMD check --as-cran</code> flags non-ASCII characters in <code>.R</code> files. Replaced all occurrences across 22 <code>R/</code> files: em/en dashes, arrows, multiplication signs to ASCII equivalents; accented names to unaccented; Unicode math symbols to <code>\eqn{}</code> LaTeX in roxygen and plain ASCII in comments.</p>
+</section>
+<section id="documentation-overhaul" class="level2">
+<h2 class="anchored" data-anchor-id="documentation-overhaul">2026-04-17 — Documentation overhaul</h2>
+<p><strong>Data-generating mechanism descriptions in vignettes.</strong> All vignettes that use simulated data now include explicit DGM descriptions before each simulation code block, providing:</p>
+<ul>
+<li>A plain-language description of the causal structure.</li>
+<li>Structural equations (SEM) in display math.</li>
+<li>The known true value of the estimand when analytically available.</li>
+</ul>
+<p>Vignettes using the NHEFS dataset now include a description of the assumed causal structure (treatment, outcome, confounders, DAG) at the start. Affected vignettes: introduction, gcomp, ipw, matching, interventions, longitudinal, triangulation, missing-data, validation.</p>
+<p><strong>Vignette coverage expansion.</strong> New sections in existing vignettes to cover feature combinations that had test coverage but no user-facing documentation: Gamma outcome and quasibinomial outcome (gcomp, matching), GLM+splines model specification, IPSI dose-response curve (ipw), 4-period ICE example (longitudinal), missing-data vignette (new).</p>
+<p><strong>Unicode-to-LaTeX conversion in docs.</strong> Converted Unicode math symbols in vignettes and <code>CLAUDE.md</code> to proper LaTeX for correct MathJax rendering.</p>
+<p><strong>Other documentation changes:</strong></p>
+<ul>
+<li><code>gcomp.qmd</code> gains a callout note explaining that GAM sandwich SEs use the penalised Bayesian covariance (<code>model$Vp</code>) as the bread inverse.</li>
+<li><code>longitudinal.qmd</code> gains a truth reference line at <code>E[Y] = 60</code> on the marginal-means comparison plot for the Table 20.1 null-effect example.</li>
+<li>Variance-theory vignettes enable <code>tinytable_html_mathjax</code> for correct LaTeX rendering in table captions.</li>
+<li>Numerical tables in <code>variance-theory.qmd</code> reduced from 6 to 4 significant digits for readability.</li>
+</ul>
+</section>
+<section id="print.causatr_result-uses-digits-3" class="level2">
+<h2 class="anchored" data-anchor-id="print.causatr_result-uses-digits-3">2026-04-17 — <code>print.causatr_result()</code> uses <code>digits = 3</code></h2>
+<p>Console output for <code>causatr_result</code> objects now prints with <code>digits = 3</code> (down from 4), matching the <code>knit_print</code> method for more compact display.</p>
+</section>
 <section id="phase-4-chunk-3j-count-treatment-ipw-poisson-negative-binomial" class="level2">
 <h2 class="anchored" data-anchor-id="phase-4-chunk-3j-count-treatment-ipw-poisson-negative-binomial">2026-04-16 — Phase 4 chunk 3j: count treatment IPW (Poisson / negative binomial)</h2>
 <p><code>causat()</code> gains a <code>propensity_family</code> parameter (<code>"poisson"</code> or <code>"negbin"</code>) that enables IPW estimation on integer-valued count treatments. Auto-detection never infers count (non-negative integers like age are legitimately Gaussian), so this is an explicit opt-in.</p>
@@ -636,11 +711,11 @@ window.Quarto = {
 <ul>
 <li><p><strong><code>longitudinal.qmd</code> — Table 20.1 null-effect section rewritten.</strong> The previous explanation claimed “individual effects of A_0 and A_1 are both zero” and that naive regression gives non-zero estimates for both. In fact (i) the true <em>marginal counterfactual</em> means are all equal to 60, not the conditional effects, (ii) <code>lm(Y ~ A0 + A1 + L1)</code> gives <code>A1 = 0</code> exactly (in the DGP Y does not depend on A1), and</p>
 <ol start="3" type="i">
-<li>the bias shows up in <code>A0</code> only, as the conditional-within-L1 effect of −8. The section now shows <em>both</em> naive strategies (unadjusted and L1-adjusted) failing, demonstrating the null paradox as stated in Hernán &amp; Robins Chapter 20.</li>
+<li>the bias shows up in <code>A0</code> only, as the conditional-within-L1 effect of <span class="math inline">\(-8\)</span>. The section now shows <em>both</em> naive strategies (unadjusted and L1-adjusted) failing, demonstrating the null paradox as stated in Hernán &amp; Robins Chapter 20.</li>
 </ol></li>
 <li><p><strong><code>by = "sex"</code> examples fixed across three vignettes.</strong></p>
 <ul>
-<li><code>gcomp.qmd</code> now refits with an explicit <code>qsmk:sex</code> term in <code>confounders</code>, so the stratified estimates actually move (Male ≈ 3.61, Female ≈ 3.44).</li>
+<li><code>gcomp.qmd</code> now refits with an explicit <code>qsmk:sex</code> term in <code>confounders</code>, so the stratified estimates actually move (Male <span class="math inline">\(\approx\)</span> 3.61, Female <span class="math inline">\(\approx\)</span> 3.44).</li>
 <li><code>ipw.qmd</code> and <code>matching.qmd</code> replace the <code>by = "sex"</code> code chunks with a Phase 8 callout explaining that IPW and matching wrap a saturated <code>Y ~ A</code> MSM and so <code>by = "sex"</code> is a no-op until the unified effect-modification API lands (<code>PHASE_6_INTERACTIONS.md</code>).</li>
 </ul></li>
 <li><p><strong>Unified “Summary of covered combinations” tables.</strong> gcomp, ipw, matching, and longitudinal now share one 8-column schema (Treatment | Outcome | Intervention | Estimand | Contrast | Inference | Weights | Status) with a common ✅ / 🟡 / ⛔ legend and a pointer to <code>FEATURE_COVERAGE_MATRIX.md</code>.</p></li>
@@ -650,14 +725,14 @@ window.Quarto = {
 <section id="variance-theory.qmd-roadmap-verified-numerics" class="level3">
 <h3 class="anchored" data-anchor-id="variance-theory.qmd-roadmap-verified-numerics"><code>variance-theory.qmd</code> — roadmap + verified numerics</h3>
 <ul>
-<li>New <strong>Section 0 “Roadmap”</strong> walks through Sections 1 → 6 as a single narrative and introduces the running example (a small logistic GLM) used by every verification block below.</li>
+<li>New <strong>Section 0 “Roadmap”</strong> walks through Sections 1 <span class="math inline">\(\to\)</span> 6 as a single narrative and introduces the running example (a small logistic GLM) used by every verification block below.</li>
 <li>Eight new <strong>Math / Code / Result</strong> tabset panels, each of which instantiates a key equation on the running example and checks it against either <code>sandwich::sandwich()</code>, <code>sandwich::vcovCL()</code>, or <code>causatr::variance_if()</code>:
 <ol type="1">
-<li><strong>Sec 1.4</strong> — Sandwich variance of β̂ vs <code>sandwich::sandwich(fit)</code> (agreement ≲ 1e-8).</li>
-<li><strong>Sec 2.3</strong> — <code>(1/n²) Σ IFᵢ IFᵢᵀ</code> equals the sandwich to machine precision.</li>
+<li><strong>Sec 1.4</strong> — Sandwich variance of <span class="math inline">\(\hat{\beta}\)</span> vs <code>sandwich::sandwich(fit)</code> (agreement ≲ 1e-8).</li>
+<li><strong>Sec 2.3</strong> — <span class="math inline">\((1/n^2) \sum IF_i IF_i^\top\)</span> equals the sandwich to machine precision.</li>
 <li><strong>Sec 2.4</strong> — IF for a sample mean reproduces the textbook <span class="math inline">\(s/\sqrt n\)</span> up to the <span class="math inline">\((n-1)/n\)</span> d.f. correction.</li>
 <li><strong>Sec 3.2</strong> — Two-channel IF for g-comp <span class="math inline">\(\hat\mu_1\)</span> matches causatr’s sandwich SE to $$1e-9.</li>
-<li><strong>Sec 3.3</strong> — Delta-method decomposition: shows numerically that <code>J V_β Jᵀ</code> equals <code>Ch.2²</code>, and that dropping <code>Ch.1²</code> + cross term underestimates the SE by about 3% on this example.</li>
+<li><strong>Sec 3.3</strong> — Delta-method decomposition: shows numerically that <span class="math inline">\(J V_\beta J^\top\)</span> equals <span class="math inline">\(\text{Ch.2}^2\)</span>, and that dropping <span class="math inline">\(\text{Ch.1}^2\)</span> + cross term underestimates the SE by about 3% on this example.</li>
 <li><strong>Sec 4.2</strong> — Horvitz-Thompson IPW <span class="math inline">\(\hat\mu_1\)</span> equals causatr’s IPW point estimate, with SE from the propensity-corrected adjusted score.</li>
 <li><strong>Sec 4.3</strong> — Cluster-robust sandwich: per-cluster IFs summed before squaring reproduce <code>sandwich::vcovCL(..., cadjust = FALSE)</code> on a toy subclass assignment.</li>
 <li><strong>Sec 5.5</strong> — ICE chained IF on a 2-period linear-Gaussian DGP recovers the structural truth <span class="math inline">\(0.8 + 0.6 = 1.4\)</span> within the sandwich CI.</li>
@@ -685,7 +760,7 @@ window.Quarto = {
 <section id="required-changes-correctness-silent-failure-fixes" class="level3">
 <h3 class="anchored" data-anchor-id="required-changes-correctness-silent-failure-fixes">Required changes (correctness / silent-failure fixes)</h3>
 <ul>
-<li><strong><code>contrast()</code> ratio / odds-ratio guard (R2).</strong> The log-scale delta method was silently returning <code>NaN</code> CIs when <code>mu_hat</code> had mixed signs (legal for Gaussian outcomes, fatal for <code>log(R)</code>). <code>contrast(type = "ratio")</code> now aborts upfront if any intervention mean is non-positive, and <code>type = "or"</code> additionally aborts if any mean is ≥ 1. Error messages point to <code>type = "difference"</code> or a binomial / poisson / gamma refit.</li>
+<li><strong><code>contrast()</code> ratio / odds-ratio guard (R2).</strong> The log-scale delta method was silently returning <code>NaN</code> CIs when <code>mu_hat</code> had mixed signs (legal for Gaussian outcomes, fatal for <code>log(R)</code>). <code>contrast(type = "ratio")</code> now aborts upfront if any intervention mean is non-positive, and <code>type = "or"</code> additionally aborts if any mean is <span class="math inline">\(\geq 1\)</span>. Error messages point to <code>type = "difference"</code> or a binomial / poisson / gamma refit.</li>
 <li><strong><code>variance_bootstrap()</code> warning suppression narrowed (R3).</strong> The refit closure previously wrapped the whole pipeline in <code>suppressWarnings()</code>, hiding GLM non-convergence, bread-singular warnings, and everything else. Replaced with a <code>withCallingHandlers()</code> that demotes only the three expected noisy warnings (<code>fitted probabilities numerically 0 or 1</code>, <code>X'WX is singular</code>, <code>Fewer (control|treated) units</code>). Genuine failures now surface through <code>tryCatch</code>’s error path and show up as failed replicates in <code>boot_info</code>.</li>
 <li><strong>Shared match-weight alignment helper (R4).</strong> Extracted <code>combine_match_and_external_weights()</code> (in <code>R/matching.R</code>) so both <code>fit_matching()</code> and <code>refit_matching()</code> share the rowname-invariant check. A future change to <code>as.data.frame.data.table</code>’s rowname behavior now fails loudly in exactly one place instead of silently producing misaligned weights in the bootstrap.</li>
 <li><strong><code>dynamic()</code> docstring corrected (R5).</strong> The previous wording claimed the rule received data “subset to the current time point”; in reality it is called once per intervention with the full counterfactual panel. Updated the roxygen prose and the example to show how to branch on the time column or a lag column.</li>
@@ -729,7 +804,7 @@ window.Quarto = {
 <section id="sweep-and-audit" class="level2">
 <h2 class="anchored" data-anchor-id="sweep-and-audit">2026-04-14 — Sweep and audit</h2>
 <ul>
-<li><strong>ICE sandwich fix under non-uniform external weights.</strong> The cascade gradient at step k &gt; 0 was dropping the <code>w_{k-1}</code> factor from <code>A_{k-1,k} = E[∂s_{k-1}/∂β_k]</code>, silently underestimating the SE by ~2x on multi-period DGPs. Verified against <code>lmtp::lmtp_tmle</code> and a 300-replicate Monte-Carlo. (Followed by a separate fix for the earlier regression where the ICE backward loop dropped external weights entirely.)</li>
+<li><strong>ICE sandwich fix under non-uniform external weights.</strong> The cascade gradient at step k &gt; 0 was dropping the <code>w_{k-1}</code> factor from <span class="math inline">\(A_{k-1,k} = E[\partial s_{k-1} / \partial \beta_k]\)</span>, silently underestimating the SE by ~2x on multi-period DGPs. Verified against <code>lmtp::lmtp_tmle</code> and a 300-replicate Monte-Carlo. (Followed by a separate fix for the earlier regression where the ICE backward loop dropped external weights entirely.)</li>
 <li><strong>ICE double-counting fix for <code>shift</code>/<code>scale_by</code>/<code>threshold</code>.</strong> <code>ice_apply_intervention_long()</code> was recomputing lag columns from the intervened treatment, double-counting the shift through both the lag path and the current-A prediction path. Now matches <code>lmtp</code> on the canonical linear-Gaussian DGP.</li>
 <li><strong>New <code>FEATURE_COVERAGE_MATRIX.md</code>.</strong> Single source of truth for what’s tested and at what fidelity (truth / smoke / none / rejected). New test-writing rule in <code>CLAUDE.md</code>: every feature change MUST update the matrix in the same PR.</li>
 <li><strong>Coverage sweep</strong> closing most residual gaps:
@@ -783,7 +858,7 @@ window.Quarto = {
 <ul>
 <li><strong><code>by</code>-stratification <code>vcov</code> fix</strong> — stratum-specific vcov matrices now land in <code>res$vcov[[level]]</code> as a list instead of being collapsed to the pooled matrix.</li>
 <li><strong><code>family</code> now threads through IPW and matching</strong> (previously silently forced Gaussian on the MSM regardless of the user’s <code>family</code> argument).</li>
-<li><strong><code>scale()</code> → <code>scale_by()</code> rename</strong> to avoid colliding with the base R <code>scale()</code>.</li>
+<li><strong><code>scale()</code> <span class="math inline">\(\to\)</span> <code>scale_by()</code> rename</strong> to avoid colliding with the base R <code>scale()</code>.</li>
 <li><strong><code>by + estimand</code> bug fix</strong> — previously the ATT/ATC restriction and the by-level restriction fought over the target population and returned the wrong per-stratum estimate.</li>
 <li><strong><code>type</code> parameter on <code>causat()</code></strong> for explicit point / longitudinal selection; autodetects from <code>id</code> + <code>time</code> otherwise.</li>
 </ul>

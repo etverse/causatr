@@ -106,6 +106,35 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   }
 }</script>
 
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
 
 </head>
 
@@ -208,13 +237,30 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
- <span class="menu-text">Advanced topics</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="false">
+ <span class="menu-text">Interventions</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../vignettes/interventions.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Intervention types</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Advanced topics</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../vignettes/triangulation.html" class="sidebar-item-text sidebar-link">
@@ -225,6 +271,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="sidebar-item-container"> 
   <a href="../vignettes/longitudinal.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Longitudinal treatments: ICE g-computation</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../vignettes/missing-data.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Handling missing data</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -243,30 +295,36 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false">
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false">
  <span class="menu-text">Theory</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 ">  
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../vignettes/variance-theory.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Variance estimation</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../vignettes/ipw-variance-theory.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IPW variance theory</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false">
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="false">
  <span class="menu-text">Reference</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 ">  
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../man/causat_survival.html" class="sidebar-item-text sidebar-link">
@@ -453,7 +511,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#setup" id="toc-setup" class="nav-link active" data-scroll-target="#setup">Setup</a></li>
+  <li><a href="#setup" id="toc-setup" class="nav-link active" data-scroll-target="#setup">Setup</a>
+  <ul class="collapse">
+  <li><a href="#dgm-1-point-treatment-simulate_point" id="toc-dgm-1-point-treatment-simulate_point" class="nav-link" data-scroll-target="#dgm-1-point-treatment-simulate_point">DGM 1: Point treatment (<code>simulate_point()</code>)</a></li>
+  <li><a href="#dgm-2-longitudinal-binary-simulate_longitudinal" id="toc-dgm-2-longitudinal-binary-simulate_longitudinal" class="nav-link" data-scroll-target="#dgm-2-longitudinal-binary-simulate_longitudinal">DGM 2: Longitudinal binary (<code>simulate_longitudinal()</code>)</a></li>
+  <li><a href="#dgm-3-longitudinal-continuous-simulate_longitudinal_continuous" id="toc-dgm-3-longitudinal-continuous-simulate_longitudinal_continuous" class="nav-link" data-scroll-target="#dgm-3-longitudinal-continuous-simulate_longitudinal_continuous">DGM 3: Longitudinal continuous (<code>simulate_longitudinal_continuous()</code>)</a></li>
+  </ul></li>
   <li><a href="#point-g-computation-vs-stdreg2" id="toc-point-g-computation-vs-stdreg2" class="nav-link" data-scroll-target="#point-g-computation-vs-stdreg2">1. Point g-computation vs <code>stdReg2</code></a>
   <ul class="collapse">
   <li><a href="#a.-continuous-outcome-risk-difference" id="toc-a.-continuous-outcome-risk-difference" class="nav-link" data-scroll-target="#a.-continuous-outcome-risk-difference">1a. Continuous outcome, risk difference</a></li>
@@ -561,7 +624,52 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </details>
 </div>
 <p><code>compare_row()</code> pulls an estimate from a <code>causatr_result</code> (either an intervention mean or a contrast by name) and pairs it with a reference estimate + SE under a normal-approximation CI. The output is a three-row tinytable: causatr, the reference, and the absolute discrepancy on each column, so agreement (or the lack of it) is immediately legible.</p>
-<p>We use two small simulated DGPs for reproducibility. NHEFS would work too, but inline simulation keeps the vignette self-contained and cheap to render.</p>
+<p>We use three small simulated DGPs for reproducibility. NHEFS would work too, but inline simulation keeps the vignette self-contained and cheap to render. The data-generating mechanisms are described below.</p>
+<section id="dgm-1-point-treatment-simulate_point" class="level3">
+<h3 class="anchored" data-anchor-id="dgm-1-point-treatment-simulate_point">DGM 1: Point treatment (<code>simulate_point()</code>)</h3>
+<p>A single confounder <span class="math inline">\(L\)</span>, binary treatment <span class="math inline">\(A\)</span>, and outcome <span class="math inline">\(Y\)</span> (continuous or binary depending on the <code>binary_outcome</code> flag). Both versions share the same confounding structure: <span class="math inline">\(L\)</span> affects both treatment assignment and the outcome.</p>
+<p><strong>Continuous outcome</strong> (<code>binary_outcome = FALSE</code>):</p>
+<p><span class="math display">\[
+\begin{aligned}
+L &amp;\sim \mathcal{N}(0, 1) \\
+A &amp;\sim \text{Bernoulli}\bigl(\text{logit}^{-1}(0.4 \, L)\bigr) \\
+Y &amp;= 1 + 2 A + 0.5 \, L + \varepsilon, \quad \varepsilon \sim \mathcal{N}(0, 0.8^2)
+\end{aligned}
+\]</span></p>
+<p>The structural coefficient on <span class="math inline">\(A\)</span> is 2, so the true ATE is exactly 2.</p>
+<p><strong>Binary outcome</strong> (<code>binary_outcome = TRUE</code>):</p>
+<p><span class="math display">\[
+\begin{aligned}
+L &amp;\sim \mathcal{N}(0, 1) \\
+A &amp;\sim \text{Bernoulli}\bigl(\text{logit}^{-1}(0.4 \, L)\bigr) \\
+Y &amp;\sim \text{Bernoulli}\bigl(\text{logit}^{-1}(-0.5 + 0.8 \, A + 0.3 \, L)\bigr)
+\end{aligned}
+\]</span></p>
+<p>The conditional odds ratio is <span class="math inline">\(\exp(0.8) \approx 2.23\)</span>.</p>
+</section>
+<section id="dgm-2-longitudinal-binary-simulate_longitudinal" class="level3">
+<h3 class="anchored" data-anchor-id="dgm-2-longitudinal-binary-simulate_longitudinal">DGM 2: Longitudinal binary (<code>simulate_longitudinal()</code>)</h3>
+<p><span class="math inline">\(K\)</span> periods with binary treatment, a time-varying confounder, and a binary end-of-follow-up outcome. Treatment–confounder feedback is present: past treatment shifts the distribution of the next confounder.</p>
+<p><span class="math display">\[
+\begin{aligned}
+L_k &amp;\sim \mathcal{N}(0, 1) + 0.3 \, A_{k-1} \quad (A_0 \equiv 0) \\
+A_k &amp;\sim \text{Bernoulli}\bigl(\text{logit}^{-1}(0.3 \, L_k)\bigr) \\
+Y   &amp;\sim \text{Bernoulli}\!\left(\text{logit}^{-1}\!\left(-1 + 0.4 \sum_{k=1}^{K} A_k + 0.2 \, L_K\right)\right)
+\end{aligned}
+\]</span></p>
+<p>The treatment–confounder feedback (<span class="math inline">\(L_k\)</span> depends on <span class="math inline">\(A_{k-1}\)</span>) means naive conditioning on time-varying confounders is biased; g-computation (ICE) or IPW with sequential weights is needed.</p>
+</section>
+<section id="dgm-3-longitudinal-continuous-simulate_longitudinal_continuous" class="level3">
+<h3 class="anchored" data-anchor-id="dgm-3-longitudinal-continuous-simulate_longitudinal_continuous">DGM 3: Longitudinal continuous (<code>simulate_longitudinal_continuous()</code>)</h3>
+<p><span class="math inline">\(K\)</span> periods with continuous (Gaussian) treatment and a continuous outcome. The same treatment–confounder feedback structure as DGM 2, but with continuous variables throughout.</p>
+<p><span class="math display">\[
+\begin{aligned}
+L_k &amp;\sim \mathcal{N}(0, 1) + 0.2 \, A_{k-1} \quad (A_0 \equiv 0) \\
+A_k &amp;\sim \mathcal{N}(0.3 \, L_k,\; 1) \\
+Y   &amp;= 1 + \sum_{k=1}^{K} A_k + 0.3 \, L_K + \varepsilon, \quad \varepsilon \sim \mathcal{N}(0, 0.5^2)
+\end{aligned}
+\]</span></p>
+<p>Under a <code>shift(+1)</code> intervention that adds 1 to every period’s treatment, each period contributes exactly 1 unit to the outcome, so the true causal effect of <code>shift(+1)</code> vs the natural value is <span class="math inline">\(K\)</span>. For the default <span class="math inline">\(K = 2\)</span>, the truth is 2.</p>
 <div class="cell">
 <details open="" class="code-fold">
 <summary>Code</summary>
@@ -616,6 +724,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb2-49"><a href="#cb2-49" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
+</section>
 </section>
 <section id="point-g-computation-vs-stdreg2" class="level2">
 <h2 class="anchored" data-anchor-id="point-g-computation-vs-stdreg2">1. Point g-computation vs <code>stdReg2</code></h2>
@@ -1100,7 +1209,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="c.-binary-outcome-risk-ratio" class="level3">
 <h3 class="anchored" data-anchor-id="c.-binary-outcome-risk-ratio">1c. Binary outcome, risk ratio</h3>
-<p><code>stdReg2</code> also supports <code>contrasts = "ratio"</code> and returns the SE on the ratio scale using the same influence-function approach causatr uses internally. Note that causatr’s CI is built on the <em>log</em> scale (<code>exp(log(est) ± z * se/est)</code>) while <code>stdReg2</code>’s CI is linear on the ratio scale, so the CI bounds will differ slightly even when the point estimate and SE agree to rounding.</p>
+<p><code>stdReg2</code> also supports <code>contrasts = "ratio"</code> and returns the SE on the ratio scale using the same influence-function approach causatr uses internally. Note that causatr’s CI is built on the <em>log</em> scale (<code>exp(log(est)</code> <span class="math inline">\(\pm\)</span> <code>z * se/est)</code>) while <code>stdReg2</code>’s CI is linear on the ratio scale, so the CI bounds will differ slightly even when the point estimate and SE agree to rounding.</p>
 <div class="cell">
 <details open="" class="code-fold">
 <summary>Code</summary>
@@ -2953,510 +3062,577 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb17-109"><a href="#cb17-109" aria-hidden="true" tabindex="-1"></a>discrepancy on each column, so agreement (or the lack of it) is</span>
 <span id="cb17-110"><a href="#cb17-110" aria-hidden="true" tabindex="-1"></a>immediately legible.</span>
 <span id="cb17-111"><a href="#cb17-111" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-112"><a href="#cb17-112" aria-hidden="true" tabindex="-1"></a>We use two small simulated DGPs for reproducibility. NHEFS would work too, but</span>
-<span id="cb17-113"><a href="#cb17-113" aria-hidden="true" tabindex="-1"></a>inline simulation keeps the vignette self-contained and cheap to render.</span>
-<span id="cb17-114"><a href="#cb17-114" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-117"><a href="#cb17-117" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb17-118"><a href="#cb17-118" aria-hidden="true" tabindex="-1"></a>simulate_point <span class="ot">&lt;-</span> <span class="cf">function</span>(<span class="at">n =</span> <span class="dv">2000</span>, <span class="at">seed =</span> <span class="dv">1</span>L, <span class="at">binary_outcome =</span> <span class="cn">FALSE</span>) {</span>
-<span id="cb17-119"><a href="#cb17-119" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set.seed</span>(seed)</span>
-<span id="cb17-120"><a href="#cb17-120" aria-hidden="true" tabindex="-1"></a>  L <span class="ot">&lt;-</span> stats<span class="sc">::</span><span class="fu">rnorm</span>(n)</span>
-<span id="cb17-121"><a href="#cb17-121" aria-hidden="true" tabindex="-1"></a>  A <span class="ot">&lt;-</span> stats<span class="sc">::</span><span class="fu">rbinom</span>(n, <span class="dv">1</span>L, stats<span class="sc">::</span><span class="fu">plogis</span>(<span class="fl">0.4</span> <span class="sc">*</span> L))</span>
-<span id="cb17-122"><a href="#cb17-122" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (binary_outcome) {</span>
-<span id="cb17-123"><a href="#cb17-123" aria-hidden="true" tabindex="-1"></a>    Y <span class="ot">&lt;-</span> stats<span class="sc">::</span><span class="fu">rbinom</span>(n, <span class="dv">1</span>L, stats<span class="sc">::</span><span class="fu">plogis</span>(<span class="sc">-</span><span class="fl">0.5</span> <span class="sc">+</span> <span class="fl">0.8</span> <span class="sc">*</span> A <span class="sc">+</span> <span class="fl">0.3</span> <span class="sc">*</span> L))</span>
-<span id="cb17-124"><a href="#cb17-124" aria-hidden="true" tabindex="-1"></a>  } <span class="cf">else</span> {</span>
-<span id="cb17-125"><a href="#cb17-125" aria-hidden="true" tabindex="-1"></a>    Y <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">+</span> <span class="dv">2</span> <span class="sc">*</span> A <span class="sc">+</span> <span class="fl">0.5</span> <span class="sc">*</span> L <span class="sc">+</span> stats<span class="sc">::</span><span class="fu">rnorm</span>(n, <span class="at">sd =</span> <span class="fl">0.8</span>)</span>
-<span id="cb17-126"><a href="#cb17-126" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb17-127"><a href="#cb17-127" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">L =</span> L, <span class="at">A =</span> A, <span class="at">Y =</span> Y)</span>
-<span id="cb17-128"><a href="#cb17-128" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb17-129"><a href="#cb17-129" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-130"><a href="#cb17-130" aria-hidden="true" tabindex="-1"></a>simulate_longitudinal <span class="ot">&lt;-</span> <span class="cf">function</span>(<span class="at">n =</span> <span class="dv">500</span>L, <span class="at">K =</span> <span class="dv">3</span>L, <span class="at">seed =</span> <span class="dv">2</span>L) {</span>
-<span id="cb17-131"><a href="#cb17-131" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set.seed</span>(seed)</span>
-<span id="cb17-132"><a href="#cb17-132" aria-hidden="true" tabindex="-1"></a>  L <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="dv">0</span>, n, K)</span>
-<span id="cb17-133"><a href="#cb17-133" aria-hidden="true" tabindex="-1"></a>  A <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="dv">0</span>L, n, K)</span>
-<span id="cb17-134"><a href="#cb17-134" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (k <span class="cf">in</span> <span class="fu">seq_len</span>(K)) {</span>
-<span id="cb17-135"><a href="#cb17-135" aria-hidden="true" tabindex="-1"></a>    L[, k] <span class="ot">&lt;-</span> stats<span class="sc">::</span><span class="fu">rnorm</span>(n) <span class="sc">+</span></span>
-<span id="cb17-136"><a href="#cb17-136" aria-hidden="true" tabindex="-1"></a>      <span class="cf">if</span> (k <span class="sc">==</span> <span class="dv">1</span>L) <span class="dv">0</span> <span class="cf">else</span> <span class="fl">0.3</span> <span class="sc">*</span> A[, k <span class="sc">-</span> <span class="dv">1</span>L]</span>
-<span id="cb17-137"><a href="#cb17-137" aria-hidden="true" tabindex="-1"></a>    A[, k] <span class="ot">&lt;-</span> stats<span class="sc">::</span><span class="fu">rbinom</span>(n, <span class="dv">1</span>L, stats<span class="sc">::</span><span class="fu">plogis</span>(<span class="fl">0.3</span> <span class="sc">*</span> L[, k]))</span>
-<span id="cb17-138"><a href="#cb17-138" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb17-139"><a href="#cb17-139" aria-hidden="true" tabindex="-1"></a>  Y <span class="ot">&lt;-</span> stats<span class="sc">::</span><span class="fu">rbinom</span>(n, <span class="dv">1</span>L, stats<span class="sc">::</span><span class="fu">plogis</span>(<span class="sc">-</span><span class="dv">1</span> <span class="sc">+</span> <span class="fl">0.4</span> <span class="sc">*</span> <span class="fu">rowSums</span>(A) <span class="sc">+</span> <span class="fl">0.2</span> <span class="sc">*</span> L[, K]))</span>
-<span id="cb17-140"><a href="#cb17-140" aria-hidden="true" tabindex="-1"></a>  wide <span class="ot">&lt;-</span> data.table<span class="sc">::</span><span class="fu">data.table</span>(<span class="at">id =</span> <span class="fu">seq_len</span>(n))</span>
-<span id="cb17-141"><a href="#cb17-141" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (k <span class="cf">in</span> <span class="fu">seq_len</span>(K)) {</span>
-<span id="cb17-142"><a href="#cb17-142" aria-hidden="true" tabindex="-1"></a>    wide[[<span class="fu">paste0</span>(<span class="st">"L"</span>, k)]] <span class="ot">&lt;-</span> L[, k]</span>
-<span id="cb17-143"><a href="#cb17-143" aria-hidden="true" tabindex="-1"></a>    wide[[<span class="fu">paste0</span>(<span class="st">"A"</span>, k)]] <span class="ot">&lt;-</span> A[, k]</span>
-<span id="cb17-144"><a href="#cb17-144" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb17-145"><a href="#cb17-145" aria-hidden="true" tabindex="-1"></a>  wide<span class="sc">$</span>Y <span class="ot">&lt;-</span> Y</span>
-<span id="cb17-146"><a href="#cb17-146" aria-hidden="true" tabindex="-1"></a>  wide[]</span>
-<span id="cb17-147"><a href="#cb17-147" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb17-148"><a href="#cb17-148" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-149"><a href="#cb17-149" aria-hidden="true" tabindex="-1"></a>simulate_longitudinal_continuous <span class="ot">&lt;-</span> <span class="cf">function</span>(<span class="at">n =</span> <span class="dv">400</span>L, <span class="at">K =</span> <span class="dv">2</span>L, <span class="at">seed =</span> <span class="dv">3</span>L) {</span>
-<span id="cb17-150"><a href="#cb17-150" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set.seed</span>(seed)</span>
-<span id="cb17-151"><a href="#cb17-151" aria-hidden="true" tabindex="-1"></a>  L <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="dv">0</span>, n, K)</span>
-<span id="cb17-152"><a href="#cb17-152" aria-hidden="true" tabindex="-1"></a>  A <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="dv">0</span>, n, K)</span>
-<span id="cb17-153"><a href="#cb17-153" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (k <span class="cf">in</span> <span class="fu">seq_len</span>(K)) {</span>
-<span id="cb17-154"><a href="#cb17-154" aria-hidden="true" tabindex="-1"></a>    L[, k] <span class="ot">&lt;-</span> stats<span class="sc">::</span><span class="fu">rnorm</span>(n) <span class="sc">+</span></span>
-<span id="cb17-155"><a href="#cb17-155" aria-hidden="true" tabindex="-1"></a>      <span class="cf">if</span> (k <span class="sc">==</span> <span class="dv">1</span>L) <span class="dv">0</span> <span class="cf">else</span> <span class="fl">0.2</span> <span class="sc">*</span> A[, k <span class="sc">-</span> <span class="dv">1</span>L]</span>
-<span id="cb17-156"><a href="#cb17-156" aria-hidden="true" tabindex="-1"></a>    A[, k] <span class="ot">&lt;-</span> stats<span class="sc">::</span><span class="fu">rnorm</span>(n, <span class="at">mean =</span> <span class="fl">0.3</span> <span class="sc">*</span> L[, k], <span class="at">sd =</span> <span class="dv">1</span>)</span>
-<span id="cb17-157"><a href="#cb17-157" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb17-158"><a href="#cb17-158" aria-hidden="true" tabindex="-1"></a>  Y <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">+</span> <span class="fu">rowSums</span>(A) <span class="sc">+</span> <span class="fl">0.3</span> <span class="sc">*</span> L[, K] <span class="sc">+</span> stats<span class="sc">::</span><span class="fu">rnorm</span>(n, <span class="at">sd =</span> <span class="fl">0.5</span>)</span>
-<span id="cb17-159"><a href="#cb17-159" aria-hidden="true" tabindex="-1"></a>  wide <span class="ot">&lt;-</span> data.table<span class="sc">::</span><span class="fu">data.table</span>(<span class="at">id =</span> <span class="fu">seq_len</span>(n))</span>
-<span id="cb17-160"><a href="#cb17-160" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (k <span class="cf">in</span> <span class="fu">seq_len</span>(K)) {</span>
-<span id="cb17-161"><a href="#cb17-161" aria-hidden="true" tabindex="-1"></a>    wide[[<span class="fu">paste0</span>(<span class="st">"L"</span>, k)]] <span class="ot">&lt;-</span> L[, k]</span>
-<span id="cb17-162"><a href="#cb17-162" aria-hidden="true" tabindex="-1"></a>    wide[[<span class="fu">paste0</span>(<span class="st">"A"</span>, k)]] <span class="ot">&lt;-</span> A[, k]</span>
-<span id="cb17-163"><a href="#cb17-163" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb17-164"><a href="#cb17-164" aria-hidden="true" tabindex="-1"></a>  wide<span class="sc">$</span>Y <span class="ot">&lt;-</span> Y</span>
-<span id="cb17-165"><a href="#cb17-165" aria-hidden="true" tabindex="-1"></a>  wide[]</span>
-<span id="cb17-166"><a href="#cb17-166" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb17-167"><a href="#cb17-167" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-168"><a href="#cb17-168" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-169"><a href="#cb17-169" aria-hidden="true" tabindex="-1"></a><span class="fu">## 1. Point g-computation vs `stdReg2`</span></span>
-<span id="cb17-170"><a href="#cb17-170" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-171"><a href="#cb17-171" aria-hidden="true" tabindex="-1"></a><span class="in">`stdReg2::standardize_glm()`</span> implements the parametric g-formula with the same</span>
-<span id="cb17-172"><a href="#cb17-172" aria-hidden="true" tabindex="-1"></a>influence-function sandwich variance that causatr uses in its point-gcomp</span>
-<span id="cb17-173"><a href="#cb17-173" aria-hidden="true" tabindex="-1"></a>branch. Agreement here should be exact up to rounding.</span>
-<span id="cb17-174"><a href="#cb17-174" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-175"><a href="#cb17-175" aria-hidden="true" tabindex="-1"></a><span class="fu">### 1a. Continuous outcome, risk difference</span></span>
-<span id="cb17-176"><a href="#cb17-176" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-179"><a href="#cb17-179" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb17-180"><a href="#cb17-180" aria-hidden="true" tabindex="-1"></a>df_pt <span class="ot">&lt;-</span> <span class="fu">simulate_point</span>(<span class="at">n =</span> <span class="dv">2000</span>, <span class="at">binary_outcome =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb17-112"><a href="#cb17-112" aria-hidden="true" tabindex="-1"></a>We use three small simulated DGPs for reproducibility. NHEFS would work too, but</span>
+<span id="cb17-113"><a href="#cb17-113" aria-hidden="true" tabindex="-1"></a>inline simulation keeps the vignette self-contained and cheap to render. The</span>
+<span id="cb17-114"><a href="#cb17-114" aria-hidden="true" tabindex="-1"></a>data-generating mechanisms are described below.</span>
+<span id="cb17-115"><a href="#cb17-115" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-116"><a href="#cb17-116" aria-hidden="true" tabindex="-1"></a><span class="fu">### DGM 1: Point treatment (`simulate_point()`)</span></span>
+<span id="cb17-117"><a href="#cb17-117" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-118"><a href="#cb17-118" aria-hidden="true" tabindex="-1"></a>A single confounder $L$, binary treatment $A$, and outcome $Y$ (continuous or</span>
+<span id="cb17-119"><a href="#cb17-119" aria-hidden="true" tabindex="-1"></a>binary depending on the <span class="in">`binary_outcome`</span> flag). Both versions share the same</span>
+<span id="cb17-120"><a href="#cb17-120" aria-hidden="true" tabindex="-1"></a>confounding structure: $L$ affects both treatment assignment and the outcome.</span>
+<span id="cb17-121"><a href="#cb17-121" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-122"><a href="#cb17-122" aria-hidden="true" tabindex="-1"></a>**Continuous outcome** (<span class="in">`binary_outcome = FALSE`</span>):</span>
+<span id="cb17-123"><a href="#cb17-123" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-124"><a href="#cb17-124" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb17-125"><a href="#cb17-125" aria-hidden="true" tabindex="-1"></a>\begin{aligned}</span>
+<span id="cb17-126"><a href="#cb17-126" aria-hidden="true" tabindex="-1"></a>L &amp;\sim \mathcal{N}(0, 1) <span class="sc">\\</span></span>
+<span id="cb17-127"><a href="#cb17-127" aria-hidden="true" tabindex="-1"></a>A &amp;\sim \text{Bernoulli}\bigl(\text{logit}^{-1}(0.4 \, L)\bigr) <span class="sc">\\</span></span>
+<span id="cb17-128"><a href="#cb17-128" aria-hidden="true" tabindex="-1"></a>Y &amp;= 1 + 2 A + 0.5 \, L + \varepsilon, \quad \varepsilon \sim \mathcal{N}(0, 0.8^2)</span>
+<span id="cb17-129"><a href="#cb17-129" aria-hidden="true" tabindex="-1"></a>\end{aligned}</span>
+<span id="cb17-130"><a href="#cb17-130" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb17-131"><a href="#cb17-131" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-132"><a href="#cb17-132" aria-hidden="true" tabindex="-1"></a>The structural coefficient on $A$ is 2, so the true ATE is exactly 2.</span>
+<span id="cb17-133"><a href="#cb17-133" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-134"><a href="#cb17-134" aria-hidden="true" tabindex="-1"></a>**Binary outcome** (<span class="in">`binary_outcome = TRUE`</span>):</span>
+<span id="cb17-135"><a href="#cb17-135" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-136"><a href="#cb17-136" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb17-137"><a href="#cb17-137" aria-hidden="true" tabindex="-1"></a>\begin{aligned}</span>
+<span id="cb17-138"><a href="#cb17-138" aria-hidden="true" tabindex="-1"></a>L &amp;\sim \mathcal{N}(0, 1) <span class="sc">\\</span></span>
+<span id="cb17-139"><a href="#cb17-139" aria-hidden="true" tabindex="-1"></a>A &amp;\sim \text{Bernoulli}\bigl(\text{logit}^{-1}(0.4 \, L)\bigr) <span class="sc">\\</span></span>
+<span id="cb17-140"><a href="#cb17-140" aria-hidden="true" tabindex="-1"></a>Y &amp;\sim \text{Bernoulli}\bigl(\text{logit}^{-1}(-0.5 + 0.8 \, A + 0.3 \, L)\bigr)</span>
+<span id="cb17-141"><a href="#cb17-141" aria-hidden="true" tabindex="-1"></a>\end{aligned}</span>
+<span id="cb17-142"><a href="#cb17-142" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb17-143"><a href="#cb17-143" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-144"><a href="#cb17-144" aria-hidden="true" tabindex="-1"></a>The conditional odds ratio is $\exp(0.8) \approx 2.23$.</span>
+<span id="cb17-145"><a href="#cb17-145" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-146"><a href="#cb17-146" aria-hidden="true" tabindex="-1"></a><span class="fu">### DGM 2: Longitudinal binary (`simulate_longitudinal()`)</span></span>
+<span id="cb17-147"><a href="#cb17-147" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-148"><a href="#cb17-148" aria-hidden="true" tabindex="-1"></a>$K$ periods with binary treatment, a time-varying confounder, and a binary</span>
+<span id="cb17-149"><a href="#cb17-149" aria-hidden="true" tabindex="-1"></a>end-of-follow-up outcome. Treatment--confounder feedback is present: past</span>
+<span id="cb17-150"><a href="#cb17-150" aria-hidden="true" tabindex="-1"></a>treatment shifts the distribution of the next confounder.</span>
+<span id="cb17-151"><a href="#cb17-151" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-152"><a href="#cb17-152" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb17-153"><a href="#cb17-153" aria-hidden="true" tabindex="-1"></a>\begin{aligned}</span>
+<span id="cb17-154"><a href="#cb17-154" aria-hidden="true" tabindex="-1"></a>L_k &amp;\sim \mathcal{N}(0, 1) + 0.3 \, A_{k-1} \quad (A_0 \equiv 0) <span class="sc">\\</span></span>
+<span id="cb17-155"><a href="#cb17-155" aria-hidden="true" tabindex="-1"></a>A_k &amp;\sim \text{Bernoulli}\bigl(\text{logit}^{-1}(0.3 \, L_k)\bigr) <span class="sc">\\</span></span>
+<span id="cb17-156"><a href="#cb17-156" aria-hidden="true" tabindex="-1"></a>Y   &amp;\sim \text{Bernoulli}<span class="sc">\!</span>\left(\text{logit}^{-1}<span class="sc">\!</span>\left(-1 + 0.4 \sum_{k=1}^{K} A_k + 0.2 \, L_K\right)\right)</span>
+<span id="cb17-157"><a href="#cb17-157" aria-hidden="true" tabindex="-1"></a>\end{aligned}</span>
+<span id="cb17-158"><a href="#cb17-158" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb17-159"><a href="#cb17-159" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-160"><a href="#cb17-160" aria-hidden="true" tabindex="-1"></a>The treatment--confounder feedback ($L_k$ depends on $A_{k-1}$) means naive</span>
+<span id="cb17-161"><a href="#cb17-161" aria-hidden="true" tabindex="-1"></a>conditioning on time-varying confounders is biased; g-computation (ICE) or IPW</span>
+<span id="cb17-162"><a href="#cb17-162" aria-hidden="true" tabindex="-1"></a>with sequential weights is needed.</span>
+<span id="cb17-163"><a href="#cb17-163" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-164"><a href="#cb17-164" aria-hidden="true" tabindex="-1"></a><span class="fu">### DGM 3: Longitudinal continuous (`simulate_longitudinal_continuous()`)</span></span>
+<span id="cb17-165"><a href="#cb17-165" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-166"><a href="#cb17-166" aria-hidden="true" tabindex="-1"></a>$K$ periods with continuous (Gaussian) treatment and a continuous outcome.</span>
+<span id="cb17-167"><a href="#cb17-167" aria-hidden="true" tabindex="-1"></a>The same treatment--confounder feedback structure as DGM 2, but with</span>
+<span id="cb17-168"><a href="#cb17-168" aria-hidden="true" tabindex="-1"></a>continuous variables throughout.</span>
+<span id="cb17-169"><a href="#cb17-169" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-170"><a href="#cb17-170" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb17-171"><a href="#cb17-171" aria-hidden="true" tabindex="-1"></a>\begin{aligned}</span>
+<span id="cb17-172"><a href="#cb17-172" aria-hidden="true" tabindex="-1"></a>L_k &amp;\sim \mathcal{N}(0, 1) + 0.2 \, A_{k-1} \quad (A_0 \equiv 0) <span class="sc">\\</span></span>
+<span id="cb17-173"><a href="#cb17-173" aria-hidden="true" tabindex="-1"></a>A_k &amp;\sim \mathcal{N}(0.3 \, L_k,\; 1) <span class="sc">\\</span></span>
+<span id="cb17-174"><a href="#cb17-174" aria-hidden="true" tabindex="-1"></a>Y   &amp;= 1 + \sum_{k=1}^{K} A_k + 0.3 \, L_K + \varepsilon, \quad \varepsilon \sim \mathcal{N}(0, 0.5^2)</span>
+<span id="cb17-175"><a href="#cb17-175" aria-hidden="true" tabindex="-1"></a>\end{aligned}</span>
+<span id="cb17-176"><a href="#cb17-176" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb17-177"><a href="#cb17-177" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-178"><a href="#cb17-178" aria-hidden="true" tabindex="-1"></a>Under a <span class="in">`shift(+1)`</span> intervention that adds 1 to every period's treatment, each</span>
+<span id="cb17-179"><a href="#cb17-179" aria-hidden="true" tabindex="-1"></a>period contributes exactly 1 unit to the outcome, so the true causal effect of</span>
+<span id="cb17-180"><a href="#cb17-180" aria-hidden="true" tabindex="-1"></a><span class="in">`shift(+1)`</span> vs the natural value is $K$. For the default $K = 2$, the truth is 2.</span>
 <span id="cb17-181"><a href="#cb17-181" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-182"><a href="#cb17-182" aria-hidden="true" tabindex="-1"></a>fit_gcomp <span class="ot">&lt;-</span> <span class="fu">causat</span>(</span>
-<span id="cb17-183"><a href="#cb17-183" aria-hidden="true" tabindex="-1"></a>  df_pt,</span>
-<span id="cb17-184"><a href="#cb17-184" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
-<span id="cb17-185"><a href="#cb17-185" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
-<span id="cb17-186"><a href="#cb17-186" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> <span class="sc">~</span>L,</span>
-<span id="cb17-187"><a href="#cb17-187" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimator =</span> <span class="st">"gcomp"</span></span>
-<span id="cb17-188"><a href="#cb17-188" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb17-189"><a href="#cb17-189" aria-hidden="true" tabindex="-1"></a>res_gcomp <span class="ot">&lt;-</span> <span class="fu">contrast</span>(</span>
-<span id="cb17-190"><a href="#cb17-190" aria-hidden="true" tabindex="-1"></a>  fit_gcomp,</span>
-<span id="cb17-191"><a href="#cb17-191" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
-<span id="cb17-192"><a href="#cb17-192" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="st">"a0"</span>,</span>
-<span id="cb17-193"><a href="#cb17-193" aria-hidden="true" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">"difference"</span>,</span>
-<span id="cb17-194"><a href="#cb17-194" aria-hidden="true" tabindex="-1"></a>  <span class="at">ci_method =</span> <span class="st">"sandwich"</span></span>
-<span id="cb17-195"><a href="#cb17-195" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb17-196"><a href="#cb17-196" aria-hidden="true" tabindex="-1"></a>res_gcomp</span>
-<span id="cb17-197"><a href="#cb17-197" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-198"><a href="#cb17-198" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-201"><a href="#cb17-201" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb17-202"><a href="#cb17-202" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: !expr requireNamespace("stdReg2", quietly = TRUE)</span></span>
-<span id="cb17-203"><a href="#cb17-203" aria-hidden="true" tabindex="-1"></a>std_fit <span class="ot">&lt;-</span> stdReg2<span class="sc">::</span><span class="fu">standardize_glm</span>(</span>
-<span id="cb17-204"><a href="#cb17-204" aria-hidden="true" tabindex="-1"></a>  Y <span class="sc">~</span> A <span class="sc">+</span> L,</span>
-<span id="cb17-205"><a href="#cb17-205" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df_pt,</span>
-<span id="cb17-206"><a href="#cb17-206" aria-hidden="true" tabindex="-1"></a>  <span class="at">values =</span> <span class="fu">list</span>(<span class="at">A =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>)),</span>
-<span id="cb17-207"><a href="#cb17-207" aria-hidden="true" tabindex="-1"></a>  <span class="at">contrasts =</span> <span class="st">"difference"</span>,</span>
-<span id="cb17-208"><a href="#cb17-208" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="dv">0</span></span>
-<span id="cb17-209"><a href="#cb17-209" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb17-210"><a href="#cb17-210" aria-hidden="true" tabindex="-1"></a>std_res <span class="ot">&lt;-</span> generics<span class="sc">::</span><span class="fu">tidy</span>(std_fit)</span>
-<span id="cb17-211"><a href="#cb17-211" aria-hidden="true" tabindex="-1"></a>std_diff <span class="ot">&lt;-</span> std_res[std_res<span class="sc">$</span>contrast <span class="sc">==</span> <span class="st">"difference"</span> <span class="sc">&amp;</span> std_res<span class="sc">$</span>A <span class="sc">==</span> <span class="dv">1</span>, ]</span>
-<span id="cb17-212"><a href="#cb17-212" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-213"><a href="#cb17-213" aria-hidden="true" tabindex="-1"></a><span class="fu">compare_row</span>(</span>
-<span id="cb17-214"><a href="#cb17-214" aria-hidden="true" tabindex="-1"></a>  <span class="st">"ATE (risk difference)"</span>, res_gcomp,</span>
-<span id="cb17-215"><a href="#cb17-215" aria-hidden="true" tabindex="-1"></a>  <span class="at">name =</span> <span class="st">"a1 vs a0"</span>,</span>
-<span id="cb17-216"><a href="#cb17-216" aria-hidden="true" tabindex="-1"></a>  <span class="at">ref_name =</span> <span class="st">"stdReg2"</span>,</span>
-<span id="cb17-217"><a href="#cb17-217" aria-hidden="true" tabindex="-1"></a>  <span class="at">ref_est =</span> std_diff<span class="sc">$</span>Estimate,</span>
-<span id="cb17-218"><a href="#cb17-218" aria-hidden="true" tabindex="-1"></a>  <span class="at">ref_se =</span> std_diff<span class="sc">$</span>Std.Error</span>
-<span id="cb17-219"><a href="#cb17-219" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb17-220"><a href="#cb17-220" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-221"><a href="#cb17-221" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-222"><a href="#cb17-222" aria-hidden="true" tabindex="-1"></a><span class="fu">### 1b. Binary outcome, risk difference</span></span>
-<span id="cb17-223"><a href="#cb17-223" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-226"><a href="#cb17-226" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb17-227"><a href="#cb17-227" aria-hidden="true" tabindex="-1"></a>df_pt_bin <span class="ot">&lt;-</span> <span class="fu">simulate_point</span>(<span class="at">n =</span> <span class="dv">2000</span>, <span class="at">binary_outcome =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb17-228"><a href="#cb17-228" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-229"><a href="#cb17-229" aria-hidden="true" tabindex="-1"></a>fit_bin <span class="ot">&lt;-</span> <span class="fu">causat</span>(</span>
-<span id="cb17-230"><a href="#cb17-230" aria-hidden="true" tabindex="-1"></a>  df_pt_bin,</span>
-<span id="cb17-231"><a href="#cb17-231" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
-<span id="cb17-232"><a href="#cb17-232" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
-<span id="cb17-233"><a href="#cb17-233" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> <span class="sc">~</span>L,</span>
-<span id="cb17-234"><a href="#cb17-234" aria-hidden="true" tabindex="-1"></a>  <span class="at">family =</span> <span class="fu">binomial</span>(),</span>
-<span id="cb17-235"><a href="#cb17-235" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimator =</span> <span class="st">"gcomp"</span></span>
-<span id="cb17-236"><a href="#cb17-236" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb17-237"><a href="#cb17-237" aria-hidden="true" tabindex="-1"></a>res_bin_rd <span class="ot">&lt;-</span> <span class="fu">contrast</span>(</span>
-<span id="cb17-238"><a href="#cb17-238" aria-hidden="true" tabindex="-1"></a>  fit_bin,</span>
-<span id="cb17-239"><a href="#cb17-239" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
-<span id="cb17-240"><a href="#cb17-240" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="st">"a0"</span>,</span>
-<span id="cb17-241"><a href="#cb17-241" aria-hidden="true" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">"difference"</span>,</span>
-<span id="cb17-242"><a href="#cb17-242" aria-hidden="true" tabindex="-1"></a>  <span class="at">ci_method =</span> <span class="st">"sandwich"</span></span>
-<span id="cb17-243"><a href="#cb17-243" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb17-244"><a href="#cb17-244" aria-hidden="true" tabindex="-1"></a>res_bin_rd</span>
-<span id="cb17-245"><a href="#cb17-245" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-246"><a href="#cb17-246" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-249"><a href="#cb17-249" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb17-250"><a href="#cb17-250" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: !expr requireNamespace("stdReg2", quietly = TRUE)</span></span>
-<span id="cb17-251"><a href="#cb17-251" aria-hidden="true" tabindex="-1"></a>std_bin <span class="ot">&lt;-</span> stdReg2<span class="sc">::</span><span class="fu">standardize_glm</span>(</span>
-<span id="cb17-252"><a href="#cb17-252" aria-hidden="true" tabindex="-1"></a>  Y <span class="sc">~</span> A <span class="sc">+</span> L,</span>
-<span id="cb17-253"><a href="#cb17-253" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df_pt_bin,</span>
-<span id="cb17-254"><a href="#cb17-254" aria-hidden="true" tabindex="-1"></a>  <span class="at">family =</span> <span class="st">"binomial"</span>,</span>
-<span id="cb17-255"><a href="#cb17-255" aria-hidden="true" tabindex="-1"></a>  <span class="at">values =</span> <span class="fu">list</span>(<span class="at">A =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>)),</span>
-<span id="cb17-256"><a href="#cb17-256" aria-hidden="true" tabindex="-1"></a>  <span class="at">contrasts =</span> <span class="st">"difference"</span>,</span>
-<span id="cb17-257"><a href="#cb17-257" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="dv">0</span></span>
-<span id="cb17-258"><a href="#cb17-258" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb17-259"><a href="#cb17-259" aria-hidden="true" tabindex="-1"></a>std_bin_res <span class="ot">&lt;-</span> generics<span class="sc">::</span><span class="fu">tidy</span>(std_bin)</span>
-<span id="cb17-260"><a href="#cb17-260" aria-hidden="true" tabindex="-1"></a>std_bin_diff <span class="ot">&lt;-</span> std_bin_res[std_bin_res<span class="sc">$</span>contrast <span class="sc">==</span> <span class="st">"difference"</span> <span class="sc">&amp;</span> std_bin_res<span class="sc">$</span>A <span class="sc">==</span> <span class="dv">1</span>, ]</span>
-<span id="cb17-261"><a href="#cb17-261" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-262"><a href="#cb17-262" aria-hidden="true" tabindex="-1"></a><span class="fu">compare_row</span>(</span>
-<span id="cb17-263"><a href="#cb17-263" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Risk difference"</span>, res_bin_rd,</span>
-<span id="cb17-264"><a href="#cb17-264" aria-hidden="true" tabindex="-1"></a>  <span class="at">name =</span> <span class="st">"a1 vs a0"</span>,</span>
-<span id="cb17-265"><a href="#cb17-265" aria-hidden="true" tabindex="-1"></a>  <span class="at">ref_name =</span> <span class="st">"stdReg2"</span>,</span>
-<span id="cb17-266"><a href="#cb17-266" aria-hidden="true" tabindex="-1"></a>  <span class="at">ref_est =</span> std_bin_diff<span class="sc">$</span>Estimate,</span>
-<span id="cb17-267"><a href="#cb17-267" aria-hidden="true" tabindex="-1"></a>  <span class="at">ref_se =</span> std_bin_diff<span class="sc">$</span>Std.Error</span>
-<span id="cb17-268"><a href="#cb17-268" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb17-269"><a href="#cb17-269" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-270"><a href="#cb17-270" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-271"><a href="#cb17-271" aria-hidden="true" tabindex="-1"></a><span class="fu">### 1c. Binary outcome, risk ratio</span></span>
-<span id="cb17-272"><a href="#cb17-272" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-273"><a href="#cb17-273" aria-hidden="true" tabindex="-1"></a><span class="in">`stdReg2`</span> also supports <span class="in">`contrasts = "ratio"`</span> and returns the SE on the</span>
-<span id="cb17-274"><a href="#cb17-274" aria-hidden="true" tabindex="-1"></a>ratio scale using the same influence-function approach causatr uses</span>
-<span id="cb17-275"><a href="#cb17-275" aria-hidden="true" tabindex="-1"></a>internally. Note that causatr's CI is built on the *log* scale</span>
-<span id="cb17-276"><a href="#cb17-276" aria-hidden="true" tabindex="-1"></a>(<span class="in">`exp(log(est) ± z * se/est)`</span>) while <span class="in">`stdReg2`</span>'s CI is linear on the ratio</span>
-<span id="cb17-277"><a href="#cb17-277" aria-hidden="true" tabindex="-1"></a>scale, so the CI bounds will differ slightly even when the point estimate</span>
-<span id="cb17-278"><a href="#cb17-278" aria-hidden="true" tabindex="-1"></a>and SE agree to rounding.</span>
+<span id="cb17-184"><a href="#cb17-184" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb17-185"><a href="#cb17-185" aria-hidden="true" tabindex="-1"></a>simulate_point <span class="ot">&lt;-</span> <span class="cf">function</span>(<span class="at">n =</span> <span class="dv">2000</span>, <span class="at">seed =</span> <span class="dv">1</span>L, <span class="at">binary_outcome =</span> <span class="cn">FALSE</span>) {</span>
+<span id="cb17-186"><a href="#cb17-186" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set.seed</span>(seed)</span>
+<span id="cb17-187"><a href="#cb17-187" aria-hidden="true" tabindex="-1"></a>  L <span class="ot">&lt;-</span> stats<span class="sc">::</span><span class="fu">rnorm</span>(n)</span>
+<span id="cb17-188"><a href="#cb17-188" aria-hidden="true" tabindex="-1"></a>  A <span class="ot">&lt;-</span> stats<span class="sc">::</span><span class="fu">rbinom</span>(n, <span class="dv">1</span>L, stats<span class="sc">::</span><span class="fu">plogis</span>(<span class="fl">0.4</span> <span class="sc">*</span> L))</span>
+<span id="cb17-189"><a href="#cb17-189" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (binary_outcome) {</span>
+<span id="cb17-190"><a href="#cb17-190" aria-hidden="true" tabindex="-1"></a>    Y <span class="ot">&lt;-</span> stats<span class="sc">::</span><span class="fu">rbinom</span>(n, <span class="dv">1</span>L, stats<span class="sc">::</span><span class="fu">plogis</span>(<span class="sc">-</span><span class="fl">0.5</span> <span class="sc">+</span> <span class="fl">0.8</span> <span class="sc">*</span> A <span class="sc">+</span> <span class="fl">0.3</span> <span class="sc">*</span> L))</span>
+<span id="cb17-191"><a href="#cb17-191" aria-hidden="true" tabindex="-1"></a>  } <span class="cf">else</span> {</span>
+<span id="cb17-192"><a href="#cb17-192" aria-hidden="true" tabindex="-1"></a>    Y <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">+</span> <span class="dv">2</span> <span class="sc">*</span> A <span class="sc">+</span> <span class="fl">0.5</span> <span class="sc">*</span> L <span class="sc">+</span> stats<span class="sc">::</span><span class="fu">rnorm</span>(n, <span class="at">sd =</span> <span class="fl">0.8</span>)</span>
+<span id="cb17-193"><a href="#cb17-193" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb17-194"><a href="#cb17-194" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">L =</span> L, <span class="at">A =</span> A, <span class="at">Y =</span> Y)</span>
+<span id="cb17-195"><a href="#cb17-195" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb17-196"><a href="#cb17-196" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-197"><a href="#cb17-197" aria-hidden="true" tabindex="-1"></a>simulate_longitudinal <span class="ot">&lt;-</span> <span class="cf">function</span>(<span class="at">n =</span> <span class="dv">500</span>L, <span class="at">K =</span> <span class="dv">3</span>L, <span class="at">seed =</span> <span class="dv">2</span>L) {</span>
+<span id="cb17-198"><a href="#cb17-198" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set.seed</span>(seed)</span>
+<span id="cb17-199"><a href="#cb17-199" aria-hidden="true" tabindex="-1"></a>  L <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="dv">0</span>, n, K)</span>
+<span id="cb17-200"><a href="#cb17-200" aria-hidden="true" tabindex="-1"></a>  A <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="dv">0</span>L, n, K)</span>
+<span id="cb17-201"><a href="#cb17-201" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (k <span class="cf">in</span> <span class="fu">seq_len</span>(K)) {</span>
+<span id="cb17-202"><a href="#cb17-202" aria-hidden="true" tabindex="-1"></a>    L[, k] <span class="ot">&lt;-</span> stats<span class="sc">::</span><span class="fu">rnorm</span>(n) <span class="sc">+</span></span>
+<span id="cb17-203"><a href="#cb17-203" aria-hidden="true" tabindex="-1"></a>      <span class="cf">if</span> (k <span class="sc">==</span> <span class="dv">1</span>L) <span class="dv">0</span> <span class="cf">else</span> <span class="fl">0.3</span> <span class="sc">*</span> A[, k <span class="sc">-</span> <span class="dv">1</span>L]</span>
+<span id="cb17-204"><a href="#cb17-204" aria-hidden="true" tabindex="-1"></a>    A[, k] <span class="ot">&lt;-</span> stats<span class="sc">::</span><span class="fu">rbinom</span>(n, <span class="dv">1</span>L, stats<span class="sc">::</span><span class="fu">plogis</span>(<span class="fl">0.3</span> <span class="sc">*</span> L[, k]))</span>
+<span id="cb17-205"><a href="#cb17-205" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb17-206"><a href="#cb17-206" aria-hidden="true" tabindex="-1"></a>  Y <span class="ot">&lt;-</span> stats<span class="sc">::</span><span class="fu">rbinom</span>(n, <span class="dv">1</span>L, stats<span class="sc">::</span><span class="fu">plogis</span>(<span class="sc">-</span><span class="dv">1</span> <span class="sc">+</span> <span class="fl">0.4</span> <span class="sc">*</span> <span class="fu">rowSums</span>(A) <span class="sc">+</span> <span class="fl">0.2</span> <span class="sc">*</span> L[, K]))</span>
+<span id="cb17-207"><a href="#cb17-207" aria-hidden="true" tabindex="-1"></a>  wide <span class="ot">&lt;-</span> data.table<span class="sc">::</span><span class="fu">data.table</span>(<span class="at">id =</span> <span class="fu">seq_len</span>(n))</span>
+<span id="cb17-208"><a href="#cb17-208" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (k <span class="cf">in</span> <span class="fu">seq_len</span>(K)) {</span>
+<span id="cb17-209"><a href="#cb17-209" aria-hidden="true" tabindex="-1"></a>    wide[[<span class="fu">paste0</span>(<span class="st">"L"</span>, k)]] <span class="ot">&lt;-</span> L[, k]</span>
+<span id="cb17-210"><a href="#cb17-210" aria-hidden="true" tabindex="-1"></a>    wide[[<span class="fu">paste0</span>(<span class="st">"A"</span>, k)]] <span class="ot">&lt;-</span> A[, k]</span>
+<span id="cb17-211"><a href="#cb17-211" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb17-212"><a href="#cb17-212" aria-hidden="true" tabindex="-1"></a>  wide<span class="sc">$</span>Y <span class="ot">&lt;-</span> Y</span>
+<span id="cb17-213"><a href="#cb17-213" aria-hidden="true" tabindex="-1"></a>  wide[]</span>
+<span id="cb17-214"><a href="#cb17-214" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb17-215"><a href="#cb17-215" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-216"><a href="#cb17-216" aria-hidden="true" tabindex="-1"></a>simulate_longitudinal_continuous <span class="ot">&lt;-</span> <span class="cf">function</span>(<span class="at">n =</span> <span class="dv">400</span>L, <span class="at">K =</span> <span class="dv">2</span>L, <span class="at">seed =</span> <span class="dv">3</span>L) {</span>
+<span id="cb17-217"><a href="#cb17-217" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set.seed</span>(seed)</span>
+<span id="cb17-218"><a href="#cb17-218" aria-hidden="true" tabindex="-1"></a>  L <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="dv">0</span>, n, K)</span>
+<span id="cb17-219"><a href="#cb17-219" aria-hidden="true" tabindex="-1"></a>  A <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="dv">0</span>, n, K)</span>
+<span id="cb17-220"><a href="#cb17-220" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (k <span class="cf">in</span> <span class="fu">seq_len</span>(K)) {</span>
+<span id="cb17-221"><a href="#cb17-221" aria-hidden="true" tabindex="-1"></a>    L[, k] <span class="ot">&lt;-</span> stats<span class="sc">::</span><span class="fu">rnorm</span>(n) <span class="sc">+</span></span>
+<span id="cb17-222"><a href="#cb17-222" aria-hidden="true" tabindex="-1"></a>      <span class="cf">if</span> (k <span class="sc">==</span> <span class="dv">1</span>L) <span class="dv">0</span> <span class="cf">else</span> <span class="fl">0.2</span> <span class="sc">*</span> A[, k <span class="sc">-</span> <span class="dv">1</span>L]</span>
+<span id="cb17-223"><a href="#cb17-223" aria-hidden="true" tabindex="-1"></a>    A[, k] <span class="ot">&lt;-</span> stats<span class="sc">::</span><span class="fu">rnorm</span>(n, <span class="at">mean =</span> <span class="fl">0.3</span> <span class="sc">*</span> L[, k], <span class="at">sd =</span> <span class="dv">1</span>)</span>
+<span id="cb17-224"><a href="#cb17-224" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb17-225"><a href="#cb17-225" aria-hidden="true" tabindex="-1"></a>  Y <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">+</span> <span class="fu">rowSums</span>(A) <span class="sc">+</span> <span class="fl">0.3</span> <span class="sc">*</span> L[, K] <span class="sc">+</span> stats<span class="sc">::</span><span class="fu">rnorm</span>(n, <span class="at">sd =</span> <span class="fl">0.5</span>)</span>
+<span id="cb17-226"><a href="#cb17-226" aria-hidden="true" tabindex="-1"></a>  wide <span class="ot">&lt;-</span> data.table<span class="sc">::</span><span class="fu">data.table</span>(<span class="at">id =</span> <span class="fu">seq_len</span>(n))</span>
+<span id="cb17-227"><a href="#cb17-227" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (k <span class="cf">in</span> <span class="fu">seq_len</span>(K)) {</span>
+<span id="cb17-228"><a href="#cb17-228" aria-hidden="true" tabindex="-1"></a>    wide[[<span class="fu">paste0</span>(<span class="st">"L"</span>, k)]] <span class="ot">&lt;-</span> L[, k]</span>
+<span id="cb17-229"><a href="#cb17-229" aria-hidden="true" tabindex="-1"></a>    wide[[<span class="fu">paste0</span>(<span class="st">"A"</span>, k)]] <span class="ot">&lt;-</span> A[, k]</span>
+<span id="cb17-230"><a href="#cb17-230" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb17-231"><a href="#cb17-231" aria-hidden="true" tabindex="-1"></a>  wide<span class="sc">$</span>Y <span class="ot">&lt;-</span> Y</span>
+<span id="cb17-232"><a href="#cb17-232" aria-hidden="true" tabindex="-1"></a>  wide[]</span>
+<span id="cb17-233"><a href="#cb17-233" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb17-234"><a href="#cb17-234" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-235"><a href="#cb17-235" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-236"><a href="#cb17-236" aria-hidden="true" tabindex="-1"></a><span class="fu">## 1. Point g-computation vs `stdReg2`</span></span>
+<span id="cb17-237"><a href="#cb17-237" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-238"><a href="#cb17-238" aria-hidden="true" tabindex="-1"></a><span class="in">`stdReg2::standardize_glm()`</span> implements the parametric g-formula with the same</span>
+<span id="cb17-239"><a href="#cb17-239" aria-hidden="true" tabindex="-1"></a>influence-function sandwich variance that causatr uses in its point-gcomp</span>
+<span id="cb17-240"><a href="#cb17-240" aria-hidden="true" tabindex="-1"></a>branch. Agreement here should be exact up to rounding.</span>
+<span id="cb17-241"><a href="#cb17-241" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-242"><a href="#cb17-242" aria-hidden="true" tabindex="-1"></a><span class="fu">### 1a. Continuous outcome, risk difference</span></span>
+<span id="cb17-243"><a href="#cb17-243" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-246"><a href="#cb17-246" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb17-247"><a href="#cb17-247" aria-hidden="true" tabindex="-1"></a>df_pt <span class="ot">&lt;-</span> <span class="fu">simulate_point</span>(<span class="at">n =</span> <span class="dv">2000</span>, <span class="at">binary_outcome =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb17-248"><a href="#cb17-248" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-249"><a href="#cb17-249" aria-hidden="true" tabindex="-1"></a>fit_gcomp <span class="ot">&lt;-</span> <span class="fu">causat</span>(</span>
+<span id="cb17-250"><a href="#cb17-250" aria-hidden="true" tabindex="-1"></a>  df_pt,</span>
+<span id="cb17-251"><a href="#cb17-251" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
+<span id="cb17-252"><a href="#cb17-252" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
+<span id="cb17-253"><a href="#cb17-253" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> <span class="sc">~</span>L,</span>
+<span id="cb17-254"><a href="#cb17-254" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimator =</span> <span class="st">"gcomp"</span></span>
+<span id="cb17-255"><a href="#cb17-255" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-256"><a href="#cb17-256" aria-hidden="true" tabindex="-1"></a>res_gcomp <span class="ot">&lt;-</span> <span class="fu">contrast</span>(</span>
+<span id="cb17-257"><a href="#cb17-257" aria-hidden="true" tabindex="-1"></a>  fit_gcomp,</span>
+<span id="cb17-258"><a href="#cb17-258" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
+<span id="cb17-259"><a href="#cb17-259" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="st">"a0"</span>,</span>
+<span id="cb17-260"><a href="#cb17-260" aria-hidden="true" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">"difference"</span>,</span>
+<span id="cb17-261"><a href="#cb17-261" aria-hidden="true" tabindex="-1"></a>  <span class="at">ci_method =</span> <span class="st">"sandwich"</span></span>
+<span id="cb17-262"><a href="#cb17-262" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-263"><a href="#cb17-263" aria-hidden="true" tabindex="-1"></a>res_gcomp</span>
+<span id="cb17-264"><a href="#cb17-264" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-265"><a href="#cb17-265" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-268"><a href="#cb17-268" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb17-269"><a href="#cb17-269" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: !expr requireNamespace("stdReg2", quietly = TRUE)</span></span>
+<span id="cb17-270"><a href="#cb17-270" aria-hidden="true" tabindex="-1"></a>std_fit <span class="ot">&lt;-</span> stdReg2<span class="sc">::</span><span class="fu">standardize_glm</span>(</span>
+<span id="cb17-271"><a href="#cb17-271" aria-hidden="true" tabindex="-1"></a>  Y <span class="sc">~</span> A <span class="sc">+</span> L,</span>
+<span id="cb17-272"><a href="#cb17-272" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df_pt,</span>
+<span id="cb17-273"><a href="#cb17-273" aria-hidden="true" tabindex="-1"></a>  <span class="at">values =</span> <span class="fu">list</span>(<span class="at">A =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>)),</span>
+<span id="cb17-274"><a href="#cb17-274" aria-hidden="true" tabindex="-1"></a>  <span class="at">contrasts =</span> <span class="st">"difference"</span>,</span>
+<span id="cb17-275"><a href="#cb17-275" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="dv">0</span></span>
+<span id="cb17-276"><a href="#cb17-276" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-277"><a href="#cb17-277" aria-hidden="true" tabindex="-1"></a>std_res <span class="ot">&lt;-</span> generics<span class="sc">::</span><span class="fu">tidy</span>(std_fit)</span>
+<span id="cb17-278"><a href="#cb17-278" aria-hidden="true" tabindex="-1"></a>std_diff <span class="ot">&lt;-</span> std_res[std_res<span class="sc">$</span>contrast <span class="sc">==</span> <span class="st">"difference"</span> <span class="sc">&amp;</span> std_res<span class="sc">$</span>A <span class="sc">==</span> <span class="dv">1</span>, ]</span>
 <span id="cb17-279"><a href="#cb17-279" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-282"><a href="#cb17-282" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb17-283"><a href="#cb17-283" aria-hidden="true" tabindex="-1"></a>res_bin_rr <span class="ot">&lt;-</span> <span class="fu">contrast</span>(</span>
-<span id="cb17-284"><a href="#cb17-284" aria-hidden="true" tabindex="-1"></a>  fit_bin,</span>
-<span id="cb17-285"><a href="#cb17-285" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
-<span id="cb17-286"><a href="#cb17-286" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="st">"a0"</span>,</span>
-<span id="cb17-287"><a href="#cb17-287" aria-hidden="true" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">"ratio"</span>,</span>
-<span id="cb17-288"><a href="#cb17-288" aria-hidden="true" tabindex="-1"></a>  <span class="at">ci_method =</span> <span class="st">"sandwich"</span></span>
-<span id="cb17-289"><a href="#cb17-289" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb17-290"><a href="#cb17-290" aria-hidden="true" tabindex="-1"></a>res_bin_rr</span>
-<span id="cb17-291"><a href="#cb17-291" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-292"><a href="#cb17-292" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-295"><a href="#cb17-295" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb17-296"><a href="#cb17-296" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: !expr requireNamespace("stdReg2", quietly = TRUE)</span></span>
-<span id="cb17-297"><a href="#cb17-297" aria-hidden="true" tabindex="-1"></a>std_rr <span class="ot">&lt;-</span> stdReg2<span class="sc">::</span><span class="fu">standardize_glm</span>(</span>
-<span id="cb17-298"><a href="#cb17-298" aria-hidden="true" tabindex="-1"></a>  Y <span class="sc">~</span> A <span class="sc">+</span> L,</span>
-<span id="cb17-299"><a href="#cb17-299" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df_pt_bin,</span>
-<span id="cb17-300"><a href="#cb17-300" aria-hidden="true" tabindex="-1"></a>  <span class="at">family =</span> <span class="st">"binomial"</span>,</span>
-<span id="cb17-301"><a href="#cb17-301" aria-hidden="true" tabindex="-1"></a>  <span class="at">values =</span> <span class="fu">list</span>(<span class="at">A =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>)),</span>
-<span id="cb17-302"><a href="#cb17-302" aria-hidden="true" tabindex="-1"></a>  <span class="at">contrasts =</span> <span class="st">"ratio"</span>,</span>
-<span id="cb17-303"><a href="#cb17-303" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="dv">0</span></span>
-<span id="cb17-304"><a href="#cb17-304" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb17-305"><a href="#cb17-305" aria-hidden="true" tabindex="-1"></a>std_rr_res <span class="ot">&lt;-</span> generics<span class="sc">::</span><span class="fu">tidy</span>(std_rr)</span>
-<span id="cb17-306"><a href="#cb17-306" aria-hidden="true" tabindex="-1"></a>std_rr_row <span class="ot">&lt;-</span> std_rr_res[std_rr_res<span class="sc">$</span>contrast <span class="sc">==</span> <span class="st">"ratio"</span> <span class="sc">&amp;</span> std_rr_res<span class="sc">$</span>A <span class="sc">==</span> <span class="dv">1</span>, ]</span>
-<span id="cb17-307"><a href="#cb17-307" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-308"><a href="#cb17-308" aria-hidden="true" tabindex="-1"></a><span class="fu">compare_row</span>(</span>
-<span id="cb17-309"><a href="#cb17-309" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Risk ratio"</span>, res_bin_rr,</span>
-<span id="cb17-310"><a href="#cb17-310" aria-hidden="true" tabindex="-1"></a>  <span class="at">name =</span> <span class="st">"a1 vs a0"</span>,</span>
-<span id="cb17-311"><a href="#cb17-311" aria-hidden="true" tabindex="-1"></a>  <span class="at">ref_name =</span> <span class="st">"stdReg2"</span>,</span>
-<span id="cb17-312"><a href="#cb17-312" aria-hidden="true" tabindex="-1"></a>  <span class="at">ref_est =</span> std_rr_row<span class="sc">$</span>Estimate,</span>
-<span id="cb17-313"><a href="#cb17-313" aria-hidden="true" tabindex="-1"></a>  <span class="at">ref_se =</span> std_rr_row<span class="sc">$</span>Std.Error</span>
-<span id="cb17-314"><a href="#cb17-314" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb17-315"><a href="#cb17-315" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-316"><a href="#cb17-316" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-317"><a href="#cb17-317" aria-hidden="true" tabindex="-1"></a><span class="fu">## 2. IPW vs `WeightIt::glm_weightit`</span></span>
-<span id="cb17-318"><a href="#cb17-318" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-319"><a href="#cb17-319" aria-hidden="true" tabindex="-1"></a>causatr's IPW Branch A wraps <span class="in">`WeightIt::glm_weightit`</span> for the propensity</span>
-<span id="cb17-320"><a href="#cb17-320" aria-hidden="true" tabindex="-1"></a>fit and applies the Mparts correction to the marginal structural model.</span>
-<span id="cb17-321"><a href="#cb17-321" aria-hidden="true" tabindex="-1"></a>Comparing against <span class="in">`glm_weightit`</span> directly verifies that the bookkeeping</span>
-<span id="cb17-322"><a href="#cb17-322" aria-hidden="true" tabindex="-1"></a>matches: point estimate and SE should agree.</span>
-<span id="cb17-323"><a href="#cb17-323" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-326"><a href="#cb17-326" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb17-327"><a href="#cb17-327" aria-hidden="true" tabindex="-1"></a>fit_ipw <span class="ot">&lt;-</span> <span class="fu">causat</span>(</span>
-<span id="cb17-328"><a href="#cb17-328" aria-hidden="true" tabindex="-1"></a>  df_pt,</span>
-<span id="cb17-329"><a href="#cb17-329" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
-<span id="cb17-330"><a href="#cb17-330" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
-<span id="cb17-331"><a href="#cb17-331" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> <span class="sc">~</span>L,</span>
-<span id="cb17-332"><a href="#cb17-332" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimator =</span> <span class="st">"ipw"</span></span>
-<span id="cb17-333"><a href="#cb17-333" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb17-334"><a href="#cb17-334" aria-hidden="true" tabindex="-1"></a>res_ipw <span class="ot">&lt;-</span> <span class="fu">contrast</span>(</span>
-<span id="cb17-335"><a href="#cb17-335" aria-hidden="true" tabindex="-1"></a>  fit_ipw,</span>
-<span id="cb17-336"><a href="#cb17-336" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
-<span id="cb17-337"><a href="#cb17-337" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="st">"a0"</span>,</span>
-<span id="cb17-338"><a href="#cb17-338" aria-hidden="true" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">"difference"</span>,</span>
-<span id="cb17-339"><a href="#cb17-339" aria-hidden="true" tabindex="-1"></a>  <span class="at">ci_method =</span> <span class="st">"sandwich"</span></span>
-<span id="cb17-340"><a href="#cb17-340" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb17-341"><a href="#cb17-341" aria-hidden="true" tabindex="-1"></a>res_ipw</span>
-<span id="cb17-342"><a href="#cb17-342" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-343"><a href="#cb17-343" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-346"><a href="#cb17-346" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb17-347"><a href="#cb17-347" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: !expr requireNamespace("WeightIt", quietly = TRUE)</span></span>
-<span id="cb17-348"><a href="#cb17-348" aria-hidden="true" tabindex="-1"></a>w_ref <span class="ot">&lt;-</span> WeightIt<span class="sc">::</span><span class="fu">weightit</span>(</span>
-<span id="cb17-349"><a href="#cb17-349" aria-hidden="true" tabindex="-1"></a>  A <span class="sc">~</span> L,</span>
-<span id="cb17-350"><a href="#cb17-350" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df_pt,</span>
-<span id="cb17-351"><a href="#cb17-351" aria-hidden="true" tabindex="-1"></a>  <span class="at">method =</span> <span class="st">"glm"</span>,</span>
-<span id="cb17-352"><a href="#cb17-352" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimand =</span> <span class="st">"ATE"</span></span>
-<span id="cb17-353"><a href="#cb17-353" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb17-354"><a href="#cb17-354" aria-hidden="true" tabindex="-1"></a>msm_ref <span class="ot">&lt;-</span> WeightIt<span class="sc">::</span><span class="fu">glm_weightit</span>(</span>
-<span id="cb17-355"><a href="#cb17-355" aria-hidden="true" tabindex="-1"></a>  Y <span class="sc">~</span> A,</span>
-<span id="cb17-356"><a href="#cb17-356" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df_pt,</span>
-<span id="cb17-357"><a href="#cb17-357" aria-hidden="true" tabindex="-1"></a>  <span class="at">weightit =</span> w_ref</span>
-<span id="cb17-358"><a href="#cb17-358" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb17-359"><a href="#cb17-359" aria-hidden="true" tabindex="-1"></a>coef_msm <span class="ot">&lt;-</span> stats<span class="sc">::</span><span class="fu">coef</span>(msm_ref)</span>
-<span id="cb17-360"><a href="#cb17-360" aria-hidden="true" tabindex="-1"></a>vcov_msm <span class="ot">&lt;-</span> stats<span class="sc">::</span><span class="fu">vcov</span>(msm_ref)</span>
-<span id="cb17-361"><a href="#cb17-361" aria-hidden="true" tabindex="-1"></a>ref_est <span class="ot">&lt;-</span> <span class="fu">unname</span>(coef_msm[<span class="st">"A"</span>])</span>
-<span id="cb17-362"><a href="#cb17-362" aria-hidden="true" tabindex="-1"></a>ref_se <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(vcov_msm[<span class="st">"A"</span>, <span class="st">"A"</span>])</span>
-<span id="cb17-363"><a href="#cb17-363" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-364"><a href="#cb17-364" aria-hidden="true" tabindex="-1"></a><span class="fu">compare_row</span>(</span>
-<span id="cb17-365"><a href="#cb17-365" aria-hidden="true" tabindex="-1"></a>  <span class="st">"ATE (IPW)"</span>, res_ipw,</span>
-<span id="cb17-366"><a href="#cb17-366" aria-hidden="true" tabindex="-1"></a>  <span class="at">name =</span> <span class="st">"a1 vs a0"</span>,</span>
-<span id="cb17-367"><a href="#cb17-367" aria-hidden="true" tabindex="-1"></a>  <span class="at">ref_name =</span> <span class="st">"WeightIt (glm_weightit)"</span>,</span>
-<span id="cb17-368"><a href="#cb17-368" aria-hidden="true" tabindex="-1"></a>  <span class="at">ref_est =</span> ref_est,</span>
-<span id="cb17-369"><a href="#cb17-369" aria-hidden="true" tabindex="-1"></a>  <span class="at">ref_se =</span> ref_se</span>
-<span id="cb17-370"><a href="#cb17-370" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb17-371"><a href="#cb17-371" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-372"><a href="#cb17-372" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-373"><a href="#cb17-373" aria-hidden="true" tabindex="-1"></a>With a saturated <span class="in">`Y ~ A`</span> MSM, the coefficient on <span class="in">`A`</span> *is* the marginal</span>
-<span id="cb17-374"><a href="#cb17-374" aria-hidden="true" tabindex="-1"></a>contrast, so reading it off <span class="in">`glm_weightit`</span> gives the reference directly. If</span>
-<span id="cb17-375"><a href="#cb17-375" aria-hidden="true" tabindex="-1"></a>you wanted to use a richer MSM (e.g. to coarsen a multi-level treatment), you</span>
-<span id="cb17-376"><a href="#cb17-376" aria-hidden="true" tabindex="-1"></a>would standardize predictions from <span class="in">`glm_weightit`</span> via <span class="in">`marginaleffects`</span></span>
-<span id="cb17-377"><a href="#cb17-377" aria-hidden="true" tabindex="-1"></a>instead — the same logic, just with an extra delta-method step.</span>
-<span id="cb17-378"><a href="#cb17-378" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-379"><a href="#cb17-379" aria-hidden="true" tabindex="-1"></a><span class="fu">## 3. Matching vs `marginaleffects` on `MatchIt`</span></span>
-<span id="cb17-380"><a href="#cb17-380" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-381"><a href="#cb17-381" aria-hidden="true" tabindex="-1"></a>For matching, the canonical post-match estimator is to refit the outcome on</span>
-<span id="cb17-382"><a href="#cb17-382" aria-hidden="true" tabindex="-1"></a>the matched subset with cluster-robust SE on the subclass. causatr's matching</span>
-<span id="cb17-383"><a href="#cb17-383" aria-hidden="true" tabindex="-1"></a>branch does exactly this internally; <span class="in">`marginaleffects::avg_comparisons()`</span> with</span>
-<span id="cb17-384"><a href="#cb17-384" aria-hidden="true" tabindex="-1"></a><span class="in">`vcov = ~subclass`</span> reproduces the same construction.</span>
+<span id="cb17-280"><a href="#cb17-280" aria-hidden="true" tabindex="-1"></a><span class="fu">compare_row</span>(</span>
+<span id="cb17-281"><a href="#cb17-281" aria-hidden="true" tabindex="-1"></a>  <span class="st">"ATE (risk difference)"</span>, res_gcomp,</span>
+<span id="cb17-282"><a href="#cb17-282" aria-hidden="true" tabindex="-1"></a>  <span class="at">name =</span> <span class="st">"a1 vs a0"</span>,</span>
+<span id="cb17-283"><a href="#cb17-283" aria-hidden="true" tabindex="-1"></a>  <span class="at">ref_name =</span> <span class="st">"stdReg2"</span>,</span>
+<span id="cb17-284"><a href="#cb17-284" aria-hidden="true" tabindex="-1"></a>  <span class="at">ref_est =</span> std_diff<span class="sc">$</span>Estimate,</span>
+<span id="cb17-285"><a href="#cb17-285" aria-hidden="true" tabindex="-1"></a>  <span class="at">ref_se =</span> std_diff<span class="sc">$</span>Std.Error</span>
+<span id="cb17-286"><a href="#cb17-286" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-287"><a href="#cb17-287" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-288"><a href="#cb17-288" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-289"><a href="#cb17-289" aria-hidden="true" tabindex="-1"></a><span class="fu">### 1b. Binary outcome, risk difference</span></span>
+<span id="cb17-290"><a href="#cb17-290" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-293"><a href="#cb17-293" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb17-294"><a href="#cb17-294" aria-hidden="true" tabindex="-1"></a>df_pt_bin <span class="ot">&lt;-</span> <span class="fu">simulate_point</span>(<span class="at">n =</span> <span class="dv">2000</span>, <span class="at">binary_outcome =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb17-295"><a href="#cb17-295" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-296"><a href="#cb17-296" aria-hidden="true" tabindex="-1"></a>fit_bin <span class="ot">&lt;-</span> <span class="fu">causat</span>(</span>
+<span id="cb17-297"><a href="#cb17-297" aria-hidden="true" tabindex="-1"></a>  df_pt_bin,</span>
+<span id="cb17-298"><a href="#cb17-298" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
+<span id="cb17-299"><a href="#cb17-299" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
+<span id="cb17-300"><a href="#cb17-300" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> <span class="sc">~</span>L,</span>
+<span id="cb17-301"><a href="#cb17-301" aria-hidden="true" tabindex="-1"></a>  <span class="at">family =</span> <span class="fu">binomial</span>(),</span>
+<span id="cb17-302"><a href="#cb17-302" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimator =</span> <span class="st">"gcomp"</span></span>
+<span id="cb17-303"><a href="#cb17-303" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-304"><a href="#cb17-304" aria-hidden="true" tabindex="-1"></a>res_bin_rd <span class="ot">&lt;-</span> <span class="fu">contrast</span>(</span>
+<span id="cb17-305"><a href="#cb17-305" aria-hidden="true" tabindex="-1"></a>  fit_bin,</span>
+<span id="cb17-306"><a href="#cb17-306" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
+<span id="cb17-307"><a href="#cb17-307" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="st">"a0"</span>,</span>
+<span id="cb17-308"><a href="#cb17-308" aria-hidden="true" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">"difference"</span>,</span>
+<span id="cb17-309"><a href="#cb17-309" aria-hidden="true" tabindex="-1"></a>  <span class="at">ci_method =</span> <span class="st">"sandwich"</span></span>
+<span id="cb17-310"><a href="#cb17-310" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-311"><a href="#cb17-311" aria-hidden="true" tabindex="-1"></a>res_bin_rd</span>
+<span id="cb17-312"><a href="#cb17-312" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-313"><a href="#cb17-313" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-316"><a href="#cb17-316" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb17-317"><a href="#cb17-317" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: !expr requireNamespace("stdReg2", quietly = TRUE)</span></span>
+<span id="cb17-318"><a href="#cb17-318" aria-hidden="true" tabindex="-1"></a>std_bin <span class="ot">&lt;-</span> stdReg2<span class="sc">::</span><span class="fu">standardize_glm</span>(</span>
+<span id="cb17-319"><a href="#cb17-319" aria-hidden="true" tabindex="-1"></a>  Y <span class="sc">~</span> A <span class="sc">+</span> L,</span>
+<span id="cb17-320"><a href="#cb17-320" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df_pt_bin,</span>
+<span id="cb17-321"><a href="#cb17-321" aria-hidden="true" tabindex="-1"></a>  <span class="at">family =</span> <span class="st">"binomial"</span>,</span>
+<span id="cb17-322"><a href="#cb17-322" aria-hidden="true" tabindex="-1"></a>  <span class="at">values =</span> <span class="fu">list</span>(<span class="at">A =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>)),</span>
+<span id="cb17-323"><a href="#cb17-323" aria-hidden="true" tabindex="-1"></a>  <span class="at">contrasts =</span> <span class="st">"difference"</span>,</span>
+<span id="cb17-324"><a href="#cb17-324" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="dv">0</span></span>
+<span id="cb17-325"><a href="#cb17-325" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-326"><a href="#cb17-326" aria-hidden="true" tabindex="-1"></a>std_bin_res <span class="ot">&lt;-</span> generics<span class="sc">::</span><span class="fu">tidy</span>(std_bin)</span>
+<span id="cb17-327"><a href="#cb17-327" aria-hidden="true" tabindex="-1"></a>std_bin_diff <span class="ot">&lt;-</span> std_bin_res[std_bin_res<span class="sc">$</span>contrast <span class="sc">==</span> <span class="st">"difference"</span> <span class="sc">&amp;</span> std_bin_res<span class="sc">$</span>A <span class="sc">==</span> <span class="dv">1</span>, ]</span>
+<span id="cb17-328"><a href="#cb17-328" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-329"><a href="#cb17-329" aria-hidden="true" tabindex="-1"></a><span class="fu">compare_row</span>(</span>
+<span id="cb17-330"><a href="#cb17-330" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Risk difference"</span>, res_bin_rd,</span>
+<span id="cb17-331"><a href="#cb17-331" aria-hidden="true" tabindex="-1"></a>  <span class="at">name =</span> <span class="st">"a1 vs a0"</span>,</span>
+<span id="cb17-332"><a href="#cb17-332" aria-hidden="true" tabindex="-1"></a>  <span class="at">ref_name =</span> <span class="st">"stdReg2"</span>,</span>
+<span id="cb17-333"><a href="#cb17-333" aria-hidden="true" tabindex="-1"></a>  <span class="at">ref_est =</span> std_bin_diff<span class="sc">$</span>Estimate,</span>
+<span id="cb17-334"><a href="#cb17-334" aria-hidden="true" tabindex="-1"></a>  <span class="at">ref_se =</span> std_bin_diff<span class="sc">$</span>Std.Error</span>
+<span id="cb17-335"><a href="#cb17-335" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-336"><a href="#cb17-336" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-337"><a href="#cb17-337" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-338"><a href="#cb17-338" aria-hidden="true" tabindex="-1"></a><span class="fu">### 1c. Binary outcome, risk ratio</span></span>
+<span id="cb17-339"><a href="#cb17-339" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-340"><a href="#cb17-340" aria-hidden="true" tabindex="-1"></a><span class="in">`stdReg2`</span> also supports <span class="in">`contrasts = "ratio"`</span> and returns the SE on the</span>
+<span id="cb17-341"><a href="#cb17-341" aria-hidden="true" tabindex="-1"></a>ratio scale using the same influence-function approach causatr uses</span>
+<span id="cb17-342"><a href="#cb17-342" aria-hidden="true" tabindex="-1"></a>internally. Note that causatr's CI is built on the *log* scale</span>
+<span id="cb17-343"><a href="#cb17-343" aria-hidden="true" tabindex="-1"></a>(<span class="in">`exp(log(est)`</span> $\pm$ <span class="in">`z * se/est)`</span>) while <span class="in">`stdReg2`</span>'s CI is linear on the ratio</span>
+<span id="cb17-344"><a href="#cb17-344" aria-hidden="true" tabindex="-1"></a>scale, so the CI bounds will differ slightly even when the point estimate</span>
+<span id="cb17-345"><a href="#cb17-345" aria-hidden="true" tabindex="-1"></a>and SE agree to rounding.</span>
+<span id="cb17-346"><a href="#cb17-346" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-349"><a href="#cb17-349" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb17-350"><a href="#cb17-350" aria-hidden="true" tabindex="-1"></a>res_bin_rr <span class="ot">&lt;-</span> <span class="fu">contrast</span>(</span>
+<span id="cb17-351"><a href="#cb17-351" aria-hidden="true" tabindex="-1"></a>  fit_bin,</span>
+<span id="cb17-352"><a href="#cb17-352" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
+<span id="cb17-353"><a href="#cb17-353" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="st">"a0"</span>,</span>
+<span id="cb17-354"><a href="#cb17-354" aria-hidden="true" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">"ratio"</span>,</span>
+<span id="cb17-355"><a href="#cb17-355" aria-hidden="true" tabindex="-1"></a>  <span class="at">ci_method =</span> <span class="st">"sandwich"</span></span>
+<span id="cb17-356"><a href="#cb17-356" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-357"><a href="#cb17-357" aria-hidden="true" tabindex="-1"></a>res_bin_rr</span>
+<span id="cb17-358"><a href="#cb17-358" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-359"><a href="#cb17-359" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-362"><a href="#cb17-362" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb17-363"><a href="#cb17-363" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: !expr requireNamespace("stdReg2", quietly = TRUE)</span></span>
+<span id="cb17-364"><a href="#cb17-364" aria-hidden="true" tabindex="-1"></a>std_rr <span class="ot">&lt;-</span> stdReg2<span class="sc">::</span><span class="fu">standardize_glm</span>(</span>
+<span id="cb17-365"><a href="#cb17-365" aria-hidden="true" tabindex="-1"></a>  Y <span class="sc">~</span> A <span class="sc">+</span> L,</span>
+<span id="cb17-366"><a href="#cb17-366" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df_pt_bin,</span>
+<span id="cb17-367"><a href="#cb17-367" aria-hidden="true" tabindex="-1"></a>  <span class="at">family =</span> <span class="st">"binomial"</span>,</span>
+<span id="cb17-368"><a href="#cb17-368" aria-hidden="true" tabindex="-1"></a>  <span class="at">values =</span> <span class="fu">list</span>(<span class="at">A =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>)),</span>
+<span id="cb17-369"><a href="#cb17-369" aria-hidden="true" tabindex="-1"></a>  <span class="at">contrasts =</span> <span class="st">"ratio"</span>,</span>
+<span id="cb17-370"><a href="#cb17-370" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="dv">0</span></span>
+<span id="cb17-371"><a href="#cb17-371" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-372"><a href="#cb17-372" aria-hidden="true" tabindex="-1"></a>std_rr_res <span class="ot">&lt;-</span> generics<span class="sc">::</span><span class="fu">tidy</span>(std_rr)</span>
+<span id="cb17-373"><a href="#cb17-373" aria-hidden="true" tabindex="-1"></a>std_rr_row <span class="ot">&lt;-</span> std_rr_res[std_rr_res<span class="sc">$</span>contrast <span class="sc">==</span> <span class="st">"ratio"</span> <span class="sc">&amp;</span> std_rr_res<span class="sc">$</span>A <span class="sc">==</span> <span class="dv">1</span>, ]</span>
+<span id="cb17-374"><a href="#cb17-374" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-375"><a href="#cb17-375" aria-hidden="true" tabindex="-1"></a><span class="fu">compare_row</span>(</span>
+<span id="cb17-376"><a href="#cb17-376" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Risk ratio"</span>, res_bin_rr,</span>
+<span id="cb17-377"><a href="#cb17-377" aria-hidden="true" tabindex="-1"></a>  <span class="at">name =</span> <span class="st">"a1 vs a0"</span>,</span>
+<span id="cb17-378"><a href="#cb17-378" aria-hidden="true" tabindex="-1"></a>  <span class="at">ref_name =</span> <span class="st">"stdReg2"</span>,</span>
+<span id="cb17-379"><a href="#cb17-379" aria-hidden="true" tabindex="-1"></a>  <span class="at">ref_est =</span> std_rr_row<span class="sc">$</span>Estimate,</span>
+<span id="cb17-380"><a href="#cb17-380" aria-hidden="true" tabindex="-1"></a>  <span class="at">ref_se =</span> std_rr_row<span class="sc">$</span>Std.Error</span>
+<span id="cb17-381"><a href="#cb17-381" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-382"><a href="#cb17-382" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-383"><a href="#cb17-383" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-384"><a href="#cb17-384" aria-hidden="true" tabindex="-1"></a><span class="fu">## 2. IPW vs `WeightIt::glm_weightit`</span></span>
 <span id="cb17-385"><a href="#cb17-385" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-388"><a href="#cb17-388" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb17-389"><a href="#cb17-389" aria-hidden="true" tabindex="-1"></a>fit_match <span class="ot">&lt;-</span> <span class="fu">causat</span>(</span>
-<span id="cb17-390"><a href="#cb17-390" aria-hidden="true" tabindex="-1"></a>  df_pt,</span>
-<span id="cb17-391"><a href="#cb17-391" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
-<span id="cb17-392"><a href="#cb17-392" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
-<span id="cb17-393"><a href="#cb17-393" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> <span class="sc">~</span>L,</span>
-<span id="cb17-394"><a href="#cb17-394" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimator =</span> <span class="st">"matching"</span>,</span>
-<span id="cb17-395"><a href="#cb17-395" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimand =</span> <span class="st">"ATT"</span></span>
-<span id="cb17-396"><a href="#cb17-396" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb17-397"><a href="#cb17-397" aria-hidden="true" tabindex="-1"></a>res_match <span class="ot">&lt;-</span> <span class="fu">contrast</span>(</span>
-<span id="cb17-398"><a href="#cb17-398" aria-hidden="true" tabindex="-1"></a>  fit_match,</span>
-<span id="cb17-399"><a href="#cb17-399" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
-<span id="cb17-400"><a href="#cb17-400" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="st">"a0"</span>,</span>
-<span id="cb17-401"><a href="#cb17-401" aria-hidden="true" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">"difference"</span>,</span>
-<span id="cb17-402"><a href="#cb17-402" aria-hidden="true" tabindex="-1"></a>  <span class="at">ci_method =</span> <span class="st">"sandwich"</span></span>
-<span id="cb17-403"><a href="#cb17-403" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb17-404"><a href="#cb17-404" aria-hidden="true" tabindex="-1"></a>res_match</span>
-<span id="cb17-405"><a href="#cb17-405" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-406"><a href="#cb17-406" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-409"><a href="#cb17-409" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb17-410"><a href="#cb17-410" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: !expr (requireNamespace("MatchIt", quietly = TRUE) &amp;&amp; requireNamespace("marginaleffects", quietly = TRUE))</span></span>
-<span id="cb17-411"><a href="#cb17-411" aria-hidden="true" tabindex="-1"></a>m_ref <span class="ot">&lt;-</span> MatchIt<span class="sc">::</span><span class="fu">matchit</span>(</span>
-<span id="cb17-412"><a href="#cb17-412" aria-hidden="true" tabindex="-1"></a>  A <span class="sc">~</span> L,</span>
-<span id="cb17-413"><a href="#cb17-413" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df_pt,</span>
-<span id="cb17-414"><a href="#cb17-414" aria-hidden="true" tabindex="-1"></a>  <span class="at">method =</span> <span class="st">"nearest"</span>,</span>
-<span id="cb17-415"><a href="#cb17-415" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimand =</span> <span class="st">"ATT"</span></span>
-<span id="cb17-416"><a href="#cb17-416" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb17-417"><a href="#cb17-417" aria-hidden="true" tabindex="-1"></a>md_ref <span class="ot">&lt;-</span> MatchIt<span class="sc">::</span><span class="fu">match.data</span>(m_ref)</span>
-<span id="cb17-418"><a href="#cb17-418" aria-hidden="true" tabindex="-1"></a>lm_ref <span class="ot">&lt;-</span> stats<span class="sc">::</span><span class="fu">lm</span>(Y <span class="sc">~</span> A, <span class="at">data =</span> md_ref, <span class="at">weights =</span> weights)</span>
-<span id="cb17-419"><a href="#cb17-419" aria-hidden="true" tabindex="-1"></a>me_match <span class="ot">&lt;-</span> marginaleffects<span class="sc">::</span><span class="fu">avg_comparisons</span>(</span>
-<span id="cb17-420"><a href="#cb17-420" aria-hidden="true" tabindex="-1"></a>  lm_ref,</span>
-<span id="cb17-421"><a href="#cb17-421" aria-hidden="true" tabindex="-1"></a>  <span class="at">variables =</span> <span class="fu">list</span>(<span class="at">A =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>)),</span>
-<span id="cb17-422"><a href="#cb17-422" aria-hidden="true" tabindex="-1"></a>  <span class="at">vcov =</span> <span class="sc">~</span>subclass,</span>
-<span id="cb17-423"><a href="#cb17-423" aria-hidden="true" tabindex="-1"></a>  <span class="at">wts =</span> <span class="st">"weights"</span>,</span>
-<span id="cb17-424"><a href="#cb17-424" aria-hidden="true" tabindex="-1"></a>  <span class="at">newdata =</span> <span class="fu">subset</span>(md_ref, A <span class="sc">==</span> <span class="dv">1</span>)</span>
+<span id="cb17-386"><a href="#cb17-386" aria-hidden="true" tabindex="-1"></a>causatr's IPW Branch A wraps <span class="in">`WeightIt::glm_weightit`</span> for the propensity</span>
+<span id="cb17-387"><a href="#cb17-387" aria-hidden="true" tabindex="-1"></a>fit and applies the Mparts correction to the marginal structural model.</span>
+<span id="cb17-388"><a href="#cb17-388" aria-hidden="true" tabindex="-1"></a>Comparing against <span class="in">`glm_weightit`</span> directly verifies that the bookkeeping</span>
+<span id="cb17-389"><a href="#cb17-389" aria-hidden="true" tabindex="-1"></a>matches: point estimate and SE should agree.</span>
+<span id="cb17-390"><a href="#cb17-390" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-393"><a href="#cb17-393" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb17-394"><a href="#cb17-394" aria-hidden="true" tabindex="-1"></a>fit_ipw <span class="ot">&lt;-</span> <span class="fu">causat</span>(</span>
+<span id="cb17-395"><a href="#cb17-395" aria-hidden="true" tabindex="-1"></a>  df_pt,</span>
+<span id="cb17-396"><a href="#cb17-396" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
+<span id="cb17-397"><a href="#cb17-397" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
+<span id="cb17-398"><a href="#cb17-398" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> <span class="sc">~</span>L,</span>
+<span id="cb17-399"><a href="#cb17-399" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimator =</span> <span class="st">"ipw"</span></span>
+<span id="cb17-400"><a href="#cb17-400" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-401"><a href="#cb17-401" aria-hidden="true" tabindex="-1"></a>res_ipw <span class="ot">&lt;-</span> <span class="fu">contrast</span>(</span>
+<span id="cb17-402"><a href="#cb17-402" aria-hidden="true" tabindex="-1"></a>  fit_ipw,</span>
+<span id="cb17-403"><a href="#cb17-403" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
+<span id="cb17-404"><a href="#cb17-404" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="st">"a0"</span>,</span>
+<span id="cb17-405"><a href="#cb17-405" aria-hidden="true" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">"difference"</span>,</span>
+<span id="cb17-406"><a href="#cb17-406" aria-hidden="true" tabindex="-1"></a>  <span class="at">ci_method =</span> <span class="st">"sandwich"</span></span>
+<span id="cb17-407"><a href="#cb17-407" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-408"><a href="#cb17-408" aria-hidden="true" tabindex="-1"></a>res_ipw</span>
+<span id="cb17-409"><a href="#cb17-409" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-410"><a href="#cb17-410" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-413"><a href="#cb17-413" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb17-414"><a href="#cb17-414" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: !expr requireNamespace("WeightIt", quietly = TRUE)</span></span>
+<span id="cb17-415"><a href="#cb17-415" aria-hidden="true" tabindex="-1"></a>w_ref <span class="ot">&lt;-</span> WeightIt<span class="sc">::</span><span class="fu">weightit</span>(</span>
+<span id="cb17-416"><a href="#cb17-416" aria-hidden="true" tabindex="-1"></a>  A <span class="sc">~</span> L,</span>
+<span id="cb17-417"><a href="#cb17-417" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df_pt,</span>
+<span id="cb17-418"><a href="#cb17-418" aria-hidden="true" tabindex="-1"></a>  <span class="at">method =</span> <span class="st">"glm"</span>,</span>
+<span id="cb17-419"><a href="#cb17-419" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimand =</span> <span class="st">"ATE"</span></span>
+<span id="cb17-420"><a href="#cb17-420" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-421"><a href="#cb17-421" aria-hidden="true" tabindex="-1"></a>msm_ref <span class="ot">&lt;-</span> WeightIt<span class="sc">::</span><span class="fu">glm_weightit</span>(</span>
+<span id="cb17-422"><a href="#cb17-422" aria-hidden="true" tabindex="-1"></a>  Y <span class="sc">~</span> A,</span>
+<span id="cb17-423"><a href="#cb17-423" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df_pt,</span>
+<span id="cb17-424"><a href="#cb17-424" aria-hidden="true" tabindex="-1"></a>  <span class="at">weightit =</span> w_ref</span>
 <span id="cb17-425"><a href="#cb17-425" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb17-426"><a href="#cb17-426" aria-hidden="true" tabindex="-1"></a><span class="fu">compare_row</span>(</span>
-<span id="cb17-427"><a href="#cb17-427" aria-hidden="true" tabindex="-1"></a>  <span class="st">"ATT (matching)"</span>, res_match,</span>
-<span id="cb17-428"><a href="#cb17-428" aria-hidden="true" tabindex="-1"></a>  <span class="at">name =</span> <span class="st">"a1 vs a0"</span>,</span>
-<span id="cb17-429"><a href="#cb17-429" aria-hidden="true" tabindex="-1"></a>  <span class="at">ref_name =</span> <span class="st">"marginaleffects+MatchIt"</span>,</span>
-<span id="cb17-430"><a href="#cb17-430" aria-hidden="true" tabindex="-1"></a>  <span class="at">ref_est =</span> me_match<span class="sc">$</span>estimate,</span>
-<span id="cb17-431"><a href="#cb17-431" aria-hidden="true" tabindex="-1"></a>  <span class="at">ref_se =</span> me_match<span class="sc">$</span>std.error</span>
-<span id="cb17-432"><a href="#cb17-432" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb17-433"><a href="#cb17-433" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-434"><a href="#cb17-434" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-435"><a href="#cb17-435" aria-hidden="true" tabindex="-1"></a>The <span class="in">`newdata = subset(md_ref, A == 1)`</span> argument tells <span class="in">`marginaleffects`</span> to</span>
-<span id="cb17-436"><a href="#cb17-436" aria-hidden="true" tabindex="-1"></a>average over the treated-subject target population, which is what</span>
-<span id="cb17-437"><a href="#cb17-437" aria-hidden="true" tabindex="-1"></a><span class="in">`estimand = "ATT"`</span> means.</span>
-<span id="cb17-438"><a href="#cb17-438" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-439"><a href="#cb17-439" aria-hidden="true" tabindex="-1"></a><span class="fu">## 4. Longitudinal ICE vs `lmtp::lmtp_tmle`</span></span>
-<span id="cb17-440"><a href="#cb17-440" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-441"><a href="#cb17-441" aria-hidden="true" tabindex="-1"></a><span class="in">`lmtp::lmtp_tmle()`</span> is a TMLE that targets the same parameter as ICE</span>
-<span id="cb17-442"><a href="#cb17-442" aria-hidden="true" tabindex="-1"></a>g-computation but with a different finite-sample bias-variance profile.</span>
-<span id="cb17-443"><a href="#cb17-443" aria-hidden="true" tabindex="-1"></a>We expect agreement on the point estimate up to sampling noise (both methods</span>
-<span id="cb17-444"><a href="#cb17-444" aria-hidden="true" tabindex="-1"></a>are consistent for the same target), but not exact agreement on the SE.</span>
+<span id="cb17-426"><a href="#cb17-426" aria-hidden="true" tabindex="-1"></a>coef_msm <span class="ot">&lt;-</span> stats<span class="sc">::</span><span class="fu">coef</span>(msm_ref)</span>
+<span id="cb17-427"><a href="#cb17-427" aria-hidden="true" tabindex="-1"></a>vcov_msm <span class="ot">&lt;-</span> stats<span class="sc">::</span><span class="fu">vcov</span>(msm_ref)</span>
+<span id="cb17-428"><a href="#cb17-428" aria-hidden="true" tabindex="-1"></a>ref_est <span class="ot">&lt;-</span> <span class="fu">unname</span>(coef_msm[<span class="st">"A"</span>])</span>
+<span id="cb17-429"><a href="#cb17-429" aria-hidden="true" tabindex="-1"></a>ref_se <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(vcov_msm[<span class="st">"A"</span>, <span class="st">"A"</span>])</span>
+<span id="cb17-430"><a href="#cb17-430" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-431"><a href="#cb17-431" aria-hidden="true" tabindex="-1"></a><span class="fu">compare_row</span>(</span>
+<span id="cb17-432"><a href="#cb17-432" aria-hidden="true" tabindex="-1"></a>  <span class="st">"ATE (IPW)"</span>, res_ipw,</span>
+<span id="cb17-433"><a href="#cb17-433" aria-hidden="true" tabindex="-1"></a>  <span class="at">name =</span> <span class="st">"a1 vs a0"</span>,</span>
+<span id="cb17-434"><a href="#cb17-434" aria-hidden="true" tabindex="-1"></a>  <span class="at">ref_name =</span> <span class="st">"WeightIt (glm_weightit)"</span>,</span>
+<span id="cb17-435"><a href="#cb17-435" aria-hidden="true" tabindex="-1"></a>  <span class="at">ref_est =</span> ref_est,</span>
+<span id="cb17-436"><a href="#cb17-436" aria-hidden="true" tabindex="-1"></a>  <span class="at">ref_se =</span> ref_se</span>
+<span id="cb17-437"><a href="#cb17-437" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-438"><a href="#cb17-438" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-439"><a href="#cb17-439" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-440"><a href="#cb17-440" aria-hidden="true" tabindex="-1"></a>With a saturated <span class="in">`Y ~ A`</span> MSM, the coefficient on <span class="in">`A`</span> *is* the marginal</span>
+<span id="cb17-441"><a href="#cb17-441" aria-hidden="true" tabindex="-1"></a>contrast, so reading it off <span class="in">`glm_weightit`</span> gives the reference directly. If</span>
+<span id="cb17-442"><a href="#cb17-442" aria-hidden="true" tabindex="-1"></a>you wanted to use a richer MSM (e.g. to coarsen a multi-level treatment), you</span>
+<span id="cb17-443"><a href="#cb17-443" aria-hidden="true" tabindex="-1"></a>would standardize predictions from <span class="in">`glm_weightit`</span> via <span class="in">`marginaleffects`</span></span>
+<span id="cb17-444"><a href="#cb17-444" aria-hidden="true" tabindex="-1"></a>instead — the same logic, just with an extra delta-method step.</span>
 <span id="cb17-445"><a href="#cb17-445" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-446"><a href="#cb17-446" aria-hidden="true" tabindex="-1"></a><span class="fu">### 4a. Binary treatment, binary outcome, "always" vs "never"</span></span>
+<span id="cb17-446"><a href="#cb17-446" aria-hidden="true" tabindex="-1"></a><span class="fu">## 3. Matching vs `marginaleffects` on `MatchIt`</span></span>
 <span id="cb17-447"><a href="#cb17-447" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-450"><a href="#cb17-450" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb17-451"><a href="#cb17-451" aria-hidden="true" tabindex="-1"></a>wide_bin <span class="ot">&lt;-</span> <span class="fu">simulate_longitudinal</span>(<span class="at">n =</span> <span class="dv">500</span>L, <span class="at">K =</span> <span class="dv">3</span>L)</span>
-<span id="cb17-452"><a href="#cb17-452" aria-hidden="true" tabindex="-1"></a>long_bin <span class="ot">&lt;-</span> <span class="fu">to_person_period</span>(</span>
-<span id="cb17-453"><a href="#cb17-453" aria-hidden="true" tabindex="-1"></a>  wide_bin,</span>
-<span id="cb17-454"><a href="#cb17-454" aria-hidden="true" tabindex="-1"></a>  <span class="at">id =</span> <span class="st">"id"</span>,</span>
-<span id="cb17-455"><a href="#cb17-455" aria-hidden="true" tabindex="-1"></a>  <span class="at">time_varying =</span> <span class="fu">list</span>(<span class="at">L =</span> <span class="fu">c</span>(<span class="st">"L1"</span>, <span class="st">"L2"</span>, <span class="st">"L3"</span>), <span class="at">A =</span> <span class="fu">c</span>(<span class="st">"A1"</span>, <span class="st">"A2"</span>, <span class="st">"A3"</span>)),</span>
-<span id="cb17-456"><a href="#cb17-456" aria-hidden="true" tabindex="-1"></a>  <span class="at">time_invariant =</span> <span class="st">"Y"</span></span>
-<span id="cb17-457"><a href="#cb17-457" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb17-458"><a href="#cb17-458" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-459"><a href="#cb17-459" aria-hidden="true" tabindex="-1"></a>fit_ice <span class="ot">&lt;-</span> <span class="fu">causat</span>(</span>
-<span id="cb17-460"><a href="#cb17-460" aria-hidden="true" tabindex="-1"></a>  long_bin,</span>
-<span id="cb17-461"><a href="#cb17-461" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
-<span id="cb17-462"><a href="#cb17-462" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
-<span id="cb17-463"><a href="#cb17-463" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> <span class="sc">~</span><span class="dv">1</span>,</span>
-<span id="cb17-464"><a href="#cb17-464" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders_tv =</span> <span class="sc">~</span>L,</span>
-<span id="cb17-465"><a href="#cb17-465" aria-hidden="true" tabindex="-1"></a>  <span class="at">family =</span> <span class="fu">binomial</span>(),</span>
-<span id="cb17-466"><a href="#cb17-466" aria-hidden="true" tabindex="-1"></a>  <span class="at">id =</span> <span class="st">"id"</span>,</span>
-<span id="cb17-467"><a href="#cb17-467" aria-hidden="true" tabindex="-1"></a>  <span class="at">time =</span> <span class="st">"time"</span>,</span>
-<span id="cb17-468"><a href="#cb17-468" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimator =</span> <span class="st">"gcomp"</span>,</span>
-<span id="cb17-469"><a href="#cb17-469" aria-hidden="true" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">"longitudinal"</span>,</span>
-<span id="cb17-470"><a href="#cb17-470" aria-hidden="true" tabindex="-1"></a>  <span class="at">history =</span> <span class="dv">1</span>L</span>
-<span id="cb17-471"><a href="#cb17-471" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb17-472"><a href="#cb17-472" aria-hidden="true" tabindex="-1"></a>res_ice <span class="ot">&lt;-</span> <span class="fu">contrast</span>(</span>
-<span id="cb17-473"><a href="#cb17-473" aria-hidden="true" tabindex="-1"></a>  fit_ice,</span>
-<span id="cb17-474"><a href="#cb17-474" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">always =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">never =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
-<span id="cb17-475"><a href="#cb17-475" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="st">"never"</span>,</span>
-<span id="cb17-476"><a href="#cb17-476" aria-hidden="true" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">"difference"</span>,</span>
-<span id="cb17-477"><a href="#cb17-477" aria-hidden="true" tabindex="-1"></a>  <span class="at">ci_method =</span> <span class="st">"sandwich"</span></span>
-<span id="cb17-478"><a href="#cb17-478" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb17-479"><a href="#cb17-479" aria-hidden="true" tabindex="-1"></a>res_ice</span>
-<span id="cb17-480"><a href="#cb17-480" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-481"><a href="#cb17-481" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-484"><a href="#cb17-484" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb17-485"><a href="#cb17-485" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: !expr requireNamespace("lmtp", quietly = TRUE)</span></span>
-<span id="cb17-486"><a href="#cb17-486" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">42</span>)</span>
-<span id="cb17-487"><a href="#cb17-487" aria-hidden="true" tabindex="-1"></a>lmtp_always <span class="ot">&lt;-</span> <span class="fu">tryCatch</span>(</span>
-<span id="cb17-488"><a href="#cb17-488" aria-hidden="true" tabindex="-1"></a>  lmtp<span class="sc">::</span><span class="fu">lmtp_tmle</span>(</span>
-<span id="cb17-489"><a href="#cb17-489" aria-hidden="true" tabindex="-1"></a>    <span class="at">data =</span> <span class="fu">as.data.frame</span>(wide_bin),</span>
-<span id="cb17-490"><a href="#cb17-490" aria-hidden="true" tabindex="-1"></a>    <span class="at">trt =</span> <span class="fu">c</span>(<span class="st">"A1"</span>, <span class="st">"A2"</span>, <span class="st">"A3"</span>),</span>
-<span id="cb17-491"><a href="#cb17-491" aria-hidden="true" tabindex="-1"></a>    <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
-<span id="cb17-492"><a href="#cb17-492" aria-hidden="true" tabindex="-1"></a>    <span class="at">time_vary =</span> <span class="fu">list</span>(<span class="st">"L1"</span>, <span class="st">"L2"</span>, <span class="st">"L3"</span>),</span>
-<span id="cb17-493"><a href="#cb17-493" aria-hidden="true" tabindex="-1"></a>    <span class="at">shift =</span> <span class="cf">function</span>(data, trt) <span class="fu">rep</span>(<span class="dv">1</span>, <span class="fu">nrow</span>(data)),</span>
-<span id="cb17-494"><a href="#cb17-494" aria-hidden="true" tabindex="-1"></a>    <span class="at">outcome_type =</span> <span class="st">"binomial"</span>,</span>
-<span id="cb17-495"><a href="#cb17-495" aria-hidden="true" tabindex="-1"></a>    <span class="at">learners_outcome =</span> <span class="st">"SL.glm"</span>,</span>
-<span id="cb17-496"><a href="#cb17-496" aria-hidden="true" tabindex="-1"></a>    <span class="at">learners_trt =</span> <span class="st">"SL.glm"</span>,</span>
-<span id="cb17-497"><a href="#cb17-497" aria-hidden="true" tabindex="-1"></a>    <span class="at">folds =</span> <span class="dv">2</span></span>
-<span id="cb17-498"><a href="#cb17-498" aria-hidden="true" tabindex="-1"></a>  ),</span>
-<span id="cb17-499"><a href="#cb17-499" aria-hidden="true" tabindex="-1"></a>  <span class="at">error =</span> <span class="cf">function</span>(e) <span class="cn">NULL</span></span>
-<span id="cb17-500"><a href="#cb17-500" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb17-501"><a href="#cb17-501" aria-hidden="true" tabindex="-1"></a>lmtp_never <span class="ot">&lt;-</span> <span class="fu">tryCatch</span>(</span>
-<span id="cb17-502"><a href="#cb17-502" aria-hidden="true" tabindex="-1"></a>  lmtp<span class="sc">::</span><span class="fu">lmtp_tmle</span>(</span>
-<span id="cb17-503"><a href="#cb17-503" aria-hidden="true" tabindex="-1"></a>    <span class="at">data =</span> <span class="fu">as.data.frame</span>(wide_bin),</span>
-<span id="cb17-504"><a href="#cb17-504" aria-hidden="true" tabindex="-1"></a>    <span class="at">trt =</span> <span class="fu">c</span>(<span class="st">"A1"</span>, <span class="st">"A2"</span>, <span class="st">"A3"</span>),</span>
-<span id="cb17-505"><a href="#cb17-505" aria-hidden="true" tabindex="-1"></a>    <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
-<span id="cb17-506"><a href="#cb17-506" aria-hidden="true" tabindex="-1"></a>    <span class="at">time_vary =</span> <span class="fu">list</span>(<span class="st">"L1"</span>, <span class="st">"L2"</span>, <span class="st">"L3"</span>),</span>
-<span id="cb17-507"><a href="#cb17-507" aria-hidden="true" tabindex="-1"></a>    <span class="at">shift =</span> <span class="cf">function</span>(data, trt) <span class="fu">rep</span>(<span class="dv">0</span>, <span class="fu">nrow</span>(data)),</span>
-<span id="cb17-508"><a href="#cb17-508" aria-hidden="true" tabindex="-1"></a>    <span class="at">outcome_type =</span> <span class="st">"binomial"</span>,</span>
-<span id="cb17-509"><a href="#cb17-509" aria-hidden="true" tabindex="-1"></a>    <span class="at">learners_outcome =</span> <span class="st">"SL.glm"</span>,</span>
-<span id="cb17-510"><a href="#cb17-510" aria-hidden="true" tabindex="-1"></a>    <span class="at">learners_trt =</span> <span class="st">"SL.glm"</span>,</span>
-<span id="cb17-511"><a href="#cb17-511" aria-hidden="true" tabindex="-1"></a>    <span class="at">folds =</span> <span class="dv">2</span></span>
-<span id="cb17-512"><a href="#cb17-512" aria-hidden="true" tabindex="-1"></a>  ),</span>
-<span id="cb17-513"><a href="#cb17-513" aria-hidden="true" tabindex="-1"></a>  <span class="at">error =</span> <span class="cf">function</span>(e) <span class="cn">NULL</span></span>
-<span id="cb17-514"><a href="#cb17-514" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb17-515"><a href="#cb17-515" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-516"><a href="#cb17-516" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(lmtp_always) <span class="sc">&amp;&amp;</span> <span class="sc">!</span><span class="fu">is.null</span>(lmtp_never)) {</span>
-<span id="cb17-517"><a href="#cb17-517" aria-hidden="true" tabindex="-1"></a>  lmtp_diff <span class="ot">&lt;-</span> lmtp<span class="sc">::</span><span class="fu">lmtp_contrast</span>(lmtp_always, <span class="at">ref =</span> lmtp_never, <span class="at">type =</span> <span class="st">"additive"</span>)</span>
-<span id="cb17-518"><a href="#cb17-518" aria-hidden="true" tabindex="-1"></a>  ref_row <span class="ot">&lt;-</span> lmtp_diff<span class="sc">$</span>estimates</span>
-<span id="cb17-519"><a href="#cb17-519" aria-hidden="true" tabindex="-1"></a>  <span class="fu">compare_row</span>(</span>
-<span id="cb17-520"><a href="#cb17-520" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Always vs never (RD)"</span>, res_ice,</span>
-<span id="cb17-521"><a href="#cb17-521" aria-hidden="true" tabindex="-1"></a>    <span class="at">name =</span> <span class="st">"always vs never"</span>,</span>
-<span id="cb17-522"><a href="#cb17-522" aria-hidden="true" tabindex="-1"></a>    <span class="at">ref_name =</span> <span class="st">"lmtp_tmle"</span>,</span>
-<span id="cb17-523"><a href="#cb17-523" aria-hidden="true" tabindex="-1"></a>    <span class="at">ref_est =</span> ref_row<span class="sc">$</span>estimate,</span>
-<span id="cb17-524"><a href="#cb17-524" aria-hidden="true" tabindex="-1"></a>    <span class="at">ref_se =</span> ref_row<span class="sc">$</span>std.error</span>
-<span id="cb17-525"><a href="#cb17-525" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb17-526"><a href="#cb17-526" aria-hidden="true" tabindex="-1"></a>} <span class="cf">else</span> {</span>
-<span id="cb17-527"><a href="#cb17-527" aria-hidden="true" tabindex="-1"></a>  <span class="fu">message</span>(<span class="st">"lmtp fit failed; skipping comparison row."</span>)</span>
-<span id="cb17-528"><a href="#cb17-528" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb17-529"><a href="#cb17-529" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-530"><a href="#cb17-530" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-531"><a href="#cb17-531" aria-hidden="true" tabindex="-1"></a><span class="fu">### 4b. Continuous treatment, shift intervention</span></span>
-<span id="cb17-532"><a href="#cb17-532" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-535"><a href="#cb17-535" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb17-536"><a href="#cb17-536" aria-hidden="true" tabindex="-1"></a>wide_cont <span class="ot">&lt;-</span> <span class="fu">simulate_longitudinal_continuous</span>(<span class="at">n =</span> <span class="dv">400</span>L, <span class="at">K =</span> <span class="dv">2</span>L)</span>
-<span id="cb17-537"><a href="#cb17-537" aria-hidden="true" tabindex="-1"></a>long_cont <span class="ot">&lt;-</span> <span class="fu">to_person_period</span>(</span>
-<span id="cb17-538"><a href="#cb17-538" aria-hidden="true" tabindex="-1"></a>  wide_cont,</span>
-<span id="cb17-539"><a href="#cb17-539" aria-hidden="true" tabindex="-1"></a>  <span class="at">id =</span> <span class="st">"id"</span>,</span>
-<span id="cb17-540"><a href="#cb17-540" aria-hidden="true" tabindex="-1"></a>  <span class="at">time_varying =</span> <span class="fu">list</span>(<span class="at">L =</span> <span class="fu">c</span>(<span class="st">"L1"</span>, <span class="st">"L2"</span>), <span class="at">A =</span> <span class="fu">c</span>(<span class="st">"A1"</span>, <span class="st">"A2"</span>)),</span>
-<span id="cb17-541"><a href="#cb17-541" aria-hidden="true" tabindex="-1"></a>  <span class="at">time_invariant =</span> <span class="st">"Y"</span></span>
-<span id="cb17-542"><a href="#cb17-542" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb17-543"><a href="#cb17-543" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-544"><a href="#cb17-544" aria-hidden="true" tabindex="-1"></a>fit_ice_shift <span class="ot">&lt;-</span> <span class="fu">causat</span>(</span>
-<span id="cb17-545"><a href="#cb17-545" aria-hidden="true" tabindex="-1"></a>  long_cont,</span>
-<span id="cb17-546"><a href="#cb17-546" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
-<span id="cb17-547"><a href="#cb17-547" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
-<span id="cb17-548"><a href="#cb17-548" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> <span class="sc">~</span><span class="dv">1</span>,</span>
-<span id="cb17-549"><a href="#cb17-549" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders_tv =</span> <span class="sc">~</span>L,</span>
-<span id="cb17-550"><a href="#cb17-550" aria-hidden="true" tabindex="-1"></a>  <span class="at">family =</span> <span class="fu">gaussian</span>(),</span>
-<span id="cb17-551"><a href="#cb17-551" aria-hidden="true" tabindex="-1"></a>  <span class="at">id =</span> <span class="st">"id"</span>,</span>
-<span id="cb17-552"><a href="#cb17-552" aria-hidden="true" tabindex="-1"></a>  <span class="at">time =</span> <span class="st">"time"</span>,</span>
-<span id="cb17-553"><a href="#cb17-553" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimator =</span> <span class="st">"gcomp"</span>,</span>
-<span id="cb17-554"><a href="#cb17-554" aria-hidden="true" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">"longitudinal"</span>,</span>
-<span id="cb17-555"><a href="#cb17-555" aria-hidden="true" tabindex="-1"></a>  <span class="at">history =</span> <span class="dv">1</span>L</span>
-<span id="cb17-556"><a href="#cb17-556" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb17-557"><a href="#cb17-557" aria-hidden="true" tabindex="-1"></a>res_ice_shift <span class="ot">&lt;-</span> <span class="fu">contrast</span>(</span>
-<span id="cb17-558"><a href="#cb17-558" aria-hidden="true" tabindex="-1"></a>  fit_ice_shift,</span>
-<span id="cb17-559"><a href="#cb17-559" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">plus1 =</span> <span class="fu">shift</span>(<span class="dv">1</span>), <span class="at">zero =</span> <span class="fu">shift</span>(<span class="dv">0</span>)),</span>
-<span id="cb17-560"><a href="#cb17-560" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="st">"zero"</span>,</span>
-<span id="cb17-561"><a href="#cb17-561" aria-hidden="true" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">"difference"</span>,</span>
-<span id="cb17-562"><a href="#cb17-562" aria-hidden="true" tabindex="-1"></a>  <span class="at">ci_method =</span> <span class="st">"sandwich"</span></span>
-<span id="cb17-563"><a href="#cb17-563" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb17-564"><a href="#cb17-564" aria-hidden="true" tabindex="-1"></a>res_ice_shift</span>
-<span id="cb17-565"><a href="#cb17-565" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-566"><a href="#cb17-566" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-569"><a href="#cb17-569" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb17-570"><a href="#cb17-570" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: !expr requireNamespace("lmtp", quietly = TRUE)</span></span>
-<span id="cb17-571"><a href="#cb17-571" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">43</span>)</span>
-<span id="cb17-572"><a href="#cb17-572" aria-hidden="true" tabindex="-1"></a>shift_up <span class="ot">&lt;-</span> <span class="cf">function</span>(data, trt) data[[trt]] <span class="sc">+</span> <span class="dv">1</span></span>
-<span id="cb17-573"><a href="#cb17-573" aria-hidden="true" tabindex="-1"></a>shift_id <span class="ot">&lt;-</span> <span class="cf">function</span>(data, trt) data[[trt]]</span>
-<span id="cb17-574"><a href="#cb17-574" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-575"><a href="#cb17-575" aria-hidden="true" tabindex="-1"></a>lmtp_up <span class="ot">&lt;-</span> <span class="fu">tryCatch</span>(</span>
-<span id="cb17-576"><a href="#cb17-576" aria-hidden="true" tabindex="-1"></a>  lmtp<span class="sc">::</span><span class="fu">lmtp_tmle</span>(</span>
-<span id="cb17-577"><a href="#cb17-577" aria-hidden="true" tabindex="-1"></a>    <span class="at">data =</span> <span class="fu">as.data.frame</span>(wide_cont),</span>
-<span id="cb17-578"><a href="#cb17-578" aria-hidden="true" tabindex="-1"></a>    <span class="at">trt =</span> <span class="fu">c</span>(<span class="st">"A1"</span>, <span class="st">"A2"</span>),</span>
-<span id="cb17-579"><a href="#cb17-579" aria-hidden="true" tabindex="-1"></a>    <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
-<span id="cb17-580"><a href="#cb17-580" aria-hidden="true" tabindex="-1"></a>    <span class="at">time_vary =</span> <span class="fu">list</span>(<span class="st">"L1"</span>, <span class="st">"L2"</span>),</span>
-<span id="cb17-581"><a href="#cb17-581" aria-hidden="true" tabindex="-1"></a>    <span class="at">shift =</span> shift_up,</span>
-<span id="cb17-582"><a href="#cb17-582" aria-hidden="true" tabindex="-1"></a>    <span class="at">outcome_type =</span> <span class="st">"continuous"</span>,</span>
-<span id="cb17-583"><a href="#cb17-583" aria-hidden="true" tabindex="-1"></a>    <span class="at">learners_outcome =</span> <span class="st">"SL.glm"</span>,</span>
-<span id="cb17-584"><a href="#cb17-584" aria-hidden="true" tabindex="-1"></a>    <span class="at">learners_trt =</span> <span class="st">"SL.glm"</span>,</span>
-<span id="cb17-585"><a href="#cb17-585" aria-hidden="true" tabindex="-1"></a>    <span class="at">folds =</span> <span class="dv">2</span></span>
-<span id="cb17-586"><a href="#cb17-586" aria-hidden="true" tabindex="-1"></a>  ),</span>
-<span id="cb17-587"><a href="#cb17-587" aria-hidden="true" tabindex="-1"></a>  <span class="at">error =</span> <span class="cf">function</span>(e) <span class="cn">NULL</span></span>
-<span id="cb17-588"><a href="#cb17-588" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb17-589"><a href="#cb17-589" aria-hidden="true" tabindex="-1"></a>lmtp_id <span class="ot">&lt;-</span> <span class="fu">tryCatch</span>(</span>
-<span id="cb17-590"><a href="#cb17-590" aria-hidden="true" tabindex="-1"></a>  lmtp<span class="sc">::</span><span class="fu">lmtp_tmle</span>(</span>
-<span id="cb17-591"><a href="#cb17-591" aria-hidden="true" tabindex="-1"></a>    <span class="at">data =</span> <span class="fu">as.data.frame</span>(wide_cont),</span>
-<span id="cb17-592"><a href="#cb17-592" aria-hidden="true" tabindex="-1"></a>    <span class="at">trt =</span> <span class="fu">c</span>(<span class="st">"A1"</span>, <span class="st">"A2"</span>),</span>
-<span id="cb17-593"><a href="#cb17-593" aria-hidden="true" tabindex="-1"></a>    <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
-<span id="cb17-594"><a href="#cb17-594" aria-hidden="true" tabindex="-1"></a>    <span class="at">time_vary =</span> <span class="fu">list</span>(<span class="st">"L1"</span>, <span class="st">"L2"</span>),</span>
-<span id="cb17-595"><a href="#cb17-595" aria-hidden="true" tabindex="-1"></a>    <span class="at">shift =</span> shift_id,</span>
-<span id="cb17-596"><a href="#cb17-596" aria-hidden="true" tabindex="-1"></a>    <span class="at">outcome_type =</span> <span class="st">"continuous"</span>,</span>
-<span id="cb17-597"><a href="#cb17-597" aria-hidden="true" tabindex="-1"></a>    <span class="at">learners_outcome =</span> <span class="st">"SL.glm"</span>,</span>
-<span id="cb17-598"><a href="#cb17-598" aria-hidden="true" tabindex="-1"></a>    <span class="at">learners_trt =</span> <span class="st">"SL.glm"</span>,</span>
-<span id="cb17-599"><a href="#cb17-599" aria-hidden="true" tabindex="-1"></a>    <span class="at">folds =</span> <span class="dv">2</span></span>
-<span id="cb17-600"><a href="#cb17-600" aria-hidden="true" tabindex="-1"></a>  ),</span>
-<span id="cb17-601"><a href="#cb17-601" aria-hidden="true" tabindex="-1"></a>  <span class="at">error =</span> <span class="cf">function</span>(e) <span class="cn">NULL</span></span>
-<span id="cb17-602"><a href="#cb17-602" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb17-603"><a href="#cb17-603" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-604"><a href="#cb17-604" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(lmtp_up) <span class="sc">&amp;&amp;</span> <span class="sc">!</span><span class="fu">is.null</span>(lmtp_id)) {</span>
-<span id="cb17-605"><a href="#cb17-605" aria-hidden="true" tabindex="-1"></a>  lmtp_diff <span class="ot">&lt;-</span> lmtp<span class="sc">::</span><span class="fu">lmtp_contrast</span>(lmtp_up, <span class="at">ref =</span> lmtp_id, <span class="at">type =</span> <span class="st">"additive"</span>)</span>
-<span id="cb17-606"><a href="#cb17-606" aria-hidden="true" tabindex="-1"></a>  ref_row <span class="ot">&lt;-</span> lmtp_diff<span class="sc">$</span>estimates</span>
-<span id="cb17-607"><a href="#cb17-607" aria-hidden="true" tabindex="-1"></a>  <span class="fu">compare_row</span>(</span>
-<span id="cb17-608"><a href="#cb17-608" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Shift(+1) vs identity"</span>, res_ice_shift,</span>
-<span id="cb17-609"><a href="#cb17-609" aria-hidden="true" tabindex="-1"></a>    <span class="at">name =</span> <span class="st">"plus1 vs zero"</span>,</span>
-<span id="cb17-610"><a href="#cb17-610" aria-hidden="true" tabindex="-1"></a>    <span class="at">ref_name =</span> <span class="st">"lmtp_tmle"</span>,</span>
-<span id="cb17-611"><a href="#cb17-611" aria-hidden="true" tabindex="-1"></a>    <span class="at">ref_est =</span> ref_row<span class="sc">$</span>estimate,</span>
-<span id="cb17-612"><a href="#cb17-612" aria-hidden="true" tabindex="-1"></a>    <span class="at">ref_se =</span> ref_row<span class="sc">$</span>std.error</span>
-<span id="cb17-613"><a href="#cb17-613" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb17-614"><a href="#cb17-614" aria-hidden="true" tabindex="-1"></a>} <span class="cf">else</span> {</span>
-<span id="cb17-615"><a href="#cb17-615" aria-hidden="true" tabindex="-1"></a>  <span class="fu">message</span>(<span class="st">"lmtp fit failed; skipping comparison row."</span>)</span>
-<span id="cb17-616"><a href="#cb17-616" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb17-617"><a href="#cb17-617" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-618"><a href="#cb17-618" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-619"><a href="#cb17-619" aria-hidden="true" tabindex="-1"></a>The structural effect of <span class="in">`shift(+1)`</span> on this DGP is exactly 2 (one unit per</span>
-<span id="cb17-620"><a href="#cb17-620" aria-hidden="true" tabindex="-1"></a>period, two periods). Both estimators should recover this up to sampling</span>
-<span id="cb17-621"><a href="#cb17-621" aria-hidden="true" tabindex="-1"></a>noise; the two SEs correspond to different estimators (ICE plug-in vs TMLE)</span>
-<span id="cb17-622"><a href="#cb17-622" aria-hidden="true" tabindex="-1"></a>and are expected to differ in the second decimal place.</span>
-<span id="cb17-623"><a href="#cb17-623" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-624"><a href="#cb17-624" aria-hidden="true" tabindex="-1"></a><span class="fu">## 5. Other references</span></span>
-<span id="cb17-625"><a href="#cb17-625" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-626"><a href="#cb17-626" aria-hidden="true" tabindex="-1"></a>Several additional R packages would extend this validation suite:</span>
-<span id="cb17-627"><a href="#cb17-627" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-628"><a href="#cb17-628" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**`gfoRmula`** implements the parametric g-formula on wide longitudinal</span>
-<span id="cb17-629"><a href="#cb17-629" aria-hidden="true" tabindex="-1"></a>  data and is the most direct peer of causatr's ICE engine. Its intervention</span>
-<span id="cb17-630"><a href="#cb17-630" aria-hidden="true" tabindex="-1"></a>  specification is more verbose (lists of <span class="in">`intvars`</span>, <span class="in">`interventions`</span>,</span>
-<span id="cb17-631"><a href="#cb17-631" aria-hidden="true" tabindex="-1"></a>  <span class="in">`int_descript`</span>), but a comparison on static "always vs never" would make</span>
-<span id="cb17-632"><a href="#cb17-632" aria-hidden="true" tabindex="-1"></a>  a natural addition to section 4a.</span>
-<span id="cb17-633"><a href="#cb17-633" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**`survey::svyglm()`** (combined with a user-supplied weights column) is</span>
-<span id="cb17-634"><a href="#cb17-634" aria-hidden="true" tabindex="-1"></a>  the standard reference for survey-weighted IPW. Since causatr validates</span>
-<span id="cb17-635"><a href="#cb17-635" aria-hidden="true" tabindex="-1"></a>  survey-weight handling in its tests, a vignette comparison would mostly</span>
-<span id="cb17-636"><a href="#cb17-636" aria-hidden="true" tabindex="-1"></a>  duplicate that coverage.</span>
-<span id="cb17-637"><a href="#cb17-637" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Survival validation** will land once <span class="in">`causat_survival()`</span>'s contrast path</span>
-<span id="cb17-638"><a href="#cb17-638" aria-hidden="true" tabindex="-1"></a>  is implemented in Phase 6; the natural references are</span>
-<span id="cb17-639"><a href="#cb17-639" aria-hidden="true" tabindex="-1"></a>  <span class="in">`survival::survfit()`</span> for the unadjusted Kaplan-Meier sanity check and</span>
-<span id="cb17-640"><a href="#cb17-640" aria-hidden="true" tabindex="-1"></a>  <span class="in">`gfoRmula::gformula_survival()`</span> for the adjusted g-formula reference.</span>
+<span id="cb17-448"><a href="#cb17-448" aria-hidden="true" tabindex="-1"></a>For matching, the canonical post-match estimator is to refit the outcome on</span>
+<span id="cb17-449"><a href="#cb17-449" aria-hidden="true" tabindex="-1"></a>the matched subset with cluster-robust SE on the subclass. causatr's matching</span>
+<span id="cb17-450"><a href="#cb17-450" aria-hidden="true" tabindex="-1"></a>branch does exactly this internally; <span class="in">`marginaleffects::avg_comparisons()`</span> with</span>
+<span id="cb17-451"><a href="#cb17-451" aria-hidden="true" tabindex="-1"></a><span class="in">`vcov = ~subclass`</span> reproduces the same construction.</span>
+<span id="cb17-452"><a href="#cb17-452" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-455"><a href="#cb17-455" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb17-456"><a href="#cb17-456" aria-hidden="true" tabindex="-1"></a>fit_match <span class="ot">&lt;-</span> <span class="fu">causat</span>(</span>
+<span id="cb17-457"><a href="#cb17-457" aria-hidden="true" tabindex="-1"></a>  df_pt,</span>
+<span id="cb17-458"><a href="#cb17-458" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
+<span id="cb17-459"><a href="#cb17-459" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
+<span id="cb17-460"><a href="#cb17-460" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> <span class="sc">~</span>L,</span>
+<span id="cb17-461"><a href="#cb17-461" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimator =</span> <span class="st">"matching"</span>,</span>
+<span id="cb17-462"><a href="#cb17-462" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimand =</span> <span class="st">"ATT"</span></span>
+<span id="cb17-463"><a href="#cb17-463" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-464"><a href="#cb17-464" aria-hidden="true" tabindex="-1"></a>res_match <span class="ot">&lt;-</span> <span class="fu">contrast</span>(</span>
+<span id="cb17-465"><a href="#cb17-465" aria-hidden="true" tabindex="-1"></a>  fit_match,</span>
+<span id="cb17-466"><a href="#cb17-466" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
+<span id="cb17-467"><a href="#cb17-467" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="st">"a0"</span>,</span>
+<span id="cb17-468"><a href="#cb17-468" aria-hidden="true" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">"difference"</span>,</span>
+<span id="cb17-469"><a href="#cb17-469" aria-hidden="true" tabindex="-1"></a>  <span class="at">ci_method =</span> <span class="st">"sandwich"</span></span>
+<span id="cb17-470"><a href="#cb17-470" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-471"><a href="#cb17-471" aria-hidden="true" tabindex="-1"></a>res_match</span>
+<span id="cb17-472"><a href="#cb17-472" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-473"><a href="#cb17-473" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-476"><a href="#cb17-476" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb17-477"><a href="#cb17-477" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: !expr (requireNamespace("MatchIt", quietly = TRUE) &amp;&amp; requireNamespace("marginaleffects", quietly = TRUE))</span></span>
+<span id="cb17-478"><a href="#cb17-478" aria-hidden="true" tabindex="-1"></a>m_ref <span class="ot">&lt;-</span> MatchIt<span class="sc">::</span><span class="fu">matchit</span>(</span>
+<span id="cb17-479"><a href="#cb17-479" aria-hidden="true" tabindex="-1"></a>  A <span class="sc">~</span> L,</span>
+<span id="cb17-480"><a href="#cb17-480" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df_pt,</span>
+<span id="cb17-481"><a href="#cb17-481" aria-hidden="true" tabindex="-1"></a>  <span class="at">method =</span> <span class="st">"nearest"</span>,</span>
+<span id="cb17-482"><a href="#cb17-482" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimand =</span> <span class="st">"ATT"</span></span>
+<span id="cb17-483"><a href="#cb17-483" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-484"><a href="#cb17-484" aria-hidden="true" tabindex="-1"></a>md_ref <span class="ot">&lt;-</span> MatchIt<span class="sc">::</span><span class="fu">match.data</span>(m_ref)</span>
+<span id="cb17-485"><a href="#cb17-485" aria-hidden="true" tabindex="-1"></a>lm_ref <span class="ot">&lt;-</span> stats<span class="sc">::</span><span class="fu">lm</span>(Y <span class="sc">~</span> A, <span class="at">data =</span> md_ref, <span class="at">weights =</span> weights)</span>
+<span id="cb17-486"><a href="#cb17-486" aria-hidden="true" tabindex="-1"></a>me_match <span class="ot">&lt;-</span> marginaleffects<span class="sc">::</span><span class="fu">avg_comparisons</span>(</span>
+<span id="cb17-487"><a href="#cb17-487" aria-hidden="true" tabindex="-1"></a>  lm_ref,</span>
+<span id="cb17-488"><a href="#cb17-488" aria-hidden="true" tabindex="-1"></a>  <span class="at">variables =</span> <span class="fu">list</span>(<span class="at">A =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>)),</span>
+<span id="cb17-489"><a href="#cb17-489" aria-hidden="true" tabindex="-1"></a>  <span class="at">vcov =</span> <span class="sc">~</span>subclass,</span>
+<span id="cb17-490"><a href="#cb17-490" aria-hidden="true" tabindex="-1"></a>  <span class="at">wts =</span> <span class="st">"weights"</span>,</span>
+<span id="cb17-491"><a href="#cb17-491" aria-hidden="true" tabindex="-1"></a>  <span class="at">newdata =</span> <span class="fu">subset</span>(md_ref, A <span class="sc">==</span> <span class="dv">1</span>)</span>
+<span id="cb17-492"><a href="#cb17-492" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-493"><a href="#cb17-493" aria-hidden="true" tabindex="-1"></a><span class="fu">compare_row</span>(</span>
+<span id="cb17-494"><a href="#cb17-494" aria-hidden="true" tabindex="-1"></a>  <span class="st">"ATT (matching)"</span>, res_match,</span>
+<span id="cb17-495"><a href="#cb17-495" aria-hidden="true" tabindex="-1"></a>  <span class="at">name =</span> <span class="st">"a1 vs a0"</span>,</span>
+<span id="cb17-496"><a href="#cb17-496" aria-hidden="true" tabindex="-1"></a>  <span class="at">ref_name =</span> <span class="st">"marginaleffects+MatchIt"</span>,</span>
+<span id="cb17-497"><a href="#cb17-497" aria-hidden="true" tabindex="-1"></a>  <span class="at">ref_est =</span> me_match<span class="sc">$</span>estimate,</span>
+<span id="cb17-498"><a href="#cb17-498" aria-hidden="true" tabindex="-1"></a>  <span class="at">ref_se =</span> me_match<span class="sc">$</span>std.error</span>
+<span id="cb17-499"><a href="#cb17-499" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-500"><a href="#cb17-500" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-501"><a href="#cb17-501" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-502"><a href="#cb17-502" aria-hidden="true" tabindex="-1"></a>The <span class="in">`newdata = subset(md_ref, A == 1)`</span> argument tells <span class="in">`marginaleffects`</span> to</span>
+<span id="cb17-503"><a href="#cb17-503" aria-hidden="true" tabindex="-1"></a>average over the treated-subject target population, which is what</span>
+<span id="cb17-504"><a href="#cb17-504" aria-hidden="true" tabindex="-1"></a><span class="in">`estimand = "ATT"`</span> means.</span>
+<span id="cb17-505"><a href="#cb17-505" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-506"><a href="#cb17-506" aria-hidden="true" tabindex="-1"></a><span class="fu">## 4. Longitudinal ICE vs `lmtp::lmtp_tmle`</span></span>
+<span id="cb17-507"><a href="#cb17-507" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-508"><a href="#cb17-508" aria-hidden="true" tabindex="-1"></a><span class="in">`lmtp::lmtp_tmle()`</span> is a TMLE that targets the same parameter as ICE</span>
+<span id="cb17-509"><a href="#cb17-509" aria-hidden="true" tabindex="-1"></a>g-computation but with a different finite-sample bias-variance profile.</span>
+<span id="cb17-510"><a href="#cb17-510" aria-hidden="true" tabindex="-1"></a>We expect agreement on the point estimate up to sampling noise (both methods</span>
+<span id="cb17-511"><a href="#cb17-511" aria-hidden="true" tabindex="-1"></a>are consistent for the same target), but not exact agreement on the SE.</span>
+<span id="cb17-512"><a href="#cb17-512" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-513"><a href="#cb17-513" aria-hidden="true" tabindex="-1"></a><span class="fu">### 4a. Binary treatment, binary outcome, "always" vs "never"</span></span>
+<span id="cb17-514"><a href="#cb17-514" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-517"><a href="#cb17-517" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb17-518"><a href="#cb17-518" aria-hidden="true" tabindex="-1"></a>wide_bin <span class="ot">&lt;-</span> <span class="fu">simulate_longitudinal</span>(<span class="at">n =</span> <span class="dv">500</span>L, <span class="at">K =</span> <span class="dv">3</span>L)</span>
+<span id="cb17-519"><a href="#cb17-519" aria-hidden="true" tabindex="-1"></a>long_bin <span class="ot">&lt;-</span> <span class="fu">to_person_period</span>(</span>
+<span id="cb17-520"><a href="#cb17-520" aria-hidden="true" tabindex="-1"></a>  wide_bin,</span>
+<span id="cb17-521"><a href="#cb17-521" aria-hidden="true" tabindex="-1"></a>  <span class="at">id =</span> <span class="st">"id"</span>,</span>
+<span id="cb17-522"><a href="#cb17-522" aria-hidden="true" tabindex="-1"></a>  <span class="at">time_varying =</span> <span class="fu">list</span>(<span class="at">L =</span> <span class="fu">c</span>(<span class="st">"L1"</span>, <span class="st">"L2"</span>, <span class="st">"L3"</span>), <span class="at">A =</span> <span class="fu">c</span>(<span class="st">"A1"</span>, <span class="st">"A2"</span>, <span class="st">"A3"</span>)),</span>
+<span id="cb17-523"><a href="#cb17-523" aria-hidden="true" tabindex="-1"></a>  <span class="at">time_invariant =</span> <span class="st">"Y"</span></span>
+<span id="cb17-524"><a href="#cb17-524" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-525"><a href="#cb17-525" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-526"><a href="#cb17-526" aria-hidden="true" tabindex="-1"></a>fit_ice <span class="ot">&lt;-</span> <span class="fu">causat</span>(</span>
+<span id="cb17-527"><a href="#cb17-527" aria-hidden="true" tabindex="-1"></a>  long_bin,</span>
+<span id="cb17-528"><a href="#cb17-528" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
+<span id="cb17-529"><a href="#cb17-529" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
+<span id="cb17-530"><a href="#cb17-530" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> <span class="sc">~</span><span class="dv">1</span>,</span>
+<span id="cb17-531"><a href="#cb17-531" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders_tv =</span> <span class="sc">~</span>L,</span>
+<span id="cb17-532"><a href="#cb17-532" aria-hidden="true" tabindex="-1"></a>  <span class="at">family =</span> <span class="fu">binomial</span>(),</span>
+<span id="cb17-533"><a href="#cb17-533" aria-hidden="true" tabindex="-1"></a>  <span class="at">id =</span> <span class="st">"id"</span>,</span>
+<span id="cb17-534"><a href="#cb17-534" aria-hidden="true" tabindex="-1"></a>  <span class="at">time =</span> <span class="st">"time"</span>,</span>
+<span id="cb17-535"><a href="#cb17-535" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimator =</span> <span class="st">"gcomp"</span>,</span>
+<span id="cb17-536"><a href="#cb17-536" aria-hidden="true" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">"longitudinal"</span>,</span>
+<span id="cb17-537"><a href="#cb17-537" aria-hidden="true" tabindex="-1"></a>  <span class="at">history =</span> <span class="dv">1</span>L</span>
+<span id="cb17-538"><a href="#cb17-538" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-539"><a href="#cb17-539" aria-hidden="true" tabindex="-1"></a>res_ice <span class="ot">&lt;-</span> <span class="fu">contrast</span>(</span>
+<span id="cb17-540"><a href="#cb17-540" aria-hidden="true" tabindex="-1"></a>  fit_ice,</span>
+<span id="cb17-541"><a href="#cb17-541" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">always =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">never =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
+<span id="cb17-542"><a href="#cb17-542" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="st">"never"</span>,</span>
+<span id="cb17-543"><a href="#cb17-543" aria-hidden="true" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">"difference"</span>,</span>
+<span id="cb17-544"><a href="#cb17-544" aria-hidden="true" tabindex="-1"></a>  <span class="at">ci_method =</span> <span class="st">"sandwich"</span></span>
+<span id="cb17-545"><a href="#cb17-545" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-546"><a href="#cb17-546" aria-hidden="true" tabindex="-1"></a>res_ice</span>
+<span id="cb17-547"><a href="#cb17-547" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-548"><a href="#cb17-548" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-551"><a href="#cb17-551" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb17-552"><a href="#cb17-552" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: !expr requireNamespace("lmtp", quietly = TRUE)</span></span>
+<span id="cb17-553"><a href="#cb17-553" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">42</span>)</span>
+<span id="cb17-554"><a href="#cb17-554" aria-hidden="true" tabindex="-1"></a>lmtp_always <span class="ot">&lt;-</span> <span class="fu">tryCatch</span>(</span>
+<span id="cb17-555"><a href="#cb17-555" aria-hidden="true" tabindex="-1"></a>  lmtp<span class="sc">::</span><span class="fu">lmtp_tmle</span>(</span>
+<span id="cb17-556"><a href="#cb17-556" aria-hidden="true" tabindex="-1"></a>    <span class="at">data =</span> <span class="fu">as.data.frame</span>(wide_bin),</span>
+<span id="cb17-557"><a href="#cb17-557" aria-hidden="true" tabindex="-1"></a>    <span class="at">trt =</span> <span class="fu">c</span>(<span class="st">"A1"</span>, <span class="st">"A2"</span>, <span class="st">"A3"</span>),</span>
+<span id="cb17-558"><a href="#cb17-558" aria-hidden="true" tabindex="-1"></a>    <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
+<span id="cb17-559"><a href="#cb17-559" aria-hidden="true" tabindex="-1"></a>    <span class="at">time_vary =</span> <span class="fu">list</span>(<span class="st">"L1"</span>, <span class="st">"L2"</span>, <span class="st">"L3"</span>),</span>
+<span id="cb17-560"><a href="#cb17-560" aria-hidden="true" tabindex="-1"></a>    <span class="at">shift =</span> <span class="cf">function</span>(data, trt) <span class="fu">rep</span>(<span class="dv">1</span>, <span class="fu">nrow</span>(data)),</span>
+<span id="cb17-561"><a href="#cb17-561" aria-hidden="true" tabindex="-1"></a>    <span class="at">outcome_type =</span> <span class="st">"binomial"</span>,</span>
+<span id="cb17-562"><a href="#cb17-562" aria-hidden="true" tabindex="-1"></a>    <span class="at">learners_outcome =</span> <span class="st">"SL.glm"</span>,</span>
+<span id="cb17-563"><a href="#cb17-563" aria-hidden="true" tabindex="-1"></a>    <span class="at">learners_trt =</span> <span class="st">"SL.glm"</span>,</span>
+<span id="cb17-564"><a href="#cb17-564" aria-hidden="true" tabindex="-1"></a>    <span class="at">folds =</span> <span class="dv">2</span></span>
+<span id="cb17-565"><a href="#cb17-565" aria-hidden="true" tabindex="-1"></a>  ),</span>
+<span id="cb17-566"><a href="#cb17-566" aria-hidden="true" tabindex="-1"></a>  <span class="at">error =</span> <span class="cf">function</span>(e) <span class="cn">NULL</span></span>
+<span id="cb17-567"><a href="#cb17-567" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-568"><a href="#cb17-568" aria-hidden="true" tabindex="-1"></a>lmtp_never <span class="ot">&lt;-</span> <span class="fu">tryCatch</span>(</span>
+<span id="cb17-569"><a href="#cb17-569" aria-hidden="true" tabindex="-1"></a>  lmtp<span class="sc">::</span><span class="fu">lmtp_tmle</span>(</span>
+<span id="cb17-570"><a href="#cb17-570" aria-hidden="true" tabindex="-1"></a>    <span class="at">data =</span> <span class="fu">as.data.frame</span>(wide_bin),</span>
+<span id="cb17-571"><a href="#cb17-571" aria-hidden="true" tabindex="-1"></a>    <span class="at">trt =</span> <span class="fu">c</span>(<span class="st">"A1"</span>, <span class="st">"A2"</span>, <span class="st">"A3"</span>),</span>
+<span id="cb17-572"><a href="#cb17-572" aria-hidden="true" tabindex="-1"></a>    <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
+<span id="cb17-573"><a href="#cb17-573" aria-hidden="true" tabindex="-1"></a>    <span class="at">time_vary =</span> <span class="fu">list</span>(<span class="st">"L1"</span>, <span class="st">"L2"</span>, <span class="st">"L3"</span>),</span>
+<span id="cb17-574"><a href="#cb17-574" aria-hidden="true" tabindex="-1"></a>    <span class="at">shift =</span> <span class="cf">function</span>(data, trt) <span class="fu">rep</span>(<span class="dv">0</span>, <span class="fu">nrow</span>(data)),</span>
+<span id="cb17-575"><a href="#cb17-575" aria-hidden="true" tabindex="-1"></a>    <span class="at">outcome_type =</span> <span class="st">"binomial"</span>,</span>
+<span id="cb17-576"><a href="#cb17-576" aria-hidden="true" tabindex="-1"></a>    <span class="at">learners_outcome =</span> <span class="st">"SL.glm"</span>,</span>
+<span id="cb17-577"><a href="#cb17-577" aria-hidden="true" tabindex="-1"></a>    <span class="at">learners_trt =</span> <span class="st">"SL.glm"</span>,</span>
+<span id="cb17-578"><a href="#cb17-578" aria-hidden="true" tabindex="-1"></a>    <span class="at">folds =</span> <span class="dv">2</span></span>
+<span id="cb17-579"><a href="#cb17-579" aria-hidden="true" tabindex="-1"></a>  ),</span>
+<span id="cb17-580"><a href="#cb17-580" aria-hidden="true" tabindex="-1"></a>  <span class="at">error =</span> <span class="cf">function</span>(e) <span class="cn">NULL</span></span>
+<span id="cb17-581"><a href="#cb17-581" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-582"><a href="#cb17-582" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-583"><a href="#cb17-583" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(lmtp_always) <span class="sc">&amp;&amp;</span> <span class="sc">!</span><span class="fu">is.null</span>(lmtp_never)) {</span>
+<span id="cb17-584"><a href="#cb17-584" aria-hidden="true" tabindex="-1"></a>  lmtp_diff <span class="ot">&lt;-</span> lmtp<span class="sc">::</span><span class="fu">lmtp_contrast</span>(lmtp_always, <span class="at">ref =</span> lmtp_never, <span class="at">type =</span> <span class="st">"additive"</span>)</span>
+<span id="cb17-585"><a href="#cb17-585" aria-hidden="true" tabindex="-1"></a>  ref_row <span class="ot">&lt;-</span> lmtp_diff<span class="sc">$</span>estimates</span>
+<span id="cb17-586"><a href="#cb17-586" aria-hidden="true" tabindex="-1"></a>  <span class="fu">compare_row</span>(</span>
+<span id="cb17-587"><a href="#cb17-587" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Always vs never (RD)"</span>, res_ice,</span>
+<span id="cb17-588"><a href="#cb17-588" aria-hidden="true" tabindex="-1"></a>    <span class="at">name =</span> <span class="st">"always vs never"</span>,</span>
+<span id="cb17-589"><a href="#cb17-589" aria-hidden="true" tabindex="-1"></a>    <span class="at">ref_name =</span> <span class="st">"lmtp_tmle"</span>,</span>
+<span id="cb17-590"><a href="#cb17-590" aria-hidden="true" tabindex="-1"></a>    <span class="at">ref_est =</span> ref_row<span class="sc">$</span>estimate,</span>
+<span id="cb17-591"><a href="#cb17-591" aria-hidden="true" tabindex="-1"></a>    <span class="at">ref_se =</span> ref_row<span class="sc">$</span>std.error</span>
+<span id="cb17-592"><a href="#cb17-592" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb17-593"><a href="#cb17-593" aria-hidden="true" tabindex="-1"></a>} <span class="cf">else</span> {</span>
+<span id="cb17-594"><a href="#cb17-594" aria-hidden="true" tabindex="-1"></a>  <span class="fu">message</span>(<span class="st">"lmtp fit failed; skipping comparison row."</span>)</span>
+<span id="cb17-595"><a href="#cb17-595" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb17-596"><a href="#cb17-596" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-597"><a href="#cb17-597" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-598"><a href="#cb17-598" aria-hidden="true" tabindex="-1"></a><span class="fu">### 4b. Continuous treatment, shift intervention</span></span>
+<span id="cb17-599"><a href="#cb17-599" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-602"><a href="#cb17-602" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb17-603"><a href="#cb17-603" aria-hidden="true" tabindex="-1"></a>wide_cont <span class="ot">&lt;-</span> <span class="fu">simulate_longitudinal_continuous</span>(<span class="at">n =</span> <span class="dv">400</span>L, <span class="at">K =</span> <span class="dv">2</span>L)</span>
+<span id="cb17-604"><a href="#cb17-604" aria-hidden="true" tabindex="-1"></a>long_cont <span class="ot">&lt;-</span> <span class="fu">to_person_period</span>(</span>
+<span id="cb17-605"><a href="#cb17-605" aria-hidden="true" tabindex="-1"></a>  wide_cont,</span>
+<span id="cb17-606"><a href="#cb17-606" aria-hidden="true" tabindex="-1"></a>  <span class="at">id =</span> <span class="st">"id"</span>,</span>
+<span id="cb17-607"><a href="#cb17-607" aria-hidden="true" tabindex="-1"></a>  <span class="at">time_varying =</span> <span class="fu">list</span>(<span class="at">L =</span> <span class="fu">c</span>(<span class="st">"L1"</span>, <span class="st">"L2"</span>), <span class="at">A =</span> <span class="fu">c</span>(<span class="st">"A1"</span>, <span class="st">"A2"</span>)),</span>
+<span id="cb17-608"><a href="#cb17-608" aria-hidden="true" tabindex="-1"></a>  <span class="at">time_invariant =</span> <span class="st">"Y"</span></span>
+<span id="cb17-609"><a href="#cb17-609" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-610"><a href="#cb17-610" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-611"><a href="#cb17-611" aria-hidden="true" tabindex="-1"></a>fit_ice_shift <span class="ot">&lt;-</span> <span class="fu">causat</span>(</span>
+<span id="cb17-612"><a href="#cb17-612" aria-hidden="true" tabindex="-1"></a>  long_cont,</span>
+<span id="cb17-613"><a href="#cb17-613" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
+<span id="cb17-614"><a href="#cb17-614" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
+<span id="cb17-615"><a href="#cb17-615" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> <span class="sc">~</span><span class="dv">1</span>,</span>
+<span id="cb17-616"><a href="#cb17-616" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders_tv =</span> <span class="sc">~</span>L,</span>
+<span id="cb17-617"><a href="#cb17-617" aria-hidden="true" tabindex="-1"></a>  <span class="at">family =</span> <span class="fu">gaussian</span>(),</span>
+<span id="cb17-618"><a href="#cb17-618" aria-hidden="true" tabindex="-1"></a>  <span class="at">id =</span> <span class="st">"id"</span>,</span>
+<span id="cb17-619"><a href="#cb17-619" aria-hidden="true" tabindex="-1"></a>  <span class="at">time =</span> <span class="st">"time"</span>,</span>
+<span id="cb17-620"><a href="#cb17-620" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimator =</span> <span class="st">"gcomp"</span>,</span>
+<span id="cb17-621"><a href="#cb17-621" aria-hidden="true" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">"longitudinal"</span>,</span>
+<span id="cb17-622"><a href="#cb17-622" aria-hidden="true" tabindex="-1"></a>  <span class="at">history =</span> <span class="dv">1</span>L</span>
+<span id="cb17-623"><a href="#cb17-623" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-624"><a href="#cb17-624" aria-hidden="true" tabindex="-1"></a>res_ice_shift <span class="ot">&lt;-</span> <span class="fu">contrast</span>(</span>
+<span id="cb17-625"><a href="#cb17-625" aria-hidden="true" tabindex="-1"></a>  fit_ice_shift,</span>
+<span id="cb17-626"><a href="#cb17-626" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">plus1 =</span> <span class="fu">shift</span>(<span class="dv">1</span>), <span class="at">zero =</span> <span class="fu">shift</span>(<span class="dv">0</span>)),</span>
+<span id="cb17-627"><a href="#cb17-627" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="st">"zero"</span>,</span>
+<span id="cb17-628"><a href="#cb17-628" aria-hidden="true" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">"difference"</span>,</span>
+<span id="cb17-629"><a href="#cb17-629" aria-hidden="true" tabindex="-1"></a>  <span class="at">ci_method =</span> <span class="st">"sandwich"</span></span>
+<span id="cb17-630"><a href="#cb17-630" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-631"><a href="#cb17-631" aria-hidden="true" tabindex="-1"></a>res_ice_shift</span>
+<span id="cb17-632"><a href="#cb17-632" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-633"><a href="#cb17-633" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-636"><a href="#cb17-636" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb17-637"><a href="#cb17-637" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: !expr requireNamespace("lmtp", quietly = TRUE)</span></span>
+<span id="cb17-638"><a href="#cb17-638" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">43</span>)</span>
+<span id="cb17-639"><a href="#cb17-639" aria-hidden="true" tabindex="-1"></a>shift_up <span class="ot">&lt;-</span> <span class="cf">function</span>(data, trt) data[[trt]] <span class="sc">+</span> <span class="dv">1</span></span>
+<span id="cb17-640"><a href="#cb17-640" aria-hidden="true" tabindex="-1"></a>shift_id <span class="ot">&lt;-</span> <span class="cf">function</span>(data, trt) data[[trt]]</span>
 <span id="cb17-641"><a href="#cb17-641" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-642"><a href="#cb17-642" aria-hidden="true" tabindex="-1"></a>If you'd like to contribute a reference comparison for one of these (or for a</span>
-<span id="cb17-643"><a href="#cb17-643" aria-hidden="true" tabindex="-1"></a>package not listed here), open an issue — the pattern is the same as in</span>
-<span id="cb17-644"><a href="#cb17-644" aria-hidden="true" tabindex="-1"></a>sections 1–4: fit the same quantity two ways, pass both to <span class="in">`compare_row()`</span>,</span>
-<span id="cb17-645"><a href="#cb17-645" aria-hidden="true" tabindex="-1"></a>and print the resulting two-row table.</span>
+<span id="cb17-642"><a href="#cb17-642" aria-hidden="true" tabindex="-1"></a>lmtp_up <span class="ot">&lt;-</span> <span class="fu">tryCatch</span>(</span>
+<span id="cb17-643"><a href="#cb17-643" aria-hidden="true" tabindex="-1"></a>  lmtp<span class="sc">::</span><span class="fu">lmtp_tmle</span>(</span>
+<span id="cb17-644"><a href="#cb17-644" aria-hidden="true" tabindex="-1"></a>    <span class="at">data =</span> <span class="fu">as.data.frame</span>(wide_cont),</span>
+<span id="cb17-645"><a href="#cb17-645" aria-hidden="true" tabindex="-1"></a>    <span class="at">trt =</span> <span class="fu">c</span>(<span class="st">"A1"</span>, <span class="st">"A2"</span>),</span>
+<span id="cb17-646"><a href="#cb17-646" aria-hidden="true" tabindex="-1"></a>    <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
+<span id="cb17-647"><a href="#cb17-647" aria-hidden="true" tabindex="-1"></a>    <span class="at">time_vary =</span> <span class="fu">list</span>(<span class="st">"L1"</span>, <span class="st">"L2"</span>),</span>
+<span id="cb17-648"><a href="#cb17-648" aria-hidden="true" tabindex="-1"></a>    <span class="at">shift =</span> shift_up,</span>
+<span id="cb17-649"><a href="#cb17-649" aria-hidden="true" tabindex="-1"></a>    <span class="at">outcome_type =</span> <span class="st">"continuous"</span>,</span>
+<span id="cb17-650"><a href="#cb17-650" aria-hidden="true" tabindex="-1"></a>    <span class="at">learners_outcome =</span> <span class="st">"SL.glm"</span>,</span>
+<span id="cb17-651"><a href="#cb17-651" aria-hidden="true" tabindex="-1"></a>    <span class="at">learners_trt =</span> <span class="st">"SL.glm"</span>,</span>
+<span id="cb17-652"><a href="#cb17-652" aria-hidden="true" tabindex="-1"></a>    <span class="at">folds =</span> <span class="dv">2</span></span>
+<span id="cb17-653"><a href="#cb17-653" aria-hidden="true" tabindex="-1"></a>  ),</span>
+<span id="cb17-654"><a href="#cb17-654" aria-hidden="true" tabindex="-1"></a>  <span class="at">error =</span> <span class="cf">function</span>(e) <span class="cn">NULL</span></span>
+<span id="cb17-655"><a href="#cb17-655" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-656"><a href="#cb17-656" aria-hidden="true" tabindex="-1"></a>lmtp_id <span class="ot">&lt;-</span> <span class="fu">tryCatch</span>(</span>
+<span id="cb17-657"><a href="#cb17-657" aria-hidden="true" tabindex="-1"></a>  lmtp<span class="sc">::</span><span class="fu">lmtp_tmle</span>(</span>
+<span id="cb17-658"><a href="#cb17-658" aria-hidden="true" tabindex="-1"></a>    <span class="at">data =</span> <span class="fu">as.data.frame</span>(wide_cont),</span>
+<span id="cb17-659"><a href="#cb17-659" aria-hidden="true" tabindex="-1"></a>    <span class="at">trt =</span> <span class="fu">c</span>(<span class="st">"A1"</span>, <span class="st">"A2"</span>),</span>
+<span id="cb17-660"><a href="#cb17-660" aria-hidden="true" tabindex="-1"></a>    <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
+<span id="cb17-661"><a href="#cb17-661" aria-hidden="true" tabindex="-1"></a>    <span class="at">time_vary =</span> <span class="fu">list</span>(<span class="st">"L1"</span>, <span class="st">"L2"</span>),</span>
+<span id="cb17-662"><a href="#cb17-662" aria-hidden="true" tabindex="-1"></a>    <span class="at">shift =</span> shift_id,</span>
+<span id="cb17-663"><a href="#cb17-663" aria-hidden="true" tabindex="-1"></a>    <span class="at">outcome_type =</span> <span class="st">"continuous"</span>,</span>
+<span id="cb17-664"><a href="#cb17-664" aria-hidden="true" tabindex="-1"></a>    <span class="at">learners_outcome =</span> <span class="st">"SL.glm"</span>,</span>
+<span id="cb17-665"><a href="#cb17-665" aria-hidden="true" tabindex="-1"></a>    <span class="at">learners_trt =</span> <span class="st">"SL.glm"</span>,</span>
+<span id="cb17-666"><a href="#cb17-666" aria-hidden="true" tabindex="-1"></a>    <span class="at">folds =</span> <span class="dv">2</span></span>
+<span id="cb17-667"><a href="#cb17-667" aria-hidden="true" tabindex="-1"></a>  ),</span>
+<span id="cb17-668"><a href="#cb17-668" aria-hidden="true" tabindex="-1"></a>  <span class="at">error =</span> <span class="cf">function</span>(e) <span class="cn">NULL</span></span>
+<span id="cb17-669"><a href="#cb17-669" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-670"><a href="#cb17-670" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-671"><a href="#cb17-671" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(lmtp_up) <span class="sc">&amp;&amp;</span> <span class="sc">!</span><span class="fu">is.null</span>(lmtp_id)) {</span>
+<span id="cb17-672"><a href="#cb17-672" aria-hidden="true" tabindex="-1"></a>  lmtp_diff <span class="ot">&lt;-</span> lmtp<span class="sc">::</span><span class="fu">lmtp_contrast</span>(lmtp_up, <span class="at">ref =</span> lmtp_id, <span class="at">type =</span> <span class="st">"additive"</span>)</span>
+<span id="cb17-673"><a href="#cb17-673" aria-hidden="true" tabindex="-1"></a>  ref_row <span class="ot">&lt;-</span> lmtp_diff<span class="sc">$</span>estimates</span>
+<span id="cb17-674"><a href="#cb17-674" aria-hidden="true" tabindex="-1"></a>  <span class="fu">compare_row</span>(</span>
+<span id="cb17-675"><a href="#cb17-675" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Shift(+1) vs identity"</span>, res_ice_shift,</span>
+<span id="cb17-676"><a href="#cb17-676" aria-hidden="true" tabindex="-1"></a>    <span class="at">name =</span> <span class="st">"plus1 vs zero"</span>,</span>
+<span id="cb17-677"><a href="#cb17-677" aria-hidden="true" tabindex="-1"></a>    <span class="at">ref_name =</span> <span class="st">"lmtp_tmle"</span>,</span>
+<span id="cb17-678"><a href="#cb17-678" aria-hidden="true" tabindex="-1"></a>    <span class="at">ref_est =</span> ref_row<span class="sc">$</span>estimate,</span>
+<span id="cb17-679"><a href="#cb17-679" aria-hidden="true" tabindex="-1"></a>    <span class="at">ref_se =</span> ref_row<span class="sc">$</span>std.error</span>
+<span id="cb17-680"><a href="#cb17-680" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb17-681"><a href="#cb17-681" aria-hidden="true" tabindex="-1"></a>} <span class="cf">else</span> {</span>
+<span id="cb17-682"><a href="#cb17-682" aria-hidden="true" tabindex="-1"></a>  <span class="fu">message</span>(<span class="st">"lmtp fit failed; skipping comparison row."</span>)</span>
+<span id="cb17-683"><a href="#cb17-683" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb17-684"><a href="#cb17-684" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-685"><a href="#cb17-685" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-686"><a href="#cb17-686" aria-hidden="true" tabindex="-1"></a>The structural effect of <span class="in">`shift(+1)`</span> on this DGP is exactly 2 (one unit per</span>
+<span id="cb17-687"><a href="#cb17-687" aria-hidden="true" tabindex="-1"></a>period, two periods). Both estimators should recover this up to sampling</span>
+<span id="cb17-688"><a href="#cb17-688" aria-hidden="true" tabindex="-1"></a>noise; the two SEs correspond to different estimators (ICE plug-in vs TMLE)</span>
+<span id="cb17-689"><a href="#cb17-689" aria-hidden="true" tabindex="-1"></a>and are expected to differ in the second decimal place.</span>
+<span id="cb17-690"><a href="#cb17-690" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-691"><a href="#cb17-691" aria-hidden="true" tabindex="-1"></a><span class="fu">## 5. Other references</span></span>
+<span id="cb17-692"><a href="#cb17-692" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-693"><a href="#cb17-693" aria-hidden="true" tabindex="-1"></a>Several additional R packages would extend this validation suite:</span>
+<span id="cb17-694"><a href="#cb17-694" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-695"><a href="#cb17-695" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**`gfoRmula`** implements the parametric g-formula on wide longitudinal</span>
+<span id="cb17-696"><a href="#cb17-696" aria-hidden="true" tabindex="-1"></a>  data and is the most direct peer of causatr's ICE engine. Its intervention</span>
+<span id="cb17-697"><a href="#cb17-697" aria-hidden="true" tabindex="-1"></a>  specification is more verbose (lists of <span class="in">`intvars`</span>, <span class="in">`interventions`</span>,</span>
+<span id="cb17-698"><a href="#cb17-698" aria-hidden="true" tabindex="-1"></a>  <span class="in">`int_descript`</span>), but a comparison on static "always vs never" would make</span>
+<span id="cb17-699"><a href="#cb17-699" aria-hidden="true" tabindex="-1"></a>  a natural addition to section 4a.</span>
+<span id="cb17-700"><a href="#cb17-700" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**`survey::svyglm()`** (combined with a user-supplied weights column) is</span>
+<span id="cb17-701"><a href="#cb17-701" aria-hidden="true" tabindex="-1"></a>  the standard reference for survey-weighted IPW. Since causatr validates</span>
+<span id="cb17-702"><a href="#cb17-702" aria-hidden="true" tabindex="-1"></a>  survey-weight handling in its tests, a vignette comparison would mostly</span>
+<span id="cb17-703"><a href="#cb17-703" aria-hidden="true" tabindex="-1"></a>  duplicate that coverage.</span>
+<span id="cb17-704"><a href="#cb17-704" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Survival validation** will land once <span class="in">`causat_survival()`</span>'s contrast path</span>
+<span id="cb17-705"><a href="#cb17-705" aria-hidden="true" tabindex="-1"></a>  is implemented in Phase 6; the natural references are</span>
+<span id="cb17-706"><a href="#cb17-706" aria-hidden="true" tabindex="-1"></a>  <span class="in">`survival::survfit()`</span> for the unadjusted Kaplan-Meier sanity check and</span>
+<span id="cb17-707"><a href="#cb17-707" aria-hidden="true" tabindex="-1"></a>  <span class="in">`gfoRmula::gformula_survival()`</span> for the adjusted g-formula reference.</span>
+<span id="cb17-708"><a href="#cb17-708" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-709"><a href="#cb17-709" aria-hidden="true" tabindex="-1"></a>If you'd like to contribute a reference comparison for one of these (or for a</span>
+<span id="cb17-710"><a href="#cb17-710" aria-hidden="true" tabindex="-1"></a>package not listed here), open an issue — the pattern is the same as in</span>
+<span id="cb17-711"><a href="#cb17-711" aria-hidden="true" tabindex="-1"></a>sections 1–4: fit the same quantity two ways, pass both to <span class="in">`compare_row()`</span>,</span>
+<span id="cb17-712"><a href="#cb17-712" aria-hidden="true" tabindex="-1"></a>and print the resulting two-row table.</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

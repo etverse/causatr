@@ -238,12 +238,29 @@ window.Quarto = {
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
             <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="false">
- <span class="menu-text">Advanced topics</span></a>
+ <span class="menu-text">Interventions</span></a>
           <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
       <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../vignettes/interventions.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Intervention types</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false">
+ <span class="menu-text">Advanced topics</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../vignettes/triangulation.html" class="sidebar-item-text sidebar-link">
@@ -254,6 +271,12 @@ window.Quarto = {
   <div class="sidebar-item-container"> 
   <a href="../vignettes/longitudinal.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Longitudinal treatments: ICE g-computation</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../vignettes/missing-data.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Handling missing data</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -272,30 +295,36 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false">
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false">
  <span class="menu-text">Theory</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 ">  
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../vignettes/variance-theory.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Variance estimation</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../vignettes/ipw-variance-theory.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IPW variance theory</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true">
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true">
  <span class="menu-text">Reference</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../man/causat_survival.html" class="sidebar-item-text sidebar-link">
@@ -506,7 +535,7 @@ window.Quarto = {
 <h2 class="unnumbered anchored" data-anchor-id="fit-a-causal-model">Fit a causal model</h2>
 <section id="description" class="level3">
 <h3 class="anchored" data-anchor-id="description">Description</h3>
-<p>Prepares the causal estimation pipeline for a given estimator. For <code>“gcomp”</code>, fits the conditional outcome model E[Y | A, L] that will be used by <code>contrast()</code> for standardisation. For <code>“ipw”</code>, fits the conditional treatment density <span class="math inline">\(f(A \mid L)\)</span> that the self-contained density-ratio engine uses to build per-intervention Hájek weights for the MSM refit inside <code>contrast()</code>. For <code>“matching”</code>, creates matched sets (via <code>MatchIt::matchit()</code>) that will be used for matched estimation in <code>contrast()</code>.</p>
+<p>Prepares the causal estimation pipeline for a given estimator. For <code>“gcomp”</code>, fits the conditional outcome model E[Y | A, L] that will be used by <code>contrast()</code> for standardisation. For <code>“ipw”</code>, fits the conditional treatment density <span class="math inline">\(f(A \mid L)\)</span> that the self-contained density-ratio engine uses to build per-intervention Hajek weights for the MSM refit inside <code>contrast()</code>. For <code>“matching”</code>, creates matched sets (via <code>MatchIt::matchit()</code>) that will be used for matched estimation in <code>contrast()</code>.</p>
 <p>For longitudinal data (<code>id</code> and <code>time</code> provided), <code>“gcomp”</code> uses ICE g-computation (Zivich et al., 2024): outcome models are fitted at each time point via backward iteration.</p>
 </section>
 <section id="usage" class="level3">
@@ -678,7 +707,7 @@ Function or <code>NULL</code>. IPW only. The fitting function for the conditiona
 <code id="propensity_family">propensity_family</code>
 </td>
 <td>
-Character or <code>NULL</code>. IPW only. Explicit treatment density family: <code>“poisson”</code> or <code>“negbin”</code> for count treatments. <code>NULL</code> (default) auto-detects from the treatment values (bernoulli / gaussian / categorical). Auto-detection never infers count — use this parameter to opt in. For <code>“negbin”</code>, <code>MASS::glm.nb</code> is auto-selected as the propensity fitter unless <code>propensity_model_fn</code> is explicitly provided. Ignored for <code>“gcomp”</code> and <code>“matching”</code>.
+Character or <code>NULL</code>. IPW only. Explicit treatment density family: <code>“poisson”</code> or <code>“negbin”</code> for count treatments. <code>NULL</code> (default) auto-detects from the treatment values (bernoulli / gaussian / categorical). Auto-detection never infers count – use this parameter to opt in. For <code>“negbin”</code>, <code>MASS::glm.nb</code> is auto-selected as the propensity fitter unless <code>propensity_model_fn</code> is explicitly provided. Ignored for <code>“gcomp”</code> and <code>“matching”</code>.
 </td>
 </tr>
 <tr>
@@ -696,7 +725,7 @@ Additional arguments passed to the underlying estimation function. For <code>est
 <h4 class="anchored">
 G-computation (<code>estimator = “gcomp”</code>)
 </h4>
-<p>Fits E[Y | A, L] using <code>glm()</code> (or <code>mgcv::gam()</code> if the formula contains <code>s()</code> or <code>te()</code> terms). <code>contrast()</code> standardises over the target population (controlled by <code>estimand</code>) to obtain E[Y^a] under each intervention. For <code>“gcomp”</code>, the estimand can be overridden in <code>contrast()</code> — fit once, contrast with multiple estimands.</p>
+<p>Fits E[Y | A, L] using <code>glm()</code> (or <code>mgcv::gam()</code> if the formula contains <code>s()</code> or <code>te()</code> terms). <code>contrast()</code> standardises over the target population (controlled by <code>estimand</code>) to obtain E[Y^a] under each intervention. For <code>“gcomp”</code>, the estimand can be overridden in <code>contrast()</code> – fit once, contrast with multiple estimands.</p>
 <p>For longitudinal data, uses ICE g-computation (Zivich et al., 2024): outcome models are fitted one per time point via backward iteration, conditioning on baseline confounders (<code>confounders</code>), time-varying confounders (<code>confounders_tv</code>), and their lags up to <code>history</code> steps.</p>
 <h4 class="anchored">
 IPW (<code>estimator = “ipw”</code>)
@@ -764,7 +793,7 @@ Identifiability assumptions
 <h4 class="anchored">
 Missing data handling
 </h4>
-<p><strong>Outcome (Y) missing.</strong> Rows with <code>NA</code> outcome are excluded from model fitting via <code>get_fit_rows()</code>. If a <code>censoring</code> column is provided, rows with <code>censoring != 0</code> are also excluded. <code>contrast()</code> predicts on ALL rows (including those with missing Y) and standardizes over the target population. Under MCAR, this complete-case analysis is unbiased. Under MAR (censoring depends on A and/or L), g-computation with a correctly specified outcome model is still consistent because the regression surface E[Y | A, L] is unchanged by the censoring mechanism (Hernán &amp; Robins, Ch. 13). For IPW under MAR, IPCW weights are needed — supply them via <code style="white-space: pre;">weights =</code>. The <code style="white-space: pre;">censoring =</code> parameter is a <strong>row filter</strong>, not IPCW: no censoring model is fit internally.</p>
+<p><strong>Outcome (Y) missing.</strong> Rows with <code>NA</code> outcome are excluded from model fitting via <code>get_fit_rows()</code>. If a <code>censoring</code> column is provided, rows with <code>censoring != 0</code> are also excluded. <code>contrast()</code> predicts on ALL rows (including those with missing Y) and standardizes over the target population. Under MCAR, this complete-case analysis is unbiased. Under MAR (censoring depends on A and/or L), g-computation with a correctly specified outcome model is still consistent because the regression surface E[Y | A, L] is unchanged by the censoring mechanism (Hernan &amp; Robins, Ch. 13). For IPW under MAR, IPCW weights are needed – supply them via <code style="white-space: pre;">weights =</code>. The <code style="white-space: pre;">censoring =</code> parameter is a <strong>row filter</strong>, not IPCW: no censoring model is fit internally.</p>
 <p><strong>Treatment (A) missing.</strong> <code>causat()</code> aborts if any treatment values are <code>NA</code> and no <code>censoring</code> column is provided. You cannot define a counterfactual without knowing the treatment value. Remove rows with missing A before calling <code>causat()</code> (unbiased under MCAR), or use multiple imputation (planned via <code>causat_mice()</code>).</p>
 <p><strong>Covariates (L) missing.</strong> For <code>estimator = “gcomp”</code>, the outcome model’s <code>na.action = na.omit</code> drops rows with NA covariates at fit time. <code>predict()</code> returns NA for rows with missing L, which <code>contrast()</code> excludes from the target population. Under MCAR this is unbiased. For <code>estimator = “ipw”</code>, the propensity model also drops NA-covariate rows; if this creates a row-count mismatch with the outcome mask, <code>causat()</code> aborts with a clear error. For <code>estimator = “matching”</code>, MatchIt handles covariate NAs internally. Under MAR, multiple imputation is needed (planned via <code>causat_mice()</code>).</p>
 </section>
@@ -854,8 +883,8 @@ Internal diagnostics list.
 </section>
 <section id="references" class="level3">
 <h3 class="anchored" data-anchor-id="references">References</h3>
-<p>Hernán MA, Robins JM (2025). <em>Causal Inference: What If</em>. Chapman &amp; Hall/CRC. Chapters 12 (IPW), 13 (g-formula), 15 (matching), 21 (ICE).</p>
-<p>Zivich PN, Ross RK, Shook-Sa BE, Cole SR, Edwards JK (2024). Empirical sandwich variance estimator for iterated conditional expectation g-computation. <em>Statistics in Medicine</em> 43:5562–5572.</p>
+<p>Hernan MA, Robins JM (2025). <em>Causal Inference: What If</em>. Chapman &amp; Hall/CRC. Chapters 12 (IPW), 13 (g-formula), 15 (matching), 21 (ICE).</p>
+<p>Zivich PN, Ross RK, Shook-Sa BE, Cole SR, Edwards JK (2024). Empirical sandwich variance estimator for iterated conditional expectation g-computation. <em>Statistics in Medicine</em> 43:5562-5572.</p>
 </section>
 <section id="see-also" class="level3">
 <h3 class="anchored" data-anchor-id="see-also">See Also</h3>
@@ -887,7 +916,7 @@ Internal diagnostics list.
 <span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimand =</span> <span class="st">"ATT"</span></span>
 <span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a><span class="co"># IPW — self-contained density-ratio engine; estimand fixed at</span></span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a><span class="co"># IPW -- self-contained density-ratio engine; estimand fixed at</span></span>
 <span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a><span class="co"># fit time. A non-default `propensity_model_fn` (e.g. `mgcv::gam`)</span></span>
 <span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a><span class="co"># swaps in a smooth propensity model without touching the rest of</span></span>
 <span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a><span class="co"># the pipeline.</span></span>
