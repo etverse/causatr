@@ -1,0 +1,489 @@
+---
+title: "Handling missing data"
+code-fold: show
+code-tools: true
+vignette: >
+  %\VignetteIndexEntry{Handling missing data}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r}
+#| include: false
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+Missing data is common in observational studies. causatr handles it differently
+depending on *which* variable is missing (outcome, treatment, or covariates)
+and *which* estimator is used. This vignette demonstrates the behaviour for
+each case and shows how to verify that your analysis is robust.
+
+## Setup
+
+```{r}
+#| message: false
+library(causatr)
+library(tinytable)
+library(tinyplot)
+```
+
+We simulate a baseline dataset with known truth, then introduce missingness:
+
+```{r}
+set.seed(42)
+n <- 2000
+L1 <- rnorm(n)
+L2 <- rnorm(n)
+A <- rbinom(n, 1, plogis(0.3 * L1 + 0.2 * L2))
+Y <- 2 + 3 * A + 1.5 * L1 + 0.8 * L2 + rnorm(n)
+df <- data.frame(Y = Y, A = A, L1 = L1, L2 = L2)
+```
+
+Structural truth: ATE = 3.
+
+## Missing outcomes (MCAR)
+
+When outcome values are missing completely at random (MCAR), the outcome model
+is fit on complete cases. `contrast()` predicts on *all* rows, then excludes
+rows with NA predictions from the target-population average. Under MCAR this
+is unbiased.
+
+```{r}
+df_y_miss <- df
+df_y_miss$Y[sample(n, round(0.15 * n))] <- NA
+
+fit_y <- causat(
+  df_y_miss,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L1 + L2
+)
+
+res_y <- contrast(
+  fit_y,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  reference = "a0",
+  type = "difference",
+  ci_method = "sandwich"
+)
+res_y
+```
+
+The estimate remains close to 3 despite 15% missing outcomes.
+
+### Comparison: complete data vs missing-outcome data
+
+```{r}
+fit_complete <- causat(df, outcome = "Y", treatment = "A", confounders = ~ L1 + L2)
+res_complete <- contrast(
+  fit_complete,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  reference = "a0",
+  type = "difference",
+  ci_method = "sandwich"
+)
+
+comp_df <- data.frame(
+  Analysis = c("Complete data", "15% outcome MCAR"),
+  Estimate = c(res_complete$contrasts$estimate[1], res_y$contrasts$estimate[1]),
+  SE = c(res_complete$contrasts$se[1], res_y$contrasts$se[1]),
+  CI_lower = c(res_complete$contrasts$ci_lower[1], res_y$contrasts$ci_lower[1]),
+  CI_upper = c(res_complete$contrasts$ci_upper[1], res_y$contrasts$ci_upper[1])
+)
+tt(comp_df, digits = 3)
+```
+
+The SE increases slightly with missing data (less information), but the point
+estimate stays on target.
+
+## Missing outcomes under IPW
+
+IPW also handles missing outcomes. The treatment model is fit on the
+outcome-filtered subset (rows where Y is observed), and density-ratio weights
+are computed on that same subset.
+
+```{r}
+fit_y_ipw <- causat(
+  df_y_miss,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L1 + L2,
+  estimator = "ipw"
+)
+
+res_y_ipw <- contrast(
+  fit_y_ipw,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  reference = "a0",
+  type = "difference",
+  ci_method = "sandwich"
+)
+res_y_ipw
+```
+
+## Missing outcomes under matching
+
+Matching handles missing outcomes through MatchIt's internal mechanisms.
+Rows with missing Y are excluded from the matched sample.
+
+```{r}
+fit_y_match <- causat(
+  df_y_miss,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L1 + L2,
+  estimator = "matching",
+  estimand = "ATT"
+)
+
+res_y_match <- contrast(
+  fit_y_match,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  reference = "a0",
+  type = "difference",
+  ci_method = "sandwich"
+)
+res_y_match
+```
+
+### Three-method comparison under outcome missingness
+
+```{r}
+#| fig-width: 7
+#| fig-height: 4
+#| fig-alt: "Forest plot comparing g-comp, IPW, and matching estimates under 15% missing outcomes."
+methods_df <- data.frame(
+  Method = c("G-comp", "IPW", "Matching (ATT)"),
+  Estimate = c(
+    res_y$contrasts$estimate[1],
+    res_y_ipw$contrasts$estimate[1],
+    res_y_match$contrasts$estimate[1]
+  ),
+  CI_lower = c(
+    res_y$contrasts$ci_lower[1],
+    res_y_ipw$contrasts$ci_lower[1],
+    res_y_match$contrasts$ci_lower[1]
+  ),
+  CI_upper = c(
+    res_y$contrasts$ci_upper[1],
+    res_y_ipw$contrasts$ci_upper[1],
+    res_y_match$contrasts$ci_upper[1]
+  )
+)
+
+tinyplot(
+  Estimate ~ Method,
+  data = methods_df,
+  type = "pointrange",
+  ymin = methods_df$CI_lower,
+  ymax = methods_df$CI_upper,
+  ylab = "ATE estimate",
+  main = "Three estimators under 15% outcome MCAR"
+)
+abline(h = 3, lty = 2, col = "grey40")
+```
+
+All three estimators recover the truth (dashed line at 3).
+
+## Missing covariates
+
+When covariates have missing values, `glm(na.action = na.omit)` drops those
+rows from the model fit. `contrast()` returns NA predictions for rows with
+missing covariates and excludes them from the target population.
+
+```{r}
+df_l_miss <- df
+df_l_miss$L1[sample(n, round(0.10 * n))] <- NA
+
+fit_l <- causat(
+  df_l_miss,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L1 + L2
+)
+
+res_l <- contrast(
+  fit_l,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  reference = "a0",
+  type = "difference",
+  ci_method = "sandwich"
+)
+res_l
+```
+
+Under MCAR covariate missingness, the estimate is unbiased. Under MAR,
+multiple imputation is needed (planned via `causat_mice()`).
+
+## Both outcome and covariate missing
+
+causatr gracefully handles the case where both Y and L have missing values
+(possibly on different rows):
+
+```{r}
+df_both <- df
+df_both$Y[sample(n, round(0.10 * n))] <- NA
+df_both$L1[sample(n, round(0.10 * n))] <- NA
+
+fit_both <- causat(
+  df_both,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L1 + L2
+)
+
+res_both <- contrast(
+  fit_both,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  reference = "a0",
+  type = "difference",
+  ci_method = "sandwich"
+)
+res_both
+```
+
+## Missing treatment values
+
+Treatment NAs are **not allowed** --- you cannot define a counterfactual
+without knowing the observed treatment value. causatr aborts with an
+informative error:
+```{r}
+#| error: true
+df_a_miss <- df
+df_a_miss$A[1:10] <- NA
+
+causat(
+  df_a_miss,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L1 + L2
+)
+```
+
+If treatment is MCAR, drop the rows. If MAR, use multiple imputation before
+calling `causat()`.
+
+## Missing outcomes with continuous treatment
+
+The same principles apply to continuous treatments. Here we show IPW with a
+`shift()` intervention under outcome missingness:
+
+```{r}
+set.seed(43)
+L <- rnorm(n)
+A_cont <- rnorm(n, mean = 0.5 * L)
+Y_cont <- 1 + 2 * A_cont + L + rnorm(n)
+df_cont <- data.frame(Y = Y_cont, A = A_cont, L = L)
+df_cont$Y[sample(n, round(0.10 * n))] <- NA
+
+fit_cont_ipw <- causat(
+  df_cont,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L,
+  estimator = "ipw"
+)
+
+res_cont_ipw <- contrast(
+  fit_cont_ipw,
+  interventions = list(up1 = shift(1), observed = NULL),
+  reference = "observed",
+  type = "difference",
+  ci_method = "sandwich"
+)
+res_cont_ipw
+```
+
+Structural truth: `E[Y(A+1)] - E[Y(A)] = 2`.
+
+## Missing data with categorical treatment
+
+G-comp handles missing outcomes for categorical treatments:
+
+```{r}
+set.seed(44)
+A_cat <- factor(sample(c("A", "B", "C"), n, replace = TRUE, prob = c(0.3, 0.4, 0.3)))
+L <- rnorm(n)
+Y_cat <- 1 + ifelse(A_cat == "B", 1, ifelse(A_cat == "C", 2, 0)) + 0.5 * L + rnorm(n)
+df_cat <- data.frame(Y = Y_cat, A = A_cat, L = L)
+df_cat$Y[sample(n, round(0.10 * n))] <- NA
+
+fit_cat <- causat(
+  df_cat,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L
+)
+
+res_cat <- contrast(
+  fit_cat,
+  interventions = list(arm_a = static("A"), arm_b = static("B"), arm_c = static("C")),
+  reference = "arm_a",
+  type = "difference",
+  ci_method = "sandwich"
+)
+res_cat
+```
+
+## Missing outcomes in longitudinal data (ICE)
+
+ICE g-computation handles missing final-period outcomes. The backward
+recursion excludes NA rows when fitting each sequential outcome model:
+
+```{r}
+set.seed(45)
+n_id <- 500
+ids <- rep(seq_len(n_id), each = 2)
+times <- rep(1:2, n_id)
+L0 <- rep(rnorm(n_id), each = 2)
+L_tv <- L0 + rnorm(n_id * 2, 0, 0.5)
+A_tv <- rbinom(n_id * 2, 1, plogis(0.3 * L_tv))
+
+Y_long <- NA_real_
+for (i in seq_len(n_id)) {
+  rows <- which(ids == i)
+  Y_long[rows[2]] <- 2 + 1.5 * sum(A_tv[rows]) + 0.5 * L0[rows[1]] + rnorm(1)
+}
+
+long_df <- data.frame(id = ids, time = times, Y = Y_long, A = A_tv, L0 = L0, L = L_tv)
+long_df$Y[sample(which(!is.na(long_df$Y)), round(0.10 * n_id))] <- NA
+
+fit_ice_miss <- causat(
+  long_df,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L0,
+  confounders_tv = ~ L,
+  id = "id",
+  time = "time"
+)
+
+res_ice_miss <- contrast(
+  fit_ice_miss,
+  interventions = list(always = static(1), never = static(0)),
+  reference = "never",
+  type = "difference",
+  ci_method = "sandwich"
+)
+res_ice_miss
+```
+
+Structural truth: ATE = `1.5 * 2 = 3` (two periods of binary treatment).
+
+## Bootstrap with missing data
+
+Bootstrap inference correctly handles missing data --- each replicate
+resamples individuals (with replacement) and refits the full pipeline:
+
+```{r}
+res_boot_miss <- contrast(
+  fit_y,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  reference = "a0",
+  type = "difference",
+  ci_method = "bootstrap",
+  n_boot = 50L
+)
+res_boot_miss
+```
+
+### Sandwich vs bootstrap with missing data
+
+```{r}
+boot_comp <- data.frame(
+  Inference = c("Sandwich", "Bootstrap"),
+  Estimate = c(res_y$contrasts$estimate[1], res_boot_miss$contrasts$estimate[1]),
+  SE = c(res_y$contrasts$se[1], res_boot_miss$contrasts$se[1]),
+  CI_lower = c(res_y$contrasts$ci_lower[1], res_boot_miss$contrasts$ci_lower[1]),
+  CI_upper = c(res_y$contrasts$ci_upper[1], res_boot_miss$contrasts$ci_upper[1])
+)
+tt(boot_comp, digits = 3)
+```
+
+## Manual IPCW weights
+
+When outcomes are missing at random (MAR) conditional on treatment and
+covariates, you can supply inverse-probability-of-censoring weights (IPCW)
+via the `weights` argument. Built-in IPCW is planned for Phase 14; for now,
+compute the weights externally:
+
+```{r}
+df_mar <- df
+cens_prob <- plogis(-2 + 0.5 * df_mar$A + 0.3 * df_mar$L1)
+df_mar$Y[runif(n) < cens_prob] <- NA
+
+observed <- !is.na(df_mar$Y)
+cens_model <- glm(observed ~ A + L1 + L2, data = df_mar, family = binomial)
+ipcw <- ifelse(observed, 1 / predict(cens_model, type = "response"), 0)
+
+fit_ipcw <- causat(
+  df_mar[observed, ],
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L1 + L2,
+  weights = ipcw[observed]
+)
+
+res_ipcw <- contrast(
+  fit_ipcw,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  reference = "a0",
+  type = "difference",
+  ci_method = "sandwich"
+)
+res_ipcw
+```
+
+## Summary of missingness handling
+
+```{r}
+#| echo: false
+summary_df <- data.frame(
+  Variable = c("Outcome (Y)", "Outcome (Y)", "Outcome (Y)", "Outcome (Y)",
+               "Treatment (A)", "Covariates (L)", "Covariates (L)", "Y + L"),
+  Mechanism = c("MCAR", "MCAR", "MCAR", "MAR",
+                "Any", "MCAR", "MAR", "MCAR"),
+  Method = c("G-comp", "IPW", "Matching", "G-comp + IPCW",
+             "Any", "G-comp", "Any", "G-comp"),
+  Handling = c(
+    "Complete-case model, predict on all rows",
+    "Fit treatment model on observed-Y subset",
+    "MatchIt excludes NA-Y rows",
+    "External IPCW weights via weights=",
+    "Rejected (abort with error)",
+    "na.omit drops rows; predict returns NA",
+    "Multiple imputation (causat_mice, planned)",
+    "Combines both drop rules"
+  ),
+  Status = c("Supported", "Supported", "Supported", "Supported",
+             "Rejected", "Supported", "Planned", "Supported")
+)
+tt(summary_df)
+```
+
+## Key takeaways
+
+1. **Missing outcomes (MCAR)** are handled automatically by all estimators.
+   The estimate is unbiased; the SE increases proportionally to the information
+   loss.
+
+2. **Missing treatment values** are never allowed. Drop rows (MCAR) or impute
+   (MAR) before calling `causat()`.
+
+3. **Missing covariates (MCAR)** work out-of-the-box under g-comp via
+   `na.omit`. For MAR missingness, multiple imputation is needed.
+
+4. **MAR outcome missingness** requires IPCW weights today (manual via
+   `weights =`). Built-in IPCW is planned for Phase 14.
+
+5. **Bootstrap** handles all missingness patterns correctly by resampling
+   the full pipeline.
+
+## References
+
+Hernán MA, Robins JM (2025). *Causal Inference: What If*. Chapman & Hall/CRC.
+Chapter 12 (IP weighting under censoring) and Chapter 19 (censoring in
+longitudinal studies).
+
+Little RJA, Rubin DB (2019). *Statistical Analysis with Missing Data*. 3rd ed.
+Wiley.

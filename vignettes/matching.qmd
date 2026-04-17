@@ -41,6 +41,7 @@ g-computation (see `vignette("gcomp")`).
 ```{r}
 #| message: false
 library(causatr)
+library(tinytable)
 library(tinyplot)
 
 data("nhefs")
@@ -303,6 +304,38 @@ res_rr_bs <- contrast(
 res_rr_bs
 ```
 
+### Quasibinomial outcome
+
+When binary outcomes exhibit over-dispersion or you want conservative SEs
+without the strict binomial variance assumption, use `family = "quasibinomial"`:
+
+```{r}
+fit_m_quasi <- causat(
+  nhefs_complete,
+  outcome = "gained_weight",
+  treatment = "qsmk",
+  confounders = ~ sex + age + I(age^2) + race + factor(education) +
+    smokeintensity + I(smokeintensity^2) + smokeyrs + I(smokeyrs^2) +
+    factor(exercise) + factor(active) + wt71 + I(wt71^2),
+  estimator = "matching",
+  estimand = "ATT",
+  family = "quasibinomial"
+)
+
+res_quasi <- contrast(
+  fit_m_quasi,
+  interventions = list(quit = static(1), continue = static(0)),
+  reference = "continue",
+  type = "difference",
+  ci_method = "sandwich"
+)
+res_quasi
+```
+
+```{r}
+tt(tidy(res_quasi), digits = 3)
+```
+
 ## Comparing estimands
 
 ```{r}
@@ -465,6 +498,7 @@ diag$match_quality
 | Binary | Binary | Static | ATT | Difference | Bootstrap | none | ✅ |
 | Binary | Binary | Static | ATT | Ratio | Sandwich | none | ✅ |
 | Binary | Binary | Static | ATT | OR | Sandwich | none | ✅ |
+| Binary | Binary (quasibinomial) | Static | ATT | Difference | Sandwich | none | ✅ |
 | Binary | Binary | Static | ATT | Ratio | Bootstrap | none | ✅ |
 | Any | Any | Any | Any (with `A:modifier`) | — | — | — | ⛔ Phase 6 |
 | Categorical (k>2) / Continuous | — | — | — | — | — | — | ⛔ binary only |

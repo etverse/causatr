@@ -9,12 +9,17 @@ articles:
       - gcomp
       - ipw
       - matching
+  - title: Interventions
+    contents:
+      - interventions
   - title: Advanced topics
     contents:
       - triangulation
       - longitudinal
+      - missing-data
       - survival
       - validation
   - title: Theory
     contents:
       - variance-theory
+      - ipw-variance-theory

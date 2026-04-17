@@ -37,6 +37,7 @@ Use `estimator = "gcomp"` for heterogeneous treatment effects, or `by =
 ```{r}
 #| message: false
 library(causatr)
+library(tinytable)
 library(tinyplot)
 
 data("nhefs")
@@ -278,6 +279,97 @@ These default to `getOption("boot.parallel", "no")` and
 `options(boot.parallel = "multicore", boot.ncpus = 4L)` flips parallelism
 on for every `contrast()` call without per-call plumbing.
 
+## Dynamic intervention (binary treatment)
+
+A `dynamic()` intervention assigns each individual to a treatment value
+based on their covariates. Under IPW, dynamic rules on binary treatment
+use Horwitz--Thompson indicator weights: $w_i = \mathbb{1}\{A_i = d(L_i)\} / f(d(L_i) \mid L_i)$.
+
+```{r}
+rule <- function(data, trt) {
+  ifelse(data$smokeintensity > 20, 1L, 0L)
+}
+
+res_dyn <- contrast(
+  fit_ipw,
+  interventions = list(
+    targeted = dynamic(rule),
+    all_quit = static(1)
+  ),
+  reference = "all_quit",
+  type = "difference"
+)
+res_dyn
+```
+
+Heavy smokers (> 20 cigs/day) are assigned to quit, others are left
+untreated. The contrast with `static(1)` (all quit) tells us how
+much is lost by targeting only heavy smokers.
+
+```{r}
+tt(tidy(res_dyn), digits = 3)
+```
+
+## IPSI --- incremental propensity score intervention
+
+`ipsi(delta)` multiplies each individual's odds of treatment by `delta`
+(Kennedy 2019). It is a smooth stochastic intervention that avoids
+positivity violations --- no one is forced to a treatment value they
+would never take.
+
+```{r}
+res_ipsi <- contrast(
+  fit_ipw,
+  interventions = list(
+    double_odds = ipsi(2),
+    observed = NULL
+  ),
+  reference = "observed",
+  type = "difference"
+)
+res_ipsi
+```
+
+Varying `delta` traces out a dose--response curve:
+
+```{r}
+#| fig-width: 7
+#| fig-height: 4
+#| fig-alt: "IPSI dose-response curve showing the effect of varying the odds multiplier delta."
+deltas <- c(0.25, 0.5, 1, 2, 4)
+ipsi_results <- lapply(deltas, function(d) {
+  r <- contrast(
+    fit_ipw,
+    interventions = list(ipsi = ipsi(d), obs = NULL),
+    reference = "obs",
+    type = "difference"
+  )
+  data.frame(
+    delta = d,
+    estimate = r$contrasts$estimate[1],
+    ci_lower = r$contrasts$ci_lower[1],
+    ci_upper = r$contrasts$ci_upper[1]
+  )
+})
+ipsi_df <- do.call(rbind, ipsi_results)
+
+tinyplot(
+  estimate ~ delta,
+  data = ipsi_df,
+  type = "pointrange",
+  ymin = ipsi_df$ci_lower,
+  ymax = ipsi_df$ci_upper,
+  xlab = expression(delta ~ "(odds multiplier)"),
+  ylab = "E[Y(delta)] - E[Y(obs)]",
+  main = "IPSI dose-response"
+)
+abline(h = 0, lty = 2, col = "grey40")
+```
+
+At `delta = 1` the intervention equals the natural course, so the contrast
+is zero. Values below 1 reduce the odds of treatment; values above 1
+increase them.
+
 ## Categorical treatment (k > 2 levels)
 
 The density-ratio engine auto-selects a multinomial propensity model (via
@@ -427,6 +519,12 @@ res_nb <- contrast(
 )
 res_nb
 ```
+
+`scale_by()` also works on count treatments, but with a stricter constraint:
+the density ratio evaluates at `A / factor`, so `A / factor` must be a
+non-negative integer for *every* observed value. In practice, this means
+`scale_by()` on counts is only feasible when all observed counts are multiples
+of the factor.
 
 ::: {.callout-important}
 ## Integer constraints on count interventions

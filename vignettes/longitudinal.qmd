@@ -34,6 +34,7 @@ This vignette demonstrates ICE g-computation in causatr, covering:
 ```{r}
 #| message: false
 library(causatr)
+library(tinytable)
 library(tinyplot)
 ```
 
@@ -435,6 +436,81 @@ res_rr <- contrast(
 res_rr
 ```
 
+## Three or more time periods
+
+The examples above use 2 time points for simplicity, but ICE scales to
+any number of periods. Here we simulate 4-period data with a binary treatment
+and binary outcome. The backward recursion fits 4 sequential models.
+
+```{r}
+set.seed(99)
+n_id <- 600
+K <- 4
+
+ids <- rep(seq_len(n_id), each = K)
+times <- rep(seq_len(K), n_id)
+
+L0 <- rep(rnorm(n_id), each = K)
+sim_4p <- data.frame(id = ids, time = times, L0 = L0)
+
+sim_4p$L <- NA_real_
+sim_4p$A <- NA_integer_
+for (i in seq_len(n_id)) {
+  rows <- which(sim_4p$id == i)
+  l_prev <- sim_4p$L0[rows[1]]
+  for (k in seq_along(rows)) {
+    sim_4p$L[rows[k]] <- l_prev + rnorm(1, 0, 0.5)
+    sim_4p$A[rows[k]] <- rbinom(1, 1, plogis(-0.3 + 0.4 * sim_4p$L[rows[k]]))
+    l_prev <- sim_4p$L[rows[k]] + 0.3 * sim_4p$A[rows[k]]
+  }
+}
+
+sim_4p$Y <- NA_real_
+for (i in seq_len(n_id)) {
+  rows <- which(sim_4p$id == i)
+  cum_a <- sum(sim_4p$A[rows])
+  sim_4p$Y[rows[K]] <- rbinom(
+    1, 1,
+    plogis(-1.5 + 0.4 * cum_a + 0.3 * sim_4p$L0[rows[1]])
+  )
+}
+
+fit_4p <- causat(
+  sim_4p,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L0,
+  confounders_tv = ~ L,
+  family = "binomial",
+  id = "id",
+  time = "time"
+)
+
+res_4p <- contrast(
+  fit_4p,
+  interventions = list(always = static(1), never = static(0)),
+  reference = "never",
+  type = "difference",
+  ci_method = "sandwich"
+)
+res_4p
+```
+
+```{r}
+#| fig-width: 7
+#| fig-height: 4
+#| fig-alt: "Forest plot showing the risk difference between always-treat and never-treat over 4 periods."
+#| eval: !expr requireNamespace("forrest", quietly = TRUE)
+plot(res_4p)
+```
+
+```{r}
+tt(tidy(res_4p), digits = 3)
+```
+
+The ICE sandwich variance correctly propagates uncertainty through all 4
+sequential models via the stacked estimating equations cascade.
+
 ## Continuous treatment with modified treatment policies
 
 ICE also supports continuous time-varying treatments combined with the
@@ -719,7 +795,8 @@ informative error.
 | Continuous | Continuous | Shift / Scale / Threshold | ATE | Difference | Sandwich | none | ✅ (vs lmtp) |
 | Continuous | Continuous | Shift | ATE | Difference | Bootstrap | none | ✅ (vs lmtp) |
 | Multivariate | Continuous | Static / Shift | ATE | Difference | Sandwich | none | ✅ |
-| Binary | Binary | Static / Dynamic | ATE | Difference | Sandwich / bootstrap | none | ✅ (3+ periods) |
+| Binary | Binary | Static / Dynamic | ATE | Difference | Sandwich / bootstrap | none | ✅ (2 periods) |
+| Binary | Binary | Static | ATE | Difference | Sandwich | none | ✅ (4 periods) |
 | Binary | Binary | Static | ATE | Difference | Bootstrap (parallel) | none | ✅ |
 | Binary | Continuous | Static | ATE | Difference | Sandwich | censoring | ✅ |
 | Binary | Any | IPSI(δ) | — | — | — | — | ⛔ Phase 4 |

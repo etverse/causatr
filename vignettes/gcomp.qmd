@@ -26,6 +26,7 @@ time-fixed treatments.
 ```{r}
 #| message: false
 library(causatr)
+library(tinytable)
 library(tinyplot)
 
 data("nhefs")
@@ -638,6 +639,108 @@ res_rr_pois
 
 Structural truth: marginal RR ≈ `exp(0.7) ≈ 2.01`.
 
+## Gamma outcome
+
+For strictly positive continuous outcomes (e.g. costs, durations), the Gamma
+family with log link avoids predicting negative values. The marginal rate
+ratio is a natural summary.
+
+```{r}
+set.seed(4)
+n <- 2000
+L <- rnorm(n)
+A <- rbinom(n, 1, plogis(0.5 * L))
+Y <- rgamma(n, shape = 4, rate = 4 / exp(1 + 0.5 * A + 0.3 * L))
+gamma_df <- data.frame(Y = Y, A = A, L = L)
+
+fit_gamma <- causat(
+  gamma_df,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L,
+  family = "Gamma"
+)
+
+res_gamma <- contrast(
+  fit_gamma,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  reference = "a0",
+  type = "ratio",
+  ci_method = "sandwich"
+)
+res_gamma
+```
+
+Structural truth: marginal RR ≈ `exp(0.5) ≈ 1.65`.
+
+```{r}
+tt(tidy(res_gamma), digits = 3)
+```
+
+## Quasibinomial outcome
+
+When the outcome is a proportion in (0, 1) --- for example a bounded
+continuous score --- or an over-dispersed binary response,
+`family = "quasibinomial"` uses a logit link without assuming binomial
+variance. Sandwich SEs handle the quasi-likelihood correctly.
+
+```{r}
+set.seed(5)
+n <- 2000
+L <- rnorm(n)
+A <- rbinom(n, 1, plogis(0.3 * L))
+Y <- rbinom(n, 1, plogis(-0.5 + 0.6 * A + 0.4 * L))
+quasi_df <- data.frame(Y = Y, A = A, L = L)
+
+fit_quasi <- causat(
+  quasi_df,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L,
+  family = "quasibinomial"
+)
+
+res_quasi <- contrast(
+  fit_quasi,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  reference = "a0",
+  type = "difference",
+  ci_method = "sandwich"
+)
+res_quasi
+```
+
+```{r}
+tt(tidy(res_quasi), digits = 3)
+```
+
+## GLM with splines
+
+For flexible confounder adjustment without the overhead of a full GAM, use
+`splines::ns()` (natural cubic splines) directly in the formula. This keeps
+the model as a plain `glm`, so the analytic sandwich path fires --- unlike
+GAM, no `mgcv` dependency is needed.
+
+```{r}
+fit_spline <- causat(
+  nhefs,
+  outcome = "wt82_71",
+  treatment = "qsmk",
+  confounders = ~ sex + splines::ns(age, 3) + race + factor(education) +
+    splines::ns(smokeintensity, 3) + splines::ns(smokeyrs, 3) +
+    factor(exercise) + factor(active) + splines::ns(wt71, 3),
+  censoring = "censored"
+)
+
+res_spline <- contrast(
+  fit_spline,
+  interventions = list(quit = static(1), continue = static(0)),
+  reference = "continue",
+  ci_method = "sandwich"
+)
+res_spline
+```
+
 ## GAM model via model_fn
 
 Pass `mgcv::gam` instead of `stats::glm` for flexible nonlinear confounder
@@ -664,6 +767,60 @@ res_gam <- contrast(
 res_gam
 ```
 
+### Comparing model specifications
+
+All three approaches --- standard GLM with polynomial terms, GLM with natural
+splines, and GAM --- target the same causal parameter. Differences in point
+estimates reflect model flexibility; all three should agree closely when the
+outcome model is correctly specified.
+
+```{r}
+#| fig-width: 7
+#| fig-height: 4
+#| fig-alt: "Forest plot comparing ATE estimates from GLM (polynomial), GLM (splines), and GAM model specifications."
+model_comp <- data.frame(
+  Model = c("GLM (polynomial)", "GLM (splines)", "GAM"),
+  Estimate = c(
+    res_ate_sw$contrasts$estimate[1],
+    res_spline$contrasts$estimate[1],
+    res_gam$contrasts$estimate[1]
+  ),
+  SE = c(
+    res_ate_sw$contrasts$se[1],
+    res_spline$contrasts$se[1],
+    res_gam$contrasts$se[1]
+  ),
+  CI_lower = c(
+    res_ate_sw$contrasts$ci_lower[1],
+    res_spline$contrasts$ci_lower[1],
+    res_gam$contrasts$ci_lower[1]
+  ),
+  CI_upper = c(
+    res_ate_sw$contrasts$ci_upper[1],
+    res_spline$contrasts$ci_upper[1],
+    res_gam$contrasts$ci_upper[1]
+  )
+)
+
+tt(model_comp, digits = 3)
+```
+
+```{r}
+#| fig-width: 7
+#| fig-height: 4
+#| fig-alt: "Forest plot comparing ATE estimates from three model specifications."
+tinyplot(
+  Estimate ~ Model,
+  data = model_comp,
+  type = "pointrange",
+  ymin = model_comp$CI_lower,
+  ymax = model_comp$CI_upper,
+  ylab = "ATE (kg)",
+  main = "Model specification comparison (NHEFS)"
+)
+abline(h = 0, lty = 2, col = "grey40")
+```
+
 ## Summary of covered combinations
 
 **Legend.** ✅ covered and truth-pinned in tests · 🟡 smoke test only ·
@@ -685,6 +842,9 @@ res_gam
 | Binary | Binary (binomial, GLM) | Static | ATE | Ratio | Sandwich | none | ✅ |
 | Binary | Binary (binomial, GLM) | Static | ATE | OR | Sandwich | none | ✅ |
 | Binary | Count (poisson, GLM) | Static | ATE | Ratio | Sandwich | none | ✅ |
+| Binary | Positive continuous (Gamma, GLM) | Static | ATE | Ratio | Sandwich | none | ✅ |
+| Binary | Binary (quasibinomial, GLM) | Static | ATE | Difference | Sandwich | none | ✅ |
+| Binary | Continuous (gaussian, GLM+splines) | Static | ATE | Difference | Sandwich | none | ✅ |
 | Continuous | Continuous (gaussian, GLM) | Static | ATE | Difference | Sandwich | none | ✅ |
 | Continuous | Continuous (gaussian, GLM) | Shift | ATE | Difference | Sandwich | none | ✅ |
 | Continuous | Continuous (gaussian, GLM) | Scale | ATE | Difference | Sandwich | none | ✅ |
@@ -696,9 +856,8 @@ res_gam
 
 See [`FEATURE_COVERAGE_MATRIX.md`](https://github.com/etverse/causatr/blob/main/FEATURE_COVERAGE_MATRIX.md)
 for the authoritative coverage status of every method × treatment × outcome
-× intervention × variance combination, including censoring, quasibinomial,
-gamma, and the numeric two-tier variance fallback for custom `model_fn`
-choices.
+× intervention × variance combination, including censoring and the numeric
+two-tier variance fallback for custom `model_fn` choices.
 
 ## References
 
