@@ -18,7 +18,7 @@ The test matrix in `FEATURE_COVERAGE_MATRIX.md` currently marks `by(L)` as "✅ 
 | **Point gcomp** | ✅ Outcome model includes the full `confounders` RHS. `A:sex` feeds the outcome GLM directly. `by(sex)` averages the predictions per stratum and recovers the correct effect. | Works. MC-verified: sex-specific contrasts recovered to ~1% on a linear-Gaussian DGP. |
 | **Point IPW** | ⛔ `fit_ipw()` builds `msm_formula <- stats::reformulate(treatment, response = outcome)` — a hardcoded saturated `Y ~ A`. `confounders` is used for the propensity model only. `fit_ipw()` calls `check_confounders_no_treatment()` and **aborts** before any weights are estimated. | Hard error with a Phase-8 pointer. Preferred to silently returning a pooled ATE. |
 | **Point matching** | ⛔ Same MSM shape as IPW: `msm_formula <- stats::reformulate(treatment, response = outcome)`. `fit_matching()` also calls `check_confounders_no_treatment()` and aborts upfront. | Hard error with a Phase-8 pointer. |
-| **Longitudinal ICE** | ⚠️ `ice_build_formula()` injects `baseline_terms` verbatim at every period. `A:sex` resolves to `A_k:sex` — the **current-period** treatment × modifier. Lagged treatments (`lag1_A`, `lag2_A`, ...) do NOT get a corresponding `lag1_A:sex` term. | Partial. Current-period effect modification is captured; earlier-period contributions are collapsed. MC evidence: 2-period DGP with persistent `(1 + 1.5·sex)·A_k` effect returns contrasts 2.81 / 4.43 vs structural truth 2.10 / 5.10 — roughly half the intended heterogeneity. |
+| **Longitudinal ICE** | ⚠️ `ice_build_formula()` injects `baseline_terms` verbatim at every period. `A:sex` resolves to `A_k:sex` — the **current-period** treatment × modifier. Lagged treatments (`lag1_A`, `lag2_A`, ...) do NOT get a corresponding `lag1_A:sex` term. | Partial. Current-period effect modification is captured; earlier-period contributions are collapsed. MC evidence: 2-period DGP with persistent $(1 + 1.5 \cdot \text{sex}) \cdot A_k$ effect returns contrasts 2.81 / 4.43 vs structural truth 2.10 / 5.10 — roughly half the intended heterogeneity. |
 
 Phase 6 will replace the hard-abort path with a proper MSM builder that honors `A:modifier` terms for IPW and matching, and will auto-expand `lag{k}_A:modifier` for ICE.
 
@@ -28,7 +28,7 @@ The root cause in each case is different, which is part of why this needs a dedi
 
 1. **One formula convention.** Users write `~ L + sex + A:sex` and all four methods do the right thing. The convention should be: a term involving the treatment (e.g. `A:sex`, `A:L`, `A:I(age > 65)`) is interpreted as effect modification of A on the outcome scale.
 2. **No silent failures.** If a user writes an EM term and the chosen method genuinely can't support it (e.g. IPW + multivariate treatment + continuous modifier in Phase 4), abort with a specific error that names the method, the term, and the workaround.
-3. **Leave (B) and (C) alone.** Interactions *among confounders* (e.g. `L1:L2`) and *within the current period* (e.g. `A:L` where L is TV) already work across methods. This phase only touches the `A × baseline` (and its time-varying analogs) case.
+3. **Leave (B) and (C) alone.** Interactions *among confounders* (e.g. `L1:L2`) and *within the current period* (e.g. `A:L` where L is TV) already work across methods. This phase only touches the `A` $\times$ `baseline` (and its time-varying analogs) case.
 4. **No breaking changes to existing tests.** Every truth-test currently in the matrix must still pass after the refactor. Correct behavior under additive models collapses to the current behavior by construction.
 
 ## Design correction: IPW MSM is `Y ~ 1`, not `Y ~ A`
@@ -167,7 +167,7 @@ meantime.
 
 **Tests:**
 
-- Truth-based: ICE × 2-period DGP × `(1 + γ·sex)·A_k` × `by(sex)` — must recover
+- Truth-based: ICE × 2-period DGP × $(1 + \gamma \cdot \text{sex}) \cdot A_k$ × `by(sex)` — must recover
   stratum-specific contrast to ~5% of MC truth (vs current ~30% compression).
 - Truth-based: ICE × 3-period DGP for deeper lag coverage.
 - Regression guard: ICE without EM terms gives identical numbers pre/post refactor.
@@ -243,7 +243,7 @@ on the stratum. No changes to `by` itself.
 - [x] `R/ipw.R` — `compute_ipw_contrast_point()` MSM expansion via `build_ipw_msm_formula()` + `fit$details$em_info`
 - [x] `R/variance_if.R` — verified: expanded MSM flows through `variance_if_ipw()` unchanged (J, X_star, phi_bar all generalize from p_beta=1 to p_beta>1)
 - [x] `tests/testthat/test-effect-modification.R` — IPW truth (DGP 4, sandwich), bootstrap, gcomp cross-check, regression guard
-- [x] `tests/testthat/test-ipw.R` — updated rejection test → acceptance test
+- [x] `tests/testthat/test-ipw.R` — updated rejection test $\to$ acceptance test
 
 ### Chunk 6c — Matching MSM expansion
 - [ ] `R/matching.R` — `fit_matching()` MSM expansion + `fit$details$em_info`

@@ -259,7 +259,7 @@ compare_row(
 `stdReg2` also supports `contrasts = "ratio"` and returns the SE on the
 ratio scale using the same influence-function approach causatr uses
 internally. Note that causatr's CI is built on the *log* scale
-(`exp(log(est) ± z * se/est)`) while `stdReg2`'s CI is linear on the ratio
+(`exp(log(est)` $\pm$ `z * se/est)`) while `stdReg2`'s CI is linear on the ratio
 scale, so the CI bounds will differ slightly even when the point estimate
 and SE agree to rounding.
 

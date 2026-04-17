@@ -10,18 +10,18 @@ Complete `causat_survival()`, implement survival curves under intervention in `c
 ## What exists
 
 - `causat_survival()` fits a pooled logistic regression on person-period data (with censoring + competing risks parameters)
-- `to_person_period()` converts wide → long format
+- `to_person_period()` converts wide $\to$ long format
 - `contrast()` can be called on survival fits but treats it as a standard binary outcome (incorrect for survival)
 - Vignette: `survival.qmd` exists (basic structure)
 
 ## What remains
 
 - [ ] Survival-specific contrast pathway in `compute_contrast()`:
-  - Per-individual hazards: ĥ_{i,k}^a = predict(model, newdata = data_a_at_time_k)
-  - Per-individual survival: S_i^a(k) = Π_{j≤k} (1 − ĥ_{i,j}^a)
-  - Standardised survival: S^a(k) = (1/n) Σᵢ S_i^a(k)
-  - Risk at time t: 1 − S^a(t)
-  - Risk difference: (1 − S^{a1}(t)) − (1 − S^{a0}(t))
+  - Per-individual hazards: $\hat{h}_{i,k}^a$ = predict(model, newdata = data_a_at_time_k)
+  - Per-individual survival: $S_i^a(k) = \prod_{j \leq k} (1 - \hat{h}_{i,j}^a)$
+  - Standardised survival: $S^a(k) = (1/n) \sum_i S_i^a(k)$
+  - Risk at time t: $1 - S^a(t)$
+  - Risk difference: $(1 - S^{a_1}(t)) - (1 - S^{a_0}(t))$
 - [ ] Return time-specific estimates (survival curve as a data.table, not a single point)
 - [ ] Competing risks: cause-specific hazard models (one pooled logistic per event type), cumulative incidence under intervention
 - [ ] ICE + survival integration (Phase 5 dependency): backward iteration with hazard models
@@ -30,8 +30,8 @@ Complete `causat_survival()`, implement survival curves under intervention in `c
 
 ## NHEFS survival replication targets (Ch. 17)
 
-- 120-month survival: ≈ 80.7% under treatment, ≈ 80.5% under no treatment
-- Risk difference: ≈ 0.2% (95% CI: −4.1% to 3.7%) — essentially null
+- 120-month survival: $\approx$ 80.7% under treatment, $\approx$ 80.5% under no treatment
+- Risk difference: $\approx$ 0.2% (95% CI: $-$4.1% to 3.7%) — essentially null
 
 ## Implementation guide
 

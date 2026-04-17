@@ -301,8 +301,8 @@ No additional gating needed beyond the IPW/matching rejection.
 2. Modify the point gcomp block in `compute_contrast()` to use the
    helper.
 3. Truth-based simulation test: binary treatment stochastic policy
-   `P(A* = 1 | L) = expit(γ₀ + γ₁ L)` on a linear-Gaussian DGP
-   where the analytical truth is `E[Y^g] = β₀ + β_A · E_L[p_g(L)] + β_L · E[L]`.
+   $P(A^* = 1 \mid L) = \text{expit}(\gamma_0 + \gamma_1 L)$ on a linear-Gaussian DGP
+   where the analytical truth is $E[Y^g] = \beta_0 + \beta_A \cdot E_L[p_g(L)] + \beta_L \cdot E[L]$.
 4. Cross-validate against `lmtp::lmtp_tmle()` on the same DGP.
 5. `devtools::test()`.
 

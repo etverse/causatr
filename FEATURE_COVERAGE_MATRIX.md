@@ -72,7 +72,7 @@ Rejections: invalid family string ✅, missing outcome/treatment col ✅ (test-g
 | bin | binom | static | ATE | diff/ratio/OR | sandwich | — | ✅ | test-simulation.R |
 | bin | binom | static | ATE | diff | boot | — | ✅ | test-simulation.R |
 | bin | gauss | dynamic | ATE | diff | sandwich | — | ✅ | test-simulation.R, test-ipw-weights.R |
-| bin | gauss | ipsi(δ) | ATE | diff | sandwich | — | ✅ +oracle | test-simulation.R, test-ipw-weights.R, test-ipw-lmtp-oracle.R |
+| bin | gauss | ipsi($\delta$) | ATE | diff | sandwich | — | ✅ +oracle | test-simulation.R, test-ipw-weights.R, test-ipw-lmtp-oracle.R |
 | cont | gauss | shift | ATE | diff | sandwich | — | ✅ +oracle | test-simulation.R, test-ipw-weights.R, test-ipw-lmtp-oracle.R |
 | cont | gauss | scale_by | ATE | diff | sandwich | — | ✅ | test-simulation.R, test-ipw-weights.R |
 | cat | gauss | static | ATE | diff | sandwich | — | ✅ | test-simulation.R |
@@ -84,14 +84,14 @@ Rejections: invalid family string ✅, missing outcome/treatment col ✅ (test-g
 Variance internals: self-contained IF ✅ (hand-derived cross-derivative + end-to-end stacked-sandwich; test-ipw-branch-b.R, test-ipw-cross-derivative.R, test-variance-if.R). Non-static variance regression ✅ (shift ~5-8% SE reduction, IPSI ~90% off-diagonal covariance; test-ipw-variance-regression.R). Bootstrap parity ✅ (within 30% MC tolerance; test-ipw-variance-regression.R).
 
 Rejections (all ✅ tested):
-- `static`/`threshold`/`dynamic` on continuous → test-ipw.R
-- `static`/`threshold`/`dynamic`/`ipsi` on count → test-ipw-count.R
-- non-integer `shift()` on count → test-ipw-count.R
-- non-integer-preserving `scale_by()` on count → test-ipw-count.R
-- shift/scale_by/dynamic/ipsi + ATT/ATC → test-estimand-intervention-compat.R
-- `A:modifier` in confounders → test-ipw.R, test-effect-modification.R
-- multivariate → test-s3-methods.R, test-multivariate.R
-- longitudinal → test-ipw.R
+- `static`/`threshold`/`dynamic` on continuous $\to$ test-ipw.R
+- `static`/`threshold`/`dynamic`/`ipsi` on count $\to$ test-ipw-count.R
+- non-integer `shift()` on count $\to$ test-ipw-count.R
+- non-integer-preserving `scale_by()` on count $\to$ test-ipw-count.R
+- shift/scale_by/dynamic/ipsi + ATT/ATC $\to$ test-estimand-intervention-compat.R
+- `A:modifier` in confounders $\to$ test-ipw.R, test-effect-modification.R
+- multivariate $\to$ test-s3-methods.R, test-multivariate.R
+- longitudinal $\to$ test-ipw.R
 
 ---
 
@@ -110,12 +110,12 @@ Rejections (all ✅ tested):
 | bin | quasibinom | ATT | diff | sandwich | — | ✅ | test-simulation.R |
 
 Rejections (all ✅ tested):
-- categorical treatment → test-matching.R
-- continuous treatment → test-matching.R
-- non-static interventions → test-contrast.R
-- `A:modifier` in confounders → test-matching.R, test-effect-modification.R
-- multivariate → test-s3-methods.R
-- longitudinal → test-matching.R
+- categorical treatment $\to$ test-matching.R
+- continuous treatment $\to$ test-matching.R
+- non-static interventions $\to$ test-contrast.R
+- `A:modifier` in confounders $\to$ test-matching.R, test-effect-modification.R
+- multivariate $\to$ test-s3-methods.R
+- longitudinal $\to$ test-matching.R
 
 ---
 
@@ -141,7 +141,7 @@ Rejections (all ✅ tested):
 | multi | gauss | shift | 2 | sandwich | — | ✅ | test-multivariate.R |
 | bin | gauss | static | 2 | boot | survey | 🟡 | test-simulation.R |
 
-Rejections (all ✅ tested): ipsi → test-ice.R, ATT/ATC → test-ice.R.
+Rejections (all ✅ tested): ipsi $\to$ test-ice.R, ATT/ATC $\to$ test-ice.R.
 
 ---
 

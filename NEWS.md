@@ -299,14 +299,14 @@ Quarto / knitr documents.
   equal to 60, not the conditional effects, (ii) `lm(Y ~ A0 + A1 + L1)`
   gives `A1 = 0` exactly (in the DGP Y does not depend on A1), and
   (iii) the bias shows up in `A0` only, as the conditional-within-L1
-  effect of −8. The section now shows *both* naive strategies
+  effect of $-8$. The section now shows *both* naive strategies
   (unadjusted and L1-adjusted) failing, demonstrating the null paradox
   as stated in Hernán & Robins Chapter 20.
 
 - **`by = "sex"` examples fixed across three vignettes.**
   - `gcomp.qmd` now refits with an explicit `qsmk:sex` term in
     `confounders`, so the stratified estimates actually move (Male
-    ≈ 3.61, Female ≈ 3.44).
+    $\approx$ 3.61, Female $\approx$ 3.44).
   - `ipw.qmd` and `matching.qmd` replace the `by = "sex"` code chunks
     with a Phase 8 callout explaining that IPW and matching wrap a
     saturated `Y ~ A` MSM and so `by = "sex"` is a no-op until the
@@ -325,23 +325,23 @@ Quarto / knitr documents.
 
 ### `variance-theory.qmd` — roadmap + verified numerics
 
-- New **Section 0 "Roadmap"** walks through Sections 1 → 6 as a single
+- New **Section 0 "Roadmap"** walks through Sections 1 $\to$ 6 as a single
   narrative and introduces the running example (a small logistic GLM)
   used by every verification block below.
 - Eight new **Math / Code / Result** tabset panels, each of which
   instantiates a key equation on the running example and checks it
   against either `sandwich::sandwich()`, `sandwich::vcovCL()`, or
   `causatr::variance_if()`:
-  1. **Sec 1.4** — Sandwich variance of β̂ vs `sandwich::sandwich(fit)`
+  1. **Sec 1.4** — Sandwich variance of $\hat{\beta}$ vs `sandwich::sandwich(fit)`
      (agreement ≲ 1e-8).
-  2. **Sec 2.3** — `(1/n²) Σ IFᵢ IFᵢᵀ` equals the sandwich to machine
+  2. **Sec 2.3** — $(1/n^2) \sum IF_i IF_i^\top$ equals the sandwich to machine
      precision.
   3. **Sec 2.4** — IF for a sample mean reproduces the textbook
      $s/\sqrt n$ up to the $(n-1)/n$ d.f. correction.
   4. **Sec 3.2** — Two-channel IF for g-comp $\hat\mu_1$ matches
      causatr's sandwich SE to $\sim$1e-9.
   5. **Sec 3.3** — Delta-method decomposition: shows numerically that
-     `J V_β Jᵀ` equals `Ch.2²`, and that dropping `Ch.1²` + cross term
+     $J V_\beta J^\top$ equals $\text{Ch.2}^2$, and that dropping $\text{Ch.1}^2$ + cross term
      underestimates the SE by about 3% on this example.
   6. **Sec 4.2** — Horvitz-Thompson IPW $\hat\mu_1$ equals causatr's
      IPW point estimate, with SE from the propensity-corrected
@@ -396,7 +396,7 @@ so future drift between the matrix and the test files fails loudly.
   method was silently returning `NaN` CIs when `mu_hat` had mixed signs
   (legal for Gaussian outcomes, fatal for `log(R)`). `contrast(type =
   "ratio")` now aborts upfront if any intervention mean is non-positive,
-  and `type = "or"` additionally aborts if any mean is ≥ 1. Error
+  and `type = "or"` additionally aborts if any mean is $\geq 1$. Error
   messages point to `type = "difference"` or a binomial / poisson /
   gamma refit.
 - **`variance_bootstrap()` warning suppression narrowed (R3).** The
@@ -537,7 +537,7 @@ every combination supported by `FEATURE_COVERAGE_MATRIX.md`:
 
 - **ICE sandwich fix under non-uniform external weights.** The
   cascade gradient at step k > 0 was dropping the `w_{k-1}` factor
-  from `A_{k-1,k} = E[∂s_{k-1}/∂β_k]`, silently underestimating the
+  from $A_{k-1,k} = E[\partial s_{k-1} / \partial \beta_k]$, silently underestimating the
   SE by ~2x on multi-period DGPs. Verified against `lmtp::lmtp_tmle`
   and a 300-replicate Monte-Carlo. (Followed by a separate fix for
   the earlier regression where the ICE backward loop dropped
@@ -650,7 +650,7 @@ every combination supported by `FEATURE_COVERAGE_MATRIX.md`:
 - **`family` now threads through IPW and matching** (previously
   silently forced Gaussian on the MSM regardless of the user's
   `family` argument).
-- **`scale()` → `scale_by()` rename** to avoid colliding with the
+- **`scale()` $\to$ `scale_by()` rename** to avoid colliding with the
   base R `scale()`.
 - **`by + estimand` bug fix** — previously the ATT/ATC restriction
   and the by-level restriction fought over the target population

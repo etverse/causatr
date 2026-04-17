@@ -12,7 +12,7 @@ censoring enters the estimating equations as indicator functions
 This row-restriction approach is **correct under censoring
 exchangeability** (Zivich et al. 2024, Table 1):
 
-> Y_k ⊥ C_k | A̅_{k-1}, L̅_{k-1}, C_{k-1} = 0
+> $Y_k \perp C_k \mid \bar{A}_{k-1}, \bar{L}_{k-1}, C_{k-1} = 0$
 
 When this holds and the outcome model E[Y | A, L] is correctly
 specified, g-computation on the uncensored sample is consistent — the
@@ -118,9 +118,9 @@ For **point treatments**:
 - Weights: stabilized IPCW = P(C = 0) / P(C = 0 | A_i, L_i)
 
 For **longitudinal treatments** (ICE):
-- At each time step k, fit: P(C_k = 0 | A̅_k, L̅_k, C_{k-1} = 0)
-- Cumulative weight: w^C_i = ∏_k 1/P(C_k = 0 | ...)
-- Stabilized: w^C_i = ∏_k P(C_k = 0 | A̅_{k-1}, L̅_{k-1}) / P(C_k = 0 | A̅_k, L̅_k)
+- At each time step k, fit: $P(C_k = 0 \mid \bar{A}_k, \bar{L}_k, C_{k-1} = 0)$
+- Cumulative weight: $w^C_i = \prod_k 1/P(C_k = 0 \mid \ldots)$
+- Stabilized: $w^C_i = \prod_k P(C_k = 0 \mid \bar{A}_{k-1}, \bar{L}_{k-1}) / P(C_k = 0 \mid \bar{A}_k, \bar{L}_k)$
 - These weights enter multiplicatively with any existing external weights
   and are propagated through every ICE backward step (architecture
   already supports this via `weights =`)
@@ -202,7 +202,7 @@ parameters at each step.
 
 The censoring exchangeability assumption is:
 
-> Y^a ⊥ C | A, L
+> $Y^a \perp C \mid A, L$
 
 This says potential outcomes are independent of censoring **given both
 treatment and covariates**. The censoring model must therefore condition

@@ -724,7 +724,7 @@ res_c <- contrast(
 res_c
 ```
 
-Structural truth: sum of per-period effects ≈ 4 (2 + 2). The estimate
+Structural truth: sum of per-period effects $\approx$ 4 (2 + 2). The estimate
 should be close, and the sandwich SE reflects the censoring-induced
 reduction in effective sample size at each step.
 
@@ -799,7 +799,7 @@ informative error.
 | Binary | Binary | Static | ATE | Difference | Sandwich | none | ✅ (4 periods) |
 | Binary | Binary | Static | ATE | Difference | Bootstrap (parallel) | none | ✅ |
 | Binary | Continuous | Static | ATE | Difference | Sandwich | censoring | ✅ |
-| Binary | Any | IPSI(δ) | — | — | — | — | ⛔ Phase 4 |
+| Binary | Any | IPSI($\delta$) | — | — | — | — | ⛔ Phase 4 |
 | Binary | Any | Static / ATT | ATT | — | — | — | ⛔ ICE is ATE-only |
 
 See [`FEATURE_COVERAGE_MATRIX.md`](https://github.com/etverse/causatr/blob/main/FEATURE_COVERAGE_MATRIX.md)

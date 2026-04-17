@@ -464,7 +464,7 @@ Without the `qsmk:sex` term in the outcome model, `by = "sex"` would still
 run but would return near-identical estimates for both strata (any
 remaining variation coming only from indirect interactions like
 `qsmk:smokeintensity` combined with differing covariate distributions).
-Only point g-computation currently supports treatment × modifier
+Only point g-computation currently supports treatment $\times$ modifier
 interactions directly; for IPW and matching the unified interaction API
 is scheduled for Phase 6.
 :::
@@ -601,7 +601,7 @@ res_sv <- contrast(
 res_sv
 ```
 
-The weighted ATE estimate is still ≈ 3 (the structural truth), and the
+The weighted ATE estimate is still $\approx$ 3 (the structural truth), and the
 sandwich SE reflects both the outcome-model and weighted-target sampling
 uncertainty.
 
@@ -637,7 +637,7 @@ res_rr_pois <- contrast(
 res_rr_pois
 ```
 
-Structural truth: marginal RR ≈ `exp(0.7) ≈ 2.01`.
+Structural truth: marginal RR $\approx$ `exp(0.7)` $\approx$ 2.01.
 
 ## Gamma outcome
 
@@ -671,7 +671,7 @@ res_gamma <- contrast(
 res_gamma
 ```
 
-Structural truth: marginal RR ≈ `exp(0.5) ≈ 1.65`.
+Structural truth: marginal RR $\approx$ `exp(0.5)` $\approx$ 1.65.
 
 ```{r}
 tt(tidy(res_gamma), digits = 3)

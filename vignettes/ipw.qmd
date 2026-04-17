@@ -79,7 +79,7 @@ res_ate_sw <- contrast(
 res_ate_sw
 ```
 
-The book reports an IPW estimate of ATE ≈ 3.4 kg (95% CI: 2.4, 4.5).
+The book reports an IPW estimate of ATE $\approx$ 3.4 kg (95% CI: 2.4, 4.5).
 
 ### ATE with bootstrap SE
 
@@ -728,7 +728,7 @@ diag$weights
 | Binary | Binary | Static | ATE | OR | Sandwich | none | ✅ |
 | Binary | Binary | Static | ATE | Ratio | Bootstrap | none | ✅ |
 | Binary | Continuous | Dynamic | ATE | Difference | Sandwich | none | ✅ |
-| Binary | Continuous | IPSI(δ) | ATE | Difference | Sandwich | none | ✅ |
+| Binary | Continuous | IPSI($\delta$) | ATE | Difference | Sandwich | none | ✅ |
 | Continuous | Continuous | Shift | ATE | Difference | Sandwich | none | ✅ |
 | Continuous | Continuous | Scale | ATE | Difference | Sandwich | none | ✅ |
 | Categorical (k>2) | Continuous | Static | ATE | Difference | Sandwich | none | ✅ |

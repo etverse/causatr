@@ -1108,7 +1108,7 @@ tt(out, caption = "Decomposition of $\\mathrm{Var}(\\hat\\mu_1)$: delta captures
 
 On this example the delta-method SE is about $1/1.026 \approx 97\%$ of
 the correct SE — a modest underestimate because the covariate sampling
-variance (Channel 1²) happens to be small relative to the parameter
+variance (Channel $1^2$) happens to be small relative to the parameter
 uncertainty. Under non-saturated MSMs and models with strong
 covariate-driven heterogeneity, the ratio can be much larger; @eq-delta
 is not safe as a default.
@@ -1621,9 +1621,9 @@ Reading each term:
   is: $\psi_{\alpha,i} \to \hat\alpha \to w_i \to \hat\beta \to \hat\mu_a$.
   The matrix product
   $\color{#E6550D}{A_{\beta\alpha}}\color{#3182BD}{A_{\alpha\alpha}^{-1}}$
-  captures the first two links (propensity parameters → weights → MSM
+  captures the first two links (propensity parameters $\to$ weights $\to$ MSM
   parameters); $\color{#31A354}{J}\color{#E6550D}{A_{\beta\beta}^{-1}}$
-  captures the last two (MSM parameters → predictions → estimand).
+  captures the last two (MSM parameters $\to$ predictions $\to$ estimand).
 
 The second and third terms can be combined:
 

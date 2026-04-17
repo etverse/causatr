@@ -9,7 +9,7 @@ IPW estimation via WeightIt, matching via MatchIt, diagnostics (`diagnose()`), a
 
 ## What was implemented
 
-1. `causat(estimator = "ipw")` → `fit_ipw()` in `R/ipw.R`
+1. `causat(estimator = "ipw")` $\to$ `fit_ipw()` in `R/ipw.R`
    - Builds treatment model formula from `confounders` term labels
    - Calls `WeightIt::weightit()` for propensity-score weights
    - Calls `WeightIt::glm_weightit()` for the weighted MSM (Y ~ A) with user-specified family
@@ -17,7 +17,7 @@ IPW estimation via WeightIt, matching via MatchIt, diagnostics (`diagnose()`), a
    - Supports ATE, ATT, ATC estimands (fixed at fit time)
    - Rejects longitudinal data (future: `WeightIt::weightitMSM()`)
 
-2. `causat(estimator = "matching")` → `fit_matching()` in `R/matching.R`
+2. `causat(estimator = "matching")` $\to$ `fit_matching()` in `R/matching.R`
    - Calls `MatchIt::matchit()` for matched sets
    - Auto-selects `method = "full"` for ATE (nearest-neighbor only supports ATT/ATC); user can override via `...`
    - Extracts matched data + weights via `MatchIt::match.data()`
@@ -25,14 +25,14 @@ IPW estimation via WeightIt, matching via MatchIt, diagnostics (`diagnose()`), a
    - Supports ATE, ATT, ATC estimands (fixed at fit time)
    - Stores `matched_data` and `match_obj` in `causatr_fit`
 
-3. Sandwich variance (method-specific V_β):
+3. Sandwich variance (method-specific $V_\beta$):
    - IPW: `stats::vcov(glm_weightit_model)` — M-estimation vcov accounting for weight uncertainty
    - Matching: `sandwich::vcovCL(model, cluster = subclass)` — cluster-robust on matched pairs
-   - Both propagated via `compute_vcov_marginal()` (J V_β Jᵀ)
+   - Both propagated via `compute_vcov_marginal()` ($J V_\beta J^\top$)
 
 4. Bootstrap variance (method-specific refit):
-   - `refit_ipw()`: resample → re-estimate weights → refit MSM
-   - `refit_matching()`: resample → re-match → refit on matched data
+   - `refit_ipw()`: resample $\to$ re-estimate weights $\to$ refit MSM
+   - `refit_matching()`: resample $\to$ re-match $\to$ refit on matched data
 
 5. WeightIt and MatchIt moved from Suggests to Imports
 
@@ -65,24 +65,24 @@ IPW estimation via WeightIt, matching via MatchIt, diagnostics (`diagnose()`), a
 - **WeightIt/MatchIt as Imports** (not Suggests) — they're core to the triangulation mission
 - **cobalt in Suggests** — optional for diagnostics, graceful fallback to simple SMD table
 - **IPW currently static-only** — WeightIt doesn't support density ratio weights for dynamic/MTP interventions. Self-contained IPW planned for Phase 4.
-- **Predict-then-average** for all methods — `compute_contrast()` is unified across gcomp/ipw/matching. For IPW/matching with saturated MSMs, the Jacobian is trivial so J V_β Jᵀ gives the same result as reading off β₁.
+- **Predict-then-average** for all methods — `compute_contrast()` is unified across gcomp/ipw/matching. For IPW/matching with saturated MSMs, the Jacobian is trivial so $J V_\beta J^\top$ gives the same result as reading off $\beta_1$.
 - **diagnose() stores fit reference** — `causatr_diag$fit` stores the original `causatr_fit` so `plot.causatr_diag()` can pass the weightit/matchit object directly to `cobalt::love.plot()`.
 
 ## Testing targets
 
 | Test                                                 | Expected                      | Status  |
 | ---------------------------------------------------- | ----------------------------- | ------- |
-| IPW ATE on simulated DGP (continuous outcome)        | ≈ 3                           | Passing |
-| IPW RD on simulated DGP (binary outcome)             | ≈ 0.33                        | Passing |
+| IPW ATE on simulated DGP (continuous outcome)        | $\approx$ 3                           | Passing |
+| IPW RD on simulated DGP (binary outcome)             | $\approx$ 0.33                        | Passing |
 | IPW risk ratio on simulated DGP                      | > 1                           | Passing |
-| IPW ATT estimand                                     | ≈ 3                           | Passing |
-| IPW sandwich vs bootstrap SE agreement               | ratio ∈ (0.3, 3.0)            | Passing |
-| Matching ATT on simulated DGP (continuous outcome)   | ≈ 3                           | Passing |
-| Matching RD on simulated DGP (binary outcome)        | ≈ 0.33                        | Passing |
+| IPW ATT estimand                                     | $\approx$ 3                           | Passing |
+| IPW sandwich vs bootstrap SE agreement               | ratio $\in$ (0.3, 3.0)            | Passing |
+| Matching ATT on simulated DGP (continuous outcome)   | $\approx$ 3                           | Passing |
+| Matching RD on simulated DGP (binary outcome)        | $\approx$ 0.33                        | Passing |
 | Matching risk ratio on simulated DGP                 | > 1                           | Passing |
-| Matching sandwich vs bootstrap SE agreement          | ratio ∈ (0.3, 3.0)            | Passing |
-| Triangulation: gcomp ≈ ipw ≈ matching (continuous)   | Within ±0.5                   | Passing |
-| Triangulation: gcomp ≈ ipw ≈ matching (binary)       | Within ±0.15                  | Passing |
+| Matching sandwich vs bootstrap SE agreement          | ratio $\in$ (0.3, 3.0)            | Passing |
+| Triangulation: gcomp $\approx$ ipw $\approx$ matching (continuous)   | Within $\pm$0.5                   | Passing |
+| Triangulation: gcomp $\approx$ ipw $\approx$ matching (binary)       | Within $\pm$0.15                  | Passing |
 | diagnose() returns causatr_diag for all methods      | correct class + slots         | Passing |
 | diagnose() positivity table for binary treatment     | ps summary + violations       | Passing |
 | diagnose() balance via cobalt for ipw/matching/gcomp | bal.tab object                | Passing |
