@@ -133,22 +133,21 @@ test_that("IPW rejects static(1) on a continuous treatment", {
   )
 })
 
-test_that("IPW rejects A:modifier interaction terms in confounders", {
-  # EM terms are detected but not yet supported under IPW. The error
-  # class will change from `causatr_em_unsupported` to supported
-  # behavior once chunk 6b lands.
+test_that("IPW accepts A:modifier interaction terms in confounders", {
+  # EM terms expand the per-intervention MSM from `Y ~ 1` to
+  # `Y ~ 1 + modifier` (chunk 6b). The propensity formula strips the
+  # EM term automatically via `build_ps_formula()`.
   d <- simulate_binary_continuous(n = 200, seed = 1)
   d$sex <- rbinom(nrow(d), 1, 0.5)
-  expect_error(
-    causat(
-      d,
-      outcome = "Y",
-      treatment = "A",
-      confounders = ~ L + sex + A:sex,
-      estimator = "ipw"
-    ),
-    class = "causatr_em_unsupported"
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L + sex + A:sex,
+    estimator = "ipw"
   )
+  expect_s3_class(fit, "causatr_fit")
+  expect_true(fit$details$em_info$has_em)
 })
 
 test_that("IPW rejects bare treatment in confounders", {

@@ -116,33 +116,10 @@ fit_ipw <- function(
     estimator = "ipw"
   )
 
-  # IPW effect modification is wired in `compute_ipw_contrast_point()`:
-  # the per-intervention MSM expands from `Y ~ 1` to `Y ~ 1 + modifier`
-  # when EM terms are present. For now, reject EM terms until the MSM
-  # expansion is implemented.
-  if (em_info$has_em) {
-    em_labels <- vapply(em_info$em_terms, function(x) x$term, character(1L))
-    rlang::abort(
-      c(
-        paste0(
-          "Effect modification via `A:modifier` is not yet supported ",
-          "for `estimator = \"ipw\"`."
-        ),
-        x = paste0(
-          "Offending term(s): ",
-          paste(em_labels, collapse = ", "),
-          "."
-        ),
-        i = paste0(
-          "Use `estimator = \"gcomp\"` for heterogeneous treatment effects, ",
-          "or `by = \"modifier\"` in `contrast()` for stratum-specific ",
-          "summaries of a homogeneous effect."
-        )
-      ),
-      class = "causatr_em_unsupported",
-      .call = FALSE
-    )
-  }
+  # EM terms are stored in `fit$details$em_info` for downstream use by
+  # `compute_ipw_contrast_point()` (MSM expansion from `Y ~ 1` to
+  # `Y ~ 1 + modifier`) and `variance_if_ipw()` (expanded MSM flows
+  # through the stacked sandwich engine unchanged).
 
   # Fit rows: exclude missing outcomes for the MSM. `fit_treatment_model()`
   # applies its own propensity-side row mask (missing treatment /
@@ -273,7 +250,8 @@ fit_ipw <- function(
       propensity_model = tm$model,
       propensity_model_fn = prop_model_fn,
       propensity_family = propensity_family,
-      model_fn = model_fn
+      model_fn = model_fn,
+      em_info = em_info
     )
   )
 }
@@ -333,6 +311,7 @@ compute_ipw_contrast_point <- function(
   ext_w_fit <- if (is.null(ext_w)) NULL else ext_w[fit_rows]
   fam_obj <- resolve_family(fit$family)
   model_fn <- fit$details$model_fn
+  em_info <- fit$details$em_info
   # Fit-time estimand threads into the density-ratio weight branch via
   # the HT Bayes-numerator `f*_i`. For ATE this is 1 (unchanged from
   # Phase 4's original flow); for ATT / ATC on static binary it
@@ -381,7 +360,13 @@ compute_ipw_contrast_point <- function(
     # weights on a binary treatment — every surviving row has the
     # same value of A — so we uniformly refit `Y ~ 1` and read off
     # the (sole) coefficient as the counterfactual marginal mean.
-    msm_formula <- stats::as.formula(paste0(outcome, " ~ 1"))
+    #
+    # When effect-modification terms are present (e.g. `A:sex` in
+    # confounders), the MSM expands to `Y ~ 1 + sex` so that
+    # `predict()` returns modifier-stratum-specific counterfactual
+    # means. The treatment is still absorbed by the density-ratio
+    # weights — only modifier main effects enter the MSM.
+    msm_formula <- build_ipw_msm_formula(outcome, em_info)
 
     msm_args <- list(
       formula = msm_formula,

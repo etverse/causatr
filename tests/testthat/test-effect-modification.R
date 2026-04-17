@@ -195,22 +195,7 @@ test_that("build_ps_formula handles EM-only confounders", {
   expect_length(f_terms, 0L)
 })
 
-# IPW rejection of EM terms (temporary, until chunk 6b) ---------------------
-
-test_that("IPW rejects A:modifier interaction terms in confounders", {
-  d <- simulate_binary_continuous(n = 200, seed = 1)
-  d$sex <- rbinom(nrow(d), 1, 0.5)
-  expect_error(
-    causat(
-      d,
-      outcome = "Y",
-      treatment = "A",
-      confounders = ~ L + sex + A:sex,
-      estimator = "ipw"
-    ),
-    class = "causatr_em_unsupported"
-  )
-})
+# IPW effect modification (chunk 6b) ----------------------------------------
 
 test_that("IPW rejects bare treatment in confounders", {
   d <- simulate_binary_continuous(n = 200, seed = 2)
@@ -224,6 +209,167 @@ test_that("IPW rejects bare treatment in confounders", {
     ),
     class = "causatr_bare_treatment_in_confounders"
   )
+})
+
+test_that("IPW accepts A:modifier and stores em_info", {
+  d <- simulate_effect_mod(n = 500, seed = 1)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L + sex + A:sex,
+    estimator = "ipw"
+  )
+  expect_s3_class(fit, "causatr_fit")
+  expect_true(fit$details$em_info$has_em)
+  expect_equal(fit$details$em_info$modifier_vars, "sex")
+})
+
+# Truth-based: IPW sandwich with binary treatment × binary modifier.
+#
+# DGP 4: Y = 2 + 3*A + 1.5*L + 1.2*sex*A + N(0,1)
+#   True ATE|sex=0 = 3
+#   True ATE|sex=1 = 4.2
+#
+# The propensity model is correctly specified (A ~ L), and the MSM
+# expands to `Y ~ 1 + sex` per intervention. Under `by = "sex"`,
+# `contrast()` averages the modifier-aware predictions per stratum.
+test_that("IPW EM sandwich recovers stratum-specific ATEs (DGP 4)", {
+  d <- simulate_effect_mod(n = 5000, seed = 42)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L + sex + A:sex,
+    estimator = "ipw"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    type = "difference",
+    reference = "a0",
+    ci_method = "sandwich",
+    by = "sex"
+  )
+
+  ate_sex0 <- res$contrasts$estimate[res$contrasts$by == 0]
+  ate_sex1 <- res$contrasts$estimate[res$contrasts$by == 1]
+
+  # Point estimates within 0.3 of truth (the DGP is linear with
+  # correctly specified propensity, so the Hajek estimator is
+  # consistent).
+  expect_lt(abs(ate_sex0 - 3.0), 0.3)
+  expect_lt(abs(ate_sex1 - 4.2), 0.3)
+
+  # CIs cover the truth.
+  ci_sex0 <- res$contrasts[res$contrasts$by == 0, ]
+  ci_sex1 <- res$contrasts[res$contrasts$by == 1, ]
+  expect_lte(ci_sex0$ci_lower, 3.0)
+  expect_gte(ci_sex0$ci_upper, 3.0)
+  expect_lte(ci_sex1$ci_lower, 4.2)
+  expect_gte(ci_sex1$ci_upper, 4.2)
+})
+
+# Cross-check: IPW EM point estimates agree with gcomp EM.
+test_that("IPW EM agrees with gcomp EM on same DGP (DGP 4)", {
+  d <- simulate_effect_mod(n = 5000, seed = 42)
+
+  fit_gc <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L + sex + A:sex
+  )
+  res_gc <- contrast(
+    fit_gc,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    type = "difference",
+    reference = "a0",
+    ci_method = "sandwich",
+    by = "sex"
+  )
+
+  fit_ipw <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L + sex + A:sex,
+    estimator = "ipw"
+  )
+  res_ipw <- contrast(
+    fit_ipw,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    type = "difference",
+    reference = "a0",
+    ci_method = "sandwich",
+    by = "sex"
+  )
+
+  # Stratum-specific ATEs should agree within cross-method tolerance.
+  # Both are consistent under the linear DGP; differences come from
+  # finite-sample variance only.
+  gc_sex0 <- res_gc$contrasts$estimate[res_gc$contrasts$by == 0]
+  gc_sex1 <- res_gc$contrasts$estimate[res_gc$contrasts$by == 1]
+  ipw_sex0 <- res_ipw$contrasts$estimate[res_ipw$contrasts$by == 0]
+  ipw_sex1 <- res_ipw$contrasts$estimate[res_ipw$contrasts$by == 1]
+  expect_lt(abs(gc_sex0 - ipw_sex0), 0.5)
+  expect_lt(abs(gc_sex1 - ipw_sex1), 0.5)
+})
+
+# Bootstrap: IPW EM bootstrap CIs cover the truth.
+test_that("IPW EM bootstrap covers stratum-specific ATEs (DGP 4)", {
+  d <- simulate_effect_mod(n = 3000, seed = 42)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L + sex + A:sex,
+    estimator = "ipw"
+  )
+  res <- suppressWarnings(contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    type = "difference",
+    reference = "a0",
+    ci_method = "bootstrap",
+    n_boot = 100,
+    by = "sex"
+  ))
+
+  ci_sex0 <- res$contrasts[res$contrasts$by == 0, ]
+  ci_sex1 <- res$contrasts[res$contrasts$by == 1, ]
+  expect_lte(ci_sex0$ci_lower, 3.0)
+  expect_gte(ci_sex0$ci_upper, 3.0)
+  expect_lte(ci_sex1$ci_lower, 4.2)
+  expect_gte(ci_sex1$ci_upper, 4.2)
+})
+
+# Regression guard: IPW without EM terms produces identical results.
+test_that("IPW without EM terms is unaffected by EM infrastructure", {
+  d <- simulate_binary_continuous(n = 2000, seed = 42)
+
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    type = "difference",
+    reference = "a0",
+    ci_method = "sandwich"
+  )
+
+  # The standard DGP 1 has ATE = 3.
+  expect_lt(abs(res$contrasts$estimate[1] - 3.0), 0.3)
+  expect_lte(res$contrasts$ci_lower[1], 3.0)
+  expect_gte(res$contrasts$ci_upper[1], 3.0)
+
+  # em_info should report no EM terms.
+  expect_false(fit$details$em_info$has_em)
 })
 
 # Matching rejection of EM terms (temporary, until chunk 6c) ----------------

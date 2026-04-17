@@ -240,9 +240,10 @@ on the stratum. No changes to `by` itself.
 - [x] All existing tests pass (no estimation changes)
 
 ### Chunk 6b — IPW MSM expansion
-- [ ] `R/ipw.R` — `compute_ipw_contrast_point()` MSM expansion + `fit$details$em_info`
-- [ ] `R/variance_if.R` — verify expanded MSM flows through `variance_if_ipw()`
-- [ ] `tests/testthat/test-effect-modification.R` — IPW truth + bootstrap + regression guard
+- [x] `R/ipw.R` — `compute_ipw_contrast_point()` MSM expansion via `build_ipw_msm_formula()` + `fit$details$em_info`
+- [x] `R/variance_if.R` — verified: expanded MSM flows through `variance_if_ipw()` unchanged (J, X_star, phi_bar all generalize from p_beta=1 to p_beta>1)
+- [x] `tests/testthat/test-effect-modification.R` — IPW truth (DGP 4, sandwich), bootstrap, gcomp cross-check, regression guard
+- [x] `tests/testthat/test-ipw.R` — updated rejection test → acceptance test
 
 ### Chunk 6c — Matching MSM expansion
 - [ ] `R/matching.R` — `fit_matching()` MSM expansion + `fit$details$em_info`
