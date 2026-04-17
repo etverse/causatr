@@ -464,3 +464,105 @@ make_em_ice_scm <- function(n = 5000, n_times = 2, seed = 42) {
   }
   do.call(rbind, rows)
 }
+
+# DGP-EM-ICE-CONT: Longitudinal EM with continuous treatment.
+#
+# Continuous-treatment version of the EM ICE DGP. Treatment effect at each
+# period is (2 + 1.5 * sex) per unit of A_k, making the sex-specific
+# shift contrasts analytically computable.
+#
+# DGP (2 periods):
+#   L0 ~ N(0, 1); sex ~ Bern(0.5)
+#   A_0 = 1 + 0.5 * L0 + eps_A
+#   L_1 = A_0 + 0.5 * L0 + eps_L
+#   A_1 = 1 + 0.3 * L_1 + 0.2 * A_0 + eps_A
+#   Y = 10 + (2 + 1.5*sex) * (A_0 + A_1) + L0 + L_1 + eps_Y
+#
+# True shift(delta) effect (g-formula, includes indirect path via L_1):
+#   MC truth (n = 5*10^6): shift(1)|sex=0 ~ 6.0, shift(1)|sex=1 ~ 9.76
+#   (larger than the direct coefficient effect 4/7 because L_1 = A_0 + ...)
+make_em_ice_cont_scm <- function(n = 5000, seed = 42) {
+  set.seed(seed)
+
+  L0 <- stats::rnorm(n)
+  sex <- stats::rbinom(n, 1, 0.5)
+
+  A0 <- 1 + 0.5 * L0 + stats::rnorm(n, 0, 0.5)
+  L1 <- A0 + 0.5 * L0 + stats::rnorm(n, 0, 0.5)
+  A1 <- 1 + 0.3 * L1 + 0.2 * A0 + stats::rnorm(n, 0, 0.5)
+
+  trt_effect <- (2 + 1.5 * sex) * (A0 + A1)
+  Y <- 10 + trt_effect + L0 + L1 + stats::rnorm(n)
+
+  rbind(
+    data.frame(
+      id = seq_len(n),
+      time = 0L,
+      A = A0,
+      L = NA_real_,
+      L0 = L0,
+      sex = sex,
+      Y = NA_real_
+    ),
+    data.frame(
+      id = seq_len(n),
+      time = 1L,
+      A = A1,
+      L = L1,
+      L0 = L0,
+      sex = sex,
+      Y = Y
+    )
+  )
+}
+
+# DGP-EM-ICE-BINOM: Longitudinal EM with binary outcome.
+#
+# Same structure as make_em_ice_scm but with a binary outcome via logistic
+# link. Treatment effect is on the log-odds scale.
+#
+# DGP (2 periods):
+#   L0 ~ N(0, 1); sex ~ Bern(0.5)
+#   A_0 ~ Bern(expit(0.5 * L0))
+#   L_1 = A_0 + 0.5 * L0 + eps_L
+#   A_1 ~ Bern(expit(0.3 * L_1))
+#   Y ~ Bern(expit(-1 + (1 + 0.8*sex)*(A_0 + A_1) + 0.5*L0 + 0.3*L_1))
+#
+# No closed-form truth on the probability scale due to nonlinear link,
+# but MC truth (n = 10^6, seed = 1):
+#   P[Y(always)|sex=0] ~ 0.767, P[Y(never)|sex=0] ~ 0.287
+#   P[Y(always)|sex=1] ~ 0.938, P[Y(never)|sex=1] ~ 0.287
+#   RD|sex=0 ~ 0.480, RD|sex=1 ~ 0.651
+make_em_ice_binom_scm <- function(n = 5000, seed = 42) {
+  set.seed(seed)
+
+  L0 <- stats::rnorm(n)
+  sex <- stats::rbinom(n, 1, 0.5)
+  A0 <- stats::rbinom(n, 1, stats::plogis(0.5 * L0))
+  L1 <- A0 + 0.5 * L0 + stats::rnorm(n, 0, 0.5)
+  A1 <- stats::rbinom(n, 1, stats::plogis(0.3 * L1))
+
+  eta <- -1 + (1 + 0.8 * sex) * (A0 + A1) + 0.5 * L0 + 0.3 * L1
+  Y <- stats::rbinom(n, 1, stats::plogis(eta))
+
+  rbind(
+    data.frame(
+      id = seq_len(n),
+      time = 0L,
+      A = A0,
+      L = NA_real_,
+      L0 = L0,
+      sex = sex,
+      Y = NA_real_
+    ),
+    data.frame(
+      id = seq_len(n),
+      time = 1L,
+      A = A1,
+      L = L1,
+      L0 = L0,
+      sex = sex,
+      Y = Y
+    )
+  )
+}

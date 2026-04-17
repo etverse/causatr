@@ -146,6 +146,12 @@ Rejections (all ✅ tested):
 | bin | gauss | static + EM | 3 | sandwich | — | ✅ | test-effect-modification.R |
 | bin | gauss | static + EM | 2 | boot | — | ✅ | test-effect-modification.R |
 | bin | gauss | static + multi-EM | 2 | sandwich | — | 🟡 | test-effect-modification.R |
+| cont | gauss | shift + EM | 2 | sandwich | — | ✅ | test-effect-modification.R |
+| cont | gauss | scale_by + EM | 2 | sandwich | — | 🟡 | test-effect-modification.R |
+| cont | gauss | threshold + EM | 2 | sandwich | — | 🟡 | test-effect-modification.R |
+| bin | gauss | dynamic + EM | 2 | sandwich | — | 🟡 | test-effect-modification.R |
+| bin | binom | static + EM | 2 | sandwich | — | ✅ | test-effect-modification.R |
+| multi | gauss | static + EM | 2 | sandwich | — | 🟡 | test-effect-modification.R |
 
 Rejections (all ✅ tested): ipsi $\to$ test-ice.R, ATT/ATC $\to$ test-ice.R.
 

@@ -812,3 +812,359 @@ test_that("ICE without EM terms is unaffected by EM lag expansion", {
   expect_lte(res$contrasts$ci_lower[1], 5.0)
   expect_gte(res$contrasts$ci_upper[1], 5.0)
 })
+
+# ICE EM x continuous treatment x shift (chunk 6d) ----------------------------
+
+# Truth-based: ICE x continuous trt x shift(1) x binary modifier.
+#
+# DGP-EM-ICE-CONT: Y = 10 + (2+1.5*sex)*(A_0+A_1) + L0 + L_1 + eps
+# The g-formula shift(1) effect includes the indirect path through
+# treatment-confounder feedback (L_1 depends on A_0), so the true
+# causal effect is larger than the direct coefficient sum.
+# MC truth (n = 5*10^6, seed = 1):
+#   shift(1)|sex=0 ~ 6.0, shift(1)|sex=1 ~ 9.76
+test_that("ICE EM x continuous trt x shift recovers sex-specific effects", {
+  d <- make_em_ice_cont_scm(n = 10000, seed = 42)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L0 + sex + A:sex,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time"
+  )
+
+  res <- contrast(
+    fit,
+    interventions = list(shifted = shift(1), natural = NULL),
+    type = "difference",
+    reference = "natural",
+    ci_method = "sandwich",
+    by = "sex"
+  )
+
+  ate_sex0 <- res$contrasts$estimate[res$contrasts$by == 0]
+  ate_sex1 <- res$contrasts$estimate[res$contrasts$by == 1]
+
+  # MC truth: 6.0 / 9.76. Continuous treatments have higher variance
+  # due to treatment-confounder feedback and collinearity between A_0
+  # and L_1. The ICE model is correctly specified but the finite-sample
+  # bias is larger than for binary treatments.
+  expect_lt(abs(ate_sex0 - 6.0), 0.5)
+  expect_lt(abs(ate_sex1 - 9.76), 0.5)
+
+  # SEs are finite and positive, and sex=1 effect is larger.
+  expect_true(all(res$contrasts$se > 0))
+  expect_true(all(is.finite(res$contrasts$se)))
+  expect_gt(ate_sex1, ate_sex0)
+})
+
+# ICE EM x continuous treatment x scale_by.
+#
+# DGP-EM-ICE-CONT: scale_by(1.5) vs natural
+#   E[Y(1.5*A)] - E[Y(A)] = (2+1.5*sex) * (1.5 - 1) * (E[A_0] + E[A_1])
+#   where E[A_0] ~ 1, E[A_1] ~ 1 + 0.3*E[L_1] + 0.2 ~ flexible
+# No analytical truth for the exact marginal mean, so this is a smoke test
+# that verifies the scale_by path produces differentiated sex-specific
+# contrasts (not collapsed to the same value).
+test_that("ICE EM x continuous trt x scale_by produces sex-differentiated estimates", {
+  d <- make_em_ice_cont_scm(n = 5000, seed = 42)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L0 + sex + A:sex,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time"
+  )
+
+  res <- contrast(
+    fit,
+    interventions = list(scaled = scale_by(1.5), natural = NULL),
+    type = "difference",
+    reference = "natural",
+    ci_method = "sandwich",
+    by = "sex"
+  )
+
+  est_sex0 <- res$contrasts$estimate[res$contrasts$by == 0]
+  est_sex1 <- res$contrasts$estimate[res$contrasts$by == 1]
+
+  # Smoke: estimates are finite, positive, and sex=1 effect is larger.
+  expect_true(all(is.finite(res$contrasts$estimate)))
+  expect_true(all(res$contrasts$se > 0))
+  expect_gt(est_sex1, est_sex0)
+})
+
+# ICE EM x continuous treatment x threshold.
+test_that("ICE EM x continuous trt x threshold produces sex-differentiated estimates", {
+  d <- make_em_ice_cont_scm(n = 5000, seed = 42)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L0 + sex + A:sex,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time"
+  )
+
+  res <- contrast(
+    fit,
+    interventions = list(capped = threshold(upper = 1.5), natural = NULL),
+    type = "difference",
+    reference = "natural",
+    ci_method = "sandwich",
+    by = "sex"
+  )
+
+  # Smoke: finite and differentiated.
+  expect_true(all(is.finite(res$contrasts$estimate)))
+  expect_true(all(res$contrasts$se > 0))
+  # The threshold caps A at 1.5, reducing E[Y] — sex=1 stratum should
+  # have a larger (more negative) reduction because the per-unit effect
+  # is larger for sex=1.
+  est_sex0 <- res$contrasts$estimate[res$contrasts$by == 0]
+  est_sex1 <- res$contrasts$estimate[res$contrasts$by == 1]
+  expect_lt(est_sex1, est_sex0)
+})
+
+# ICE EM x binary treatment x dynamic intervention ----------------------------
+
+# Truth-based: ICE x binary trt x dynamic x EM.
+#
+# Dynamic rule: treat if L_k > 0 (treat individuals with higher
+# time-varying confounder). Under this rule on the make_em_ice_scm DGP,
+# we can't derive the analytical truth, but we verify sex-differentiated
+# estimates are produced and finite.
+test_that("ICE EM x binary trt x dynamic produces sex-differentiated estimates", {
+  d <- make_em_ice_scm(n = 5000, n_times = 2, seed = 42)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L0 + sex + A:sex,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time"
+  )
+
+  res <- contrast(
+    fit,
+    interventions = list(
+      dyn = dynamic(function(data, orig_trt) as.integer(data$L0 > 0)),
+      never = static(0)
+    ),
+    type = "difference",
+    reference = "never",
+    ci_method = "sandwich",
+    by = "sex"
+  )
+
+  est_sex0 <- res$contrasts$estimate[res$contrasts$by == 0]
+  est_sex1 <- res$contrasts$estimate[res$contrasts$by == 1]
+
+  # Smoke: finite, positive (treating some is better than treating none),
+  # and sex=1 has a larger effect (per the DGP).
+  expect_true(all(is.finite(res$contrasts$estimate)))
+  expect_true(all(res$contrasts$se > 0))
+  expect_gt(est_sex0, 0)
+  expect_gt(est_sex1, est_sex0)
+})
+
+# ICE EM x binary outcome (binomial) -----------------------------------------
+
+# Truth-based: ICE x binary trt x binomial outcome x EM.
+#
+# DGP-EM-ICE-BINOM: Y ~ Bern(expit(-1 + (1+0.8*sex)*(A0+A1) + 0.5*L0 + 0.3*L1))
+#   MC truth (n = 10^6): RD|sex=0 ~ 0.480, RD|sex=1 ~ 0.651
+test_that("ICE EM x binomial outcome recovers sex-specific risk differences", {
+  d <- make_em_ice_binom_scm(n = 8000, seed = 42)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L0 + sex + A:sex,
+    confounders_tv = ~L,
+    family = "binomial",
+    id = "id",
+    time = "time"
+  )
+
+  res <- contrast(
+    fit,
+    interventions = list(always = static(1), never = static(0)),
+    type = "difference",
+    reference = "never",
+    ci_method = "sandwich",
+    by = "sex"
+  )
+
+  rd_sex0 <- res$contrasts$estimate[res$contrasts$by == 0]
+  rd_sex1 <- res$contrasts$estimate[res$contrasts$by == 1]
+
+  # MC truth: RD|sex=0 ~ 0.480, RD|sex=1 ~ 0.651
+  # Tolerate 0.05 on probability scale (binomial is noisier).
+  expect_lt(abs(rd_sex0 - 0.480), 0.05)
+  expect_lt(abs(rd_sex1 - 0.651), 0.05)
+
+  # CIs cover the MC truth.
+  ci_sex0 <- res$contrasts[res$contrasts$by == 0, ]
+  ci_sex1 <- res$contrasts[res$contrasts$by == 1, ]
+  expect_lte(ci_sex0$ci_lower, 0.480)
+  expect_gte(ci_sex0$ci_upper, 0.480)
+  expect_lte(ci_sex1$ci_lower, 0.651)
+  expect_gte(ci_sex1$ci_upper, 0.651)
+
+  # SEs are finite and positive.
+  expect_true(all(res$contrasts$se > 0))
+  expect_true(all(is.finite(res$contrasts$se)))
+})
+
+# ICE EM x multivariate treatment ---------------------------------------------
+
+# Smoke test: ICE x multivariate binary trt x EM.
+# Uses a DGP with two binary treatments and sex-specific effects for A1.
+test_that("ICE EM x multivariate trt produces finite sex-differentiated estimates", {
+  set.seed(55)
+  n <- 3000
+  L0 <- rnorm(n)
+  sex <- rbinom(n, 1, 0.5)
+  A1_0 <- rbinom(n, 1, plogis(0.3 * L0))
+  A2_0 <- rbinom(n, 1, 0.5)
+  L1 <- 0.5 * A1_0 + rnorm(n, 0, 0.5)
+  A1_1 <- rbinom(n, 1, plogis(0.3 * L1))
+  A2_1 <- rbinom(n, 1, 0.5)
+  Y <- 50 +
+    (2 + 1.5 * sex) * (A1_0 + A1_1) +
+    (A2_0 + A2_1) -
+    L1 +
+    rnorm(n, 0, 2)
+
+  d <- rbind(
+    data.frame(
+      id = 1:n,
+      time = 0L,
+      A1 = A1_0,
+      A2 = A2_0,
+      L = L0,
+      sex = sex,
+      Y = NA_real_
+    ),
+    data.frame(
+      id = 1:n,
+      time = 1L,
+      A1 = A1_1,
+      A2 = A2_1,
+      L = L1,
+      sex = sex,
+      Y = Y
+    )
+  )
+
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = c("A1", "A2"),
+    confounders = ~ sex + A1:sex,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time"
+  )
+
+  expect_true(fit$details$em_info$has_em)
+
+  res <- contrast(
+    fit,
+    interventions = list(
+      both = list(A1 = static(1), A2 = static(1)),
+      none = list(A1 = static(0), A2 = static(0))
+    ),
+    type = "difference",
+    reference = "none",
+    ci_method = "sandwich",
+    by = "sex"
+  )
+
+  est_sex0 <- res$contrasts$estimate[res$contrasts$by == 0]
+  est_sex1 <- res$contrasts$estimate[res$contrasts$by == 1]
+
+  # Smoke: finite, positive, and sex=1 has larger effect.
+  expect_true(all(is.finite(res$contrasts$estimate)))
+  expect_true(all(res$contrasts$se > 0))
+  expect_gt(est_sex1, est_sex0)
+})
+
+# lmtp oracle cross-check: ICE EM binary treatment (2-period DGP).
+#
+# Validates causatr ICE EM against lmtp::lmtp_sdr() on per-stratum
+# point estimates. Uses the same DGP and seed for both.
+test_that("ICE EM binary: causatr agrees with lmtp per-stratum (DGP-EM-ICE)", {
+  skip_if_not_installed("lmtp")
+
+  d <- make_em_ice_scm(n = 5000, n_times = 2, seed = 42)
+
+  # causatr
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L0 + sex + A:sex,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(always = static(1), never = static(0)),
+    type = "difference",
+    reference = "never",
+    ci_method = "sandwich",
+    by = "sex"
+  )
+
+  # lmtp — reshape to wide, stratify by sex
+  d_wide <- reshape(
+    d,
+    idvar = "id",
+    timevar = "time",
+    direction = "wide",
+    v.names = c("A", "L", "Y"),
+    sep = "_"
+  )
+  d_clean <- d_wide[, c("id", "L0", "A_0", "A_1", "L_1", "Y_1")]
+  sex_vec <- d_wide$sex
+
+  run_lmtp <- function(data_sub, shift_fn) {
+    suppressWarnings(suppressMessages(lmtp::lmtp_sdr(
+      data = data_sub,
+      trt = c("A_0", "A_1"),
+      outcome = "Y_1",
+      baseline = c("L0"),
+      time_vary = list(NULL, c("L_1")),
+      shift = shift_fn,
+      outcome_type = "continuous",
+      learners_trt = "SL.glm",
+      learners_outcome = "SL.glm",
+      folds = 1
+    )))
+  }
+  theta_of <- function(r) r$estimate@x
+
+  for (s in c(0, 1)) {
+    ds <- d_clean[sex_vec == s, ]
+    ra <- run_lmtp(ds, function(data, trt) rep(1, nrow(data)))
+    rn <- run_lmtp(ds, function(data, trt) rep(0, nrow(data)))
+    lmtp_ate <- theta_of(ra) - theta_of(rn)
+    causatr_ate <- res$contrasts$estimate[res$contrasts$by == s]
+    # Cross-method tolerance: lmtp uses SDR (semiparametric), causatr
+    # uses parametric g-comp — both consistent under correct spec.
+    expect_lt(
+      abs(causatr_ate - lmtp_ate),
+      0.5,
+      label = paste0("causatr vs lmtp ATE|sex=", s)
+    )
+  }
+})
