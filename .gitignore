@@ -10,7 +10,8 @@ altdoc/pkgdown.yml
 .adal
 .agents
 .augment
-.claude
+.claude/*
+!.claude/commands/
 .codebuddy
 .commandcode
 .continue
