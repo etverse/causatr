@@ -22,6 +22,11 @@
   EM) the bug was invisible because all predictions were constant.
   Fifth-round critical review Issue #B2.
 
+- Removed unused `em_confounder_terms()` helper from
+  `R/effect_modification.R`. Added a diagnostic `rlang::warn()` in
+  `expand_em_lag_terms()` when no treatment components are found in an
+  EM term (previously silent). Fifth-round critical review Issues #S1, #S2.
+
 ## 2026-04-17 — Phase 6 complete: unified effect-modification API
 
 Phase 6 (chunks 6a--6e) delivers a unified effect-modification API across

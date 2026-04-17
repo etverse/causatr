@@ -186,21 +186,6 @@ check_em_compat <- function(em_info, treatment, estimator, data = NULL) {
 }
 
 
-#' Strip treatment-containing terms from the propensity formula RHS
-#'
-#' When `confounders = ~ L + sex + A:sex`, the propensity model should
-#' be `A ~ L + sex`, not `A ~ L + sex + A:sex`. This helper returns
-#' only the confounder terms (no treatment involvement) for use in
-#' `build_ps_formula()`.
-#'
-#' @param em_info A `causatr_em_info` object from `parse_effect_mod()`.
-#' @return Character vector of pure confounder term labels.
-#' @noRd
-em_confounder_terms <- function(em_info) {
-  em_info$confounder_terms
-}
-
-
 #' Expand an EM term across treatment lags for ICE formulas
 #'
 #' Given an EM term like `"A:sex"` and `available_lags = 2`, produces
@@ -232,6 +217,12 @@ expand_em_lag_terms <- function(em_term, available_lags) {
   # matching the wrong positions.
   trt_idx <- which(components %in% trt_var)
   if (length(trt_idx) == 0L) {
+    rlang::warn(paste0(
+      "expand_em_lag_terms(): treatment variable(s) ",
+      paste(trt_var, collapse = ", "),
+      " not found in EM term '", em_term$term,
+      "'. Returning no lag terms for this term."
+    ))
     return(character(0L))
   }
 
