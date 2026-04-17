@@ -27,10 +27,11 @@ outcome type, contrast scale, and inference method for time-fixed treatments.
 For non-static interventions (shift, scale, dynamic, IPSI), see
 `vignette("interventions")`.
 
-**Note:** IPW and matching reject an `A:modifier` term inside `confounders`
-up front --- the intercept-only MSM has no slot for the interaction.
-Use `estimator = "gcomp"` for heterogeneous treatment effects, or `by =
-"modifier"` below for stratum-specific summaries of a homogeneous effect.
+**Note:** IPW and matching support effect modification via `A:modifier`
+terms in `confounders`. IPW expands the per-intervention MSM to include
+modifier main effects (`Y ~ 1 + modifier`); matching expands to a
+saturated MSM (`Y ~ A + modifier + A:modifier`). Use `by = "modifier"`
+in `contrast()` to obtain stratum-specific estimates.
 
 ## Setup
 
@@ -735,20 +736,15 @@ abline(h = 0, lty = 2, col = "grey40")
 
 ## Effect modification with `by`
 
-::: {.callout-important}
-## IPW effect modification is a Phase 6 feature
+::: {.callout-tip}
+## IPW effect modification
 
-The `by` argument stratifies the causal effect estimates that fall out of
-the fitted marginal structural model (MSM). causatr currently uses an
-intercept-only MSM (`Y ~ 1`) for IPW --- so predictions are flat per
-intervention, and averaging them over any subset returns the same pooled
-estimate. In other words, `by = "sex"` is a no-op for IPW until the MSM can
-carry an interaction term (e.g. `Y ~ A + A:sex`).
-
-This is a causatr implementation limitation, not a methodological one.
-Unified effect-modification support across IPW, matching, and ICE is
-planned. In the meantime, use `estimator = "gcomp"` with an `A:modifier`
-term in `confounders` if you need heterogeneous treatment effects.
+When `confounders` includes an `A:modifier` term (e.g. `~ L + sex + A:sex`),
+IPW expands the per-intervention MSM from `Y ~ 1` to `Y ~ 1 + modifier`.
+The modifier main effects let `predict()` return stratum-specific
+counterfactual means; the treatment itself is still absorbed by the
+density-ratio weights. Use `by = "modifier"` in `contrast()` to recover
+heterogeneous treatment effects.
 :::
 
 ## Tidy and glance
@@ -835,7 +831,7 @@ diag$weights
 | Any | --- | Threshold | --- | --- | --- | --- | ⛔ (use gcomp) |
 | Continuous | --- | Static | --- | --- | --- | --- | ⛔ (use shift/scale) |
 | Continuous | --- | Dynamic | --- | --- | --- | --- | ⛔ (use shift/scale) |
-| Any | --- | Any (with `A:modifier`) | --- | --- | --- | --- | ⛔ (Phase 6) |
+| Binary | Gaussian | Static (with `A:modifier`) | ATE | Difference | Sandwich / Bootstrap | none | ✅ |
 | Multivariate | --- | --- | --- | --- | --- | --- | ⛔ (Phase 7) |
 | Longitudinal | --- | --- | --- | --- | --- | --- | ⛔ (use ICE) |
 

@@ -1431,17 +1431,17 @@ variance_if_ipw <- function(
     mu_hat_j <- mu_hat[[nm]]
 
     # Counterfactual design matrix on the MSM fit rows under the
-    # per-intervention rule. For a saturated `Y ~ A` this is the
-    # two-column (intercept, A_target) matrix; for `Y ~ 1` it is a
-    # single column of ones. `iv_design_matrix()` handles both.
-    # `apply_intervention()` runs on the full data; we subset to the
-    # fit rows to keep lengths aligned with the MSM row count.
+    # per-intervention rule. Without EM, the MSM is `Y ~ 1` (single
+    # column of ones). With EM, the MSM is `Y ~ 1 + modifier` (extra
+    # columns for modifier main effects). `iv_design_matrix()` handles
+    # both. `apply_intervention()` runs on the full data; we subset to
+    # the fit rows to keep lengths aligned with the MSM row count.
     #
     # IPSI does not materialize a counterfactual treatment value -- the
-    # intervention acts on the propensity, not on A itself. Since the
-    # MSM is intercept-only (`Y ~ 1`), the design matrix is a column
-    # of ones regardless of the treatment column, so we skip
-    # `apply_intervention()` and use the original data.
+    # intervention acts on the propensity, not on A itself. The MSM
+    # design matrix depends only on modifier columns (unchanged by
+    # IPSI), so we skip `apply_intervention()` and use the original
+    # data.
     iv_type_v <- if (inherits(b$intervention, "causatr_intervention")) {
       b$intervention$type
     } else {

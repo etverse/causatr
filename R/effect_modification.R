@@ -135,13 +135,15 @@ build_matching_msm_formula <- function(outcome, treatment, em_info) {
 #'
 #' Checks whether the EM terms detected by `parse_effect_mod()` are
 #' supported under the chosen estimator and treatment configuration.
-#' Aborts with a classed error for unsupported combinations:
+#' Currently only rejects one pattern:
 #'
 #' - **Bare treatment in confounders** (e.g. `~ L + A`): always rejected
 #'   because `A` has no place in a propensity model of `A`.
-#' - **IPW + non-binary treatment + EM**: the expanded MSM `Y ~ modifier`
-#'   requires binary treatment for the HT weight structure.
-#' - **Matching + non-binary treatment + EM**: matching is binary-only.
+#'
+#' True EM interactions (`A:modifier`) are accepted for all estimators
+#' and treatment types. Non-binary treatment + EM under IPW works via
+#' the density-ratio engine (Phase 4); matching gates non-binary
+#' treatment upstream in `fit_matching()`.
 #'
 #' Terms that are pure confounder interactions (e.g. `L1:L2`) pass
 #' through unchecked.

@@ -379,17 +379,14 @@ compute_ipw_contrast_point <- function(
     # Counterfactual marginal mean: predict on the intervened data
     # restricted to the target population, then (optionally-weighted)
     # average. This mirrors the gcomp / matching predict-then-average
-    # path -- under a saturated `Y ~ A` the result collapses to
-    # `beta_0 + beta_1 * target_value`, and under `Y ~ 1` it
-    # collapses to `beta_0`, but running the generic path keeps the
-    # code uniform with the rest of `compute_contrast()`.
+    # path and keeps the code uniform with `compute_contrast()`.
     #
     # IPSI does not materialize a counterfactual treatment value -- the
-    # intervention acts on the propensity, not on A itself. Since the
-    # MSM is intercept-only (`Y ~ 1`), prediction doesn't depend on
-    # the treatment column, so we skip `apply_intervention()` and use
-    # the original data directly. For all other interventions, the
-    # treatment column is modified to its counterfactual value.
+    # intervention acts on the propensity, not on A itself. The MSM
+    # prediction depends only on modifier columns (which are unchanged
+    # by IPSI), so we skip `apply_intervention()` and use the original
+    # data directly. For all other interventions, the treatment column
+    # is modified to its counterfactual value.
     iv_type <- if (inherits(iv, "causatr_intervention")) iv$type else NULL
     data_a <- if (identical(iv_type, "ipsi")) {
       data

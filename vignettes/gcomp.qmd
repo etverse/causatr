@@ -495,9 +495,10 @@ Without the `qsmk:sex` term in the outcome model, `by = "sex"` would still
 run but would return near-identical estimates for both strata (any
 remaining variation coming only from indirect interactions like
 `qsmk:smokeintensity` combined with differing covariate distributions).
-Only point g-computation currently supports treatment $\times$ modifier
-interactions directly; for IPW and matching the unified interaction API
-is scheduled for Phase 6.
+All three point-treatment estimators support `A:modifier` terms: g-comp
+feeds them to the outcome model directly, IPW expands the MSM to
+`Y ~ 1 + modifier`, and matching expands to `Y ~ A + modifier + A:modifier`.
+ICE lag auto-expansion for longitudinal EM is pending.
 :::
 
 ## Tidy and glance

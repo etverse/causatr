@@ -183,10 +183,10 @@ plot(diag_m)
 | Criterion | G-computation | IPW | Matching |
 |---|---|---|---|
 | Model specification | Outcome model | Treatment model | Treatment model |
-| Non-static interventions (shift / scale / threshold / dynamic) | Yes | No (Phase 4) | No (Phase 4) |
+| Non-static interventions (shift / scale / threshold / dynamic) | Yes | Yes (shift, scale\_by, dynamic, IPSI) | No (static only) |
 | Continuous treatment | Yes | Yes (GPS, static only) | No (MatchIt binary-only) |
 | Categorical (k > 2) treatment | Yes | Yes | No (MatchIt binary-only) |
-| Effect modification via `A:modifier` in `confounders` | Yes | Rejected (Phase 6) | Rejected (Phase 6) |
+| Effect modification via `A:modifier` in `confounders` | Yes | Yes (`Y ~ 1 + modifier`) | Yes (`Y ~ A + modifier + A:modifier`) |
 | Longitudinal (time-varying) treatments | Yes (ICE) | No (Phase 10) | No |
 | Variance estimation | Sandwich (IF engine) or bootstrap | M-estimation sandwich via WeightIt's `glm_weightit` | Cluster-robust sandwich on matched subclass |
 | Robustness to | Treatment model misspecification | Outcome model misspecification | Outcome model misspecification |
