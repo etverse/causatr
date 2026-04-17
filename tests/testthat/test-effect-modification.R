@@ -344,6 +344,47 @@ test_that("IPW EM bootstrap covers stratum-specific ATEs (DGP 4)", {
   expect_gte(ci_sex1$ci_upper, 4.2)
 })
 
+# Regression: IPW EM + NA outcomes + modifier-dependent missingness (B2,
+# fifth-round critical review). Before fix, compute_ipw_contrast_point()
+# predicted on the full data (including NA-outcome rows) while the variance
+# engine operated on fit_rows only. With EM the MSM is Y ~ 1 + modifier,
+# so predictions vary across rows, and modifier-dependent missingness
+# creates a centering mismatch in Ch1 that biases the sandwich SE.
+# The fix restricts the prediction and averaging to fit_rows.
+test_that("IPW EM sandwich agrees with bootstrap under NA outcomes (B2)", {
+  set.seed(42)
+  n <- 5000
+  L <- rnorm(n)
+  sex <- rbinom(n, 1, 0.5)
+  A <- rbinom(n, 1, plogis(0.5 * L))
+  Y <- 2 + 3 * A + 1.5 * L + 1.2 * sex * A + rnorm(n)
+
+  # Inject modifier-dependent NAs: sex=1 rows more likely to be missing.
+  na_prob <- ifelse(sex == 1, 0.3, 0.05)
+  Y[runif(n) < na_prob] <- NA
+
+  d <- data.frame(Y = Y, A = A, L = L, sex = sex)
+  fit <- causat(d, "Y", "A", ~ L + sex + A:sex, estimator = "ipw")
+
+  res_sw <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    type = "difference", reference = "a0", ci_method = "sandwich"
+  )
+  res_boot <- suppressWarnings(contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    type = "difference", reference = "a0",
+    ci_method = "bootstrap", n_boot = 200
+  ))
+
+  # Sandwich SE should agree with bootstrap within 15% (normal variability
+  # for n_boot = 200). Pre-fix, the ratio was ~0.91 on more extreme DGPs.
+  se_ratio <- res_sw$contrasts$se / res_boot$contrasts$se
+  expect_gt(se_ratio, 0.85)
+  expect_lt(se_ratio, 1.15)
+})
+
 # Regression guard: IPW without EM terms produces identical results.
 test_that("IPW without EM terms is unaffected by EM infrastructure", {
   d <- simulate_binary_continuous(n = 2000, seed = 42)

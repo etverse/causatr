@@ -378,32 +378,44 @@ compute_ipw_contrast_point <- function(
 
     # Counterfactual marginal mean: predict on the intervened data
     # restricted to the target population, then (optionally-weighted)
-    # average. This mirrors the gcomp / matching predict-then-average
-    # path and keeps the code uniform with `compute_contrast()`.
+    # average.
+    #
+    # Predictions and averaging are restricted to `fit_data` (rows with
+    # non-missing outcome) so the marginal-mean population matches the
+    # variance engine's population in `variance_if_ipw()`, which operates
+    # on `fit_rows` only. Without this restriction, NA-outcome rows enter
+    # the marginal mean but not the variance engine's Ch1, causing a
+    # centering mismatch that biases the sandwich SE when the MSM is
+    # non-intercept-only (i.e. with EM terms like `Y ~ 1 + modifier`).
+    # For `Y ~ 1` (no EM) this is a no-op because all predictions are
+    # identical. Fifth-round critical review Issue #B2.
     #
     # IPSI does not materialize a counterfactual treatment value -- the
     # intervention acts on the propensity, not on A itself. The MSM
     # prediction depends only on modifier columns (which are unchanged
     # by IPSI), so we skip `apply_intervention()` and use the original
-    # data directly. For all other interventions, the treatment column
-    # is modified to its counterfactual value.
+    # fit_data directly. For all other interventions, the treatment
+    # column is modified to its counterfactual value.
     iv_type <- if (inherits(iv, "causatr_intervention")) iv$type else NULL
-    data_a <- if (identical(iv_type, "ipsi")) {
-      data
+    data_a_fit <- if (identical(iv_type, "ipsi")) {
+      fit_data
     } else {
-      apply_intervention(data, treatment, iv)
+      apply_intervention(fit_data, treatment, iv)
     }
-    preds <- stats::predict(msm_model, newdata = data_a, type = "response")
-    valid <- target_idx & !is.na(preds)
-    w_target <- if (!is.null(ext_w)) ext_w[valid] else NULL
-    mu_hat_iv <- maybe_weighted_mean(preds[valid], w_target)
+    preds_fit <- stats::predict(
+      msm_model, newdata = data_a_fit, type = "response"
+    )
+    target_fit <- target_idx[fit_rows]
+    valid_fit <- target_fit & !is.na(preds_fit)
+    w_target <- if (!is.null(ext_w_fit)) ext_w_fit[valid_fit] else NULL
+    mu_hat_iv <- maybe_weighted_mean(preds_fit[valid_fit], w_target)
 
     list(
       intervention = iv,
       msm_model = msm_model,
       weights_final = w_final,
-      preds = preds,
-      valid = valid,
+      preds = preds_fit,
+      valid = valid_fit,
       mu_hat = mu_hat_iv
     )
   })

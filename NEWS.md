@@ -11,6 +11,17 @@
   dropping all lag EM terms from ICE formulas. Fixed by switching to `%in%`.
   Fifth-round critical review Issue #B1.
 
+- IPW `compute_ipw_contrast_point()` now predicts and averages on
+  `fit_data` (outcome-complete rows) instead of the full data. When the
+  MSM includes modifier terms (e.g. `Y ~ 1 + sex` from effect
+  modification), predictions vary across rows. Previously, the marginal
+  mean included NA-outcome rows that the variance engine excluded,
+  creating a centering mismatch in Channel 1 of the sandwich IF. Under
+  modifier-dependent outcome missingness the sandwich SE was biased
+  (9% underestimate at 70% missingness in a repro). For `Y ~ 1` (no
+  EM) the bug was invisible because all predictions were constant.
+  Fifth-round critical review Issue #B2.
+
 ## 2026-04-17 — Phase 6 complete: unified effect-modification API
 
 Phase 6 (chunks 6a--6e) delivers a unified effect-modification API across
