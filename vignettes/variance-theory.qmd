@@ -22,6 +22,7 @@ mjx-container[jax="CHTML"][display="true"] {
 ```{r}
 #| include: false
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+options(tinytable_html_mathjax = TRUE)
 ```
 
 This vignette develops the theory behind variance estimation for causal
@@ -111,7 +112,7 @@ p   <- length(beta_hat)
 # as a tinytable, so that "manual" and "gold-standard" results sit next
 # to each other and any disagreement is visible.
 verify_tbl <- function(manual, reference, label_m = "manual",
-                       label_r = "reference", digits = 6) {
+                       label_r = "reference", digits = 4) {
   m <- as.numeric(manual)
   r <- as.numeric(reference)
   out <- data.frame(
@@ -808,7 +809,7 @@ out <- data.frame(
 )
 tt(out, caption = "Sample mean IF variance matches the textbook SE") |>
   format_tt(j = "quantity", markdown = TRUE) |>
-  format_tt(j = 2, digits = 6, num_fmt = "significant")
+  format_tt(j = 2, digits = 4, num_fmt = "significant")
 ```
 
 The two agree up to the standard $(n-1)/n$ degrees-of-freedom correction
@@ -1011,7 +1012,7 @@ out <- data.frame(
 )
 tt(out, caption = "Two-channel IF for g-comp: manual vs `causatr::variance_if`") |>
   format_tt(j = "quantity", markdown = TRUE) |>
-  format_tt(j = 2:4, digits = 6, num_fmt = "significant")
+  format_tt(j = 2:4, digits = 4, num_fmt = "significant")
 ```
 
 The manual two-channel IF reproduces causatr's SE for $\hat\mu_1$ to
@@ -1103,7 +1104,7 @@ out <- data.frame(
 )
 tt(out, caption = "Decomposition of $\\mathrm{Var}(\\hat\\mu_1)$: delta captures only the middle row") |>
   format_tt(j = "term", markdown = TRUE) |>
-  format_tt(j = 2, digits = 6, num_fmt = "significant")
+  format_tt(j = 2, digits = 4, num_fmt = "significant")
 ```
 
 On this example the delta-method SE is about $1/1.026 \approx 97\%$ of
@@ -1713,7 +1714,7 @@ out <- data.frame(
 )
 tt(out, caption = "IPW $\\hat\\mu_1$ and its IF-based SE") |>
   format_tt(j = "quantity", markdown = TRUE) |>
-  format_tt(j = 2, digits = 6, num_fmt = "significant")
+  format_tt(j = 2, digits = 4, num_fmt = "significant")
 ```
 
 The HT estimate and the causatr IPW estimate agree exactly (they are

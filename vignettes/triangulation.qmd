@@ -17,7 +17,30 @@ When multiple estimation methods agree on the same causal effect, we gain
 confidence that the result is not an artefact of a single modelling assumption.
 This vignette compares all three methods on the NHEFS dataset.
 
-## Setup
+## Data: NHEFS
+
+All examples use the **NHEFS** dataset (Hernán & Robins, 2025). The
+assumed causal structure is:
+
+- **Treatment ($A$):** `qsmk` — quit smoking between 1971 and 1982 (binary: 0/1).
+- **Outcome ($Y$):** `wt82_71` — weight change in kg (continuous), or
+  `gained_weight` ($\mathbf{1}\{Y > 0\}$, binary).
+- **Confounders ($L$):** sex, age, race, education, smoking intensity,
+  years smoked, exercise, physical activity, and baseline weight.
+
+$$
+\begin{aligned}
+  L &\sim F_L \\
+  A &\sim \text{Bernoulli}\!\bigl(\text{logit}^{-1}(\alpha_0 + \alpha_L^\top L)\bigr) \\
+  Y &= \beta_0 + \beta_A A + \beta_L^\top L + \varepsilon
+\end{aligned}
+$$
+
+The confounders $L$ are common causes of both $A$ and $Y$. Under this
+structure, g-computation adjusts for $L$ via an outcome model,
+IPW adjusts via a treatment model, and matching balances $L$ between
+treatment groups. When all three methods agree, the result is unlikely to
+be an artefact of a single modelling assumption.
 
 ```{r}
 #| message: false

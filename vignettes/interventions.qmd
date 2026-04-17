@@ -34,7 +34,18 @@ support it, and demonstrates the calling pattern on real and simulated data.
 | `ipsi(d)` | Multiply odds of treatment by `d` | --- | Binary | --- |
 | `NULL` | Natural course (observed values) | All types | All types | --- |
 
-## Setup
+## Data: NHEFS
+
+All examples use the **NHEFS** dataset (Hernán & Robins, 2025):
+
+- **Binary treatment ($A$):** `qsmk` — quit smoking (0/1). Used for
+  `static()`, `dynamic()`, and `ipsi()` examples.
+- **Continuous treatment ($A$):** `smokeintensity` — cigarettes smoked per
+  day. Used for `shift()`, `scale_by()`, and `threshold()` examples.
+- **Outcome ($Y$):** `wt82_71` — weight change in kg.
+- **Confounders ($L$):** sex, age, race, education, smoking-related
+  variables, exercise, activity, and baseline weight — common causes of
+  both $A$ and $Y$.
 
 ```{r}
 #| message: false
@@ -45,11 +56,6 @@ data("nhefs")
 
 nhefs_complete <- nhefs[!is.na(nhefs$wt82_71) & !is.na(nhefs$education), ]
 ```
-
-We use the NHEFS dataset throughout, dropping rows with missing outcome or
-education (the only covariate with NA values). `qsmk` (binary) is the
-treatment for the static, dynamic, and IPSI examples. `smokeintensity`
-(continuous) is the treatment for shift, scale, and threshold examples.
 
 ## `static()` --- set treatment to a fixed value
 
@@ -224,7 +230,20 @@ the bounds plus continuous density in the interior). Use
 ### Count treatment (Poisson / negative binomial)
 
 For integer-valued count treatments, pass `propensity_family = "poisson"` or
-`"negbin"` to use a count density model instead of the default Gaussian:
+`"negbin"` to use a count density model instead of the default Gaussian.
+
+**DGM.** A Poisson-distributed count treatment (e.g. number of clinic
+visits) confounded by $L$, with a linear outcome model.
+
+$$
+\begin{aligned}
+  L &\sim N(0,1) \\
+  A &\sim \text{Poisson}\!\bigl(\exp(0.5\,L)\bigr) \\
+  Y &= 2 + 1.5\,A + L + \varepsilon, \quad \varepsilon \sim N(0,1)
+\end{aligned}
+$$
+
+True contrast: $\mathbb{E}[Y(A+1)] - \mathbb{E}[Y(A)] = 1.5$.
 
 ```{r}
 set.seed(6)

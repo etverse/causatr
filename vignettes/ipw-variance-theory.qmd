@@ -22,6 +22,7 @@ mjx-container[jax="CHTML"][display="true"] {
 ```{r}
 #| include: false
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+options(tinytable_html_mathjax = TRUE)
 ```
 
 This vignette develops the density-ratio weight formulas behind causatr's

@@ -43,6 +43,26 @@ result <- contrast(fit,
 
 ## Quick example
 
+The example below uses the **NHEFS** (National Health and Nutrition
+Examination Survey — Epidemiologic Follow-up Study) dataset from Hernán &
+Robins (2025). The assumed causal structure is:
+
+- **Treatment ($A$):** `qsmk` — whether the individual quit smoking between
+  baseline (1971) and follow-up (1982). Binary (0 = continued, 1 = quit).
+- **Outcome ($Y$):** `wt82_71` — change in body weight (kg) from 1971 to
+  1982. Continuous.
+- **Confounders ($L$):** a set of baseline covariates — sex, age, race,
+  smoking intensity (cigarettes/day), years of smoking, exercise, physical
+  activity level, and baseline weight — that jointly affect both the
+  decision to quit smoking and the change in weight.
+- **Censoring ($C$):** `censored` — whether the individual was lost to
+  follow-up. Rows with $C = 1$ are excluded from model fitting; predictions
+  are standardised over the full target population.
+
+Under the causal DAG, $L$ is a common cause of both $A$ and $Y$. Adjusting
+for $L$ blocks all backdoor paths from $A$ to $Y$, so the g-formula
+identifies the average causal effect $\mathbb{E}[Y^{a=1}] - \mathbb{E}[Y^{a=0}]$.
+
 ```{r}
 #| message: false
 library(causatr)

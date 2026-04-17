@@ -27,7 +27,24 @@ library(tinytable)
 library(tinyplot)
 ```
 
-We simulate a baseline dataset with known truth, then introduce missingness:
+We simulate a baseline dataset with known truth, then introduce missingness.
+
+**Data-generating mechanism.** Two independent confounders $L_1$ and $L_2$
+influence both a binary treatment $A$ and a continuous outcome $Y$. The
+treatment probability follows a logistic model in $L_1$ and $L_2$, and the
+outcome is linear in $A$, $L_1$, and $L_2$ with additive Gaussian noise.
+
+$$
+\begin{aligned}
+L_1 &\sim \mathcal{N}(0, 1) \\
+L_2 &\sim \mathcal{N}(0, 1) \\
+A &\sim \text{Bernoulli}\bigl(\text{logit}^{-1}(0.3\,L_1 + 0.2\,L_2)\bigr) \\
+Y &= 2 + 3\,A + 1.5\,L_1 + 0.8\,L_2 + \varepsilon, \quad \varepsilon \sim \mathcal{N}(0, 1)
+\end{aligned}
+$$
+
+The treatment coefficient is 3 with no effect modification, so the true
+average treatment effect is $\text{ATE} = E[Y^{a=1}] - E[Y^{a=0}] = 3$.
 
 ```{r}
 set.seed(42)
@@ -38,8 +55,6 @@ A <- rbinom(n, 1, plogis(0.3 * L1 + 0.2 * L2))
 Y <- 2 + 3 * A + 1.5 * L1 + 0.8 * L2 + rnorm(n)
 df <- data.frame(Y = Y, A = A, L1 = L1, L2 = L2)
 ```
-
-Structural truth: ATE = 3.
 
 ## Missing outcomes (MCAR)
 
@@ -266,7 +281,24 @@ calling `causat()`.
 ## Missing outcomes with continuous treatment
 
 The same principles apply to continuous treatments. Here we show IPW with a
-`shift()` intervention under outcome missingness:
+`shift()` intervention under outcome missingness.
+
+**Data-generating mechanism.** A single confounder $L$ affects both a
+continuous treatment $A$ and a continuous outcome $Y$. The treatment is
+Gaussian with its mean depending on $L$, and the outcome is linear in $A$
+and $L$.
+
+$$
+\begin{aligned}
+L &\sim \mathcal{N}(0, 1) \\
+A &\sim \mathcal{N}(0.5\,L,\; 1) \\
+Y &= 1 + 2\,A + L + \varepsilon, \quad \varepsilon \sim \mathcal{N}(0, 1)
+\end{aligned}
+$$
+
+Under a unit additive shift intervention $A^* = A + 1$, every individual's
+treatment increases by 1 and the outcome increases by $2 \times 1 = 2$.
+The true causal contrast is $E[Y(A+1)] - E[Y(A)] = 2$.
 
 ```{r}
 set.seed(43)
@@ -298,7 +330,22 @@ Structural truth: `E[Y(A+1)] - E[Y(A)] = 2`.
 
 ## Missing data with categorical treatment
 
-G-comp handles missing outcomes for categorical treatments:
+G-comp handles missing outcomes for categorical treatments.
+
+**Data-generating mechanism.** A three-arm categorical treatment $A \in \{A, B, C\}$
+is drawn independently of the confounder $L$, and the outcome depends on
+both the treatment arm and $L$.
+
+$$
+\begin{aligned}
+A &\sim \text{Categorical}(0.3,\; 0.4,\; 0.3) \\
+L &\sim \mathcal{N}(0, 1) \\
+Y &= 1 + \mathbf{1}(A = B) \cdot 1 + \mathbf{1}(A = C) \cdot 2 + 0.5\,L + \varepsilon, \quad \varepsilon \sim \mathcal{N}(0, 1)
+\end{aligned}
+$$
+
+The true contrasts relative to arm A are:
+$E[Y^{B}] - E[Y^{A}] = 1$ and $E[Y^{C}] - E[Y^{A}] = 2$.
 
 ```{r}
 set.seed(44)
@@ -328,7 +375,25 @@ res_cat
 ## Missing outcomes in longitudinal data (ICE)
 
 ICE g-computation handles missing final-period outcomes. The backward
-recursion excludes NA rows when fitting each sequential outcome model:
+recursion excludes NA rows when fitting each sequential outcome model.
+
+**Data-generating mechanism.** A two-period panel ($K = 2$) with $n = 500$
+individuals. Each individual has a baseline confounder $L_0$, a time-varying
+confounder $L_k$, and a binary treatment $A_k$ at each period. The outcome
+$Y$ is observed only at the final period and depends on the cumulative
+treatment received across both periods.
+
+$$
+\begin{aligned}
+L_0 &\sim \mathcal{N}(0, 1) \\
+L_k &= L_0 + \eta_k, \quad \eta_k \sim \mathcal{N}(0, 0.25) \\
+A_k &\sim \text{Bernoulli}\bigl(\text{logit}^{-1}(0.3\,L_k)\bigr), \quad k = 1, 2 \\
+Y &= 2 + 1.5\,(A_1 + A_2) + 0.5\,L_0 + \varepsilon, \quad \varepsilon \sim \mathcal{N}(0, 1)
+\end{aligned}
+$$
+
+Under the "always treat" regime ($A_1 = A_2 = 1$) vs "never treat"
+($A_1 = A_2 = 0$), the true ATE is $1.5 \times 2 = 3$.
 
 ```{r}
 set.seed(45)
@@ -405,7 +470,23 @@ tt(boot_comp, digits = 3)
 When outcomes are missing at random (MAR) conditional on treatment and
 covariates, you can supply inverse-probability-of-censoring weights (IPCW)
 via the `weights` argument. Built-in IPCW is planned for Phase 14; for now,
-compute the weights externally:
+compute the weights externally.
+
+**Censoring mechanism.** Starting from the baseline DGM above (ATE $= 3$),
+we introduce MAR outcome censoring. The probability of being censored
+(outcome set to NA) depends on both the treatment $A$ and confounder $L_1$:
+
+$$
+\begin{aligned}
+C_i &\sim \text{Bernoulli}\bigl(\text{logit}^{-1}(-2 + 0.5\,A_i + 0.3\,L_{1,i})\bigr) \\
+Y_i^{\text{obs}} &= \begin{cases} Y_i & \text{if } C_i = 0 \\ \text{NA} & \text{if } C_i = 1 \end{cases}
+\end{aligned}
+$$
+
+The intercept of $-2$ keeps the censoring rate moderate. Because censoring
+depends on $A$ and $L_1$, a complete-case analysis is biased; IPCW weights
+$w_i = 1 / P(C_i = 0 \mid A_i, L_{1,i}, L_{2,i})$ restore consistency.
+The true ATE remains 3.
 
 ```{r}
 df_mar <- df

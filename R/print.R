@@ -161,14 +161,14 @@ print.causatr_result <- function(x, ...) {
   } else {
     cat("\nIntervention means:\n")
   }
-  print(x$estimates, digits = 4)
+  print(x$estimates, digits = 3)
 
   if (has_by) {
     cat("\nContrasts (by subgroup):\n")
   } else {
     cat("\nContrasts:\n")
   }
-  print(x$contrasts, digits = 4)
+  print(x$contrasts, digits = 3)
   invisible(x)
 }
 

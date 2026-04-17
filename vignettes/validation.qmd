@@ -105,8 +105,75 @@ three-row tinytable: causatr, the reference, and the absolute
 discrepancy on each column, so agreement (or the lack of it) is
 immediately legible.
 
-We use two small simulated DGPs for reproducibility. NHEFS would work too, but
-inline simulation keeps the vignette self-contained and cheap to render.
+We use three small simulated DGPs for reproducibility. NHEFS would work too, but
+inline simulation keeps the vignette self-contained and cheap to render. The
+data-generating mechanisms are described below.
+
+### DGM 1: Point treatment (`simulate_point()`)
+
+A single confounder $L$, binary treatment $A$, and outcome $Y$ (continuous or
+binary depending on the `binary_outcome` flag). Both versions share the same
+confounding structure: $L$ affects both treatment assignment and the outcome.
+
+**Continuous outcome** (`binary_outcome = FALSE`):
+
+$$
+\begin{aligned}
+L &\sim \mathcal{N}(0, 1) \\
+A &\sim \text{Bernoulli}\bigl(\text{logit}^{-1}(0.4 \, L)\bigr) \\
+Y &= 1 + 2 A + 0.5 \, L + \varepsilon, \quad \varepsilon \sim \mathcal{N}(0, 0.8^2)
+\end{aligned}
+$$
+
+The structural coefficient on $A$ is 2, so the true ATE is exactly 2.
+
+**Binary outcome** (`binary_outcome = TRUE`):
+
+$$
+\begin{aligned}
+L &\sim \mathcal{N}(0, 1) \\
+A &\sim \text{Bernoulli}\bigl(\text{logit}^{-1}(0.4 \, L)\bigr) \\
+Y &\sim \text{Bernoulli}\bigl(\text{logit}^{-1}(-0.5 + 0.8 \, A + 0.3 \, L)\bigr)
+\end{aligned}
+$$
+
+The conditional odds ratio is $\exp(0.8) \approx 2.23$.
+
+### DGM 2: Longitudinal binary (`simulate_longitudinal()`)
+
+$K$ periods with binary treatment, a time-varying confounder, and a binary
+end-of-follow-up outcome. Treatment--confounder feedback is present: past
+treatment shifts the distribution of the next confounder.
+
+$$
+\begin{aligned}
+L_k &\sim \mathcal{N}(0, 1) + 0.3 \, A_{k-1} \quad (A_0 \equiv 0) \\
+A_k &\sim \text{Bernoulli}\bigl(\text{logit}^{-1}(0.3 \, L_k)\bigr) \\
+Y   &\sim \text{Bernoulli}\!\left(\text{logit}^{-1}\!\left(-1 + 0.4 \sum_{k=1}^{K} A_k + 0.2 \, L_K\right)\right)
+\end{aligned}
+$$
+
+The treatment--confounder feedback ($L_k$ depends on $A_{k-1}$) means naive
+conditioning on time-varying confounders is biased; g-computation (ICE) or IPW
+with sequential weights is needed.
+
+### DGM 3: Longitudinal continuous (`simulate_longitudinal_continuous()`)
+
+$K$ periods with continuous (Gaussian) treatment and a continuous outcome.
+The same treatment--confounder feedback structure as DGM 2, but with
+continuous variables throughout.
+
+$$
+\begin{aligned}
+L_k &\sim \mathcal{N}(0, 1) + 0.2 \, A_{k-1} \quad (A_0 \equiv 0) \\
+A_k &\sim \mathcal{N}(0.3 \, L_k,\; 1) \\
+Y   &= 1 + \sum_{k=1}^{K} A_k + 0.3 \, L_K + \varepsilon, \quad \varepsilon \sim \mathcal{N}(0, 0.5^2)
+\end{aligned}
+$$
+
+Under a `shift(+1)` intervention that adds 1 to every period's treatment, each
+period contributes exactly 1 unit to the outcome, so the true causal effect of
+`shift(+1)` vs the natural value is $K$. For the default $K = 2$, the truth is 2.
 
 ```{r}
 simulate_point <- function(n = 2000, seed = 1L, binary_outcome = FALSE) {

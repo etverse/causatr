@@ -34,6 +34,37 @@ Use `estimator = "gcomp"` for heterogeneous treatment effects, or `by =
 
 ## Setup
 
+The examples in this vignette use the **NHEFS** (National Health and
+Nutrition Examination Survey --- Epidemiologic Follow-up Study) dataset,
+the running example in Hernán & Robins (2025). The assumed causal
+structure is:
+
+- **Treatment ($A$):** `qsmk` --- quit smoking between 1971 and 1982 (binary: 0/1).
+- **Outcome ($Y$):** `wt82_71` --- weight change in kg over the same period
+  (continuous). A derived binary version, `gained_weight` ($\mathbf{1}\{Y > 0\}$),
+  is used in the binary outcome sections.
+- **Confounders ($L$):** sex, age, race, education, smoking intensity
+  (cigarettes/day), years smoked, exercise, physical activity, and baseline
+  weight. These jointly affect both the probability of quitting and the
+  subsequent weight change.
+
+Structural causal model (assumed):
+
+$$
+\begin{aligned}
+  L &\sim F_L \\
+  A &\sim \text{Bernoulli}\!\bigl(\text{logit}^{-1}(\alpha_0 + \alpha_L^\top L)\bigr) \\
+  Y &= \beta_0 + \beta_A A + \beta_L^\top L + \beta_{AL}^\top (A \cdot L) + \varepsilon,
+      \quad \varepsilon \sim N(0, \sigma^2)
+\end{aligned}
+$$
+
+The confounders $L$ are common causes of $A$ and $Y$; adjusting for $L$
+blocks all backdoor paths, identifying $\mathbb{E}[Y^a]$ via the
+Horvitz--Thompson reweighting estimator. IPW models the treatment
+mechanism $P(A \mid L)$ directly and reweights outcomes to remove
+confounding, rather than modelling $E[Y \mid A, L]$ as g-computation does.
+
 ```{r}
 #| message: false
 library(causatr)
@@ -377,6 +408,25 @@ The density-ratio engine auto-selects a multinomial propensity model (via
 per-intervention MSM is intercept-only, so `contrast()` computes any pairwise
 difference against a user-chosen reference level.
 
+**DGM.** A single confounder $L$ influences both the three-level categorical
+treatment $A \in \{A, B, C\}$ and the outcome $Y$. Treatment assignment
+follows a softmax (multinomial logistic) model with category A as the
+reference level. The outcome is linear in the treatment indicators and $L$.
+
+$$
+\begin{aligned}
+  L &\sim N(0, 1) \\
+  P(A = k \mid L) &= \frac{\exp(\gamma_k L)}{\sum_{j} \exp(\gamma_j L)},
+    \quad \gamma_A = 0,\; \gamma_B = 0.5,\; \gamma_C = -0.3 \\
+  Y &= 2 + 1.5 \cdot \mathbf{1}\{A = B\} - 0.8 \cdot \mathbf{1}\{A = C\}
+       + 0.5\, L + \varepsilon,
+    \quad \varepsilon \sim N(0, 1)
+\end{aligned}
+$$
+
+True contrasts (vs. reference A): $\mathbb{E}[Y^B] - \mathbb{E}[Y^A] = 1.5$
+and $\mathbb{E}[Y^C] - \mathbb{E}[Y^A] = -0.8$.
+
 ```{r}
 set.seed(42)
 n <- 2000
@@ -418,6 +468,23 @@ and uses density-ratio weights for modified treatment policies. `static()`
 interventions on continuous treatments are rejected (nobody is observed
 exactly at the target value, so the HT indicator is zero almost surely).
 Use `shift()` or `scale_by()` instead:
+
+**DGM.** A single confounder $L$ drives both a continuous (Gaussian)
+treatment $A$ and a continuous outcome $Y$. The treatment density
+is $A \mid L \sim N(1 + 0.5\, L,\; 1)$ and the outcome is linear in
+$A$ and $L$ with additive noise.
+
+$$
+\begin{aligned}
+  L &\sim N(0, 1) \\
+  A \mid L &\sim N(1 + 0.5\, L,\; 1) \\
+  Y &= 1 + 2\, A + L + \varepsilon, \quad \varepsilon \sim N(0, 1)
+\end{aligned}
+$$
+
+Because $\partial Y / \partial A = 2$, a unit additive shift
+$A \mapsto A + 1$ has true causal effect
+$\mathbb{E}[Y(A + 1)] - \mathbb{E}[Y(A)] = 2$.
 
 ```{r}
 set.seed(5)
@@ -467,6 +534,21 @@ carry zero probability, producing badly calibrated density ratios.
 
 Pass `propensity_family = "poisson"` or `propensity_family = "negbin"` to opt
 into a Poisson or negative binomial treatment density model:
+
+**DGM.** A confounder $L$ affects both a Poisson-distributed count
+treatment $A$ and a continuous outcome $Y$. The treatment is generated
+from a log-linear Poisson model and the outcome is linear in $A$ and $L$.
+
+$$
+\begin{aligned}
+  L &\sim N(0, 1) \\
+  A \mid L &\sim \text{Poisson}\!\bigl(\exp(0.5\, L)\bigr) \\
+  Y &= 2 + 1.5\, A + L + \varepsilon, \quad \varepsilon \sim N(0, 1)
+\end{aligned}
+$$
+
+Because $\partial Y / \partial A = 1.5$, a unit shift $A \mapsto A + 1$
+has true causal effect $\mathbb{E}[Y(A + 1)] - \mathbb{E}[Y(A)] = 1.5$.
 
 ```{r}
 set.seed(6)
@@ -570,6 +652,21 @@ Pre-computed survey weights are passed via `weights =`; causatr validates
 them via `check_weights()` and **multiplies** them element-wise with the
 estimated density-ratio weights. The combined weight drives both the
 per-intervention MSM fit and the influence-function sandwich variance.
+
+**DGM.** A simple confounded binary treatment with a continuous outcome.
+Random survey weights (independent of the data-generating process) are
+attached to illustrate external weight handling.
+
+$$
+\begin{aligned}
+  L &\sim N(0, 1) \\
+  A \mid L &\sim \text{Bernoulli}\!\bigl(\text{logit}^{-1}(0.5\, L)\bigr) \\
+  Y &= 2 + 3\, A + 1.5\, L + \varepsilon, \quad \varepsilon \sim N(0, 1) \\
+  w_i &\stackrel{\text{iid}}{\sim} \text{Uniform}(0.5,\; 2.0)
+\end{aligned}
+$$
+
+True ATE: $\mathbb{E}[Y^1] - \mathbb{E}[Y^0] = 3$.
 
 ```{r}
 set.seed(6)

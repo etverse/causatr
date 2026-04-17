@@ -36,7 +36,22 @@ Longitudinal matching is also not supported. For modified treatment
 policies (shift / scale / threshold / dynamic / MTP), use
 g-computation (see `vignette("gcomp")`).
 
-## Setup
+## Data: NHEFS
+
+All examples use the **NHEFS** dataset (Hernán & Robins, 2025). The
+assumed causal structure is:
+
+- **Treatment ($A$):** `qsmk` — quit smoking between 1971 and 1982 (binary: 0/1).
+- **Outcome ($Y$):** `wt82_71` — weight change in kg (continuous), or
+  `gained_weight` ($\mathbf{1}\{Y > 0\}$, binary).
+- **Confounders ($L$):** sex, age, race, education, smoking intensity,
+  years smoked, exercise, physical activity, and baseline weight — common
+  causes of both $A$ and $Y$.
+
+Propensity score matching estimates $\mathbb{E}[Y^{a=1}] - \mathbb{E}[Y^{a=0}]$
+by constructing a matched sample where the distribution of $L$ is
+(approximately) balanced across treatment groups, then comparing outcomes
+within matched sets.
 
 ```{r}
 #| message: false

@@ -1,5 +1,81 @@
 # causatr (development version)
 
+## 2026-04-17 — Phase 6 chunks 6a--6b: effect modification infrastructure + IPW MSM expansion
+
+**Phase 6 chunk 6a — `parse_effect_mod()` infrastructure + gate refactoring.**
+
+- New `R/effect_modification.R` with the shared effect-modification parser
+  that all four estimation methods consult. `parse_effect_mod()` classifies
+  each term in `confounders` as either a pure confounder or an
+  effect-modification interaction (`A:modifier`), returning a structured
+  `causatr_em_info` object.
+- Companion helpers: `build_ipw_msm_formula()`,
+  `build_matching_msm_formula()`, and `check_em_compat()` provide
+  method-specific MSM construction and validation logic.
+- The old blanket-reject `check_confounders_no_treatment()` is refactored
+  into `check_confounders_treatment()`, which delegates to the new parser.
+  Bare treatment terms (`~ L + A`) are still rejected; true EM terms
+  (`A:sex`) now pass through the parser for method-specific dispatch.
+
+**Phase 6 chunk 6b — IPW MSM expansion for effect modification.**
+
+- The IPW MSM expands from intercept-only (`Y ~ 1`) to
+  `Y ~ A + modifier + A:modifier` when `parse_effect_mod()` detects an
+  interaction term. `build_ipw_msm_formula()` constructs the expanded
+  formula; `compute_ipw_contrast_point()` passes it to the per-intervention
+  weighted GLM refit.
+- The variance engine (`variance_if_ipw`) generalises unchanged: `J`,
+  `X_star`, and `phi_bar` all extend from `p_beta = 1` to `p_beta > 1`.
+- Tests: DGP-4 truth-based simulation (binary treatment x binary modifier,
+  sandwich SE), bootstrap parity, gcomp cross-check.
+
+## 2026-04-17 — CRAN compliance: non-ASCII character cleanup
+
+`R CMD check --as-cran` flags non-ASCII characters in `.R` files. Replaced
+all occurrences across 22 `R/` files: em/en dashes, arrows, multiplication
+signs to ASCII equivalents; accented names to unaccented; Unicode math
+symbols to `\eqn{}` LaTeX in roxygen and plain ASCII in comments.
+
+## 2026-04-17 — Documentation overhaul
+
+**Data-generating mechanism descriptions in vignettes.** All vignettes that
+use simulated data now include explicit DGM descriptions before each
+simulation code block, providing:
+
+- A plain-language description of the causal structure.
+- Structural equations (SEM) in display math.
+- The known true value of the estimand when analytically available.
+
+Vignettes using the NHEFS dataset now include a description of the assumed
+causal structure (treatment, outcome, confounders, DAG) at the start.
+Affected vignettes: introduction, gcomp, ipw, matching, interventions,
+longitudinal, triangulation, missing-data, validation.
+
+**Vignette coverage expansion.** New sections in existing vignettes to cover
+feature combinations that had test coverage but no user-facing
+documentation: Gamma outcome and quasibinomial outcome (gcomp, matching),
+GLM+splines model specification, IPSI dose-response curve (ipw), 4-period
+ICE example (longitudinal), missing-data vignette (new).
+
+**Unicode-to-LaTeX conversion in docs.** Converted Unicode math symbols in
+vignettes and `CLAUDE.md` to proper LaTeX for correct MathJax rendering.
+
+**Other documentation changes:**
+
+- `gcomp.qmd` gains a callout note explaining that GAM sandwich SEs use
+  the penalised Bayesian covariance (`model$Vp`) as the bread inverse.
+- `longitudinal.qmd` gains a truth reference line at `E[Y] = 60` on the
+  marginal-means comparison plot for the Table 20.1 null-effect example.
+- Variance-theory vignettes enable `tinytable_html_mathjax` for correct
+  LaTeX rendering in table captions.
+- Numerical tables in `variance-theory.qmd` reduced from 6 to 4
+  significant digits for readability.
+
+## 2026-04-17 — `print.causatr_result()` uses `digits = 3`
+
+Console output for `causatr_result` objects now prints with `digits = 3`
+(down from 4), matching the `knit_print` method for more compact display.
+
 ## 2026-04-16 — Phase 4 chunk 3j: count treatment IPW (Poisson / negative binomial)
 
 `causat()` gains a `propensity_family` parameter (`"poisson"` or
