@@ -143,7 +143,7 @@ diagnose <- function(
 compute_positivity <- function(fit, ps_bounds) {
   treatment <- fit$treatment
 
-  # Positivity is only meaningful for a single binary treatment —
+  # Positivity is only meaningful for a single binary treatment --
   # that's where "probability of treatment" is a scalar we can
   # threshold. Multivariate / categorical / continuous treatments
   # return NULL (diagnose() skips positivity for those).
@@ -164,7 +164,7 @@ compute_positivity <- function(fit, ps_bounds) {
   #               distance method is logistic, which is the default).
   #   - G-comp:   no PS was fit, so run a quick logistic regression
   #               of treatment on confounders to get one. This is
-  #               purely for diagnostics — it doesn't affect estimation.
+  #               purely for diagnostics -- it doesn't affect estimation.
   if (fit$estimator == "ipw") {
     tm <- fit$details$treatment_model
     if (is.null(tm) || tm$family != "bernoulli") {
@@ -239,7 +239,7 @@ compute_balance <- function(fit, stats, thresholds) {
   if (fit$estimator == "ipw" && !is.null(fit$details$treatment_model)) {
     # The self-contained density-ratio engine has no `weightit` object
     # to feed cobalt directly. Call the formula interface on the
-    # observed treatment — this produces the "unadjusted" standardised
+    # observed treatment -- this produces the "unadjusted" standardised
     # mean differences, which is the most universal balance view the
     # density-ratio engine can surface without committing to one
     # specific intervention's post-weighting balance.
@@ -299,7 +299,7 @@ compute_balance_simple <- function(fit) {
     return(NULL)
   }
 
-  # Drop rows with missing outcome and censored rows — same
+  # Drop rows with missing outcome and censored rows -- same
   # fitting-row definition as the main pipeline, so balance is
   # computed on the analysis sample (not the pre-filter raw data).
   fit_rows <- get_fit_rows(data, outcome, fit$censoring)
@@ -311,7 +311,7 @@ compute_balance_simple <- function(fit) {
   rows_0 <- d[[treatment]] == 0
 
   # Per-confounder SMD. Factors/characters are skipped (return NULL
-  # and get filtered by `!vapply(., is.null, .)` below) — a proper
+  # and get filtered by `!vapply(., is.null, .)` below) -- a proper
   # balance table for categoricals would split into levels, which is
   # what cobalt::bal.tab() does.
   results <- lapply(confounder_vars, function(v) {
@@ -344,16 +344,16 @@ compute_balance_simple <- function(fit) {
 #' Observed-treatment IPW weight distribution summary (binary)
 #'
 #' @description
-#' Reconstructs the observed-treatment Horvitz–Thompson weights `1/p` on
+#' Reconstructs the observed-treatment Horvitz-Thompson weights `1/p` on
 #' treated rows and `1/(1-p)` on controls from the stashed bernoulli
 #' density model, and summarises them by arm plus an overall row. This is
-#' the canonical Hernán & Robins Ch. 12 IPW weight diagnostic, decoupled
+#' the canonical Hernan & Robins Ch. 12 IPW weight diagnostic, decoupled
 #' from any specific intervention.
 #'
 #' @param fit A `causatr_fit` with `estimator = "ipw"` and a bernoulli
 #'   treatment model.
 #' @return A `data.table` with columns `group`, `n`, `mean`, `sd`, `min`,
-#'   `max`, `ess` — one row per group (`treated`, `control`, `overall`).
+#'   `max`, `ess` -- one row per group (`treated`, `control`, `overall`).
 #'
 #' @noRd
 compute_weight_summary <- function(fit) {
@@ -363,7 +363,7 @@ compute_weight_summary <- function(fit) {
 
   # Effective sample size (Kish 1965): a weighted sample with highly
   # variable weights has fewer "effective" observations than its
-  # nominal n. The formula below is the ratio (sum w)^2 / sum w^2 —
+  # nominal n. The formula below is the ratio (sum w)^2 / sum w^2 --
   # equals n when all weights are equal, less otherwise. Used as a
   # quick heuristic for "did IPW destroy my power?".
   ess <- function(wts) sum(wts)^2 / sum(wts^2)
@@ -458,7 +458,7 @@ diagnose_ipw_point <- function(fit, stats, thresholds, ps_bounds) {
 
   # Binary bernoulli IPW: positivity uses the stashed PS, balance uses
   # the formula interface on the fit rows, and the weight summary uses
-  # the observed-treatment Horvitz–Thompson weights. All three helpers
+  # the observed-treatment Horvitz-Thompson weights. All three helpers
   # already know how to read from `fit$details`, so this wrapper is a
   # thin dispatcher that forwards their outputs into `new_causatr_diag()`.
   positivity <- compute_positivity(fit, ps_bounds)

@@ -27,7 +27,7 @@ contrast(fit, interventions = list(quit = static(1), continue = static(0)))
 
 }
 \references{
-Hernán MA, Robins JM (2025). \emph{Causal Inference: What If}. Chapman &
+Hernan MA, Robins JM (2025). \emph{Causal Inference: What If}. Chapman &
 Hall/CRC. Chapter 1 (static interventions).
 }
 \seealso{

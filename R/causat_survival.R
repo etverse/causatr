@@ -2,7 +2,7 @@
 #'
 #' @description
 #' Convenience wrapper for causal survival analysis using pooled logistic
-#' regression as a discrete-time hazard model (Hernán & Robins Ch. 17).
+#' regression as a discrete-time hazard model (Hernan & Robins Ch. 17).
 #'
 #' The pooled logistic hazard model is fit at this step. The
 #' survival-curve contrast step in [contrast()] is not implemented and
@@ -53,7 +53,7 @@
 #'   use with [contrast()].
 #'
 #' @references
-#' Hernán MA, Robins JM (2025). *Causal Inference: What If*. Chapman &
+#' Hernan MA, Robins JM (2025). *Causal Inference: What If*. Chapman &
 #' Hall/CRC. Chapter 17.
 #'
 #' @examples
@@ -106,12 +106,12 @@ causat_survival <- function(
   # name (e.g. `.causatr_prev_event`). See R12 in the 2026-04-15 review.
   check_reserved_cols(data)
 
-  # Same up-front weights validation as `causat()` — reject NA,
+  # Same up-front weights validation as `causat()` -- reject NA,
   # non-finite, negative, or mis-sized weight vectors so users see a
   # specific error instead of a cryptic GLM abort.
   check_weights(weights, nrow(data))
 
-  # Refuse `na.action = na.exclude` forwarded through `...` — would
+  # Refuse `na.action = na.exclude` forwarded through `...` -- would
   # corrupt the sandwich IF downstream. See check_dots_na_action().
   check_dots_na_action(...)
 
@@ -154,7 +154,7 @@ causat_survival <- function(
 
   # Ensure person-period format: every id must appear at more than one
   # time point. Previous implementations used `max(rows_per_id$N) == 1L`
-  # which only caught uniform wide format — a mixed frame with some
+  # which only caught uniform wide format -- a mixed frame with some
   # single-row ids and some multi-row ids would slip through and end up
   # fitting a degenerate risk set at the survival step. We now require
   # that every id has at least 2 rows (a minimally well-formed
@@ -203,12 +203,12 @@ causat_survival <- function(
   }
 
   # Build the pooled logistic regression formula for discrete-time
-  # survival analysis (Hernán & Robins Ch. 17):
+  # survival analysis (Hernan & Robins Ch. 17):
   #   event ~ time_terms + treatment + confounders
   # where `time_terms` is a flexible function of time (default
   # `~ ns(time, 4)`). Pooled logistic = run one logistic regression
   # over ALL (person, time) rows with a time-specific intercept
-  # — equivalent to a discrete-time hazard model.
+  # -- equivalent to a discrete-time hazard model.
   confounder_terms <- attr(stats::terms(confounders), "term.labels")
   time_terms <- attr(stats::terms(time_formula), "term.labels")
   rhs <- c(time_terms, treatment, confounder_terms)
@@ -223,7 +223,7 @@ causat_survival <- function(
   # `prev_event` is computed via within-id cumsum of the event
   # column, shifted by 1 lag so that the CURRENT row's indicator
   # reflects whether a prior event has occurred (not the current
-  # one). Fill with 0 for the first period — everyone starts event-free.
+  # one). Fill with 0 for the first period -- everyone starts event-free.
   # Data is already keyed (id, time) from the up-front setkeyv, so
   # `shift` sees a deterministic within-id ordering.
   data[,
@@ -238,7 +238,7 @@ causat_survival <- function(
 
   # Censoring rule: drop rows WHERE `censoring == 1` AND all subsequent
   # rows for that individual. The docstring promised this behavior but
-  # the previous implementation only excluded the current row — a
+  # the previous implementation only excluded the current row -- a
   # subject censored at t=2 still contributed risk at t=3. The cumsum
   # + lag trick mirrors `prev_event` above: 0 at and before first
   # censor, >=1 after. Rows with `prev_cens > 0` OR `censoring == 1`
@@ -268,7 +268,7 @@ causat_survival <- function(
   # "non-integer #successes in a binomial glm!" whenever the weight
   # vector is non-integer (the typical survey / IPCW case). The score
   # equations, coefficients, and standard errors are unchanged under
-  # quasibinomial — only the "integer successes" check is dropped and
+  # quasibinomial -- only the "integer successes" check is dropped and
   # dispersion is estimated freely. Unweighted fits keep plain
   # binomial for dispersion = 1.
   hazard_family <- if (!is.null(weights)) {

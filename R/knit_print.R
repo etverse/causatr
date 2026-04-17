@@ -43,10 +43,10 @@ knit_print.causatr_result <- function(x, ...) {
   # separators stick to their neighbours on narrow viewports.
   header <- sprintf(
     paste0(
-      "**Estimator:** %s &nbsp;·&nbsp; ",
-      "**Estimand:** %s &nbsp;·&nbsp; ",
-      "**Contrast:** %s &nbsp;·&nbsp; ",
-      "**CI method:** %s &nbsp;·&nbsp; ",
+      "**Estimator:** %s &nbsp;&middot;&nbsp; ",
+      "**Estimand:** %s &nbsp;&middot;&nbsp; ",
+      "**Contrast:** %s &nbsp;&middot;&nbsp; ",
+      "**CI method:** %s &nbsp;&middot;&nbsp; ",
       "**N:** %d"
     ),
     x$estimator,

@@ -6,7 +6,7 @@
 #' The returned `causatr_treatment_model` object exposes enough
 #' metadata to (a) evaluate the density at arbitrary treatment
 #' values and (b) rebuild those evaluations at a candidate propensity
-#' parameter `alpha` — the latter is what the variance engine's
+#' parameter `alpha` -- the latter is what the variance engine's
 #' `numDeriv::jacobian()` call requires to compute the cross-derivative
 #' \eqn{A_{\beta\alpha}}.
 #'
@@ -20,7 +20,7 @@
 #'   Density is \eqn{\mathcal N(\mu = \hat\mu_L, \sigma = \hat\sigma)},
 #'   with \eqn{\hat\sigma} estimated as the residual standard deviation
 #'   of the fit. The Gaussian assumption is the standard book recipe
-#'   (Hernán & Robins Ch. 12 §12.4); users who need something else can
+#'   (Hernan & Robins Ch. 12 Sec. 12.4); users who need something else can
 #'   pass their own `propensity_model_fn` in `causat()`.
 #' - **Categorical** (factor or character with \eqn{k \ge 2} levels):
 #'   fit by a multinomial logistic model via `model_fn` with **no
@@ -60,7 +60,7 @@
 #'   treatment values via `detect_treatment_family()`. Pass `"poisson"`
 #'   or `"negbin"` to opt into a count regression for integer-valued
 #'   treatments (dose levels, event counts, visit counts). Auto-detect
-#'   never infers count — non-negative integers like age in years are
+#'   never infers count -- non-negative integers like age in years are
 #'   legitimately modelled as Gaussian.
 #' @param weights Optional numeric vector of observation weights to
 #'   forward into `model_fn` (survey weights / external IPCW). `NULL`
@@ -75,7 +75,7 @@
 #'     \item{`treatment`}{Treatment column name.}
 #'     \item{`ps_formula`}{The `A ~ confounders` formula used.}
 #'     \item{`alpha_hat`}{Numeric vector. Fitted propensity parameters
-#'       \eqn{\hat\alpha} — coefficients of the density model, used as
+#'       \eqn{\hat\alpha} -- coefficients of the density model, used as
 #'       the starting point for the variance-engine `numDeriv::jacobian`
 #'       call.}
 #'     \item{`X_prop`}{Design matrix of the density model. Captured once
@@ -91,13 +91,13 @@
 #'     \item{`levels`}{Character vector of levels (categorical only;
 #'       `NULL` otherwise).}
 #'     \item{`fit_rows`}{Logical vector indicating which rows of `data`
-#'       were actually used to fit the density model — the density
+#'       were actually used to fit the density model -- the density
 #'       evaluator and weight builder align their outputs to these
 #'       rows.}
 #'   }
 #'
 #' @references
-#' Hernán MA, Robins JM (2025). *Causal Inference: What If*. Chapman &
+#' Hernan MA, Robins JM (2025). *Causal Inference: What If*. Chapman &
 #' Hall/CRC. Section 12.4 (parametric g-formula for continuous
 #' treatments).
 #'
@@ -114,7 +114,7 @@ fit_treatment_model <- function(
   # Validate inputs. These are internal helpers so most of the argument
   # shapes are already guaranteed by `check_causat_inputs()` upstream,
   # but the treatment column's *values* still need to be classified
-  # into binary/continuous/categorical — that is not something
+  # into binary/continuous/categorical -- that is not something
   # prepare_data() does.
   check_string(treatment)
   check_formula(confounders)
@@ -153,7 +153,7 @@ fit_treatment_model <- function(
 
   # Compose model_fn arguments uniformly across the density
   # families. `weights` is only attached when the user actually passed
-  # a vector — otherwise the sub-setted vector would need to be aligned
+  # a vector -- otherwise the sub-setted vector would need to be aligned
   # to `fit_rows`, and we let `model_fn`'s own NULL default take over.
   # (Survey-weighted propensity fits pass through this path; the
   # variance engine's IF machinery handles the M-estimation
@@ -202,7 +202,7 @@ fit_treatment_model <- function(
   )
 
   # For continuous treatments we need the residual SD of the
-  # linear propensity model — it enters the Gaussian density as the
+  # linear propensity model -- it enters the Gaussian density as the
   # second parameter. `summary(glm)$sigma` is the standard slot
   # returned by `stats::summary.lm` / `summary.glm` for gaussian fits,
   # which matches the book's "estimate variance of residuals" recipe.
@@ -215,7 +215,7 @@ fit_treatment_model <- function(
 
   # For negative binomial, extract the dispersion parameter theta.
   # Treated as fixed in the variance engine (perturbing only alpha,
-  # not theta) — same convention as sigma for Gaussian.
+  # not theta) -- same convention as sigma for Gaussian.
   theta <- NULL
   if (family_tag == "negbin") {
     theta <- model$theta
@@ -229,7 +229,7 @@ fit_treatment_model <- function(
   # Capture the propensity design matrix ONCE at fit time. The
   # `numDeriv::jacobian()` call inside the variance engine perturbs
   # `alpha` many times and each perturbation needs to recompute
-  # `X_prop %*% alpha` — re-calling `model.matrix()` inside the closure
+  # `X_prop %*% alpha` -- re-calling `model.matrix()` inside the closure
   # would repeat the formula parsing and data.frame coercion on every
   # jacobian step, which is expensive on large datasets.
   X_prop <- stats::model.matrix(model)
@@ -264,7 +264,7 @@ fit_treatment_model <- function(
         ncol(X_prop),
         " columns (expected ",
         ncol(X_prop) * n_alpha_rows(family_tag, model),
-        " total) — this usually means a column was aliased or dropped. ",
+        " total) -- this usually means a column was aliased or dropped. ",
         "Drop the offending confounder and refit."
       )
     )
@@ -306,7 +306,7 @@ fit_treatment_model <- function(
 #' - factor (with two OR more levels) or character -> `"categorical"`
 #'   (two-level factors / characters are treated as categorical, not
 #'   binary, because the model_fn contract for categorical treatments
-#'   differs — binary uses `family = binomial()`, categorical uses a
+#'   differs -- binary uses `family = binomial()`, categorical uses a
 #'   multinomial fitter. Users who want binary handling from a factor
 #'   should recode to 0/1 explicitly, which matches the existing
 #'   `check_estimand_trt_compat()` convention.)
@@ -365,7 +365,7 @@ fit_bernoulli_density <- function(
 ) {
   # `model_fn(formula, data, family, weights, ...)` is the causatr
   # contract (see `causat(model_fn =)` docs). Passing `weights = NULL`
-  # to `stats::glm()` is fine — it takes the NULL branch internally —
+  # to `stats::glm()` is fine -- it takes the NULL branch internally --
   # but custom fitters in the wild sometimes dispatch on the
   # `weights` argument's presence rather than its value, so we omit
   # the arg entirely when there are no external weights.
@@ -441,7 +441,7 @@ fit_categorical_density <- function(
   ...
 ) {
   # Multinomial fitters (nnet::multinom, VGAM::vglm) do not take a
-  # `family` argument — the family is implicit in the model class.
+  # `family` argument -- the family is implicit in the model class.
   # We therefore build the call without `family`, unlike the Bernoulli
   # and Gaussian helpers.
   base_args <- list(
@@ -513,7 +513,7 @@ fit_count_density <- function(
 #' @description
 #' For Bernoulli / Gaussian models `coef()` returns p scalars (one
 #' per design-matrix column). For a multinomial model with K levels,
-#' `coef()` returns a (K-1) x p matrix — K-1 log-odds equations,
+#' `coef()` returns a (K-1) x p matrix -- K-1 log-odds equations,
 #' each with p coefficients. This helper returns 1 for non-
 #' categorical fits and K-1 for categorical, so the length check in
 #' `fit_treatment_model()` can validate the flattened `alpha_hat`
@@ -561,12 +561,12 @@ n_alpha_rows <- function(family_tag, model) {
 extract_sigma <- function(model) {
   sm <- tryCatch(summary(model), error = function(e) NULL)
 
-  # summary.lm$sigma — residual standard error.
+  # summary.lm$sigma -- residual standard error.
   if (!is.null(sm) && !is.null(sm$sigma) && is.finite(sm$sigma)) {
     return(as.numeric(sm$sigma))
   }
 
-  # summary.glm$dispersion — estimator of sigma^2 for Gaussian GLM.
+  # summary.glm$dispersion -- estimator of sigma^2 for Gaussian GLM.
   # `$sigma` is NULL on summary.glm; the dispersion slot is the canonical
   # place to read the residual variance from a Gaussian glm fit.
   if (!is.null(sm) && !is.null(sm$dispersion) && is.finite(sm$dispersion)) {
@@ -636,7 +636,7 @@ evaluate_density <- function(treatment_model, treatment_values, newdata) {
         length(treatment_values),
         " but `newdata` has ",
         nrow(newdata),
-        " rows — they must be the same length."
+        " rows -- they must be the same length."
       )
     )
   }
@@ -656,7 +656,7 @@ evaluate_density <- function(treatment_model, treatment_values, newdata) {
   if (family_tag == "gaussian") {
     # Normal pdf: f(a | L) = dnorm(a, mu, sigma) with mu = fitted mean
     # and sigma = residual SD (fixed at fit time). `dnorm` is
-    # vectorised — one call per density evaluation, not per row.
+    # vectorised -- one call per density evaluation, not per row.
     mu <- stats::predict(model, newdata = newdata, type = "response")
     sigma <- treatment_model$sigma
     return(stats::dnorm(treatment_values, mean = mu, sd = sigma))

@@ -59,7 +59,7 @@ use with \code{\link[=contrast]{contrast()}}.
 }
 \description{
 Convenience wrapper for causal survival analysis using pooled logistic
-regression as a discrete-time hazard model (Hernán & Robins Ch. 17).
+regression as a discrete-time hazard model (Hernan & Robins Ch. 17).
 
 The pooled logistic hazard model is fit at this step. The
 survival-curve contrast step in \code{\link[=contrast]{contrast()}} is not implemented and
@@ -103,7 +103,7 @@ result <- contrast(fit_surv,
 
 }
 \references{
-Hernán MA, Robins JM (2025). \emph{Causal Inference: What If}. Chapman &
+Hernan MA, Robins JM (2025). \emph{Causal Inference: What If}. Chapman &
 Hall/CRC. Chapter 17.
 }
 \seealso{

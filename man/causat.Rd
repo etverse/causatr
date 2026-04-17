@@ -126,7 +126,7 @@ propensity.}
 treatment density family: \code{"poisson"} or \code{"negbin"} for count
 treatments. \code{NULL} (default) auto-detects from the treatment
 values (bernoulli / gaussian / categorical). Auto-detection never
-infers count — use this parameter to opt in. For \code{"negbin"},
+infers count -- use this parameter to opt in. For \code{"negbin"},
 \code{MASS::glm.nb} is auto-selected as the propensity fitter unless
 \code{propensity_model_fn} is explicitly provided. Ignored for
 \code{"gcomp"} and \code{"matching"}.}
@@ -165,7 +165,7 @@ Prepares the causal estimation pipeline for a given estimator. For
 \code{"gcomp"}, fits the conditional outcome model E[Y | A, L] that will be
 used by \code{\link[=contrast]{contrast()}} for standardisation. For \code{"ipw"}, fits the
 conditional treatment density \eqn{f(A \mid L)} that the self-contained
-density-ratio engine uses to build per-intervention Hájek weights for
+density-ratio engine uses to build per-intervention Hajek weights for
 the MSM refit inside \code{\link[=contrast]{contrast()}}. For \code{"matching"}, creates matched
 sets (via \code{MatchIt::matchit()}) that will be used for matched
 estimation in \code{\link[=contrast]{contrast()}}.
@@ -181,7 +181,7 @@ Fits E[Y | A, L] using \code{glm()} (or \code{mgcv::gam()} if the formula
 contains \code{s()} or \code{te()} terms). \code{\link[=contrast]{contrast()}} standardises over the
 target population (controlled by \code{estimand}) to obtain E[Y^a] under each
 intervention. For \code{"gcomp"}, the estimand can be overridden in
-\code{\link[=contrast]{contrast()}} — fit once, contrast with multiple estimands.
+\code{\link[=contrast]{contrast()}} -- fit once, contrast with multiple estimands.
 
 For longitudinal data, uses ICE g-computation (Zivich et al., 2024):
 outcome models are fitted one per time point via backward iteration,
@@ -249,8 +249,8 @@ rows (including those with missing Y) and standardizes over the target
 population. Under MCAR, this complete-case analysis is unbiased. Under
 MAR (censoring depends on A and/or L), g-computation with a correctly
 specified outcome model is still consistent because the regression
-surface E[Y | A, L] is unchanged by the censoring mechanism (Hernán &
-Robins, Ch. 13). For IPW under MAR, IPCW weights are needed — supply
+surface E[Y | A, L] is unchanged by the censoring mechanism (Hernan &
+Robins, Ch. 13). For IPW under MAR, IPCW weights are needed -- supply
 them via \verb{weights =}. The
 \verb{censoring =} parameter is a \strong{row filter}, not IPCW: no censoring
 model is fit internally.
@@ -296,7 +296,7 @@ fit_att <- causat(
   estimand = "ATT"
 )
 
-# IPW — self-contained density-ratio engine; estimand fixed at
+# IPW -- self-contained density-ratio engine; estimand fixed at
 # fit time. A non-default `propensity_model_fn` (e.g. `mgcv::gam`)
 # swaps in a smooth propensity model without touching the rest of
 # the pipeline.
@@ -345,12 +345,12 @@ fit_multi <- causat(
 
 }
 \references{
-Hernán MA, Robins JM (2025). \emph{Causal Inference: What If}. Chapman &
+Hernan MA, Robins JM (2025). \emph{Causal Inference: What If}. Chapman &
 Hall/CRC. Chapters 12 (IPW), 13 (g-formula), 15 (matching), 21 (ICE).
 
 Zivich PN, Ross RK, Shook-Sa BE, Cole SR, Edwards JK (2024). Empirical
 sandwich variance estimator for iterated conditional expectation
-g-computation. \emph{Statistics in Medicine} 43:5562–5572.
+g-computation. \emph{Statistics in Medicine} 43:5562-5572.
 }
 \seealso{
 \code{\link[=contrast]{contrast()}}, \code{\link[=diagnose]{diagnose()}}, \code{\link[=causat_survival]{causat_survival()}},

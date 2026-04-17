@@ -5,7 +5,7 @@
 #' `"gcomp"`, fits the conditional outcome model E\[Y | A, L\] that will be
 #' used by [contrast()] for standardisation. For `"ipw"`, fits the
 #' conditional treatment density \eqn{f(A \mid L)} that the self-contained
-#' density-ratio engine uses to build per-intervention Hájek weights for
+#' density-ratio engine uses to build per-intervention Hajek weights for
 #' the MSM refit inside [contrast()]. For `"matching"`, creates matched
 #' sets (via `MatchIt::matchit()`) that will be used for matched
 #' estimation in [contrast()].
@@ -96,7 +96,7 @@
 #'   treatment density family: `"poisson"` or `"negbin"` for count
 #'   treatments. `NULL` (default) auto-detects from the treatment
 #'   values (bernoulli / gaussian / categorical). Auto-detection never
-#'   infers count — use this parameter to opt in. For `"negbin"`,
+#'   infers count -- use this parameter to opt in. For `"negbin"`,
 #'   `MASS::glm.nb` is auto-selected as the propensity fitter unless
 #'   `propensity_model_fn` is explicitly provided. Ignored for
 #'   `"gcomp"` and `"matching"`.
@@ -134,7 +134,7 @@
 #' contains `s()` or `te()` terms). [contrast()] standardises over the
 #' target population (controlled by `estimand`) to obtain E\[Y^a\] under each
 #' intervention. For `"gcomp"`, the estimand can be overridden in
-#' [contrast()] — fit once, contrast with multiple estimands.
+#' [contrast()] -- fit once, contrast with multiple estimands.
 #'
 #' For longitudinal data, uses ICE g-computation (Zivich et al., 2024):
 #' outcome models are fitted one per time point via backward iteration,
@@ -193,8 +193,8 @@
 #' population. Under MCAR, this complete-case analysis is unbiased. Under
 #' MAR (censoring depends on A and/or L), g-computation with a correctly
 #' specified outcome model is still consistent because the regression
-#' surface E\[Y | A, L\] is unchanged by the censoring mechanism (Hernán &
-#' Robins, Ch. 13). For IPW under MAR, IPCW weights are needed — supply
+#' surface E\[Y | A, L\] is unchanged by the censoring mechanism (Hernan &
+#' Robins, Ch. 13). For IPW under MAR, IPCW weights are needed -- supply
 #' them via `weights =`. The
 #' `censoring =` parameter is a **row filter**, not IPCW: no censoring
 #' model is fit internally.
@@ -217,12 +217,12 @@
 #' `causat_mice()`).
 #'
 #' @references
-#' Hernán MA, Robins JM (2025). *Causal Inference: What If*. Chapman &
+#' Hernan MA, Robins JM (2025). *Causal Inference: What If*. Chapman &
 #' Hall/CRC. Chapters 12 (IPW), 13 (g-formula), 15 (matching), 21 (ICE).
 #'
 #' Zivich PN, Ross RK, Shook-Sa BE, Cole SR, Edwards JK (2024). Empirical
 #' sandwich variance estimator for iterated conditional expectation
-#' g-computation. *Statistics in Medicine* 43:5562–5572.
+#' g-computation. *Statistics in Medicine* 43:5562-5572.
 #'
 #' @examples
 #' \dontrun{
@@ -247,7 +247,7 @@
 #'   estimand = "ATT"
 #' )
 #'
-#' # IPW — self-contained density-ratio engine; estimand fixed at
+#' # IPW -- self-contained density-ratio engine; estimand fixed at
 #' # fit time. A non-default `propensity_model_fn` (e.g. `mgcv::gam`)
 #' # swaps in a smooth propensity model without touching the rest of
 #' # the pipeline.
@@ -324,7 +324,7 @@ causat <- function(
   estimand <- rlang::arg_match(estimand)
 
   # Auto-detect point vs longitudinal from the presence of id/time.
-  # `type` lets the user force one or the other — useful for tests
+  # `type` lets the user force one or the other -- useful for tests
   # and for the rare case of longitudinal-shaped data the user wants
   # to analyze cross-sectionally at a single time point.
   has_long <- !is.null(id) && !is.null(time)
@@ -343,7 +343,7 @@ causat <- function(
 
   # All structural validation happens here. By the time check_causat_inputs()
   # returns, the arguments are guaranteed consistent and any missing columns
-  # are surfaced with clear error messages — the downstream fit_* functions
+  # are surfaced with clear error messages -- the downstream fit_* functions
   # don't need to re-validate.
   check_causat_inputs(
     # nolint: object_usage_linter
@@ -396,7 +396,7 @@ causat <- function(
   # Refuse `na.action = na.exclude` forwarded through `...`. The
   # variance engine assumes `length(residuals(m, "working")) ==
   # nrow(model.matrix(m))`, which `na.exclude` violates by padding with
-  # NAs — recycling then silently corrupts the IF and sandwich SEs.
+  # NAs -- recycling then silently corrupts the IF and sandwich SEs.
   # See check_dots_na_action() for the full rationale.
   check_dots_na_action(..., call = call)
 

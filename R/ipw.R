@@ -1,7 +1,7 @@
 #' Fit an IPW model for causal estimation (point treatment)
 #'
 #' @description
-#' Implements inverse probability weighting (Hernán & Robins Ch. 12) via a
+#' Implements inverse probability weighting (Hernan & Robins Ch. 12) via a
 #' self-contained density-ratio engine. `fit_ipw()` owns only the
 #' propensity / treatment-density model fit; the weighted marginal
 #' structural model (MSM) is rebuilt **per intervention** inside
@@ -25,7 +25,7 @@
 #'    `make_weight_fn()` and refit a weighted MSM per intervention.
 #' 3. Store a cheap placeholder outcome model (`Y ~ A`, unweighted)
 #'    in `fit$model` for display / compatibility with `print()` /
-#'    `summary()`. This model is **not** used for estimation — every
+#'    `summary()`. This model is **not** used for estimation -- every
 #'    contrast refits its own weighted MSM.
 #'
 #' ## Why no top-level weighted MSM is fit here
@@ -159,7 +159,7 @@ fit_ipw <- function(
   # Fit the conditional treatment density. The returned
   # `causatr_treatment_model` carries the fitted model, the
   # propensity design matrix, `alpha_hat`, the family tag, and the
-  # `fit_rows` mask — everything `make_weight_fn()` needs to build a
+  # `fit_rows` mask -- everything `make_weight_fn()` needs to build a
   # `w(alpha)` closure for any intervention downstream.
   tm_args <- list(
     data = fit_data,
@@ -207,7 +207,7 @@ fit_ipw <- function(
   # `summary()` can show something sensible even before a contrast is
   # requested, and so downstream `fit$model$family` lookups (used in
   # places like `resolve_family()`) find a valid family. The
-  # estimation path does NOT consume this model — every intervention
+  # estimation path does NOT consume this model -- every intervention
   # in `compute_contrast()` refits its own weighted MSM.
   fam_obj <- resolve_family(family)
   placeholder_formula <- stats::reformulate(treatment, response = outcome)
@@ -266,7 +266,7 @@ fit_ipw <- function(
 #' 1. Build the density-ratio weight vector via
 #'    `compute_density_ratio_weights(tm, data, intervention)`.
 #' 2. Multiply in external (survey / IPCW) weights when present.
-#' 3. Refit a weighted MSM on `Y ~ 1`, which under a weighted Hájek
+#' 3. Refit a weighted MSM on `Y ~ 1`, which under a weighted Hajek
 #'    estimator recovers the marginal counterfactual mean
 #'    \eqn{E[Y^d]}.
 #' 4. Compute \eqn{\hat\mu_a} by predict-then-average over the target
@@ -355,17 +355,17 @@ compute_ipw_contrast_point <- function(
     # intervention-specific weight vector: HT indicators for static
     # binary, pushforward ratios for shift / scale_by, Kennedy's
     # closed form for IPSI. Under every one of those the weighted
-    # MSM for `E[Y^d]` collapses to an intercept-only Hájek mean of
+    # MSM for `E[Y^d]` collapses to an intercept-only Hajek mean of
     # Y. A saturated `Y ~ A` would be *rank-deficient* under HT
-    # weights on a binary treatment — every surviving row has the
-    # same value of A — so we uniformly refit `Y ~ 1` and read off
+    # weights on a binary treatment -- every surviving row has the
+    # same value of A -- so we uniformly refit `Y ~ 1` and read off
     # the (sole) coefficient as the counterfactual marginal mean.
     #
     # When effect-modification terms are present (e.g. `A:sex` in
     # confounders), the MSM expands to `Y ~ 1 + sex` so that
     # `predict()` returns modifier-stratum-specific counterfactual
     # means. The treatment is still absorbed by the density-ratio
-    # weights — only modifier main effects enter the MSM.
+    # weights -- only modifier main effects enter the MSM.
     msm_formula <- build_ipw_msm_formula(outcome, em_info)
 
     msm_args <- list(
@@ -379,12 +379,12 @@ compute_ipw_contrast_point <- function(
     # Counterfactual marginal mean: predict on the intervened data
     # restricted to the target population, then (optionally-weighted)
     # average. This mirrors the gcomp / matching predict-then-average
-    # path — under a saturated `Y ~ A` the result collapses to
+    # path -- under a saturated `Y ~ A` the result collapses to
     # `beta_0 + beta_1 * target_value`, and under `Y ~ 1` it
     # collapses to `beta_0`, but running the generic path keeps the
     # code uniform with the rest of `compute_contrast()`.
     #
-    # IPSI does not materialize a counterfactual treatment value — the
+    # IPSI does not materialize a counterfactual treatment value -- the
     # intervention acts on the propensity, not on A itself. Since the
     # MSM is intercept-only (`Y ~ 1`), prediction doesn't depend on
     # the treatment column, so we skip `apply_intervention()` and use

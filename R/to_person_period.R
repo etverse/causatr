@@ -8,7 +8,7 @@
 #' discrete-time survival analyses.
 #'
 #' For survival data the event indicator \eqn{D_{k+1} = 1} means the individual
-#' experienced the event during interval k+1 (Hernán & Robins Ch. 17).
+#' experienced the event during interval k+1 (Hernan & Robins Ch. 17).
 #'
 #' @param data A data frame or data.table in wide format.
 #' @param id Character. Name of the individual ID variable.
@@ -107,7 +107,7 @@ to_person_period <- function(
   }
 
   # Build the long table by stacking n_times copies of the data,
-  # one per time point. This is the simple/explicit reshape idiom —
+  # one per time point. This is the simple/explicit reshape idiom --
   # clearer than `data.table::melt()` when every variable has its
   # own column-name pattern (the `time_varying` list specifies
   # exactly which original column maps to which time point).
@@ -119,7 +119,7 @@ to_person_period <- function(
   #      canonical name (e.g. "A0" -> "A", "A1" -> "A" at t=1).
   #
   # The result is one row per (id, time) with a consistent column
-  # schema — exactly the shape that prepare_data() and fit_ice()
+  # schema -- exactly the shape that prepare_data() and fit_ice()
   # expect.
   long_list <- lapply(seq_len(n_times), function(k) {
     row_dt <- data[, c(id, time_invariant), with = FALSE]

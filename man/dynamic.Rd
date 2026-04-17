@@ -30,7 +30,7 @@ length \code{nrow(data)}.
 \code{rule} must return a numeric vector of length \code{nrow(data)}. To branch
 on time, reference the time column directly (e.g. \code{data$time == 0}).
 To reference the treatment or covariate history in longitudinal data,
-use the materialised lag columns (\code{data$lag1_A}, \code{data$lag1_L}, …)
+use the materialised lag columns (\code{data$lag1_A}, \code{data$lag1_L}, ...)
 that \code{prepare_data()} built from \code{history}.
 }
 \examples{
@@ -44,7 +44,7 @@ adaptive <- dynamic(\(data, trt) as.integer(!is.na(data$L) & data$L > 0))
 
 }
 \references{
-Hernán MA, Robins JM (2025). \emph{Causal Inference: What If}. Chapman &
+Hernan MA, Robins JM (2025). \emph{Causal Inference: What If}. Chapman &
 Hall/CRC. Chapter 19 (dynamic treatment strategies).
 }
 \seealso{

@@ -6,10 +6,10 @@
 #' estimates the counterfactual mean \eqn{E[Y^d]}. Three weight
 #' formulas are implemented, one per intervention "geometry":
 #'
-#' 1. **Horvitz–Thompson indicator form** — used for point-mass
+#' 1. **Horvitz-Thompson indicator form** -- used for point-mass
 #'    interventions on discrete treatments. The intervened
 #'    distribution is a Dirac at a per-individual target value,
-#'    so the Radon–Nikodym derivative w.r.t. the fitted density
+#'    so the Radon-Nikodym derivative w.r.t. the fitted density
 #'    is
 #'    \deqn{w_i = \frac{\mathbb 1\{A_i = d(A_i, L_i)\} \cdot f^\*_i}{f(A_i \mid L_i)},}
 #'    where the numerator \eqn{f^\*_i} encodes the estimand's
@@ -19,11 +19,11 @@
 #'    for ATT (conditioning on \eqn{A^\*=1}) \eqn{f^\*_i = p(L_i)};
 #'    for ATC (conditioning on \eqn{A^\*=0}) \eqn{f^\*_i = 1 - p(L_i)}.
 #'    Rows whose observed treatment does not match the target
-#'    contribute zero to the Hájek mean, as they should. Covers:
+#'    contribute zero to the Hajek mean, as they should. Covers:
 #'    - `static(value)` on binary / categorical treatments
 #'    - `dynamic(rule)` on binary / categorical treatments
 #'
-#' 2. **Smooth density ratio** — used for MTPs on continuous
+#' 2. **Smooth density ratio** -- used for MTPs on continuous
 #'    treatments where both the fitted density and the intervened
 #'    density are absolutely continuous w.r.t. Lebesgue measure.
 #'    \deqn{w_i = \frac{f(d(A_i, L_i) \mid L_i)}{f(A_i \mid L_i)}.}
@@ -32,9 +32,9 @@
 #'    - `scale_by(factor)` on continuous treatments
 #'    - `threshold(lower, upper)` on continuous treatments
 #'
-#' 3. **IPSI closed form** — Kennedy (2019):
+#' 3. **IPSI closed form** -- Kennedy (2019):
 #'    \deqn{w_i = \frac{\delta A_i + (1 - A_i)}{\delta p_i + (1 - p_i)}.}
-#'    Binary only. Does not use `evaluate_density()` — the ratio
+#'    Binary only. Does not use `evaluate_density()` -- the ratio
 #'    collapses to a direct function of the propensity \eqn{p_i}.
 #'
 #' 4. `NULL` (natural course) returns a vector of ones.
@@ -56,15 +56,15 @@
 #'   "dynamic regime" loosely. Two distinct objects share the name:
 #'   (1) deterministic rules `d(L_i)` that pick out a single
 #'   counterfactual treatment value per individual (Robins; Murphy;
-#'   Hernán & Robins Ch. 21), and (2) **modified treatment policies**
-#'   (MTPs) — Díaz & van der Laan; Haneuse & Rotnitzky; Kennedy 2019
-#'   — which are stochastic / smooth transformations of the observed
-#'   exposure (e.g. `A → A + δ`, `A → δ·A`, an incremental
+#'   Hernan & Robins Ch. 21), and (2) **modified treatment policies**
+#'   (MTPs) -- Diaz & van der Laan; Haneuse & Rotnitzky; Kennedy 2019
+#'   -- which are stochastic / smooth transformations of the observed
+#'   exposure (e.g. `A -> A + delta`, `A -> delta*A`, an incremental
 #'   propensity-score shift). MTPs on continuous treatment **are**
 #'   well-defined under IPW because the pushforward of a continuous
 #'   density under a diffeomorphism has a Lebesgue density and a
 #'   Jacobian. causatr exposes those as `shift()`, `scale_by()`, and
-#'   `ipsi()` — not `dynamic()`. The `dynamic()` constructor is
+#'   `ipsi()` -- not `dynamic()`. The `dynamic()` constructor is
 #'   reserved for the deterministic-rule sense (1), which is why it
 #'   is rejected on continuous treatment.
 #'
@@ -74,11 +74,11 @@
 #' ## Row alignment
 #'
 #' The weight vector is length `sum(treatment_model$fit_rows)`. The
-#' caller is responsible for aligning it to the MSM's own fit rows —
+#' caller is responsible for aligning it to the MSM's own fit rows --
 #' today those coincide because `fit_ipw()` uses the same
 #' `get_fit_rows()` convention for both the propensity and the MSM.
 #' If that ever changes, `fit_ipw()` must reconcile the two row sets
-#' via `model$na.action` before the variance engine sees them —
+#' via `model$na.action` before the variance engine sees them --
 #' `compute_ipw_if_self_contained_one()` asserts `n_msm == n_ps ==
 #' n_total` and aborts on mismatch.
 #'
@@ -92,7 +92,7 @@
 #' @param intervention A `causatr_intervention` object, or `NULL` for
 #'   natural course.
 #' @param estimand Character scalar in `c("ATE", "ATT", "ATC")`. Only
-#'   the HT indicator branch on Bernoulli treatment consumes this —
+#'   the HT indicator branch on Bernoulli treatment consumes this --
 #'   all other branches (IPSI, shift/scale pushforward) are ATE-only
 #'   and `check_estimand_intervention_compat()` has already rejected
 #'   non-ATE requests by the time we get here.
@@ -103,15 +103,15 @@
 #' @references
 #' Kennedy EH (2019). Nonparametric causal effects based on incremental
 #' propensity score interventions. *Journal of the American
-#' Statistical Association* 114:645–656.
+#' Statistical Association* 114:645-656.
 #'
-#' Díaz I, Williams N, Hoffman KL, Schenck EJ (2023). Non-parametric
+#' Diaz I, Williams N, Hoffman KL, Schenck EJ (2023). Non-parametric
 #' causal effects based on longitudinal modified treatment policies.
-#' *JASA* 118:846–857.
+#' *JASA* 118:846-857.
 #'
 #' Imbens GW (2004). Nonparametric estimation of average treatment
 #' effects under exogeneity: a review. *Review of Economics and
-#' Statistics* 86:4–29. (Per-estimand weight forms for ATT / ATC.)
+#' Statistics* 86:4-29. (Per-estimand weight forms for ATT / ATC.)
 #'
 #' @noRd
 compute_density_ratio_weights <- function(
@@ -133,7 +133,7 @@ compute_density_ratio_weights <- function(
   n_fit <- length(a_obs)
 
   # Natural course: no intervention, d(A, L) = A, weights are all 1.
-  # Hájek normalization then reproduces the unweighted marginal mean,
+  # Hajek normalization then reproduces the unweighted marginal mean,
   # which is the correct "observed" baseline for MTP comparisons.
   if (is.null(intervention)) {
     return(rep(1, n_fit))
@@ -147,11 +147,11 @@ compute_density_ratio_weights <- function(
   # IPSI uses the closed-form shortcut. Going through the density-
   # ratio path would require "the intervened density f_new" which
   # IPSI does not have as a clean function of a counterfactual
-  # treatment value — Kennedy's (2019) intervention acts on the
+  # treatment value -- Kennedy's (2019) intervention acts on the
   # propensity, not on the treatment itself. The closed form
   # collapses the ratio directly. `unname()` strips the row-index
   # attribute that `stats::predict()` carries, so the returned
-  # weight vector is unnamed — matching the other branches that go
+  # weight vector is unnamed -- matching the other branches that go
   # through `ifelse()` / `dnorm()` which already drop names.
   if (iv_type == "ipsi") {
     p <- unname(stats::predict(
@@ -193,7 +193,7 @@ compute_density_ratio_weights <- function(
     check_density_positivity(f_obs, "density-ratio weights")
 
     # `==` on numeric 0/1 and character / factor treatments both
-    # return logical — `as.numeric()` collapses to the HT indicator.
+    # return logical -- `as.numeric()` collapses to the HT indicator.
     ind <- as.numeric(a_obs == target)
 
     # Estimand-specific Bayes numerator. For Bernoulli `f(A*|L)` is
@@ -201,7 +201,7 @@ compute_density_ratio_weights <- function(
     # A=A* arm the resulting weight collapses to `ind` alone
     # (e.g. ATT + static(1): f_star = p, f_obs = p on A=1 rows ->
     # w = A), which is the direct sample functional `E[Y|A=1]` as
-    # expected — no propensity uncertainty for that arm.
+    # expected -- no propensity uncertainty for that arm.
     f_star <- ht_bayes_numerator(
       estimand,
       treatment_model,
@@ -304,7 +304,7 @@ check_density_positivity <- function(f, context) {
       " observation(s) have zero or non-finite density under the fitted ",
       "treatment model (",
       context,
-      "). This is a positivity violation — widen the treatment model ",
+      "). This is a positivity violation -- widen the treatment model ",
       "(add confounders, use a more flexible `propensity_model_fn`, or ",
       "truncate the treatment range) before refitting."
     )
@@ -315,12 +315,12 @@ check_density_positivity <- function(f, context) {
 #' Warn when the intervened density is near-zero for many observations
 #'
 #' @description
-#' The density at the intervened treatment value f(d⁻¹(A_obs) | L) can
+#' The density at the intervened treatment value f(d^(-1)(A_obs) | L) can
 #' be near zero when the intervention pushes treatment far outside the
 #' fitted distribution's support. The resulting density-ratio weights
-#' are all near zero, producing a degenerate Hájek estimator with no
+#' are all near zero, producing a degenerate Hajek estimator with no
 #' effective observations. This is a practical positivity violation at
-#' the counterfactual treatment value — the population support
+#' the counterfactual treatment value -- the population support
 #' assumption fails because the model assigns negligible probability
 #' to the intervened exposure. Warn when > 80% of observations have
 #' f_int < 1e-10. Fires at most once per session.
@@ -367,17 +367,17 @@ warn_intervened_density_near_zero <- function(f_int, context) {
 #'
 #' The closure captures everything it needs by value at creation time:
 #'
-#' - `X_prop` — propensity design matrix (so recomputing predictions
+#' - `X_prop` -- propensity design matrix (so recomputing predictions
 #'   is one matrix multiply, no formula parsing).
-#' - `a_obs` — observed treatment values on the fit rows.
-#' - `a_int` — **precomputed** intervened treatment values for
+#' - `a_obs` -- observed treatment values on the fit rows.
+#' - `a_int` -- **precomputed** intervened treatment values for
 #'   non-IPSI interventions. The intervention itself does not depend
 #'   on `alpha`, only on the data, so we compute `a_int` once at
 #'   closure-creation time rather than on every `numDeriv::jacobian()`
 #'   step.
-#' - `sigma` — residual SD (continuous treatments, fixed at fit time).
-#' - `delta` — odds multiplier (IPSI only).
-#' - `family` tag — dispatches to the right weight formula per step.
+#' - `sigma` -- residual SD (continuous treatments, fixed at fit time).
+#' - `delta` -- odds multiplier (IPSI only).
+#' - `family` tag -- dispatches to the right weight formula per step.
 #'
 #' Because the closure contains no references to mutable state, it is
 #' safe to call many times with different `alpha` values inside a
@@ -386,7 +386,7 @@ warn_intervened_density_near_zero <- function(f_int, context) {
 #' ## IPSI vs data interventions
 #'
 #' IPSI's closed form has a different shape (no density evaluation at
-#' an intervened treatment value — the intervention lives on the
+#' an intervened treatment value -- the intervention lives on the
 #' propensity itself) so it gets its own branch. All other intervention
 #' shapes share the `f_int / f_obs` branch.
 #'
@@ -417,7 +417,7 @@ make_weight_fn <- function(
   # Natural course: constant 1 regardless of alpha. Still return a
   # closure so the variance engine's per-intervention loop has a
   # uniform contract. `numDeriv::jacobian()` on a constant function
-  # returns zeros — correct, because the natural-course weight
+  # returns zeros -- correct, because the natural-course weight
   # carries no propensity-uncertainty.
   if (is.null(intervention)) {
     return(function(alpha) rep(1, n_fit))
@@ -436,7 +436,7 @@ make_weight_fn <- function(
     delta <- intervention$delta
     return(function(alpha) {
       # eta = X %*% alpha, p = plogis(eta). The matrix multiply is the
-      # hot path inside the numDeriv::jacobian loop — ~p_alpha extra
+      # hot path inside the numDeriv::jacobian loop -- ~p_alpha extra
       # perturbations per jacobian step, each costing one O(n * p_alpha)
       # multiply.
       eta <- as.numeric(X_prop %*% alpha)
@@ -448,7 +448,7 @@ make_weight_fn <- function(
   # ---- Horvitz-Thompson indicator branch ---------------------------
   # Point-mass interventions on discrete treatment: static and
   # deterministic dynamic on Bernoulli / categorical. Precompute the
-  # indicator mask once at closure-creation time — it depends on
+  # indicator mask once at closure-creation time -- it depends on
   # `data` and `intervention` only, so it is invariant under the
   # numDeriv perturbations of `alpha`.
   is_ht <- iv_type %in%
@@ -466,7 +466,7 @@ make_weight_fn <- function(
       # `ind / f_obs` form. For ATT / ATC the numerator depends on
       # alpha, and the closure's elementwise product `ind * f_star /
       # f_obs` is exactly the weight formula from
-      # `compute_density_ratio_weights()` — the variance engine stays
+      # `compute_density_ratio_weights()` -- the variance engine stays
       # consistent because the same closed form drives both. See the
       # `ht_bayes_numerator()` helper for the runtime equivalent and
       # the roxygen header on `compute_density_ratio_weights()` for
@@ -501,7 +501,7 @@ make_weight_fn <- function(
       K <- length(trt_levels)
       Km1 <- K - 1L
       p_cols <- ncol(X_prop)
-      # `a_obs` is factor or character — convert to character indices
+      # `a_obs` is factor or character -- convert to character indices
       # for column lookup in the probability matrix.
       a_obs_char <- as.character(a_obs)
       col_idx <- match(a_obs_char, trt_levels)
@@ -528,7 +528,7 @@ make_weight_fn <- function(
   # `shift()` and `scale_by()` on Gaussian-family treatment. Both use
   # the pushforward weight
   #   w_i = f(d^{-1}(A_obs_i, L_i) | L_i) * |Jac| / f(A_obs_i | L_i)
-  # — see the `compute_density_ratio_weights()` body for the
+  # -- see the `compute_density_ratio_weights()` body for the
   # derivation and the sign/Jacobian gotcha. The "evaluation point"
   # `a_eval = d^{-1}(A_obs)` and the Jacobian `|Jac|` are constants
   # of `data` and `intervention`, so we precompute them once at
@@ -559,7 +559,7 @@ make_weight_fn <- function(
 
     # `sigma` captured from the fit is held fixed under alpha
     # perturbation. The variance engine treats only the mean
-    # parameters as the propensity nuisance — sigma as an additional
+    # parameters as the propensity nuisance -- sigma as an additional
     # nuisance would require a joint M-estimation setup for (mu,
     # sigma), which is deferred.
     return(function(alpha) {
@@ -660,7 +660,7 @@ apply_intervention_to_values <- function(intervention, data, a_obs) {
   switch(
     iv$type,
     static = {
-      # `rep(value, length)` preserves scalar type — `static("chemo")`
+      # `rep(value, length)` preserves scalar type -- `static("chemo")`
       # returns a character vector, `static(1)` returns a double.
       rep(iv$value, length(a_obs))
     },
@@ -679,7 +679,7 @@ apply_intervention_to_values <- function(intervention, data, a_obs) {
       # downstream doesn't get a wrong-type vector. Replicating the
       # checks (rather than calling `apply_single_intervention()`)
       # avoids the unnecessary data.table copy. The error messages
-      # point at the same sharp edges — factor coercion, unknown
+      # point at the same sharp edges -- factor coercion, unknown
       # levels, wrong length.
       new_trt <- iv$rule(data, a_obs)
       if (length(new_trt) != length(a_obs)) {
@@ -728,7 +728,7 @@ apply_intervention_to_values <- function(intervention, data, a_obs) {
     ipsi = {
       # IPSI callers should go through the closed-form branch in
       # `compute_density_ratio_weights()` / `make_weight_fn()`
-      # directly — reaching here is a bug in the caller.
+      # directly -- reaching here is a bug in the caller.
       rlang::abort(
         "Internal error: `apply_intervention_to_values()` should not be called with an IPSI intervention."
       )
@@ -749,7 +749,7 @@ apply_intervention_to_values <- function(intervention, data, a_obs) {
 #' The density ratio simplifies to
 #' \eqn{f_\delta(A_i \mid L_i) / f(A_i \mid L_i) = (\delta A_i + (1 - A_i))
 #'  / (\delta p_i + (1 - p_i))}. No density evaluation at a
-#' counterfactual treatment value is needed — the intervention acts
+#' counterfactual treatment value is needed -- the intervention acts
 #' directly on the propensity.
 #'
 #' Positivity: IPSI always preserves positivity (finite `delta`
@@ -778,14 +778,14 @@ ipsi_weight_formula <- function(a_obs, p, delta) {
 #' \deqn{w_i = \mathbb 1\{A_i = a\} \cdot f^\*_i / f(a \mid L_i).}
 #'
 #' The derivation is the standard Bayes-rule rewrite of
-#' \eqn{E[Y^a \mid A = A^\*]} (Imbens 2004; Hernán & Robins Ch. 12).
+#' \eqn{E[Y^a \mid A = A^\*]} (Imbens 2004; Hernan & Robins Ch. 12).
 #' For ATE the target is the whole population and \eqn{f^\* \equiv 1};
 #' for ATT the target is the treated and \eqn{f^\*_i = p(L_i)}; for
 #' ATC the target is the controls and \eqn{f^\*_i = 1 - p(L_i)}.
 #'
 #' Only the Bernoulli treatment family is supported because
 #' `check_estimand_intervention_compat()` has already rejected ATT /
-#' ATC for non-binary static interventions — hitting the fallback
+#' ATC for non-binary static interventions -- hitting the fallback
 #' `rlang::abort` here would indicate a missed upstream guard.
 #'
 #' @param estimand Character scalar in `c("ATE", "ATT", "ATC")`.
@@ -847,12 +847,12 @@ ht_bayes_numerator <- function(
 #'
 #' | intervention    | bernoulli | gaussian         | categorical | poisson / negbin    |
 #' |-----------------|-----------|------------------|-------------|---------------------|
-#' | `static()`      | ✓ HT      | ⛔                | ✓ HT        | ⛔                   |
-#' | `shift()`       | ⛔         | ✓ smooth ratio   | ⛔           | ✓ integer only      |
-#' | `scale_by()`    | ⛔         | ✓ smooth ratio   | ⛔           | ✓ integer-preserving|
-#' | `threshold()`   | ⛔         | ⛔ (use gcomp)    | ⛔           | ⛔ (use gcomp)       |
-#' | `dynamic()`     | ✓ HT      | ⛔ (use gcomp)    | ✓ HT        | ⛔ (use gcomp)       |
-#' | `ipsi()`        | ✓ Kennedy | ⛔                | ⛔           | ⛔                   |
+#' | `static()`      | yes HT      | no                | yes HT        | no                   |
+#' | `shift()`       | no         | yes smooth ratio   | no           | yes integer only      |
+#' | `scale_by()`    | no         | yes smooth ratio   | no           | yes integer-preserving|
+#' | `threshold()`   | no         | no (use gcomp)    | no           | no (use gcomp)       |
+#' | `dynamic()`     | yes HT      | no (use gcomp)    | yes HT        | no (use gcomp)       |
+#' | `ipsi()`        | yes Kennedy | no                | no           | no                   |
 #'
 #' @param intervention A `causatr_intervention`.
 #' @param treatment_model A `causatr_treatment_model`.
@@ -1021,7 +1021,7 @@ check_intervention_family_compat <- function(
       c(
         "`threshold(lo, hi)` on a continuous treatment is not supported by the IPW engine.",
         i = "The pushforward of a continuous density under a boundary clamp has point masses at `lo` and `hi`, so the density ratio w.r.t. the fitted `f(a|l)` is not well-defined.",
-        i = "Use `estimator = 'gcomp'` — the clamped-treatment counterfactual is well-defined there via predict-then-average on the outcome model."
+        i = "Use `estimator = 'gcomp'` -- the clamped-treatment counterfactual is well-defined there via predict-then-average on the outcome model."
       )
     )
   }

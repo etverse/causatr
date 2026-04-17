@@ -76,7 +76,7 @@ check_intervention_list <- function(x, call = rlang::caller_env()) {
       call = call
     )
   }
-  # Every element needs a name — used as row labels in the results
+  # Every element needs a name -- used as row labels in the results
   # table and as reference targets in the contrast step.
   if (is.null(names(x)) || any(names(x) == "")) {
     rlang::abort(
@@ -100,9 +100,9 @@ check_intervention_list <- function(x, call = rlang::caller_env()) {
     )
   }
   # Per-element validation. Three valid shapes:
-  #   (a) `NULL`           — natural course (observed treatment as-is)
-  #   (b) causatr_intervention — bare intervention for scalar treatment
-  #   (c) named list of causatr_intervention — for multivariate treatment,
+  #   (a) `NULL`           -- natural course (observed treatment as-is)
+  #   (b) causatr_intervention -- bare intervention for scalar treatment
+  #   (c) named list of causatr_intervention -- for multivariate treatment,
   #       one entry per treatment column (e.g. list(A1 = static(1), A2 = shift(-10)))
   for (nm in names(x)) {
     el <- x[[nm]]
@@ -110,7 +110,7 @@ check_intervention_list <- function(x, call = rlang::caller_env()) {
       next
     }
     # Case (c) detection: plain list that isn't itself a
-    # `causatr_intervention`. The class check is the discriminator —
+    # `causatr_intervention`. The class check is the discriminator --
     # a `causatr_intervention` is technically a list under the hood.
     if (is.list(el) && !inherits(el, "causatr_intervention")) {
       if (is.null(names(el)) || any(names(el) == "")) {
@@ -169,14 +169,14 @@ check_estimand_compat <- function(
   fit_estimand,
   call = rlang::caller_env()
 ) {
-  # No override requested — nothing to check.
+  # No override requested -- nothing to check.
   if (is.null(estimand)) {
     return(invisible(NULL))
   }
 
   # IPW and matching can't switch estimand at contrast time because
   # the weights / matched sets were estimated under the fit-time
-  # estimand — e.g. ATT weights upweight the control-over-treated
+  # estimand -- e.g. ATT weights upweight the control-over-treated
   # distribution, so re-averaging over "everyone" (ATE) under ATT
   # weights doesn't give you E[Y^a]. G-comp doesn't have this
   # problem: the outcome model is estimand-agnostic, and the estimand
@@ -196,7 +196,7 @@ check_estimand_compat <- function(
   }
 }
 
-#' Check estimand–treatment compatibility
+#' Check estimand-treatment compatibility
 #'
 #' ATT/ATC are only defined for binary point treatments.
 #'
@@ -224,7 +224,7 @@ check_estimand_trt_compat <- function(
   # which requires a natural binary 0/1 split of the population. For
   # continuous treatment there is no "treated group"; for longitudinal
   # there is no single baseline treatment to condition on. Multivariate
-  # falls in the same bucket — there's no unique "treated" level.
+  # falls in the same bucket -- there's no unique "treated" level.
   # Factor or character-coded binary treatments are also rejected: the
   # downstream `contrast()` filter is `trt_sym == 1L`, so even a
   # two-level factor with levels `c("control", "treated")` silently
@@ -246,7 +246,7 @@ check_estimand_trt_compat <- function(
   }
 
   # If we have data at this point, confirm the single treatment column
-  # is actually coded 0/1 — not just character values like "A"/"B",
+  # is actually coded 0/1 -- not just character values like "A"/"B",
   # which would fail silently later when contrast() tries to filter
   # on treatment == 1. The error message above already tells the user
   # to recode so they don't have to reverse-engineer the check.
@@ -269,7 +269,7 @@ check_estimand_trt_compat <- function(
 #'   received treatment". This requires (a) an unambiguous "treated"
 #'   subpopulation (binary coding), and (b) a counterfactual
 #'   treatment value that the subpopulation's observed treatment is
-#'   being compared against — i.e. a static target. For MTPs
+#'   being compared against -- i.e. a static target. For MTPs
 #'   (`shift`, `scale_by`, `threshold`, `dynamic`, `ipsi`) the
 #'   "among the treated" restriction is either undefined or exotic
 #'   and the MTP literature does not use it.
@@ -277,7 +277,7 @@ check_estimand_trt_compat <- function(
 #'
 #' Silently falling back to ATE weights under an ATT request would
 #' return a pooled effect when the user asked for effect within a
-#' subpopulation — a silent estimand swap, exactly the kind of
+#' subpopulation -- a silent estimand swap, exactly the kind of
 #' mistake the package boundary checks exist to prevent. So we abort
 #' at contrast time with `class = "causatr_bad_estimand_intervention"`
 #' and point users to either `estimand = "ATE"` or
@@ -292,7 +292,7 @@ check_estimand_trt_compat <- function(
 #' quantity for any estimator.
 #'
 #' @param estimand Character scalar: `"ATE"`, `"ATT"`, or `"ATC"`.
-#'   Typically the *effective* estimand at contrast time — i.e. the
+#'   Typically the *effective* estimand at contrast time -- i.e. the
 #'   user's `estimand = ` override if present, otherwise
 #'   `fit$estimand`.
 #' @param interventions Named list of interventions from `contrast()`.
@@ -329,9 +329,9 @@ check_estimand_intervention_compat <- function(
 
   # Collect non-static interventions (if any). Three shapes to
   # handle, mirroring `check_interventions_compat()`:
-  #   - NULL                                → natural course, skip
-  #   - `causatr_intervention`              → inspect `$type`
-  #   - list of `causatr_intervention`      → multivariate treatment;
+  #   - NULL                                -> natural course, skip
+  #   - `causatr_intervention`              -> inspect `$type`
+  #   - list of `causatr_intervention`      -> multivariate treatment;
   #                                           any non-static sub-intervention
   #                                           flags the whole regime
   bad <- character()
@@ -372,7 +372,7 @@ check_estimand_intervention_compat <- function(
         "."
       ),
       i = "Use `estimand = 'ATE'` if you want the MTP / shift / IPSI effect on the full population.",
-      i = "Use `estimator = 'gcomp'` if you need ATT/ATC under a non-static intervention — gcomp handles this via predict-then-average on the outcome model, which works for any estimand × intervention combination."
+      i = "Use `estimator = 'gcomp'` if you need ATT/ATC under a non-static intervention -- gcomp handles this via predict-then-average on the outcome model, which works for any estimand x intervention combination."
     ),
     class = "causatr_bad_estimand_intervention",
     call = call
@@ -394,7 +394,7 @@ check_treatment_nas <- function(
   censoring,
   call = rlang::caller_env()
 ) {
-  # Missing treatment values must be handled explicitly — silently
+  # Missing treatment values must be handled explicitly -- silently
   # dropping them (as glm would by default via na.action) is wrong
   # because the dropped rows may be MAR, not MCAR, and biasing the
   # marginal mean. Two legitimate handling paths today:
@@ -463,7 +463,7 @@ check_causat_inputs <- function(
   # catches the "only one present" mistake.
   type <- if (!is.null(id) && !is.null(time)) "longitudinal" else "point"
 
-  # Estimator × type compatibility: longitudinal data is ICE-only.
+  # Estimator x type compatibility: longitudinal data is ICE-only.
   # IPW/matching for longitudinal would need weightitMSM/matchit for
   # repeated measures, which is not supported.
   if (type == "longitudinal" && estimator %in% c("ipw", "matching")) {
@@ -607,7 +607,7 @@ check_causat_inputs <- function(
 #' the failing call site.
 #'
 #' Zero weights are allowed as a pass-through even though they carry
-#' no information on their own — users sometimes use zero weights to
+#' no information on their own -- users sometimes use zero weights to
 #' implement a conditional subset, and the downstream fitter handles
 #' it fine.
 #'
@@ -675,7 +675,7 @@ check_weights <- function(weights, n, call = rlang::caller_env()) {
 #' with `NA`s so its length equals the original data, *not* the post-omit
 #' `model.matrix(model)` row count. The variance engine's
 #' `prepare_model_if()` computes `r_score = residuals * working_weights`
-#' and then relies on `length(r_score) == nrow(X_fit)` — under `na.exclude`
+#' and then relies on `length(r_score) == nrow(X_fit)` -- under `na.exclude`
 #' this invariant breaks, recycling silently corrupts the IF, and R only
 #' emits a "longer object length is not a multiple of shorter object length"
 #' warning. Downstream SEs are meaningless.
@@ -702,7 +702,7 @@ check_dots_na_action <- function(..., call = rlang::caller_env()) {
   }
   na_action <- dots$na.action
   # Accept `na.omit` (default) and `na.fail` (hard stop on NA).
-  # Reject anything else — notably `na.exclude`, the only other
+  # Reject anything else -- notably `na.exclude`, the only other
   # base-R na.action, and any user-supplied function we can't reason
   # about. Match by identity to both the function and the name so
   # `na.action = na.exclude` and `na.action = "na.exclude"` both fail.

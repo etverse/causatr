@@ -38,7 +38,7 @@ plot.causatr_result <- function(x, which = c("contrasts", "means"), ...) {
 
   if (which == "contrasts") {
     # Contrast plot: one row per pairwise comparison. Reference
-    # line at 0 for differences, 1 for ratios/ORs — that's the
+    # line at 0 for differences, 1 for ratios/ORs -- that's the
     # "no effect" value on each scale. Log axis for ratios keeps
     # symmetric multiplicative effects visually balanced.
     dt <- as.data.frame(x$contrasts)
@@ -101,7 +101,7 @@ plot.causatr_result <- function(x, which = c("contrasts", "means"), ...) {
     stripe = nrow(dt) > 1L
   )
 
-  # Optional params added only when relevant — adding NULL would
+  # Optional params added only when relevant -- adding NULL would
   # trigger `match.arg`-style errors in some forrest versions.
   if (!is.null(ref_line)) {
     forrest_args$ref_line <- ref_line
@@ -112,7 +112,7 @@ plot.causatr_result <- function(x, which = c("contrasts", "means"), ...) {
   }
 
   # Late-bind user overrides. Anything passed in `...` overwrites
-  # the defaults we just set — this is the standard "plot with
+  # the defaults we just set -- this is the standard "plot with
   # sensible defaults but let the user customize" pattern.
   dots <- list(...)
   forrest_args[names(dots)] <- dots
@@ -224,7 +224,7 @@ get_cobalt_object <- function(diag) {
   if (fit$estimator == "ipw" && !is.null(fit$details$treatment_model)) {
     # The self-contained density-ratio engine has no `weightit` object
     # to hand to `cobalt::love.plot()`. Feed it the propensity formula
-    # directly — this reproduces the "unadjusted" love plot (SMDs
+    # directly -- this reproduces the "unadjusted" love plot (SMDs
     # before weighting), the most universal balance view the engine
     # can surface without committing to one intervention's
     # post-weighting balance.

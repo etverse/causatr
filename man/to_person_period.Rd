@@ -39,7 +39,7 @@ by \code{\link[=causat]{causat()}} for longitudinal analyses and by \code{\link[
 discrete-time survival analyses.
 
 For survival data the event indicator \eqn{D_{k+1} = 1} means the individual
-experienced the event during interval k+1 (Hernán & Robins Ch. 17).
+experienced the event during interval k+1 (Hernan & Robins Ch. 17).
 }
 \examples{
 \dontrun{

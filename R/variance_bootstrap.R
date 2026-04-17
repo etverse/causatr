@@ -59,7 +59,7 @@ process_boot_results <- function(boot_res, int_names, n_boot) {
   } else {
     if (n_fail > 0L) {
       pct <- round(100 * n_fail / n_boot, 1)
-      # Two different warnings for the same problem — the 20%
+      # Two different warnings for the same problem -- the 20%
       # threshold is an ad-hoc "this is getting bad" line. High
       # failure rates usually mean a fragile pipeline (e.g. factor
       # levels absent from some resamples), and the resulting SEs
@@ -90,7 +90,7 @@ process_boot_results <- function(boot_res, int_names, n_boot) {
       }
     }
     # The bootstrap vcov is just the sample covariance of the
-    # successful replicates (Davison & Hinkley 1997, §2.5.3).
+    # successful replicates (Davison & Hinkley 1997, Sec.2.5.3).
     vcov_mat <- stats::var(t_mat[complete_rows, , drop = FALSE])
   }
 
@@ -112,16 +112,16 @@ process_boot_results <- function(boot_res, int_names, n_boot) {
   )
 }
 
-#' Bootstrap variance–covariance matrix for marginal means
+#' Bootstrap variance-covariance matrix for marginal means
 #'
 #' @description
-#' Estimates Var(μ̂) by resampling the entire estimation pipeline `n_boot`
-#' times (Hernán & Robins, Technical Point 13.1).  Works for all causal
+#' Estimates \eqn{Var(\hat{\mu})} by resampling the entire estimation pipeline `n_boot`
+#' times (Hernan & Robins, Technical Point 13.1).  Works for all causal
 #' estimators (g-comp, IPW, matching).
 #'
 #' ## Algorithm
 #'
-#' For each bootstrap replicate b = 1, …, B:
+#' For each bootstrap replicate b = 1, ..., B:
 #' 1. Draw n individuals with replacement from the full dataset.
 #' 2. Refit the full estimation pipeline on the bootstrap sample:
 #'    - **g-comp**: refit the outcome model on uncensored rows.
@@ -130,7 +130,7 @@ process_boot_results <- function(boot_res, int_names, n_boot) {
 #' 3. For each intervention, apply it and compute the marginal mean.
 #' 4. Collect the k-vector of marginal means.
 #'
-#' The k × k bootstrap vcov is `var(boot_replicates)`.
+#' The \eqn{k \times k} bootstrap vcov is `var(boot_replicates)`.
 #'
 #' @param fit A `causatr_fit` object.
 #' @param interventions Named list of `causatr_intervention` objects.
@@ -139,7 +139,7 @@ process_boot_results <- function(boot_res, int_names, n_boot) {
 #' @param est Character. Estimand string (`"ATE"`, `"ATT"`, or `"ATC"`).
 #' @param subset Quoted expression or `NULL`.
 #'
-#' @return A named k × k variance–covariance matrix.
+#' @return A named \eqn{k \times k} variance-covariance matrix.
 #'
 #' @noRd
 variance_bootstrap <- function(
@@ -164,8 +164,8 @@ variance_bootstrap <- function(
   # The entire body is wrapped in tryCatch because bootstrap samples may
   # cause downstream failures (e.g. factor levels absent from uncensored
   # rows but present in prediction data).  Failed replicates return NA and
-  # are excluded from the variance calculation — this is the standard
-  # bootstrap approach (Davison & Hinkley, 1997, §2.5.3).
+  # are excluded from the variance calculation -- this is the standard
+  # bootstrap approach (Davison & Hinkley, 1997, Sec.2.5.3).
   boot_fn <- function(d, indices) {
     tryCatch(
       {
@@ -182,8 +182,8 @@ variance_bootstrap <- function(
         # `compute_ipw_contrast_point()` path: one weighted MSM per
         # intervention, reading off the marginal mean from each. This
         # keeps the bootstrap and sandwich paths structurally
-        # identical — both funnel through the same per-intervention
-        # MSM builder — so a plumbing regression in one surfaces in
+        # identical -- both funnel through the same per-intervention
+        # MSM builder -- so a plumbing regression in one surfaces in
         # the other.
         if (estimator == "ipw") {
           # Silence the GLM "non-integer #successes in a binomial
@@ -233,8 +233,8 @@ variance_bootstrap <- function(
         # nearly every replicate and that would otherwise flood the
         # console: GLM "fitted probabilities numerically 0 or 1",
         # `X'WX` near-singular on thin resamples, and MatchIt's
-        # "Fewer control/treated units". Everything else — non-
-        # convergence, family mismatches, factor-level surprises — is
+        # "Fewer control/treated units". Everything else -- non-
+        # convergence, family mismatches, factor-level surprises -- is
         # allowed to surface so users can spot pipeline instability
         # instead of seeing a silent NA column in `boot_t`.
         model_b <- withCallingHandlers(
@@ -242,7 +242,7 @@ variance_bootstrap <- function(
           warning = function(w) {
             # T7 (2026-04-15 third-round review): match the singular
             # bread warning by its `causatr_singular_bread` class,
-            # not by substring — refactor-safe.
+            # not by substring -- refactor-safe.
             if (inherits(w, "causatr_singular_bread")) {
               invokeRestart("muffleWarning")
             }
@@ -356,7 +356,7 @@ refit_gcomp <- function(fit, d_b, weights = NULL) {
 #' Replays `fit_ipw()` on the resampled data, reusing every
 #' ingredient of the original fit: the user-supplied
 #' `propensity_model_fn`, outcome `model_fn`, `confounders`,
-#' `estimand`, stashed `dots`, and — crucially — the resampled slice
+#' `estimand`, stashed `dots`, and -- crucially -- the resampled slice
 #' of the external weight vector. Returns a fresh `causatr_fit`
 #' that `boot_fn()` feeds straight into
 #' `compute_ipw_contrast_point()` to read off the replicate's
@@ -381,7 +381,7 @@ refit_ipw <- function(fit, d_b, weights = NULL) {
   # calling frame before dispatching, so putting `call = fit$call`
   # inside `args` would try to re-evaluate the user's original
   # `causat(data = d_local, ...)` expression in whatever frame
-  # `boot::boot` is running — which is not the user's session — and
+  # `boot::boot` is running -- which is not the user's session -- and
   # explode on a missing-object lookup. We pass `call = NULL` into
   # `fit_ipw()` and patch the original back in after the refit.
   args <- list(
@@ -455,7 +455,7 @@ refit_matching <- function(fit, d_b, weights = NULL) {
 #' @description
 #' Resamples **individuals** (all their person-period rows together) and
 #' re-runs the full ICE procedure on each bootstrap sample. This is the
-#' standard nonparametric bootstrap for longitudinal data (Hernán & Robins,
+#' standard nonparametric bootstrap for longitudinal data (Hernan & Robins,
 #' Technical Point 13.1): each resample preserves complete individual
 #' trajectories.
 #'
@@ -471,7 +471,7 @@ refit_matching <- function(fit, d_b, weights = NULL) {
 #' @param est Character. Estimand string (`"ATE"` for longitudinal).
 #' @param subset Quoted expression or `NULL`.
 #'
-#' @return A k × k variance–covariance matrix (k = number of
+#' @return A k x k variance-covariance matrix (k = number of
 #'   interventions).
 #'
 #' @noRd
@@ -507,7 +507,7 @@ ice_variance_bootstrap <- function(
 
     # Cluster bootstrap trickiness: when an individual is sampled
     # multiple times, we can't just include k copies of their rows
-    # under the same `id` — downstream ICE code would treat them as
+    # under the same `id` -- downstream ICE code would treat them as
     # one individual with duplicate rows at each time point. Instead
     # we clone the rows AND assign fresh integer IDs so the ICE
     # recursion sees them as distinct people. Weights are cloned in

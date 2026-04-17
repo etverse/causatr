@@ -19,7 +19,7 @@
 #'
 #' This file holds:
 #'
-#' - The Channel-2 primitives — `bread_inv()`, `iv_design_matrix()`,
+#' - The Channel-2 primitives -- `bread_inv()`, `iv_design_matrix()`,
 #'   `prepare_model_if()` / `apply_model_correction()` (the prep/apply
 #'   split that lets g-comp, matching, and IPW pay the `p x p` bread solve
 #'   once per model and reuse it across interventions), plus the thin
@@ -38,37 +38,37 @@
 #' rot as the file grows.
 #'
 #' **Primitives (shared across methods).**
-#' - `bread_inv()` — `(X'WX)^{-1}` for GLMs, `Vp` for GAMs, with a warned
+#' - `bread_inv()` -- `(X'WX)^{-1}` for GLMs, `Vp` for GAMs, with a warned
 #'   `MASS::ginv()` fallback on singular bread.
-#' - `iv_design_matrix()` — counterfactual model matrix under an
+#' - `iv_design_matrix()` -- counterfactual model matrix under an
 #'   intervention (GLM/GAM split).
-#' - `resolve_fit_idx()` — maps `fit$details$fit_rows` to model-local row
+#' - `resolve_fit_idx()` -- maps `fit$details$fit_rows` to model-local row
 #'   indices and asserts the `na.action` invariant.
 #'
 #' **Channel-2 per-model correction (prep/apply split).**
-#' - `prepare_model_if()` — one bread solve per model, reused across
+#' - `prepare_model_if()` -- one bread solve per model, reused across
 #'   interventions (O(1) instead of O(k)).
-#' - `apply_model_correction()` — per-intervention application step.
-#' - `correct_model()` — thin single-gradient wrapper used by ICE.
+#' - `apply_model_correction()` -- per-intervention application step.
+#' - `correct_model()` -- thin single-gradient wrapper used by ICE.
 #'
 #' **Aggregation and fallbacks.**
-#' - `vcov_from_if()` — `crossprod`-based aggregator with optional
+#' - `vcov_from_if()` -- `crossprod`-based aggregator with optional
 #'   `cluster =` sum-then-square for matching.
-#' - `variance_if_numeric()` — two-tier numerical fallback (Tier 1
+#' - `variance_if_numeric()` -- two-tier numerical fallback (Tier 1
 #'   recovers the full IF via `sandwich::estfun + bread`; Tier 2 falls
 #'   back to `V1 + J V_\beta J^T`).
 #'
 #' **Dispatcher and per-method branches.**
-#' - `variance_if()` — single entry point, routes to one of the four.
-#' - `build_point_channel_pieces()`, `prepare_point_variance()` —
+#' - `variance_if()` -- single entry point, routes to one of the four.
+#' - `build_point_channel_pieces()`, `prepare_point_variance()` --
 #'   shared point-treatment plumbing for gcomp / matching.
-#' - `variance_if_gcomp()` — g-computation branch.
-#' - `variance_if_matching()` — matching branch; cluster-robust on
+#' - `variance_if_gcomp()` -- g-computation branch.
+#' - `variance_if_matching()` -- matching branch; cluster-robust on
 #'   `subclass`.
-#' - `variance_if_ice()` / `variance_if_ice_one()` — ICE forward
+#' - `variance_if_ice()` / `variance_if_ice_one()` -- ICE forward
 #'   sensitivity recursion; cycles models rather than interventions so
 #'   prep-hoisting does not apply.
-#' - `variance_if_ipw()` / `compute_ipw_if_self_contained_one()` — IPW
+#' - `variance_if_ipw()` / `compute_ipw_if_self_contained_one()` -- IPW
 #'   density-ratio stacked sandwich; per-intervention workhorse assembles
 #'   Channel 1 + MSM correction + propensity correction via
 #'   `apply_model_correction()` and a numerical cross-derivative
@@ -102,7 +102,7 @@ bread_inv <- function(model, X_fit) {
   }
 
   # Prefer `stats::weights(model, type = "working")` when it returns a
-  # non-empty vector — this is the public accessor that sandwich::bread()
+  # non-empty vector -- this is the public accessor that sandwich::bread()
   # and summary(glm)$cov.unscaled both use, so routing through it keeps
   # us aligned with sandwich-ecosystem conventions even for GLM subclasses
   # (e.g. glm_weightit, glmnet's glm wrapper) that override $weights to
@@ -132,7 +132,7 @@ bread_inv <- function(model, X_fit) {
     solve(XtWX),
     error = function(e) {
       # Rate-limited: bootstrap loops can hit this error once per
-      # replicate — without throttling the console fills up. The
+      # replicate -- without throttling the console fills up. The
       # underlying rank deficiency is the same each time.
       rlang::warn(
         c(
@@ -168,7 +168,7 @@ bread_inv <- function(model, X_fit) {
 #'   reusing `model$xlevels` so factor levels survive interventions
 #'   that produce single-level treatment columns (e.g. `static("low")`).
 #'
-#' Accepts `data.table` directly on both branches — no coercion to
+#' Accepts `data.table` directly on both branches -- no coercion to
 #' `data.frame`. Verified against GLM, GLM-with-interaction, and
 #' `na.action`-triggering inputs; `stats::model.matrix()` dispatches
 #' through `model.frame()` which handles `data.table` without going
@@ -753,7 +753,7 @@ variance_if_numeric <- function(
 #'   block-triangular bread is inverted by back-substitution from the
 #'   mean equation downward (vignette Section 5.4 / D2).
 #' - **IPW** (`variance_if_ipw`): same Channel 1 shape as g-comp;
-#'   Channel 2 is the density-ratio stacked sandwich — the MSM
+#'   Channel 2 is the density-ratio stacked sandwich -- the MSM
 #'   correction plus the propensity correction tied together by a
 #'   numerical cross-derivative \eqn{A_{\beta\alpha}} from
 #'   `numDeriv::jacobian()`. Per-intervention assembly lives in
@@ -848,7 +848,7 @@ variance_if <- function(
 #' outcome model, so the Channel-2 step is just a loop over
 #' `apply_model_correction(prep, grad_list[[j]])`. `variance_if_ipw()`
 #' does not share this plumbing because its MSM is refit per
-#' intervention on a density-ratio-weighted dataset — it builds its
+#' intervention on a density-ratio-weighted dataset -- it builds its
 #' own Channel 1 / Jacobian pieces row-locally on the MSM fit-row
 #' subset.
 #'
@@ -917,7 +917,7 @@ build_point_channel_pieces <- function(
   # upstream has already masked `target_idx` so that all TRUE rows have
   # non-NA predictions, but non-target rows may still carry NA. We must
   # therefore index `p` by `target_idx` rather than multiplying the
-  # full-length `p` by a zero vector — `0 * NA = NA` in R, which would
+  # full-length `p` by a zero vector -- `0 * NA = NA` in R, which would
   # silently corrupt the Channel-1 contribution on non-target rows.
   for (j in seq_len(k)) {
     p <- preds_list[[j]]
@@ -963,14 +963,14 @@ build_point_channel_pieces <- function(
 #' / Jacobian pieces, then prepare the outcome model for repeated
 #' `apply_model_correction()` calls. Passing `pieces$fit_idx` /
 #' `pieces$n` to `prepare_model_if()` by hand leaves two ways to get out
-#' of sync — a caller could pass `resolve_fit_idx(fit, model)` and
+#' of sync -- a caller could pass `resolve_fit_idx(fit, model)` and
 #' `nrow(fit$data)` independently, which would silently drift if one of
 #' them were computed differently. This helper bundles the two into one
 #' call so the alignment is structural, not by convention.
 #'
 #' The IPW branch does not use this bundler because it routes its
 #' Channel 1 / Jacobian construction through
-#' `variance_if_ipw()` directly on the MSM fit-row subset — the MSM is
+#' `variance_if_ipw()` directly on the MSM fit-row subset -- the MSM is
 #' refit per intervention on a density-ratio-weighted dataset, so the
 #' shared point-treatment plumbing does not apply.
 #'
@@ -1072,13 +1072,13 @@ variance_if_gcomp <- function(
 #' `fit$data` with optional external weights. Matching operates on
 #' `fit$details$matched_data` (a strict subset with its own row count
 #' `n_m`), interventions are re-applied on `matched_dt` rather than
-#' `data`, and match weights play a dual role — they enter both as the
+#' `data`, and match weights play a dual role -- they enter both as the
 #' outcome-model `prior.weights` (propagated through `prepare_model_if()`
 #' via IWLS working weights) and as the target-population weights for
 #' Channel 1. Forcing this into `build_point_channel_pieces()` would
 #' require a `scope = c("full", "matched")` switch whose branches would
 #' be larger than the inline construction below. The duplication here
-#' is intentional — any future Channel-1 fix must be mirrored into both
+#' is intentional -- any future Channel-1 fix must be mirrored into both
 #' places.
 #'
 #' @noRd
@@ -1088,7 +1088,7 @@ variance_if_matching <- function(fit, interventions) {
   k <- length(int_names)
 
   # `fit$details$matched_data` is stashed as a data.table by
-  # `fit_matching()` (R/matching.R:168). Use it directly — no round-trip
+  # `fit_matching()` (R/matching.R:168). Use it directly -- no round-trip
   # through data.frame. `$subclass` / `$weights` column access and
   # `nrow()` all work natively on data.table, and downstream
   # `stats::predict()` + `iv_design_matrix()` accept data.table inputs.
@@ -1136,7 +1136,7 @@ variance_if_matching <- function(fit, interventions) {
 #' iterating `correct_model()` once per outcome model in the chain. The
 #' sensitivity vector `d` is propagated forward (model 0 -> model K),
 #' even though the models themselves are fit backward in time
-#' (model K -> model 0) — both directions correspond to the back-
+#' (model K -> model 0) -- both directions correspond to the back-
 #' substitution of the block-triangular bread for the stacked
 #' \eqn{K{+}1}-model M-estimation system (vignette Section 5.4; D2).
 #'
@@ -1175,7 +1175,7 @@ variance_if_ice <- function(fit, ice_results, target_within_first) {
 #' both the model-k correction and the new `d_k` for the next iteration.
 #'
 #' Mirrors the closed-form back-substitution of the stacked-EE bread
-#' from vignette Section 5.4–5.6.
+#' from vignette Section 5.4-5.6.
 #'
 #' @noRd
 variance_if_ice_one <- function(fit, ice_result, target) {
@@ -1236,7 +1236,7 @@ variance_if_ice_one <- function(fit, ice_result, target) {
   # Section 5.4). Without this factor the sandwich silently drops a
   # term and underestimates the ICE SE under non-uniform weights by
   # ~2x on heterogeneous designs. Only built when external weights
-  # are present — unweighted ICE is unchanged.
+  # are present -- unweighted ICE is unchanged.
   w_at_step <- if (has_weights) {
     lapply(seq_len(n_times), function(k) {
       rows_k <- data[[time_col]] == time_points[k]
@@ -1271,7 +1271,7 @@ variance_if_ice_one <- function(fit, ice_result, target) {
     # Build the counterfactual design matrix for this time step's
     # model. `iv_design_matrix()` handles both GLMs (via `model.matrix`
     # with stored xlevels) and GAMs (via `predict(..., type =
-    # "lpmatrix")`), and accepts data.table input — so ICE can run the
+    # "lpmatrix")`), and accepts data.table input -- so ICE can run the
     # same sandwich-variance pipeline on GAM outcome models without any
     # special casing here.
     X_star_k <- iv_design_matrix(model_k, iv_data_current)
@@ -1313,7 +1313,7 @@ variance_if_ice_one <- function(fit, ice_result, target) {
         # The w_{k-1,j} factor comes from \partial s_{k-1,j}/\partial
         # \beta_k, which carries the prior weights from the (k-1)-th
         # fit because the pseudo-outcome model at step k-1 is weighted.
-        # Unweighted ICE has w ≡ 1 so this collapses to the previous
+        # Unweighted ICE has w == 1 so this collapses to the previous
         # formula; see variance-theory vignette Section 5.4.
         w_prev <- if (has_weights) {
           unname(w_at_step[[step_i - 1L]][prev_fit_ids[keep]])
@@ -1347,8 +1347,8 @@ variance_if_ice_one <- function(fit, ice_result, target) {
 #' @description
 #' Straight per-intervention loop over the density-ratio stacked
 #' sandwich. For each intervention, builds the three pieces
-#' `compute_ipw_if_self_contained_one()` needs — Channel 1, the
-#' marginal-mean Jacobian `J`, and the `weight_fn` closure — from the
+#' `compute_ipw_if_self_contained_one()` needs -- Channel 1, the
+#' marginal-mean Jacobian `J`, and the `weight_fn` closure -- from the
 #' per-intervention bundle, then aggregates via `vcov_from_if()`.
 #'
 #' ## Scale convention
@@ -1389,7 +1389,7 @@ variance_if_ipw <- function(
   tm <- fit$details$treatment_model
   propensity_model <- tm$model
   ext_w <- fit$details$weights
-  # Same estimand threading as `compute_ipw_contrast_point()` — the
+  # Same estimand threading as `compute_ipw_contrast_point()` -- the
   # weight closure must match the weights the MSM was fit with, or the
   # cross-derivative `A_{beta, alpha}` is computed for the wrong weight
   # formula and the propensity correction drifts. For ATT / ATC the
@@ -1405,9 +1405,9 @@ variance_if_ipw <- function(
   ext_w_sub <- if (is.null(ext_w)) NULL else ext_w[fit_rows]
 
   # Target-population weights for the Channel-1 / Jacobian averaging.
-  # `sum_w_target` plays the role of the denominator in a Hájek mean
+  # `sum_w_target` plays the role of the denominator in a Hajek mean
   # over the target population; unweighted case uses a uniform weight
-  # so the formula degenerates to `/n_target` — matching the
+  # so the formula degenerates to `/n_target` -- matching the
   # `build_point_channel_pieces()` recipe.
   if (is.null(ext_w_sub)) {
     w_target_vec <- rep(1, n_sub)
@@ -1437,7 +1437,7 @@ variance_if_ipw <- function(
     # `apply_intervention()` runs on the full data; we subset to the
     # fit rows to keep lengths aligned with the MSM row count.
     #
-    # IPSI does not materialize a counterfactual treatment value — the
+    # IPSI does not materialize a counterfactual treatment value -- the
     # intervention acts on the propensity, not on A itself. Since the
     # MSM is intercept-only (`Y ~ 1`), the design matrix is a column
     # of ones regardless of the treatment column, so we skip
@@ -1469,7 +1469,7 @@ variance_if_ipw <- function(
     Ch1_i[!target_sub] <- 0
 
     # Marginal-mean Jacobian J = d mu_hat_j / d beta.
-    # For a weighted Hájek marginal mean over the target population,
+    # For a weighted Hajek marginal mean over the target population,
     # J = (1/sum_w_target) * sum_target (X_star_i * mu_eta_i * w_i).
     # This matches `build_point_channel_pieces()`'s gradient.
     w_vec_j <- w_target_vec # zero off target already
@@ -1555,8 +1555,8 @@ variance_if_ipw <- function(
 #' which is non-trivial on HT-weighted fits where half the rows have
 #' `w = 0`. Rather than patch around that, we use causatr's own
 #' `apply_model_correction()`, which computes the same quantity from
-#' the GLM's working residuals + working weights directly — no
-#' `summary.glm` intermediary — and handles zero-weight rows by
+#' the GLM's working residuals + working weights directly -- no
+#' `summary.glm` intermediary -- and handles zero-weight rows by
 #' simply letting `r_score_i = (Y_i - mu_i) * 0 = 0` for those rows.
 #' That matches the gcomp / ICE / matching convention exactly.
 #'
@@ -1590,7 +1590,7 @@ variance_if_ipw <- function(
 #' applied to \eqn{\psi_i = (\psi_{\alpha,i}, \psi_{\beta,i})}. We
 #' return `msm_res$correction - prop_res$correction` at the end.
 #'
-#' (The existing `variance-theory.qmd §4.2` writes the IF with a
+#' (The existing `variance-theory.qmd Sec.4.2` writes the IF with a
 #' `+` sign because it uses Wooldridge's convention
 #' \eqn{A_{\beta\alpha}^{\text{W}} = +(1/n)\sum \partial\psi_\beta/\partial\alpha},
 #' whereas we use the negative-Hessian convention

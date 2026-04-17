@@ -48,7 +48,7 @@ confint.causatr_result <- function(object, parm, level = 0.95, ...) {
     ci_list <- lapply(by_levels, function(lev) {
       bt <- object$boot_t[[as.character(lev)]]
       if (is.null(bt) || nrow(bt) < 2L) {
-        # Degenerate stratum — return NA so downstream code
+        # Degenerate stratum -- return NA so downstream code
         # (print/tidy) still has a well-formed matrix to work with.
         na_row <- matrix(NA_real_, nrow = n_int, ncol = 2)
         colnames(na_row) <- c("lower", "upper")
@@ -68,7 +68,7 @@ confint.causatr_result <- function(object, parm, level = 0.95, ...) {
     })
     ci <- do.call(rbind, ci_list)
   } else if (!is.null(object$boot_t) && is.matrix(object$boot_t)) {
-    # Unstratified bootstrap — same percentile formula applied once
+    # Unstratified bootstrap -- same percentile formula applied once
     # to the full (R x k) replicate matrix.
     ci <- t(apply(
       object$boot_t,

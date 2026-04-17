@@ -10,7 +10,7 @@
 #' @return A `causatr_intervention` object.
 #'
 #' @references
-#' Hernán MA, Robins JM (2025). *Causal Inference: What If*. Chapman &
+#' Hernan MA, Robins JM (2025). *Causal Inference: What If*. Chapman &
 #' Hall/CRC. Chapter 1 (static interventions).
 #'
 #' @examples
@@ -34,7 +34,7 @@ static <- function(value) {
   if (!ok) {
     rlang::abort("`value` must be a single non-NA number or character string.")
   }
-  # `new_causatr_intervention()` is a thin S3 constructor — just tags
+  # `new_causatr_intervention()` is a thin S3 constructor -- just tags
   # the list with the right class. Keeping constructors light means
   # they're cheap to create even in tight `lapply` loops over many
   # intervention variants.
@@ -54,9 +54,9 @@ static <- function(value) {
 #' @return A `causatr_intervention` object.
 #'
 #' @references
-#' Díaz I, Williams N, Hoffman KL, Schenck EJ (2023). Non-parametric causal
+#' Diaz I, Williams N, Hoffman KL, Schenck EJ (2023). Non-parametric causal
 #' effects based on longitudinal modified treatment policies. *Journal of the
-#' American Statistical Association* 118:846–857.
+#' American Statistical Association* 118:846-857.
 #'
 #' @examples
 #' \dontrun{
@@ -162,7 +162,7 @@ threshold <- function(lower = -Inf, upper = Inf) {
 #' `rule` must return a numeric vector of length `nrow(data)`. To branch
 #' on time, reference the time column directly (e.g. `data$time == 0`).
 #' To reference the treatment or covariate history in longitudinal data,
-#' use the materialised lag columns (`data$lag1_A`, `data$lag1_L`, …)
+#' use the materialised lag columns (`data$lag1_A`, `data$lag1_L`, ...)
 #' that `prepare_data()` built from `history`.
 #'
 #' @param rule A function with signature `function(data, treatment)` that
@@ -171,7 +171,7 @@ threshold <- function(lower = -Inf, upper = Inf) {
 #' @return A `causatr_intervention` object.
 #'
 #' @references
-#' Hernán MA, Robins JM (2025). *Causal Inference: What If*. Chapman &
+#' Hernan MA, Robins JM (2025). *Causal Inference: What If*. Chapman &
 #' Hall/CRC. Chapter 19 (dynamic treatment strategies).
 #'
 #' @examples
@@ -205,7 +205,7 @@ dynamic <- function(rule) {
 #' Kennedy (2019).
 #'
 #' IPSI is **binary-only** and is only meaningful under
-#' `estimator = "ipw"` — the IPW engine computes the Kennedy closed-form
+#' `estimator = "ipw"` -- the IPW engine computes the Kennedy closed-form
 #' weight
 #' \eqn{w_i = (\delta A_i + (1 - A_i)) / (\delta p_i + (1 - p_i))}
 #' directly from the fitted propensity, with no counterfactual
@@ -219,7 +219,7 @@ dynamic <- function(rule) {
 #' @references
 #' Kennedy EH (2019). Nonparametric causal effects based on incremental
 #' propensity score interventions. *Journal of the American Statistical
-#' Association* 114:645–656.
+#' Association* 114:645-656.
 #'
 #' @examples
 #' \dontrun{
@@ -239,7 +239,7 @@ ipsi <- function(delta) {
   # which is equivalent to multiplying the ODDS of treatment by delta.
   # delta > 1 makes treatment more likely across the population;
   # delta < 1 makes it less likely. delta must be positive (the
-  # odds multiplier can't be zero or negative — you can't "anti-treat").
+  # odds multiplier can't be zero or negative -- you can't "anti-treat").
   #
   # The constructor just stores the scalar. Actual weight computation
   # happens in `compute_density_ratio_weights()` / `make_weight_fn()`
@@ -249,7 +249,7 @@ ipsi <- function(delta) {
   # from the IPW engine (there is no counterfactual treatment value
   # for g-comp to predict at).
   #
-  # Reject NA/NaN up front with a clean message — otherwise the next
+  # Reject NA/NaN up front with a clean message -- otherwise the next
   # `delta <= 0` comparison evaluates to `NA` and users see the cryptic
   # "missing value where TRUE/FALSE needed". Mirrors the defensive
   # checks in `shift()` / `scale_by()` / `threshold()`. 2026-04-15
@@ -302,7 +302,7 @@ print.causatr_intervention <- function(x, ...) {
 #' @param data A data.table containing all model variables.
 #' @param treatment Character scalar or vector. Treatment column name(s).
 #' @param iv A `causatr_intervention`, a named list of them, or `NULL`
-#'   (natural course — data returned unchanged).
+#'   (natural course -- data returned unchanged).
 #'
 #' @return A modified *copy* of `data` (original is never mutated).
 #'
@@ -317,8 +317,8 @@ apply_intervention <- function(data, treatment, iv) {
 
   # `iv = NULL` means "natural course": return the data as-is with
   # observed treatment values untouched. This is the correct
-  # reference for MTPs (Díaz et al. 2023) and for longitudinal
-  # dynamic regimes (Hernán & Robins Ch. 21).
+  # reference for MTPs (Diaz et al. 2023) and for longitudinal
+  # dynamic regimes (Hernan & Robins Ch. 21).
   if (is.null(iv)) {
     return(data_a)
   }
@@ -431,7 +431,7 @@ apply_single_intervention <- function(data, trt_col, iv) {
       # Fix: require type-compatible return. Character / factor
       # treatments ARE a first-class use case (see `static()` character
       # support and IPW's multinomial path), so dynamic() must support
-      # them — just without silent coercion. For factor columns we
+      # them -- just without silent coercion. For factor columns we
       # accept either a factor return with identical levels, or a
       # character return whose unique values are all existing levels
       # (coerced back on assignment). Unknown levels abort rather than
@@ -488,7 +488,7 @@ apply_single_intervention <- function(data, trt_col, iv) {
               typeof(new_trt),
               " but treatment column `",
               trt_col,
-              "` is a factor — return a character or factor vector."
+              "` is a factor -- return a character or factor vector."
             ),
             .call = FALSE
           )
@@ -532,7 +532,7 @@ apply_single_intervention <- function(data, trt_col, iv) {
     },
     ipsi = {
       # IPSI has no counterfactual treatment value to assign to the
-      # column — the intervention acts on the propensity, not on the
+      # column -- the intervention acts on the propensity, not on the
       # treatment itself. The IPW engine handles IPSI by building a
       # closed-form weight vector in `compute_density_ratio_weights()`
       # and never calls `apply_single_intervention()` on the

@@ -58,7 +58,7 @@ tidy.causatr_result <- function(
   }
 
   # Contrast row per comparison. Copy the pre-computed CIs rather
-  # than re-deriving — for ratio/OR contrasts these came through the
+  # than re-deriving -- for ratio/OR contrasts these came through the
   # log-scale delta method in contrast(), which symmetric Wald here
   # would not reproduce.
   contrasts_df <- data.frame(

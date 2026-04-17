@@ -21,7 +21,7 @@ corresponds to the "shift-the-odds" counterfactual studied by
 Kennedy (2019).
 
 IPSI is \strong{binary-only} and is only meaningful under
-\code{estimator = "ipw"} — the IPW engine computes the Kennedy closed-form
+\code{estimator = "ipw"} -- the IPW engine computes the Kennedy closed-form
 weight
 \eqn{w_i = (\delta A_i + (1 - A_i)) / (\delta p_i + (1 - p_i))}
 directly from the fitted propensity, with no counterfactual
@@ -42,7 +42,7 @@ contrast(fit, interventions = list(
 \references{
 Kennedy EH (2019). Nonparametric causal effects based on incremental
 propensity score interventions. \emph{Journal of the American Statistical
-Association} 114:645–656.
+Association} 114:645-656.
 }
 \seealso{
 \code{\link[=static]{static()}}, \code{\link[=shift]{shift()}}, \code{\link[=dynamic]{dynamic()}}, \code{\link[=scale_by]{scale_by()}}, \code{\link[=threshold]{threshold()}}

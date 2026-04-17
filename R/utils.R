@@ -62,7 +62,7 @@ CAUSATR_SURVIVAL_INTERNAL_COLS <- setdiff(
 #' @param dots User-supplied `...` list captured via `list(...)` at fit
 #'   time and stashed on `fit$details$dots`. Can be `NULL`.
 #' @param reserved Character vector of additional argument names to
-#'   strip from `dots` — useful for target-function parameters the
+#'   strip from `dots` -- useful for target-function parameters the
 #'   caller sets implicitly (e.g. `MatchIt::matchit`'s `distance`, set
 #'   by `refit_matching()` after the composition).
 #'
@@ -79,7 +79,7 @@ replay_fit <- function(fn, base_args, dots = NULL, reserved = NULL) {
     keep_named <- nzchar(names(dots))
     dots <- dots[keep_named]
     # Drop keys the caller set explicitly. `do.call()` takes the first
-    # named duplicate, so today this is belt-and-braces — but forgetting
+    # named duplicate, so today this is belt-and-braces -- but forgetting
     # the strip at a new call site would silently pick up the
     # user-supplied value and ignore the caller's.
     blocked <- c(names(base_args), reserved)
@@ -299,7 +299,7 @@ new_causatr_intervention <- function(type, params) {
 #' @return Logical vector of length `nrow(data)` (`TRUE` = uncensored).
 #' @noRd
 is_uncensored <- function(data, censoring) {
-  # `censoring = NULL` is the "no censoring" shortcut — every row is
+  # `censoring = NULL` is the "no censoring" shortcut -- every row is
   # treated as uncensored. This is the default for cross-sectional data.
   if (is.null(censoring)) {
     return(rep(TRUE, nrow(data)))
@@ -326,7 +326,7 @@ resolve_family <- function(family) {
   # This matches what glm/gam do internally so downstream code can
   # assume `family$family` and `family$link` are strings.
   if (is.character(family)) {
-    # Look up in stats:: namespace explicitly — avoids picking up a
+    # Look up in stats:: namespace explicitly -- avoids picking up a
     # user-defined function with the same name in the caller's env.
     fam_fn <- tryCatch(
       get(family, mode = "function", envir = asNamespace("stats")),

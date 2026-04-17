@@ -19,7 +19,7 @@
 #' @export
 coef.causatr_result <- function(object, ...) {
   # `coef()` conventionally returns model coefficients. Here we
-  # return the marginal means \hat\mu_a instead — those are the
+  # return the marginal means \hat\mu_a instead -- those are the
   # "coefficients" of a causatr_result, in the sense that they're
   # the primary k-dimensional parameter vector the sandwich/
   # bootstrap vcov is expressed in. Pairing with `vcov()` below
@@ -57,7 +57,7 @@ vcov.causatr_result <- function(object, ...) {
   #   - a single k x k matrix in the normal case
   #   - a named list of matrices (one per level) when `by` was used
   # Downstream consumers should check `is.matrix()` / `is.list()`
-  # to handle both — we intentionally don't coerce here because
+  # to handle both -- we intentionally don't coerce here because
   # flattening a by-stratified vcov into a single matrix would
   # drop meaningful per-stratum structure.
   object$vcov

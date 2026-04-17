@@ -35,8 +35,8 @@
 #'   - `NULL`, meaning the natural course (observed treatment values are used
 #'     as-is). The natural course is the standard reference for modified
 #'     treatment policies on continuous treatments (e.g. `shift(-10)` vs
-#'     `NULL`; Díaz et al. 2023) and for longitudinal dynamic regimes
-#'     (Hernán & Robins Ch. 21). For binary treatments, the
+#'     `NULL`; Diaz et al. 2023) and for longitudinal dynamic regimes
+#'     (Hernan & Robins Ch. 21). For binary treatments, the
 #'     natural-course marginal mean equals E\[Y\] under the observed
 #'     treatment mechanism (by consistency); use `static(1)` vs
 #'     `static(0)` for the conventional ATE. Supported for all estimators.
@@ -60,7 +60,7 @@
 #'   `"ATT"`, or `"ATC"`. For `estimator = "gcomp"`, overrides the estimand
 #'   stored in `fit` (allowing one fit to produce multiple estimands). For
 #'   `estimator = "ipw"` or `"matching"`, must match the estimand used at
-#'   fitting time — changing it aborts with an informative message. If
+#'   fitting time -- changing it aborts with an informative message. If
 #'   `NULL`, defaults to `fit$estimand`. Mutually exclusive with `subset`.
 #' @param subset A quoted expression (`quote(...)`) defining a subgroup to
 #'   average over instead of an estimand. Evaluated in the context of the
@@ -110,11 +110,10 @@
 #' @details
 #' ## Estimands and standardisation
 #' For each intervention `a`, `contrast()` evaluates the intervention function
-#' on the target rows to obtain the intervened treatment vector `a(Lᵢ)`, then
-#' computes:
-#' ```
-#' E\[Y^a\] = (1/|S|) Σᵢ∈S Ê\[Y | A = a(Lᵢ), Lᵢ\]
-#' ```
+#' on the target rows to obtain the intervened treatment vector
+#' \eqn{a(L_i)}, then computes:
+#'
+#' \deqn{E[Y^a] = (1/|S|) \sum_{i \in S} \hat{E}[Y | A = a(L_i), L_i]}
 #' where `S` is the set of rows determined by the estimand:
 #' - `"ATE"`: all rows (full population)
 #' - `"ATT"`: rows where `A == 1` (observed treated)
@@ -122,7 +121,7 @@
 #' - `subset`: rows satisfying the quoted expression
 #'
 #' For `"gcomp"`, one fit supports multiple estimands because the outcome
-#' model is the same — only the rows averaged over change. For `"ipw"` and
+#' model is the same -- only the rows averaged over change. For `"ipw"` and
 #' `"matching"`, the estimand is baked into the weights/matching and cannot
 #' be changed after fitting.
 #'
@@ -148,7 +147,7 @@
 #'   Channel 2 (one correction per nuisance model). Aggregated via
 #'   `vcov_from_if()`, with cluster-robust aggregation for matching.
 #'   Mathematically equivalent to the stacked M-estimation sandwich; see
-#'   `vignettes/variance-theory.qmd` Sections 3–4.
+#'   `vignettes/variance-theory.qmd` Sections 3-4.
 #' - `"bootstrap"`: Resamples individuals (entire pipeline refitted `n_boot`
 #'   times). Respects cluster structure for longitudinal data.
 #' - The delta method is applied internally for ratio / odds-ratio
@@ -156,16 +155,16 @@
 #'   `ci_method` option.
 #'
 #' @references
-#' Hernán MA, Robins JM (2025). *Causal Inference: What If*. Chapman &
-#' Hall/CRC. Chapters 12–13.
+#' Hernan MA, Robins JM (2025). *Causal Inference: What If*. Chapman &
+#' Hall/CRC. Chapters 12-13.
 #'
 #' Imai K, King G, Stuart EA (2011). Misunderstandings between experimentalists
 #' and observationalists about causal inference. *Journal of the Royal
-#' Statistical Society* Series A 171:481–502.
+#' Statistical Society* Series A 171:481-502.
 #'
 #' Zivich PN, Ross RK, Shook-Sa BE, Cole SR, Edwards JK (2024). Empirical
 #' sandwich variance estimator for iterated conditional expectation
-#' g-computation. *Statistics in Medicine* 43:5562–5572.
+#' g-computation. *Statistics in Medicine* 43:5562-5572.
 #'
 #' @examples
 #' \dontrun{
@@ -237,11 +236,11 @@ contrast <- function(
   # `compute_contrast()` / `variance_bootstrap()` / `ice_variance_bootstrap()`
   # where `parent.frame()` no longer points at the user. Threading
   # `subset_env` explicitly instead of re-capturing downstream is the
-  # only correct way — see B1 in the 2026-04-15 critical review.
+  # only correct way -- see B1 in the 2026-04-15 critical review.
   subset_env <- parent.frame()
   # Capture the original call so that the returned `causatr_result`
   # can echo it in its `print` and `summary` methods. `match.call()`
-  # here — not at compute_contrast() — so the recorded call reflects
+  # here -- not at compute_contrast() -- so the recorded call reflects
   # what the *user* typed, not the internal dispatch.
   call <- match.call()
 
@@ -257,7 +256,7 @@ contrast <- function(
 
   # `subset` must be a *quoted* expression, not a logical vector. We
   # accept language objects so the expression can be evaluated against
-  # the data inside `compute_contrast()` — this is how Hernán/Robins-
+  # the data inside `compute_contrast()` -- this is how Hernan/Robins-
   # style subgroup effects like `quote(age > 50)` work.
   if (!is.null(subset) && !is.language(subset)) {
     rlang::abort(
@@ -293,19 +292,19 @@ contrast <- function(
     )
   }
 
-  # Validate the interventions list — names, types, and estimator
+  # Validate the interventions list -- names, types, and estimator
   # compatibility (IPW/matching only accept static(), ICE accepts all).
   check_intervention_list(interventions)
   check_interventions_compat(fit$estimator, interventions)
 
-  # Estimand × intervention gate.
+  # Estimand x intervention gate.
   # ATT / ATC are only well-defined under static interventions for the IPW
   # and matching engines; silently falling back to ATE weights under an
   # ATT request would return a pooled effect when the user asked for a
   # subpopulation effect. Abort upfront with the
   # `causatr_bad_estimand_intervention` class. We pass the **effective**
-  # estimand — the user's `estimand = ` override if present, otherwise
-  # `fit$estimand` — so a fit made under ATT that is contrast-time
+  # estimand -- the user's `estimand = ` override if present, otherwise
+  # `fit$estimand` -- so a fit made under ATT that is contrast-time
   # overridden to ATE (gcomp only) still goes through the right branch.
   effective_estimand <- if (is.null(estimand)) fit$estimand else estimand
   check_estimand_intervention_compat(
@@ -326,7 +325,7 @@ contrast <- function(
     )
   }
 
-  # `by` stratifies results by levels of a data column — e.g.
+  # `by` stratifies results by levels of a data column -- e.g.
   # `by = "sex"` returns separate estimates per sex category. The
   # compute_contrast() loop handles the actual stratification.
   if (!is.null(by)) {
@@ -441,7 +440,7 @@ check_interventions_compat <- function(
 #' Core standardisation engine for causal contrasts
 #'
 #' @description
-#' Implements the g-formula standardisation algorithm (Hernán & Robins Ch. 13):
+#' Implements the g-formula standardisation algorithm (Hernan & Robins Ch. 13):
 #' for each named intervention, sets each individual's treatment to the
 #' intervened value (via `apply_intervention()`), predicts outcomes from the
 #' fitted model, averages over the target population, then computes pairwise
@@ -486,16 +485,16 @@ compute_contrast <- function(
   int_names <- names(interventions)
 
   # Resolve the effective estimand: if the caller passed `estimand =`
-  # to `contrast()`, use that override (g-comp only — the check above
+  # to `contrast()`, use that override (g-comp only -- the check above
   # already blocked IPW/matching). Otherwise fall back to whatever was
   # recorded at fitting time. This is what lets a single g-comp fit
   # produce ATE, ATT, ATC, and subgroup effects from one model.
   est <- if (!is.null(estimand)) estimand else fit$estimand
 
-  # ── `by` branch: effect modification.
+  # -- `by` branch: effect modification.
   # When `by = "sex"` is given, we recursively call compute_contrast()
   # once per level and stitch the results into one combined table.
-  # This isn't just a user-facing convenience — it's the only way to
+  # This isn't just a user-facing convenience -- it's the only way to
   # get the variance engine to re-define the target population per
   # level, since vcov is computed conditional on the target.
   if (!is.null(by)) {
@@ -509,7 +508,7 @@ compute_contrast <- function(
     #
     # Fall back to the full data for longitudinal (ICE) fits because
     # `fit_rows` there refers to intermediate backward-iteration rows,
-    # not a single outcome-model fit — the full person-period frame is
+    # not a single outcome-model fit -- the full person-period frame is
     # the safer source for level enumeration.
     fit_rows_for_by <- fit$details$fit_rows
     if (
@@ -536,7 +535,7 @@ compute_contrast <- function(
     }
 
     # Per-level compute_contrast() call. We pass `estimand = NULL` and
-    # a *combined* subset expression — this collapses the ATT/ATC
+    # a *combined* subset expression -- this collapses the ATT/ATC
     # selection and the by-level selection into a single quoted
     # predicate, so the inner call treats it as a subgroup request.
     #
@@ -653,7 +652,7 @@ compute_contrast <- function(
   # Compute marginal means + variance.
   #
   # Both point-treatment and longitudinal (ICE) paths produce the same three
-  # outputs: mu_hat (named vector of marginal means), vcov_mat (k × k vcov
+  # outputs: mu_hat (named vector of marginal means), vcov_mat (k x k vcov
   # matrix), and n_target (number of individuals averaged over).
   #
   # Everything downstream (SEs, estimates table, pairwise contrasts, result
@@ -671,7 +670,7 @@ compute_contrast <- function(
   }
 
   if (fit$type == "longitudinal") {
-    # ── Longitudinal ICE g-computation.
+    # -- Longitudinal ICE g-computation.
     # The target population for longitudinal data is defined at the
     # FIRST time point: every unique individual shows up once at
     # baseline, so that's where we enumerate the target. Subsetting is
@@ -690,14 +689,14 @@ compute_contrast <- function(
       # `as.list()`-materialize a copy. `subset_env` is the caller
       # frame captured at `contrast()`'s top level so
       # `quote(age > cutoff)` can still resolve `cutoff` from the
-      # user's session — `parent.frame()` here would be the internal
+      # user's session -- `parent.frame()` here would be the internal
       # dispatch frame, not the user's.
       target_baseline <- rows_first &
         as.logical(eval(subset, envir = data, enclos = subset_env))
     } else {
       target_baseline <- rows_first
     }
-    # Collapse to a length-n_first logical — the per-individual target
+    # Collapse to a length-n_first logical -- the per-individual target
     # mask used by `variance_if_ice_one()` and the mu_hat average.
     target_within_first <- target_baseline[rows_first]
     n_target <- sum(target_within_first)
@@ -806,7 +805,7 @@ compute_contrast <- function(
       boot_info <- boot_res$boot_info
     }
   } else {
-    # ── Point-treatment g-computation / matching.
+    # -- Point-treatment g-computation / matching.
     # Single outcome model, predict once per intervention, average
     # over the target population. Matching reuses the same
     # predict-then-average path because its matched-sample outcome
@@ -821,7 +820,7 @@ compute_contrast <- function(
 
     # Build one counterfactual data.table per intervention. Each is a
     # copy of `data` with the treatment column(s) overwritten according
-    # to the intervention rule (static, shift, dynamic, …).
+    # to the intervention rule (static, shift, dynamic, ...).
     data_a_list <- lapply(interventions, function(iv) {
       apply_intervention(data, fit$treatment, iv)
     })
@@ -841,7 +840,7 @@ compute_contrast <- function(
     # 117 rows have missing education, and the book accepts the
     # exclusion as a data-hygiene fact rather than a problem. Keeping
     # it as a `warn()` made every NHEFS-using test surface a noisy
-    # WARN line. `inform()` is the right semantic level — visible to
+    # WARN line. `inform()` is the right semantic level -- visible to
     # users but not flagged by testthat as a real warning.
     valid_preds <- Reduce(
       `&`,
@@ -872,7 +871,7 @@ compute_contrast <- function(
     names(mu_hat) <- int_names
 
     # Variance: sandwich via the IF engine (shared across gcomp / ipw
-    # / matching — the engine's dispatcher picks the right branch from
+    # / matching -- the engine's dispatcher picks the right branch from
     # `fit$estimator`) or nonparametric bootstrap.
     boot_t <- NULL
     boot_info <- NULL
@@ -908,7 +907,7 @@ compute_contrast <- function(
 
   # Marginal-mean SEs come from the diagonal of vcov. `pmax(., 0)`
   # guards against tiny negative values from floating-point roundoff
-  # in the IF aggregation — they'd otherwise become NaN under sqrt.
+  # in the IF aggregation -- they'd otherwise become NaN under sqrt.
   se_means <- sqrt(pmax(diag(vcov_mat), 0))
   # Two-sided normal critical value. Using qnorm(0.5 + level/2) gives
   # the right half-width for any conf_level without hand-coding 1.96.
@@ -924,7 +923,7 @@ compute_contrast <- function(
   )
 
   # Reference for pairwise contrasts. If the user didn't name one,
-  # default to the first intervention in list order — matches how
+  # default to the first intervention in list order -- matches how
   # users conventionally write `list(treat, control)` with the
   # control as the second element.
   ref_name <- if (!is.null(reference)) reference else int_names[1]
@@ -959,8 +958,8 @@ compute_contrast <- function(
   # Ratios and odds ratios use a log-scale delta method CI (see below).
   # log() of a negative or zero ratio is NaN / -Inf, so we must reject
   # any comparison where the reference and an alternative have opposite
-  # signs — legal for Gaussian outcomes where mu can be negative, fatal
-  # for the exp(log(R) ± z se_log) CI construction. Odds ratios inherit
+  # signs -- legal for Gaussian outcomes where mu can be negative, fatal
+  # for the exp(log(R) +/- z se_log) CI construction. Odds ratios inherit
   # the same concern via the OR formula's mu/(1-mu) term, which can
   # cross zero for Gaussian outcomes. Abort with a clear message
   # pointing to `type = "difference"` or a binomial/poisson/gamma
@@ -988,7 +987,7 @@ compute_contrast <- function(
       # R6 (2026-04-15 review): mirror the NA filter from the `<= 0`
       # branch above. Previously `any(mu_hat >= 1)` returned NA when any
       # mu_hat was NA, and `if (NA)` aborted with "missing value where
-      # TRUE/FALSE needed" — surfacing a bogus OR-validation error on
+      # TRUE/FALSE needed" -- surfacing a bogus OR-validation error on
       # a NA-prediction that the target population had already excluded.
       gt1_mu <- mu_hat[!is.na(mu_hat)] >= 1
       if (any(gt1_mu)) {
@@ -1019,7 +1018,7 @@ compute_contrast <- function(
     if (type == "difference") {
       # Var(mu_a - mu_ref) = Var(mu_a) + Var(mu_ref) - 2 Cov(mu_a, mu_ref).
       # The cross term is the one dropped when people incorrectly add
-      # per-intervention SEs in quadrature — our IF engine keeps the
+      # per-intervention SEs in quadrature -- our IF engine keeps the
       # full covariance so we use the proper formula here.
       est_c <- mu_a - mu_ref
       var_c <- vcov_mat[idx_a, idx_a] +
@@ -1042,7 +1041,7 @@ compute_contrast <- function(
       #   dR/dmu_a    = 1/mu_ref
       #   dR/dmu_ref  = -mu_a/mu_ref^2
       # Linear-scale SE from grad^T V grad, then convert to log-scale
-      # CI: log(R) ± z * se_log, se_log = se / R. Log-scale CIs respect
+      # CI: log(R) +/- z * se_log, se_log = se / R. Log-scale CIs respect
       # the (0, Inf) support of a ratio and have better coverage than
       # Wald CIs, which can produce negative lower bounds.
       est_c <- mu_a / mu_ref
@@ -1136,7 +1135,7 @@ compute_contrast <- function(
 #'   context of `data`.
 #' @param subset_env Environment in which to resolve free variables referenced
 #'   by `subset` (e.g. a session-scoped `cutoff`). Must be captured at
-#'   `contrast()`'s top level — `parent.frame()` at this call site would be
+#'   `contrast()`'s top level -- `parent.frame()` at this call site would be
 #'   the internal dispatch frame, not the user's.
 #'
 #' @return Logical vector of length `nrow(data)`.

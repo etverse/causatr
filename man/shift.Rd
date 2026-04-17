@@ -30,9 +30,9 @@ contrast(fit, interventions = list(
 
 }
 \references{
-Díaz I, Williams N, Hoffman KL, Schenck EJ (2023). Non-parametric causal
+Diaz I, Williams N, Hoffman KL, Schenck EJ (2023). Non-parametric causal
 effects based on longitudinal modified treatment policies. \emph{Journal of the
-American Statistical Association} 118:846–857.
+American Statistical Association} 118:846-857.
 }
 \seealso{
 \code{\link[=static]{static()}}, \code{\link[=scale_by]{scale_by()}}, \code{\link[=threshold]{threshold()}}, \code{\link[=dynamic]{dynamic()}}, \code{\link[=ipsi]{ipsi()}}

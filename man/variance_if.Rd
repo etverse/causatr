@@ -23,7 +23,7 @@ uncertainty into \eqn{\hat\mu}.
 
 This file holds:
 \itemize{
-\item The Channel-2 primitives — \code{bread_inv()}, \code{iv_design_matrix()},
+\item The Channel-2 primitives -- \code{bread_inv()}, \code{iv_design_matrix()},
 \code{prepare_model_if()} / \code{apply_model_correction()} (the prep/apply
 split that lets g-comp, matching, and IPW pay the \verb{p x p} bread solve
 once per model and reuse it across interventions), plus the thin
@@ -45,43 +45,43 @@ rot as the file grows.
 
 \strong{Primitives (shared across methods).}
 \itemize{
-\item \code{bread_inv()} — \verb{(X'WX)^\{-1\}} for GLMs, \code{Vp} for GAMs, with a warned
+\item \code{bread_inv()} -- \verb{(X'WX)^\{-1\}} for GLMs, \code{Vp} for GAMs, with a warned
 \code{MASS::ginv()} fallback on singular bread.
-\item \code{iv_design_matrix()} — counterfactual model matrix under an
+\item \code{iv_design_matrix()} -- counterfactual model matrix under an
 intervention (GLM/GAM split).
-\item \code{resolve_fit_idx()} — maps \code{fit$details$fit_rows} to model-local row
+\item \code{resolve_fit_idx()} -- maps \code{fit$details$fit_rows} to model-local row
 indices and asserts the \code{na.action} invariant.
 }
 
 \strong{Channel-2 per-model correction (prep/apply split).}
 \itemize{
-\item \code{prepare_model_if()} — one bread solve per model, reused across
+\item \code{prepare_model_if()} -- one bread solve per model, reused across
 interventions (O(1) instead of O(k)).
-\item \code{apply_model_correction()} — per-intervention application step.
-\item \code{correct_model()} — thin single-gradient wrapper used by ICE.
+\item \code{apply_model_correction()} -- per-intervention application step.
+\item \code{correct_model()} -- thin single-gradient wrapper used by ICE.
 }
 
 \strong{Aggregation and fallbacks.}
 \itemize{
-\item \code{vcov_from_if()} — \code{crossprod}-based aggregator with optional
+\item \code{vcov_from_if()} -- \code{crossprod}-based aggregator with optional
 \verb{cluster =} sum-then-square for matching.
-\item \code{variance_if_numeric()} — two-tier numerical fallback (Tier 1
+\item \code{variance_if_numeric()} -- two-tier numerical fallback (Tier 1
 recovers the full IF via \code{sandwich::estfun + bread}; Tier 2 falls
 back to \verb{V1 + J V_\\beta J^T}).
 }
 
 \strong{Dispatcher and per-method branches.}
 \itemize{
-\item \code{variance_if()} — single entry point, routes to one of the four.
-\item \code{build_point_channel_pieces()}, \code{prepare_point_variance()} —
+\item \code{variance_if()} -- single entry point, routes to one of the four.
+\item \code{build_point_channel_pieces()}, \code{prepare_point_variance()} --
 shared point-treatment plumbing for gcomp / matching.
-\item \code{variance_if_gcomp()} — g-computation branch.
-\item \code{variance_if_matching()} — matching branch; cluster-robust on
+\item \code{variance_if_gcomp()} -- g-computation branch.
+\item \code{variance_if_matching()} -- matching branch; cluster-robust on
 \code{subclass}.
-\item \code{variance_if_ice()} / \code{variance_if_ice_one()} — ICE forward
+\item \code{variance_if_ice()} / \code{variance_if_ice_one()} -- ICE forward
 sensitivity recursion; cycles models rather than interventions so
 prep-hoisting does not apply.
-\item \code{variance_if_ipw()} / \code{compute_ipw_if_self_contained_one()} — IPW
+\item \code{variance_if_ipw()} / \code{compute_ipw_if_self_contained_one()} -- IPW
 density-ratio stacked sandwich; per-intervention workhorse assembles
 Channel 1 + MSM correction + propensity correction via
 \code{apply_model_correction()} and a numerical cross-derivative

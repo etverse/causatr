@@ -52,7 +52,7 @@ prepare_data <- function(
   # harmless for correctness but wastes memory across bootstrap
   # iterations where data is repeatedly resampled. `intersect`
   # handles the case where `confounders` references transformed
-  # variables that aren't themselves column names — those transforms
+  # variables that aren't themselves column names -- those transforms
   # are re-evaluated at fit time.
   keep_cols <- unique(c(
     outcome,
@@ -80,7 +80,7 @@ prepare_data <- function(
     # user's formula rather than intentional. Pass `treatment` so
     # interaction terms that include the treatment (e.g.
     # `~ sex + A:sex`) don't trigger a spurious warning about `A`
-    # varying within individuals — `A` is the treatment, not a
+    # varying within individuals -- `A` is the treatment, not a
     # baseline confounder.
     warn_confounder_variation(
       data,
@@ -127,7 +127,7 @@ create_lag_vars <- function(data, treatment, tv_vars, id, time, history) {
   data <- data.table::copy(data)
   data.table::setkeyv(data, c(id, time))
 
-  # Nested loop: (variable × lag order). Each iteration adds one
+  # Nested loop: (variable x lag order). Each iteration adds one
   # new column in place via `:=`. `by = c(id)` keeps the shift
   # per-individual so lags at t=0 within an id are NA, not bleeding
   # from the previous id's last row.
@@ -171,7 +171,7 @@ warn_confounder_variation <- function(
   # dataset with exactly 6 months).
   #
   # Subtract the treatment columns from `baseline_vars`. Users
-  # commonly write `confounders = ~ L + A:L` to encode an A × L
+  # commonly write `confounders = ~ L + A:L` to encode an A x L
   # interaction on the outcome; `all.vars(~ L + A:L)` returns both
   # `L` and `A`, and without this subtraction `A` would trip the
   # within-individual variation check below. `A` is the treatment,
@@ -204,7 +204,7 @@ warn_confounder_variation <- function(
 
   # Check baseline_vars: for each, warn if ANY individual has > 1
   # unique value. Unlike the tv check, a single violator is enough
-  # to surface — the baseline treatment would drop the within-person
+  # to surface -- the baseline treatment would drop the within-person
   # variation entirely.
   for (v in baseline_vars) {
     if (v %in% names(data)) {

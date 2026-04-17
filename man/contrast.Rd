@@ -30,8 +30,8 @@ one of:
 \item \code{NULL}, meaning the natural course (observed treatment values are used
 as-is). The natural course is the standard reference for modified
 treatment policies on continuous treatments (e.g. \code{shift(-10)} vs
-\code{NULL}; Díaz et al. 2023) and for longitudinal dynamic regimes
-(Hernán & Robins Ch. 21). For binary treatments, the
+\code{NULL}; Diaz et al. 2023) and for longitudinal dynamic regimes
+(Hernan & Robins Ch. 21). For binary treatments, the
 natural-course marginal mean equals E[Y] under the observed
 treatment mechanism (by consistency); use \code{static(1)} vs
 \code{static(0)} for the conventional ATE. Supported for all estimators.
@@ -58,7 +58,7 @@ informative error. The pooled logistic fit itself works.}
 \code{"ATT"}, or \code{"ATC"}. For \code{estimator = "gcomp"}, overrides the estimand
 stored in \code{fit} (allowing one fit to produce multiple estimands). For
 \code{estimator = "ipw"} or \code{"matching"}, must match the estimand used at
-fitting time — changing it aborts with an informative message. If
+fitting time -- changing it aborts with an informative message. If
 \code{NULL}, defaults to \code{fit$estimand}. Mutually exclusive with \code{subset}.}
 
 \item{subset}{A quoted expression (\code{quote(...)}) defining a subgroup to
@@ -146,12 +146,10 @@ computed on the matched sample and aggregated cluster-robustly on
 \subsection{Estimands and standardisation}{
 
 For each intervention \code{a}, \code{contrast()} evaluates the intervention function
-on the target rows to obtain the intervened treatment vector \code{a(Lᵢ)}, then
-computes:
+on the target rows to obtain the intervened treatment vector
+\eqn{a(L_i)}, then computes:
 
-\if{html}{\out{<div class="sourceCode">}}\preformatted{E\[Y^a\] = (1/|S|) Σᵢ∈S Ê\[Y | A = a(Lᵢ), Lᵢ\]
-}\if{html}{\out{</div>}}
-
+\deqn{E[Y^a] = (1/|S|) \sum_{i \in S} \hat{E}[Y | A = a(L_i), L_i]}
 where \code{S} is the set of rows determined by the estimand:
 \itemize{
 \item \code{"ATE"}: all rows (full population)
@@ -161,7 +159,7 @@ where \code{S} is the set of rows determined by the estimand:
 }
 
 For \code{"gcomp"}, one fit supports multiple estimands because the outcome
-model is the same — only the rows averaged over change. For \code{"ipw"} and
+model is the same -- only the rows averaged over change. For \code{"ipw"} and
 \code{"matching"}, the estimand is baked into the weights/matching and cannot
 be changed after fitting.
 }
@@ -193,7 +191,7 @@ Per-individual IF = Channel 1 (direct covariate-sampling term) +
 Channel 2 (one correction per nuisance model). Aggregated via
 \code{vcov_from_if()}, with cluster-robust aggregation for matching.
 Mathematically equivalent to the stacked M-estimation sandwich; see
-\code{vignettes/variance-theory.qmd} Sections 3–4.
+\code{vignettes/variance-theory.qmd} Sections 3-4.
 \item \code{"bootstrap"}: Resamples individuals (entire pipeline refitted \code{n_boot}
 times). Respects cluster structure for longitudinal data.
 \item The delta method is applied internally for ratio / odds-ratio
@@ -246,16 +244,16 @@ contrast(fit_cat,
 
 }
 \references{
-Hernán MA, Robins JM (2025). \emph{Causal Inference: What If}. Chapman &
-Hall/CRC. Chapters 12–13.
+Hernan MA, Robins JM (2025). \emph{Causal Inference: What If}. Chapman &
+Hall/CRC. Chapters 12-13.
 
 Imai K, King G, Stuart EA (2011). Misunderstandings between experimentalists
 and observationalists about causal inference. \emph{Journal of the Royal
-Statistical Society} Series A 171:481–502.
+Statistical Society} Series A 171:481-502.
 
 Zivich PN, Ross RK, Shook-Sa BE, Cole SR, Edwards JK (2024). Empirical
 sandwich variance estimator for iterated conditional expectation
-g-computation. \emph{Statistics in Medicine} 43:5562–5572.
+g-computation. \emph{Statistics in Medicine} 43:5562-5572.
 }
 \seealso{
 \code{\link[=causat]{causat()}}, \code{\link[=static]{static()}}, \code{\link[=shift]{shift()}}, \code{\link[=dynamic]{dynamic()}},

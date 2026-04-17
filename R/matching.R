@@ -1,7 +1,7 @@
 #' Fit a matching-based causal model (point treatment)
 #'
 #' @description
-#' Implements propensity-score matching (Hernán & Robins Ch. 15) by
+#' Implements propensity-score matching (Hernan & Robins Ch. 15) by
 #' delegating match construction to `MatchIt::matchit()` and fitting the
 #' outcome model on the matched sample.
 #'

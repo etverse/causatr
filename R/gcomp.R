@@ -76,7 +76,7 @@ fit_gcomp <- function(
 #' Fit the outcome model for g-computation with a point treatment
 #'
 #' @description
-#' Implements Step 1 of the parametric g-formula (Hernán & Robins Ch. 13):
+#' Implements Step 1 of the parametric g-formula (Hernan & Robins Ch. 13):
 #' fit \eqn{E[Y | A, L]} on the uncensored, outcome-observed rows using the
 #' user-supplied `model_fn` (default `stats::glm`). The fitted model is
 #' stored in the returned `causatr_fit` and used by `contrast()` to predict
@@ -128,7 +128,7 @@ fit_gcomp_point <- function(
   model_formula <- stats::reformulate(rhs, response = outcome)
 
   # Identify fitting rows: uncensored (C == 0) AND non-missing outcome.
-  # contrast() will predict for ALL rows — the g-formula standardises over
+  # contrast() will predict for ALL rows -- the g-formula standardises over
   # the full target population regardless of censoring status.
   fit_rows <- get_fit_rows(data, outcome, censoring)
   fit_data <- data[fit_rows]
@@ -137,8 +137,8 @@ fit_gcomp_point <- function(
   model_weights <- if (!is.null(weights)) weights[fit_rows] else NULL
 
   # Resolve the family to a proper family object at the causatr
-  # boundary so every downstream caller — including user-supplied
-  # `model_fn` implementations that don't do their own coercion — sees
+  # boundary so every downstream caller -- including user-supplied
+  # `model_fn` implementations that don't do their own coercion -- sees
   # a fully-evaluated family object. `stats::glm()` accepts character /
   # function / object forms, but a custom `model_fn` (e.g. a thin
   # wrapper around `lm()` that forwards to `family$linkfun`) can break

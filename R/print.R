@@ -32,7 +32,7 @@ print.causatr_fit <- function(x, ...) {
   cat(" Treatment:  ", trt_label, "\n", sep = "")
   cat(" Estimand:   ", x$estimand, "\n", sep = "")
   cat(" Confounders:", deparse(x$confounders), "\n", sep = " ")
-  # TV confounders and id/time are only shown when relevant — keeping
+  # TV confounders and id/time are only shown when relevant -- keeping
   # the display compact for point-treatment fits.
   if (!is.null(x$confounders_tv)) {
     cat(" TV conf.:  ", deparse(x$confounders_tv), "\n", sep = " ")
@@ -54,9 +54,9 @@ format_family <- function(family) {
   # Three-shape dispatch matching `resolve_family()` but producing
   # a display string rather than a family object. Used only for
   # print() output, so the fallback is "<custom>" rather than an
-  # abort — printing a fit should never error out.
+  # abort -- printing a fit should never error out.
   if (is.character(family)) {
-    # Already a string like "gaussian" — pass through.
+    # Already a string like "gaussian" -- pass through.
     return(family)
   }
   if (is.list(family) && !is.null(family$family)) {
@@ -65,7 +65,7 @@ format_family <- function(family) {
     return(paste0(family$family, "(", family$link, ")"))
   }
   if (is.function(family)) {
-    # A family closure (e.g. `stats::binomial`) — try to evaluate it.
+    # A family closure (e.g. `stats::binomial`) -- try to evaluate it.
     # Wrapped in tryCatch in case the closure needs arguments; if it
     # fails we fall through to "<custom>".
     fam <- tryCatch(family(), error = function(e) NULL)

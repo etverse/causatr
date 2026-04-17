@@ -33,22 +33,24 @@
 #'
 #' @details
 #' ## Rubin's rules
-#' Let `Q̂_i` be the estimate from imputation `i` and `U_i` its variance.
-#' The pooled estimate is `Q̄ = (1/m) Σ Q̂_i`. The total variance is:
-#' ```
-#' T = Ū + B + B/m
-#' ```
-#' where `Ū = (1/m) Σ U_i` (within-imputation variance) and
-#' `B = (1/(m-1)) Σ (Q̂_i - Q̄)²` (between-imputation variance).
+#' Let \eqn{\hat{Q}_i} be the estimate from imputation \eqn{i} and
+#' \eqn{U_i} its variance. The pooled estimate is
+#' \eqn{\bar{Q} = (1/m) \sum \hat{Q}_i}. The total variance is:
 #'
-#' Degrees of freedom follow the standard Barnard–Rubin approximation.
+#' \deqn{T = \bar{U} + B + B/m}
+#'
+#' where \eqn{\bar{U} = (1/m) \sum U_i} (within-imputation variance) and
+#' \eqn{B = (1/(m-1)) \sum (\hat{Q}_i - \bar{Q})^2} (between-imputation
+#' variance).
+#'
+#' Degrees of freedom follow the standard Barnard-Rubin approximation.
 #'
 #' @references
 #' Rubin DB (1987). *Multiple Imputation for Nonresponse in Surveys*.
 #' Wiley.
 #'
 #' van Buuren S, Groothuis-Oudshoorn K (2011). mice: Multivariate Imputation
-#' by Chained Equations in R. *Journal of Statistical Software* 45(3):1–67.
+#' by Chained Equations in R. *Journal of Statistical Software* 45(3):1-67.
 #'
 #' @examples
 #' \dontrun{
