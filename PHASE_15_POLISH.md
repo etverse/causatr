@@ -15,6 +15,7 @@ Documentation, convenience features, and release-prep items redistributed from t
 - [ ] Percent intervened on diagnostic (feasibility metric for each intervention)
 - [ ] Grace period / visit-process interventions for longitudinal data (carry forward, censor after N missed)
 - [ ] Stratified ICE option (`causat(..., stratified = TRUE)`)
+- [ ] ICE formula builder: support function-transformed treatments and TV confounders (e.g. `ns(A, 3)`, `log(L)`) — currently `ice_build_formula()` handles bare column names and `A:modifier` lag expansion, but not `ns(A, 3)` → `ns(lag1_A, 3)`. Requires term-level variable substitution inside parsed expressions. Affects `confounders` with treatment transforms, `confounders_tv` with confounder transforms, and EM interactions with transformed treatments.
 - [ ] Multinomial outcomes: multi-category via `nnet::multinom()` or `VGAM::vglm(multinomial())`
 - [ ] Ordinal outcomes: ordered categorical via `MASS::polr()` or `ordinal::clm()`
 

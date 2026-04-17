@@ -400,3 +400,67 @@ simulate_longitudinal_mar_outcome <- function(n = 5000, seed = 42) {
   d$p_cens[d$time == 1] <- p_cens
   d
 }
+
+# DGP-EM-ICE: Longitudinal effect modification (binary trt x binary modifier).
+#
+# Linear SCM with treatment-confounder feedback and sex-specific treatment
+# effects. The treatment effect at each period is (2 + 1.5 * sex) per unit
+# of A_k, making the sex-specific contrasts analytically computable.
+#
+# DGP:
+#   L0 ~ N(0, 1); sex ~ Bern(0.5)
+#   A_0 ~ Bern(expit(0.5 * L0))
+#   For t > 0:
+#     L_t = A_{t-1} + 0.5 * L0 + eps_L  (treatment-confounder feedback)
+#     A_t ~ Bern(expit(0.3 * L_t))
+#   Y = 10 + (2 + 1.5*sex) * sum(A_t) + L0 + sum(L_t) + eps_Y
+#
+# True ATE (always vs never):
+#   2 periods: ATE|sex=0 = 5,  ATE|sex=1 = 8
+#   3 periods: ATE|sex=0 = 8,  ATE|sex=1 = 12.5
+#
+# Derivation (2-period, always vs never):
+#   Under always: E[L_1] = 1, E[Y|sex=s] = 10 + 2*(2+1.5s) + 0 + 1 = 15 + 3s
+#   Under never:  E[L_1] = 0, E[Y|sex=s] = 10
+#   ATE|sex=s = 5 + 3s => sex=0: 5, sex=1: 8
+#
+# Derivation (3-period, always vs never):
+#   Under always: E[L_1]=1, E[L_2]=1, E[Y|sex=s] = 10+3*(2+1.5s)+0+1+1 = 18+4.5s
+#   Under never:  E[L_1]=0, E[L_2]=0, E[Y|sex=s] = 10
+#   ATE|sex=s = 8 + 4.5s => sex=0: 8, sex=1: 12.5
+make_em_ice_scm <- function(n = 5000, n_times = 2, seed = 42) {
+  set.seed(seed)
+
+  L0 <- stats::rnorm(n)
+  sex <- stats::rbinom(n, 1, 0.5)
+
+  A <- matrix(NA_real_, n, n_times)
+  L <- matrix(NA_real_, n, n_times)
+
+  for (t in seq_len(n_times)) {
+    if (t == 1) {
+      A[, t] <- stats::rbinom(n, 1, stats::plogis(0.5 * L0))
+    } else {
+      L[, t] <- A[, t - 1] + 0.5 * L0 + stats::rnorm(n, 0, 0.5)
+      A[, t] <- stats::rbinom(n, 1, stats::plogis(0.3 * L[, t]))
+    }
+  }
+
+  # Treatment effect is (2 + 1.5*sex) per period of treatment.
+  trt_effect <- (2 + 1.5 * sex) * rowSums(A)
+  Y <- 10 + trt_effect + L0 + rowSums(L, na.rm = TRUE) + stats::rnorm(n)
+
+  rows <- vector("list", n_times)
+  for (t in seq_len(n_times)) {
+    rows[[t]] <- data.frame(
+      id = seq_len(n),
+      time = t - 1L,
+      A = A[, t],
+      L = L[, t],
+      L0 = L0,
+      sex = sex,
+      Y = if (t == n_times) Y else NA_real_
+    )
+  }
+  do.call(rbind, rows)
+}

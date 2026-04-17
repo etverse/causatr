@@ -76,6 +76,13 @@ fit_ice <- function(
   # user's `confounders = ~ ...` formula, not the base variable names.
   baseline_terms <- attr(stats::terms(confounders), "term.labels")
 
+  # Parse effect-modification terms so `ice_build_formula()` can expand
+  # `A:modifier` to include `lag1_A:modifier`, `lag2_A:modifier`, etc.
+  # at each backward step. Without this, effect modification is only
+  # captured at the current period, collapsing heterogeneity from
+  # earlier treatment effects.
+  em_info <- parse_effect_mod(confounders, treatment)
+
   # Time-varying confounders, in contrast, are tracked as plain variable
   # names. `ice_build_formula()` uses these to build lag column names
   # (`lag1_L`, `lag2_L`, ...) and to reference the current-time columns;
@@ -155,6 +162,7 @@ fit_ice <- function(
       baseline_terms = baseline_terms,
       tv_vars = tv_vars,
       max_lag = max_lag,
+      em_info = em_info,
       model_fn = model_fn,
       family_outcome = family_obj,
       family_pseudo = family_pseudo,
@@ -177,6 +185,14 @@ fit_ice <- function(
 #' Baseline confounders are always included (they are time-invariant and
 #' should never be `NA`).
 #'
+#' When effect-modification terms are present (e.g. `A:sex` in the
+#' confounders formula), the function auto-expands them across available
+#' treatment lags: at time_idx = 2 with max_lag = 2, `A:sex` produces
+#' `A:sex`, `lag1_A:sex`, `lag2_A:sex`. This ensures the ICE outcome
+#' model captures heterogeneous treatment effects from all prior periods,
+#' not just the current one. Without this expansion, roughly half the
+#' intended heterogeneity is collapsed.
+#'
 #' @param response Character. LHS variable name (`outcome` at final step,
 #'   `".pseudo_y"` at earlier steps).
 #' @param treatment Character scalar or vector. Treatment column name(s).
@@ -189,6 +205,8 @@ fit_ice <- function(
 #' @param max_lag Integer. Maximum lag order (from `history`).
 #' @param data_at_time data.table. Rows at the current time step,
 #'   used to check for all-`NA` columns.
+#' @param em_info A `causatr_em_info` object from `parse_effect_mod()`,
+#'   or `NULL` if no EM terms are present.
 #'
 #' @return A formula object.
 #'
@@ -200,7 +218,8 @@ ice_build_formula <- function(
   tv_vars,
   time_idx,
   max_lag,
-  data_at_time
+  data_at_time,
+  em_info = NULL
 ) {
   # The number of available lags at time index `k` is `min(k, max_lag)`:
   # at t = 0 there are zero lags regardless of max_lag; at t = 1 there
@@ -271,7 +290,44 @@ ice_build_formula <- function(
   # they go in unconditionally. `baseline_terms` comes in as term labels
   # (e.g. `I(age^2)`) rather than variable names, which means
   # `reformulate()` reuses the user's original transformations verbatim.
-  rhs_terms <- c(rhs_dynamic, baseline_terms)
+  #
+  # When EM terms are present (e.g. `A:sex`), auto-expand them to
+  # include lag versions (`lag1_A:sex`, `lag2_A:sex`, ...) so the
+  # outcome model captures heterogeneous treatment effects from all
+  # available prior periods. The expansion terms go through the same
+  # all-NA column validity check as the dynamic columns above.
+  em_lag_terms <- character(0L)
+  if (!is.null(em_info) && em_info$has_em) {
+    for (em_term in em_info$em_terms) {
+      lag_terms <- expand_em_lag_terms(em_term, available_lags)
+      em_lag_terms <- c(em_lag_terms, lag_terms)
+    }
+    # Validity check: drop lag interaction terms that reference columns
+    # which are all-NA at this time step (same guard as for rhs_dynamic).
+    # This naturally drops `lag1_A:sex` at t = 0 where `lag1_A` doesn't
+    # exist or is all-NA.
+    if (length(em_lag_terms) > 0L) {
+      em_lag_valid <- vapply(
+        em_lag_terms,
+        function(term) {
+          # Extract the variable names from the term (e.g. "lag1_A:sex"
+          # -> c("lag1_A", "sex")) and check all exist and are non-NA.
+          term_vars <- all.vars(parse(text = term)[[1L]])
+          all(vapply(
+            term_vars,
+            function(v) {
+              v %in% names(data_at_time) && !all(is.na(data_at_time[[v]]))
+            },
+            logical(1L)
+          ))
+        },
+        logical(1L)
+      )
+      em_lag_terms <- em_lag_terms[em_lag_valid]
+    }
+  }
+
+  rhs_terms <- c(rhs_dynamic, baseline_terms, em_lag_terms)
 
   stats::reformulate(rhs_terms, response = response)
 }
@@ -438,6 +494,8 @@ ice_iterate <- function(fit, intervention) {
   fit_data <- data[fit_mask]
   fit_ids[[n_times]] <- as.character(fit_data[[id_col]])
 
+  em_info <- details$em_info
+
   # Formula construction is shared between all time steps; at the
   # final step the response is the real outcome, at earlier steps
   # it's `.pseudo_y`.
@@ -448,7 +506,8 @@ ice_iterate <- function(fit, intervention) {
     tv_vars,
     final_idx,
     max_lag,
-    fit_data
+    fit_data,
+    em_info
   )
 
   # Build args for `model_fn` (default `stats::glm`) via do.call. We
@@ -533,7 +592,8 @@ ice_iterate <- function(fit, intervention) {
       tv_vars,
       time_idx,
       max_lag,
-      fit_data
+      fit_data,
+      em_info
     )
 
     # `do.call(model_fn, model_args_k)` rather than a direct call so

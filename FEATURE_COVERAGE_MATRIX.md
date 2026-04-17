@@ -142,6 +142,10 @@ Rejections (all ✅ tested):
 | multi | gauss | static | 2 | sandwich | — | ✅ | test-multivariate.R |
 | multi | gauss | shift | 2 | sandwich | — | ✅ | test-multivariate.R |
 | bin | gauss | static | 2 | boot | survey | 🟡 | test-simulation.R |
+| bin | gauss | static + EM | 2 | sandwich | — | ✅ | test-effect-modification.R |
+| bin | gauss | static + EM | 3 | sandwich | — | ✅ | test-effect-modification.R |
+| bin | gauss | static + EM | 2 | boot | — | ✅ | test-effect-modification.R |
+| bin | gauss | static + multi-EM | 2 | sandwich | — | 🟡 | test-effect-modification.R |
 
 Rejections (all ✅ tested): ipsi $\to$ test-ice.R, ATT/ATC $\to$ test-ice.R.
 
@@ -269,7 +273,7 @@ Supplementary: `test-weights-edge-cases.R` (external weights edge cases), `test-
 ## Planned (future phases)
 
 ### Phase 6 — Effect modification
-Unified `A:modifier` API across gcomp / IPW / matching / ICE. IPW MSM expansion ✅ (chunk 6b). Matching MSM expansion ✅ (chunk 6c). ICE lag auto-expansion ❌ (chunk 6d). Cross-method triangulation ❌ (chunk 6e).
+Unified `A:modifier` API across gcomp / IPW / matching / ICE. IPW MSM expansion ✅ (chunk 6b). Matching MSM expansion ✅ (chunk 6c). ICE lag auto-expansion ✅ (chunk 6d). Cross-method triangulation ❌ (chunk 6e).
 
 ### Phase 7 — Survival contrasts
 Survival curves S^a(t), risk at time t, risk difference/ratio, competing risks CIF, dynamic strategies, NHEFS Ch. 17 replication. All ❌.

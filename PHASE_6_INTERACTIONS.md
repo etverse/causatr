@@ -252,8 +252,10 @@ on the stratum. No changes to `by` itself.
 - [x] `tests/testthat/test-matching.R` — updated rejection test → acceptance test
 
 ### Chunk 6d — ICE lag auto-expansion
-- [ ] `R/ice.R` — `ice_build_formula()` auto-expansion of `A:modifier` across lags
-- [ ] `tests/testthat/test-effect-modification.R` — ICE truth (2-period, 3-period) + bootstrap + regression guard
+- [x] `R/effect_modification.R` — `expand_em_lag_terms()` helper: splits interaction on `:`, substitutes treatment with `lag{k}_{trt}`, returns expanded terms
+- [x] `R/ice.R` — `fit_ice()` stores `em_info` from `parse_effect_mod()`; `ice_build_formula()` accepts `em_info` and appends lag-expanded EM terms with all-NA column validity check
+- [x] `tests/testthat/helper-dgp.R` — `make_em_ice_scm()` DGP with sex-specific treatment effects
+- [x] `tests/testthat/test-effect-modification.R` — ICE truth (2-period ATE|sex=0=5/sex=1=8, 3-period ATE|sex=0=8/sex=1=12.5) + multiple EM terms smoke + bootstrap + regression guard + `expand_em_lag_terms()` unit tests
 
 ### Chunk 6e — Cross-method triangulation + docs + matrix
 - [ ] `tests/testthat/test-effect-modification.R` — cross-method triangulation test

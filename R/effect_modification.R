@@ -199,3 +199,46 @@ check_em_compat <- function(em_info, treatment, estimator, data = NULL) {
 em_confounder_terms <- function(em_info) {
   em_info$confounder_terms
 }
+
+
+#' Expand an EM term across treatment lags for ICE formulas
+#'
+#' Given an EM term like `"A:sex"` and `available_lags = 2`, produces
+#' `c("lag1_A:sex", "lag2_A:sex")`. The original term (`"A:sex"`) is NOT
+#' included -- callers add it separately via `baseline_terms`. The
+#' expansion replaces only the treatment variable component of the `:`-
+#' separated interaction; other components (modifiers, `I()` wrappers)
+#' are kept verbatim.
+#'
+#' @param em_term A single EM term list from `parse_effect_mod()$em_terms`,
+#'   with `$term`, `$treatment_var`, and `$modifier_vars`.
+#' @param available_lags Integer. Number of lags available at the current
+#'   ICE time step (`min(time_idx, max_lag)`).
+#' @return Character vector of lag-expanded interaction terms, length
+#'   `available_lags` (empty if `available_lags == 0`).
+#' @noRd
+expand_em_lag_terms <- function(em_term, available_lags) {
+  if (available_lags == 0L) {
+    return(character(0L))
+  }
+  # Split the interaction term into its `:`-separated components, find
+  # which component is the treatment variable, and substitute the lag
+  # prefix for each lag order. E.g. "A:sex" -> components = c("A","sex"),
+  # treatment component is "A", lag1 -> c("lag1_A","sex") -> "lag1_A:sex".
+  components <- strsplit(em_term$term, ":", fixed = TRUE)[[1L]]
+  trt_var <- em_term$treatment_var
+  trt_idx <- which(components == trt_var)
+  if (length(trt_idx) == 0L) {
+    return(character(0L))
+  }
+
+  vapply(
+    seq_len(available_lags),
+    function(k) {
+      lag_components <- components
+      lag_components[trt_idx] <- paste0("lag", k, "_", trt_var)
+      paste(lag_components, collapse = ":")
+    },
+    character(1L)
+  )
+}

@@ -1,5 +1,28 @@
 # causatr (development version)
 
+## 2026-04-17 — Phase 6 chunk 6d: ICE lag auto-expansion for effect modification
+
+ICE g-computation now auto-expands `A:modifier` interaction terms across
+treatment lags. When `confounders = ~ L0 + sex + A:sex`, the ICE outcome
+model at each backward step includes not only `A:sex` (current period) but
+also `lag1_A:sex`, `lag2_A:sex`, etc. for all available lags. Without this
+expansion, ICE captured effect modification only at the current treatment
+period, collapsing roughly half the intended heterogeneity.
+
+- New `expand_em_lag_terms()` helper in `R/effect_modification.R` splits
+  the interaction term on `:`, substitutes the treatment component with
+  `lag{k}_{treatment}`, and returns the expanded terms.
+- `fit_ice()` now parses and stores `em_info` from `parse_effect_mod()`.
+- `ice_build_formula()` accepts `em_info` and appends lag-expanded EM
+  terms to the formula RHS, subject to the same all-NA column validity
+  check as other dynamic terms.
+- The sandwich variance engine and bootstrap path require no changes:
+  both operate generically on the model matrices, which simply grow to
+  accommodate the additional interaction columns.
+- Tests: 2-period truth (ATE|sex=0 = 5, ATE|sex=1 = 8), 3-period truth
+  (ATE|sex=0 = 8, ATE|sex=1 = 12.5), multiple EM terms smoke test,
+  bootstrap coverage, regression guard.
+
 ## 2026-04-17 — Phase 6 chunks 6a--6c: effect modification infrastructure + IPW/matching MSM expansion
 
 **Phase 6 chunk 6a — `parse_effect_mod()` infrastructure + gate refactoring.**

@@ -553,3 +553,262 @@ test_that("matching without EM terms is unaffected by EM infrastructure", {
   # em_info should report no EM terms.
   expect_false(fit$details$em_info$has_em)
 })
+
+# ICE effect modification (chunk 6d) ------------------------------------------
+
+# expand_em_lag_terms() unit tests.
+
+test_that("expand_em_lag_terms produces correct lag terms", {
+  em <- parse_effect_mod(~ L + sex + A:sex, "A")
+  lags <- expand_em_lag_terms(em$em_terms[[1]], available_lags = 3L)
+  # R's terms() alphabetizes "A:sex" -> "sex:A", so the expansion keeps
+  # that order: "sex:lag1_A", "sex:lag2_A", "sex:lag3_A".
+  expect_equal(lags, c("sex:lag1_A", "sex:lag2_A", "sex:lag3_A"))
+})
+
+test_that("expand_em_lag_terms returns empty for available_lags = 0", {
+  em <- parse_effect_mod(~ L + sex + A:sex, "A")
+  lags <- expand_em_lag_terms(em$em_terms[[1]], available_lags = 0L)
+  expect_equal(lags, character(0L))
+})
+
+test_that("expand_em_lag_terms handles reversed term order (sex:A)", {
+  em <- parse_effect_mod(~ L + sex + sex:A, "A")
+  lags <- expand_em_lag_terms(em$em_terms[[1]], available_lags = 2L)
+  # The term label from terms() preserves user order: "sex:A"
+  # So lags should be "sex:lag1_A", "sex:lag2_A"
+  expect_equal(lags, c("sex:lag1_A", "sex:lag2_A"))
+})
+
+test_that("expand_em_lag_terms handles multi-way interaction", {
+  em <- parse_effect_mod(~ L + A:sex:race, "A")
+  lags <- expand_em_lag_terms(em$em_terms[[1]], available_lags = 1L)
+  expect_equal(lags, "lag1_A:sex:race")
+})
+
+# Truth-based: ICE sandwich x 2-period DGP x binary modifier.
+#
+# DGP-EM-ICE: Y = 10 + (2 + 1.5*sex) * sum(A_t) + L0 + sum(L_t) + eps
+#   True ATE|sex=0 = 5  (always vs never)
+#   True ATE|sex=1 = 8
+#
+# The confounders formula includes `A:sex` which triggers lag auto-expansion.
+# At time_idx = 1 (the final period, 0-based), the formula should include
+# both `A:sex` (current period) and `lag1_A:sex` (first period). Without
+# the expansion, ICE compresses the heterogeneity and returns ~6.5/6.5
+# instead of 5/8.
+test_that("ICE EM sandwich recovers sex-specific ATEs (2-period DGP)", {
+  d <- make_em_ice_scm(n = 8000, n_times = 2, seed = 42)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L0 + sex + A:sex,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time"
+  )
+
+  # Verify em_info is stored.
+  expect_true(fit$details$em_info$has_em)
+
+  res <- contrast(
+    fit,
+    interventions = list(always = static(1), never = static(0)),
+    type = "difference",
+    reference = "never",
+    ci_method = "sandwich",
+    by = "sex"
+  )
+
+  ate_sex0 <- res$contrasts$estimate[res$contrasts$by == 0]
+  ate_sex1 <- res$contrasts$estimate[res$contrasts$by == 1]
+
+  # Point estimates within 0.5 of truth. The DGP is linear and correctly
+  # specified, so ICE g-comp is consistent.
+  expect_lt(abs(ate_sex0 - 5.0), 0.5)
+  expect_lt(abs(ate_sex1 - 8.0), 0.5)
+
+  # CIs cover the truth.
+  ci_sex0 <- res$contrasts[res$contrasts$by == 0, ]
+  ci_sex1 <- res$contrasts[res$contrasts$by == 1, ]
+  expect_lte(ci_sex0$ci_lower, 5.0)
+  expect_gte(ci_sex0$ci_upper, 5.0)
+  expect_lte(ci_sex1$ci_lower, 8.0)
+  expect_gte(ci_sex1$ci_upper, 8.0)
+
+  # SEs are finite and positive.
+  expect_true(all(res$contrasts$se > 0))
+  expect_true(all(is.finite(res$contrasts$se)))
+})
+
+# Truth-based: ICE sandwich x 3-period DGP x binary modifier.
+#
+# DGP-EM-ICE with 3 periods:
+#   True ATE|sex=0 = 8    (always vs never)
+#   True ATE|sex=1 = 12.5
+#
+# Tests deeper lag coverage: at the final step (time_idx = 2), the formula
+# should include `A:sex`, `lag1_A:sex`, and `lag2_A:sex`.
+test_that("ICE EM sandwich recovers sex-specific ATEs (3-period DGP)", {
+  d <- make_em_ice_scm(n = 8000, n_times = 3, seed = 42)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L0 + sex + A:sex,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    history = Inf
+  )
+
+  res <- contrast(
+    fit,
+    interventions = list(always = static(1), never = static(0)),
+    type = "difference",
+    reference = "never",
+    ci_method = "sandwich",
+    by = "sex"
+  )
+
+  ate_sex0 <- res$contrasts$estimate[res$contrasts$by == 0]
+  ate_sex1 <- res$contrasts$estimate[res$contrasts$by == 1]
+
+  # Tolerances are slightly wider for 3 periods (more variance).
+  expect_lt(abs(ate_sex0 - 8.0), 0.8)
+  expect_lt(abs(ate_sex1 - 12.5), 0.8)
+
+  # CIs cover the truth.
+  ci_sex0 <- res$contrasts[res$contrasts$by == 0, ]
+  ci_sex1 <- res$contrasts[res$contrasts$by == 1, ]
+  expect_lte(ci_sex0$ci_lower, 8.0)
+  expect_gte(ci_sex0$ci_upper, 8.0)
+  expect_lte(ci_sex1$ci_lower, 12.5)
+  expect_gte(ci_sex1$ci_upper, 12.5)
+})
+
+# Multiple EM terms: ICE x A:sex + A:age x 2 periods.
+# Smoke test -- no closed-form truth for continuous modifiers under ICE,
+# but we verify the formula expansion works and produces finite results.
+test_that("ICE EM handles multiple EM terms (A:sex + A:age)", {
+  set.seed(99)
+  n <- 3000
+  L0 <- rnorm(n)
+  sex <- rbinom(n, 1, 0.5)
+  age <- rnorm(n, 50, 10)
+  A0 <- rbinom(n, 1, plogis(0.3 * L0))
+  L1 <- A0 + 0.5 * L0 + rnorm(n, 0, 0.5)
+  A1 <- rbinom(n, 1, plogis(0.3 * L1))
+  Y <- 10 + (2 + 1.5 * sex + 0.05 * age) * (A0 + A1) + L0 + L1 + rnorm(n)
+
+  d <- rbind(
+    data.frame(
+      id = 1:n,
+      time = 0L,
+      A = A0,
+      L = NA_real_,
+      L0 = L0,
+      sex = sex,
+      age = age,
+      Y = NA_real_
+    ),
+    data.frame(
+      id = 1:n,
+      time = 1L,
+      A = A1,
+      L = L1,
+      L0 = L0,
+      sex = sex,
+      age = age,
+      Y = Y
+    )
+  )
+
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L0 + sex + age + A:sex + A:age,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time"
+  )
+
+  expect_true(fit$details$em_info$has_em)
+  expect_length(fit$details$em_info$em_terms, 2L)
+
+  res <- contrast(
+    fit,
+    interventions = list(always = static(1), never = static(0)),
+    type = "difference",
+    reference = "never",
+    ci_method = "sandwich"
+  )
+
+  # Smoke: finite estimates and SEs.
+  expect_true(all(is.finite(res$contrasts$estimate)))
+  expect_true(all(res$contrasts$se > 0))
+  expect_true(all(is.finite(res$contrasts$se)))
+})
+
+# Bootstrap: ICE EM bootstrap CIs cover the truth (2-period DGP).
+test_that("ICE EM bootstrap covers sex-specific ATEs (2-period DGP)", {
+  d <- make_em_ice_scm(n = 5000, n_times = 2, seed = 42)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L0 + sex + A:sex,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time"
+  )
+  res <- suppressWarnings(contrast(
+    fit,
+    interventions = list(always = static(1), never = static(0)),
+    type = "difference",
+    reference = "never",
+    ci_method = "bootstrap",
+    n_boot = 100,
+    by = "sex"
+  ))
+
+  ci_sex0 <- res$contrasts[res$contrasts$by == 0, ]
+  ci_sex1 <- res$contrasts[res$contrasts$by == 1, ]
+  expect_lte(ci_sex0$ci_lower, 5.0)
+  expect_gte(ci_sex0$ci_upper, 5.0)
+  expect_lte(ci_sex1$ci_lower, 8.0)
+  expect_gte(ci_sex1$ci_upper, 8.0)
+})
+
+# Regression guard: ICE without EM terms produces identical results
+# to the pre-expansion behavior.
+test_that("ICE without EM terms is unaffected by EM lag expansion", {
+  d <- make_linear_scm(n = 5000, n_times = 2, seed = 42)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time"
+  )
+
+  # em_info should report no EM.
+  expect_false(fit$details$em_info$has_em)
+
+  res <- contrast(
+    fit,
+    interventions = list(always = static(1), never = static(0)),
+    type = "difference",
+    reference = "never",
+    ci_method = "sandwich"
+  )
+
+  # The linear SCM has ATE (always vs never) = 5.
+  expect_lt(abs(res$contrasts$estimate[1] - 5.0), 0.5)
+  expect_lte(res$contrasts$ci_lower[1], 5.0)
+  expect_gte(res$contrasts$ci_upper[1], 5.0)
+})
