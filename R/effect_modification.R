@@ -227,7 +227,10 @@ expand_em_lag_terms <- function(em_term, available_lags) {
   # treatment component is "A", lag1 -> c("lag1_A","sex") -> "lag1_A:sex".
   components <- strsplit(em_term$term, ":", fixed = TRUE)[[1L]]
   trt_var <- em_term$treatment_var
-  trt_idx <- which(components == trt_var)
+  # `%in%` instead of `==` so multivariate treatment_var (length > 1)
+  # finds all treatment components without R's vector recycling silently
+  # matching the wrong positions.
+  trt_idx <- which(components %in% trt_var)
   if (length(trt_idx) == 0L) {
     return(character(0L))
   }

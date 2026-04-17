@@ -1,5 +1,16 @@
 # causatr (development version)
 
+## Bug fixes
+
+- `expand_em_lag_terms()` now correctly finds all treatment components in
+  multivariate treatment EM terms (e.g. `A1:A2:sex` with
+  `treatment = c("A1", "A2")`). Previously, `which(components == trt_var)`
+  relied on R's `==` vector recycling, which silently returned zero matches
+  when `treatment_var` was a vector of length > 1 whose length did not
+  evenly divide the component count. The function returned `character(0)`,
+  dropping all lag EM terms from ICE formulas. Fixed by switching to `%in%`.
+  Fifth-round critical review Issue #B1.
+
 ## 2026-04-17 — Phase 6 complete: unified effect-modification API
 
 Phase 6 (chunks 6a--6e) delivers a unified effect-modification API across

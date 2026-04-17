@@ -586,6 +586,21 @@ test_that("expand_em_lag_terms handles multi-way interaction", {
   expect_equal(lags, "lag1_A:sex:race")
 })
 
+# Regression: multivariate treatment EM term (B1, fifth-round critical review).
+# With treatment = c("A1", "A2") and an EM term "A1:A2:sex",
+# parse_effect_mod() returns treatment_var = c("A1", "A2") (vector).
+# Pre-fix, `which(components == trt_var)` used R's `==` recycling, which
+# silently returned zero matches and dropped all lag terms. The fix uses
+# `%in%` so all treatment components are found regardless of vector length.
+test_that("expand_em_lag_terms handles multivariate treatment EM term (B1)", {
+  em <- parse_effect_mod(~ sex + A1:A2:sex, c("A1", "A2"))
+  lags <- expand_em_lag_terms(em$em_terms[[1]], available_lags = 2L)
+  # Both treatments must be lagged at each lag order.
+  expect_length(lags, 2L)
+  expect_true(grepl("lag1_A1", lags[1]) && grepl("lag1_A2", lags[1]))
+  expect_true(grepl("lag2_A1", lags[2]) && grepl("lag2_A2", lags[2]))
+})
+
 # Truth-based: ICE sandwich x 2-period DGP x binary modifier.
 #
 # DGP-EM-ICE: Y = 10 + (2 + 1.5*sex) * sum(A_t) + L0 + sum(L_t) + eps
