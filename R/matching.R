@@ -85,33 +85,6 @@ fit_matching <- function(
     estimator = "matching"
   )
 
-  # Matching effect modification is wired via MSM expansion from
-  # `Y ~ A` to `Y ~ A + modifier + A:modifier`. For now, reject EM
-  # terms until the MSM expansion is implemented.
-  if (em_info$has_em) {
-    em_labels <- vapply(em_info$em_terms, function(x) x$term, character(1L))
-    rlang::abort(
-      c(
-        paste0(
-          "Effect modification via `A:modifier` is not yet supported ",
-          "for `estimator = \"matching\"`."
-        ),
-        x = paste0(
-          "Offending term(s): ",
-          paste(em_labels, collapse = ", "),
-          "."
-        ),
-        i = paste0(
-          "Use `estimator = \"gcomp\"` for heterogeneous treatment effects, ",
-          "or `by = \"modifier\"` in `contrast()` for stratum-specific ",
-          "summaries of a homogeneous effect."
-        )
-      ),
-      class = "causatr_em_unsupported",
-      .call = FALSE
-    )
-  }
-
   # Build the treatment model formula: A ~ confounders.
   # MatchIt uses this to estimate propensity scores for matching.
   ps_formula <- build_ps_formula(confounders, treatment)
@@ -151,9 +124,17 @@ fit_matching <- function(
   matched_data <- MatchIt::match.data(m)
 
   # Step 3: Fit the outcome model on the matched sample.
-  # Using the treatment-only formula Y ~ A (the matched design handles
-  # confounding).  Match weights are applied via the `weights` argument.
-  msm_formula <- stats::reformulate(treatment, response = outcome)
+  # Without EM: `Y ~ A` — the matched design handles confounding.
+  # With EM (e.g. `A:sex` in confounders): `Y ~ A + sex + A:sex` —
+  # the saturated MSM recovers stratum-specific treatment effects.
+  msm_formula <- build_matching_msm_formula(outcome, treatment, em_info)
+  # `stats::glm()` evaluates the `weights` argument in the formula's
+
+  # environment via `model.frame.default()`. The formula was built inside
+  # `build_matching_msm_formula()`, so its environment points at that
+  # helper's frame — where `matched_weights` doesn't exist. Reset to
+  # the current frame so `glm()` can resolve `matched_weights`.
+  environment(msm_formula) <- environment()
 
   matched_weights <- combine_match_and_external_weights(
     matched_data,
@@ -195,6 +176,7 @@ fit_matching <- function(
       n_unmatched = sum(fit_rows) - nrow(matched_data),
       matched_data = data.table::as.data.table(matched_data),
       weights = weights,
+      em_info = em_info,
       # Capture MatchIt arguments (post ATE->full defaulting) so
       # `refit_matching()` replays the same matching specification
       # verbatim at bootstrap time. See B2 in the 2026-04-15 review:

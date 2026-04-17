@@ -149,22 +149,18 @@ test_that("matching aborts on continuous treatment", {
   )
 })
 
-test_that("matching rejects A:modifier interaction terms in confounders", {
-  # EM terms are detected but not yet supported under matching. The
-  # error class will change from `causatr_em_unsupported` to supported
-  # behavior once chunk 6c lands.
-  d <- simulate_binary_continuous(n = 200, seed = 1)
-  d$sex <- rbinom(nrow(d), 1, 0.5)
-  expect_error(
-    causat(
-      d,
-      outcome = "Y",
-      treatment = "A",
-      confounders = ~ L + sex + A:sex,
-      estimator = "matching"
-    ),
-    class = "causatr_em_unsupported"
+test_that("matching accepts A:modifier and stores em_info", {
+  d <- simulate_effect_mod(n = 500, seed = 1)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L + sex + A:sex,
+    estimator = "matching"
   )
+  expect_s3_class(fit, "causatr_fit")
+  expect_true(fit$details$em_info$has_em)
+  expect_equal(fit$details$em_info$modifier_vars, "sex")
 })
 
 test_that("causat(estimator = 'matching') forwards `method` to MatchIt::matchit()", {

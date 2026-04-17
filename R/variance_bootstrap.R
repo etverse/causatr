@@ -440,7 +440,18 @@ refit_matching <- function(fit, d_b, weights = NULL) {
     fit_rows = fit_rows_b
   )
 
-  msm_formula <- stats::reformulate(fit$treatment, response = fit$outcome)
+  # Replay the same MSM formula used at fit time: `Y ~ A` without EM,
+  # `Y ~ A + modifier + A:modifier` with EM. `em_info` was stashed in
+  # `fit$details` by `fit_matching()`.
+  em_info <- fit$details$em_info
+  msm_formula <- if (!is.null(em_info)) {
+    build_matching_msm_formula(fit$outcome, fit$treatment, em_info)
+  } else {
+    stats::reformulate(fit$treatment, response = fit$outcome)
+  }
+  # `glm()` evaluates `weights` in the formula's environment. Reset
+  # to the current frame so `matched_weights` is found.
+  environment(msm_formula) <- environment()
   stats::glm(
     msm_formula,
     data = matched_b,

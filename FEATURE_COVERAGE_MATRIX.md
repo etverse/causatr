@@ -108,12 +108,13 @@ Rejections (all ✅ tested):
 | bin | binom | ATT | diff | sandwich | — | ✅ | test-simulation.R |
 | bin | binom | ATT | ratio/OR | sandwich | — | ✅ | test-simulation.R |
 | bin | quasibinom | ATT | diff | sandwich | — | ✅ | test-simulation.R |
+| bin | gauss | ATE (full) + EM | diff | sandwich | — | ✅ | test-effect-modification.R |
+| bin | gauss | ATE (full) + EM | diff | boot | — | ✅ | test-effect-modification.R |
 
 Rejections (all ✅ tested):
 - categorical treatment $\to$ test-matching.R
 - continuous treatment $\to$ test-matching.R
 - non-static interventions $\to$ test-contrast.R
-- `A:modifier` in confounders $\to$ test-matching.R, test-effect-modification.R
 - multivariate $\to$ test-s3-methods.R
 - longitudinal $\to$ test-matching.R
 
@@ -267,7 +268,7 @@ Supplementary: `test-weights-edge-cases.R` (external weights edge cases), `test-
 ## Planned (future phases)
 
 ### Phase 6 — Effect modification
-Unified `A:modifier` API across gcomp / IPW / matching / ICE. MSM expansion for IPW/matching, lag auto-expansion for ICE. All ❌.
+Unified `A:modifier` API across gcomp / IPW / matching / ICE. IPW MSM expansion ✅ (chunk 6b). Matching MSM expansion ✅ (chunk 6c). ICE lag auto-expansion ❌ (chunk 6d). Cross-method triangulation ❌ (chunk 6e).
 
 ### Phase 7 — Survival contrasts
 Survival curves S^a(t), risk at time t, risk difference/ratio, competing risks CIF, dynamic strategies, NHEFS Ch. 17 replication. All ❌.

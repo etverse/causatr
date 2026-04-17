@@ -372,23 +372,7 @@ test_that("IPW without EM terms is unaffected by EM infrastructure", {
   expect_false(fit$details$em_info$has_em)
 })
 
-# Matching rejection of EM terms (temporary, until chunk 6c) ----------------
-
-test_that("matching rejects A:modifier interaction terms in confounders", {
-  skip_if_not_installed("MatchIt")
-  d <- simulate_binary_continuous(n = 200, seed = 1)
-  d$sex <- rbinom(nrow(d), 1, 0.5)
-  expect_error(
-    causat(
-      d,
-      outcome = "Y",
-      treatment = "A",
-      confounders = ~ L + sex + A:sex,
-      estimator = "matching"
-    ),
-    class = "causatr_em_unsupported"
-  )
-})
+# Matching effect modification (chunk 6c) ------------------------------------
 
 test_that("matching rejects bare treatment in confounders", {
   skip_if_not_installed("MatchIt")
@@ -403,4 +387,169 @@ test_that("matching rejects bare treatment in confounders", {
     ),
     class = "causatr_bare_treatment_in_confounders"
   )
+})
+
+test_that("matching accepts A:modifier and stores em_info", {
+  skip_if_not_installed("MatchIt")
+  d <- simulate_effect_mod(n = 500, seed = 1)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L + sex + A:sex,
+    estimator = "matching"
+  )
+  expect_s3_class(fit, "causatr_fit")
+  expect_true(fit$details$em_info$has_em)
+  expect_equal(fit$details$em_info$modifier_vars, "sex")
+})
+
+# Truth-based: Matching sandwich with binary treatment x binary modifier.
+#
+# DGP 4: Y = 2 + 3*A + 1.5*L + 1.2*sex*A + N(0,1)
+#   True ATE|sex=0 = 3
+#   True ATE|sex=1 = 4.2
+#
+# The matching MSM expands to `Y ~ A + sex + A:sex`. Under `by = "sex"`,
+# `contrast()` averages the modifier-aware predictions per stratum.
+# MatchIt::matchit uses full matching for ATE.
+test_that("matching EM sandwich recovers stratum-specific ATEs (DGP 4)", {
+  skip_if_not_installed("MatchIt")
+  skip_if_not_installed("optmatch")
+  d <- simulate_effect_mod(n = 5000, seed = 42)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L + sex + A:sex,
+    estimator = "matching"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    type = "difference",
+    reference = "a0",
+    ci_method = "sandwich",
+    by = "sex"
+  )
+
+  ate_sex0 <- res$contrasts$estimate[res$contrasts$by == 0]
+  ate_sex1 <- res$contrasts$estimate[res$contrasts$by == 1]
+
+  # Point estimates within 0.5 of truth. Full matching has finite-sample
+  # bias on the order of O(1/n) (Abadie & Imbens 2011), so the CI may
+  # not always cover the exact truth — assert the point estimate is in
+  # the right ballpark.
+  expect_lt(abs(ate_sex0 - 3.0), 0.5)
+  expect_lt(abs(ate_sex1 - 4.2), 0.5)
+
+  # SEs are finite and positive.
+  expect_true(all(res$contrasts$se > 0))
+  expect_true(all(is.finite(res$contrasts$se)))
+})
+
+# Cross-check: matching EM agrees with gcomp EM on same DGP.
+test_that("matching EM agrees with gcomp EM on same DGP (DGP 4)", {
+  skip_if_not_installed("MatchIt")
+  skip_if_not_installed("optmatch")
+  d <- simulate_effect_mod(n = 5000, seed = 42)
+
+  fit_gc <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L + sex + A:sex
+  )
+  res_gc <- contrast(
+    fit_gc,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    type = "difference",
+    reference = "a0",
+    ci_method = "sandwich",
+    by = "sex"
+  )
+
+  fit_m <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L + sex + A:sex,
+    estimator = "matching"
+  )
+  res_m <- contrast(
+    fit_m,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    type = "difference",
+    reference = "a0",
+    ci_method = "sandwich",
+    by = "sex"
+  )
+
+  gc_sex0 <- res_gc$contrasts$estimate[res_gc$contrasts$by == 0]
+  gc_sex1 <- res_gc$contrasts$estimate[res_gc$contrasts$by == 1]
+  m_sex0 <- res_m$contrasts$estimate[res_m$contrasts$by == 0]
+  m_sex1 <- res_m$contrasts$estimate[res_m$contrasts$by == 1]
+  # Cross-method tolerance: matching is less efficient, but both are
+  # consistent, so estimates should agree within ~0.5 on n=5000.
+  expect_lt(abs(gc_sex0 - m_sex0), 0.5)
+  expect_lt(abs(gc_sex1 - m_sex1), 0.5)
+})
+
+# Bootstrap: matching EM bootstrap CIs cover the truth.
+test_that("matching EM bootstrap covers stratum-specific ATEs (DGP 4)", {
+  skip_if_not_installed("MatchIt")
+  skip_if_not_installed("optmatch")
+  d <- simulate_effect_mod(n = 3000, seed = 42)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L + sex + A:sex,
+    estimator = "matching"
+  )
+  res <- suppressWarnings(contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    type = "difference",
+    reference = "a0",
+    ci_method = "bootstrap",
+    n_boot = 100,
+    by = "sex"
+  ))
+
+  ci_sex0 <- res$contrasts[res$contrasts$by == 0, ]
+  ci_sex1 <- res$contrasts[res$contrasts$by == 1, ]
+  expect_lte(ci_sex0$ci_lower, 3.0)
+  expect_gte(ci_sex0$ci_upper, 3.0)
+  expect_lte(ci_sex1$ci_lower, 4.2)
+  expect_gte(ci_sex1$ci_upper, 4.2)
+})
+
+# Regression guard: matching without EM terms is unaffected.
+test_that("matching without EM terms is unaffected by EM infrastructure", {
+  skip_if_not_installed("MatchIt")
+  d <- simulate_binary_continuous(n = 2000, seed = 42)
+
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "matching"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    type = "difference",
+    reference = "a0",
+    ci_method = "sandwich"
+  )
+
+  # DGP 1 has ATE = 3.
+  expect_lt(abs(res$contrasts$estimate[1] - 3.0), 0.5)
+  expect_lte(res$contrasts$ci_lower[1], 3.0)
+  expect_gte(res$contrasts$ci_upper[1], 3.0)
+
+  # em_info should report no EM terms.
+  expect_false(fit$details$em_info$has_em)
 })

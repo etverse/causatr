@@ -246,8 +246,10 @@ on the stratum. No changes to `by` itself.
 - [x] `tests/testthat/test-ipw.R` — updated rejection test $\to$ acceptance test
 
 ### Chunk 6c — Matching MSM expansion
-- [ ] `R/matching.R` — `fit_matching()` MSM expansion + `fit$details$em_info`
-- [ ] `tests/testthat/test-effect-modification.R` — matching truth + bootstrap + regression guard
+- [x] `R/matching.R` — `fit_matching()` MSM expansion via `build_matching_msm_formula()` + `fit$details$em_info` + formula env fix
+- [x] `R/variance_bootstrap.R` — `refit_matching()` replays EM-expanded MSM + formula env fix
+- [x] `tests/testthat/test-effect-modification.R` — matching truth (DGP 4, sandwich), bootstrap, gcomp cross-check, regression guard
+- [x] `tests/testthat/test-matching.R` — updated rejection test → acceptance test
 
 ### Chunk 6d — ICE lag auto-expansion
 - [ ] `R/ice.R` — `ice_build_formula()` auto-expansion of `A:modifier` across lags

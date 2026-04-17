@@ -1,6 +1,6 @@
 # causatr (development version)
 
-## 2026-04-17 — Phase 6 chunks 6a--6b: effect modification infrastructure + IPW MSM expansion
+## 2026-04-17 — Phase 6 chunks 6a--6c: effect modification infrastructure + IPW/matching MSM expansion
 
 **Phase 6 chunk 6a — `parse_effect_mod()` infrastructure + gate refactoring.**
 
@@ -28,6 +28,25 @@
   `X_star`, and `phi_bar` all extend from `p_beta = 1` to `p_beta > 1`.
 - Tests: DGP-4 truth-based simulation (binary treatment x binary modifier,
   sandwich SE), bootstrap parity, gcomp cross-check.
+
+**Phase 6 chunk 6c — Matching MSM expansion for effect modification.**
+
+- The matching MSM expands from `Y ~ A` to `Y ~ A + modifier + A:modifier`
+  when `parse_effect_mod()` detects an interaction term in `confounders`.
+  `build_matching_msm_formula()` constructs the saturated MSM; the expanded
+  model recovers stratum-specific treatment effects via the matched-sample
+  outcome regression.
+- `refit_matching()` (bootstrap path) replays the EM-expanded MSM formula
+  so bootstrap SEs correctly track the effect-modification structure.
+- Formula environment fix: `stats::glm()` evaluates `weights` in the
+  formula's environment, but formulas returned from helper functions carry
+  the helper's frame. Both `fit_matching()` and `refit_matching()` now
+  reset the formula environment to the local frame.
+- The variance engine (`variance_if_matching`) generalises unchanged:
+  `prepare_model_if()` and `apply_model_correction()` work on the
+  expanded GLM's coefficients, score, and bread without modification.
+- Tests: DGP-4 truth-based simulation (binary treatment x binary modifier,
+  sandwich SE), bootstrap parity, gcomp cross-check, regression guard.
 
 ## 2026-04-17 — CRAN compliance: non-ASCII character cleanup
 
