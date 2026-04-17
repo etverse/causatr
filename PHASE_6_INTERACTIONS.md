@@ -1,6 +1,6 @@
 # Phase 6 — Unified Effect-Modification API
 
-> **Status: PENDING (design doc)**
+> **Status: DONE**
 > Book chapters: 13 (standardization + effect modification), 15 (matching-based effect modification), 21 (ICE effect modification across time)
 
 ## Scope
@@ -258,9 +258,9 @@ on the stratum. No changes to `by` itself.
 - [x] `tests/testthat/test-effect-modification.R` — ICE truth (2-period ATE|sex=0=5/sex=1=8, 3-period ATE|sex=0=8/sex=1=12.5) + multiple EM terms smoke + bootstrap + regression guard + `expand_em_lag_terms()` unit tests
 
 ### Chunk 6e — Cross-method triangulation + docs + matrix
-- [ ] `tests/testthat/test-effect-modification.R` — cross-method triangulation test
-- [ ] `FEATURE_COVERAGE_MATRIX.md` — upgrade EM cells + add cross-method row
-- [ ] `NEWS.md` — document the EM unification
-- [ ] `CLAUDE.md` — update Phase 6 status + EM architecture notes
-- [ ] `PHASE_6_INTERACTIONS.md` — mark all items done
-- [ ] Vignette updates (gcomp, ipw, matching, longitudinal, triangulation)
+- [x] `tests/testthat/test-effect-modification.R` — cross-method triangulation test (gcomp + IPW + matching on DGP 4, truth + pairwise agreement)
+- [x] `FEATURE_COVERAGE_MATRIX.md` — added cross-method EM triangulation row, marked Phase 6 complete
+- [x] `NEWS.md` — Phase 6 completion entry
+- [x] `CLAUDE.md` — updated Phase 6 status to done
+- [x] `PHASE_6_INTERACTIONS.md` — all items marked done
+- [x] Vignette updates: ipw.qmd (worked example), matching.qmd (worked example), longitudinal.qmd (ICE EM section), triangulation.qmd (cross-method EM example), gcomp.qmd (updated callout), introduction.qmd (updated EM description)

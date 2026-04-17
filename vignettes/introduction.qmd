@@ -142,12 +142,12 @@ causatr supports binary, continuous, categorical, and multivariate treatments:
 For multivariate treatments (e.g. `treatment = c("A1", "A2")`), supply
 interventions as named lists with one element per treatment variable.
 
-Effect modification in the outcome / MSM model itself (e.g. `~ L + sex + A:sex`)
-is currently supported only for g-computation. IPW and matching wrap a
-saturated `Y ~ A` MSM around the propensity / matched design, and reject an
-`A:modifier` term up front — use `estimator = "gcomp"` for heterogeneous effects,
-or `by = "modifier"` below for stratum-specific summaries of a homogeneous
-effect. See `PHASE_6_INTERACTIONS.md` for the planned unified API.
+Effect modification via `A:modifier` interaction terms in `confounders` is
+supported across all four estimation methods. G-comp feeds the interaction to
+the outcome model directly; IPW expands the per-intervention MSM to
+`Y ~ 1 + modifier`; matching expands to `Y ~ A + modifier + A:modifier`;
+and ICE auto-expands the interaction across treatment lags. Use
+`by = "modifier"` in `contrast()` to obtain stratum-specific estimates.
 
 ## Effect modification
 

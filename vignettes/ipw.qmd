@@ -736,15 +736,47 @@ abline(h = 0, lty = 2, col = "grey40")
 
 ## Effect modification with `by`
 
-::: {.callout-tip}
-## IPW effect modification
+When `confounders` includes an `A:modifier` interaction term, IPW expands
+the per-intervention MSM from `Y ~ 1` to `Y ~ 1 + modifier`. The modifier
+main effects let `predict()` return stratum-specific counterfactual means;
+the treatment itself is still absorbed by the density-ratio weights. Use
+`by = "modifier"` in `contrast()` to recover heterogeneous treatment effects.
 
-When `confounders` includes an `A:modifier` term (e.g. `~ L + sex + A:sex`),
-IPW expands the per-intervention MSM from `Y ~ 1` to `Y ~ 1 + modifier`.
-The modifier main effects let `predict()` return stratum-specific
-counterfactual means; the treatment itself is still absorbed by the
-density-ratio weights. Use `by = "modifier"` in `contrast()` to recover
-heterogeneous treatment effects.
+Here we add a `qsmk:sex` interaction to examine how the effect of quitting
+smoking on weight change differs by sex. The propensity model automatically
+strips the interaction term (it only enters the MSM, not the treatment model).
+
+```{r}
+fit_ipw_hte <- causat(
+  nhefs,
+  outcome = "wt82_71",
+  treatment = "qsmk",
+  confounders = ~ sex + age + I(age^2) + race + factor(education) +
+    smokeintensity + I(smokeintensity^2) + smokeyrs + I(smokeyrs^2) +
+    factor(exercise) + factor(active) + wt71 + I(wt71^2) +
+    qsmk:sex,
+  estimator = "ipw",
+  censoring = "censored"
+)
+
+res_ipw_by_sex <- contrast(
+  fit_ipw_hte,
+  interventions = list(quit = static(1), continue = static(0)),
+  reference = "continue",
+  type = "difference",
+  ci_method = "sandwich",
+  by = "sex"
+)
+res_ipw_by_sex
+```
+
+::: {.callout-note}
+The `A:modifier` term does not enter the propensity model --- it would
+create a post-treatment variable problem. `build_ps_formula()` strips
+interaction terms involving the treatment automatically. The modifier
+enters only the per-intervention MSM as a main effect, enabling
+stratum-specific counterfactual mean estimation under the density-ratio
+weights.
 :::
 
 ## Tidy and glance

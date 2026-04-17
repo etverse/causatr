@@ -256,6 +256,7 @@ Contrast path: ❌ all pending (Phase 7). `contrast()` on survival fit aborts to
 | Numeric variance Tier 1 / Tier 2 | ✅ | test-variance-if.R |
 | Cluster-robust test-matching.R variance | ✅ | test-variance-if.R, test-simulation.R |
 | `causat_mice()` stub | 🟡 | test-causat-mice.R |
+| Cross-method EM triangulation (gcomp + IPW + matching) | ✅ | test-effect-modification.R |
 
 ### Critical-review regression tests (2026-04-15)
 
@@ -279,7 +280,7 @@ Supplementary: `test-weights-edge-cases.R` (external weights edge cases), `test-
 ## Planned (future phases)
 
 ### Phase 6 — Effect modification
-Unified `A:modifier` API across gcomp / IPW / matching / ICE. IPW MSM expansion ✅ (chunk 6b). Matching MSM expansion ✅ (chunk 6c). ICE lag auto-expansion ✅ (chunk 6d). Cross-method triangulation ❌ (chunk 6e).
+Unified `A:modifier` API across gcomp / IPW / matching / ICE. IPW MSM expansion ✅ (chunk 6b). Matching MSM expansion ✅ (chunk 6c). ICE lag auto-expansion ✅ (chunk 6d). Cross-method triangulation ✅ (chunk 6e). **Phase complete.**
 
 ### Phase 7 — Survival contrasts
 Survival curves S^a(t), risk at time t, risk difference/ratio, competing risks CIF, dynamic strategies, NHEFS Ch. 17 replication. All ❌.

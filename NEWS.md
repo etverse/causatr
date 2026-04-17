@@ -1,5 +1,23 @@
 # causatr (development version)
 
+## 2026-04-17 — Phase 6 complete: unified effect-modification API
+
+Phase 6 (chunks 6a--6e) delivers a unified effect-modification API across
+all four estimation methods. Users write `confounders = ~ L + sex + A:sex`
+and every method does the right thing:
+
+- **G-comp** feeds the interaction to the outcome model directly.
+- **IPW** expands the per-intervention MSM from `Y ~ 1` to `Y ~ 1 + modifier`
+  via `build_ipw_msm_formula()`.
+- **Matching** expands the outcome MSM from `Y ~ A` to
+  `Y ~ A + modifier + A:modifier` via `build_matching_msm_formula()`.
+- **ICE** auto-expands the interaction across treatment lags
+  (`lag1_A:modifier`, `lag2_A:modifier`, ...) via `expand_em_lag_terms()`.
+
+Cross-method triangulation test confirms that gcomp, IPW, and matching
+agree on stratum-specific ATEs within cross-method tolerance on the same
+DGP. Vignettes updated with worked examples for all four methods.
+
 ## 2026-04-17 — Phase 6 chunk 6d: ICE lag auto-expansion for effect modification
 
 ICE g-computation now auto-expands `A:modifier` interaction terms across

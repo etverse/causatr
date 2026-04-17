@@ -433,14 +433,48 @@ Any additional MatchIt knobs (`ratio`, `replace`, `caliper`, `distance`,
 
 ## Effect modification with `by`
 
-::: {.callout-tip}
-## Matching effect modification
+When `confounders` includes an `A:modifier` interaction term, matching
+expands the outcome MSM from `Y ~ A` to `Y ~ A + modifier + A:modifier`.
+The saturated MSM recovers stratum-specific treatment effects on the
+matched sample. Use `by = "modifier"` in `contrast()` to obtain
+heterogeneous treatment effects.
 
-When `confounders` includes an `A:modifier` term (e.g. `~ L + sex + A:sex`),
-matching expands the outcome MSM from `Y ~ A` to `Y ~ A + modifier + A:modifier`.
-The saturated MSM recovers stratum-specific treatment effects on the matched
-sample. Use `by = "modifier"` in `contrast()` to obtain heterogeneous
-treatment effects.
+Here we add a `qsmk:sex` interaction to examine how the effect of quitting
+smoking on weight change differs by sex. The propensity score model used
+for matching automatically strips the interaction term.
+
+```{r}
+#| eval: !expr has_optmatch
+fit_m_hte <- causat(
+  nhefs,
+  outcome = "wt82_71",
+  treatment = "qsmk",
+  confounders = ~ sex + age + I(age^2) + race + factor(education) +
+    smokeintensity + I(smokeintensity^2) + smokeyrs + I(smokeyrs^2) +
+    factor(exercise) + factor(active) + wt71 + I(wt71^2) +
+    qsmk:sex,
+  estimator = "matching",
+  censoring = "censored"
+)
+
+res_m_by_sex <- contrast(
+  fit_m_hte,
+  interventions = list(quit = static(1), continue = static(0)),
+  reference = "continue",
+  type = "difference",
+  ci_method = "sandwich",
+  by = "sex"
+)
+res_m_by_sex
+```
+
+::: {.callout-note}
+The matching expansion differs from IPW: because matching weights are
+subclass indicators (not density-ratio weights), the treatment is **not**
+absorbed by the weights. The outcome MSM must therefore include `A`,
+`modifier`, and `A:modifier` --- the full saturated model for the
+treatment-by-modifier interaction. The propensity score model used for
+match construction strips the `A:modifier` term automatically.
 :::
 
 ## Tidy and glance

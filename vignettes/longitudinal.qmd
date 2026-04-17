@@ -982,6 +982,78 @@ combinations, see `FEATURE_COVERAGE_MATRIX.md` §"Method 4 — ICE longitudinal
 g-computation" (20+ truth-pinned rows against `lmtp::lmtp_tmle` / analytic
 targets / Hernán & Robins Table 20.1).
 
+## Effect modification across time
+
+When `confounders` includes an `A:modifier` interaction term (e.g.
+`~ L0 + sex + A:sex`), ICE auto-expands the interaction across treatment
+lags. At each backward step, the outcome model includes not only `A:sex`
+(current period) but also `lag1_A:sex`, `lag2_A:sex`, etc. for all
+available lags. This captures how the effect of treatment at every time
+point is modified by the baseline variable.
+
+Without this expansion, ICE would capture effect modification only at the
+current treatment period, collapsing roughly half the intended heterogeneity
+in a 2-period DGP.
+
+**DGM.** A 2-period DGP with sex-specific treatment effects:
+
+$$
+\begin{aligned}
+  L_0, \text{sex} &\sim N(0,1),\; \text{Bern}(0.5) \\
+  A_0 \mid L_0 &\sim \text{Bern}(\text{expit}(0.3 L_0)) \\
+  L_1 \mid A_0, L_0 &= A_0 + 0.5 L_0 + \varepsilon \\
+  A_1 \mid L_1 &\sim \text{Bern}(\text{expit}(0.3 L_1)) \\
+  Y \mid \bar{A}, \bar{L}, \text{sex} &= 10 + (2 + 1.5 \cdot \text{sex})(A_0 + A_1) + L_0 + L_1 + \varepsilon
+\end{aligned}
+$$
+
+True always-vs-never ATE: $\text{ATE}|\text{sex}=0 = 5$,
+$\text{ATE}|\text{sex}=1 = 8$.
+
+```{r}
+set.seed(42)
+n <- 5000
+L0 <- rnorm(n)
+sex <- rbinom(n, 1, 0.5)
+A0 <- rbinom(n, 1, plogis(0.3 * L0))
+L1 <- A0 + 0.5 * L0 + rnorm(n, 0, 0.5)
+A1 <- rbinom(n, 1, plogis(0.3 * L1))
+Y <- 10 + (2 + 1.5 * sex) * (A0 + A1) + L0 + L1 + rnorm(n)
+
+d_em <- rbind(
+  data.frame(id = 1:n, time = 0L, A = A0, L = NA_real_,
+             L0 = L0, sex = sex, Y = NA_real_),
+  data.frame(id = 1:n, time = 1L, A = A1, L = L1,
+             L0 = L0, sex = sex, Y = Y)
+)
+
+fit_ice_em <- causat(
+  d_em,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L0 + sex + A:sex,
+  confounders_tv = ~ L,
+  id = "id",
+  time = "time"
+)
+
+res_ice_em <- contrast(
+  fit_ice_em,
+  interventions = list(always = static(1), never = static(0)),
+  reference = "never",
+  type = "difference",
+  ci_method = "sandwich",
+  by = "sex"
+)
+res_ice_em
+```
+
+The `A:sex` interaction is auto-expanded at the final backward step to
+include `lag1_A:sex`, so both treatment periods contribute sex-specific
+effects. The sandwich variance engine requires no special handling --- the
+model matrices simply grow to accommodate the additional interaction columns,
+and the ICE cascade gradient propagates through them.
+
 ## Summary of covered combinations
 
 **Legend.** ✅ covered and truth-pinned in tests (either against Table 20.1
@@ -1001,6 +1073,8 @@ informative error.
 | Binary | Binary | Static | ATE | Difference | Sandwich | none | ✅ (4 periods) |
 | Binary | Binary | Static | ATE | Difference | Bootstrap (parallel) | none | ✅ |
 | Binary | Continuous | Static | ATE | Difference | Sandwich | censoring | ✅ |
+| Binary | Continuous | Static + EM | ATE | Difference | Sandwich / bootstrap | none | ✅ |
+| Continuous | Continuous | Shift + EM | ATE | Difference | Sandwich | none | ✅ |
 | Binary | Any | IPSI($\delta$) | — | — | — | — | ⛔ Phase 4 |
 | Binary | Any | Static / ATT | ATT | — | — | — | ⛔ ICE is ATE-only |
 

@@ -1168,3 +1168,106 @@ test_that("ICE EM binary: causatr agrees with lmtp per-stratum (DGP-EM-ICE)", {
     )
   }
 })
+
+# Cross-method triangulation (chunk 6e) ----------------------------------------
+
+# All three point-treatment methods (gcomp, IPW, matching) run on the same
+# EM DGP and must agree on stratum-specific ATEs within cross-method
+# tolerance. This is the capstone test for Phase 6: if the three methods
+# agree with each other and with the analytical truth, the EM infrastructure
+# is wired correctly across all estimation engines.
+#
+# DGP 4: Y = 2 + 3*A + 1.5*L + 1.2*sex*A + N(0,1)
+#   True ATE|sex=0 = 3
+#   True ATE|sex=1 = 4.2
+test_that("cross-method EM triangulation: gcomp, IPW, matching agree (DGP 4)", {
+  skip_if_not_installed("MatchIt")
+  skip_if_not_installed("optmatch")
+  d <- simulate_effect_mod(n = 5000, seed = 42)
+
+  common_formula <- ~ L + sex + A:sex
+  common_interventions <- list(a1 = static(1), a0 = static(0))
+
+  # G-computation
+  fit_gc <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = common_formula
+  )
+  res_gc <- contrast(
+    fit_gc,
+    interventions = common_interventions,
+    type = "difference",
+    reference = "a0",
+    ci_method = "sandwich",
+    by = "sex"
+  )
+
+  # IPW
+  fit_ipw <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = common_formula,
+    estimator = "ipw"
+  )
+  res_ipw <- contrast(
+    fit_ipw,
+    interventions = common_interventions,
+    type = "difference",
+    reference = "a0",
+    ci_method = "sandwich",
+    by = "sex"
+  )
+
+  # Matching (full matching for ATE)
+  fit_m <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = common_formula,
+    estimator = "matching"
+  )
+  res_m <- contrast(
+    fit_m,
+    interventions = common_interventions,
+    type = "difference",
+    reference = "a0",
+    ci_method = "sandwich",
+    by = "sex"
+  )
+
+  # Extract stratum-specific ATEs
+  gc <- setNames(res_gc$contrasts$estimate, res_gc$contrasts$by)
+  ipw <- setNames(res_ipw$contrasts$estimate, res_ipw$contrasts$by)
+  m <- setNames(res_m$contrasts$estimate, res_m$contrasts$by)
+
+  # All three methods recover the truth (ATE|sex=0 = 3, ATE|sex=1 = 4.2).
+  truth <- c("0" = 3.0, "1" = 4.2)
+  for (s in c("0", "1")) {
+    expect_lt(abs(gc[s] - truth[s]), 0.3, label = paste0("gcomp ATE|sex=", s))
+    expect_lt(abs(ipw[s] - truth[s]), 0.3, label = paste0("IPW ATE|sex=", s))
+    expect_lt(abs(m[s] - truth[s]), 0.5, label = paste0("matching ATE|sex=", s))
+  }
+
+  # Pairwise agreement: all three within 0.5 of each other per stratum.
+  for (s in c("0", "1")) {
+    expect_lt(abs(gc[s] - ipw[s]), 0.5, label = paste0("gcomp vs IPW |sex=", s))
+    expect_lt(
+      abs(gc[s] - m[s]),
+      0.5,
+      label = paste0("gcomp vs matching |sex=", s)
+    )
+    expect_lt(
+      abs(ipw[s] - m[s]),
+      0.5,
+      label = paste0("IPW vs matching |sex=", s)
+    )
+  }
+
+  # All SEs are finite and positive.
+  expect_true(all(res_gc$contrasts$se > 0))
+  expect_true(all(res_ipw$contrasts$se > 0))
+  expect_true(all(res_m$contrasts$se > 0))
+})

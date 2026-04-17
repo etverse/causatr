@@ -178,6 +178,70 @@ plot(diag_ipw)
 plot(diag_m)
 ```
 
+## Cross-method effect modification
+
+All three point-treatment methods support effect modification via
+`A:modifier` interaction terms in `confounders`. When the three methods
+agree on stratum-specific treatment effects, this gives strong evidence
+that the effect heterogeneity is real rather than an artefact of model
+specification.
+
+Here we add `qsmk:sex` to examine whether the effect of quitting smoking
+on weight change differs by sex. Each method handles the interaction
+differently (g-comp feeds it to the outcome model; IPW expands the MSM to
+`Y ~ 1 + sex`; matching expands to `Y ~ qsmk + sex + qsmk:sex`), but all
+should recover the same stratum-specific estimates under correct
+specification.
+
+```{r}
+confounders_em <- ~ sex + age + I(age^2) + race + factor(education) +
+  smokeintensity + I(smokeintensity^2) + smokeyrs + I(smokeyrs^2) +
+  factor(exercise) + factor(active) + wt71 + I(wt71^2) +
+  qsmk:sex
+
+fit_gc_em <- causat(nhefs_complete, outcome = "wt82_71",
+  treatment = "qsmk", confounders = confounders_em)
+fit_ipw_em <- causat(nhefs_complete, outcome = "wt82_71",
+  treatment = "qsmk", confounders = confounders_em, estimator = "ipw")
+fit_m_em <- causat(nhefs_complete, outcome = "wt82_71",
+  treatment = "qsmk", confounders = confounders_em, estimator = "matching")
+
+res_gc_em <- contrast(fit_gc_em, ivs, reference = "continue",
+  ci_method = "sandwich", by = "sex")
+res_ipw_em <- contrast(fit_ipw_em, ivs, reference = "continue",
+  ci_method = "sandwich", by = "sex")
+res_m_em <- contrast(fit_m_em, ivs, reference = "continue",
+  ci_method = "sandwich", by = "sex")
+
+results_em <- rbind(
+  cbind(method = "G-computation", res_gc_em$contrasts),
+  cbind(method = "IPW", res_ipw_em$contrasts),
+  cbind(method = "Matching", res_m_em$contrasts)
+)
+results_em
+```
+
+```{r}
+#| fig-width: 7
+#| fig-height: 4
+#| fig-alt: "Forest plot comparing methods on sex-stratified ATE (effect modification)."
+tinyplot(
+  estimate ~ interaction(method, by),
+  data = results_em,
+  type = "pointrange",
+  ymin = results_em$ci_lower,
+  ymax = results_em$ci_upper,
+  xlab = "Method x Sex",
+  ylab = "ATE: weight change (kg)",
+  main = "Triangulation: effect modification by sex"
+)
+abline(h = 0, lty = 2, col = "grey40")
+```
+
+Agreement across methods within each stratum provides evidence that the
+sex-specific effects are real. Disagreement would point to model
+misspecification in one or more methods.
+
 ## When to use which method
 
 | Criterion | G-computation | IPW | Matching |
