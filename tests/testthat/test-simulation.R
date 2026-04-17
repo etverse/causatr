@@ -1507,10 +1507,10 @@ test_that("triangulation: all methods agree on binary outcome RD", {
 
 test_that("causat_survival fits on data with censoring", {
   # Smoke test for the censoring path in causat_survival(). The
-  # Phase 6 contrast() survival pathway is still pending, but the
+  # Phase 7 contrast() survival pathway is still pending, but the
   # pooled-logistic fit should accept an additional censoring
   # column and drop post-censoring rows from the fitting set. Locks
-  # in the fit-time behavior so Phase 6 can layer contrast support
+  # in the fit-time behavior so Phase 7 can layer contrast support
   # without regressing the existing smoke.
   set.seed(321)
   n_id <- 150

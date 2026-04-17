@@ -128,7 +128,7 @@
       Error in `causat()`:
       ! `history` must be a positive integer or `Inf`.
 
-# causat_survival() aborts on non-NULL competing= until Phase 6
+# causat_survival() aborts on non-NULL competing= until Phase 7
 
     Code
       causat_survival(long, outcome = "Y", treatment = "A", confounders = ~L, id = "id",

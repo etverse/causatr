@@ -619,9 +619,9 @@ so future drift between the matrix and the test files fails loudly.
   the copy and lets `subset` expressions reference session variables
   like `quote(age > cutoff)`.
 - **FEATURE_COVERAGE_MATRIX survival section split (S8).** Replaced
-  the mixed "fit-only smoke (Phase 6 contrast pending)" rows with an
+  the mixed "fit-only smoke (Phase 7 contrast pending)" rows with an
   explicit three-table layout (fit path / contrast path / rejection
-  path) so the Phase 6 gap is visible without status annotations that
+  path) so the Phase 7 gap is visible without status annotations that
   mean different things on different rows.
 - **`.pseudo_y` column collision guard in ICE (S9).** `fit_ice()` now
   aborts upfront if `data` already has a column named `.pseudo_y`,
@@ -663,7 +663,7 @@ every combination supported by `FEATURE_COVERAGE_MATRIX.md`:
   cascade-gradient correction in §5.4 of the theory vignette), and a
   censoring / IPCW-style example.
 - **`survival.qmd`** — replaced the 3-line TODO stub with a full
-  narrative of the current fit-only Phase 6 status, the intended
+  narrative of the current fit-only Phase 7 status, the intended
   end-to-end contrast algorithm, and the tracking pointers.
 - **`triangulation.qmd`** — introduction.qmd and the comparison table
   both corrected for the drift above (matching is binary-only;
@@ -698,7 +698,7 @@ every combination supported by `FEATURE_COVERAGE_MATRIX.md`:
   - ICE × `scale_by`, `threshold`, `shift` bootstrap, bootstrap ×
     survey weights, binomial × ratio/OR, `by(sex)` stratification,
     external-weights truth test
-  - Survival × censored fit (smoke; contrasts still Phase 6)
+  - Survival × censored fit (smoke; contrasts still Phase 7)
   - End-to-end Tier 2 numeric variance via a custom `model_fn`
   - `vcov_from_if(cluster = ...)` unit test vs hand-computed
     reference

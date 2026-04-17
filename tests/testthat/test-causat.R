@@ -189,12 +189,12 @@ test_that("causat() rejects invalid history value", {
 })
 
 
-test_that("causat_survival() aborts on non-NULL competing= until Phase 6", {
+test_that("causat_survival() aborts on non-NULL competing= until Phase 7", {
   # Regression guard: previously `competing` was stored in
   # fit$details$competing but never consumed by the pooled-logistic
   # fit, silently fitting a cause-deleted hazard model. That gives
   # biased cumulative-incidence estimates whenever a competing event
-  # is present — abort loudly until Phase 6 implements proper
+  # is present — abort loudly until Phase 7 implements proper
   # sub-distribution / Aalen-Johansen handling.
   set.seed(1)
   long <- data.table::data.table(
