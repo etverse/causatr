@@ -537,3 +537,60 @@ test_that("ipsi() is explicitly rejected by ICE/contrast() (Phase 4 placeholder)
     )
   )
 })
+
+
+test_that("ICE predictions saturated at {0,1} fire a classed warning", {
+  # A binary-outcome ICE fit whose final-time model produces predictions
+  # at exactly 0 or 1 silently drops those rows from the next backward
+  # quasibinomial pseudo-outcome model (IWLS working weight
+  # `mu*(1-mu) = 0`). A rate-limited classed warning
+  # `causatr_ice_boundary_saturation` now surfaces the risk.
+  set.seed(2024)
+  n <- 300
+  Tper <- 3
+  rows <- expand.grid(time = 0:(Tper - 1L), id = seq_len(n))
+  rows <- rows[order(rows$id, rows$time), ]
+  rows$L <- stats::rnorm(nrow(rows))
+  rows$A <- stats::rbinom(nrow(rows), 1, stats::plogis(0.2 * rows$L))
+  is_final <- rows$time == (Tper - 1L)
+  rows$Y <- NA_real_
+  # Extreme coefficients push a handful of final-time preds to 0/1.
+  eta <- -8 + 12 * rows$A[is_final] + 8 * rows$L[is_final]
+  rows$Y[is_final] <- stats::rbinom(sum(is_final), 1, stats::plogis(eta))
+
+  fit <- causat(
+    rows,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~1,
+    confounders_tv = ~L,
+    estimator = "gcomp",
+    type = "longitudinal",
+    id = "id",
+    time = "time",
+    family = stats::binomial()
+  )
+
+  # Reset the frequency throttle so this test is deterministic even if
+  # the classed warning already fired earlier in the session.
+  rlang::reset_warning_verbosity("causatr_ice_boundary_saturation")
+
+  saw <- FALSE
+  msg <- NULL
+  withCallingHandlers(
+    contrast(
+      fit,
+      interventions = list(a1 = static(1), a0 = static(0)),
+      ci_method = "sandwich"
+    ),
+    causatr_ice_boundary_saturation = function(w) {
+      saw <<- TRUE
+      msg <<- conditionMessage(w)
+      invokeRestart("muffleWarning")
+    },
+    warning = function(w) invokeRestart("muffleWarning")
+  )
+
+  expect_true(saw)
+  expect_match(msg, "saturated at \\{0, 1\\}")
+})

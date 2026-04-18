@@ -538,6 +538,16 @@ ice_iterate <- function(fit, intervention) {
   )
   pred_ids <- as.character(data[pred_mask][[id_col]])
   pseudo[pred_ids] <- preds
+  # Saturation check on the final-time predictions. These are the
+  # inputs to the backward recursion: any row whose prediction lands
+  # exactly at {0, 1} enters the next step's quasibinomial pseudo
+  # model with zero IWLS working weight and silently drops from that
+  # fit, biasing the counterfactual chain. Firing here (not only in
+  # the loop below) catches the common case where only the final-time
+  # outcome model has extreme linear predictors.
+  if (n_times > 1L && is_binary_family(family_outcome)) {
+    warn_ice_boundary_saturation(preds, final_time)
+  }
 
   # -- Steps 2+: backward iteration (time K-1 down to time 0).
   # At each step we fit a "pseudo-outcome" model regressing the
@@ -624,6 +634,11 @@ ice_iterate <- function(fit, intervention) {
       newdata = pred_all,
       type = "response"
     )
+    # Saturation check on each backward step's predictions (see the
+    # companion call after the final-time model for rationale).
+    if (step_i > 1L && is_binary_family(family_pseudo)) {
+      warn_ice_boundary_saturation(preds, current_time)
+    }
     pred_ids_all <- as.character(data[mask_current][[id_col]])
     pseudo[pred_ids_all] <- preds
   }
@@ -643,4 +658,59 @@ ice_iterate <- function(fit, intervention) {
     data_iv = data_iv,
     fit_ids = fit_ids
   )
+}
+
+
+#' Warn when ICE binary predictions saturate at {0, 1}
+#'
+#' @description
+#' Emits a rate-limited classed warning (`causatr_ice_boundary_saturation`)
+#' when a nontrivial share of predictions sit exactly at `0` or `1`.
+#' These rows enter the next backward pseudo-outcome model's
+#' quasibinomial IWLS fit with zero working weight `mu * (1 - mu)` and
+#' are silently excluded, biasing the counterfactual mean.
+#'
+#' Rate-limited via `rlang::warn(.frequency = "once")` so long ICE
+#' chains and bootstrap loops do not flood stderr with one warning per
+#' backward step / replicate.
+#'
+#' @param preds Numeric vector of predicted probabilities.
+#' @param current_time The time point at which the predictions were
+#'   generated (used only in the warning message).
+#'
+#' @return Invisibly `NULL`. Called for the side-effect warning.
+#'
+#' @noRd
+warn_ice_boundary_saturation <- function(preds, current_time) {
+  eps <- .Machine$double.eps
+  n_sat <- sum(preds <= eps | preds >= 1 - eps, na.rm = TRUE)
+  if (n_sat == 0L) {
+    return(invisible(NULL))
+  }
+  pct <- round(100 * n_sat / length(preds), 1)
+  rlang::warn(
+    c(
+      paste0(
+        n_sat,
+        " of ",
+        length(preds),
+        " ICE predictions (",
+        pct,
+        "%) saturated at {0, 1} at time ",
+        current_time,
+        "."
+      ),
+      i = paste0(
+        "These rows enter the next backward pseudo-outcome model with ",
+        "zero IWLS working weight and are silently excluded from that ",
+        "fit. The resulting counterfactual mean may be biased. Check ",
+        "for extreme linear predictors in the outcome model, or fit ",
+        "with a regularised `model_fn`."
+      )
+    ),
+    class = "causatr_ice_boundary_saturation",
+    .frequency = "once",
+    .frequency_id = "causatr_ice_boundary_saturation"
+  )
+  invisible(NULL)
 }

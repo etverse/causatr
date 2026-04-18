@@ -379,9 +379,9 @@ test_that("variance_if_numeric() Tier 2 keeps full Channel-1 covariance", {
   V_beta <- stats::vcov(m)
   V_ref <- J %*% V_beta %*% t(J) + V1
 
-  # Tier-2 returns a vcov carrying `attr(., "tier2_approximate") = TRUE`
-  # (Issue L1); strip it before the numeric comparison against the hand
-  # reference, but assert it is present.
+  # Tier-2 returns a vcov carrying `attr(., "tier2_approximate") = TRUE`;
+  # strip it before the numeric comparison against the hand reference,
+  # but assert it is present.
   expect_true(isTRUE(attr(V, "tier2_approximate")))
   attr(V, "tier2_approximate") <- NULL
   expect_equal(unname(V), unname(V_ref), tolerance = 1e-8)
@@ -561,11 +561,10 @@ test_that("variance_if_numeric() Tier 2 works end-to-end via a custom model_fn",
     abs(res$contrasts$se - res_main$contrasts$se) / res_main$contrasts$se,
     0.1
   )
-  # Fifth-round critical review Issue L1 (2026-04-18): Tier-2 results
-  # must carry an `attr(vcov, "tier2_approximate") = TRUE` marker so
-  # downstream code can detect the approximate-variance path after
-  # the warning has scrolled off. The main path (analytic IF) must NOT
-  # carry this attribute. Repro: /tmp/causatr_repro_tier2.R.
+  # Tier-2 results must carry an `attr(vcov, "tier2_approximate") = TRUE`
+  # marker so downstream code can detect the approximate-variance path
+  # after the warning has scrolled off. The main path (analytic IF)
+  # must NOT carry this attribute.
   expect_true(isTRUE(attr(res$vcov, "tier2_approximate")))
   expect_null(attr(res_main$vcov, "tier2_approximate"))
 })
@@ -663,16 +662,13 @@ test_that("bread_inv() singular warning is rate-limited on repeat calls", {
 })
 
 
-# ── bread_inv() aborts on GAM with missing $Vp (Issue L2) ─────────────────
-
 test_that("bread_inv() aborts when a GAM fit has no $Vp", {
-  # Sixth-round critical review Issue L2 (2026-04-18): previously, a
-  # GAM-classed object with `$Vp == NULL` fell through to the GLM-style
-  # `X'WX` bread on `model.matrix(model)`. For a GAM that matrix is
-  # the basis-expanded linear-predictor design, and the penalised IWLS
-  # weights cannot be recovered from a naive solve, silently producing
-  # a miscalibrated sandwich variance. Abort loudly instead. Repro:
-  # /tmp/causatr_repro_gam_no_vp.R.
+  # A GAM-classed object with `$Vp == NULL` used to fall through to the
+  # GLM-style `X'WX` bread on `model.matrix(model)`. For a GAM that
+  # matrix is the basis-expanded linear-predictor design, and the
+  # penalised IWLS weights cannot be recovered from a naive solve,
+  # silently producing a miscalibrated sandwich variance. Now aborts
+  # loudly instead.
   set.seed(9090)
   n <- 50
   X <- cbind(1, stats::rnorm(n))

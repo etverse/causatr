@@ -106,10 +106,7 @@ bread_inv <- function(model, X_fit) {
     # linear-predictor design (including basis-expanded smooth
     # columns) but the penalty has warped the IWLS weights in a way
     # the naive `X'WX` solve cannot recover. Silently falling through
-    # would silently miscompute the sandwich variance. Abort loudly
-    # instead so the user can rebuild the fit with `select = TRUE`
-    # or supply a proper `model_fn`. Sixth-round critical review
-    # Issue L2.
+    # would silently miscompute the sandwich variance. Abort loudly.
     if (is.null(model$Vp)) {
       rlang::abort(
         paste0(
@@ -750,12 +747,11 @@ variance_if_numeric <- function(
   vcov_mat <- V2 + V1
   rownames(vcov_mat) <- int_names
   colnames(vcov_mat) <- int_names
-  # Tag the returned vcov so downstream code (print.causatr_result, tests,
-  # batch pipelines) can detect Tier-2 fallback post-hoc without parsing
-  # warning output. The classed `causatr_tier2_fallback` warning is only
-  # visible during the variance calculation; the attribute survives as
-  # long as the vcov is stored, which lets users test
-  # `attr(result$vcov, "tier2_approximate")` well after the fact.
+  # Tag the returned vcov so downstream code can detect Tier-2 fallback
+  # post-hoc without parsing warning output. The classed
+  # `causatr_tier2_fallback` warning is only visible during the variance
+  # calculation; the attribute survives as long as the vcov is stored,
+  # which lets users test `attr(result$vcov, "tier2_approximate")`.
   attr(vcov_mat, "tier2_approximate") <- TRUE
   vcov_mat
 }

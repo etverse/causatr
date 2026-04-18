@@ -11,6 +11,17 @@
   is a defensive guard rather than a regression for standard users.
   Sixth-round critical review Issue L2.
 
+- ICE g-computation now emits a rate-limited, classed
+  `causatr_ice_boundary_saturation` warning when any binary-outcome
+  prediction lands exactly at 0 or 1. Such rows enter the next
+  backward pseudo-outcome model's quasibinomial fit with zero IWLS
+  working weight `mu * (1 - mu)` and are silently excluded from that
+  fit, biasing the counterfactual chain. The warning is emitted on
+  both the final-time model's predictions and each subsequent backward
+  step, and is rate-limited via `rlang::warn(.frequency = "once")` so
+  long chains and bootstrap loops don't flood stderr.
+  Sixth-round critical review Issue L3.
+
 - Tier-2 sandwich variance fallback in `variance_if_numeric()` now tags
   the returned vcov with `attr(., "tier2_approximate") = TRUE`, and
   `print.causatr_result()` surfaces a one-line note when the flag is
