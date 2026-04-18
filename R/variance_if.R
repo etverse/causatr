@@ -97,7 +97,30 @@ NULL
 #'
 #' @noRd
 bread_inv <- function(model, X_fit) {
-  if (inherits(model, "gam") && !is.null(model$Vp)) {
+  if (inherits(model, "gam")) {
+    # Properly fitted `mgcv::gam` objects always carry `$Vp` (the
+    # Bayesian posterior covariance of the smooth coefficients,
+    # which plays the role of the inverse bread for the penalised
+    # IWLS fit). If `$Vp` is absent we cannot fall back to a GLM-style
+    # bread on `model.matrix(model)`: for a GAM that matrix is the
+    # linear-predictor design (including basis-expanded smooth
+    # columns) but the penalty has warped the IWLS weights in a way
+    # the naive `X'WX` solve cannot recover. Silently falling through
+    # would silently miscompute the sandwich variance. Abort loudly
+    # instead so the user can rebuild the fit with `select = TRUE`
+    # or supply a proper `model_fn`. Sixth-round critical review
+    # Issue L2.
+    if (is.null(model$Vp)) {
+      rlang::abort(
+        paste0(
+          "`bread_inv()`: GAM fit object is missing `$Vp`; cannot ",
+          "compute sandwich bread. Rebuild the fit with `mgcv::gam()` ",
+          "(the default path produces `$Vp`), or switch to ",
+          "`ci_method = 'bootstrap'`."
+        ),
+        class = "causatr_gam_missing_vp"
+      )
+    }
     return(model$Vp)
   }
 

@@ -2,6 +2,15 @@
 
 ## Bug fixes
 
+- `bread_inv()` now aborts with `causatr_gam_missing_vp` when a
+  GAM-classed fit object lacks `$Vp`. Previously it fell through to
+  the GLM-style `X'WX` bread on `model.matrix(model)`, silently
+  miscomputing the sandwich variance for any caller that built a
+  GAM-subclassed object without the Bayesian posterior covariance.
+  Properly fitted `mgcv::gam()` objects always carry `$Vp`, so this
+  is a defensive guard rather than a regression for standard users.
+  Sixth-round critical review Issue L2.
+
 - Tier-2 sandwich variance fallback in `variance_if_numeric()` now tags
   the returned vcov with `attr(., "tier2_approximate") = TRUE`, and
   `print.causatr_result()` surfaces a one-line note when the flag is

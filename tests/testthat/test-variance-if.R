@@ -663,6 +663,28 @@ test_that("bread_inv() singular warning is rate-limited on repeat calls", {
 })
 
 
+# ── bread_inv() aborts on GAM with missing $Vp (Issue L2) ─────────────────
+
+test_that("bread_inv() aborts when a GAM fit has no $Vp", {
+  # Sixth-round critical review Issue L2 (2026-04-18): previously, a
+  # GAM-classed object with `$Vp == NULL` fell through to the GLM-style
+  # `X'WX` bread on `model.matrix(model)`. For a GAM that matrix is
+  # the basis-expanded linear-predictor design, and the penalised IWLS
+  # weights cannot be recovered from a naive solve, silently producing
+  # a miscalibrated sandwich variance. Abort loudly instead. Repro:
+  # /tmp/causatr_repro_gam_no_vp.R.
+  set.seed(9090)
+  n <- 50
+  X <- cbind(1, stats::rnorm(n))
+  fake_gam <- structure(list(Vp = NULL), class = c("gam", "glm", "lm"))
+
+  expect_error(
+    bread_inv(fake_gam, X),
+    class = "causatr_gam_missing_vp"
+  )
+})
+
+
 # ── iv_design_matrix() accepts data.table input ──
 
 test_that("iv_design_matrix() handles data.table and data.frame identically", {
