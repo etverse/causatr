@@ -2,6 +2,16 @@
 
 ## Bug fixes
 
+- Tier-2 sandwich variance fallback in `variance_if_numeric()` now tags
+  the returned vcov with `attr(., "tier2_approximate") = TRUE`, and
+  `print.causatr_result()` surfaces a one-line note when the flag is
+  present. Previously the approximate-variance path was only announced
+  via a classed `rlang::warn()` that scrolled off quickly and was not
+  detectable post-hoc without re-running the variance calculation.
+  Users and batch pipelines can now query
+  `attr(result$vcov, "tier2_approximate")` to decide whether to prefer
+  `ci_method = "bootstrap"`. Sixth-round critical review Issue L1.
+
 - `expand_em_lag_terms()` now correctly finds all treatment components in
   multivariate treatment EM terms (e.g. `A1:A2:sex` with
   `treatment = c("A1", "A2")`). Previously, `which(components == trt_var)`

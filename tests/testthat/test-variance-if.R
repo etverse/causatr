@@ -379,6 +379,11 @@ test_that("variance_if_numeric() Tier 2 keeps full Channel-1 covariance", {
   V_beta <- stats::vcov(m)
   V_ref <- J %*% V_beta %*% t(J) + V1
 
+  # Tier-2 returns a vcov carrying `attr(., "tier2_approximate") = TRUE`
+  # (Issue L1); strip it before the numeric comparison against the hand
+  # reference, but assert it is present.
+  expect_true(isTRUE(attr(V, "tier2_approximate")))
+  attr(V, "tier2_approximate") <- NULL
   expect_equal(unname(V), unname(V_ref), tolerance = 1e-8)
   # Off-diagonal should be nonzero for two interventions over the same
   # target population — the old diag-only formula zeroed this out.
@@ -556,6 +561,13 @@ test_that("variance_if_numeric() Tier 2 works end-to-end via a custom model_fn",
     abs(res$contrasts$se - res_main$contrasts$se) / res_main$contrasts$se,
     0.1
   )
+  # Fifth-round critical review Issue L1 (2026-04-18): Tier-2 results
+  # must carry an `attr(vcov, "tier2_approximate") = TRUE` marker so
+  # downstream code can detect the approximate-variance path after
+  # the warning has scrolled off. The main path (analytic IF) must NOT
+  # carry this attribute. Repro: /tmp/causatr_repro_tier2.R.
+  expect_true(isTRUE(attr(res$vcov, "tier2_approximate")))
+  expect_null(attr(res_main$vcov, "tier2_approximate"))
 })
 
 

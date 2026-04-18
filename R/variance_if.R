@@ -727,6 +727,13 @@ variance_if_numeric <- function(
   vcov_mat <- V2 + V1
   rownames(vcov_mat) <- int_names
   colnames(vcov_mat) <- int_names
+  # Tag the returned vcov so downstream code (print.causatr_result, tests,
+  # batch pipelines) can detect Tier-2 fallback post-hoc without parsing
+  # warning output. The classed `causatr_tier2_fallback` warning is only
+  # visible during the variance calculation; the attribute survives as
+  # long as the vcov is stored, which lets users test
+  # `attr(result$vcov, "tier2_approximate")` well after the fact.
+  attr(vcov_mat, "tier2_approximate") <- TRUE
   vcov_mat
 }
 

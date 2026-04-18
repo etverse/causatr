@@ -151,6 +151,18 @@ print.causatr_result <- function(x, ...) {
     }
   }
 
+  # Tier-2 fallback flag: when the sandwich path could neither recover
+  # the full IF via `sandwich::estfun()` nor compute analytic bread,
+  # `variance_if_numeric()` drops the IF cross-term and tags the vcov
+  # with `tier2_approximate = TRUE`. Surface that at print time so the
+  # reader doesn't assume the SE is the exact asymptotic value.
+  if (isTRUE(attr(x$vcov, "tier2_approximate"))) {
+    cat(
+      " Note:      sandwich SE is approximate (Tier-2 fallback; use ci_method='bootstrap' for exact)\n",
+      sep = ""
+    )
+  }
+
   # When `by = ...` was used, the estimates / contrasts tables have
   # an extra `by` column. Section headers acknowledge this so the
   # reader knows to interpret each row as a per-stratum estimate.
