@@ -432,3 +432,405 @@ test_that("shift with extreme delta warns about near-zero intervened density", {
     class = "causatr_near_zero_intervened_density"
   )
 })
+
+# ---- make_weight_fn() defensive guards ------------------------------------
+#
+# The aborts in make_weight_fn() are nominally unreachable through the
+# public API because `check_intervention_family_compat()` rejects
+# every (intervention, family) combination they would catch. The tests
+# below construct evil inputs (wrong-class objects, hand-rolled
+# intervention objects with skipped validation) to exercise the guards
+# directly. The motivation is the user's standing rule: every function
+# in R/ gets a test, including defensive paths -- a regression that
+# silently bypasses CIFC would otherwise produce nonsense weights.
+
+test_that("make_weight_fn() rejects a non-treatment_model `treatment_model`", {
+  expect_error(
+    make_weight_fn(list(family = "bernoulli"), data.frame(), static(1)),
+    "causatr_treatment_model"
+  )
+})
+
+test_that("make_weight_fn() aborts on scale_by(0) for a Gaussian treatment", {
+  s <- cc_tm(n = 200)
+  # `compute_density_ratio_weights()` has its own scale_by(0) guard at
+  # line ~250; this test exercises the duplicate guard in
+  # `make_weight_fn()` itself, which protects the closure path used by
+  # `numDeriv::jacobian()` inside the variance engine.
+  expect_error(
+    make_weight_fn(s$tm, s$data, scale_by(0)),
+    "collapses"
+  )
+})
+
+test_that("make_weight_fn() aborts on scale_by(0) for a count treatment", {
+  set.seed(31)
+  d <- data.table::as.data.table(data.frame(
+    A = rpois(200, lambda = 3),
+    L = rnorm(200)
+  ))
+  tm <- fit_treatment_model(
+    d,
+    treatment = "A",
+    confounders = ~L,
+    propensity_family = "poisson"
+  )
+  # The `scale_by(0)` guard for count treatments fires in
+  # `check_intervention_family_compat()` first (the integer-preservation
+  # check trips on `0 / 0 = NaN`), so to exercise the Poisson branch's
+  # internal `if (fct == 0)` guard at line ~588 we sidestep CIFC by
+  # mocking it to a no-op. This mirrors the gaussian test above and
+  # protects the closure path against a future regression that bypasses
+  # the upstream check.
+  testthat::local_mocked_bindings(
+    check_intervention_family_compat = function(...) invisible(NULL)
+  )
+  expect_error(
+    make_weight_fn(tm, d, scale_by(0)),
+    "collapses"
+  )
+})
+
+test_that("make_weight_fn() defensive: gaussian + threshold internal-error guard", {
+  s <- cc_tm(n = 200)
+  # `check_intervention_family_compat()` rejects threshold/gaussian
+  # upstream; mock it to a no-op to reach the internal-error abort
+  # inside `make_weight_fn()`'s gaussian branch.
+  testthat::local_mocked_bindings(
+    check_intervention_family_compat = function(...) invisible(NULL)
+  )
+  expect_error(
+    make_weight_fn(s$tm, s$data, threshold(-1, 1)),
+    "Internal error.*gaussian branch"
+  )
+})
+
+test_that("make_weight_fn() defensive: count + threshold internal-error guard", {
+  set.seed(32)
+  d <- data.table::as.data.table(data.frame(
+    A = rpois(200, lambda = 3),
+    L = rnorm(200)
+  ))
+  tm <- fit_treatment_model(
+    d,
+    treatment = "A",
+    confounders = ~L,
+    propensity_family = "poisson"
+  )
+  testthat::local_mocked_bindings(
+    check_intervention_family_compat = function(...) invisible(NULL)
+  )
+  expect_error(
+    make_weight_fn(tm, d, threshold(0, 5)),
+    "Internal error.*count branch"
+  )
+})
+
+test_that("make_weight_fn() defensive: unknown family final-fallback abort", {
+  # Forge a treatment_model with an unrecognised family tag. The final
+  # `rlang::abort()` at the bottom of make_weight_fn() catches this
+  # without going through any of the family-specific branches.
+  s <- bc_tm(n = 100)
+  evil_tm <- s$tm
+  evil_tm$family <- "frobnitz"
+  testthat::local_mocked_bindings(
+    check_intervention_family_compat = function(...) invisible(NULL)
+  )
+  expect_error(
+    make_weight_fn(evil_tm, s$data, static(1)),
+    "does not handle"
+  )
+})
+
+# ---- apply_intervention_to_values() ---------------------------------------
+#
+# Used internally by the HT branch of make_weight_fn() for static and
+# dynamic on bernoulli/categorical. The shift / scale / threshold / ipsi
+# branches are reached only via direct calls (production code skips
+# this helper for those). Tests below cover the full switch and every
+# defensive guard inside the dynamic branch.
+
+test_that("apply_intervention_to_values() static returns rep(value)", {
+  out <- apply_intervention_to_values(
+    static(1),
+    data = data.frame(),
+    a_obs = c(0, 1, 0, 1)
+  )
+  expect_equal(out, c(1, 1, 1, 1))
+})
+
+test_that("apply_intervention_to_values() shift returns A + delta", {
+  out <- apply_intervention_to_values(
+    shift(0.5),
+    data = data.frame(),
+    a_obs = c(0, 1, 2)
+  )
+  expect_equal(out, c(0.5, 1.5, 2.5))
+})
+
+test_that("apply_intervention_to_values() scale returns A * factor", {
+  out <- apply_intervention_to_values(
+    scale_by(2),
+    data = data.frame(),
+    a_obs = c(0, 1, 2)
+  )
+  expect_equal(out, c(0, 2, 4))
+})
+
+test_that("apply_intervention_to_values() threshold clamps to [lo, hi]", {
+  out <- apply_intervention_to_values(
+    threshold(0, 1),
+    data = data.frame(),
+    a_obs = c(-2, 0.5, 3)
+  )
+  expect_equal(out, c(0, 0.5, 1))
+})
+
+test_that("apply_intervention_to_values() dynamic length-mismatch aborts", {
+  bad_rule <- dynamic(function(d, a) c(0, 1)) # length 2, should be 3
+  expect_error(
+    apply_intervention_to_values(
+      bad_rule,
+      data = data.frame(L = c(1, 2, 3)),
+      a_obs = c(0, 1, 0)
+    ),
+    "length 3"
+  )
+})
+
+test_that("apply_intervention_to_values() dynamic non-numeric for numeric A aborts", {
+  bad_rule <- dynamic(function(d, a) rep("x", length(a)))
+  expect_error(
+    apply_intervention_to_values(
+      bad_rule,
+      data = data.frame(L = c(1, 2)),
+      a_obs = c(0.1, 0.2)
+    ),
+    "non-numeric"
+  )
+})
+
+test_that("apply_intervention_to_values() dynamic char-with-unknown-level for factor A aborts", {
+  a_factor <- factor(c("a", "b", "a"), levels = c("a", "b"))
+  bad_rule <- dynamic(function(d, a) c("a", "z", "a"))
+  expect_error(
+    apply_intervention_to_values(
+      bad_rule,
+      data = data.frame(L = c(1, 2, 3)),
+      a_obs = a_factor
+    ),
+    "level\\(s\\) not in"
+  )
+})
+
+test_that("apply_intervention_to_values() dynamic char-with-known-level coerces back to factor", {
+  a_factor <- factor(c("a", "b", "a"), levels = c("a", "b"))
+  good_rule <- dynamic(function(d, a) c("b", "a", "b"))
+  out <- apply_intervention_to_values(
+    good_rule,
+    data = data.frame(L = c(1, 2, 3)),
+    a_obs = a_factor
+  )
+  expect_s3_class(out, "factor")
+  expect_equal(levels(out), c("a", "b"))
+  expect_equal(as.character(out), c("b", "a", "b"))
+})
+
+test_that("apply_intervention_to_values() dynamic factor with mismatched levels aborts", {
+  a_factor <- factor(c("a", "b", "a"), levels = c("a", "b"))
+  wrong_factor <- factor(c("a", "b", "a"), levels = c("a", "b", "c"))
+  bad_rule <- dynamic(function(d, a) wrong_factor)
+  expect_error(
+    apply_intervention_to_values(
+      bad_rule,
+      data = data.frame(L = c(1, 2, 3)),
+      a_obs = a_factor
+    ),
+    "mismatched levels"
+  )
+})
+
+test_that("apply_intervention_to_values() dynamic non-factor non-character for factor A aborts", {
+  a_factor <- factor(c("a", "b", "a"), levels = c("a", "b"))
+  bad_rule <- dynamic(function(d, a) c(1.5, 2.5, 1.5))
+  expect_error(
+    apply_intervention_to_values(
+      bad_rule,
+      data = data.frame(L = c(1, 2, 3)),
+      a_obs = a_factor
+    ),
+    "non-factor, non-character"
+  )
+})
+
+test_that("apply_intervention_to_values() rejects ipsi (caller-bug guard)", {
+  # IPSI never reaches this helper through the public API -- it's a
+  # closed-form weight branch that bypasses the HT path entirely. The
+  # guard exists so a future refactor that accidentally routes IPSI
+  # through here aborts loudly instead of producing nonsense.
+  expect_error(
+    apply_intervention_to_values(
+      ipsi(2),
+      data = data.frame(L = c(1, 2)),
+      a_obs = c(0, 1)
+    ),
+    "should not be called with an IPSI"
+  )
+})
+
+# ---- check_intervention_family_compat() rejection branches ---------------
+#
+# CIFC is the upstream gate that the runtime weight builders rely on.
+# Most happy-path branches are exercised transitively by the rest of
+# this file; the tests below pin the rarer rejection messages so a
+# regression that flips one of them surfaces directly.
+
+test_that("check_intervention_family_compat() rejects threshold on a binary treatment", {
+  s <- bc_tm(n = 100)
+  # Binary fam = "bernoulli"; falls into the `iv_type == "threshold"
+  # && fam != "gaussian" && !is_count` branch.
+  expect_error(
+    check_intervention_family_compat(threshold(0, 1), s$tm),
+    "require a numeric continuous treatment"
+  )
+})
+
+test_that("check_intervention_family_compat() rejects threshold on a categorical treatment", {
+  set.seed(61)
+  d <- data.table::as.data.table(data.frame(
+    A = factor(sample(letters[1:3], 200, replace = TRUE)),
+    L = rnorm(200)
+  ))
+  tm <- fit_treatment_model(
+    d,
+    treatment = "A",
+    confounders = ~L,
+    model_fn = nnet::multinom
+  )
+  expect_error(
+    check_intervention_family_compat(threshold(0, 1), tm),
+    "require a numeric continuous treatment"
+  )
+})
+
+test_that("check_intervention_family_compat() falls back to model.response for scale on count", {
+  # When the treatment_model$model lacks `$data` (some fitters drop it),
+  # CIFC reconstructs the observed treatment via
+  # `model.response(model.frame(.))`. Fit a count model, blank out
+  # `$data`, and check that `scale_by()` validation still works on the
+  # reconstructed vector. We use a non-integer-preserving factor so the
+  # fallback path completes and aborts on the integer-support guard.
+  set.seed(62)
+  d <- data.table::as.data.table(data.frame(
+    A = rpois(150, lambda = 4),
+    L = rnorm(150)
+  ))
+  tm <- fit_treatment_model(
+    d,
+    treatment = "A",
+    confounders = ~L,
+    propensity_family = "poisson"
+  )
+  tm$model$data <- NULL # force the model.response fallback
+  # `scale_by(2.5)` gives `a / 2.5`, which is rarely integer-valued
+  # for integer `a` -- triggers the "not integer inverse" abort.
+  expect_error(
+    check_intervention_family_compat(scale_by(2.5), tm),
+    "does not produce integer inverse"
+  )
+})
+
+# ---- compute_density_ratio_weights() defensive guards --------------------
+
+test_that("compute_density_ratio_weights() rejects a non-treatment_model `treatment_model`", {
+  expect_error(
+    compute_density_ratio_weights(
+      list(family = "bernoulli"),
+      data.frame(),
+      static(1)
+    ),
+    "causatr_treatment_model"
+  )
+})
+
+test_that("compute_density_ratio_weights() defensive: unreachable internal-error fallback", {
+  # CIFC rejects threshold on gaussian upstream, so the final
+  # internal-error abort in compute_density_ratio_weights() is only
+  # reachable if a future refactor accidentally bypasses CIFC. Mock
+  # CIFC to a no-op to drive that fallback path.
+  s <- cc_tm(n = 100)
+  testthat::local_mocked_bindings(
+    check_intervention_family_compat = function(...) invisible(NULL)
+  )
+  expect_error(
+    compute_density_ratio_weights(s$tm, s$data, threshold(-1, 1)),
+    "Internal error.*has no branch"
+  )
+})
+
+# ---- ht_bayes_numerator() per-estimand branches --------------------------
+#
+# `ht_bayes_numerator()` returns the f*_i = f(A* | L_i) factor used by
+# the HT density-ratio weight under each estimand. ATE returns 1 (no
+# propensity-score uncertainty), ATT returns p(L), ATC returns 1 - p(L).
+# Tests below pin each branch + the two internal-error guards.
+
+test_that("ht_bayes_numerator(ATE) returns the constant 1", {
+  s <- bc_tm(n = 100)
+  out <- ht_bayes_numerator("ATE", s$tm, s$data, "bernoulli")
+  expect_identical(out, 1)
+})
+
+test_that("ht_bayes_numerator(ATT) returns predicted p(L)", {
+  s <- bc_tm(n = 200)
+  out <- ht_bayes_numerator("ATT", s$tm, s$data, "bernoulli")
+  expected <- unname(stats::predict(
+    s$tm$model,
+    newdata = s$data,
+    type = "response"
+  ))
+  expect_equal(out, expected)
+})
+
+test_that("ht_bayes_numerator(ATC) returns 1 - p(L)", {
+  s <- bc_tm(n = 200)
+  out <- ht_bayes_numerator("ATC", s$tm, s$data, "bernoulli")
+  expected <- 1 -
+    unname(stats::predict(
+      s$tm$model,
+      newdata = s$data,
+      type = "response"
+    ))
+  expect_equal(out, expected)
+})
+
+test_that("ht_bayes_numerator() aborts when ATT/ATC requested for non-Bernoulli", {
+  s <- cc_tm(n = 100)
+  expect_error(
+    ht_bayes_numerator("ATT", s$tm, s$data, "gaussian"),
+    "non-Bernoulli treatment family"
+  )
+})
+
+test_that("ht_bayes_numerator() aborts on unknown estimand", {
+  s <- bc_tm(n = 100)
+  expect_error(
+    ht_bayes_numerator("FROBNITZ", s$tm, s$data, "bernoulli"),
+    "unknown estimand"
+  )
+})
+
+test_that("apply_intervention_to_values() rejects an unknown intervention type", {
+  evil_iv <- structure(
+    list(type = "frobnitz"),
+    class = c("causatr_intervention", "list")
+  )
+  expect_error(
+    apply_intervention_to_values(
+      evil_iv,
+      data = data.frame(),
+      a_obs = c(0, 1)
+    ),
+    "Unknown intervention type"
+  )
+})

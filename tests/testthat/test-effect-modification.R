@@ -646,6 +646,23 @@ test_that("expand_em_lag_terms handles multivariate treatment EM term (B1)", {
   expect_true(grepl("lag2_A1", lags[2]) && grepl("lag2_A2", lags[2]))
 })
 
+# Defensive branch: if the EM term's components do not contain the
+# treatment variable (can happen when an em_term is constructed by hand
+# with a mismatched treatment_var), expand_em_lag_terms() warns and
+# returns no lag terms rather than silently producing malformed output.
+test_that("expand_em_lag_terms warns and returns empty when treatment var missing", {
+  # parse against one treatment, then override treatment_var so the
+  # components ("sex", "race") no longer contain the claimed treatment.
+  em <- parse_effect_mod(~ sex:race, "sex")
+  em_term <- em$em_terms[[1]]
+  em_term$treatment_var <- "Z"
+  expect_warning(
+    lags <- expand_em_lag_terms(em_term, available_lags = 3L),
+    "treatment variable"
+  )
+  expect_equal(lags, character(0L))
+})
+
 # Truth-based: ICE sandwich x 2-period DGP x binary modifier.
 #
 # DGP-EM-ICE: Y = 10 + (2 + 1.5*sex) * sum(A_t) + L0 + sum(L_t) + eps

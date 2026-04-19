@@ -163,3 +163,28 @@ test_that("IPW rejects bare treatment in confounders", {
     class = "causatr_bare_treatment_in_confounders"
   )
 })
+
+# Defensive guard: `compute_ipw_contrast_point()` aborts with an
+# "Internal error" if a caller hands it an IPW fit whose
+# `$details$treatment_model` is missing. `fit_ipw()` always populates it,
+# so this branch only fires if a downstream consumer mutates the fit
+# object. The test strips the slot to exercise the guard.
+test_that("compute_ipw_contrast_point aborts on missing treatment_model", {
+  d <- simulate_binary_continuous(n = 100, seed = 3)
+  fit <- suppressWarnings(causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw"
+  ))
+  fit$details$treatment_model <- NULL
+  expect_error(
+    compute_ipw_contrast_point(
+      fit,
+      interventions = list(a1 = static(1), a0 = static(0)),
+      target_idx = rep(TRUE, nrow(d))
+    ),
+    "treatment_model"
+  )
+})

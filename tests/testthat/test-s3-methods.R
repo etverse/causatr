@@ -3,6 +3,42 @@
 
 tol_bf <- 0.5
 
+# ---- format_family() display helper --------------------------------------
+#
+# Used internally by print methods to render the outcome family in the
+# fit banner. It dispatches across three input shapes (string, family
+# object, family closure) plus a "<custom>" fallback. None of those
+# branches are exercised end-to-end by the existing print tests because
+# all of them use string families, so the explicit unit tests below
+# are the only thing pinning the dispatch logic.
+
+test_that("format_family() returns the input when given a character string", {
+  expect_identical(format_family("gaussian"), "gaussian")
+  expect_identical(format_family("binomial"), "binomial")
+})
+
+test_that("format_family() formats a family object as 'family(link)'", {
+  expect_identical(format_family(stats::gaussian()), "gaussian(identity)")
+  expect_identical(format_family(stats::binomial("probit")), "binomial(probit)")
+})
+
+test_that("format_family() formats a family closure by evaluating it", {
+  expect_identical(format_family(stats::gaussian), "gaussian(identity)")
+  expect_identical(format_family(stats::binomial), "binomial(logit)")
+})
+
+test_that("format_family() returns '<custom>' for unrecognised inputs", {
+  # A function that is not a family closure -- evaluating it produces
+  # something without `$family`, so the fallback fires.
+  expect_identical(format_family(function() list(other = 1)), "<custom>")
+  # A list that is not a family object (no `$family`) also falls through.
+  expect_identical(format_family(list(weird = 1)), "<custom>")
+  # A closure that requires arguments and errors when called bare:
+  # the tryCatch wraps the failure and returns the fallback.
+  bad_closure <- function(x) stop("boom")
+  expect_identical(format_family(bad_closure), "<custom>")
+})
+
 
 test_that("confint() respects level argument", {
   df <- simulate_effect_mod()

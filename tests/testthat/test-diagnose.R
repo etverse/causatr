@@ -403,3 +403,49 @@ test_that("diagnose() excludes censored rows for gcomp with censoring", {
     )
   expect_equal(bal$smd[bal$variable == "L"], smd_manual, tolerance = 1e-10)
 })
+
+# compute_positivity() short-circuits ------------------------------------
+#
+# The PS-quantile table is only meaningful for a single binary
+# treatment. Multivariate, non-{0,1}, non-bernoulli IPW, and matching
+# fits with a missing distance vector all need to return NULL silently
+# so `diagnose()` can fall back to its other diagnostics.
+
+test_that("compute_positivity() returns NULL for multivariate treatment", {
+  fake_fit <- list(
+    treatment = c("A1", "A2"),
+    estimator = "gcomp",
+    data = data.table::data.table(),
+    confounders = ~L
+  )
+  expect_null(compute_positivity(fake_fit, ps_bounds = c(0.05, 0.95)))
+})
+
+test_that("compute_positivity() returns NULL for non-{0,1} treatment values", {
+  d <- data.table::data.table(A = c(2, 5, 7), L = rnorm(3), Y = rnorm(3))
+  fake_fit <- list(
+    treatment = "A",
+    estimator = "gcomp",
+    data = d,
+    confounders = ~L,
+    outcome = "Y"
+  )
+  expect_null(compute_positivity(fake_fit, ps_bounds = c(0.05, 0.95)))
+})
+
+test_that("compute_positivity() returns NULL for IPW with non-bernoulli treatment_model", {
+  # Build a fake fit shaped like an IPW result whose treatment_model
+  # has family != "bernoulli". The early NULL return at line ~171
+  # protects diagnose() from trying to threshold a continuous PS.
+  d <- data.table::data.table(A = c(0, 1, 0, 1), L = rnorm(4), Y = rnorm(4))
+  fake_tm <- list(family = "gaussian")
+  fake_fit <- list(
+    treatment = "A",
+    estimator = "ipw",
+    data = d,
+    confounders = ~L,
+    outcome = "Y",
+    details = list(treatment_model = fake_tm)
+  )
+  expect_null(compute_positivity(fake_fit, ps_bounds = c(0.05, 0.95)))
+})

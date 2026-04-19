@@ -311,6 +311,27 @@ All ❌. Pattern fixed in the "Survival composition" subsections of the respecti
 | `diagnose()` gcomp/matching | ✅ 🟡 | test-diagnose.R |
 | `diagnose()` IPW (binary static ATE shim) | 🟡 | test-diagnose.R |
 | S3 methods (print/summary/plot/coef/vcov/confint/tidy/glance) | 🟡 | test-s3-methods.R |
+| `knit_print.causatr_result` + `.onLoad` registration | ✅ | test-knit-print.R |
+| Input-validation helpers (`check_string`, `check_formula`, `check_col_exists`, `check_pkg`) | ✅ | test-checks.R |
+| `prepare_data()` + `warn_confounder_variation()` | ✅ | test-prepare-data.R |
+| Bootstrap result processor + `refit_model()` dispatch | ✅ | test-variance-bootstrap.R |
+| `apply_intervention_to_values()` (IPW HT branch helper) | ✅ | test-ipw-weights.R |
+| `make_weight_fn()` defensive guards | ✅ | test-ipw-weights.R |
+| `apply_intervention()` multivariate dispatch | ✅ | test-interventions.R |
+| `extract_sigma()` GAM + residual fallbacks | ✅ | test-treatment-model.R |
+| `evaluate_density()` + `evaluate_categorical_density()` defensive guards | ✅ | test-treatment-model.R |
+| `format_family()` display helper | ✅ | test-s3-methods.R |
+| `apply_single_intervention()` dynamic-rule type guards | ✅ | test-interventions.R |
+| `check_intervention_list()` structural validation | ✅ | test-checks.R |
+| `check_causat_inputs()` (`treatment` shape, outcome==treatment, `history`) | ✅ | test-checks.R |
+| `check_intervention_family_compat()` rejection branches | ✅ | test-ipw-weights.R |
+| `compute_density_ratio_weights()` defensive guards | ✅ | test-ipw-weights.R |
+| `ht_bayes_numerator()` per-estimand (ATE/ATT/ATC) + error guards | ✅ | test-ipw-weights.R |
+| `fit_treatment_model()` NB-theta + aliased-column aborts | ✅ | test-treatment-model.R |
+| `bread_inv()` GAM-missing-`$Vp` abort | ✅ | test-variance-if.R |
+| `combine_match_and_external_weights()` row-name invariant | ✅ | test-matching.R |
+| `compute_positivity()` short-circuits (multivariate / non-binary / non-bernoulli IPW) | ✅ | test-diagnose.R |
+| `compute_contrast()` ratio/OR validation aborts + empty target | ✅ | test-contrast.R |
 | `confint()` respects `level` | ✅ | test-s3-methods.R |
 | Weight validation (NA/Inf/neg/mis-sized) | ✅ | test-causat.R |
 | Intervention constructors | ✅ | test-interventions.R |

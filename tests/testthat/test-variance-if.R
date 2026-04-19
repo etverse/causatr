@@ -5,7 +5,23 @@
 # in isolation. The dispatcher variance_if() and correct_propensity() are
 # tested in later phases through the public causat() / contrast() API.
 
-# ── correct_model() — non-canonical link agreement with sandwich::estfun ──
+# bread_inv() defensive guard: GAM fit missing $Vp -----------------------------
+
+test_that("bread_inv() aborts on a GAM fit missing $Vp", {
+  skip_if_not_installed("mgcv")
+  set.seed(201)
+  df <- data.frame(Y = rnorm(100), L = rnorm(100))
+  gam_fit <- mgcv::gam(Y ~ s(L), data = df)
+  # Strip $Vp to simulate a malformed fit (or a future mgcv version
+  # change). The class-tagged abort guides users to bootstrap.
+  gam_fit$Vp <- NULL
+  expect_error(
+    bread_inv(gam_fit, X_fit = stats::model.matrix(gam_fit)),
+    class = "causatr_gam_missing_vp"
+  )
+})
+
+# correct_model() — non-canonical link agreement with sandwich::estfun --------
 
 test_that("correct_model() matches sandwich::estfun on a probit GLM", {
   set.seed(101)

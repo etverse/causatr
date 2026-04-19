@@ -208,3 +208,52 @@ test_that("causat(estimator = 'matching') forwards `method` to MatchIt::matchit(
   expect_true(all(is.finite(res$contrasts$se)))
   expect_true(res$contrasts$se[1] > 0)
 })
+
+# ---- combine_match_and_external_weights() row-alignment guard -----------
+
+test_that("combine_match_and_external_weights() returns matched_data$weights when external is NULL", {
+  matched_data <- data.frame(
+    id = 1:5,
+    weights = c(1, 1, 0.5, 0.5, 1)
+  )
+  rownames(matched_data) <- as.character(1:5)
+  out <- combine_match_and_external_weights(
+    matched_data,
+    external_weights = NULL,
+    fit_rows = rep(TRUE, 5)
+  )
+  expect_identical(out, matched_data$weights)
+})
+
+test_that("combine_match_and_external_weights() multiplies match * external on aligned rownames", {
+  matched_data <- data.frame(
+    id = 1:5,
+    weights = c(1, 1, 0.5, 0.5, 1)
+  )
+  rownames(matched_data) <- as.character(c(2, 4, 1, 3, 5)) # arbitrary order
+  fit_rows <- rep(TRUE, 5)
+  ext <- c(0.5, 1.5, 2.0, 0.5, 1.0)
+  out <- combine_match_and_external_weights(matched_data, ext, fit_rows)
+  # Per row: matched * ext[matched_idx]
+  expect_equal(out, matched_data$weights * ext[c(2, 4, 1, 3, 5)])
+})
+
+test_that("combine_match_and_external_weights() aborts when matched rownames fall outside fit_rows", {
+  # Rownames pointing to row 99 (way outside the 5-row fit_rows mask)
+  # trip the row-alignment invariant guard. This protects against a
+  # silently corrupted bootstrap when MatchIt's internal row-name
+  # convention changes.
+  matched_data <- data.frame(
+    id = 1:5,
+    weights = c(1, 1, 0.5, 0.5, 1)
+  )
+  rownames(matched_data) <- as.character(c(99, 1, 2, 3, 4))
+  expect_error(
+    combine_match_and_external_weights(
+      matched_data,
+      external_weights = c(1, 1, 1, 1, 1),
+      fit_rows = rep(TRUE, 5)
+    ),
+    "row-name invariant violation"
+  )
+})

@@ -257,3 +257,294 @@ test_that("extract_sigma() recovers sigma from an lm fit via $sigma", {
   lm_fit <- stats::lm(A ~ L, data = df)
   expect_equal(extract_sigma(lm_fit), summary(lm_fit)$sigma, tolerance = 1e-12)
 })
+
+# print.causatr_treatment_model() display test ---------------------------------
+
+# The print method is purely cosmetic but is the only public window into
+# the treatment-model object. The test exercises each conditional branch
+# (sigma for Gaussian, theta for NB, levels for categorical) so a
+# regression that drops one of those slots is caught.
+# ---- extract_sigma() residual fallbacks ----------------------------------
+
+test_that("fit_treatment_model() aborts when negbin model is missing theta", {
+  set.seed(106)
+  d <- data.table::as.data.table(data.frame(
+    A = rnbinom(200, mu = 3, size = 1),
+    L = rnorm(200)
+  ))
+  # Custom propensity_model_fn that returns a glm-like object without
+  # the `$theta` slot. The branch fires at line ~222 of treatment_model.R.
+  bad_nb_fn <- function(formula, data, ...) {
+    fit <- stats::glm(formula, data = data, family = stats::poisson())
+    fit$theta <- NULL # explicitly strip theta
+    fit
+  }
+  expect_error(
+    fit_treatment_model(
+      d,
+      treatment = "A",
+      confounders = ~L,
+      model_fn = bad_nb_fn,
+      propensity_family = "negbin"
+    ),
+    "Could not extract dispersion parameter"
+  )
+})
+
+test_that("fit_treatment_model() aborts on a coefficient/design-matrix dimension mismatch", {
+  # Force a mismatch by stubbing `model_fn` to return a fit whose
+  # `coef()` length doesn't match the design matrix's column count
+  # (the canonical symptom of an aliased / dropped column).
+  set.seed(107)
+  d <- data.table::as.data.table(simulate_binary_continuous(
+    n = 100,
+    seed = 107
+  ))
+  bad_fn <- function(formula, data, family, ...) {
+    fit <- stats::glm(formula, data = data, family = family)
+    # Splice in an extra fake coefficient so length(coef) > ncol(model.matrix).
+    fit$coefficients <- c(fit$coefficients, fake = 1.23)
+    fit
+  }
+  expect_error(
+    fit_treatment_model(
+      d,
+      treatment = "A",
+      confounders = ~L,
+      model_fn = bad_fn
+    ),
+    "this usually means a column was aliased"
+  )
+})
+
+# ---- fit_count_density() weighted path -----------------------------------
+
+test_that("fit_count_density() forwards `weights` to the Poisson fitter", {
+  # The Poisson branch (line ~492) propagates the resampled weight
+  # vector via `base_args$weights <- weights_fit`. NB has the same
+  # plumbing at line ~505 but `MASS::glm.nb` is brittle to non-uniform
+  # weights and no production code path inside causatr exercises it
+  # today, so we test only the Poisson branch.
+  set.seed(108)
+  n <- 200
+  d <- data.table::as.data.table(data.frame(
+    A = rpois(n, lambda = 3),
+    L = rnorm(n)
+  ))
+  w <- runif(n, 0.5, 1.5)
+  tm_pois <- fit_treatment_model(
+    d,
+    treatment = "A",
+    confounders = ~L,
+    propensity_family = "poisson",
+    weights = w
+  )
+  expect_s3_class(tm_pois, "causatr_treatment_model")
+  expect_identical(tm_pois$family, "poisson")
+})
+
+test_that("extract_sigma() reads `$sig2` from a mgcv::gam fit", {
+  skip_if_not_installed("mgcv")
+  set.seed(101)
+  df <- data.frame(A = rnorm(200), L = rnorm(200))
+  gam_fit <- mgcv::gam(A ~ s(L), data = df)
+  # mgcv stores the residual variance as `$sig2`. summary.gam() returns
+  # an object with neither `$sigma` nor `$dispersion`, so this branch
+  # is the only one that fires for GAM fits.
+  expect_equal(extract_sigma(gam_fit), sqrt(gam_fit$sig2), tolerance = 1e-12)
+})
+
+test_that("extract_sigma() falls back to response residuals when summary lacks sigma/dispersion", {
+  # The fallback branch fires when `summary()` returns no `$sigma`
+  # and no `$dispersion`, and `model$sig2` is NULL: it computes
+  # `sqrt(sum(r^2) / (n - p))` directly. We exercise it with a custom
+  # S3 class whose summary/residuals/coef methods are defined inside
+  # this test_that block, so registration is local to the call frame
+  # via `withr::defer()` cleanup.
+  set.seed(102)
+  r <- rnorm(50)
+  cls <- "causatr_test_fakefit"
+  registerS3method(
+    "summary",
+    cls,
+    function(object, ...) list(),
+    envir = .GlobalEnv
+  )
+  registerS3method(
+    "residuals",
+    cls,
+    function(object, type = "response", ...) r,
+    envir = .GlobalEnv
+  )
+  registerS3method(
+    "coef",
+    cls,
+    function(object, ...) c(intercept = 0, slope = 0),
+    envir = .GlobalEnv
+  )
+  withr::defer({
+    s3 <- get(".__S3MethodsTable__.", envir = .GlobalEnv)
+    for (nm in c("summary.", "residuals.", "coef.")) {
+      key <- paste0(nm, cls)
+      if (exists(key, envir = s3, inherits = FALSE)) {
+        rm(list = key, envir = s3)
+      }
+    }
+  })
+
+  fake_fit <- structure(list(), class = cls)
+  expect_equal(
+    extract_sigma(fake_fit),
+    sqrt(sum(r^2) / (length(r) - 2L)),
+    tolerance = 1e-12
+  )
+})
+
+test_that("extract_sigma() aborts when neither summary nor residuals work", {
+  # All sigma extraction paths fail: `summary()` errors, and the
+  # `residuals()` fallback also errors. The function aborts with a
+  # clear message so a downstream `dnorm()` does not silently get
+  # `sigma = NA`.
+  cls <- "causatr_test_brokenfit"
+  registerS3method(
+    "summary",
+    cls,
+    function(object, ...) stop("no summary"),
+    envir = .GlobalEnv
+  )
+  registerS3method(
+    "residuals",
+    cls,
+    function(object, ...) stop("no residuals"),
+    envir = .GlobalEnv
+  )
+  withr::defer({
+    s3 <- get(".__S3MethodsTable__.", envir = .GlobalEnv)
+    for (nm in c("summary.", "residuals.")) {
+      key <- paste0(nm, cls)
+      if (exists(key, envir = s3, inherits = FALSE)) {
+        rm(list = key, envir = s3)
+      }
+    }
+  })
+
+  fake_fit <- structure(list(), class = cls)
+  expect_error(extract_sigma(fake_fit), "Could not extract residual SD")
+})
+
+# ---- evaluate_density() defensive guards ---------------------------------
+
+test_that("evaluate_density() rejects a non-treatment_model `treatment_model`", {
+  expect_error(
+    evaluate_density(
+      list(family = "bernoulli"),
+      treatment_values = c(0, 1),
+      newdata = data.frame(L = c(0, 1))
+    ),
+    "causatr_treatment_model"
+  )
+})
+
+test_that("evaluate_density() aborts on an unknown family tag", {
+  d <- data.table::as.data.table(simulate_binary_continuous(n = 50, seed = 103))
+  tm <- fit_treatment_model(d, treatment = "A", confounders = ~L)
+  evil_tm <- tm
+  evil_tm$family <- "frobnitz"
+  expect_error(
+    evaluate_density(
+      evil_tm,
+      treatment_values = d$A,
+      newdata = d
+    ),
+    "Unknown treatment family"
+  )
+})
+
+# ---- evaluate_categorical_density() K=2 + unknown-level paths ------------
+
+test_that("evaluate_categorical_density() handles K=2 (vector predict return)", {
+  # nnet::multinom returns a vector (not a matrix) for K = 2 -- the
+  # function builds the n x 2 probability matrix from `cbind(1 - p, p)`.
+  # This regression test pins that branch.
+  set.seed(104)
+  d <- data.frame(
+    A = factor(sample(c("a", "b"), 200, replace = TRUE)),
+    L = rnorm(200)
+  )
+  m <- nnet::multinom(A ~ L, data = d, trace = FALSE)
+  out <- evaluate_categorical_density(
+    m,
+    trt_levels = c("a", "b"),
+    treatment_values = d$A,
+    newdata = d
+  )
+  expect_length(out, nrow(d))
+  expect_true(all(out > 0 & out < 1))
+})
+
+test_that("evaluate_categorical_density() aborts on a treatment value not in model levels", {
+  set.seed(105)
+  d <- data.frame(
+    A = factor(sample(c("a", "b", "c"), 200, replace = TRUE)),
+    L = rnorm(200)
+  )
+  m <- nnet::multinom(A ~ L, data = d, trace = FALSE)
+  expect_error(
+    evaluate_categorical_density(
+      m,
+      trt_levels = c("a", "b", "c"),
+      treatment_values = c("a", "z", "b"), # 'z' is not a known level
+      newdata = d[1:3, ]
+    ),
+    "not found in model levels"
+  )
+})
+
+# ---- print.causatr_treatment_model display test --------------------------
+
+test_that("print.causatr_treatment_model prints expected fields", {
+  # The print method is internal (`@noRd`, not registered in NAMESPACE),
+  # so generic S3 dispatch via `print()` from outside the package would
+  # hit `print.default`. We call the method by its full name to exercise
+  # the body the user actually maintains.
+  d_bin <- data.table::as.data.table(
+    simulate_binary_continuous(n = 200, seed = 11)
+  )
+  tm_bin <- fit_treatment_model(
+    d_bin,
+    treatment = "A",
+    confounders = ~L,
+    model_fn = stats::glm
+  )
+  expect_s3_class(tm_bin, "causatr_treatment_model")
+  out_bin <- capture.output(print.causatr_treatment_model(tm_bin))
+  expect_match(out_bin[1], "causatr_treatment_model: bernoulli")
+  expect_true(any(grepl("treatment:", out_bin)))
+  expect_true(any(grepl("p_alpha:", out_bin)))
+
+  d_cont <- data.table::as.data.table(
+    simulate_continuous_continuous(n = 200, seed = 12)
+  )
+  tm_cont <- fit_treatment_model(
+    d_cont,
+    treatment = "A",
+    confounders = ~L,
+    model_fn = stats::glm
+  )
+  out_cont <- capture.output(print.causatr_treatment_model(tm_cont))
+  expect_true(any(grepl("sigma:", out_cont)))
+
+  set.seed(13)
+  d_cat <- data.table::as.data.table(data.frame(
+    A = factor(sample(letters[1:3], 200, replace = TRUE)),
+    L = rnorm(200)
+  ))
+  tm_cat <- fit_treatment_model(
+    d_cat,
+    treatment = "A",
+    confounders = ~L,
+    model_fn = nnet::multinom
+  )
+  out_cat <- capture.output(print.causatr_treatment_model(tm_cat))
+  expect_true(any(grepl("levels:", out_cat)))
+})
