@@ -446,15 +446,14 @@ for matching automatically strips the interaction term.
 ```{r}
 #| eval: !expr has_optmatch
 fit_m_hte <- causat(
-  nhefs,
+  nhefs_complete,
   outcome = "wt82_71",
   treatment = "qsmk",
   confounders = ~ sex + age + I(age^2) + race + factor(education) +
     smokeintensity + I(smokeintensity^2) + smokeyrs + I(smokeyrs^2) +
     factor(exercise) + factor(active) + wt71 + I(wt71^2) +
     qsmk:sex,
-  estimator = "matching",
-  censoring = "censored"
+  estimator = "matching"
 )
 
 res_m_by_sex <- contrast(

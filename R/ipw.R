@@ -403,7 +403,9 @@ compute_ipw_contrast_point <- function(
       apply_intervention(fit_data, treatment, iv)
     }
     preds_fit <- stats::predict(
-      msm_model, newdata = data_a_fit, type = "response"
+      msm_model,
+      newdata = data_a_fit,
+      type = "response"
     )
     target_fit <- target_idx[fit_rows]
     valid_fit <- target_fit & !is.na(preds_fit)

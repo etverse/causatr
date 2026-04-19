@@ -220,7 +220,8 @@ expand_em_lag_terms <- function(em_term, available_lags) {
     rlang::warn(paste0(
       "expand_em_lag_terms(): treatment variable(s) ",
       paste(trt_var, collapse = ", "),
-      " not found in EM term '", em_term$term,
+      " not found in EM term '",
+      em_term$term,
       "'. Returning no lag terms for this term."
     ))
     return(character(0L))

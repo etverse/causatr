@@ -369,13 +369,17 @@ test_that("IPW EM sandwich agrees with bootstrap under NA outcomes (B2)", {
   res_sw <- contrast(
     fit,
     interventions = list(a1 = static(1), a0 = static(0)),
-    type = "difference", reference = "a0", ci_method = "sandwich"
+    type = "difference",
+    reference = "a0",
+    ci_method = "sandwich"
   )
   res_boot <- suppressWarnings(contrast(
     fit,
     interventions = list(a1 = static(1), a0 = static(0)),
-    type = "difference", reference = "a0",
-    ci_method = "bootstrap", n_boot = 200
+    type = "difference",
+    reference = "a0",
+    ci_method = "bootstrap",
+    n_boot = 200
   ))
 
   # Sandwich SE should agree with bootstrap within 15% (normal variability

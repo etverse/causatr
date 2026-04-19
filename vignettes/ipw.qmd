@@ -748,15 +748,14 @@ strips the interaction term (it only enters the MSM, not the treatment model).
 
 ```{r}
 fit_ipw_hte <- causat(
-  nhefs,
+  nhefs_complete,
   outcome = "wt82_71",
   treatment = "qsmk",
   confounders = ~ sex + age + I(age^2) + race + factor(education) +
     smokeintensity + I(smokeintensity^2) + smokeyrs + I(smokeyrs^2) +
     factor(exercise) + factor(active) + wt71 + I(wt71^2) +
     qsmk:sex,
-  estimator = "ipw",
-  censoring = "censored"
+  estimator = "ipw"
 )
 
 res_ipw_by_sex <- contrast(
