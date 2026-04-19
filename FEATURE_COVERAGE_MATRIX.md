@@ -159,13 +159,76 @@ Rejections (all ✅ tested): ipsi $\to$ test-ice.R, ATT/ATC $\to$ test-ice.R.
 
 ## Survival
 
-Fit path (pooled logistic hazard):
+Phase 7 defines two tracks: **Track A** = point survival via pooled logistic; **Track B** = longitudinal survival via ICE-hazards (iterated conditional hazards; Zivich et al. 2024 extended to the hazard link). See `PHASE_7_SURVIVAL.md` for the inheritance principle — survival is an outcome-model swap, not a new treatment-side axis, so most treatment-side features inherit as-is.
+
+### Fit path (`causat_survival()`, pooled logistic hazard)
+
 | Trt | Censoring | Competing | Status | Test |
 |---|---|---|---|---|
 | bin | none | none | 🟡 | test-s3-methods.R, test-simulation.R |
 | bin | present (row filter) | none | 🟡 | test-simulation.R |
 
-Contrast path: ❌ all pending (Phase 7). `contrast()` on survival fit aborts today ✅ (test-contrast.R). `competing != NULL` rejected ✅ (test-causat.R).
+### Track A — Point survival (contrast path)
+
+All ❌ pending Phase 7 chunks 7a–7d. `contrast()` on a survival fit aborts today ✅ (test-contrast.R).
+
+| Estimator | Trt | Intervention | Estimand | Contrast | Variance | Status | Blocking chunk |
+|---|---|---|---|---|---|---|---|
+| gcomp | bin | static | ATE | S(t) / risk / RD / RR / RMST | sandwich | ❌ | 7a, 7b |
+| gcomp | bin | static | ATE | S(t) / risk / RD | boot | ❌ | 7a, 7c |
+| gcomp | bin | static | ATT | RD / RR | sandwich | ❌ | 7a, 7b |
+| gcomp | bin | static | ATC | RD / RR | sandwich | ❌ | 7a, 7b |
+| gcomp | cont | shift | ATE | S(t) / RD | sandwich | ❌ | 7a, 7b |
+| gcomp | cont | scale_by | ATE | S(t) / RD | sandwich | ❌ | 7a, 7b |
+| gcomp | cont | threshold | ATE | S(t) / RD | sandwich | ❌ | 7a, 7b |
+| gcomp | bin | dynamic | ATE | S(t) / RD | sandwich | ❌ | 7a, 7b |
+| gcomp | multi | static | ATE | S(t) / RD | sandwich | ❌ | 7a, 7b |
+| gcomp | cat | static | ATE | S(t) / RD | sandwich | ❌ | 7a, 7b |
+| gcomp | bin | static + by(L) | ATE | RD per stratum | sandwich | ❌ | 7a, 7b |
+| gcomp | bin | static + EM | ATE | RD | sandwich | ❌ | 7a, 7b |
+| gcomp | bin | static | ATE (competing risks) | CIF per cause | sandwich | ❌ | 7f |
+| IPW | bin | static | ATE | S(t) / RD | sandwich | ❌ | 7d |
+| IPW | bin | static | ATT/ATC | RD | sandwich | ❌ | 7d |
+| IPW | cont | shift | ATE | S(t) / RD | sandwich | ❌ | 7d |
+| IPW | bin | ipsi($\delta$) | ATE | S(t) / RD | sandwich | ❌ | 7d |
+
+### Track B — Longitudinal survival via ICE hazards (contrast path)
+
+All ❌ pending Phase 7 chunk 7e.
+
+| Estimator | Trt | Intervention | Periods | Variance | Status | Blocking chunk |
+|---|---|---|---|---|---|---|
+| gcomp (ICE) | bin | static | 2 | sandwich | ❌ | 7e |
+| gcomp (ICE) | bin | static | 3+ | sandwich | ❌ | 7e |
+| gcomp (ICE) | bin | dynamic | 2 | sandwich | ❌ | 7e |
+| gcomp (ICE) | cont | shift | 2 | sandwich | ❌ | 7e |
+| gcomp (ICE) | cont | scale_by | 2 | sandwich | ❌ | 7e |
+| gcomp (ICE) | bin | static | 2 | boot | ❌ | 7e, 7c |
+| gcomp (ICE) | bin | static + EM | 2 | sandwich | ❌ | 7e |
+| gcomp (ICE) | bin | static (competing risks) | 2+ | sandwich | ❌ | 7e, 7f |
+
+### Cross-phase composition (survival × pending phases)
+
+All ❌. Pattern fixed in the "Survival composition" subsections of the respective phase docs.
+
+| Composition | Pattern | Status | Owning phase |
+|---|---|---|---|
+| Multivariate IPW + point survival | Joint density on original rows; product weight broadcast onto person-period; weighted hazard MSM | ❌ | Phase 8 |
+| Longitudinal IPW + survival | Cumulative $(i, k)$-indexed weights; weighted hazard MSM on uncensored rows | ❌ | Phase 10 |
+| Stochastic + point survival | MC draws at the individual cumulative-product level (not the hazard level) | ❌ | Phase 12 |
+| Stochastic + longitudinal survival | Per-step MC with survival-tail pseudo-outcome (existing Phase 12 ICE architecture) | ❌ | Phase 12 |
+| Built-in IPCW + point survival | Per-period stabilized censoring weights on person-period grid; weighted pooled logistic | ❌ | Phase 14 (primary use case) |
+| Built-in IPCW + longitudinal survival | Per-period IPCW through ICE backward loop; cascade-gradient extension | ❌ | Phase 14 (primary use case) |
+| Built-in IPCW + longitudinal IPW + survival | Product of cumulative treatment and censoring weights per $(i, k)$; stacked EE with $K+K+1$ blocks | ❌ | Phase 14 |
+| Multivariate + longitudinal + survival | Three-way composition (Phase 8 + Phase 10 + Phase 7); deferred past the individual phases | ❌ | Phases 8+10, post-ship |
+
+### Rejections
+
+| Condition | Status | Test |
+|---|---|---|
+| `contrast()` on survival fit (pre-Phase 7) | ✅ | test-contrast.R |
+| `competing != NULL` in `causat_survival()` | ✅ | test-causat.R |
+| Matching + survival (architectural; see `PHASE_7_SURVIVAL.md` § "Matching + survival") | ❌ reject path pending | 7g |
 
 ---
 
@@ -280,34 +343,43 @@ Supplementary: `test-weights-edge-cases.R` (external weights edge cases), `test-
 ## Planned (future phases)
 
 ### Phase 6 — Effect modification
-Unified `A:modifier` API across gcomp / IPW / matching / ICE. IPW MSM expansion ✅ (chunk 6b). Matching MSM expansion ✅ (chunk 6c). ICE lag auto-expansion ✅ (chunk 6d). Cross-method triangulation ✅ (chunk 6e). **Phase complete.**
+Unified `A:modifier` API across gcomp / IPW / matching / ICE. IPW MSM expansion ✅ (chunk 6b). Matching MSM expansion ✅ (chunk 6c). ICE lag auto-expansion ✅ (chunk 6d). Cross-method triangulation ✅ (chunk 6e). **Phase complete.** **Known limitation** (documented in `PHASE_6_INTERACTIONS.md` § "Known limitation: modifier must be **baseline**"): under IPW / matching / longitudinal IPW, the modifier must be baseline because the MSM conditions on post-treatment variables otherwise (silent bias; Robins 2000). Time-varying effect modification is deferred to Phase 18 (SNMs). Currently doc-level only; a `check_em_baseline_only()` runtime guard via an explicit `baseline_cols =` contract is a follow-up.
 
-### Phase 7 — Survival contrasts
-Survival curves S^a(t), risk at time t, risk difference/ratio, competing risks CIF, dynamic strategies, NHEFS Ch. 17 replication. All ❌.
+### Phase 7 — Survival analysis
+Two tracks: Track A (point survival via pooled logistic), Track B (longitudinal survival via ICE hazards — Zivich et al. 2024 extended to the hazard link). Plus competing risks (cause-specific hazards + CIF), survival-curve contrast shape ($S(t)$ / risk / RD / RR / RMST as time-indexed `data.table` rows), cross-time variance via delta-method on the cumulative product, matching rejection path, NHEFS Ch. 17 replication. Most treatment-side features (binary / continuous / categorical / count / multivariate, all IPW-legal interventions, ATE / ATT / ATC where the estimator allows, effect modification, external weights, `by`-stratification) inherit from gcomp/IPW/ICE as-is. All ❌.
 
 ### Phase 8 — Multivariate treatment IPW
-Joint density via sequential factorisation, product density-ratio weights, multi-model propensity sandwich. All ❌.
+Joint density via sequential factorisation, product density-ratio weights, multi-model propensity sandwich. Plus survival composition: baseline joint weight broadcast onto person-period grid, weighted pooled-logistic hazard MSM, cross-time delta IF aggregation (depends on Phase 7 Track A). All ❌.
 
 ### Phase 9 — Inference infrastructure
 Survey design integration, general cluster-robust sandwich, `future` backend. Mix of ❌ and partial.
 
 ### Phase 10 — Longitudinal IPW
-Sequential density-ratio weights, cumulative product weights, stabilized weights, time-varying MSM. All ❌.
+Sequential density-ratio weights, cumulative product weights, stabilized weights, time-varying MSM. Plus survival composition: cumulative $(i, k)$-indexed weights, weighted hazard MSM on uncensored person-period rows, cumulative-product survival curve, stacked sandwich with cross-time delta (depends on Phase 7 chunks 7a–7b and 7e). All ❌.
 
 ### Phase 11 — diagnose() rewrite
 Intervention-aware, treatment-type-aware, estimand-aware, longitudinal-aware diagnostics. All ❌.
 
 ### Phase 12 — Stochastic interventions
-`stochastic()` under test-gcomp.R (point + ICE), MC g-formula, MC-averaged IFs. IPW/matching rejected. All ❌.
+`stochastic()` under gcomp (point + ICE), MC g-formula, MC-averaged IFs. IPW/matching rejected. Plus survival composition: MC draws at the individual cumulative-product level for Track A (not at the hazard level — nonlinear cumulative product requires MC-after-cumulating); per-step MC with survival-tail pseudo-outcomes for Track B (existing per-step architecture). All ❌.
 
 ### Phase 13 — Outcome types
 Negative binomial tests, beta regression (`resolve_family("beta")`), multinomial/ordinal outcomes. All ❌.
 
 ### Phase 14 — Built-in IPCW
-Internal censoring model, stabilized IPCW weights, stacked EE sandwich extension. All ❌.
+**Survival is the motivating use case** (censoring is the rule in time-to-event data). Survival-first chunks: internal per-period censoring model, cumulative stabilized IPCW weights on person-period grid, weighted hazard MSM, stacked EE sandwich extension for censoring model blocks (Track A + Track B), Phase 10 composition (cumulative treatment × cumulative censoring weights). Non-survival MAR outcomes drop in as a one-period special case. All ❌.
 
 ### Phase 15 — Polish and documentation
 Continuous treatment vignette, `target_trial()` helper, misc release-prep. All ❌.
+
+### Phase 16 — AIPW / doubly-robust estimator
+Composes Phase 2 gcomp + Phase 4 IPW into the classical analytical doubly-robust estimator: $\hat\psi_{\mathrm{AIPW}}(a) = E[\hat{m}(a, L)] + E[W \cdot (Y - \hat{m}(A, L))]$. Stacked EE sandwich (outcome block + propensity block + plug-in); distinct from `lmtp` (TMLE/SDR with ML + cross-fitting). Double-robustness + efficiency tests; survival composition (Phase 7 Track A under AIPW); ICE-AIPW longitudinal extension (Bang & Robins 2005). All ❌.
+
+### Phase 17 — Transportability / Generalizability
+Sampling model `P(S=1 | L)` + sampling-odds weights multiply into IPW Hájek MSM; gcomp / IPW / AIPW transport paths; stacked EE extends with sampling-model block. References: Dahabreh et al. 2020; Westreich et al. 2017. Cross-check against `transport` / `transported` R packages. Survival + transport composition subsection. All ❌.
+
+### Phase 18 — G-estimation of Structural Nested Mean Models
+Third leg of the Robins triangle. Motivating use case: **correct handling of time-varying effect modification** — SNMs parameterise the per-stage blip $\gamma_k(a_k, \bar{l}_k, \bar{a}_{k-1}; \psi)$ directly and identify it via a moment condition that uses the treatment model as instrument, so time-varying modifiers are supported by design (closes the Phase 6 limitation under MSM-based estimators). Scope: linear-blip additive SNMMs for point + longitudinal, stacked EE sandwich ($K$ treatment blocks + blip block), bootstrap, `gesttools` cross-check. Survival SNMs (SNFTMs/SNCFTMs) out of scope. All ❌.
 
 ### `causat_mice()` — Multiple imputation
 Pool across `mice` imputations via Rubin's rules. All ❌.

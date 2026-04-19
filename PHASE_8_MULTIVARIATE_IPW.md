@@ -58,6 +58,26 @@ contrast(fit,
 )
 ```
 
+### Survival composition (Phase 7 Track A under IPW)
+
+Multivariate + point-survival composes cleanly and is an in-scope deliverable of Phase 8, not a Phase 7 deliverable. The composition pattern is fixed now:
+
+- **Joint density is a baseline property.** For point survival, $A_1, A_2$ are measured at baseline and $L$ is baseline. The joint density $f(A_1, A_2 \mid L)$ is fit **once on the original-row data** (one row per individual), using the same sequential factorisation as in the non-survival case. Fitting on the expanded person-period data would double-count individuals and distort the likelihood.
+- **Weight broadcast.** The product density-ratio weight
+  $$
+  w_i = \frac{f(a_1^* \mid L_i) \cdot f(a_2^* \mid a_1^*, L_i)}{f(A_{1,i} \mid L_i) \cdot f(A_{2,i} \mid A_{1,i}, L_i)}
+  $$
+  is computed once per individual and broadcast onto every person-period row for that individual. $w_i$ is constant in $k$ because neither the numerator nor the denominator depends on time for point treatments.
+- **Hazard MSM.** The weighted pooled-logistic hazard is fit on person-period data with the broadcast weights:
+  $$
+  \text{logit}\, \hat{h}(k) = \gamma_0 + \gamma(k)
+  $$
+  (intercept + flexible time basis, no $A$ or $L$ — IPW has already absorbed covariate adjustment into the weights, following the same Hájek $Y \sim 1$ pattern used by univariate IPW). Survival curve: $\hat{S}^{(a_1^*, a_2^*)}(t) = \prod_{k \leq t} (1 - \hat{h}(k))$.
+- **Variance.** The stacked EE system has **two** propensity-model blocks (for $A_1$ and $A_2 \mid A_1$) plus the hazard-MSM block. Channel 2 in `compute_ipw_if_self_contained_one()` extends to chain through both propensity models (already required for non-survival multivariate; see § "Sandwich variance"). The survival-specific addition is the cross-time delta-method aggregation from Phase 7 § "Cross-time variance aggregation": the per-individual IF is an $n \times |t\text{-grid}|$ matrix, with row $i$'s weight-derivative broadcast across every period at-risk for $i$. The IF stacking across time for a given individual is just the delta-method chain on the cumulative product.
+- **Mixed-type survival DGP.** One binary + one continuous baseline treatment with a Weibull or piecewise-exponential event time is the canonical test. External oracle: none directly — `lmtp::lmtp_tmle` does not support joint multivariate baseline treatment. Cross-check instead against multivariate g-comp + pooled logistic (Track A under gcomp), which already supports multivariate treatment for non-survival.
+
+**Longitudinal multivariate + survival is out of scope for Phase 8.** Combining Phase 8 (multivariate) with Phase 10 (longitudinal) with Phase 7 (survival) is a three-way composition documented in Phase 10 § "Survival composition"; it is explicitly deferred past Phase 8.
+
 ## Items
 
 - [ ] Remove `length(treatment) > 1L` gate in `fit_ipw()`
@@ -68,6 +88,7 @@ contrast(fit,
 - [ ] Extend `apply_intervention()` for per-component intervention lists
 - [ ] Truth-based tests: 2-treatment DGP validated against multivariate g-comp
 - [ ] Mixed-type test: one binary + one continuous treatment
+- [ ] **Survival composition:** broadcast joint weight onto person-period rows; weighted pooled-logistic hazard MSM; cross-time delta-method IF aggregation on $\hat{S}^{(a_1^*, a_2^*)}(t)$; test against multivariate gcomp + pooled logistic on a Weibull/piecewise-exponential DGP. *Depends on Phase 7 Track A (chunks 7a–7d).*
 
 ## Dependencies
 

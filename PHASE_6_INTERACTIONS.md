@@ -49,6 +49,47 @@ This means the EM expansion for IPW is:
 
 For matching, the MSM is already `Y ~ A`, so the expansion is `Y ~ A + sex + A:sex`.
 
+## Known limitation: modifier must be **baseline** under IPW / matching MSM
+
+**Under IPW and matching, the modifier in `A:modifier` must be baseline — not affected by earlier treatment.** Under ICE this extends to: the modifier must be measurable **before** the treatment whose effect it modifies (so at stage $k$, any component of $\bar{L}_{k-1}$ is fine, but $L_k$ itself is not, because it can be affected by $A_{k-1}$).
+
+### Why
+
+MSMs parameterise the marginal counterfactual mean:
+
+$$
+E[Y^{\bar{a}} \mid V] = g^{-1}\!\big(\beta_0 + \beta \cdot \text{cum\_a} + \gamma \cdot V\big),
+$$
+
+where $V$ is **baseline** covariates. The density-ratio weights explicitly integrate out time-varying covariates $\bar{L}$ by design — that is what "marginal" means in *marginal* structural model. Putting a time-varying $L_k$ into the MSM as an effect modifier is equivalent to **conditioning on a post-treatment variable**: $L_k$ can be affected by earlier $A_j$ ($j < k$), so the resulting stratum-specific estimand mixes (i) genuine effect modification with (ii) selection bias through mediators and (iii) collider bias on treatment–outcome paths (Robins 2000; Hernán & Robins Ch. 12.6). The estimate has no clean causal interpretation.
+
+This restriction is a property of MSMs, not of causatr's implementation — the same warning applies to every MSM-based estimator in any package. It is not enforced by the current `check_em_compat()` gate; a Phase 6 follow-up should add an opt-in `check_em_baseline_only()` check that fires on `estimator = "ipw"` / `"matching"` when the modifier is not demonstrably baseline (hard to do automatically — time-varying status is not encoded in the data structure — so the check will likely rely on a user-supplied `baseline_cols = ...` contract).
+
+### What each estimator actually supports
+
+| Estimator | Baseline modifier | Time-varying modifier |
+|---|---|---|
+| **gcomp (point)** | ✓ (outcome model standard) | ✓ — the outcome model conditions on the full $(A, L)$ and standardizes over $L$; no post-treatment selection |
+| **IPW (point)** | ✓ | ⛔ — silent bias; MSM conditions on post-treatment variable |
+| **matching (point)** | ✓ | ⛔ — same issue as IPW |
+| **ICE (longitudinal gcomp)** | ✓ | ⚠️ with care — the current-period modifier $L_k$ is post-treatment relative to $A_{k-1}$, so $A_{k-1}:L_k$ has the same interpretive problem. Modifiers should be from $\bar{L}_{k-1}$ (pre-period history). |
+| **IPW (longitudinal, Phase 10)** | ✓ | ⛔ — same marginal-vs-conditional issue, repeated per period |
+
+### Scientific workaround: use an SNM
+
+The correct tool for **genuine time-varying effect modification** is g-estimation of a structural nested mean model (SNM). SNMs parameterise the per-stage blip $\gamma(a_k, \bar{l}_k, \bar{a}_{k-1}; \psi)$ directly — so a stage-$k$ modifier drawn from $\bar{L}_k$ is supported by design, not by accident. causatr's SNM pathway is scoped in `PHASE_18_SNMS.md`. Users who write `A:L_k` with time-varying $L_k$ should be pointed to `estimator = "snm"` (once Phase 18 ships).
+
+### Runtime behaviour until Phase 18
+
+Pre-Phase-18, causatr has no way to detect time-varying modifiers from data alone, so it cannot raise a targeted error. The doc-level mitigation is:
+
+- This section in `PHASE_6_INTERACTIONS.md`.
+- A parallel warning in the IPW / matching / longitudinal vignettes.
+- A sentence in the `?causat` roxygen `@details` naming the restriction.
+- A single-line note in CLAUDE.md's Phase 6 description.
+
+A runtime `check_em_baseline_only()` via an explicit `baseline_cols = character()` argument is a natural follow-up once users start tripping over the restriction in practice. Flagged as an open item, not as Phase 6 scope creep.
+
 ## Plan — chunk sequence
 
 ### Chunk 6a — `parse_effect_mod()` helper + gate refactoring
@@ -214,6 +255,8 @@ on the stratum. No changes to `by` itself.
 | EM for multivariate treatment (joint A1:L, A2:L) | Needs the multivariate treatment expansion in Phase 8 | Phase 8 |
 | EM for self-contained IPW with non-static interventions | Requires density ratio weights from Phase 4 (done) | — |
 | EM for survival contrasts | Survival contrasts themselves are Phase 7 | Phase 7 |
+| **EM by a time-varying modifier under IPW / matching** | MSM conditioning on post-treatment variables is a **structural limitation of MSM identification**, not an implementation gap. See § "Known limitation: modifier must be **baseline**". Correct tool is a structural nested model. | Phase 18 (`PHASE_18_SNMS.md`) |
+| **Runtime `check_em_baseline_only()` guard** | Time-varying status is not inferable from the data structure; user must declare via an explicit `baseline_cols =` contract | Follow-up once users trip over the silent-bias risk in practice |
 
 ## Test matrix rows added by Phase 6
 

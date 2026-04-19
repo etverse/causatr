@@ -1,7 +1,7 @@
 # Phase 11 — Full `diagnose()` rewrite
 
 > **Status: PENDING** (design doc)
-> Dependencies: Phase 4 (done), Phase 5 (done), Phase 6 (effect modification), Phase 8 (multivariate IPW), Phase 10 (longitudinal IPW)
+> Dependencies: Phase 4 (done), Phase 5 (done), Phase 6 (effect modification), Phase 7 (survival), Phase 8 (multivariate IPW), Phase 10 (longitudinal IPW), Phase 14 (IPCW)
 
 ## Why this deserves its own phase
 
@@ -125,6 +125,35 @@ Phase 3's `plot.causatr_diag()` produces a Love plot via `cobalt` when balance d
 ### 8. Backwards compatibility
 
 The Phase 4 shim keeps `diagnose(fit)` working on the common binary static ATE case. Phase 11's `diagnose(fit)` (no `interventions = ` argument) should produce the same output it does today — the new signature is additive, not a breaking change. Tests in `test-diagnose.R` from Phase 4 survive into Phase 11 as regression anchors.
+
+### 9. Survival-aware diagnostics (Phase 7 composition)
+
+For fits of class `fit_type == "survival"`, `diagnose()` surfaces additional panels that are meaningless for scalar outcomes and essential for time-to-event:
+
+- **Per-period hazard positivity.** Distribution of $\hat{h}(k \mid A, L)$ across individuals at each $k$, flagging periods where the hazard saturates at 0 or 1 (degenerate intervention subpopulations, small at-risk sets, separation). The binary-ICE saturation warning already landed in `R/ice.R` (commit 714ca30) generalises to this per-period report.
+- **Risk-set shrinkage.** Number of individuals at risk at each $k$ under the observed data and — for counterfactuals — the effective sample size after weighting. Exposes silent positivity violations: e.g., a dynamic rule that leaves no one at risk past $k = 5$.
+- **IPCW weight distribution per period.** Once Phase 14 ships, the per-period stabilized censoring weights should surface here with the same min / max / 99th-percentile / ESS summary used for treatment weights, and with per-period extreme-weight flags.
+- **Competing-risks decomposition.** When `competing != NULL` (Phase 7 chunk 7f), separate panels for each cause-specific hazard and for the cumulative incidence contribution per cause.
+- **Cross-time balance (ICE hazards).** For Track B fits, covariate balance at each time step after weighting — analogous to the longitudinal balance in § 2 but evaluated at the hazard MSM's weighted rows rather than the outcome MSM's.
+
+The output-shape tree in § 6 gains a `$survival` branch parallel to `$longitudinal`:
+
+```
+causatr_diag
+├─ ...
+└─ survival (optional, when fit_type == "survival")
+     ├─ hazard_positivity: { per-period distribution, saturation flags }
+     ├─ risk_set: { per-period n_at_risk, observed and counterfactual }
+     ├─ ipcw (optional, when Phase 14 IPCW is used)
+     │    ├─ per-period weight summary, extreme-weight flags
+     ├─ competing (optional, when competing != NULL)
+     │    ├─ per-cause hazard + CIF contribution
+     └─ balance_over_time (for Track B): per-period SMDs
+```
+
+Survival-aware plot methods add: per-period hazard box/violin plot with saturation band, risk-set-shrinkage line plot across $t$, per-cause CIF plot.
+
+`diagnose()` does **not** try to absorb the survival-curve *estimand* plot (that is `plot.causatr_result()` on a survival `contrast()` output; scope belongs to Phase 7 chunk 7c, not Phase 11).
 
 ## Items (to be landed in Phase 11)
 

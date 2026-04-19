@@ -282,6 +282,28 @@ Stochastic interventions are compatible with:
 
 No additional gating needed beyond the IPW/matching rejection.
 
+### 9. Survival composition (Phase 7 tracks under stochastic)
+
+Stochastic interventions on survival outcomes are in scope — both Track A (point survival via pooled logistic) and Track B (longitudinal survival via ICE hazards). The composition pattern is **not the same as for a scalar outcome**: the cumulative product is nonlinear, so the order of operations between MC averaging and time aggregation matters.
+
+**Correct:** per-individual survival curve is the MC expectation of the cumulative product:
+$$
+\hat{S}^g_i(t) = \mathbb{E}_{A \sim g}\!\left[\prod_{k \leq t}\!\left(1 - \hat{h}(k \mid A, L_{i,k})\right)\right] \approx \frac{1}{M}\sum_{m=1}^M \prod_{k \leq t}\!\left(1 - \hat{h}(k \mid A_{i,m}, L_{i,k})\right).
+$$
+The MC average is taken **after** cumulating. Population-level survival is then $\hat{S}^g(t) = (1/n)\sum_i \hat{S}^g_i(t)$.
+
+**Incorrect:** averaging hazards across draws, then cumulating. $\prod_k (1 - \bar{h}_k) \neq \overline{\prod_k (1 - h_k)}$ in general. By Jensen's inequality the hazard-averaged form gives a biased survival curve under any policy $g$ that induces variability in $h$ across draws.
+
+**Track A (point survival under stochastic).** At contrast time: for each of $M$ baseline treatment draws from $g(\cdot \mid L_i)$, broadcast the draw across the person-period trajectory, predict per-row hazards, cumulate per individual, then MC-average the per-individual survival curves. This is a single MC loop wrapping the full Track A contrast path.
+
+**Track B (longitudinal survival under stochastic, ICE hazards).** The per-step MC already designed in § "4. ICE — MC integration in `ice_iterate()`" is the correct architecture: at each backward step $k$, draw $M$ values from $g_k(\cdot \mid H_k)$, predict per-draw hazards, MC-average the **pseudo-survival-tail** ($1 - \hat{h}_k \cdot \hat{S}^d_{k+1:K}$) across draws, pass to step $k-1$. The backward iteration produces $\hat{S}^g_i(t)$ directly because the per-step pseudo-outcomes are already time-cumulative quantities (the pseudo-outcome at step $k$ is the MC-integrated survival tail from $k$ to $K$). No separate cumulative-product step is needed at contrast time.
+
+**Variance.** MC-averaged IFs as in § "5. Sandwich variance — averaged IFs", composed with the cross-time delta aggregation from Phase 7 § "Cross-time variance aggregation". The per-individual IF is an $n \times |t\text{-grid}|$ matrix whose columns are the delta-propagated gradients of $\hat{S}^g_i(t)$ w.r.t. the model parameters, averaged across MC draws. Bootstrap: unchanged — each replicate independently runs the full MC loop.
+
+**Tests.**
+- Closed-form point-survival DGP: exponential event time with baseline-Bernoulli stochastic policy; analytical $\hat{S}^g(t) = \mathbb{E}_L[\mathbb{E}_{A \sim g}[\exp(-\lambda(A, L) t)]]$ with $\lambda(a, l) = \exp(\beta_0 + \beta_a a + \beta_l l)$.
+- `lmtp::lmtp_tmle(outcome_type = "survival", shift = <stochastic policy>)` cross-check on longitudinal DGP.
+
 ---
 
 ## Chunks
@@ -339,6 +361,24 @@ No additional gating needed beyond the IPW/matching rejection.
 3. Update `FEATURE_COVERAGE_MATRIX.md`.
 4. Update `CLAUDE.md`.
 5. `devtools::document()` + `devtools::check()`.
+
+### Chunk 7: Survival composition (both tracks)
+
+*Depends on Phase 7 chunks 7a–7b (Track A) and 7e (Track B).*
+
+1. Track A under stochastic: wrap the Track A contrast path in an MC
+   loop over baseline treatment draws from `g(·|L)`; aggregate the
+   per-individual survival curves by MC averaging; verify against the
+   exponential closed-form DGP.
+2. Track B under stochastic: confirm the existing per-step MC design
+   in `ice_iterate()` produces the correct $\hat{S}^g_i(t)$ when the
+   per-step target is the survival-tail pseudo-outcome. Add the
+   longitudinal-survival DGP and `lmtp::lmtp_tmle` cross-check.
+3. Variance: extend the MC-averaged IF machinery with the cross-time
+   delta chain from Phase 7 § "Cross-time variance aggregation".
+   Verify pointwise SEs match bootstrap to MC noise.
+4. Add rejection test: stochastic intervention under Phase 10
+   longitudinal IPW + survival (deferred as a four-way composition).
 
 ---
 
