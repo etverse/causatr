@@ -964,6 +964,26 @@ test_that("to_person_period converts wide to long correctly", {
   expect_equal(long[id == 1 & time == 1, sex], 0)
 })
 
+test_that("to_person_period() aborts when a time-varying column is missing from data", {
+  # The missing-column guard at the top of to_person_period() is the
+  # earliest user-facing error and protects against silent NA columns
+  # downstream. Coverage gap was the abort branch only.
+  wide <- data.table::data.table(
+    id = 1:3,
+    A0 = c(0, 1, 0),
+    A1 = c(1, 0, 1)
+  )
+  expect_error(
+    to_person_period(
+      wide,
+      id = "id",
+      # 'L0' / 'L1' are not in `wide`
+      time_varying = list(A = c("A0", "A1"), L = c("L0", "L1"))
+    ),
+    "Column.*not found"
+  )
+})
+
 test_that("to_person_period rejects mismatched lengths", {
   wide <- data.table::data.table(
     id = 1:2,

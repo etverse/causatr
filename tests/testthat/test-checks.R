@@ -206,6 +206,35 @@ test_that("check_causat_inputs() rejects outcome == treatment", {
   )
 })
 
+# ---- is_binary_family() -------------------------------------------------
+#
+# `is_binary_family()` is a small predicate used by print/summary/
+# diagnose. It must return FALSE for a NULL family (e.g. for a
+# matching fit that has no outcome family) and FALSE for inputs whose
+# resolved family object lacks a character `$family` slot.
+
+test_that("is_binary_family() returns FALSE for NULL family", {
+  expect_false(is_binary_family(NULL))
+})
+
+test_that("is_binary_family() returns TRUE for binomial / quasibinomial inputs", {
+  expect_true(is_binary_family("binomial"))
+  expect_true(is_binary_family("quasibinomial"))
+  expect_true(is_binary_family(stats::binomial()))
+})
+
+test_that("is_binary_family() returns FALSE for non-binomial inputs", {
+  expect_false(is_binary_family("gaussian"))
+  expect_false(is_binary_family(stats::poisson()))
+  expect_false(is_binary_family("Gamma"))
+})
+
+test_that("is_binary_family() returns FALSE when resolve_family() errors", {
+  # An object that cannot be resolved into a family object falls
+  # through the tryCatch and the function returns FALSE.
+  expect_false(is_binary_family(list(garbage = TRUE)))
+})
+
 test_that("check_causat_inputs() rejects history that isn't a positive integer or Inf", {
   d <- data.frame(Y = 1, A = 1, L = 1, id = 1, t = 0)
   # First branch: not scalar double / integer / Inf at all -- pass

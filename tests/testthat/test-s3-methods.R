@@ -39,6 +39,114 @@ test_that("format_family() returns '<custom>' for unrecognised inputs", {
   expect_identical(format_family(bad_closure), "<custom>")
 })
 
+# ---- print.causatr_result() display branches ----------------------------
+#
+# Three additional banners: bootstrap-info line (n_ok/n_requested
+# replicates + failure %), Tier-2 fallback note, and "by subgroup"
+# section headers. None are exercised by the existing simple print
+# tests because all use sandwich SE on point fits without `by`.
+
+test_that("print.causatr_result() shows bootstrap replicate count", {
+  set.seed(421)
+  d <- simulate_binary_continuous(n = 200, seed = 421)
+  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L)
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    ci_method = "bootstrap",
+    n_boot = 10
+  )
+  out <- capture.output(print(res))
+  expect_true(any(grepl("Bootstrap:", out)))
+  expect_true(any(grepl("replicates", out)))
+})
+
+test_that("print.causatr_result() flags the Tier-2 sandwich approximation", {
+  # `print.causatr_result()` checks the vcov for the
+  # `tier2_approximate` attribute that `variance_if_numeric()` sets
+  # when its Tier-1 fallback fails. We simulate the flag by patching
+  # the attribute on a normal sandwich result.
+  set.seed(422)
+  d <- simulate_binary_continuous(n = 100, seed = 422)
+  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L)
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0))
+  )
+  attr(res$vcov, "tier2_approximate") <- TRUE
+  out <- capture.output(print(res))
+  expect_true(any(grepl("Tier-2 fallback", out)))
+})
+
+test_that("print.causatr_result() emits 'by subgroup' headers when by= was used", {
+  set.seed(423)
+  d <- simulate_binary_continuous(n = 200, seed = 423)
+  d$g <- c(rep(0, 100), rep(1, 100))
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L + g
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    by = "g"
+  )
+  out <- capture.output(print(res))
+  expect_true(any(grepl("Intervention means \\(by subgroup\\)", out)))
+  expect_true(any(grepl("Contrasts \\(by subgroup\\)", out)))
+})
+
+# ---- summary.causatr_fit() longitudinal + matching display --------------
+
+test_that("summary.causatr_fit() shows id/time for longitudinal fits", {
+  # The longitudinal banner branch fires when fit$id is non-NULL.
+  # Use a small ICE fit so we can call summary() on it.
+  set.seed(424)
+  n <- 30
+  ids <- seq_len(n)
+  L0 <- rnorm(n)
+  A0 <- rbinom(n, 1, 0.5)
+  L1 <- rnorm(n)
+  A1 <- rbinom(n, 1, 0.5)
+  Y <- L0 + A0 + A1 + rnorm(n)
+  d <- data.table::data.table(
+    id = rep(ids, 2),
+    time = rep(0:1, each = n),
+    L = c(L0, L1),
+    A = c(A0, A1),
+    Y = c(rep(NA, n), Y)
+  )
+  fit <- suppressWarnings(causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~1, # baseline-only formula avoids the L baseline-vs-tv warning
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    type = "longitudinal"
+  ))
+  out <- capture.output(summary(fit))
+  expect_true(any(grepl("ID:", out)))
+  expect_true(any(grepl("Time:", out)))
+})
+
+test_that("summary.causatr_fit() shows the matching banner for a matching fit", {
+  set.seed(425)
+  d <- simulate_binary_continuous(n = 200, seed = 425)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "matching"
+  )
+  out <- capture.output(summary(fit))
+  expect_true(any(grepl("Matching:", out)))
+})
+
 
 test_that("confint() respects level argument", {
   df <- simulate_effect_mod()

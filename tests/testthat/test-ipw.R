@@ -164,6 +164,68 @@ test_that("IPW rejects bare treatment in confounders", {
   )
 })
 
+# `fit_ipw()` rejects scientifically out-of-scope combinations up
+# front: longitudinal IPW (Phase 10 work) and multivariate treatment
+# (Phase 8 work). The aborts ship today as actionable error messages
+# pointing users to the supported alternatives.
+test_that("IPW rejects type = 'longitudinal' upstream and via fit_ipw()", {
+  # Two paths: `check_causat_inputs()` rejects it at the top of
+  # `causat()` (the user-facing path), and `fit_ipw()` has its own
+  # defensive abort for the same condition (the dispatcher path used
+  # by the bootstrap refitter). The test exercises both.
+  d <- simulate_binary_continuous(n = 100, seed = 411)
+  d$id <- seq_len(nrow(d))
+  d$t <- 0L
+  expect_error(
+    causat(
+      d,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~L,
+      estimator = "ipw",
+      id = "id",
+      time = "t",
+      type = "longitudinal"
+    ),
+    "does not support longitudinal data"
+  )
+  # Direct call to fit_ipw with type = "longitudinal" hits the
+  # internal abort branch.
+  expect_error(
+    fit_ipw(
+      data = data.table::as.data.table(d),
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~L,
+      family = "gaussian",
+      estimand = "ATE",
+      type = "longitudinal",
+      call = NULL
+    ),
+    "Longitudinal IPW is not supported"
+  )
+})
+
+test_that("IPW rejects multivariate treatment with a gcomp pointer", {
+  set.seed(412)
+  d <- data.frame(
+    Y = rnorm(100),
+    A1 = rbinom(100, 1, 0.5),
+    A2 = rbinom(100, 1, 0.5),
+    L = rnorm(100)
+  )
+  expect_error(
+    causat(
+      d,
+      outcome = "Y",
+      treatment = c("A1", "A2"),
+      confounders = ~L,
+      estimator = "ipw"
+    ),
+    "Multivariate treatments are not supported"
+  )
+})
+
 # Defensive guard: `compute_ipw_contrast_point()` aborts with an
 # "Internal error" if a caller hands it an IPW fit whose
 # `$details$treatment_model` is missing. `fit_ipw()` always populates it,
