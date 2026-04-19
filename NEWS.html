@@ -513,7 +513,10 @@ window.Quarto = {
   <ul>
   <li><a href="#causatr-development-version" id="toc-causatr-development-version" class="nav-link active" data-scroll-target="#causatr-development-version">causatr (development version)</a>
   <ul class="collapse">
-  <li><a href="#phase-6-chunks-6a6b-effect-modification-infrastructure-ipw-msm-expansion" id="toc-phase-6-chunks-6a6b-effect-modification-infrastructure-ipw-msm-expansion" class="nav-link" data-scroll-target="#phase-6-chunks-6a6b-effect-modification-infrastructure-ipw-msm-expansion">2026-04-17 — Phase 6 chunks 6a–6b: effect modification infrastructure + IPW MSM expansion</a></li>
+  <li><a href="#bug-fixes" id="toc-bug-fixes" class="nav-link" data-scroll-target="#bug-fixes">Bug fixes</a></li>
+  <li><a href="#phase-6-complete-unified-effect-modification-api" id="toc-phase-6-complete-unified-effect-modification-api" class="nav-link" data-scroll-target="#phase-6-complete-unified-effect-modification-api">2026-04-17 — Phase 6 complete: unified effect-modification API</a></li>
+  <li><a href="#phase-6-chunk-6d-ice-lag-auto-expansion-for-effect-modification" id="toc-phase-6-chunk-6d-ice-lag-auto-expansion-for-effect-modification" class="nav-link" data-scroll-target="#phase-6-chunk-6d-ice-lag-auto-expansion-for-effect-modification">2026-04-17 — Phase 6 chunk 6d: ICE lag auto-expansion for effect modification</a></li>
+  <li><a href="#phase-6-chunks-6a6c-effect-modification-infrastructure-ipwmatching-msm-expansion" id="toc-phase-6-chunks-6a6c-effect-modification-infrastructure-ipwmatching-msm-expansion" class="nav-link" data-scroll-target="#phase-6-chunks-6a6c-effect-modification-infrastructure-ipwmatching-msm-expansion">2026-04-17 — Phase 6 chunks 6a–6c: effect modification infrastructure + IPW/matching MSM expansion</a></li>
   <li><a href="#cran-compliance-non-ascii-character-cleanup" id="toc-cran-compliance-non-ascii-character-cleanup" class="nav-link" data-scroll-target="#cran-compliance-non-ascii-character-cleanup">2026-04-17 — CRAN compliance: non-ASCII character cleanup</a></li>
   <li><a href="#documentation-overhaul" id="toc-documentation-overhaul" class="nav-link" data-scroll-target="#documentation-overhaul">2026-04-17 — Documentation overhaul</a></li>
   <li><a href="#print.causatr_result-uses-digits-3" id="toc-print.causatr_result-uses-digits-3" class="nav-link" data-scroll-target="#print.causatr_result-uses-digits-3">2026-04-17 — <code>print.causatr_result()</code> uses <code>digits = 3</code></a></li>
@@ -565,8 +568,41 @@ window.Quarto = {
 
 <section id="causatr-development-version" class="level1">
 <h1>causatr (development version)</h1>
-<section id="phase-6-chunks-6a6b-effect-modification-infrastructure-ipw-msm-expansion" class="level2">
-<h2 class="anchored" data-anchor-id="phase-6-chunks-6a6b-effect-modification-infrastructure-ipw-msm-expansion">2026-04-17 — Phase 6 chunks 6a–6b: effect modification infrastructure + IPW MSM expansion</h2>
+<section id="bug-fixes" class="level2">
+<h2 class="anchored" data-anchor-id="bug-fixes">Bug fixes</h2>
+<ul>
+<li><p><code>bread_inv()</code> now aborts with <code>causatr_gam_missing_vp</code> when a GAM-classed fit object lacks <code>$Vp</code>. Previously it fell through to the GLM-style <code>X'WX</code> bread on <code>model.matrix(model)</code>, silently miscomputing the sandwich variance for any caller that built a GAM-subclassed object without the Bayesian posterior covariance. Properly fitted <code>mgcv::gam()</code> objects always carry <code>$Vp</code>, so this is a defensive guard rather than a regression for standard users. Sixth-round critical review Issue L2.</p></li>
+<li><p>ICE g-computation now emits a rate-limited, classed <code>causatr_ice_boundary_saturation</code> warning when any binary-outcome prediction lands exactly at 0 or 1. Such rows enter the next backward pseudo-outcome model’s quasibinomial fit with zero IWLS working weight <code>mu * (1 - mu)</code> and are silently excluded from that fit, biasing the counterfactual chain. The warning is emitted on both the final-time model’s predictions and each subsequent backward step, and is rate-limited via <code>rlang::warn(.frequency = "once")</code> so long chains and bootstrap loops don’t flood stderr. Sixth-round critical review Issue L3.</p></li>
+<li><p>Tier-2 sandwich variance fallback in <code>variance_if_numeric()</code> now tags the returned vcov with <code>attr(., "tier2_approximate") = TRUE</code>, and <code>print.causatr_result()</code> surfaces a one-line note when the flag is present. Previously the approximate-variance path was only announced via a classed <code>rlang::warn()</code> that scrolled off quickly and was not detectable post-hoc without re-running the variance calculation. Users and batch pipelines can now query <code>attr(result$vcov, "tier2_approximate")</code> to decide whether to prefer <code>ci_method = "bootstrap"</code>. Sixth-round critical review Issue L1.</p></li>
+<li><p><code>expand_em_lag_terms()</code> now correctly finds all treatment components in multivariate treatment EM terms (e.g.&nbsp;<code>A1:A2:sex</code> with <code>treatment = c("A1", "A2")</code>). Previously, <code>which(components == trt_var)</code> relied on R’s <code>==</code> vector recycling, which silently returned zero matches when <code>treatment_var</code> was a vector of length &gt; 1 whose length did not evenly divide the component count. The function returned <code>character(0)</code>, dropping all lag EM terms from ICE formulas. Fixed by switching to <code>%in%</code>. Fifth-round critical review Issue #B1.</p></li>
+<li><p>IPW <code>compute_ipw_contrast_point()</code> now predicts and averages on <code>fit_data</code> (outcome-complete rows) instead of the full data. When the MSM includes modifier terms (e.g.&nbsp;<code>Y ~ 1 + sex</code> from effect modification), predictions vary across rows. Previously, the marginal mean included NA-outcome rows that the variance engine excluded, creating a centering mismatch in Channel 1 of the sandwich IF. Under modifier-dependent outcome missingness the sandwich SE was biased (9% underestimate at 70% missingness in a repro). For <code>Y ~ 1</code> (no EM) the bug was invisible because all predictions were constant. Fifth-round critical review Issue #B2.</p></li>
+<li><p>Removed unused <code>em_confounder_terms()</code> helper from <code>R/effect_modification.R</code>. Added a diagnostic <code>rlang::warn()</code> in <code>expand_em_lag_terms()</code> when no treatment components are found in an EM term (previously silent). Fifth-round critical review Issues #S1, #S2.</p></li>
+</ul>
+</section>
+<section id="phase-6-complete-unified-effect-modification-api" class="level2">
+<h2 class="anchored" data-anchor-id="phase-6-complete-unified-effect-modification-api">2026-04-17 — Phase 6 complete: unified effect-modification API</h2>
+<p>Phase 6 (chunks 6a–6e) delivers a unified effect-modification API across all four estimation methods. Users write <code>confounders = ~ L + sex + A:sex</code> and every method does the right thing:</p>
+<ul>
+<li><strong>G-comp</strong> feeds the interaction to the outcome model directly.</li>
+<li><strong>IPW</strong> expands the per-intervention MSM from <code>Y ~ 1</code> to <code>Y ~ 1 + modifier</code> via <code>build_ipw_msm_formula()</code>.</li>
+<li><strong>Matching</strong> expands the outcome MSM from <code>Y ~ A</code> to <code>Y ~ A + modifier + A:modifier</code> via <code>build_matching_msm_formula()</code>.</li>
+<li><strong>ICE</strong> auto-expands the interaction across treatment lags (<code>lag1_A:modifier</code>, <code>lag2_A:modifier</code>, …) via <code>expand_em_lag_terms()</code>.</li>
+</ul>
+<p>Cross-method triangulation test confirms that gcomp, IPW, and matching agree on stratum-specific ATEs within cross-method tolerance on the same DGP. Vignettes updated with worked examples for all four methods.</p>
+</section>
+<section id="phase-6-chunk-6d-ice-lag-auto-expansion-for-effect-modification" class="level2">
+<h2 class="anchored" data-anchor-id="phase-6-chunk-6d-ice-lag-auto-expansion-for-effect-modification">2026-04-17 — Phase 6 chunk 6d: ICE lag auto-expansion for effect modification</h2>
+<p>ICE g-computation now auto-expands <code>A:modifier</code> interaction terms across treatment lags. When <code>confounders = ~ L0 + sex + A:sex</code>, the ICE outcome model at each backward step includes not only <code>A:sex</code> (current period) but also <code>lag1_A:sex</code>, <code>lag2_A:sex</code>, etc. for all available lags. Without this expansion, ICE captured effect modification only at the current treatment period, collapsing roughly half the intended heterogeneity.</p>
+<ul>
+<li>New <code>expand_em_lag_terms()</code> helper in <code>R/effect_modification.R</code> splits the interaction term on <code>:</code>, substitutes the treatment component with <code>lag{k}_{treatment}</code>, and returns the expanded terms.</li>
+<li><code>fit_ice()</code> now parses and stores <code>em_info</code> from <code>parse_effect_mod()</code>.</li>
+<li><code>ice_build_formula()</code> accepts <code>em_info</code> and appends lag-expanded EM terms to the formula RHS, subject to the same all-NA column validity check as other dynamic terms.</li>
+<li>The sandwich variance engine and bootstrap path require no changes: both operate generically on the model matrices, which simply grow to accommodate the additional interaction columns.</li>
+<li>Tests: 2-period truth (ATE|sex=0 = 5, ATE|sex=1 = 8), 3-period truth (ATE|sex=0 = 8, ATE|sex=1 = 12.5), multiple EM terms smoke test, bootstrap coverage, regression guard.</li>
+</ul>
+</section>
+<section id="phase-6-chunks-6a6c-effect-modification-infrastructure-ipwmatching-msm-expansion" class="level2">
+<h2 class="anchored" data-anchor-id="phase-6-chunks-6a6c-effect-modification-infrastructure-ipwmatching-msm-expansion">2026-04-17 — Phase 6 chunks 6a–6c: effect modification infrastructure + IPW/matching MSM expansion</h2>
 <p><strong>Phase 6 chunk 6a — <code>parse_effect_mod()</code> infrastructure + gate refactoring.</strong></p>
 <ul>
 <li>New <code>R/effect_modification.R</code> with the shared effect-modification parser that all four estimation methods consult. <code>parse_effect_mod()</code> classifies each term in <code>confounders</code> as either a pure confounder or an effect-modification interaction (<code>A:modifier</code>), returning a structured <code>causatr_em_info</code> object.</li>
@@ -578,6 +614,14 @@ window.Quarto = {
 <li>The IPW MSM expands from intercept-only (<code>Y ~ 1</code>) to <code>Y ~ A + modifier + A:modifier</code> when <code>parse_effect_mod()</code> detects an interaction term. <code>build_ipw_msm_formula()</code> constructs the expanded formula; <code>compute_ipw_contrast_point()</code> passes it to the per-intervention weighted GLM refit.</li>
 <li>The variance engine (<code>variance_if_ipw</code>) generalises unchanged: <code>J</code>, <code>X_star</code>, and <code>phi_bar</code> all extend from <code>p_beta = 1</code> to <code>p_beta &gt; 1</code>.</li>
 <li>Tests: DGP-4 truth-based simulation (binary treatment x binary modifier, sandwich SE), bootstrap parity, gcomp cross-check.</li>
+</ul>
+<p><strong>Phase 6 chunk 6c — Matching MSM expansion for effect modification.</strong></p>
+<ul>
+<li>The matching MSM expands from <code>Y ~ A</code> to <code>Y ~ A + modifier + A:modifier</code> when <code>parse_effect_mod()</code> detects an interaction term in <code>confounders</code>. <code>build_matching_msm_formula()</code> constructs the saturated MSM; the expanded model recovers stratum-specific treatment effects via the matched-sample outcome regression.</li>
+<li><code>refit_matching()</code> (bootstrap path) replays the EM-expanded MSM formula so bootstrap SEs correctly track the effect-modification structure.</li>
+<li>Formula environment fix: <code>stats::glm()</code> evaluates <code>weights</code> in the formula’s environment, but formulas returned from helper functions carry the helper’s frame. Both <code>fit_matching()</code> and <code>refit_matching()</code> now reset the formula environment to the local frame.</li>
+<li>The variance engine (<code>variance_if_matching</code>) generalises unchanged: <code>prepare_model_if()</code> and <code>apply_model_correction()</code> work on the expanded GLM’s coefficients, score, and bread without modification.</li>
+<li>Tests: DGP-4 truth-based simulation (binary treatment x binary modifier, sandwich SE), bootstrap parity, gcomp cross-check, regression guard.</li>
 </ul>
 </section>
 <section id="cran-compliance-non-ascii-character-cleanup" class="level2">
@@ -780,7 +824,7 @@ window.Quarto = {
 <li><strong>Tier 2 numeric variance warning is now classed (S5).</strong> <code>variance_if_numeric()</code>’s delta-shortcut warning carries <code>class = "causatr_tier2_fallback"</code> so batch pipelines and CI can grep for it via <code>withCallingHandlers()</code>.</li>
 <li><strong><code>compute_weight_summary()</code> binary split pulls levels from WeightIt (S6)</strong> instead of hard-coding <code>trt == 0</code> / <code>trt == 1</code>. Factor-coded binary treatments and integer codings like <code>c(1, 2)</code> now get correctly-populated “treated” / “control” rows.</li>
 <li><strong><code>contrast()</code> subset evaluation preserves lexical scope (S7).</strong> The three <code>eval(subset, envir = as.list(data))</code> call sites were copying every column of <code>data</code> into a fresh list and losing the caller’s enclosing environment. Switched to <code>eval(subset, envir = data, enclos = parent.frame())</code>, which skips the copy and lets <code>subset</code> expressions reference session variables like <code>quote(age &gt; cutoff)</code>.</li>
-<li><strong>FEATURE_COVERAGE_MATRIX survival section split (S8).</strong> Replaced the mixed “fit-only smoke (Phase 6 contrast pending)” rows with an explicit three-table layout (fit path / contrast path / rejection path) so the Phase 6 gap is visible without status annotations that mean different things on different rows.</li>
+<li><strong>FEATURE_COVERAGE_MATRIX survival section split (S8).</strong> Replaced the mixed “fit-only smoke (Phase 7 contrast pending)” rows with an explicit three-table layout (fit path / contrast path / rejection path) so the Phase 7 gap is visible without status annotations that mean different things on different rows.</li>
 <li><strong><code>.pseudo_y</code> column collision guard in ICE (S9).</strong> <code>fit_ice()</code> now aborts upfront if <code>data</code> already has a column named <code>.pseudo_y</code>, which is the internal bookkeeping column ICE writes predicted pseudo-outcomes into during the backward iteration.</li>
 </ul>
 </section>
@@ -796,7 +840,7 @@ window.Quarto = {
 <li><strong><code>ipw.qmd</code></strong> — added categorical and continuous (GPS) treatment sections, an external-survey-weights section, a parallel-bootstrap section, and a non-Mparts WeightIt fallback example. Updated the Channel-2 technical note to reference the current <code>prepare_propensity_if()</code> / <code>apply_propensity_correction()</code> architecture (was still referring to the renamed <code>correct_propensity()</code>).</li>
 <li><strong><code>matching.qmd</code></strong> — added an ATT + external survey weights section demonstrating <code>combine_match_and_external_weights()</code>, and extended the summary table with a categorical / continuous rejection row.</li>
 <li><strong><code>longitudinal.qmd</code></strong> — added continuous-treatment + MTP section (shift / scale_by / threshold), multivariate time-varying treatment, external weights (with a note pointing to the ICE cascade-gradient correction in §5.4 of the theory vignette), and a censoring / IPCW-style example.</li>
-<li><strong><code>survival.qmd</code></strong> — replaced the 3-line TODO stub with a full narrative of the current fit-only Phase 6 status, the intended end-to-end contrast algorithm, and the tracking pointers.</li>
+<li><strong><code>survival.qmd</code></strong> — replaced the 3-line TODO stub with a full narrative of the current fit-only Phase 7 status, the intended end-to-end contrast algorithm, and the tracking pointers.</li>
 <li><strong><code>triangulation.qmd</code></strong> — introduction.qmd and the comparison table both corrected for the drift above (matching is binary-only; continuous / categorical are not “Limited”).</li>
 </ul>
 </section>
@@ -813,7 +857,7 @@ window.Quarto = {
 <li>IPW × categorical (3-level), continuous, survey weights, ATT bootstrap, non-Mparts WeightIt method at contrast time</li>
 <li>matching × Poisson, Gamma(log), ATC bootstrap, categorical rejection (MatchIt is binary-only; verified against upstream docs)</li>
 <li>ICE × <code>scale_by</code>, <code>threshold</code>, <code>shift</code> bootstrap, bootstrap × survey weights, binomial × ratio/OR, <code>by(sex)</code> stratification, external-weights truth test</li>
-<li>Survival × censored fit (smoke; contrasts still Phase 6)</li>
+<li>Survival × censored fit (smoke; contrasts still Phase 7)</li>
 <li>End-to-end Tier 2 numeric variance via a custom <code>model_fn</code></li>
 <li><code>vcov_from_if(cluster = ...)</code> unit test vs hand-computed reference</li>
 <li><code>confint()</code> level monotonicity on both sandwich and bootstrap</li>
