@@ -171,7 +171,7 @@ window.Quarto = {
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../man/causat_survival.html">Reference</a></li><li class="breadcrumb-item"><a href="../man/contrast.html">contrast</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../man/causat.html">Reference</a></li><li class="breadcrumb-item"><a href="../man/contrast.html">contrast</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -281,12 +281,6 @@ window.Quarto = {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../vignettes/survival.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Causal survival analysis (Chapter 17)</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
   <a href="../vignettes/validation.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Validation against reference implementations</span></a>
   </div>
@@ -325,12 +319,6 @@ window.Quarto = {
           </a> 
       </div>
       <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 show">  
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../man/causat_survival.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">causat_survival</span></a>
-  </div>
-</li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../man/causat.html" class="sidebar-item-text sidebar-link">
@@ -526,7 +514,7 @@ window.Quarto = {
 <div class="quarto-code-links"><h2>Code Links</h2><ul><li><a href="undefined"><i class="bi bi-link-45deg"></i></a></li></ul></div></nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../man/causat_survival.html">Reference</a></li><li class="breadcrumb-item"><a href="../man/contrast.html">contrast</a></li></ol></nav></header>
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../man/causat.html">Reference</a></li><li class="breadcrumb-item"><a href="../man/contrast.html">contrast</a></li></ol></nav></header>
 
 
 
@@ -595,8 +583,7 @@ A <code>causatr_fit</code> object returned by <code>causat()</code>.
 <p>A named list of <code>causatr_intervention</code> objects, one per treatment variable, for multivariate (joint) treatments. Each sub-list must name every treatment variable specified in <code>causat()</code>.</p>
 </li>
 </ul>
-<p><strong>Note:</strong> Non-static interventions (<code>shift()</code>, <code>scale_by()</code>, <code>threshold()</code>, <code>dynamic()</code>, <code>ipsi()</code>) are only supported for <code>estimator = “gcomp”</code>. For IPW and matching, the weights/matched sets were estimated under the observed treatment distribution; applying a different regime requires re-calling <code>causat()</code> with updated data. <code>ipsi()</code> additionally requires a fitted propensity model and currently aborts for all estimators.</p>
-<strong>Survival contrasts are not implemented.</strong> <code>contrast()</code> on a <code>causatr_fit</code> returned by <code>causat_survival()</code> aborts with an informative error. The pooled logistic fit itself works.
+<strong>Note:</strong> Non-static interventions (<code>shift()</code>, <code>scale_by()</code>, <code>threshold()</code>, <code>dynamic()</code>, <code>ipsi()</code>) are only supported for <code>estimator = “gcomp”</code>. For IPW and matching, the weights/matched sets were estimated under the observed treatment distribution; applying a different regime requires re-calling <code>causat()</code> with updated data. <code>ipsi()</code> additionally requires a fitted propensity model and currently aborts for all estimators.
 </td>
 </tr>
 <tr>

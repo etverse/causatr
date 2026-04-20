@@ -106,35 +106,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   }
 }</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
-
-<script type="text/javascript">
-const typesetMath = (el) => {
-  if (window.MathJax) {
-    // MathJax Typeset
-    window.MathJax.typeset([el]);
-  } else if (window.katex) {
-    // KaTeX Render
-    var mathElements = el.getElementsByClassName("math");
-    var macros = [];
-    for (var i = 0; i < mathElements.length; i++) {
-      var texText = mathElements[i].firstChild;
-      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
-        window.katex.render(texText.data, mathElements[i], {
-          displayMode: mathElements[i].classList.contains('display'),
-          throwOnError: false,
-          macros: macros,
-          fleqn: false
-        });
-      }
-    }
-  }
-}
-window.Quarto = {
-  typesetMath
-};
-</script>
 
 </head>
 
@@ -171,7 +142,7 @@ window.Quarto = {
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../man/causat_survival.html">Reference</a></li><li class="breadcrumb-item"><a href="../man/to_person_period.html">to_person_period</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../man/causat.html">Reference</a></li><li class="breadcrumb-item"><a href="../man/to_person_period.html">to_person_period</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -281,12 +252,6 @@ window.Quarto = {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../vignettes/survival.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Causal survival analysis (Chapter 17)</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
   <a href="../vignettes/validation.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Validation against reference implementations</span></a>
   </div>
@@ -325,12 +290,6 @@ window.Quarto = {
           </a> 
       </div>
       <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 show">  
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../man/causat_survival.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">causat_survival</span></a>
-  </div>
-</li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../man/causat.html" class="sidebar-item-text sidebar-link">
@@ -524,7 +483,7 @@ window.Quarto = {
 <div class="quarto-code-links"><h2>Code Links</h2><ul><li><a href="undefined"><i class="bi bi-link-45deg"></i></a></li></ul></div></nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../man/causat_survival.html">Reference</a></li><li class="breadcrumb-item"><a href="../man/to_person_period.html">to_person_period</a></li></ol></nav></header>
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../man/causat.html">Reference</a></li><li class="breadcrumb-item"><a href="../man/to_person_period.html">to_person_period</a></li></ol></nav></header>
 
 
 
@@ -533,8 +492,7 @@ window.Quarto = {
 <h2 class="unnumbered anchored" data-anchor-id="convert-wide-data-to-person-period-long-format">Convert wide data to person-period (long) format</h2>
 <section id="description" class="level3">
 <h3 class="anchored" data-anchor-id="description">Description</h3>
-<p>Reshapes individual-level data in wide format (one row per person, with columns for each time-varying variable at each time point) into long person-period format (one row per person per time interval), as required by <code>causat()</code> for longitudinal analyses and by <code>causat_survival()</code> for discrete-time survival analyses.</p>
-<p>For survival data the event indicator <span class="math inline">\(D_{k+1} = 1\)</span> means the individual experienced the event during interval k+1 (Hernan &amp; Robins Ch. 17).</p>
+<p>Reshapes individual-level data in wide format (one row per person, with columns for each time-varying variable at each time point) into long person-period format (one row per person per time interval), as required by <code>causat()</code> for longitudinal analyses.</p>
 </section>
 <section id="usage" class="level3">
 <h3 class="anchored" data-anchor-id="usage">Usage</h3>
@@ -598,7 +556,7 @@ Character. Name for the new time column. Default <code>“time”</code>.
 </section>
 <section id="see-also" class="level3">
 <h3 class="anchored" data-anchor-id="see-also">See Also</h3>
-<p><code>causat()</code>, <code>causat_survival()</code></p>
+<p><code>causat()</code></p>
 </section>
 <section id="examples" class="level3">
 <h3 class="anchored" data-anchor-id="examples">Examples</h3>

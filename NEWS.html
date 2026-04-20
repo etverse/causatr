@@ -281,12 +281,6 @@ window.Quarto = {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./vignettes/survival.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Causal survival analysis (Chapter 17)</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
   <a href="./vignettes/validation.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Validation against reference implementations</span></a>
   </div>
@@ -325,12 +319,6 @@ window.Quarto = {
           </a> 
       </div>
       <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 ">  
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./man/causat_survival.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">causat_survival</span></a>
-  </div>
-</li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./man/causat.html" class="sidebar-item-text sidebar-link">
@@ -513,6 +501,14 @@ window.Quarto = {
   <ul>
   <li><a href="#causatr-development-version" id="toc-causatr-development-version" class="nav-link active" data-scroll-target="#causatr-development-version">causatr (development version)</a>
   <ul class="collapse">
+  <li><a href="#multivariate-treatment-ipw-phase-8" id="toc-multivariate-treatment-ipw-phase-8" class="nav-link" data-scroll-target="#multivariate-treatment-ipw-phase-8">2026-04-20 — Multivariate treatment IPW (Phase 8)</a>
+  <ul class="collapse">
+  <li><a href="#estimand-semantics-sequential-mtp-díaz-et-al.-2023" id="toc-estimand-semantics-sequential-mtp-díaz-et-al.-2023" class="nav-link" data-scroll-target="#estimand-semantics-sequential-mtp-díaz-et-al.-2023">Estimand semantics: sequential MTP (Díaz et al.&nbsp;2023)</a></li>
+  <li><a href="#supported-combinations" id="toc-supported-combinations" class="nav-link" data-scroll-target="#supported-combinations">Supported combinations</a></li>
+  <li><a href="#internal-bits" id="toc-internal-bits" class="nav-link" data-scroll-target="#internal-bits">Internal bits</a></li>
+  <li><a href="#rejected-with-classed-errors" id="toc-rejected-with-classed-errors" class="nav-link" data-scroll-target="#rejected-with-classed-errors">Rejected with classed errors</a></li>
+  </ul></li>
+  <li><a href="#breaking-change-survival-analysis-removed" id="toc-breaking-change-survival-analysis-removed" class="nav-link" data-scroll-target="#breaking-change-survival-analysis-removed">Breaking change: survival analysis removed</a></li>
   <li><a href="#bug-fixes" id="toc-bug-fixes" class="nav-link" data-scroll-target="#bug-fixes">Bug fixes</a></li>
   <li><a href="#phase-6-complete-unified-effect-modification-api" id="toc-phase-6-complete-unified-effect-modification-api" class="nav-link" data-scroll-target="#phase-6-complete-unified-effect-modification-api">2026-04-17 — Phase 6 complete: unified effect-modification API</a></li>
   <li><a href="#phase-6-chunk-6d-ice-lag-auto-expansion-for-effect-modification" id="toc-phase-6-chunk-6d-ice-lag-auto-expansion-for-effect-modification" class="nav-link" data-scroll-target="#phase-6-chunk-6d-ice-lag-auto-expansion-for-effect-modification">2026-04-17 — Phase 6 chunk 6d: ICE lag auto-expansion for effect modification</a></li>
@@ -568,6 +564,54 @@ window.Quarto = {
 
 <section id="causatr-development-version" class="level1">
 <h1>causatr (development version)</h1>
+<section id="multivariate-treatment-ipw-phase-8" class="level2">
+<h2 class="anchored" data-anchor-id="multivariate-treatment-ipw-phase-8">2026-04-20 — Multivariate treatment IPW (Phase 8)</h2>
+<p><code>estimator = "ipw"</code> now accepts multivariate (joint) treatments <code>treatment = c("A1", "A2", ...)</code>. Previously the path hard-aborted; users needed <code>estimator = "gcomp"</code> for joint interventions. The new implementation factorises the joint conditional density via the chain rule</p>
+<p><span class="math display">\[
+f(A_1, \ldots, A_K \mid L) = \prod_{k=1}^{K} f_k(A_k \mid A_{1..k-1}, L),
+\]</span></p>
+<p>fits one univariate density model per component (sequential factorisation), and forms the product density-ratio weight per intervention.</p>
+<section id="estimand-semantics-sequential-mtp-díaz-et-al.-2023" class="level3">
+<h3 class="anchored" data-anchor-id="estimand-semantics-sequential-mtp-díaz-et-al.-2023">Estimand semantics: sequential MTP (Díaz et al.&nbsp;2023)</h3>
+<p>Multivariate IPW implements the <strong>sequential modified treatment policy</strong> estimand (Díaz, Williams, Hoffman, Schenck 2023, <em>JASA</em>), the standard in the causal-inference MTP literature and what <code>lmtp</code> computes. Under this interpretation, the counterfactual at stage <span class="math inline">\(k\)</span> is <span class="math inline">\(A_k^d =
+d_k(A_k^n)\)</span> where <span class="math inline">\(A_k^n\)</span> is drawn from the conditional density of <span class="math inline">\(A_k\)</span> given the COUNTERFACTUAL history up to stage <span class="math inline">\(k\)</span>. At identification time this plugs observed upstream treatments into the <span class="math inline">\(k\)</span>-th factor’s conditioning:</p>
+<p><span class="math display">\[
+w_k(\alpha_k) = \frac{f_k(d_k^{-1}(A_k) \mid A_{1..k-1}^{\mathrm{obs}}, L; \alpha_k) \cdot |\mathrm{Jac}\,d_k^{-1}|}{f_k(A_k \mid A_{1..k-1}^{\mathrm{obs}}, L; \alpha_k)}.
+\]</span></p>
+<p>Under natural course on component <span class="math inline">\(k\)</span> (no intervention), the ratio is identically <span class="math inline">\(1\)</span> — downstream components do not accumulate an “upstream conditioning shift” from natural-course components.</p>
+<p><strong>Multivariate gcomp implements a different estimand</strong> — deterministic joint transformation, <span class="math inline">\(E[Y^d] = E\{E[Y \mid A_1 = d_1(A_1^{\mathrm{obs}}),\, A_2 = d_2(A_2^{\mathrm{obs}}),\, L]\}\)</span> via simultaneous per-individual substitution of each counterfactual column. For static-only interventions the two estimators coincide (the indicator on the HT branch collapses the conditioning); for non-static interventions on non-final components they can differ by the upstream → downstream cross-dependence (e.g.&nbsp;shift + shift on a continuous × continuous DGP with <span class="math inline">\(A_1 \to A_2\)</span> coefficient <span class="math inline">\(0.3\)</span>: gcomp gives <span class="math inline">\(-0.9\)</span>, IPW gives <span class="math inline">\(-1.02\)</span>). This difference is intentional and pinned by a regression test.</p>
+</section>
+<section id="supported-combinations" class="level3">
+<h3 class="anchored" data-anchor-id="supported-combinations">Supported combinations</h3>
+<ul>
+<li>Binary × binary (and K = 2, 3 binary), all-static, gauss / binom outcome, RD / RR / OR contrasts.</li>
+<li>Binary × continuous mixed type, static + shift / scale_by / dynamic.</li>
+<li>Continuous × continuous, shift + shift, scale + scale, dynamic components.</li>
+<li>Effect modification via <code>A_k:modifier</code> (per-component propensity formulas strip treatment-touching terms; MSM expands to <code>Y ~ 1 + modifier_main_effects</code>). Baseline-modifier constraint from Phase 6 carries over.</li>
+<li>Categorical components (via <code>nnet::multinom</code> per component; multinomial softmax closure in <code>mv_ht_closure</code>). Cat × bin, bin × cat, and cat × cat all supported.</li>
+<li>Count components (Poisson / negative binomial) via per-component <code>propensity_family</code> opt-in (NULL / length-1 / length-K).</li>
+<li>ATE only (matches the existing single-treatment ATT/ATC gate that rejects multivariate at fit time).</li>
+<li>Sandwich + bootstrap variance, <code>by =</code>, <code>subset =</code>, survey weights.</li>
+</ul>
+</section>
+<section id="internal-bits" class="level3">
+<h3 class="anchored" data-anchor-id="internal-bits">Internal bits</h3>
+<p><code>fit$details$treatment_models</code> is the list of per-component <code>causatr_treatment_model</code> objects (length K, named by treatment column). The legacy <code>treatment_model</code> slot stays populated for univariate fits. <code>fit_treatment_models()</code> in <code>R/treatment_model.R</code> does per-component fitter auto-selection. The mv sandwich (<code>compute_ipw_if_self_contained_mv_one()</code>) exploits that the K propensity models are fit independently, so the stacked propensity bread is block-diagonal — the propensity correction sums K single-model <code>apply_model_correction()</code> results.</p>
+</section>
+<section id="rejected-with-classed-errors" class="level3">
+<h3 class="anchored" data-anchor-id="rejected-with-classed-errors">Rejected with classed errors</h3>
+<ul>
+<li><code>ipsi()</code> in any component (<code>causatr_multivariate_ipsi</code>) — Kennedy’s closed form has no joint analogue.</li>
+<li>Multivariate matching still rejected (MatchIt is binary-only).</li>
+</ul>
+</section>
+</section>
+<section id="breaking-change-survival-analysis-removed" class="level2">
+<h2 class="anchored" data-anchor-id="breaking-change-survival-analysis-removed">Breaking change: survival analysis removed</h2>
+<p>Causal survival analysis has been extracted from causatr into its own etverse package. This removes the scaffolded Phase 7 surface — the <code>causat_survival()</code> export, <code>type = "survival"</code> branch in <code>contrast()</code>, <code>PHASE_7_SURVIVAL.md</code>, the <code>survival.qmd</code> vignette, and all survival tests and snapshots. <code>to_person_period()</code> stays in causatr because it also serves general longitudinal data.</p>
+<p>The <code>SURVIVAL_PACKAGE_HANDOFF.md</code> document in the causatr repo root is the full hand-off to the new survival package: scope, design (pooled logistic + ICE hazards + competing risks), inheritance from causatr’s engine primitives, and implementation chunks.</p>
+<p>If you were using <code>causat_survival()</code>, switch to the new survival package once it ships. Until then, manual pooled-logistic regression on person-period data (via <code>causat(..., estimator = "gcomp")</code> plus custom intervention + cumulative-product code) remains possible.</p>
+</section>
 <section id="bug-fixes" class="level2">
 <h2 class="anchored" data-anchor-id="bug-fixes">Bug fixes</h2>
 <ul>

@@ -281,12 +281,6 @@ window.Quarto = {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../vignettes/survival.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Causal survival analysis (Chapter 17)</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
   <a href="../vignettes/validation.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text">Validation against reference implementations</span></a>
   </div>
@@ -325,12 +319,6 @@ window.Quarto = {
           </a> 
       </div>
       <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 ">  
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../man/causat_survival.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">causat_survival</span></a>
-  </div>
-</li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../man/causat.html" class="sidebar-item-text sidebar-link">
@@ -2494,7 +2482,6 @@ Y   &amp;= 1 + \sum_{k=1}^{K} A_k + 0.3 \, L_K + \varepsilon, \quad \varepsilon 
 <ul>
 <li><strong><code>gfoRmula</code></strong> implements the parametric g-formula on wide longitudinal data and is the most direct peer of causatr’s ICE engine. Its intervention specification is more verbose (lists of <code>intvars</code>, <code>interventions</code>, <code>int_descript</code>), but a comparison on static “always vs never” would make a natural addition to section 4a.</li>
 <li><strong><code>survey::svyglm()</code></strong> (combined with a user-supplied weights column) is the standard reference for survey-weighted IPW. Since causatr validates survey-weight handling in its tests, a vignette comparison would mostly duplicate that coverage.</li>
-<li><strong>Survival validation</strong> will land once <code>causat_survival()</code>’s contrast path is implemented in Phase 7; the natural references are <code>survival::survfit()</code> for the unadjusted Kaplan-Meier sanity check and <code>gfoRmula::gformula_survival()</code> for the adjusted g-formula reference.</li>
 </ul>
 <p>If you’d like to contribute a reference comparison for one of these (or for a package not listed here), open an issue — the pattern is the same as in sections 1–4: fit the same quantity two ways, pass both to <code>compare_row()</code>, and print the resulting two-row table.</p>
 
@@ -3624,15 +3611,11 @@ Y   &amp;= 1 + \sum_{k=1}^{K} A_k + 0.3 \, L_K + \varepsilon, \quad \varepsilon 
 <span id="cb17-701"><a href="#cb17-701" aria-hidden="true" tabindex="-1"></a>  the standard reference for survey-weighted IPW. Since causatr validates</span>
 <span id="cb17-702"><a href="#cb17-702" aria-hidden="true" tabindex="-1"></a>  survey-weight handling in its tests, a vignette comparison would mostly</span>
 <span id="cb17-703"><a href="#cb17-703" aria-hidden="true" tabindex="-1"></a>  duplicate that coverage.</span>
-<span id="cb17-704"><a href="#cb17-704" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Survival validation** will land once <span class="in">`causat_survival()`</span>'s contrast path</span>
-<span id="cb17-705"><a href="#cb17-705" aria-hidden="true" tabindex="-1"></a>  is implemented in Phase 7; the natural references are</span>
-<span id="cb17-706"><a href="#cb17-706" aria-hidden="true" tabindex="-1"></a>  <span class="in">`survival::survfit()`</span> for the unadjusted Kaplan-Meier sanity check and</span>
-<span id="cb17-707"><a href="#cb17-707" aria-hidden="true" tabindex="-1"></a>  <span class="in">`gfoRmula::gformula_survival()`</span> for the adjusted g-formula reference.</span>
-<span id="cb17-708"><a href="#cb17-708" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-709"><a href="#cb17-709" aria-hidden="true" tabindex="-1"></a>If you'd like to contribute a reference comparison for one of these (or for a</span>
-<span id="cb17-710"><a href="#cb17-710" aria-hidden="true" tabindex="-1"></a>package not listed here), open an issue — the pattern is the same as in</span>
-<span id="cb17-711"><a href="#cb17-711" aria-hidden="true" tabindex="-1"></a>sections 1–4: fit the same quantity two ways, pass both to <span class="in">`compare_row()`</span>,</span>
-<span id="cb17-712"><a href="#cb17-712" aria-hidden="true" tabindex="-1"></a>and print the resulting two-row table.</span>
+<span id="cb17-704"><a href="#cb17-704" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-705"><a href="#cb17-705" aria-hidden="true" tabindex="-1"></a>If you'd like to contribute a reference comparison for one of these (or for a</span>
+<span id="cb17-706"><a href="#cb17-706" aria-hidden="true" tabindex="-1"></a>package not listed here), open an issue — the pattern is the same as in</span>
+<span id="cb17-707"><a href="#cb17-707" aria-hidden="true" tabindex="-1"></a>sections 1–4: fit the same quantity two ways, pass both to <span class="in">`compare_row()`</span>,</span>
+<span id="cb17-708"><a href="#cb17-708" aria-hidden="true" tabindex="-1"></a>and print the resulting two-row table.</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->
