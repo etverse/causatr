@@ -85,12 +85,18 @@ Rejections: invalid family string ✅, missing outcome/treatment col ✅ (test-g
 | multi (bin × bin) | gauss | static | ATE | diff | sandwich | — | ✅ +gcomp | test-multivariate-ipw.R |
 | multi (bin × bin) | gauss | static | ATE | diff | boot | — | ✅ | test-multivariate-ipw.R |
 | multi (bin × cont) | gauss | static + shift | ATE | diff | sandwich | — | ✅ | test-multivariate-ipw.R |
-| multi (cont × cont) | gauss | shift + shift | ATE | diff | sandwich | — | ✅ +gcomp | test-multivariate-ipw.R |
+| multi (cont × cont) | gauss | shift + shift | ATE | diff | sandwich | — | ✅ seq-MTP | test-multivariate-ipw.R |
 | multi (bin × bin) | binom | static | ATE | diff/ratio/OR | sandwich | — | ✅ | test-multivariate-ipw.R |
 | multi (bin × bin) | gauss | static | by(L) | diff | sandwich | — | ✅ | test-multivariate-ipw.R |
 | multi (bin × bin) | gauss | static | subset | diff | sandwich | — | ✅ | test-multivariate-ipw.R |
 | multi (bin × bin) | gauss | dynamic + static | ATE | diff | sandwich | — | ✅ | test-multivariate-ipw.R |
 | multi (bin³) | gauss | static | ATE | diff | sandwich | — | ✅ | test-multivariate-ipw.R |
+| multi (bin × bin) | gauss | static + EM (`A1:sex`) | by(sex) | diff | sandwich | — | ✅ +gcomp | test-multivariate-ipw.R |
+| multi (bin × cat) | gauss | static | ATE | diff | sandwich | — | ✅ +gcomp | test-multivariate-ipw.R |
+| multi (cat × bin) | gauss | static | ATE | diff | sandwich | — | ✅ | test-multivariate-ipw.R |
+| multi (cat × cat) | gauss | static | ATE | diff | sandwich | — | ✅ | test-multivariate-ipw.R |
+
+**Estimand note.** Multivariate IPW implements the *sequential MTP* estimand (Díaz et al. 2023, `lmtp`). Multivariate gcomp implements deterministic joint transformation. For static-only interventions the two coincide; for non-static interventions on non-final components they can differ by the upstream $\to$ downstream cross-dependence (e.g. shift $+$ shift on a cont $\times$ cont DGP with $A_1 \to A_2$ coefficient $0.3$: gcomp gives $-0.9$, IPW gives $-1.02$).
 
 Variance internals: self-contained IF ✅ (hand-derived cross-derivative + end-to-end stacked-sandwich; test-ipw-branch-b.R, test-ipw-cross-derivative.R, test-variance-if.R). Non-static variance regression ✅ (shift ~5-8% SE reduction, IPSI ~90% off-diagonal covariance; test-ipw-variance-regression.R). Bootstrap parity ✅ (within 30% MC tolerance; test-ipw-variance-regression.R).
 
@@ -103,9 +109,8 @@ Rejections (all ✅ tested):
 - longitudinal $\to$ test-ipw.R
 - multivariate + ATT/ATC $\to$ test-multivariate.R, test-multivariate-ipw.R
 - multivariate + ipsi() in any component $\to$ test-multivariate-ipw.R
-- multivariate + categorical component $\to$ test-multivariate-ipw.R
-- multivariate + effect modification (`A:modifier`) $\to$ test-multivariate-ipw.R
-- multivariate + `propensity_family` opt-in $\to$ test-multivariate-ipw.R
+- multivariate + bare treatment in confounders (`~ L + A1`) $\to$ test-multivariate-ipw.R
+- multivariate + `propensity_family` invalid shape $\to$ test-multivariate-ipw.R
 
 ---
 

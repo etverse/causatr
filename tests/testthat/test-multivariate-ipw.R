@@ -177,33 +177,47 @@ test_that("mv IPW: binary + continuous, static + shift on continuous", {
   expect_true(result$contrasts$se[1] > 0 && is.finite(result$contrasts$se[1]))
 })
 
-test_that("mv IPW: continuous + continuous shift+shift recovers truth", {
-  # This is the case that EXERCISES intervened-newdata: the second
-  # component's numerator must be evaluated at the SHIFTED A1 because
-  # the chain-rule factorisation has f_2(A_2 | A_1, L) -- substituting
-  # the intervened A_1 = A_1 - delta1 for the conditioning vector. If
-  # the engine forgot this substitution, the recovered ATE would drift
-  # from the truth -0.9 by ~0.1-0.2 (the magnitude of the A1->A2
-  # cross-coefficient times the shift).
-  df <- sim_cc()
-  fit <- causat(df, "Y", c("A1", "A2"), ~L, estimator = "ipw")
-
-  result <- contrast(
-    fit,
-    interventions = list(
-      shifted = list(A1 = shift(-1), A2 = shift(-1)),
-      natural = list(A1 = shift(0), A2 = shift(0))
-    ),
-    reference = "natural"
-  )
-
-  # Truth: 0.5 * (-1) + 0.4 * (-1) = -0.9.
-  expect_true(abs(result$contrasts$estimate[1] - (-0.9)) < 0.15)
-  expect_true(result$contrasts$se[1] > 0 && is.finite(result$contrasts$se[1]))
+test_that("mv IPW: continuous + continuous shift+shift recovers sequential-MTP truth", {
+  # Sequential MTP semantics (Diaz, Williams, Hoffman, Schenck 2023):
+  # at each stage k the "natural" A_k^n is drawn from f_k given the
+  # COUNTERFACTUAL history, then A_k^d = d_k(A_k^n). For shift(-1) on
+  # both components under the sim_cc DGP:
+  #   A_1^d = A_1^n - 1 with A_1^n ~ f_1(. | L)
+  #   A_2^n ~ f_2(. | A_1^d, L) = N(0.3*A_1^d + 0.5*L, 1)
+  #   A_2^d = A_2^n - 1
+  # E[A_1^d] = -1, E[A_2^d] = 0.3*(-1) + 0 - 1 = -1.3.
+  # E[Y^d] = 1 + 0.5*(-1) + 0.4*(-1.3) = -0.02. Diff vs natural: -1.02.
+  #
+  # The finite-sample bias at n = 3000 is ~0.02-0.03 (consistent with
+  # seq MTP truth -1.02 rather than the joint-transformation answer
+  # -0.9). Seed-averaged across 5 seeds to damp the ~0.07 per-seed
+  # MC noise; individual seeds occasionally drift beyond 0.15.
+  ests <- numeric(5)
+  for (s in 1:5) {
+    df <- sim_cc(n = 5000, seed = s)
+    fit <- causat(df, "Y", c("A1", "A2"), ~L, estimator = "ipw")
+    res <- contrast(
+      fit,
+      interventions = list(
+        shifted = list(A1 = shift(-1), A2 = shift(-1)),
+        natural = list(A1 = shift(0), A2 = shift(0))
+      ),
+      reference = "natural"
+    )
+    ests[s] <- res$contrasts$estimate[1]
+  }
+  expect_true(abs(mean(ests) - (-1.02)) < 0.1)
 })
 
-test_that("mv IPW: continuous + continuous gcomp cross-check", {
-  df <- sim_cc()
+test_that("mv IPW sequential MTP disagrees with mv gcomp joint-transformation on shift+shift", {
+  # Regression test pinning the estimand DIFFERENCE between the two
+  # estimators. Under the shift+shift DGP the disagreement is O(0.1),
+  # the magnitude of the A1->A2 cross-coefficient times the shift.
+  # Different estimands, so a future change that made them agree
+  # would be a bug -- either IPW silently reverting to joint
+  # transformation, or gcomp silently starting to do MC integration
+  # for sequential MTP.
+  df <- sim_cc(n = 10000, seed = 42)
   ivs <- list(
     shifted = list(A1 = shift(-1), A2 = shift(-1)),
     natural = list(A1 = shift(0), A2 = shift(0))
@@ -215,9 +229,8 @@ test_that("mv IPW: continuous + continuous gcomp cross-check", {
   res_g <- contrast(fit_g, ivs, reference = "natural")
   res_w <- contrast(fit_w, ivs, reference = "natural")
 
-  expect_true(
-    abs(res_g$contrasts$estimate[1] - res_w$contrasts$estimate[1]) < 0.15
-  )
+  expect_true(abs(res_g$contrasts$estimate[1] - (-0.9)) < 0.1)
+  expect_true(abs(res_w$contrasts$estimate[1] - (-1.02)) < 0.1)
 })
 
 test_that("mv IPW: binomial outcome, RD/RR/OR contrasts", {

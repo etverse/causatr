@@ -631,69 +631,6 @@ make_weight_fn <- function(
 }
 
 
-#' Inverse-map evaluation point for an intervention
-#'
-#' @description
-#' Returns the value of `d^{-1}(a_obs)` -- the pre-image of the
-#' observed treatment under the intervention map -- which is the
-#' conditioning value plugged into downstream chain-rule factors of
-#' the multivariate joint density. The inverse map is the same value
-#' the univariate `make_weight_fn()` uses for `a_eval` in the smooth
-#' pushforward branch, so the per-component sub-closures and the
-#' downstream substitution stay consistent.
-#'
-#' Inverse-map table:
-#'
-#' | Intervention | `d(a)`           | `d^{-1}(y)`        |
-#' |--------------|------------------|--------------------|
-#' | `static(v)`  | `v` (constant)   | `v` (degenerate)   |
-#' | `shift(d)`   | `a + d`          | `y - d`            |
-#' | `scale(c)`   | `a * c`          | `y / c`            |
-#' | `dynamic(r)` | `r(data)`        | `r(data)` (degen)  |
-#' | `NULL`       | `a` (identity)   | `a` (identity)     |
-#'
-#' For static / dynamic the forward and inverse maps coincide on
-#' surviving rows because the I-indicator collapses A_obs to the map's
-#' image, and the conditioning value plugged downstream is the
-#' (single) image point. For `NULL` (natural course) the conditioning
-#' value is the observed treatment itself. `threshold()` is rejected
-#' upstream for multivariate IPW (no clean pushforward).
-#'
-#' @param iv A `causatr_intervention` or `NULL`.
-#' @param data data.table passed to `dynamic()` rules.
-#' @param a_obs Observed treatment vector for this component.
-#'
-#' @return Numeric vector of length `length(a_obs)`.
-#'
-#' @noRd
-intervention_inverse_map <- function(iv, data, a_obs) {
-  if (is.null(iv)) {
-    return(a_obs)
-  }
-  switch(
-    iv$type,
-    static = rep(iv$value, length(a_obs)),
-    shift = a_obs - iv$delta,
-    scale = a_obs / iv$factor,
-    threshold = rlang::abort(
-      "`threshold()` is not supported in multivariate IPW.",
-      class = "causatr_multivariate_threshold"
-    ),
-    dynamic = {
-      # Same per-individual rule output the univariate HT branch
-      # plugs into the indicator. Surviving rows have a_obs equal to
-      # this value, so it is also the conditioning value for downstream
-      # factors.
-      apply_intervention_to_values(iv, data, a_obs)
-    },
-    ipsi = rlang::abort(
-      "Internal error: `intervention_inverse_map()` should not see IPSI (rejected upstream)."
-    ),
-    rlang::abort(paste0("Unknown intervention type: '", iv$type, "'."))
-  )
-}
-
-
 #' Compute joint density-ratio weights for one multivariate intervention
 #'
 #' @description
@@ -814,35 +751,23 @@ compute_density_ratio_weights_mv <- function(
     }
   }
 
-  # Build per-component conditioning values once -- they feed the
-  # `j < k` slots of the k-th numerator factor's conditioning vector.
-  # The chain-rule numerator for component k under independent
-  # per-component interventions is
-  #   f_k(d_k^{-1}(A_k) | d_1^{-1}(A_1), ..., d_{k-1}^{-1}(A_{k-1}), L) * |Jac|.
-  # So downstream substitution uses the INVERSE-MAP value of upstream
-  # components, not the forward map (Diaz, Williams, Hoffman, Schenck
-  # 2023 Sec 2; same convention as the univariate `make_weight_fn()`
-  # which uses `a_eval = a_obs - delta` for shift). Forward-map and
-  # inverse-map agree for static / dynamic (the I-indicator collapses
-  # surviving rows to a_obs = d(.)) but disagree for shift / scale.
-  cond_values <- vector("list", K)
-  for (k in seq_len(K)) {
-    iv_k <- interventions[[k]]
-    a_obs_k <- data[[treatment_models[[k]]$treatment]]
-    cond_values[[k]] <- intervention_inverse_map(iv_k, data, a_obs_k)
-  }
-
-  # Per-component density ratio under chain-rule factorisation.
-  # The k-th factor is
-  #   w_k = f_k(d_k^{-1}(A_k_obs) | cond_intervened, L) * |Jac d_k^{-1}|
-  #         / f_k(A_k_obs | cond_observed, L)
-  # where `cond_intervened` substitutes d_j^{-1}(A_j_obs) for j < k
-  # and `cond_observed` keeps observed values. Critically the
-  # denominator is always evaluated at the OBSERVED conditioning -- a
-  # naive "use intervened newdata for both numerator and denominator"
-  # cancels the cross-component conditioning shift and gives biased
-  # weights. (Univariate `compute_density_ratio_weights()` cannot be
-  # reused directly because it uses one `newdata` for both halves.)
+  # Per-component density ratio under the sequential MTP semantics
+  # of Diaz, Williams, Hoffman, Schenck (2023). The k-th factor is
+  #   w_k = f_k(d_k^{-1}(A_k_obs) | A_{1..k-1}_obs, L) * |Jac d_k^{-1}|
+  #         / f_k(A_k_obs | A_{1..k-1}_obs, L)
+  # Both numerator and denominator condition on OBSERVED upstream
+  # treatment values, not intervened. This is the standard sequential
+  # MTP interpretation (Diaz 2023 Sec 2): at each stage k the
+  # "natural" value A_k^n is drawn from the CONDITIONAL of A_k given
+  # the counterfactual history, which -- at evaluation point equal to
+  # the observed data -- plugs in observed A_{1..k-1} for the
+  # conditioning slots. The intervened density g_k^d(a | obs_hist, L)
+  # is then the pushforward of f_k(. | obs_hist, L) under d_k, which
+  # is `f_k(d_k^{-1}(a) | obs_hist, L) * |Jac d_k^{-1}|`.
+  #
+  # For natural course on component k (d_k = identity), the ratio
+  # simplifies to 1 -- there is NO "upstream conditioning shift" to
+  # accumulate. This matches `lmtp::lmtp_ipw()` behavior.
   joint_w <- rep(1, nrow(data))
   for (k in seq_len(K)) {
     iv_k <- interventions[[k]]
@@ -856,39 +781,12 @@ compute_density_ratio_weights_mv <- function(
       paste0("multivariate density (component ", k, ")")
     )
 
-    # Build cond_int newdata for the numerator factor (only differs
-    # from `data` when k > 1 and an upstream component is intervened).
-    if (k == 1L) {
-      newdata_int <- data
-    } else {
-      newdata_int <- data.table::copy(data)
-      for (j in seq_len(k - 1L)) {
-        trt_j <- treatment_models[[j]]$treatment
-        new_val <- cond_values[[j]]
-        # Preserve factor type / levels when substituting into a
-        # factor column. `data.table::set()` with a character vector
-        # silently overwrites the factor as character, which then
-        # makes `model.matrix()` fail with "contrasts can be applied
-        # only to factors with 2 or more levels" if the new column
-        # holds a single value (e.g. static intervention collapses
-        # all rows to one level).
-        orig_col <- data[[trt_j]]
-        if (is.factor(orig_col) && !is.factor(new_val)) {
-          new_val <- factor(new_val, levels = levels(orig_col))
-        }
-        data.table::set(newdata_int, j = trt_j, value = new_val)
-      }
-    }
-
-    # Numerator branches by intervention type. HT branch reduces to
-    # an indicator mask under ATE; pushforward branch evaluates the
-    # density at d_k^{-1}(A_k) under the intervened conditioning.
+    # Numerator branches by intervention type. Both numerator and
+    # denominator use `data` (observed conditioning) as the evaluator
+    # newdata; only the k-th ARGUMENT (A_k vs d_k^{-1}(A_k)) changes.
     if (is.null(iv_k)) {
-      # Natural course on this component: numerator = f_k(A_k | cond_int, L).
-      # When k = 1 this equals f_obs and the contribution is 1; when
-      # k > 1 it is the upstream-conditioning shift ratio.
-      f_num <- evaluate_density(tm_k, a_obs_k, newdata_int)
-      w_k <- f_num / f_obs
+      # Natural course: w_k = f_k(A_k | obs_hist, L) / f_k(A_k | obs_hist, L) = 1.
+      w_k <- rep(1, nrow(data))
     } else {
       # Reuse the univariate compatibility check (rejects threshold,
       # bad family combos, etc.); IPSI was already rejected upstream
@@ -905,7 +803,7 @@ compute_density_ratio_weights_mv <- function(
       } else if (iv_type == "shift") {
         delta <- iv_k$delta
         a_eval <- a_obs_k - delta
-        f_num <- evaluate_density(tm_k, a_eval, newdata_int)
+        f_num <- evaluate_density(tm_k, a_eval, data)
         warn_intervened_density_near_zero(
           f_num,
           paste0("multivariate shift (component ", k, ")")
@@ -919,7 +817,7 @@ compute_density_ratio_weights_mv <- function(
           )
         }
         a_eval <- a_obs_k / fct
-        f_num <- evaluate_density(tm_k, a_eval, newdata_int)
+        f_num <- evaluate_density(tm_k, a_eval, data)
         warn_intervened_density_near_zero(
           f_num,
           paste0("multivariate scale (component ", k, ")")
@@ -1017,27 +915,15 @@ make_weight_fn_mv <- function(
 
   interventions <- interventions[iv_names]
 
-  # Pre-compute per-component conditioning values (inverse-map for
-  # shift / scale, static / dynamic value otherwise) -- these feed
-  # downstream-component newdata as the intervened conditioning. See
-  # `compute_density_ratio_weights_mv()` for the chain-rule
-  # derivation.
-  cond_values <- vector("list", K)
-  for (k in seq_len(K)) {
-    iv_k <- interventions[[k]]
-    a_obs_k <- data[[treatment_models[[k]]$treatment]]
-    cond_values[[k]] <- intervention_inverse_map(iv_k, data, a_obs_k)
-  }
-
   # Per-component sub-closures + alpha block lengths. Each sub-closure
-  # captures its own observed and intervened design matrices, and
-  # produces the per-component MV weight w_k(alpha_k) =
-  #   numerator(alpha_k; cond_int) / denominator(alpha_k; cond_obs)
-  # under the chain-rule factorisation. The per-component branch
-  # mirrors `compute_density_ratio_weights_mv()`'s arithmetic; both
-  # closures must produce the SAME functional form so the analytic
-  # cross-derivative `A_{beta, alpha}` from numDeriv matches the
-  # weights the MSM was fit with.
+  # produces the per-component MV weight
+  #   w_k(alpha_k) = f_k^d(A_k | A_{1..k-1}_obs, L; alpha_k) / f_k(A_k | A_{1..k-1}_obs, L; alpha_k)
+  # under the sequential MTP semantics of Diaz et al. 2023. Both
+  # numerator and denominator condition on OBSERVED upstream treatment
+  # values -- there is no intervened-conditioning substitution. The
+  # per-component branch mirrors `compute_density_ratio_weights_mv()`
+  # so the analytic cross-derivative `A_{beta, alpha}` from numDeriv
+  # matches the weights the MSM was fit with.
   sub_fns <- vector("list", K)
   block_lens <- integer(K)
   alpha_blocks <- vector("list", K)
@@ -1047,54 +933,25 @@ make_weight_fn_mv <- function(
     tm_k <- treatment_models[[k]]
     a_obs_k <- data[[tm_k$treatment]]
 
-    # Observed-conditioning design matrix (denominator side).
-    X_prop_obs <- stats::model.matrix(tm_k$ps_formula, data = data)
-
-    # Intervened-conditioning design matrix (numerator side). For
-    # k = 1 it equals X_prop_obs; for k > 1 we substitute upstream
-    # cond_values into the data before re-forming the model matrix.
-    if (k == 1L) {
-      X_prop_int <- X_prop_obs
-    } else {
-      newdata_int <- data.table::copy(data)
-      for (j in seq_len(k - 1L)) {
-        trt_j <- treatment_models[[j]]$treatment
-        new_val <- cond_values[[j]]
-        # Preserve factor type / levels when substituting into a
-        # factor column. `data.table::set()` with a character vector
-        # silently overwrites the factor as character, which then
-        # makes `model.matrix()` fail with "contrasts can be applied
-        # only to factors with 2 or more levels" if the new column
-        # holds a single value (e.g. static intervention collapses
-        # all rows to one level).
-        orig_col <- data[[trt_j]]
-        if (is.factor(orig_col) && !is.factor(new_val)) {
-          new_val <- factor(new_val, levels = levels(orig_col))
-        }
-        data.table::set(newdata_int, j = trt_j, value = new_val)
-      }
-      X_prop_int <- stats::model.matrix(tm_k$ps_formula, data = newdata_int)
-    }
+    # Propensity design matrix at OBSERVED upstream conditioning. Used
+    # for both numerator and denominator of the per-component ratio
+    # (sequential MTP semantics).
+    X_prop <- stats::model.matrix(tm_k$ps_formula, data = data)
 
     fam_tag <- tm_k$family
     sigma <- tm_k$sigma
 
     # Build the per-component closure based on (intervention, family).
-    # All branches must compute (numerator at intervened cond) /
-    # (denominator at observed cond), with the appropriate density
-    # function and Jacobian.
+    # Natural course -> constant 1; static/dynamic -> HT indicator;
+    # shift/scale -> pushforward ratio with |Jac|. All branches
+    # evaluate numerator and denominator at the SAME X_prop (observed
+    # conditioning).
     if (is.null(iv_k)) {
-      # Natural course: w_k = f_k(A_k | cond_int, L) / f_k(A_k | cond_obs, L)
-      # This is the upstream-conditioning shift ratio (1 when k = 1).
-      sub_fns[[k]] <- mv_natural_course_closure(
-        fam_tag,
-        X_prop_int,
-        X_prop_obs,
-        a_obs_k,
-        sigma,
-        tm_k$theta,
-        trt_levels = tm_k$levels
-      )
+      # Natural course: w_k = 1 constant under sequential MTP (the
+      # ratio of f_k(A_k | obs_hist, L) / f_k(A_k | obs_hist, L) is 1
+      # regardless of alpha).
+      n <- nrow(data)
+      sub_fns[[k]] <- function(alpha) rep(1, n)
     } else {
       iv_type <- iv_k$type
       if (iv_type %in% c("static", "dynamic")) {
@@ -1102,7 +959,7 @@ make_weight_fn_mv <- function(
         ind <- as.numeric(a_obs_k == target)
         sub_fns[[k]] <- mv_ht_closure(
           fam_tag,
-          X_prop_obs,
+          X_prop,
           a_obs_k,
           ind,
           trt_levels = tm_k$levels
@@ -1112,8 +969,7 @@ make_weight_fn_mv <- function(
         a_eval <- a_obs_k - delta
         sub_fns[[k]] <- mv_pushforward_closure(
           fam_tag,
-          X_prop_int,
-          X_prop_obs,
+          X_prop,
           a_obs_k,
           a_eval,
           jac_abs = 1,
@@ -1130,8 +986,7 @@ make_weight_fn_mv <- function(
         a_eval <- a_obs_k / fct
         sub_fns[[k]] <- mv_pushforward_closure(
           fam_tag,
-          X_prop_int,
-          X_prop_obs,
+          X_prop,
           a_obs_k,
           a_eval,
           jac_abs = abs(1 / fct),
@@ -1171,115 +1026,6 @@ make_weight_fn_mv <- function(
     weight_fn = weight_fn,
     offsets = offsets,
     alpha_hat = alpha_hat
-  )
-}
-
-
-#' Per-component MV closure for natural course (upstream conditioning shift)
-#'
-#' @description
-#' Builds the alpha-closure for a per-component multivariate weight
-#' factor under natural course on this component:
-#' \deqn{w_k(\alpha_k) = \frac{f_k(A_k \mid \mathrm{cond\_int}, L; \alpha_k)}{f_k(A_k \mid \mathrm{cond\_obs}, L; \alpha_k)}.}
-#' For the first component (`X_prop_int == X_prop_obs`) this is
-#' identically 1; for downstream components it carries the
-#' upstream-conditioning shift induced by intervened ancestor
-#' treatments. Used by `make_weight_fn_mv()` for `NULL` (natural)
-#' interventions on individual components in a multivariate call.
-#'
-#' @param fam_tag Character family of the k-th treatment density.
-#' @param X_prop_int Numerator-side propensity design matrix
-#'   (intervened conditioning).
-#' @param X_prop_obs Denominator-side propensity design matrix
-#'   (observed conditioning).
-#' @param a_obs_k Length-n observed treatment vector for component k.
-#' @param sigma Residual SD (Gaussian only).
-#' @param theta NB dispersion (negbin only).
-#' @return `function(alpha)` returning a length-n numeric weight vector.
-#' @noRd
-mv_natural_course_closure <- function(
-  fam_tag,
-  X_prop_int,
-  X_prop_obs,
-  a_obs_k,
-  sigma = NULL,
-  theta = NULL,
-  trt_levels = NULL
-) {
-  # Force every captured argument so the returned closure sees the
-  # values at THIS call's binding, not whatever the caller reassigns
-  # later (classic R for-loop promise gotcha).
-  force(X_prop_int)
-  force(X_prop_obs)
-  force(a_obs_k)
-  force(sigma)
-  force(theta)
-  force(trt_levels)
-  if (fam_tag == "categorical") {
-    if (is.null(trt_levels)) {
-      rlang::abort(
-        "mv_natural_course_closure: categorical branch requires `trt_levels`."
-      )
-    }
-    K_lev <- length(trt_levels)
-    Km1 <- K_lev - 1L
-    p_cols <- ncol(X_prop_obs)
-    n_obs <- length(a_obs_k)
-    a_obs_char <- as.character(a_obs_k)
-    col_idx <- match(a_obs_char, trt_levels)
-    return(function(alpha) {
-      alpha_mat <- matrix(alpha, nrow = Km1, ncol = p_cols, byrow = TRUE)
-      eta_int <- X_prop_int %*% t(alpha_mat)
-      eta_obs <- X_prop_obs %*% t(alpha_mat)
-      exp_int <- exp(eta_int)
-      exp_obs <- exp(eta_obs)
-      denom_int <- 1 + rowSums(exp_int)
-      denom_obs <- 1 + rowSums(exp_obs)
-      prob_int <- cbind(1 / denom_int, exp_int / denom_int)
-      prob_obs <- cbind(1 / denom_obs, exp_obs / denom_obs)
-      f_num <- prob_int[cbind(seq_len(n_obs), col_idx)]
-      f_den <- prob_obs[cbind(seq_len(n_obs), col_idx)]
-      f_num / f_den
-    })
-  }
-  if (fam_tag == "bernoulli") {
-    return(function(alpha) {
-      p_int <- stats::plogis(as.numeric(X_prop_int %*% alpha))
-      p_obs <- stats::plogis(as.numeric(X_prop_obs %*% alpha))
-      f_num <- ifelse(a_obs_k == 1, p_int, 1 - p_int)
-      f_den <- ifelse(a_obs_k == 1, p_obs, 1 - p_obs)
-      f_num / f_den
-    })
-  }
-  if (fam_tag == "gaussian") {
-    return(function(alpha) {
-      mu_int <- as.numeric(X_prop_int %*% alpha)
-      mu_obs <- as.numeric(X_prop_obs %*% alpha)
-      f_num <- stats::dnorm(a_obs_k, mean = mu_int, sd = sigma)
-      f_den <- stats::dnorm(a_obs_k, mean = mu_obs, sd = sigma)
-      f_num / f_den
-    })
-  }
-  if (fam_tag == "poisson") {
-    return(function(alpha) {
-      lam_int <- as.numeric(exp(X_prop_int %*% alpha))
-      lam_obs <- as.numeric(exp(X_prop_obs %*% alpha))
-      f_num <- stats::dpois(a_obs_k, lam_int)
-      f_den <- stats::dpois(a_obs_k, lam_obs)
-      f_num / f_den
-    })
-  }
-  if (fam_tag == "negbin") {
-    return(function(alpha) {
-      lam_int <- as.numeric(exp(X_prop_int %*% alpha))
-      lam_obs <- as.numeric(exp(X_prop_obs %*% alpha))
-      f_num <- stats::dnbinom(a_obs_k, mu = lam_int, size = theta)
-      f_den <- stats::dnbinom(a_obs_k, mu = lam_obs, size = theta)
-      f_num / f_den
-    })
-  }
-  rlang::abort(
-    paste0("mv_natural_course_closure: unsupported family '", fam_tag, "'.")
   )
 }
 
@@ -1358,15 +1104,16 @@ mv_ht_closure <- function(
 #' @description
 #' Builds the alpha-closure for a per-component multivariate weight
 #' factor under shift or scale intervention on a continuous (Gaussian
-#' or count) treatment:
-#' \deqn{w_k(\alpha_k) = \frac{f_k(d_k^{-1}(A_k) \mid \mathrm{cond\_int}, L; \alpha_k) \cdot |\mathrm{Jac}|}{f_k(A_k \mid \mathrm{cond\_obs}, L; \alpha_k)}.}
-#' The numerator evaluates at the inverse-map value of A_k under the
-#' intervened upstream conditioning; the denominator evaluates at the
-#' observed A_k under observed conditioning.
+#' or count) treatment under sequential MTP semantics:
+#' \deqn{w_k(\alpha_k) = \frac{f_k(d_k^{-1}(A_k) \mid A_{1..k-1}^{\mathrm{obs}}, L; \alpha_k) \cdot |\mathrm{Jac}|}{f_k(A_k \mid A_{1..k-1}^{\mathrm{obs}}, L; \alpha_k)}.}
+#' Both numerator and denominator condition on observed upstream
+#' treatments (Diaz et al. 2023 Sec 2). No intervened-conditioning
+#' substitution is needed; only the k-th argument (A_k vs
+#' d_k^{-1}(A_k)) differs between numerator and denominator.
 #'
 #' @param fam_tag Character family.
-#' @param X_prop_int Numerator-side design matrix (intervened cond).
-#' @param X_prop_obs Denominator-side design matrix (observed cond).
+#' @param X_prop Propensity design matrix at OBSERVED upstream
+#'   conditioning.
 #' @param a_obs_k Observed treatment vector.
 #' @param a_eval Inverse-map value of A_k (`A_k - delta` for shift,
 #'   `A_k / factor` for scale).
@@ -1377,45 +1124,43 @@ mv_ht_closure <- function(
 #' @noRd
 mv_pushforward_closure <- function(
   fam_tag,
-  X_prop_int,
-  X_prop_obs,
+  X_prop,
   a_obs_k,
   a_eval,
   jac_abs,
   sigma = NULL,
   theta = NULL
 ) {
-  force(X_prop_int)
-  force(X_prop_obs)
+  force(X_prop)
   force(a_obs_k)
   force(a_eval)
   force(jac_abs)
   force(sigma)
   force(theta)
+  # Sequential MTP semantics: both numerator f_k(d^{-1}(A_k) | obs_hist, L)
+  # and denominator f_k(A_k | obs_hist, L) evaluate at the SAME
+  # conditioning linear predictor.
   if (fam_tag == "gaussian") {
     return(function(alpha) {
-      mu_int <- as.numeric(X_prop_int %*% alpha)
-      mu_obs <- as.numeric(X_prop_obs %*% alpha)
-      f_num <- stats::dnorm(a_eval, mean = mu_int, sd = sigma)
-      f_den <- stats::dnorm(a_obs_k, mean = mu_obs, sd = sigma)
+      mu <- as.numeric(X_prop %*% alpha)
+      f_num <- stats::dnorm(a_eval, mean = mu, sd = sigma)
+      f_den <- stats::dnorm(a_obs_k, mean = mu, sd = sigma)
       (f_num / f_den) * jac_abs
     })
   }
   if (fam_tag == "poisson") {
     return(function(alpha) {
-      lam_int <- as.numeric(exp(X_prop_int %*% alpha))
-      lam_obs <- as.numeric(exp(X_prop_obs %*% alpha))
-      f_num <- stats::dpois(a_eval, lam_int)
-      f_den <- stats::dpois(a_obs_k, lam_obs)
+      lam <- as.numeric(exp(X_prop %*% alpha))
+      f_num <- stats::dpois(a_eval, lam)
+      f_den <- stats::dpois(a_obs_k, lam)
       (f_num / f_den) * jac_abs
     })
   }
   if (fam_tag == "negbin") {
     return(function(alpha) {
-      lam_int <- as.numeric(exp(X_prop_int %*% alpha))
-      lam_obs <- as.numeric(exp(X_prop_obs %*% alpha))
-      f_num <- stats::dnbinom(a_eval, mu = lam_int, size = theta)
-      f_den <- stats::dnbinom(a_obs_k, mu = lam_obs, size = theta)
+      lam <- as.numeric(exp(X_prop %*% alpha))
+      f_num <- stats::dnbinom(a_eval, mu = lam, size = theta)
+      f_den <- stats::dnbinom(a_obs_k, mu = lam, size = theta)
       (f_num / f_den) * jac_abs
     })
   }

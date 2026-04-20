@@ -3,25 +3,50 @@
 ## 2026-04-20 — Multivariate treatment IPW (Phase 8)
 
 `estimator = "ipw"` now accepts multivariate (joint) treatments
-`treatment = c("A1", "A2", ...)`. Previously the path hard-aborted; users
-needed `estimator = "gcomp"` for joint interventions. The new
+`treatment = c("A1", "A2", ...)`. Previously the path hard-aborted;
+users needed `estimator = "gcomp"` for joint interventions. The new
 implementation factorises the joint conditional density via the chain
 rule
 
-  f(A_1, ..., A_K | L) = f(A_1 | L) · f(A_2 | A_1, L) · ... · f(A_K | A_1, ..., A_{K-1}, L),
+$$
+f(A_1, \ldots, A_K \mid L) = \prod_{k=1}^{K} f_k(A_k \mid A_{1..k-1}, L),
+$$
 
 fits one univariate density model per component (sequential
 factorisation), and forms the product density-ratio weight per
-intervention. The k-th numerator factor evaluates at the inverse-map
-value of A_k under the **intervened** upstream conditioning while the
-denominator stays at the observed conditioning — the cross-component
-conditioning shift is what makes the joint weight unbiased under
-non-static interventions on a non-final component. Sandwich variance
-runs through a stacked propensity bread that is block-diagonal across
-the K models (each component is fit independently), so the propensity
-correction sums K single-model corrections.
+intervention.
 
-Supported v1 combinations:
+### Estimand semantics: sequential MTP (Díaz et al. 2023)
+
+Multivariate IPW implements the **sequential modified treatment policy**
+estimand (Díaz, Williams, Hoffman, Schenck 2023, *JASA*), the standard
+in the causal-inference MTP literature and what `lmtp` computes. Under
+this interpretation, the counterfactual at stage $k$ is $A_k^d =
+d_k(A_k^n)$ where $A_k^n$ is drawn from the conditional density of
+$A_k$ given the COUNTERFACTUAL history up to stage $k$. At
+identification time this plugs observed upstream treatments into the
+$k$-th factor's conditioning:
+
+$$
+w_k(\alpha_k) = \frac{f_k(d_k^{-1}(A_k) \mid A_{1..k-1}^{\mathrm{obs}}, L; \alpha_k) \cdot |\mathrm{Jac}\,d_k^{-1}|}{f_k(A_k \mid A_{1..k-1}^{\mathrm{obs}}, L; \alpha_k)}.
+$$
+
+Under natural course on component $k$ (no intervention), the ratio is
+identically $1$ — downstream components do not accumulate an "upstream
+conditioning shift" from natural-course components.
+
+**Multivariate gcomp implements a different estimand** — deterministic
+joint transformation, $E[Y^d] = E\{E[Y \mid A_1 = d_1(A_1^{\mathrm{obs}}),\, A_2 = d_2(A_2^{\mathrm{obs}}),\, L]\}$
+via simultaneous per-individual substitution of each counterfactual
+column. For static-only interventions the two estimators coincide (the
+indicator on the HT branch collapses the conditioning); for non-static
+interventions on non-final components they can differ by the upstream
+→ downstream cross-dependence (e.g. shift + shift on a
+continuous × continuous DGP with $A_1 \to A_2$ coefficient $0.3$:
+gcomp gives $-0.9$, IPW gives $-1.02$). This difference is intentional
+and pinned by a regression test.
+
+### Supported combinations
 
 - Binary × binary (and K = 2, 3 binary), all-static, gauss / binom
   outcome, RD / RR / OR contrasts.
@@ -29,25 +54,36 @@ Supported v1 combinations:
   dynamic.
 - Continuous × continuous, shift + shift, scale + scale, dynamic
   components.
+- Effect modification via `A_k:modifier` (per-component propensity
+  formulas strip treatment-touching terms; MSM expands to `Y ~ 1 +
+  modifier_main_effects`). Baseline-modifier constraint from Phase 6
+  carries over.
+- Categorical components (via `nnet::multinom` per component;
+  multinomial softmax closure in `mv_ht_closure`). Cat × bin, bin ×
+  cat, and cat × cat all supported.
+- Count components (Poisson / negative binomial) via per-component
+  `propensity_family` opt-in (NULL / length-1 / length-K).
 - ATE only (matches the existing single-treatment ATT/ATC gate that
   rejects multivariate at fit time).
 - Sandwich + bootstrap variance, `by =`, `subset =`, survey weights.
 
-Rejected with classed errors:
+### Internal bits
+
+`fit$details$treatment_models` is the list of per-component
+`causatr_treatment_model` objects (length K, named by treatment
+column). The legacy `treatment_model` slot stays populated for
+univariate fits. `fit_treatment_models()` in `R/treatment_model.R`
+does per-component fitter auto-selection. The mv sandwich
+(`compute_ipw_if_self_contained_mv_one()`) exploits that the K
+propensity models are fit independently, so the stacked propensity
+bread is block-diagonal — the propensity correction sums K
+single-model `apply_model_correction()` results.
+
+### Rejected with classed errors
 
 - `ipsi()` in any component (`causatr_multivariate_ipsi`) — Kennedy's
   closed form has no joint analogue.
-- Effect modification `~ ... + A:modifier`
-  (`causatr_multivariate_em`) — joint MSM expansion deferred.
-- Categorical component (`causatr_multivariate_categorical`) — recode
-  to binary or use `estimator = "gcomp"`.
-- `propensity_family =` opt-in (auto-detected per component).
 - Multivariate matching still rejected (MatchIt is binary-only).
-
-The `treatment_models` slot in `fit$details` is the list of
-per-component `causatr_treatment_model` objects (length K, named by
-treatment column). The legacy `treatment_model` slot stays populated
-for univariate fits.
 
 ## Breaking change: survival analysis removed
 

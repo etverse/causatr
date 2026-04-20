@@ -16,30 +16,39 @@ Extend the self-contained IPW density-ratio engine to support multivariate (join
 
 ### Joint treatment density
 
-The key question: how to model `f(A1, A2 | L)`.
+The key question: how to model $f(A_1, A_2 \mid L)$.
 
 **Option A: Product of conditionals (sequential factorisation)**
-```
-f(A1, A2 | L) = f(A1 | L) · f(A2 | A1, L)
-```
-Each factor is a standard univariate density model that `fit_treatment_model()` already handles. `A1` enters the second model as an additional covariate. This is the simplest approach and mirrors how longitudinal IPW chains per-period models.
+$$
+f(A_1, A_2 \mid L) = f_1(A_1 \mid L)\, f_2(A_2 \mid A_1, L)
+$$
+Each factor is a standard univariate density model that `fit_treatment_model()` already handles. $A_1$ enters the second model as an additional covariate. This is the simplest approach and mirrors how longitudinal IPW chains per-period models.
 
 **Option B: Multivariate normal (continuous case)**
-```
-f(A1, A2 | L) = MVN(μ(L), Σ(L))
-```
+$$
+f(A_1, A_2 \mid L) = \mathcal{N}\bigl(\mu(L), \Sigma(L)\bigr)
+$$
 Requires a multivariate regression model. More statistically efficient but harder to implement and less flexible (can't mix binary + continuous treatments).
 
 **Recommendation:** Option A. It reuses the existing `fit_treatment_model()` machinery, supports mixed treatment types (e.g. one binary, one continuous), and the product factorisation is valid under the full model.
 
-### Joint density-ratio weights
+### Joint density-ratio weights (sequential MTP semantics)
 
-For a joint intervention `(a1*, a2*)`:
-```
-w_i = f(a1*_i | L_i) · f(a2*_i | a1*_i, L_i) / [f(A1_i | L_i) · f(A2_i | A1_i, L_i)]
-```
+The implementation follows the **sequential MTP** semantics of Díaz, Williams, Hoffman, Schenck (2023), the standard in the causal-inference MTP literature and what `lmtp` implements. For a joint intervention $d = (d_1, d_2, \ldots)$ applied stage-sequentially:
 
-Each factor ratio is computed via the existing `compute_density_ratio_weights()` on the corresponding univariate model. The product is the joint weight.
+$$
+w_i = \prod_{k=1}^{K} \frac{f_k\bigl(d_k^{-1}(A_{k,i}) \,\big|\, A_{1..k-1,i}^{\mathrm{obs}}, L_i\bigr) \cdot |\mathrm{Jac}\,d_k^{-1}|}{f_k\bigl(A_{k,i} \,\big|\, A_{1..k-1,i}^{\mathrm{obs}}, L_i\bigr)}.
+$$
+
+Critically, **both numerator and denominator condition on OBSERVED upstream values** — only the $k$-th argument changes ($A_k$ vs $d_k^{-1}(A_k)$). This is because the sequential MTP estimand is
+$$
+E[Y^d] = \int E[Y \mid A, L] \prod_k f_k\bigl(d_k^{-1}(a_k) \,\big|\, a_{1..k-1}, L\bigr)\, |\mathrm{Jac}\,d_k^{-1}|\, da\, dP(L),
+$$
+where the conditioning variables $a_{1..k-1}$ at the evaluation point are the observed values.
+
+Under natural course on component $k$ (no intervention), the ratio is identically $1$ — downstream components do not accumulate an "upstream conditioning shift" from natural-course components.
+
+**Note on mv gcomp:** multivariate gcomp implements a *different* estimand (deterministic joint transformation: simultaneous per-individual substitution of each counterfactual column). For static-only interventions the two estimators coincide; for non-static interventions on non-final components they differ by the upstream $\to$ downstream cross-dependence. See `CLAUDE.md` "Architecture notes" for the detailed semantics contract.
 
 ### Sandwich variance
 
@@ -58,26 +67,44 @@ contrast(fit,
 )
 ```
 
-## Items
+## Items (chunks 8a – 8c)
+
+### 8a — core (commits `62a25f8` + `8a-fix` sequential-MTP semantics correction)
 
 - [x] Remove `length(treatment) > 1L` gate in `fit_ipw()` and `check_causat_inputs()`.
-- [x] Add `fit_treatment_models()` (plural) in `R/treatment_model.R` to fit the sequential factorisation `f(A_k | A_{1..k-1}, L)` per component.
-- [x] Add `compute_density_ratio_weights_mv()` in `R/ipw_weights.R`. The k-th factor's denominator stays at observed conditioning; the numerator substitutes the inverse-map values of upstream components into the conditioning columns. Reuses `evaluate_density()` per component but does NOT delegate to the univariate `compute_density_ratio_weights()` (which would use one newdata for both halves and wipe out the cross-component conditioning shift).
-- [x] Add `make_weight_fn_mv()` building a stacked-alpha closure across K models for the variance engine; per-component sub-closures via `mv_natural_course_closure()` / `mv_ht_closure()` / `mv_pushforward_closure()`. `force()` every captured arg to avoid the R for-loop promise gotcha.
-- [x] Add `intervention_inverse_map()` helper that returns d_k^{-1}(A_k) per intervention type (the value plugged into downstream conditioning).
-- [x] Add `compute_ipw_if_self_contained_mv_one()` in `R/variance_if.R`. Computes the stacked cross-derivative `[A_{β,α₁}, ..., A_{β,α_K}]` via `numDeriv::jacobian` on the product-weight closure, then sums K block-diagonal propensity corrections (one `apply_model_correction()` per propensity model).
+- [x] Add `fit_treatment_models()` (plural) in `R/treatment_model.R` to fit the sequential factorisation $f_k(A_k \mid A_{1..k-1}, L)$ per component.
+- [x] Add `compute_density_ratio_weights_mv()` in `R/ipw_weights.R` implementing the sequential-MTP per-component ratio. **Both numerator and denominator condition on observed upstream treatments** — no intervened-newdata substitution (Diaz et al. 2023). Under natural course on any component the ratio is identically $1$.
+- [x] Add `make_weight_fn_mv()` building a stacked-alpha closure across $K$ models for the variance engine; per-component sub-closures via `mv_ht_closure()` (static / dynamic on discrete) / `mv_pushforward_closure()` (shift / scale on continuous or count). Natural-course components have constant-$1$ closures. `force()` every captured arg to avoid the R for-loop promise gotcha.
+- [x] Add `compute_ipw_if_self_contained_mv_one()` in `R/variance_if.R`. Computes the stacked cross-derivative $[A_{\beta\alpha_1}, \ldots, A_{\beta\alpha_K}]$ via `numDeriv::jacobian` on the product-weight closure, then sums $K$ block-diagonal propensity corrections (one `apply_model_correction()` per propensity model).
 - [x] Wire dispatch in `fit_ipw()`, `compute_ipw_contrast_point()`, `variance_if_ipw()` on `length(treatment) > 1L` (stored as `fit$details$is_multivariate`).
 - [x] Bootstrap path (`refit_ipw()`) replays the same `treatment` slot — multivariate just works through the existing `replay_fit()` plumbing.
-- [x] Reject IPSI / categorical / count components and effect modification under multivariate IPW with classed errors (`causatr_multivariate_*`).
-- [x] Truth-based tests in `tests/testthat/test-multivariate-ipw.R`: 12 tests covering binary × binary, binary × continuous, continuous × continuous, K = 3 binary, binom outcome with diff/ratio/OR, by-stratified, subset, dynamic, gcomp cross-check, sandwich-vs-bootstrap parity. Plus 5 rejection tests.
-- [x] Update `FEATURE_COVERAGE_MATRIX.md`, `CLAUDE.md`, `NEWS.md`.
+- [x] Reject IPSI under multivariate IPW (`causatr_multivariate_ipsi`). Matching stays binary-only.
+
+### 8b — effect modification (commit `7f641e6`)
+
+- [x] Lift the `causatr_multivariate_em` rejection.
+- [x] Strip all treatment-touching terms from per-component propensity formulas via `parse_effect_mod()`'s `confounder_terms` slot in `fit_treatment_models()`. This covers `A_k:modifier` (EM interaction) and `A_j:A_k` (treatment-treatment interaction) uniformly.
+- [x] Reuse `build_ipw_msm_formula()` to expand the per-intervention MSM from `Y ~ 1` to `Y ~ 1 + modifier_main_effects`.
+- [x] Carry the Phase 6 baseline-modifier constraint (Robins 2000) as a doc-level note.
+
+### 8c — categorical + count components (commit `fb8f04e`)
+
+- [x] Lift the `causatr_multivariate_categorical` rejection. Lift the `propensity_family` rejection for multivariate.
+- [x] Per-component fitter dispatch in `fit_treatment_models()` — categorical components get `nnet::multinom`, negbin gets `MASS::glm.nb`, rest use `model_fn`. New `propensity_model_fn` argument allows a single user-chosen fitter for all components.
+- [x] `propensity_family` accepts `NULL`, length $1$ (broadcast), or length $K$ (per-component opt-in).
+- [x] Categorical branch in `mv_ht_closure()` using the multinomial softmax (flattened $(K-1) \times p$ alpha reshape).
+- [x] Multinomial propensity bread dispatch in `compute_ipw_if_self_contained_mv_one()` via `inherits(model, "multinom")` routing to `prepare_model_if_multinom()`.
+
+### Tests
+
+- [x] `tests/testthat/test-multivariate-ipw.R` covers: bin × bin (static, binomial outcome with diff/ratio/OR, by, subset, dynamic, bootstrap parity), bin × cont (static + shift), cont × cont (shift + shift — sequential-MTP truth), K = 3 binary, gcomp cross-check for static, gcomp ESTIMAND DIVERGENCE pin for shift + shift, cross-method $A_1{:}\mathrm{sex}$ EM, bin × cat / cat × bin / cat × cat, plus rejection tests (IPSI, bare treatment in confounders, invalid `propensity_family` shape).
 
 ## Dependencies
 
-Phase 4 (self-contained IPW engine). Independent of Phases 6, 9, 10.
+Phase 4 (self-contained IPW engine), Phase 6 (EM infrastructure used by 8b).
 
-## Out of scope
+## Out of scope (deferred to other phases)
 
-- Multivariate matching (MatchIt limitation)
-- Longitudinal multivariate IPW (combine with Phase 10)
-- Effect modification for multivariate treatment (Phase 6 + Phase 8 interaction; deferred)
+- Multivariate matching (MatchIt limitation).
+- Longitudinal multivariate IPW (Phase 10).
+- Stabilized weights (Phase 8e, design doc pending).
