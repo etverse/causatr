@@ -2,9 +2,9 @@
 
 > **Status: PENDING** (design doc)
 >
-> **Depends on:** Phase 2 (point gcomp), Phase 4 (self-contained IPW), Phase 5 (ICE, for longitudinal), Phase 10 (longitudinal IPW, for longitudinal), Phase 7 (for survival composition), Phase 14 (for IPCW composition)
+> **Depends on:** Phase 2 (point gcomp), Phase 4 (self-contained IPW), Phase 5 (ICE, for longitudinal), Phase 10 (longitudinal IPW, for longitudinal), Phase 14 (for IPCW composition)
 >
-> **Composes with (planned):** Phases 7, 8, 10, 12, 14 via dedicated "AIPW composition" subsections.
+> **Composes with (planned):** Phases 8, 10, 12, 14 via dedicated "AIPW composition" subsections.
 
 ## Motivation
 
@@ -137,24 +137,13 @@ where $\tilde Y_{k+1}$ is the pseudo-outcome from the $(k+1)$-th AIPW step and $
 
 **Depends on Phase 10 (longitudinal IPW) and Phase 5 (ICE).** Chunk 16g.
 
-## Survival composition (Phase 7 × Phase 16)
-
-AIPW-survival is well-studied (Bai et al. 2013; Zhang & Schaubel 2012) and composes cleanly with Track A (point survival):
-
-- **Outcome side:** pooled logistic hazard $\hat{h}(k \mid A, L)$ from Track A; per-individual survival $\hat{S}^a_i(t) = \prod_{k \leq t}(1 - \hat{h}^a_{i,k})$.
-- **Propensity side:** baseline density-ratio weight $W_i(g)$ computed once per individual (Track A IPW), broadcast onto person-period rows.
-- **AIPW functional for survival:** $\hat{S}^g_{\mathrm{AIPW}}(t) = (1/n) \sum_i [\hat{S}^g_i(t) + W_i(g) \cdot (\mathbb{1}\{T_i > t, C_i > t\} - \hat{S}^{A_i}_i(t))]$, i.e., standardization + IPW residual correction on the survival-curve scale. Risk, RD, RR, RMST follow from the AIPW survival curve.
-- **Variance:** the stacked EE adds the outcome-hazard block to the IPW-stacked system; the cross-time delta-method aggregation from Phase 7 § "Cross-time variance aggregation" applies on top.
-- **Oracle:** `lmtp::lmtp_tmle(outcome_type = "survival")` is a close cousin (TMLE targets at the same EIF) — agreement up to the targeting correction.
-
-Track B (longitudinal survival AIPW via ICE hazards) is the natural extension: sequential AIPW on the hazard scale with per-step outcome and propensity nuisances. Chunk depends on 16g + Phase 7 chunk 7e.
-
 ## Composition with pending phases
 
 - **Phase 8 (multivariate treatment IPW) × AIPW.** Joint outcome model `Y ~ A1 + A2 + L` already supported by Phase 2 multivariate gcomp; joint density from Phase 8. AIPW combines the two. Chunk deferred to after both Phases 8 and 16 ship.
 - **Phase 10 (longitudinal IPW) × AIPW.** This is exactly ICE-AIPW, chunk 16g.
-- **Phase 12 (stochastic) × AIPW.** MC integration applies to the outcome-model augmentation term (average $\hat{m}(A_{i,m}, L_i)$ across $M$ draws) and to the weight (same MC treatment as in Phase 12 § "Survival composition" for the cumulative product; but AIPW is a scalar, so regular MC averaging of the residual correction). Add explicit subsection to `PHASE_12_STOCHASTIC.md` once Phase 16 lands, following the pattern established there.
+- **Phase 12 (stochastic) × AIPW.** MC integration applies to the outcome-model augmentation term (average $\hat{m}(A_{i,m}, L_i)$ across $M$ draws) and to the weight; AIPW is a scalar so regular MC averaging of the residual correction suffices. Add explicit subsection to `PHASE_12_STOCHASTIC.md` once Phase 16 lands.
 - **Phase 14 (IPCW) × AIPW.** Triply-weighted estimator: `ψ̂_AIPW,IPCW = standardization + (treatment weight × censoring weight) × outcome residual`. Sandwich: stacked EE with outcome model + propensity model + censoring model + plug-in. This is the **most efficient** estimator in the lineage and is a major deliverable once both Phase 14 and Phase 16 are done.
+- **Survival composition.** AIPW-survival (Bai et al. 2013; Zhang & Schaubel 2012) lives in the separate survival package; it imports Phase 16 as the scalar-outcome AIPW primitive and layers the cross-time delta chain on top. See `SURVIVAL_PACKAGE_HANDOFF.md`.
 
 ## Chunks
 
@@ -170,9 +159,8 @@ Track B (longitudinal survival AIPW via ICE hazards) is the natural extension: s
 | 16h | Extend to ATT / ATC for static binary; verify against `WeightIt` + gcomp combination oracle | 16b |
 | 16i | Longitudinal AIPW (ICE-AIPW): sequential nuisance fits through the ICE backward loop, stacked sandwich with $K$ outcome blocks + $K$ propensity blocks + plug-in | Phase 5, Phase 10, 16b |
 | 16j | Categorical + count treatment extensions (compose with Phase 4's propensity-family dispatch) | 16b |
-| 16k | Survival composition (Phase 7 Track A under AIPW) — see § "Survival composition" | Phase 7, 16b |
-| 16l | `delicatessen` external cross-check on a shared DGP | 16b, 16d, 16e |
-| 16m | Documentation, vignette, `CLAUDE.md` phase update, `FEATURE_COVERAGE_MATRIX.md` rows | 16a–16k |
+| 16k | `delicatessen` external cross-check on a shared DGP | 16b, 16d, 16e |
+| 16l | Documentation, vignette, `CLAUDE.md` phase update, `FEATURE_COVERAGE_MATRIX.md` rows | 16a–16j |
 
 ## Invariants
 
@@ -203,10 +191,6 @@ E[Y^1] - E[Y^0] = 3  (ATE)
 
 Reuse the Phase 10 / Phase 5 linear-Gaussian DGP (2-period, time-varying treatment + confounder), validated against `lmtp::lmtp_tmle`.
 
-### Survival (chunk 16k)
-
-Piecewise-exponential event time with binary baseline treatment; analytical 120-month survival under each treatment arm. Cross-check against `lmtp::lmtp_tmle(outcome_type = "survival")`.
-
 ## References
 
 - Robins JM, Rotnitzky A, Zhao LP (1994). Estimation of regression coefficients when some regressors are not always observed. *JASA* 89:846–866. *(foundational AIPW paper)*
@@ -214,6 +198,4 @@ Piecewise-exponential event time with binary baseline treatment; analytical 120-
 - Bang H, Robins JM (2005). Doubly robust estimation in missing data and causal inference models. *Biometrics* 61:962–973. *(ICE-AIPW / longitudinal extension)*
 - Funk MJ, Westreich D, Wiesen C, Stürmer T, Brookhart MA, Davidian M (2011). Doubly robust estimation of causal effects. *Am J Epidemiol* 173:761–767. *(applied epi primer)*
 - Kang JD, Schafer JL (2007). Demystifying double robustness. *Stat Sci* 22:523–539. *(practical DR pitfalls — cite as a caveat on finite-sample behavior)*
-- Bai X, Tsiatis AA, O'Brien SM (2013). Doubly robust estimators of treatment-specific survival distributions. *Biometrics* 69:830–839.
-- Zhang M, Schaubel DE (2012). Contrasting treatment-specific survival using double-robust estimators. *Stat Med* 31:4255–4268.
 - Tchetgen Tchetgen EJ (2009). A commentary on G. Molenberghs' review of missing data. *Stat Methods Med Res* 18:93–97. *(AIPW efficiency vs IPW)*

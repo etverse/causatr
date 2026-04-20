@@ -106,34 +106,6 @@ test_that("B2: bootstrap refit replays user's ... (gcomp quasipoisson)", {
 # on the resampled data with the stashed `dots` forwarded into
 # `fit_treatment_model()`.
 
-test_that("B5: causat_survival drops all rows at/after first censor", {
-  # Build a tiny long panel where id=1 is censored at t=2.
-  d <- data.table::data.table(
-    id = rep(1:3, each = 3),
-    t = rep(1:3, 3),
-    Y = c(0, 0, 0, 0, 0, 1, 0, 0, 0),
-    A = c(1, 1, 1, 0, 0, 0, 1, 1, 1),
-    L = rnorm(9),
-    C = c(0, 1, 0, 0, 0, 0, 0, 0, 0)
-  )
-  fit <- suppressMessages(causat_survival(
-    d,
-    outcome = "Y",
-    treatment = "A",
-    confounders = ~L,
-    id = "id",
-    time = "t",
-    censoring = "C",
-    time_formula = ~ factor(t)
-  ))
-  # The row at (id=1, t=3) must NOT be in the fit set: id=1 was censored
-  # at t=2 so subsequent rows must be dropped. Pre-fix only the t=2 row
-  # was excluded.
-  fit_rows <- fit$details$fit_rows
-  row_at_1_3 <- which(d$id == 1 & d$t == 3)
-  expect_false(fit_rows[row_at_1_3])
-})
-
 test_that("B6: external weights flow into the treatment density model", {
   df <- simulate_binary_continuous(n = 400, seed = 6L)
   w <- runif(nrow(df), 0.5, 2)

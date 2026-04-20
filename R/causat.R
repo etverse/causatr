@@ -294,8 +294,7 @@
 #' )
 #' }
 #'
-#' @seealso [contrast()], [diagnose()], [causat_survival()],
-#'   [static()], [shift()], [dynamic()]
+#' @seealso [contrast()], [diagnose()], [static()], [shift()], [dynamic()]
 #' @export
 causat <- function(
   data,

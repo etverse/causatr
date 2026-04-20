@@ -17,7 +17,6 @@ articles:
       - triangulation
       - longitudinal
       - missing-data
-      - survival
       - validation
   - title: Theory
     contents:

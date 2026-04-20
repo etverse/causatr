@@ -35,7 +35,7 @@ For static binary the MSM degenerates to the saturated `Y ~ A` we have today, so
 
 ## `model_fn` covers the propensity backend
 
-`causat()` already exposes `model_fn` (default `stats::glm`) for the outcome model in gcomp / ICE / survival. Phase 4 reuses that convention: the treatment density model is fit with the same `model_fn` contract `function(formula, data, family, weights, ...)`, so users get GAMs, splines, fractional polynomials, `MASS::glm.nb`, etc. for free without us reimplementing a propensity backend zoo.
+`causat()` already exposes `model_fn` (default `stats::glm`) for the outcome model in gcomp / ICE. Phase 4 reuses that convention: the treatment density model is fit with the same `model_fn` contract `function(formula, data, family, weights, ...)`, so users get GAMs, splines, fractional polynomials, `MASS::glm.nb`, etc. for free without us reimplementing a propensity backend zoo.
 
 Two API choices, to decide during implementation:
 

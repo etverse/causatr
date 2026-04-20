@@ -1,5 +1,24 @@
 # causatr (development version)
 
+## Breaking change: survival analysis removed
+
+Causal survival analysis has been extracted from causatr into its own
+etverse package. This removes the scaffolded Phase 7 surface — the
+`causat_survival()` export, `type = "survival"` branch in `contrast()`,
+`PHASE_7_SURVIVAL.md`, the `survival.qmd` vignette, and all survival
+tests and snapshots. `to_person_period()` stays in causatr because it
+also serves general longitudinal data.
+
+The `SURVIVAL_PACKAGE_HANDOFF.md` document in the causatr repo root is
+the full hand-off to the new survival package: scope, design (pooled
+logistic + ICE hazards + competing risks), inheritance from causatr's
+engine primitives, and implementation chunks.
+
+If you were using `causat_survival()`, switch to the new survival
+package once it ships. Until then, manual pooled-logistic regression
+on person-period data (via `causat(..., estimator = "gcomp")` plus
+custom intervention + cumulative-product code) remains possible.
+
 ## Bug fixes
 
 - `bread_inv()` now aborts with `causatr_gam_missing_vp` when a

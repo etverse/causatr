@@ -33,7 +33,7 @@ Scenario 1 is the headline. It also **retroactively fixes a Phase 6 correctness 
 
 ## Non-scope
 
-- **Survival SNMs (SNFTMs, SNCFTMs).** Accelerated-failure-time and cumulative-failure-time structural nested models are a distinct literature with their own parameterizations and estimators (Robins 1992; Joffe et al. 2012). Out of scope; revisit after both Phase 18 (mean SNMs) and Phase 7 (survival) are stable.
+- **Survival SNMs (SNFTMs, SNCFTMs).** Accelerated-failure-time and cumulative-failure-time structural nested models are a distinct literature with their own parameterizations and estimators (Robins 1992; Joffe et al. 2012). Out of scope; these belong in the separate survival package (see `SURVIVAL_PACKAGE_HANDOFF.md`).
 - **Multiplicative / log-linear blips** for binary outcomes with causal OR / RR. Requires a different g-estimating equation and awkward finite-sample behavior. Deferred.
 - **Optimal dynamic regimes as a first-class output.** The blip parameters already encode the optimal regime, but constructing a `causatr_regime` object with inference is a separate methodological question (value-function inference, DTR confidence sets). Out of scope.
 - **Rank-preserving SNMs with heterogeneous treatment effects at the individual level.** Phase 18 assumes "no effect modification by unobserved factors beyond what the blip captures" (Robins 1994; Vansteelandt & Joffe 2014) — the semiparametric version. The stronger rank-preservation assumption is not needed for the additive-linear mean case.
@@ -110,7 +110,7 @@ SNMs in Phase 18 support the same treatment types as Phase 4 IPW, with the same 
 - **Phase 10 (longitudinal IPW) + SNM triangulation.** Two parallel approaches to the same longitudinal problem. Under correct specification both are consistent; disagreement is a diagnostic red flag. An explicit triangulation test (SNM blip × IPW-MSM marginal mean on a simulated DGP) is the scientific payoff of having both in the same package.
 - **Phase 14 (IPCW) × SNM.** Censoring weights can be incorporated into the SNM g-estimating equation (Yiu & Su 2022; Boatman & Vock 2019): weight the stage-k moment condition by cumulative IPCW up to $k$. Subsection to be added to `PHASE_14_IPCW.md` once Phase 18 ships.
 - **Phase 9 (inference infrastructure).** Survey weights and cluster-robust SE at the individual level compose straightforwardly with the SNM stacked sandwich. The longitudinal-cluster aggregation (§ "Clustering") is a prerequisite; full survey-weighted SNMs wait for Phase 9.
-- **Phase 7 (survival).** Explicitly out of scope for Phase 18 — survival SNMs are a separate literature (SNFTMs / SNCFTMs). Noted here to avoid future-conversation rediscovery.
+- **Survival.** Survival SNMs (SNFTMs / SNCFTMs) are owned by the separate survival package (see `SURVIVAL_PACKAGE_HANDOFF.md`), not by Phase 18.
 
 ## Chunks
 

@@ -254,7 +254,7 @@ on the stratum. No changes to `by` itself.
 | Effect modification by a **continuous** modifier interpreted as a smooth function | Requires GAM interior-smooth terms or tensor product bases | Works via GAM already in point gcomp; no API change needed |
 | EM for multivariate treatment (joint A1:L, A2:L) | Needs the multivariate treatment expansion in Phase 8 | Phase 8 |
 | EM for self-contained IPW with non-static interventions | Requires density ratio weights from Phase 4 (done) | — |
-| EM for survival contrasts | Survival contrasts themselves are Phase 7 | Phase 7 |
+| EM for survival contrasts | Survival analysis is now a separate etverse package | Separate package (see `SURVIVAL_PACKAGE_HANDOFF.md`) |
 | **EM by a time-varying modifier under IPW / matching** | MSM conditioning on post-treatment variables is a **structural limitation of MSM identification**, not an implementation gap. See § "Known limitation: modifier must be **baseline**". Correct tool is a structural nested model. | Phase 18 (`PHASE_18_SNMS.md`) |
 | **Runtime `check_em_baseline_only()` guard** | Time-varying status is not inferable from the data structure; user must declare via an explicit `baseline_cols =` contract | Follow-up once users trip over the silent-bias risk in practice |
 

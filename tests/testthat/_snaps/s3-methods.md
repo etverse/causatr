@@ -6,14 +6,6 @@
       Error in `contrast()`:
       ! `by` variable 'nonexistent' not found in fitted data.
 
-# survival type aborts in contrast()
-
-    Code
-      contrast(fit, list(a1 = static(1), a0 = static(0)))
-    Condition
-      Error in `compute_contrast()`:
-      ! Survival curve estimation via contrast() is not implemented. causat_survival() fits a pooled logistic model; survival curve contrasts are reserved for a future release.
-
 # multivariate treatment blocked for IPW
 
     Code

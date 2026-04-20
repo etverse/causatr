@@ -599,8 +599,8 @@ check_causat_inputs <- function(
 #' Validate an external weight vector before handing it to a fitter
 #'
 #' @description
-#' Up-front check on the `weights` argument passed to `causat()` or
-#' `causat_survival()`. Without this guard, non-finite or negative
+#' Up-front check on the `weights` argument passed to `causat()`.
+#' Without this guard, non-finite or negative
 #' weights silently fall through to the downstream GLM, which either
 #' aborts with a cryptic message or (worse) produces NaN estimates.
 #' Reject at the causatr boundary so users see a specific error with
@@ -681,15 +681,15 @@ check_weights <- function(weights, n, call = rlang::caller_env()) {
 #' warning. Downstream SEs are meaningless.
 #'
 #' Rather than harden every place we touch residuals, we refuse `na.exclude`
-#' at the `causat()` / `causat_survival()` boundary. `na.omit` (the default)
-#' and `na.fail` are the only sensible choices for a pipeline that builds
-#' its own row-alignment bookkeeping from `fit_rows` / `model$na.action`.
+#' at the `causat()` boundary. `na.omit` (the default) and `na.fail` are
+#' the only sensible choices for a pipeline that builds its own
+#' row-alignment bookkeeping from `fit_rows` / `model$na.action`.
 #'
 #' Verified via `/tmp/causatr_repro_issue7.R` on 2026-04-15: under
 #' `na.action = na.exclude`, `prepare_model_if()` triggered the recycling
 #' warning and returned a silently-wrong correction vector.
 #'
-#' @param ... Dots forwarded to `causat()` / `causat_survival()`.
+#' @param ... Dots forwarded to `causat()`.
 #' @param call Caller environment for error messages.
 #'
 #' @return `NULL` invisibly; aborts on `na.action = na.exclude`.

@@ -189,37 +189,6 @@ test_that("causat() rejects invalid history value", {
 })
 
 
-test_that("causat_survival() aborts on non-NULL competing= until Phase 7", {
-  # Regression guard: previously `competing` was stored in
-  # fit$details$competing but never consumed by the pooled-logistic
-  # fit, silently fitting a cause-deleted hazard model. That gives
-  # biased cumulative-incidence estimates whenever a competing event
-  # is present — abort loudly until Phase 7 implements proper
-  # sub-distribution / Aalen-Johansen handling.
-  set.seed(1)
-  long <- data.table::data.table(
-    id = rep(1:5, each = 3),
-    t = rep(0:2, times = 5),
-    A = rep(c(0, 1, 0, 1, 0), each = 3),
-    L = stats::rnorm(15),
-    Y = c(0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1),
-    cmp = 0
-  )
-  expect_snapshot(
-    error = TRUE,
-    causat_survival(
-      long,
-      outcome = "Y",
-      treatment = "A",
-      confounders = ~L,
-      id = "id",
-      time = "t",
-      competing = "cmp"
-    )
-  )
-})
-
-
 test_that("causat() rejects na.action = na.exclude forwarded through ...", {
   # Regression guard for the 2026-04-15 critical review Issue #7.
   # Under na.exclude, `residuals(model, 'working')` is padded with NAs
@@ -231,9 +200,9 @@ test_that("causat() rejects na.action = na.exclude forwarded through ...", {
   # and returns a mathematically wrong correction vector. Reproduced
   # numerically in /tmp/causatr_repro_issue7.R: baseline na.omit gave
   # SE = 0.0590, na.exclude triggered the recycling warning. Fix is
-  # a hard abort at `check_dots_na_action()` in `causat()` /
-  # `causat_survival()` — refuse `na.exclude` at the causatr boundary
-  # rather than hardening every residuals() call site.
+  # a hard abort at `check_dots_na_action()` in `causat()` — refuse
+  # `na.exclude` at the causatr boundary rather than hardening every
+  # residuals() call site.
   set.seed(1)
   n <- 200
   L <- stats::rnorm(n)

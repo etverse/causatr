@@ -4,11 +4,7 @@
 #' Reshapes individual-level data in wide format (one row per person, with
 #' columns for each time-varying variable at each time point) into long
 #' person-period format (one row per person per time interval), as required
-#' by [causat()] for longitudinal analyses and by [causat_survival()] for
-#' discrete-time survival analyses.
-#'
-#' For survival data the event indicator \eqn{D_{k+1} = 1} means the individual
-#' experienced the event during interval k+1 (Hernan & Robins Ch. 17).
+#' by [causat()] for longitudinal analyses.
 #'
 #' @param data A data frame or data.table in wide format.
 #' @param id Character. Name of the individual ID variable.
@@ -42,7 +38,7 @@
 #' )
 #' }
 #'
-#' @seealso [causat()], [causat_survival()]
+#' @seealso [causat()]
 #' @export
 to_person_period <- function(
   data,

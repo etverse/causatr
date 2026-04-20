@@ -35,11 +35,7 @@ per time point, sorted by \code{id} and \code{time_name}.
 Reshapes individual-level data in wide format (one row per person, with
 columns for each time-varying variable at each time point) into long
 person-period format (one row per person per time interval), as required
-by \code{\link[=causat]{causat()}} for longitudinal analyses and by \code{\link[=causat_survival]{causat_survival()}} for
-discrete-time survival analyses.
-
-For survival data the event indicator \eqn{D_{k+1} = 1} means the individual
-experienced the event during interval k+1 (Hernan & Robins Ch. 17).
+by \code{\link[=causat]{causat()}} for longitudinal analyses.
 }
 \examples{
 \dontrun{
@@ -62,5 +58,5 @@ long <- to_person_period(
 
 }
 \seealso{
-\code{\link[=causat]{causat()}}, \code{\link[=causat_survival]{causat_survival()}}
+\code{\link[=causat]{causat()}}
 }

@@ -313,29 +313,3 @@ test_that("ICE heterogeneous weights produce finite, non-zero SE", {
   expect_true(is.finite(res$contrasts$estimate[1]))
 })
 
-test_that("causat_survival accepts weights and they flow into the hazard fit", {
-  d <- data.table::data.table(
-    id = rep(1:20, each = 3),
-    t = rep(1:3, 20),
-    Y = rbinom(60, 1, 0.1),
-    A = rbinom(60, 1, 0.5),
-    L = rnorm(60),
-    C = rep(0, 60)
-  )
-  w <- runif(60, 0.5, 2)
-  fit <- suppressMessages(causat_survival(
-    d,
-    outcome = "Y",
-    treatment = "A",
-    confounders = ~L,
-    id = "id",
-    time = "t",
-    censoring = "C",
-    time_formula = ~ factor(t),
-    weights = w
-  ))
-  # Hazard model must see the weights on its fit rows.
-  mw <- stats::weights(fit$model)
-  expect_true(!is.null(mw))
-  expect_equal(length(mw), sum(fit$details$fit_rows))
-})

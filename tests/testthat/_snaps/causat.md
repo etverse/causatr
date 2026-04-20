@@ -128,12 +128,3 @@
       Error in `causat()`:
       ! `history` must be a positive integer or `Inf`.
 
-# causat_survival() aborts on non-NULL competing= until Phase 7
-
-    Code
-      causat_survival(long, outcome = "Y", treatment = "A", confounders = ~L, id = "id",
-        time = "t", competing = "cmp")
-    Condition
-      Error in `causat_survival()`:
-      ! Competing-risks survival analysis is not supported. The `competing` argument is reserved but has no effect; running with `competing = NULL` would silently fit a plain cause-deleted hazard model, which is biased in the presence of competing events.
-

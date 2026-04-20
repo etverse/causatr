@@ -667,10 +667,6 @@ Several additional R packages would extend this validation suite:
   the standard reference for survey-weighted IPW. Since causatr validates
   survey-weight handling in its tests, a vignette comparison would mostly
   duplicate that coverage.
-- **Survival validation** will land once `causat_survival()`'s contrast path
-  is implemented in Phase 7; the natural references are
-  `survival::survfit()` for the unadjusted Kaplan-Meier sanity check and
-  `gfoRmula::gformula_survival()` for the adjusted g-formula reference.
 
 If you'd like to contribute a reference comparison for one of these (or for a
 package not listed here), open an issue — the pattern is the same as in

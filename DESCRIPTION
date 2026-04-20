@@ -14,9 +14,9 @@ Description: Estimates causal effects via g-computation, inverse probability
     only); static, dynamic, modified treatment, and stochastic interventions
     (stochastic is g-computation only); continuous, binary, count
     (Poisson, negative binomial), quasibinomial (fractional), Gamma,
-    and beta regression outcomes; and external observation weights. Longitudinal data is handled via ICE
-    g-computation. Survival analysis and competing risks are scaffolded;
-    cluster-robust variance beyond matching subclasses is planned.
+    and beta regression outcomes; and external observation weights.
+    Longitudinal data is handled via ICE g-computation. Cluster-robust
+    variance beyond matching subclasses is planned.
 Date: 2026-04-14
 License: MIT + file LICENSE
 Imports:
@@ -42,7 +42,6 @@ Suggests:
     optmatch,
     quarto,
     stdReg2,
-    survival,
     tinyplot,
     tinytable,
     WeightIt,

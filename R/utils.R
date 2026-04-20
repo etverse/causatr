@@ -1,33 +1,13 @@
 #' Column names reserved for causatr-internal use
 #'
 #' @description
-#' These names are used internally by causat_survival() (risk-set bookkeeping)
-#' and ice() (pseudo-outcome column). User data that already carries any of
-#' these columns would silently collide with the internal mutations, so we
-#' reject them up front via `check_reserved_cols()`. See R12 in the
-#' 2026-04-15 critical review.
+#' Used internally by ice() for the pseudo-outcome column. User data that
+#' already carries any of these columns would silently collide with the
+#' internal mutations, so we reject them up front via
+#' `check_reserved_cols()`.
 #'
 #' @noRd
-CAUSATR_RESERVED_COLS <- c(
-  ".pseudo_y",
-  ".causatr_prev_event",
-  ".causatr_prev_cens"
-)
-
-#' Column names stripped from `fit$data` before returning a survival fit
-#'
-#' @description
-#' Subset of `CAUSATR_RESERVED_COLS` used by `causat_survival()` for
-#' within-id risk-set bookkeeping. Excludes `.pseudo_y` (ICE-only). Kept
-#' as a derived constant so adding a new reserved column propagates
-#' automatically to the survival cleanup path. See T9 in the 2026-04-15
-#' third-round critical review.
-#'
-#' @noRd
-CAUSATR_SURVIVAL_INTERNAL_COLS <- setdiff(
-  CAUSATR_RESERVED_COLS,
-  ".pseudo_y"
-)
+CAUSATR_RESERVED_COLS <- c(".pseudo_y")
 
 #' Safely replay a fit function with stashed `...` arguments
 #'
@@ -106,7 +86,7 @@ check_reserved_cols <- function(data, which = CAUSATR_RESERVED_COLS) {
         "Column name(s) ",
         paste0("`", bad, "`", collapse = ", "),
         " are reserved by causatr internals. Rename the column(s) in your ",
-        "input data before calling `causat()` / `causat_survival()`."
+        "input data before calling `causat()`."
       )
     )
   }

@@ -353,6 +353,5 @@ sandwich variance estimator for iterated conditional expectation
 g-computation. \emph{Statistics in Medicine} 43:5562-5572.
 }
 \seealso{
-\code{\link[=contrast]{contrast()}}, \code{\link[=diagnose]{diagnose()}}, \code{\link[=causat_survival]{causat_survival()}},
-\code{\link[=static]{static()}}, \code{\link[=shift]{shift()}}, \code{\link[=dynamic]{dynamic()}}
+\code{\link[=contrast]{contrast()}}, \code{\link[=diagnose]{diagnose()}}, \code{\link[=static]{static()}}, \code{\link[=shift]{shift()}}, \code{\link[=dynamic]{dynamic()}}
 }

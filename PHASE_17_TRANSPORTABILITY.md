@@ -4,7 +4,7 @@
 >
 > **Depends on:** Phase 2 (point gcomp), Phase 4 (self-contained IPW)
 >
-> **Composes with (planned):** Phases 7 (survival), 10 (longitudinal), 14 (IPCW), 16 (AIPW) via dedicated subsections.
+> **Composes with (planned):** Phases 10 (longitudinal), 14 (IPCW), 16 (AIPW) via dedicated subsections.
 
 ## Motivation
 
@@ -123,15 +123,6 @@ The sandwich primitives (`prepare_model_if`, `compute_ipw_if_self_contained_one`
 
 Phase 11 (diagnose rewrite) will fold this in; Phase 17 ships a minimal shim analogous to the Phase 4 `diagnose()` shim for IPW.
 
-## Survival composition (Phase 7 × Phase 17)
-
-Transporting a survival curve from study to target population is a common applied need (e.g. clinical-trial results transported to a clinic population). The composition is clean:
-
-- **Gcomp transport under survival:** fit pooled-logistic hazard on study person-period rows; standardize over target-population covariates by averaging $\hat{S}^a_i(t)$ across target rows' per-individual survival curves.
-- **IPW transport under survival:** sampling weight $w_i^S$ broadcast onto person-period rows for study individuals (same broadcast pattern as multivariate-survival in Phase 8); the weighted hazard MSM is fit on uncensored study person-period rows with weight $w_i^S \cdot w_i^A$; survival curve is the cumulative product as in Phase 7.
-- **Variance:** stacked EE with outcome or propensity blocks + sampling block + cross-time delta from Phase 7 § "Cross-time variance aggregation". The sampling cross-derivative appears once per time point and propagates through the cumulative product.
-- **Oracle:** `transport`/`transported` on the point-outcome case; no direct `lmtp` equivalent for survival transportability — cross-check against Track A gcomp-transport on a DGP where both estimators are consistent.
-
 ## Composition with pending phases
 
 - **Phase 8 (multivariate IPW) × Phase 17.** Joint treatment density × sampling density, product weight into the Hájek numerator/denominator. Stacked EE gains two propensity blocks + sampling block + plug-in. Deferred to after both phases ship.
@@ -139,6 +130,7 @@ Transporting a survival curve from study to target population is a common applie
 - **Phase 12 (stochastic) × Phase 17.** MC integration applies to the outcome-model augmentation (average $\hat{m}$ across stochastic draws); sampling weight is deterministic in L and unaffected. Clean composition.
 - **Phase 14 (IPCW) × Phase 17.** Four-way stack: outcome/propensity + censoring + sampling + plug-in. This is the most elaborate stacked EE in the package but composes mechanically.
 - **Phase 16 (AIPW) × Phase 17.** Already covered above as the "triple-robust" AIPW transport. Subsection in both Phase 16 and Phase 17 should point to the joint implementation.
+- **Survival composition.** Transporting a survival curve from study to target population is owned by the separate survival package; it imports Phase 17 for the scalar sampling-weight primitive and layers the cross-time delta chain on top. See `SURVIVAL_PACKAGE_HANDOFF.md`.
 
 ## Chunks
 
@@ -149,11 +141,10 @@ Transporting a survival curve from study to target population is a common applie
 | 17c | IPW transport: sampling × treatment weight product in `compute_density_ratio_weights()`; weighted MSM on study rows; stacked sandwich | 17a, Phase 4 |
 | 17d | Bootstrap (refit sampling + propensity + outcome per replicate) | 17a–17c |
 | 17e | AIPW transport: compose Phase 16 + Phase 17; 2-out-of-3 DR test (deliberately misspecify any one of outcome / treatment / sampling — verify consistency) | 17a–17c, Phase 16 |
-| 17f | Survival composition (Phase 7 Track A × Phase 17) | Phase 7, 17b, 17c |
-| 17g | `diagnose()` shim: sampling-score panel + extreme-sampling-weight flags | 17a |
-| 17h | External cross-check against `transport` / `transported` R packages on shared DGPs | 17b, 17c |
-| 17i | Longitudinal transport (Phase 10 × Phase 17): broadcast sampling weight onto person-period rows; multiply into per-period treatment weight; weighted longitudinal MSM | Phase 10, 17c |
-| 17j | Documentation, vignette (`transportability.qmd`), `FEATURE_COVERAGE_MATRIX.md` rows, `CLAUDE.md` update | 17a–17i |
+| 17f | `diagnose()` shim: sampling-score panel + extreme-sampling-weight flags | 17a |
+| 17g | External cross-check against `transport` / `transported` R packages on shared DGPs | 17b, 17c |
+| 17h | Longitudinal transport (Phase 10 × Phase 17): broadcast sampling weight onto person-period rows; multiply into per-period treatment weight; weighted longitudinal MSM | Phase 10, 17c |
+| 17i | Documentation, vignette (`transportability.qmd`), `FEATURE_COVERAGE_MATRIX.md` rows, `CLAUDE.md` update | 17a–17h |
 
 ## Invariants
 

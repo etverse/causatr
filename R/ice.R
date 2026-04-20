@@ -55,11 +55,10 @@ fit_ice <- function(
   ...
 ) {
   # Guard against a silent collision with any causatr-reserved column.
-  # `ice_iterate()` writes predicted pseudo-outcomes into `.pseudo_y`,
-  # and `causat_survival()` uses `.causatr_prev_event` / `_prev_cens`
-  # for risk-set bookkeeping. If the user's data already carries any
-  # of these, the in-place mutation would silently clobber it. The
-  # single source of truth is `CAUSATR_RESERVED_COLS` in `R/utils.R`.
+  # `ice_iterate()` writes predicted pseudo-outcomes into `.pseudo_y`;
+  # if the user's data already carries that column, the in-place
+  # mutation would silently clobber it. The single source of truth is
+  # `CAUSATR_RESERVED_COLS` in `R/utils.R`.
   check_reserved_cols(data)
 
   # Sorted unique time points define the backward iteration grid. The

@@ -50,10 +50,6 @@
 #'   observed treatment distribution; applying a different regime requires
 #'   re-calling [causat()] with updated data. `ipsi()` additionally requires
 #'   a fitted propensity model and currently aborts for all estimators.
-#'
-#'   **Survival contrasts are not implemented.** `contrast()` on a
-#'   `causatr_fit` returned by [causat_survival()] aborts with an
-#'   informative error. The pooled logistic fit itself works.
 #' @param type Character. The contrast scale: `"difference"` (default),
 #'   `"ratio"`, or `"or"` (odds ratio). All pairwise contrasts are reported.
 #' @param estimand Character or `NULL`. The target estimand: `"ATE"`,
@@ -657,17 +653,6 @@ compute_contrast <- function(
   #
   # Everything downstream (SEs, estimates table, pairwise contrasts, result
   # assembly) is shared between point and longitudinal g-computation.
-
-  if (fit$type == "survival") {
-    rlang::abort(
-      paste0(
-        "Survival curve estimation via contrast() is not implemented. ",
-        "causat_survival() fits a pooled logistic model; survival curve ",
-        "contrasts are reserved for a future release."
-      ),
-      .call = FALSE
-    )
-  }
 
   if (fit$type == "longitudinal") {
     # -- Longitudinal ICE g-computation.

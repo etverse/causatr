@@ -863,7 +863,7 @@ diag$weights
 | Continuous | --- | Static | --- | --- | --- | --- | ⛔ (use shift/scale) |
 | Continuous | --- | Dynamic | --- | --- | --- | --- | ⛔ (use shift/scale) |
 | Binary | Gaussian | Static (with `A:modifier`) | ATE | Difference | Sandwich / Bootstrap | none | ✅ |
-| Multivariate | --- | --- | --- | --- | --- | --- | ⛔ (Phase 7) |
+| Multivariate | --- | --- | --- | --- | --- | --- | ⛔ (Phase 8) |
 | Longitudinal | --- | --- | --- | --- | --- | --- | ⛔ (use ICE) |
 
 See [`FEATURE_COVERAGE_MATRIX.md`](https://github.com/etverse/causatr/blob/main/FEATURE_COVERAGE_MATRIX.md)

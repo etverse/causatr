@@ -4,7 +4,7 @@
 
 ## Scope
 
-Documentation, convenience features, and release-prep items redistributed from the old Phase 7 grab-bag.
+Documentation, convenience features, and release-prep items.
 
 ## Items
 

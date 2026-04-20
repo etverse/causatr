@@ -41,7 +41,6 @@ website:
           - vignettes/triangulation.qmd
           - vignettes/longitudinal.qmd
           - vignettes/missing-data.qmd
-          - vignettes/survival.qmd
           - vignettes/validation.qmd
       - section: Theory
         contents:

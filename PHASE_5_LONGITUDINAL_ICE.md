@@ -42,5 +42,5 @@ For strategy Ā* = (a₀*, a₁*, ..., a*_K):
 ## Deferred to other phases
 
 - IPW for time-varying treatments (`WeightIt::weightitMSM()`) $\to$ Phase 4
-- Sequential positivity warnings $\to$ Phase 7
-- Stratified ICE option $\to$ Phase 7
+- Sequential positivity warnings $\to$ Phase 11 (diagnose rewrite)
+- Stratified ICE option $\to$ Phase 15

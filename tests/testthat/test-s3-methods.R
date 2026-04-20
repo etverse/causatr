@@ -227,67 +227,6 @@ test_that("by parameter rejects missing variable", {
   )
 })
 
-test_that("causat_survival() does not mutate input data.table", {
-  dt <- data.table::data.table(
-    id = rep(1:20, each = 3),
-    time = rep(1:3, 20),
-    event = rbinom(60, 1, 0.1),
-    A = rep(rbinom(20, 1, 0.5), each = 3),
-    L = rnorm(60)
-  )
-  original_names <- copy(names(dt))
-  original_ncol <- ncol(dt)
-
-  # Use `~ factor(time)` instead of the default `splines::ns(time, 4)`:
-  # the test data has only 3 unique time points, which is below the
-  # minimum needed for ns(df=4) and triggers a "shoving interior knots"
-  # warning. factor() is the saturated baseline-hazard alternative
-  # documented in causat_survival()'s `time_formula` parameter.
-  fit <- causat_survival(
-    dt,
-    outcome = "event",
-    treatment = "A",
-    confounders = ~L,
-    id = "id",
-    time = "time",
-    time_formula = ~ factor(time)
-  )
-
-  expect_equal(names(dt), original_names)
-  expect_equal(ncol(dt), original_ncol)
-  expect_false("prev_event" %in% names(dt))
-})
-
-test_that("survival type aborts in contrast()", {
-  dt <- data.table::data.table(
-    id = rep(1:20, each = 3),
-    time = rep(1:3, 20),
-    event = rbinom(60, 1, 0.1),
-    A = rep(rbinom(20, 1, 0.5), each = 3),
-    L = rnorm(60)
-  )
-
-  # Use `~ factor(time)` instead of the default `splines::ns(time, 4)`:
-  # the test data has only 3 unique time points, which is below the
-  # minimum needed for ns(df=4) and triggers a "shoving interior knots"
-  # warning. factor() is the saturated baseline-hazard alternative
-  # documented in causat_survival()'s `time_formula` parameter.
-  fit <- causat_survival(
-    dt,
-    outcome = "event",
-    treatment = "A",
-    confounders = ~L,
-    id = "id",
-    time = "time",
-    time_formula = ~ factor(time)
-  )
-
-  expect_snapshot(
-    error = TRUE,
-    contrast(fit, list(a1 = static(1), a0 = static(0)))
-  )
-})
-
 test_that("multivariate treatment blocked for IPW", {
   expect_snapshot(
     error = TRUE,

@@ -36,9 +36,8 @@ prepare_data <- function(
   }
 
   # R12 (2026-04-15 review): reject user data carrying a column name
-  # reserved by causatr internals (`.pseudo_y`, `.causatr_prev_event`,
-  # `.causatr_prev_cens`). Otherwise the in-place `:=` mutations below
-  # (or inside ice.R / causat_survival.R) would silently clobber the
+  # reserved by causatr internals (`.pseudo_y`). Otherwise the in-place
+  # `:=` mutations below (or inside ice.R) would silently clobber the
   # user's column.
   check_reserved_cols(data)
 

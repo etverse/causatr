@@ -2,9 +2,9 @@
 
 ## Motivation
 
-**Survival is the motivating use case.** Censoring is the rule, not the exception, in time-to-event data: whenever follow-up is finite and not everyone experiences the event, there is administrative and loss-to-follow-up censoring. Any serious causal survival analysis needs IPCW as a first-class primitive (complete-case analysis is only valid under the strong censoring-exchangeability assumption + a correctly specified outcome model; Zivich et al. 2024, Table 1). Point non-survival outcomes with MAR missingness are the secondary motivation — they are a natural generalisation of the same machinery, but the stakes are lower because MCAR is plausible and complete-case is usually unbiased.
+causatr's `censoring =` parameter today is a **row filter** only. Phase 14 adds a **built-in IPCW** path so users do not have to compute censoring weights externally for MAR outcome censoring.
 
-**What this means for the Phase 14 design.** Survival is the **primary test target** and the **first chunk to ship**. Non-survival MAR outcomes drop in as a special case (one period, no cumulative product over time). This is the inverse of the ordering that would be natural if IPCW were just another missing-data tool.
+Survival-specific IPCW (per-period cumulative censoring weights over a person-period grid, weighted pooled-logistic hazard, survival-curve variance) is owned by the separate survival package (see `SURVIVAL_PACKAGE_HANDOFF.md`). Phase 14 in causatr targets **scalar outcomes** only — point outcomes with MAR missingness and longitudinal ICE with a final scalar outcome. The survival package imports Phase 14 for the censoring-model fitting primitive and layers cross-time aggregation on top.
 
 ### How `censoring =` works today
 
@@ -27,22 +27,16 @@ No IPCW weights are needed.
 
 ### Why IPCW adds value beyond the row filter
 
-1. **Survival is where this matters most.** Under informative censoring
-   (e.g. censoring depends on treatment via side-effect dropout), the
-   row filter alone does not correct the hazard estimate; IPCW does.
-   Published causal survival analyses almost always use IPCW
-   (Cole & Hernán 2004; Howe et al. 2016).
-
-2. **Doubly robust protection.** If the outcome model is misspecified,
+1. **Doubly robust protection.** If the outcome model is misspecified,
    IPCW weights reduce bias. IPCW + g-comp gives a "doubly robust"
    estimator (Bang & Robins, 2005).
 
-3. **IPW estimator.** The IPW path does not fit an outcome model on
+2. **IPW estimator.** The IPW path does not fit an outcome model on
    complete cases — it relies entirely on treatment weights. Under MAR
    censoring, the IPW weights must be combined with IPCW weights (the
    "doubly weighted" MSM; Hernán & Robins Ch. 12).
 
-4. **Efficiency.** Under MAR censoring, IPCW-weighted estimation can be
+3. **Efficiency.** Under MAR censoring, IPCW-weighted estimation can be
    more efficient than unweighted complete-case analysis because the
    weights stabilize the contribution of each observation.
 
@@ -155,19 +149,7 @@ K+1 outcome models + K censoring models (one per time step). The
 cascade gradient must be extended to include the censoring model
 parameters at each step.
 
-### Integration with estimators
-
-**Survival (primary use case) —**
-
-| Estimator × track | IPCW role | Implementation |
-|---|---|---|
-| **gcomp (Track A, point survival)** | Per-period IPCW weight $w^C_{i,k}$ multiplies the pooled-logistic hazard fit; predictions + cumulative product unchanged | Multiply IPCW into person-period `model_weights` inside Phase 7 § Track A |
-| **gcomp (Track B, longitudinal survival via ICE hazards)** | Per-period IPCW weight applied at each backward ICE step, on top of treatment weights | Multiply IPCW into step-level weights inside `ice_iterate()`; cascade gradient extends with the censoring model blocks |
-| **IPW (Track A, point survival)** | Baseline treatment weight (broadcast onto person-period) × per-period IPCW weight $w^C_{i,k}$ | Product weight into hazard MSM; stacked EE grows with censoring model blocks |
-| **IPW (Track B, longitudinal survival via Phase 10)** | Cumulative treatment weight $W_{i,k}$ × cumulative IPCW weight $w^C_{i,k}$ on each $(i, k)$ row | Product weight into hazard MSM; stacked EE: $K$ treatment blocks + $K$ censoring blocks + hazard MSM block |
-| **matching** | Out of scope — matching + survival itself is rejected (Phase 7 § "Matching + survival") | — |
-
-**Non-survival (secondary use case) —**
+### Integration with estimators (scalar outcomes)
 
 | Estimator | IPCW role | Implementation |
 |---|---|---|
@@ -176,7 +158,7 @@ parameters at each step.
 | **IPW** | IPCW × IPW "doubly weighted" MSM: `glm(Y ~ 1, weights = ipw * ipcw)` | Multiply IPCW into `w_final` inside `compute_ipw_contrast_point()` |
 | **matching** | IPCW-weighted outcome model on matched data | Multiply IPCW into `matched_weights` |
 
-### Diagnostics (Phase 9 integration)
+### Diagnostics (Phase 11 integration)
 
 `diagnose()` should report:
 - Censoring model balance (SMD of covariates weighted by IPCW)
@@ -198,7 +180,7 @@ parameters at each step.
 │             │                │     model correctly specified.    │
 │             │                │  ❌ IPW: needs IPCW weights.      │
 │             │                │  🔧 Manual: weights= today.      │
-│             │                │  ❌ Built-in: Phase 11.           │
+│             │                │  ❌ Built-in: Phase 14.           │
 │             ├────────────────┼───────────────────────────────────┤
 │             │  MNAR          │  ⛔ Out of scope (sensitivity     │
 │             │                │     analysis).                    │
@@ -245,20 +227,15 @@ P(C_k = 0 | A̅_k, L̅_k, C_{k-1} = 0)
 
 ## Implementation chunks
 
-Chunks are **survival-first**: the survival paths ship before the scalar-outcome paths, because survival is the motivating use case and because the scalar-outcome case is structurally a special case of the point-survival path (one period, one row per individual, no cumulative product).
-
 | Chunk | Scope | Depends on |
 |---|---|---|
 | 14a | `fit_censoring_model()`: fit $P(C = 0 \mid A, L)$ (point) and $P(C_k = 0 \mid \bar{A}_k, \bar{L}_k, C_{k-1} = 0)$ (longitudinal) using `censoring_model_fn`; return `causatr_censoring_model` with per-row stabilized weights | — |
-| 14b | **Survival (Track A) + gcomp/IPW:** cumulative IPCW weights over the person-period grid; weighted pooled-logistic hazard; cumulative-product survival curve with IPCW-aware variance | Phase 7 chunks 7a–7d, 14a |
-| 14c | **Survival (Track B) + gcomp (ICE hazards):** per-step cumulative IPCW in the ICE backward loop; cascade-gradient extension for censoring model blocks | Phase 7 chunk 7e, 14a, 14b |
-| 14d | **Survival (Track B) + longitudinal IPW (Phase 10):** product of cumulative treatment weights and cumulative IPCW weights on each $(i, k)$ row; stacked EE with $K$ treatment + $K$ censoring + hazard MSM blocks | Phase 10, 14a, 14b |
-| 14e | lmtp cross-checks for survival: truth-based tests against `lmtp::lmtp_tmle(outcome_type = "survival", cens = "C")` on point and longitudinal DGPs with informative censoring | 14b, 14c, 14d |
-| 14f | **Non-survival (point scalar outcome) + gcomp/IPW/matching:** IPCW-weighted fit, sandwich extension. Drops out as a one-period special case of 14b | 14a, 14b |
-| 14g | **Non-survival (ICE scalar final outcome):** IPCW in the ICE backward loop. Same cascade extension as 14c but targeting a final scalar outcome | 14a, 14c |
-| 14h | Sandwich extension: formalise the stacked EE system, document the block structure, regression tests | 14a–14d |
-| 14i | `diagnose()` integration: censoring balance, weight distribution summary, positivity warnings — survival-aware (per-period) and scalar-aware (single-period) | 14b, 14f, Phase 11 |
-| 14j | Vignette: missing-data handling guide centred on survival + censoring, with the non-survival MAR case as a supplementary section | 14b, 14c, 14f |
+| 14b | **Point scalar outcome + gcomp/IPW/matching:** IPCW-weighted fit, sandwich extension | 14a |
+| 14c | **ICE scalar final outcome:** IPCW in the ICE backward loop; cascade-gradient extension for censoring model blocks | 14a, 14b |
+| 14d | lmtp cross-checks: truth-based tests against `lmtp::lmtp_tmle(cens = "C")` on point and longitudinal DGPs with informative censoring | 14b, 14c |
+| 14e | Sandwich extension: formalise the stacked EE system, document the block structure, regression tests | 14a–14c |
+| 14f | `diagnose()` integration: censoring balance, weight distribution summary, positivity warnings | 14b, Phase 11 |
+| 14g | Vignette: missing-data handling guide with built-in IPCW examples | 14b, 14c |
 
 ## References
 
