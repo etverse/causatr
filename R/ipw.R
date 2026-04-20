@@ -93,18 +93,7 @@ fit_ipw <- function(
     )
   }
 
-  # Multivariate treatment is not supported by the self-contained
-  # density-ratio engine: `fit_treatment_model()` fits a single
-  # univariate density and downstream `make_weight_fn()` closures
-  # assume a length-n treatment vector, not a matrix.
-  if (length(treatment) > 1L) {
-    rlang::abort(
-      c(
-        "Multivariate treatments are not supported under `estimator = 'ipw'`.",
-        i = "Use `estimator = 'gcomp'` for joint (multivariate) treatment interventions."
-      )
-    )
-  }
+  is_multivariate <- length(treatment) > 1L
 
   # Parse effect-modification terms and reject bare treatment in
   # confounders (`~ L + A`). True EM terms (`A:sex`) are detected
@@ -115,6 +104,20 @@ fit_ipw <- function(
     treatment,
     estimator = "ipw"
   )
+
+  # Effect modification under multivariate IPW is deferred. The MSM
+  # expansion for `A:modifier` does not have a clean joint analogue
+  # when A is a vector, and the coverage matrix has no row for the
+  # combination yet.
+  if (is_multivariate && em_info$has_em) {
+    rlang::abort(
+      c(
+        "Effect-modification terms are not supported for multivariate IPW.",
+        i = "Use `estimator = 'gcomp'` if you need `A:modifier` with a joint treatment, or fit separate single-treatment IPW models."
+      ),
+      class = "causatr_multivariate_em"
+    )
+  }
 
   # EM terms are stored in `fit$details$em_info` for downstream use by
   # `compute_ipw_contrast_point()` (MSM expansion from `Y ~ 1` to
@@ -138,16 +141,36 @@ fit_ipw <- function(
   # `MASS::glm.nb` which estimates theta by MLE (no `family` arg).
   # When the user passes an explicit `propensity_model_fn`, it takes
   # precedence regardless of treatment family.
-  trt_family <- detect_treatment_family(data[[treatment]])
+  #
+  # Multivariate dispatch: per-component family detection happens
+  # inside `fit_treatment_models()`. We resolve a single propensity
+  # fitter here that's shared across all components; opt-in count or
+  # categorical components in a multivariate call are deferred (the
+  # auto-detect rejects categorical components upstream in
+  # `fit_treatment_models()`).
+  trt_family <- if (is_multivariate) {
+    detect_treatment_family(data[[treatment[1]]])
+  } else {
+    detect_treatment_family(data[[treatment]])
+  }
   prop_model_fn <- if (!is.null(propensity_model_fn)) {
     propensity_model_fn
-  } else if (trt_family == "categorical") {
+  } else if (!is_multivariate && trt_family == "categorical") {
     nnet::multinom
-  } else if (identical(propensity_family, "negbin")) {
+  } else if (!is_multivariate && identical(propensity_family, "negbin")) {
     check_pkg("MASS")
     MASS::glm.nb
   } else {
     model_fn
+  }
+
+  if (is_multivariate && !is.null(propensity_family)) {
+    rlang::abort(
+      c(
+        "`propensity_family` is not supported for multivariate IPW.",
+        i = "Each component's family is auto-detected from its column type."
+      )
+    )
   }
 
   # Capture the user's `...` once. Stashed in `fit$details$dots` so
@@ -157,50 +180,97 @@ fit_ipw <- function(
   dots <- list(...)
 
   # Fit the conditional treatment density. The returned
-  # `causatr_treatment_model` carries the fitted model, the
-  # propensity design matrix, `alpha_hat`, the family tag, and the
-  # `fit_rows` mask -- everything `make_weight_fn()` needs to build a
-  # `w(alpha)` closure for any intervention downstream.
-  tm_args <- list(
-    data = fit_data,
-    treatment = treatment,
-    confounders = confounders,
-    model_fn = prop_model_fn,
-    propensity_family = propensity_family
-  )
-  if (!is.null(weights)) {
-    tm_args$weights <- weights[fit_rows]
-  }
-  # Forward `...` to the propensity fitter. `do.call()` with a
-  # constructed arg list + `dots` is the minimal way to get "pass
-  # every extra named argument through" without hand-listing every
-  # possible option the user might forward to `mgcv::gam()` /
-  # `stats::glm()`.
-  tm <- do.call(
-    fit_treatment_model,
-    c(tm_args, dots)
-  )
-
-  # Row-alignment guard: `fit_treatment_model()` drops rows with
-  # missing treatment or confounders, but `get_fit_rows()` only drops
-  # on the outcome. If those masks diverge, the density-ratio weight
-  # vector has a different length than the MSM refit's data, and the
-  # variance engine's n_total / n_fit invariants break. Abort here
-  # with a clear pointer at the missingness source.
-  n_fit_outcome <- sum(fit_rows)
-  n_fit_ps <- sum(tm$fit_rows)
-  if (n_fit_ps != n_fit_outcome) {
-    rlang::abort(
-      paste0(
-        "Treatment density model kept ",
-        n_fit_ps,
-        " rows but the outcome-non-missing mask has ",
-        n_fit_outcome,
-        " rows. A confounder column has missing values the outcome ",
-        "mask does not exclude. Drop or impute those rows before ",
-        "calling `causat()` so the propensity and MSM fits agree."
-      )
+  # `causatr_treatment_model` (univariate) or `causatr_treatment_models`
+  # list (multivariate) carries the fitted model(s), propensity design
+  # matrix(es), `alpha_hat`, family tag(s), and the `fit_rows` mask --
+  # everything `make_weight_fn()` / `make_weight_fn_mv()` needs to
+  # build a weight closure for any intervention downstream.
+  if (is_multivariate) {
+    tm_args <- list(
+      data = fit_data,
+      treatment = treatment,
+      confounders = confounders,
+      model_fn = prop_model_fn
     )
+    if (!is.null(weights)) {
+      tm_args$weights <- weights[fit_rows]
+    }
+    treatment_models <- do.call(
+      fit_treatment_models,
+      c(tm_args, dots)
+    )
+    # Row-alignment guard for multivariate: every component model is
+    # fit on the same `fit_data`, and `fit_treatment_model()` only
+    # drops rows where the treatment / confounders are NA. Verify the
+    # K masks all match the outcome mask; mismatch means a confounder
+    # NA the outcome mask does not exclude.
+    n_fit_outcome <- sum(fit_rows)
+    for (k in seq_along(treatment_models)) {
+      n_fit_k <- sum(treatment_models[[k]]$fit_rows)
+      if (n_fit_k != n_fit_outcome) {
+        rlang::abort(
+          paste0(
+            "Treatment density model for component '",
+            treatment[k],
+            "' kept ",
+            n_fit_k,
+            " rows but the outcome-non-missing mask has ",
+            n_fit_outcome,
+            " rows. Drop or impute the offending rows before calling `causat()`."
+          )
+        )
+      }
+    }
+    tm <- NULL
+    propensity_model <- NULL
+  } else {
+    tm_args <- list(
+      data = fit_data,
+      treatment = treatment,
+      confounders = confounders,
+      model_fn = prop_model_fn,
+      propensity_family = propensity_family
+    )
+    if (!is.null(weights)) {
+      tm_args$weights <- weights[fit_rows]
+    }
+    # Forward `...` to the propensity fitter. `do.call()` with a
+    # constructed arg list + `dots` is the minimal way to get "pass
+    # every extra named argument through" without hand-listing every
+    # possible option the user might forward to `mgcv::gam()` /
+    # `stats::glm()`.
+    tm <- do.call(
+      fit_treatment_model,
+      c(tm_args, dots)
+    )
+
+    # Row-alignment guard: `fit_treatment_model()` drops rows with
+    # missing treatment or confounders, but `get_fit_rows()` only drops
+    # on the outcome. If those masks diverge, the density-ratio weight
+    # vector has a different length than the MSM refit's data, and the
+    # variance engine's n_total / n_fit invariants break. Abort here
+    # with a clear pointer at the missingness source.
+    n_fit_outcome <- sum(fit_rows)
+    n_fit_ps <- sum(tm$fit_rows)
+    if (n_fit_ps != n_fit_outcome) {
+      rlang::abort(
+        paste0(
+          "Treatment density model kept ",
+          n_fit_ps,
+          " rows but the outcome-non-missing mask has ",
+          n_fit_outcome,
+          " rows. A confounder column has missing values the outcome ",
+          "mask does not exclude. Drop or impute those rows before ",
+          "calling `causat()` so the propensity and MSM fits agree."
+        )
+      )
+    }
+    treatment_models <- structure(
+      list(tm),
+      class = c("causatr_treatment_models", "list"),
+      names = treatment
+    )
+    propensity_model <- tm$model
   }
 
   # Placeholder outcome model. Kept in `$model` so `print()` /
@@ -247,11 +317,13 @@ fit_ipw <- function(
       weights = weights,
       dots = dots,
       treatment_model = tm,
-      propensity_model = tm$model,
+      treatment_models = treatment_models,
+      propensity_model = propensity_model,
       propensity_model_fn = prop_model_fn,
       propensity_family = propensity_family,
       model_fn = model_fn,
-      em_info = em_info
+      em_info = em_info,
+      is_multivariate = is_multivariate
     )
   )
 }
@@ -299,10 +371,17 @@ compute_ipw_contrast_point <- function(
   data <- fit$data
   treatment <- fit$treatment
   outcome <- fit$outcome
+  tms <- fit$details$treatment_models
+  is_mv <- isTRUE(fit$details$is_multivariate)
   tm <- fit$details$treatment_model
-  if (is.null(tm)) {
+  if (!is_mv && is.null(tm)) {
     rlang::abort(
       "Internal error: IPW fit is missing `details$treatment_model`."
+    )
+  }
+  if (is_mv && is.null(tms)) {
+    rlang::abort(
+      "Internal error: multivariate IPW fit is missing `details$treatment_models`."
     )
   }
   fit_rows <- fit$details$fit_rows
@@ -343,7 +422,27 @@ compute_ipw_contrast_point <- function(
     # subset), so the density-ratio computation must receive
     # `fit_data`, not the full `data`. Without this, outcome NAs
     # create a length mismatch between `tm$fit_rows` and `nrow(data)`.
-    w_iv <- compute_density_ratio_weights(tm, fit_data, iv, estimand = estimand)
+    #
+    # Multivariate dispatch: `compute_density_ratio_weights_mv()`
+    # builds the joint weight as a product of per-component density
+    # ratios under the chain-rule factorisation. Per-component
+    # interventions live in the named sub-list `iv` (already
+    # name-validated by `apply_intervention()` upstream).
+    w_iv <- if (is_mv) {
+      tms_local <- tms
+      for (k in seq_along(tms_local)) {
+        tms_local[[k]]$fit_rows <- rep(TRUE, nrow(fit_data))
+      }
+      class(tms_local) <- c("causatr_treatment_models", "list")
+      compute_density_ratio_weights_mv(
+        tms_local,
+        fit_data,
+        iv,
+        estimand = estimand
+      )
+    } else {
+      compute_density_ratio_weights(tm, fit_data, iv, estimand = estimand)
+    }
 
     # Compose with external weights. The density-ratio weights enter
     # multiplicatively because survey / IPCW weights represent an

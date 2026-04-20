@@ -1,6 +1,6 @@
 # Phase 8 — Multivariate Treatment IPW
 
-> **Status: PENDING (design doc)**
+> **Status: DONE (2026-04-20)**
 
 ## Scope
 
@@ -60,14 +60,17 @@ contrast(fit,
 
 ## Items
 
-- [ ] Remove `length(treatment) > 1L` gate in `fit_ipw()`
-- [ ] Extend `fit_treatment_model()` to fit sequential factorisation: `f(A1|L)`, `f(A2|A1,L)`, ...
-- [ ] Extend `compute_density_ratio_weights()` for product weights
-- [ ] Extend `make_weight_fn()` for product weight closure (for variance engine)
-- [ ] Extend `compute_ipw_if_self_contained_one()` for multi-model propensity sandwich
-- [ ] Extend `apply_intervention()` for per-component intervention lists
-- [ ] Truth-based tests: 2-treatment DGP validated against multivariate g-comp
-- [ ] Mixed-type test: one binary + one continuous treatment
+- [x] Remove `length(treatment) > 1L` gate in `fit_ipw()` and `check_causat_inputs()`.
+- [x] Add `fit_treatment_models()` (plural) in `R/treatment_model.R` to fit the sequential factorisation `f(A_k | A_{1..k-1}, L)` per component.
+- [x] Add `compute_density_ratio_weights_mv()` in `R/ipw_weights.R`. The k-th factor's denominator stays at observed conditioning; the numerator substitutes the inverse-map values of upstream components into the conditioning columns. Reuses `evaluate_density()` per component but does NOT delegate to the univariate `compute_density_ratio_weights()` (which would use one newdata for both halves and wipe out the cross-component conditioning shift).
+- [x] Add `make_weight_fn_mv()` building a stacked-alpha closure across K models for the variance engine; per-component sub-closures via `mv_natural_course_closure()` / `mv_ht_closure()` / `mv_pushforward_closure()`. `force()` every captured arg to avoid the R for-loop promise gotcha.
+- [x] Add `intervention_inverse_map()` helper that returns d_k^{-1}(A_k) per intervention type (the value plugged into downstream conditioning).
+- [x] Add `compute_ipw_if_self_contained_mv_one()` in `R/variance_if.R`. Computes the stacked cross-derivative `[A_{β,α₁}, ..., A_{β,α_K}]` via `numDeriv::jacobian` on the product-weight closure, then sums K block-diagonal propensity corrections (one `apply_model_correction()` per propensity model).
+- [x] Wire dispatch in `fit_ipw()`, `compute_ipw_contrast_point()`, `variance_if_ipw()` on `length(treatment) > 1L` (stored as `fit$details$is_multivariate`).
+- [x] Bootstrap path (`refit_ipw()`) replays the same `treatment` slot — multivariate just works through the existing `replay_fit()` plumbing.
+- [x] Reject IPSI / categorical / count components and effect modification under multivariate IPW with classed errors (`causatr_multivariate_*`).
+- [x] Truth-based tests in `tests/testthat/test-multivariate-ipw.R`: 12 tests covering binary × binary, binary × continuous, continuous × continuous, K = 3 binary, binom outcome with diff/ratio/OR, by-stratified, subset, dynamic, gcomp cross-check, sandwich-vs-bootstrap parity. Plus 5 rejection tests.
+- [x] Update `FEATURE_COVERAGE_MATRIX.md`, `CLAUDE.md`, `NEWS.md`.
 
 ## Dependencies
 

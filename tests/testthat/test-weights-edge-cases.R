@@ -312,4 +312,3 @@ test_that("ICE heterogeneous weights produce finite, non-zero SE", {
   expect_gt(res$contrasts$se[1], 0)
   expect_true(is.finite(res$contrasts$estimate[1]))
 })
-

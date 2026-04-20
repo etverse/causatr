@@ -1,5 +1,54 @@
 # causatr (development version)
 
+## 2026-04-20 — Multivariate treatment IPW (Phase 8)
+
+`estimator = "ipw"` now accepts multivariate (joint) treatments
+`treatment = c("A1", "A2", ...)`. Previously the path hard-aborted; users
+needed `estimator = "gcomp"` for joint interventions. The new
+implementation factorises the joint conditional density via the chain
+rule
+
+  f(A_1, ..., A_K | L) = f(A_1 | L) · f(A_2 | A_1, L) · ... · f(A_K | A_1, ..., A_{K-1}, L),
+
+fits one univariate density model per component (sequential
+factorisation), and forms the product density-ratio weight per
+intervention. The k-th numerator factor evaluates at the inverse-map
+value of A_k under the **intervened** upstream conditioning while the
+denominator stays at the observed conditioning — the cross-component
+conditioning shift is what makes the joint weight unbiased under
+non-static interventions on a non-final component. Sandwich variance
+runs through a stacked propensity bread that is block-diagonal across
+the K models (each component is fit independently), so the propensity
+correction sums K single-model corrections.
+
+Supported v1 combinations:
+
+- Binary × binary (and K = 2, 3 binary), all-static, gauss / binom
+  outcome, RD / RR / OR contrasts.
+- Binary × continuous mixed type, static + shift / scale_by /
+  dynamic.
+- Continuous × continuous, shift + shift, scale + scale, dynamic
+  components.
+- ATE only (matches the existing single-treatment ATT/ATC gate that
+  rejects multivariate at fit time).
+- Sandwich + bootstrap variance, `by =`, `subset =`, survey weights.
+
+Rejected with classed errors:
+
+- `ipsi()` in any component (`causatr_multivariate_ipsi`) — Kennedy's
+  closed form has no joint analogue.
+- Effect modification `~ ... + A:modifier`
+  (`causatr_multivariate_em`) — joint MSM expansion deferred.
+- Categorical component (`causatr_multivariate_categorical`) — recode
+  to binary or use `estimator = "gcomp"`.
+- `propensity_family =` opt-in (auto-detected per component).
+- Multivariate matching still rejected (MatchIt is binary-only).
+
+The `treatment_models` slot in `fit$details` is the list of
+per-component `causatr_treatment_model` objects (length K, named by
+treatment column). The legacy `treatment_model` slot stays populated
+for univariate fits.
+
 ## Breaking change: survival analysis removed
 
 Causal survival analysis has been extracted from causatr into its own

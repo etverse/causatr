@@ -1412,8 +1412,10 @@ variance_if_ipw <- function(
 ) {
   int_names <- names(bundles)
   data <- fit$data
+  is_mv <- isTRUE(fit$details$is_multivariate)
   tm <- fit$details$treatment_model
-  propensity_model <- tm$model
+  tms <- fit$details$treatment_models
+  propensity_model <- if (is_mv) NULL else tm$model
   ext_w <- fit$details$weights
   # Same estimand threading as `compute_ipw_contrast_point()` -- the
   # weight closure must match the weights the MSM was fit with, or the
@@ -1511,6 +1513,44 @@ variance_if_ipw <- function(
     # the weight closure must receive `data[fit_rows]` (not the full
     # `data`). Without this, outcome NAs create a length mismatch.
     fit_data_local <- data[fit_rows]
+
+    # Multivariate dispatch: build a stacked-alpha closure across the
+    # K propensity models, then route to the multi-model variance
+    # primitive that sums per-component propensity corrections.
+    if (is_mv) {
+      tms_local <- tms
+      for (k in seq_along(tms_local)) {
+        tms_local[[k]]$fit_rows <- rep(TRUE, nrow(fit_data_local))
+      }
+      class(tms_local) <- c("causatr_treatment_models", "list")
+
+      mv_closure <- make_weight_fn_mv(
+        treatment_models = tms_local,
+        data = fit_data_local,
+        interventions = b$intervention,
+        estimand = "ATE"
+      )
+      wfn <- mv_closure$weight_fn
+
+      if (!is.null(ext_w_sub)) {
+        ext_w_closure <- ext_w_sub
+        base_wfn <- wfn
+        wfn <- function(alpha) base_wfn(alpha) * ext_w_closure
+      }
+
+      return(compute_ipw_if_self_contained_mv_one(
+        msm_model = msm_model,
+        treatment_models = tms_local,
+        weight_fn = wfn,
+        alpha_offsets = mv_closure$offsets,
+        alpha_hat_stacked = mv_closure$alpha_hat,
+        J = J,
+        Ch1_i = Ch1_i,
+        fit_idx = seq_len(n_sub),
+        n_total = n_sub
+      ))
+    }
+
     wfn <- make_weight_fn(
       tm,
       fit_data_local,
@@ -1809,4 +1849,138 @@ compute_ipw_if_self_contained_one <- function(
   # i.e. the propensity correction is SUBTRACTED. See the docstring
   # note on the sign convention.
   Ch1_i + msm_res$correction - prop_res$correction
+}
+
+
+#' Per-individual IF for one multivariate IPW intervention
+#'
+#' @description
+#' Multivariate companion to `compute_ipw_if_self_contained_one()`.
+#' For a joint treatment `A = (A_1, ..., A_K)` factorised as
+#' \eqn{f(A_1, \ldots, A_K \mid L) = \prod_k f(A_k \mid A_{1..k-1}, L)},
+#' the K propensity models are fit independently (sequentially) on the
+#' same row set, so the bread of the stacked propensity system is
+#' **block-diagonal** in the per-component alpha blocks. The IF for
+#' the beta block of the full M-estimation system therefore decomposes
+#' as
+#' \deqn{\mathrm{IF}_i(\beta) = A_{\beta\beta}^{-1}\bigl(\psi_{\beta,i}
+#'       - \sum_{k=1}^K A_{\beta\alpha_k}\,A_{\alpha_k\alpha_k}^{-1}\,\psi_{\alpha_k,i}\bigr).}
+#'
+#' Implementation:
+#'
+#' 1. Compute the MSM correction once (`apply_model_correction(msm_prep, J)`).
+#' 2. Compute the full cross-derivative
+#'    \eqn{[A_{\beta\alpha_1}, \ldots, A_{\beta\alpha_K}]} via
+#'    `numDeriv::jacobian(phi_bar, alpha_hat_stacked)` on the stacked
+#'    weight closure. The closure splits `alpha` into K blocks and
+#'    multiplies the K per-component sub-closures (built by
+#'    `make_weight_fn_mv()`).
+#' 3. Slice the cross-derivative into K column-blocks and call
+#'    `apply_model_correction(prop_prep_k, g_prop_k)` for each
+#'    component, where `g_prop_k = A_{\beta\alpha_k}^T h_msm_true`.
+#' 4. Return `Ch1_i + msm_res$correction - sum_k prop_res_k$correction`.
+#'
+#' Block-diagonal bread relies on the K propensity models being fit
+#' on disjoint parameter blocks. `fit_treatment_models()` fits each
+#' component's univariate density independently via
+#' `fit_treatment_model()`, so this invariant holds by construction.
+#' If a future enhancement introduces shared structure across
+#' components (e.g. joint MLE on a multivariate normal), this
+#' primitive would need to be replaced by a true stacked-bread
+#' computation including the off-diagonal `A_{\alpha_j\alpha_k}` blocks.
+#'
+#' @param msm_model Fitted weighted MSM for this intervention.
+#' @param treatment_models A `causatr_treatment_models` list, K models.
+#' @param weight_fn Stacked-alpha closure from `make_weight_fn_mv()`.
+#' @param alpha_offsets Integer (K+1)-vector of block boundaries.
+#' @param alpha_hat_stacked Numeric vector of stacked propensity
+#'   coefficients (concatenation of per-component `alpha_hat`).
+#' @param J Numeric `p_beta`-vector. Marginal-mean Jacobian as in the
+#'   univariate primitive.
+#' @param Ch1_i Numeric vector of length `n_total`. Channel 1
+#'   contribution.
+#' @param fit_idx Integer vector. Indices of MSM fit rows.
+#' @param n_total Integer. Length of returned IF vector.
+#'
+#' @return Numeric vector of length `n_total`.
+#'
+#' @noRd
+compute_ipw_if_self_contained_mv_one <- function(
+  msm_model,
+  treatment_models,
+  weight_fn,
+  alpha_offsets,
+  alpha_hat_stacked,
+  J,
+  Ch1_i,
+  fit_idx,
+  n_total
+) {
+  # ---- MSM correction --------------------------------------------
+  msm_prep <- prepare_model_if(msm_model, fit_idx, n_total)
+  msm_res <- apply_model_correction(msm_prep, J)
+  n_fit <- nrow(msm_prep$X_fit)
+
+  # ---- Stacked cross-derivative via numDeriv ---------------------
+  # phi_bar(alpha) = (1/n_fit) sum_i psi_beta_i(alpha, beta_hat).
+  # Same shape as the univariate case; only `weight_fn` is the
+  # stacked product closure here.
+  beta_hat <- stats::coef(msm_model)
+  X_msm <- msm_prep$X_fit
+  y_fit <- stats::model.response(stats::model.frame(msm_model))
+  fam <- msm_model$family
+  eta <- as.numeric(X_msm %*% beta_hat)
+  mu <- fam$linkinv(eta)
+  mu_eta <- fam$mu.eta(eta)
+  var_mu <- fam$variance(mu)
+  r_fit <- y_fit - mu
+
+  phi_bar <- function(alpha) {
+    w_alpha <- weight_fn(alpha)
+    s_per_i <- w_alpha * mu_eta * r_fit / var_mu
+    as.numeric(crossprod(X_msm, s_per_i)) / n_fit
+  }
+  # Negative-Hessian convention, same as the univariate primitive.
+  A_beta_alpha <- -numDeriv::jacobian(phi_bar, x = alpha_hat_stacked)
+
+  # `h_msm_true = A_bb^{-1} J = n_fit * msm_res$h` per the
+  # `apply_model_correction()` scaling convention.
+  h_msm_true <- n_fit * msm_res$h
+
+  # ---- Per-component propensity correction -----------------------
+  # Block-diagonal bread: each component's IF correction depends only
+  # on its own alpha block, so the propensity correction is the SUM
+  # over components of `apply_model_correction(prop_prep_k, g_prop_k)`.
+  K <- length(treatment_models)
+  total_prop_correction <- rep(0, n_total)
+
+  for (k in seq_len(K)) {
+    idx <- alpha_offsets[k]:(alpha_offsets[k + 1L] - 1L)
+    # Slice the k-th column-block of A_{beta, alpha}; project onto
+    # the MSM bread to get the gradient for the k-th propensity bread.
+    A_block_k <- A_beta_alpha[, idx, drop = FALSE]
+    g_prop_k <- as.numeric(crossprod(A_block_k, h_msm_true))
+
+    prop_prep_k <- prepare_model_if(
+      treatment_models[[k]]$model,
+      fit_idx,
+      n_total
+    )
+    prop_res_k <- apply_model_correction(prop_prep_k, g_prop_k)
+    total_prop_correction <- total_prop_correction + prop_res_k$correction
+  }
+
+  if (nrow(X_msm) != n_total) {
+    rlang::abort(
+      paste0(
+        "compute_ipw_if_self_contained_mv_one(): n_fit (",
+        nrow(X_msm),
+        ") != n_total (",
+        n_total,
+        "). Multivariate IPW assumes the MSM and every propensity model fit on the same rows."
+      )
+    )
+  }
+
+  Ch1_i + msm_res$correction - total_prop_correction
 }

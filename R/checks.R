@@ -477,16 +477,18 @@ check_causat_inputs <- function(
     )
   }
 
-  # Multivariate treatments for IPW/matching are not supported; the
-  # propensity / matched-design story is more involved than simple
-  # per-component application.
-  if (length(treatment) > 1L && estimator %in% c("ipw", "matching")) {
+  # Matching is binary-only and has no joint analogue; multivariate
+  # matching stays rejected. IPW handles multivariate via sequential
+  # factorisation (`fit_treatment_models()` + product density-ratio
+  # weights); per-component family / intervention compatibility is
+  # checked downstream by the multivariate weight engine.
+  if (length(treatment) > 1L && estimator == "matching") {
     rlang::abort(
       paste0(
         "Multivariate treatments are not supported for estimator = '",
         estimator,
-        "'. Use estimator = 'gcomp' for joint interventions on multiple ",
-        "treatments, or fit separate models for each treatment."
+        "'. Use estimator = 'gcomp' or estimator = 'ipw' for joint ",
+        "interventions on multiple treatments."
       ),
       call = call
     )

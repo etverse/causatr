@@ -833,6 +833,87 @@ influential weights.
 diag$weights
 ```
 
+## Multivariate (joint) treatment
+
+`estimator = "ipw"` accepts multiple treatment columns
+`treatment = c("A1", "A2", ...)`. The engine factorises the joint conditional
+density via the chain rule
+
+\\(f(A_1, \\ldots, A_K \\mid L) = \\prod_k f(A_k \\mid A_{1..k-1}, L)\\)
+
+and fits one univariate density model per component (sequential
+factorisation). The joint density-ratio weight is the product of K
+per-component ratios. The k-th numerator factor evaluates at the
+*intervened* upstream conditioning while the denominator stays at the
+observed conditioning --- this asymmetric-newdata construction is what
+keeps the joint weight unbiased under non-static interventions on a
+non-final component (e.g. shift on `A_1` followed by anything on `A_2`).
+Sandwich variance routes through a stacked propensity bread that is
+block-diagonal across the K models (each component is fit
+independently), so the propensity correction sums K single-model
+corrections.
+
+The intervention is supplied as a *named list*, one entry per
+treatment column, each entry a `causatr_intervention`:
+
+```{r}
+set.seed(42)
+n <- 3000
+L  <- rnorm(n)
+A1 <- rbinom(n, 1, plogis(0.3 * L))
+A2 <- rbinom(n, 1, plogis(-0.3 * L))
+Y  <- 2 + 1.5 * A1 + 1.0 * A2 - 0.5 * L + rnorm(n)
+df_mv <- data.frame(L = L, A1 = A1, A2 = A2, Y = Y)
+
+fit_mv <- causat(df_mv, "Y", c("A1", "A2"), ~ L, estimator = "ipw")
+res_mv <- contrast(
+  fit_mv,
+  interventions = list(
+    both    = list(A1 = static(1), A2 = static(1)),
+    a1_only = list(A1 = static(1), A2 = static(0)),
+    a2_only = list(A1 = static(0), A2 = static(1)),
+    neither = list(A1 = static(0), A2 = static(0))
+  ),
+  reference = "neither"
+)
+tt(tidy(res_mv))
+```
+
+Truth on this DGP: \\(E[Y(1,1)] = 4.5\\), \\(E[Y(0,0)] = 2.0\\),
+\\(\\text{ATE}(\\text{both vs neither}) = 2.5\\). Each component intervention
+uses any of the regular constructors (`static()`, `shift()`,
+`scale_by()`, `dynamic()`); IPSI in any component is rejected because
+Kennedy's closed form has no joint analogue. Effect modification
+(`A:modifier` confounders), categorical / count components, and
+opt-in `propensity_family` are also rejected with classed errors;
+multivariate matching remains rejected because `MatchIt` is binary-only.
+
+Mixed-type treatment (binary + continuous) just works:
+
+```{r}
+set.seed(7)
+n <- 3000
+L <- rnorm(n)
+A1 <- rbinom(n, 1, 0.5)
+A2 <- 5 + 0.5 * L + rnorm(n)
+Y  <- 1 + 2 * A1 + 0.3 * A2 - 0.5 * L + rnorm(n)
+df_mix <- data.frame(L = L, A1 = A1, A2 = A2, Y = Y)
+
+fit_mix <- causat(df_mix, "Y", c("A1", "A2"), ~ L, estimator = "ipw")
+res_mix <- contrast(
+  fit_mix,
+  interventions = list(
+    treat   = list(A1 = static(1), A2 = shift(-2)),
+    control = list(A1 = static(0), A2 = shift(-2))
+  ),
+  reference = "control"
+)
+tt(tidy(res_mix))
+```
+
+The `A2` shift is applied uniformly under both arms, so the contrast
+recovers the marginal `A1` effect (truth = 2).
+
 ## Summary of covered combinations
 
 **Legend.** ✅ covered and truth-pinned in tests · 🟡 smoke test only ·
@@ -863,7 +944,12 @@ diag$weights
 | Continuous | --- | Static | --- | --- | --- | --- | ⛔ (use shift/scale) |
 | Continuous | --- | Dynamic | --- | --- | --- | --- | ⛔ (use shift/scale) |
 | Binary | Gaussian | Static (with `A:modifier`) | ATE | Difference | Sandwich / Bootstrap | none | ✅ |
-| Multivariate | --- | --- | --- | --- | --- | --- | ⛔ (Phase 8) |
+| Multi (bin × bin) | Gaussian | Static | ATE | Difference | Sandwich / Bootstrap | none | ✅ |
+| Multi (bin × cont) | Gaussian | Static + Shift | ATE | Difference | Sandwich | none | ✅ |
+| Multi (cont × cont) | Gaussian | Shift + Shift | ATE | Difference | Sandwich | none | ✅ |
+| Multi (bin × bin) | Binary | Static | ATE | Diff / Ratio / OR | Sandwich | none | ✅ |
+| Multi (3+ binary) | Gaussian | Static | ATE | Difference | Sandwich | none | ✅ |
+| Multi + IPSI / EM / categorical / count component | --- | --- | --- | --- | --- | --- | ⛔ |
 | Longitudinal | --- | --- | --- | --- | --- | --- | ⛔ (use ICE) |
 
 See [`FEATURE_COVERAGE_MATRIX.md`](https://github.com/etverse/causatr/blob/main/FEATURE_COVERAGE_MATRIX.md)

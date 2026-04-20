@@ -227,19 +227,6 @@ test_that("by parameter rejects missing variable", {
   )
 })
 
-test_that("multivariate treatment blocked for IPW", {
-  expect_snapshot(
-    error = TRUE,
-    causat(
-      data.frame(Y = 1:10, A1 = 1:10, A2 = 1:10, L = 1:10),
-      outcome = "Y",
-      treatment = c("A1", "A2"),
-      confounders = ~L,
-      estimator = "ipw"
-    )
-  )
-})
-
 test_that("multivariate treatment blocked for matching", {
   expect_snapshot(
     error = TRUE,

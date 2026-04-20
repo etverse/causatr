@@ -350,14 +350,6 @@ test_that("mv point: ATT/ATC rejected", {
   )
 })
 
-test_that("mv point: IPW rejected", {
-  df <- simulate_mv_point()
-  expect_snapshot(
-    error = TRUE,
-    causat(df, "Y", c("A1", "A2"), ~L, estimator = "ipw")
-  )
-})
-
 test_that("mv point: matching rejected", {
   df <- simulate_mv_point()
   expect_snapshot(

@@ -82,6 +82,15 @@ Rejections: invalid family string ✅, missing outcome/treatment col ✅ (test-g
 | count (negbin) | gauss | shift | ATE | diff | sandwich | — | ✅ | test-ipw-count.R |
 | bin | gauss | static | ATE + EM | diff | sandwich | — | ✅ | test-effect-modification.R |
 | bin | gauss | static | ATE + EM | diff | boot | — | ✅ | test-effect-modification.R |
+| multi (bin × bin) | gauss | static | ATE | diff | sandwich | — | ✅ +gcomp | test-multivariate-ipw.R |
+| multi (bin × bin) | gauss | static | ATE | diff | boot | — | ✅ | test-multivariate-ipw.R |
+| multi (bin × cont) | gauss | static + shift | ATE | diff | sandwich | — | ✅ | test-multivariate-ipw.R |
+| multi (cont × cont) | gauss | shift + shift | ATE | diff | sandwich | — | ✅ +gcomp | test-multivariate-ipw.R |
+| multi (bin × bin) | binom | static | ATE | diff/ratio/OR | sandwich | — | ✅ | test-multivariate-ipw.R |
+| multi (bin × bin) | gauss | static | by(L) | diff | sandwich | — | ✅ | test-multivariate-ipw.R |
+| multi (bin × bin) | gauss | static | subset | diff | sandwich | — | ✅ | test-multivariate-ipw.R |
+| multi (bin × bin) | gauss | dynamic + static | ATE | diff | sandwich | — | ✅ | test-multivariate-ipw.R |
+| multi (bin³) | gauss | static | ATE | diff | sandwich | — | ✅ | test-multivariate-ipw.R |
 
 Variance internals: self-contained IF ✅ (hand-derived cross-derivative + end-to-end stacked-sandwich; test-ipw-branch-b.R, test-ipw-cross-derivative.R, test-variance-if.R). Non-static variance regression ✅ (shift ~5-8% SE reduction, IPSI ~90% off-diagonal covariance; test-ipw-variance-regression.R). Bootstrap parity ✅ (within 30% MC tolerance; test-ipw-variance-regression.R).
 
@@ -91,8 +100,12 @@ Rejections (all ✅ tested):
 - non-integer `shift()` on count $\to$ test-ipw-count.R
 - non-integer-preserving `scale_by()` on count $\to$ test-ipw-count.R
 - shift/scale_by/dynamic/ipsi + ATT/ATC $\to$ test-estimand-intervention-compat.R
-- multivariate $\to$ test-s3-methods.R, test-multivariate.R
 - longitudinal $\to$ test-ipw.R
+- multivariate + ATT/ATC $\to$ test-multivariate.R, test-multivariate-ipw.R
+- multivariate + ipsi() in any component $\to$ test-multivariate-ipw.R
+- multivariate + categorical component $\to$ test-multivariate-ipw.R
+- multivariate + effect modification (`A:modifier`) $\to$ test-multivariate-ipw.R
+- multivariate + `propensity_family` opt-in $\to$ test-multivariate-ipw.R
 
 ---
 
@@ -301,7 +314,7 @@ Supplementary: `test-weights-edge-cases.R` (external weights edge cases), `test-
 Unified `A:modifier` API across gcomp / IPW / matching / ICE. IPW MSM expansion ✅ (chunk 6b). Matching MSM expansion ✅ (chunk 6c). ICE lag auto-expansion ✅ (chunk 6d). Cross-method triangulation ✅ (chunk 6e). **Phase complete.** **Known limitation** (documented in `PHASE_6_INTERACTIONS.md` § "Known limitation: modifier must be **baseline**"): under IPW / matching / longitudinal IPW, the modifier must be baseline because the MSM conditions on post-treatment variables otherwise (silent bias; Robins 2000). Time-varying effect modification is deferred to Phase 18 (SNMs). Currently doc-level only; a `check_em_baseline_only()` runtime guard via an explicit `baseline_cols =` contract is a follow-up.
 
 ### Phase 8 — Multivariate treatment IPW
-Joint density via sequential factorisation, product density-ratio weights, multi-model propensity sandwich. All ❌.
+Joint density via sequential factorisation, product density-ratio weights, multi-model propensity sandwich. **Done.** Implementation supports binary × binary, binary × continuous, continuous × continuous, K = 2..K binary; rejects IPSI / categorical / count components and effect modification. See multi rows in the IPW table above.
 
 ### Phase 9 — Inference infrastructure
 Survey design integration, general cluster-robust sandwich, `future` backend. Mix of ❌ and partial.

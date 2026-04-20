@@ -296,6 +296,133 @@ fit_treatment_model <- function(
 }
 
 
+#' Fit a sequence of conditional treatment density models for multivariate IPW
+#'
+#' @description
+#' For multivariate treatments `A = (A_1, ..., A_K)` we factorise the
+#' joint conditional density via the chain rule:
+#' \deqn{f(A_1, A_2, \ldots, A_K \mid L)
+#'       = f(A_1 \mid L) \cdot f(A_2 \mid A_1, L)
+#'         \cdots f(A_K \mid A_1, \ldots, A_{K-1}, L).}
+#' Each factor is fit by `fit_treatment_model()` on a per-component
+#' formula that adds the upstream treatment columns to the user's
+#' baseline confounders. The result is a list of K
+#' `causatr_treatment_model` objects, in the natural order of
+#' `treatment`. Downstream the IPW engine multiplies the K density
+#' ratios to form the joint weight under any factorising
+#' intervention `\pi = \prod_k \pi_k(a_k \mid a_{1..k-1}, L)`.
+#'
+#' Mixed treatment families are allowed: each component is classified
+#' independently by `detect_treatment_family()`, so e.g. the user can
+#' pass `treatment = c("A1", "A2")` with `A1` binary 0/1 and `A2`
+#' continuous and the engine fits a logistic GLM for `A1` and a
+#' Gaussian linear model for `A2 \mid A1, L`.
+#'
+#' Categorical, Poisson, and negative-binomial components are rejected
+#' for now -- their dispatch needs the per-component
+#' `propensity_model_fn` / `propensity_family` plumbing the v1
+#' multivariate path does not yet expose. Single-component categorical
+#' / count IPW continues to work via `fit_treatment_model()`.
+#'
+#' @param data data.table (already prepared by `prepare_data()`).
+#' @param treatment Character vector of treatment column names, in the
+#'   factorisation order. Length must be \eqn{\geq 2}; for length 1
+#'   call `fit_treatment_model()` directly.
+#' @param confounders One-sided formula of baseline confounders. The
+#'   k-th component formula is built as
+#'   `A_k ~ A_1 + ... + A_{k-1} + confounders`.
+#' @param model_fn Function. Forwarded to `fit_treatment_model()` per
+#'   component. Default `stats::glm`.
+#' @param weights Optional numeric vector of observation weights,
+#'   forwarded to each component's fit.
+#' @param ... Additional arguments forwarded to `model_fn` per
+#'   component.
+#'
+#' @return A length-K list of `causatr_treatment_model` objects, one
+#'   per treatment component, in the order given by `treatment`. The
+#'   list itself is tagged with class
+#'   `c("causatr_treatment_models", "list")` so callers can dispatch
+#'   on shape without needing a length check.
+#'
+#' @noRd
+fit_treatment_models <- function(
+  data,
+  treatment,
+  confounders,
+  model_fn = stats::glm,
+  weights = NULL,
+  ...
+) {
+  check_formula(confounders)
+  if (!is.character(treatment) || length(treatment) < 2L) {
+    rlang::abort(
+      "`fit_treatment_models()` requires a length-2+ character vector of treatment column names."
+    )
+  }
+  for (trt in treatment) {
+    check_col_exists(data, trt)
+  }
+
+  # The k-th component conditions on the prior treatment columns plus
+  # the user's baseline confounders. Build the per-component formula
+  # by appending `treatment[1..k-1]` to the confounder term labels and
+  # calling `stats::reformulate()`. The k-th treatment is the response.
+  baseline_terms <- attr(stats::terms(confounders), "term.labels")
+  if (length(baseline_terms) == 0L) {
+    baseline_terms <- "1"
+  }
+
+  models <- vector("list", length(treatment))
+
+  for (k in seq_along(treatment)) {
+    # Reject categorical / count components up front -- the v1
+    # multivariate path supports binary + continuous components only.
+    # Single-component categorical / count IPW is unaffected.
+    fam_k <- detect_treatment_family(data[[treatment[k]]])
+    if (fam_k == "categorical") {
+      rlang::abort(
+        c(
+          "Multivariate IPW does not support categorical treatment components.",
+          x = paste0(
+            "Component '",
+            treatment[k],
+            "' is classified as categorical."
+          ),
+          i = "Recode the component as binary 0/1, or use `estimator = 'gcomp'` for joint categorical interventions."
+        ),
+        class = "causatr_multivariate_categorical"
+      )
+    }
+
+    # Component k formula: A_k ~ A_1 + ... + A_{k-1} + baseline_terms.
+    # Prior treatments enter as additional conditioning columns. When
+    # k == 1 the formula reduces to A_1 ~ baseline_terms.
+    if (k == 1L) {
+      rhs_terms <- baseline_terms
+    } else {
+      rhs_terms <- c(treatment[seq_len(k - 1L)], baseline_terms)
+    }
+    confounders_k <- stats::reformulate(rhs_terms)
+
+    # Defer per-component family decisions to `fit_treatment_model()`'s
+    # auto-detection. `propensity_family` is intentionally unset --
+    # opt-in count families would need a per-component vector here, a
+    # follow-up if users ask for it.
+    models[[k]] <- fit_treatment_model(
+      data = data,
+      treatment = treatment[k],
+      confounders = confounders_k,
+      model_fn = model_fn,
+      weights = weights,
+      ...
+    )
+  }
+
+  names(models) <- treatment
+  structure(models, class = c("causatr_treatment_models", "list"))
+}
+
+
 #' Classify a treatment vector into a density family
 #'
 #' @description

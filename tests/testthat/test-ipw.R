@@ -206,7 +206,7 @@ test_that("IPW rejects type = 'longitudinal' upstream and via fit_ipw()", {
   )
 })
 
-test_that("IPW rejects multivariate treatment with a gcomp pointer", {
+test_that("IPW accepts multivariate treatment via sequential factorisation", {
   set.seed(412)
   d <- data.frame(
     Y = rnorm(100),
@@ -214,16 +214,19 @@ test_that("IPW rejects multivariate treatment with a gcomp pointer", {
     A2 = rbinom(100, 1, 0.5),
     L = rnorm(100)
   )
-  expect_error(
-    causat(
-      d,
-      outcome = "Y",
-      treatment = c("A1", "A2"),
-      confounders = ~L,
-      estimator = "ipw"
-    ),
-    "Multivariate treatments are not supported"
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = c("A1", "A2"),
+    confounders = ~L,
+    estimator = "ipw"
   )
+  expect_true(isTRUE(fit$details$is_multivariate))
+  expect_length(fit$details$treatment_models, 2L)
+  expect_true(inherits(
+    fit$details$treatment_models,
+    "causatr_treatment_models"
+  ))
 })
 
 # Defensive guard: `compute_ipw_contrast_point()` aborts with an
