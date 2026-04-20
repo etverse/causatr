@@ -367,7 +367,18 @@ fit_treatment_models <- function(
   # the user's baseline confounders. Build the per-component formula
   # by appending `treatment[1..k-1]` to the confounder term labels and
   # calling `stats::reformulate()`. The k-th treatment is the response.
-  baseline_terms <- attr(stats::terms(confounders), "term.labels")
+  #
+  # Strip any term that touches a treatment column from the baseline
+  # term labels. This covers `A1:sex` (effect-modification interaction
+  # with a baseline modifier) and `A1:A2` (treatment-treatment
+  # interaction): both belong on the OUTCOME model side, not on the
+  # propensity side, since A appears as the response of the per-
+  # component density model and downstream A_j (j > k) cannot enter
+  # the k-th propensity by construction. `parse_effect_mod()` returns
+  # `confounder_terms` with all such treatment-touching terms removed,
+  # which is exactly what we need.
+  em_info <- parse_effect_mod(confounders, treatment)
+  baseline_terms <- em_info$confounder_terms
   if (length(baseline_terms) == 0L) {
     baseline_terms <- "1"
   }

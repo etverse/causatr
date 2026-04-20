@@ -105,19 +105,15 @@ fit_ipw <- function(
     estimator = "ipw"
   )
 
-  # Effect modification under multivariate IPW is deferred. The MSM
-  # expansion for `A:modifier` does not have a clean joint analogue
-  # when A is a vector, and the coverage matrix has no row for the
-  # combination yet.
-  if (is_multivariate && em_info$has_em) {
-    rlang::abort(
-      c(
-        "Effect-modification terms are not supported for multivariate IPW.",
-        i = "Use `estimator = 'gcomp'` if you need `A:modifier` with a joint treatment, or fit separate single-treatment IPW models."
-      ),
-      class = "causatr_multivariate_em"
-    )
-  }
+  # Effect modification under multivariate IPW: per-component
+  # propensity formulas strip ALL treatment-touching terms (including
+  # `A_k:modifier` interactions for any k), and the per-intervention
+  # MSM expands to `Y ~ 1 + modifier_main_effects` via the existing
+  # `build_ipw_msm_formula()`. Treatment-treatment interactions like
+  # `A1:A2` are handled implicitly via the per-intervention refit, so
+  # they don't enter the MSM. The Phase 6 baseline-modifier
+  # constraint (Robins 2000; modifier must be baseline, not
+  # post-treatment) carries over and is doc-level.
 
   # EM terms are stored in `fit$details$em_info` for downstream use by
   # `compute_ipw_contrast_point()` (MSM expansion from `Y ~ 1` to

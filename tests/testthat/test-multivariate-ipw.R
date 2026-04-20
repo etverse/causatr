@@ -346,12 +346,85 @@ test_that("mv IPW: ipsi() in any component is rejected", {
   )
 })
 
-test_that("mv IPW: effect-modification in confounders is rejected", {
+test_that("mv IPW: effect modification (`A1:sex`) recovers per-stratum truth", {
+  # DGP with sex modifying the A1 effect:
+  #   E[Y(a1, a2) | sex] = 2 + (1.0 + 1.0*sex)*a1 + 1.0*a2 - 0.5*L
+  # Truth:
+  #   E[Y(1,1) - Y(0,0) | sex=0] = 1 + 1 = 2
+  #   E[Y(1,1) - Y(0,0) | sex=1] = 2 + 1 = 3
+  set.seed(42)
+  n <- 5000
+  L <- rnorm(n)
+  sex <- rbinom(n, 1, 0.5)
+  A1 <- rbinom(n, 1, plogis(0.3 * L))
+  A2 <- rbinom(n, 1, plogis(-0.3 * L))
+  Y <- 2 + (1.0 + 1.0 * sex) * A1 + 1.0 * A2 - 0.5 * L + rnorm(n)
+  df <- data.frame(L = L, sex = sex, A1 = A1, A2 = A2, Y = Y)
+
+  fit <- causat(df, "Y", c("A1", "A2"), ~ L + sex + A1:sex, estimator = "ipw")
+  expect_true(fit$details$em_info$has_em)
+  # Per-component propensity formulas should NOT contain the EM term.
+  ps1 <- as.character(fit$details$treatment_models[[1]]$ps_formula)
+  ps2 <- as.character(fit$details$treatment_models[[2]]$ps_formula)
+  expect_false(any(grepl("A1:sex", ps1, fixed = TRUE)))
+  expect_false(any(grepl("A1:sex", ps2, fixed = TRUE)))
+
+  # by-stratified contrast pulls out the per-stratum modifier effect.
+  res <- contrast(
+    fit,
+    interventions = list(
+      both = list(A1 = static(1), A2 = static(1)),
+      neither = list(A1 = static(0), A2 = static(0))
+    ),
+    reference = "neither",
+    by = "sex"
+  )
+  ate_by <- setNames(res$contrasts$estimate, res$contrasts$by)
+  expect_true(abs(ate_by["0"] - 2.0) < 0.3)
+  expect_true(abs(ate_by["1"] - 3.0) < 0.3)
+})
+
+test_that("mv IPW: EM cross-checks against gcomp", {
+  set.seed(42)
+  n <- 5000
+  L <- rnorm(n)
+  sex <- rbinom(n, 1, 0.5)
+  A1 <- rbinom(n, 1, plogis(0.3 * L))
+  A2 <- rbinom(n, 1, plogis(-0.3 * L))
+  Y <- 2 + (1.0 + 1.0 * sex) * A1 + 1.0 * A2 - 0.5 * L + rnorm(n)
+  df <- data.frame(L = L, sex = sex, A1 = A1, A2 = A2, Y = Y)
+
+  ivs <- list(
+    both = list(A1 = static(1), A2 = static(1)),
+    neither = list(A1 = static(0), A2 = static(0))
+  )
+
+  fit_g <- causat(
+    df,
+    "Y",
+    c("A1", "A2"),
+    ~ L + sex + A1:sex,
+    estimator = "gcomp"
+  )
+  fit_w <- causat(df, "Y", c("A1", "A2"), ~ L + sex + A1:sex, estimator = "ipw")
+
+  res_g <- contrast(fit_g, ivs, reference = "neither", by = "sex")
+  res_w <- contrast(fit_w, ivs, reference = "neither", by = "sex")
+
+  # Pair stratum-level contrasts and check agreement.
+  ate_g <- setNames(res_g$contrasts$estimate, res_g$contrasts$by)
+  ate_w <- setNames(res_w$contrasts$estimate, res_w$contrasts$by)
+  expect_true(abs(ate_g["0"] - ate_w["0"]) < 0.2)
+  expect_true(abs(ate_g["1"] - ate_w["1"]) < 0.2)
+})
+
+test_that("mv IPW: bare treatment in confounders (`~ L + A1`) still rejected", {
+  # `A:modifier` is fine; bare A is always wrong (puts A on both sides
+  # of the propensity model). Phase 6's `check_em_compat()` catches it.
   df <- sim_bb()
-  df$sex <- rbinom(nrow(df), 1, 0.5)
   expect_error(
-    causat(df, "Y", c("A1", "A2"), ~ L + sex + A1:sex, estimator = "ipw"),
-    class = "causatr_multivariate_em"
+    causat(df, "Y", c("A1", "A2"), ~ L + A1, estimator = "ipw"),
+    class = "causatr_bare_treatment_in_confounders"
   )
 })
 
