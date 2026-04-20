@@ -864,7 +864,19 @@ compute_density_ratio_weights_mv <- function(
       newdata_int <- data.table::copy(data)
       for (j in seq_len(k - 1L)) {
         trt_j <- treatment_models[[j]]$treatment
-        data.table::set(newdata_int, j = trt_j, value = cond_values[[j]])
+        new_val <- cond_values[[j]]
+        # Preserve factor type / levels when substituting into a
+        # factor column. `data.table::set()` with a character vector
+        # silently overwrites the factor as character, which then
+        # makes `model.matrix()` fail with "contrasts can be applied
+        # only to factors with 2 or more levels" if the new column
+        # holds a single value (e.g. static intervention collapses
+        # all rows to one level).
+        orig_col <- data[[trt_j]]
+        if (is.factor(orig_col) && !is.factor(new_val)) {
+          new_val <- factor(new_val, levels = levels(orig_col))
+        }
+        data.table::set(newdata_int, j = trt_j, value = new_val)
       }
     }
 
@@ -1047,7 +1059,19 @@ make_weight_fn_mv <- function(
       newdata_int <- data.table::copy(data)
       for (j in seq_len(k - 1L)) {
         trt_j <- treatment_models[[j]]$treatment
-        data.table::set(newdata_int, j = trt_j, value = cond_values[[j]])
+        new_val <- cond_values[[j]]
+        # Preserve factor type / levels when substituting into a
+        # factor column. `data.table::set()` with a character vector
+        # silently overwrites the factor as character, which then
+        # makes `model.matrix()` fail with "contrasts can be applied
+        # only to factors with 2 or more levels" if the new column
+        # holds a single value (e.g. static intervention collapses
+        # all rows to one level).
+        orig_col <- data[[trt_j]]
+        if (is.factor(orig_col) && !is.factor(new_val)) {
+          new_val <- factor(new_val, levels = levels(orig_col))
+        }
+        data.table::set(newdata_int, j = trt_j, value = new_val)
       }
       X_prop_int <- stats::model.matrix(tm_k$ps_formula, data = newdata_int)
     }
@@ -1068,7 +1092,8 @@ make_weight_fn_mv <- function(
         X_prop_obs,
         a_obs_k,
         sigma,
-        tm_k$theta
+        tm_k$theta,
+        trt_levels = tm_k$levels
       )
     } else {
       iv_type <- iv_k$type
@@ -1079,7 +1104,8 @@ make_weight_fn_mv <- function(
           fam_tag,
           X_prop_obs,
           a_obs_k,
-          ind
+          ind,
+          trt_levels = tm_k$levels
         )
       } else if (iv_type == "shift") {
         delta <- iv_k$delta
@@ -1177,7 +1203,8 @@ mv_natural_course_closure <- function(
   X_prop_obs,
   a_obs_k,
   sigma = NULL,
-  theta = NULL
+  theta = NULL,
+  trt_levels = NULL
 ) {
   # Force every captured argument so the returned closure sees the
   # values at THIS call's binding, not whatever the caller reassigns
@@ -1187,6 +1214,34 @@ mv_natural_course_closure <- function(
   force(a_obs_k)
   force(sigma)
   force(theta)
+  force(trt_levels)
+  if (fam_tag == "categorical") {
+    if (is.null(trt_levels)) {
+      rlang::abort(
+        "mv_natural_course_closure: categorical branch requires `trt_levels`."
+      )
+    }
+    K_lev <- length(trt_levels)
+    Km1 <- K_lev - 1L
+    p_cols <- ncol(X_prop_obs)
+    n_obs <- length(a_obs_k)
+    a_obs_char <- as.character(a_obs_k)
+    col_idx <- match(a_obs_char, trt_levels)
+    return(function(alpha) {
+      alpha_mat <- matrix(alpha, nrow = Km1, ncol = p_cols, byrow = TRUE)
+      eta_int <- X_prop_int %*% t(alpha_mat)
+      eta_obs <- X_prop_obs %*% t(alpha_mat)
+      exp_int <- exp(eta_int)
+      exp_obs <- exp(eta_obs)
+      denom_int <- 1 + rowSums(exp_int)
+      denom_obs <- 1 + rowSums(exp_obs)
+      prob_int <- cbind(1 / denom_int, exp_int / denom_int)
+      prob_obs <- cbind(1 / denom_obs, exp_obs / denom_obs)
+      f_num <- prob_int[cbind(seq_len(n_obs), col_idx)]
+      f_den <- prob_obs[cbind(seq_len(n_obs), col_idx)]
+      f_num / f_den
+    })
+  }
   if (fam_tag == "bernoulli") {
     return(function(alpha) {
       p_int <- stats::plogis(as.numeric(X_prop_int %*% alpha))
@@ -1246,14 +1301,49 @@ mv_natural_course_closure <- function(
 #' @param ind Length-n 0/1 indicator vector `I(a_obs_k == target_k)`.
 #' @return `function(alpha)` returning the per-component weight.
 #' @noRd
-mv_ht_closure <- function(fam_tag, X_prop_obs, a_obs_k, ind) {
+mv_ht_closure <- function(
+  fam_tag,
+  X_prop_obs,
+  a_obs_k,
+  ind,
+  trt_levels = NULL
+) {
   force(X_prop_obs)
   force(a_obs_k)
   force(ind)
+  force(trt_levels)
   if (fam_tag == "bernoulli") {
     return(function(alpha) {
       p_obs <- stats::plogis(as.numeric(X_prop_obs %*% alpha))
       f_obs <- ifelse(a_obs_k == 1, p_obs, 1 - p_obs)
+      ind / f_obs
+    })
+  }
+  if (fam_tag == "categorical") {
+    # Multinomial HT closure. The flattened `alpha` is row-major
+    # `as.vector(t(coef_mat))` per `fit_treatment_model()`'s convention,
+    # so reshape to (K-1) x p to recover per-non-reference log-odds.
+    # Probabilities for non-reference levels follow the softmax;
+    # reference level is `1 / (1 + sum(exp(eta)))`. We index per-row
+    # by the observed treatment value to recover f_obs.
+    if (is.null(trt_levels)) {
+      rlang::abort(
+        "mv_ht_closure: categorical branch requires `trt_levels`."
+      )
+    }
+    K_lev <- length(trt_levels)
+    Km1 <- K_lev - 1L
+    p_cols <- ncol(X_prop_obs)
+    n_obs <- length(a_obs_k)
+    a_obs_char <- as.character(a_obs_k)
+    col_idx <- match(a_obs_char, trt_levels)
+    return(function(alpha) {
+      alpha_mat <- matrix(alpha, nrow = Km1, ncol = p_cols, byrow = TRUE)
+      eta <- X_prop_obs %*% t(alpha_mat)
+      exp_eta <- exp(eta)
+      denom <- 1 + rowSums(exp_eta)
+      prob_mat <- cbind(1 / denom, exp_eta / denom)
+      f_obs <- prob_mat[cbind(seq_len(n_obs), col_idx)]
       ind / f_obs
     })
   }

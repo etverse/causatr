@@ -428,16 +428,141 @@ test_that("mv IPW: bare treatment in confounders (`~ L + A1`) still rejected", {
   )
 })
 
-test_that("mv IPW: categorical component is rejected", {
-  df <- sim_bb()
-  df$A2_cat <- factor(sample(letters[1:3], nrow(df), replace = TRUE))
-  expect_error(
-    causat(df, "Y", c("A1", "A2_cat"), ~L, estimator = "ipw"),
-    class = "causatr_multivariate_categorical"
+test_that("mv IPW: bin x categorical recovers truth", {
+  # DGP with a categorical second component:
+  #   E[Y(a1, a2)] = 0.5 + 1*a1 + 1.5*(a2=="high") + 0.7*(a2=="med") - 0.5*L
+  # Truth: E[Y(1, "high") - Y(0, "low")] = 1 + 1.5 = 2.5.
+  set.seed(42)
+  n <- 5000
+  L <- rnorm(n)
+  A1 <- rbinom(n, 1, plogis(0.3 * L))
+  A2 <- factor(sample(c("low", "med", "high"), n, replace = TRUE))
+  Y <- 0.5 +
+    1.0 * A1 +
+    1.5 * (A2 == "high") +
+    0.7 * (A2 == "med") -
+    0.5 * L +
+    rnorm(n)
+  df <- data.frame(L = L, A1 = A1, A2 = A2, Y = Y)
+
+  fit <- causat(df, "Y", c("A1", "A2"), ~L, estimator = "ipw")
+  expect_equal(fit$details$treatment_models[[1]]$family, "bernoulli")
+  expect_equal(fit$details$treatment_models[[2]]$family, "categorical")
+  expect_true(inherits(fit$details$treatment_models[[2]]$model, "multinom"))
+
+  res <- contrast(
+    fit,
+    interventions = list(
+      high = list(A1 = static(1), A2 = static("high")),
+      low = list(A1 = static(0), A2 = static("low"))
+    ),
+    reference = "low"
+  )
+  expect_true(abs(res$contrasts$estimate[1] - 2.5) < 0.3)
+  expect_true(res$contrasts$se[1] > 0 && is.finite(res$contrasts$se[1]))
+})
+
+test_that("mv IPW: categorical x bin (cat first) recovers same truth", {
+  # Order-insensitivity check: swapping the components must give the
+  # same point estimate up to numerical noise.
+  set.seed(42)
+  n <- 5000
+  L <- rnorm(n)
+  A1 <- rbinom(n, 1, plogis(0.3 * L))
+  A2 <- factor(sample(c("low", "med", "high"), n, replace = TRUE))
+  Y <- 0.5 +
+    1.0 * A1 +
+    1.5 * (A2 == "high") +
+    0.7 * (A2 == "med") -
+    0.5 * L +
+    rnorm(n)
+  df <- data.frame(L = L, A1 = A1, A2 = A2, Y = Y)
+
+  fit_a1 <- causat(df, "Y", c("A1", "A2"), ~L, estimator = "ipw")
+  fit_a2 <- causat(df, "Y", c("A2", "A1"), ~L, estimator = "ipw")
+
+  res_a1 <- contrast(
+    fit_a1,
+    list(
+      high = list(A1 = static(1), A2 = static("high")),
+      low = list(A1 = static(0), A2 = static("low"))
+    ),
+    reference = "low"
+  )
+  res_a2 <- contrast(
+    fit_a2,
+    list(
+      high = list(A2 = static("high"), A1 = static(1)),
+      low = list(A2 = static("low"), A1 = static(0))
+    ),
+    reference = "low"
+  )
+  expect_true(
+    abs(res_a1$contrasts$estimate[1] - res_a2$contrasts$estimate[1]) < 0.05
   )
 })
 
-test_that("mv IPW: propensity_family is rejected", {
+test_that("mv IPW: categorical x categorical recovers truth", {
+  # Two independent categorical treatments. Truth E[Y(c, "high") -
+  # Y(a, "low")] = 2.0 + 1.5 = 3.5.
+  set.seed(42)
+  n <- 5000
+  L <- rnorm(n)
+  A1 <- factor(sample(c("a", "b", "c"), n, replace = TRUE))
+  A2 <- factor(sample(c("low", "med", "high"), n, replace = TRUE))
+  Y <- 0.5 +
+    1.0 * (A1 == "b") +
+    2.0 * (A1 == "c") +
+    1.5 * (A2 == "high") +
+    0.7 * (A2 == "med") -
+    0.5 * L +
+    rnorm(n)
+  df <- data.frame(L = L, A1 = A1, A2 = A2, Y = Y)
+
+  fit <- causat(df, "Y", c("A1", "A2"), ~L, estimator = "ipw")
+  res <- contrast(
+    fit,
+    list(
+      c_high = list(A1 = static("c"), A2 = static("high")),
+      a_low = list(A1 = static("a"), A2 = static("low"))
+    ),
+    reference = "a_low"
+  )
+  expect_true(abs(res$contrasts$estimate[1] - 3.5) < 0.3)
+  expect_true(res$contrasts$se[1] > 0 && is.finite(res$contrasts$se[1]))
+})
+
+test_that("mv IPW: categorical component cross-checks against gcomp", {
+  set.seed(42)
+  n <- 5000
+  L <- rnorm(n)
+  A1 <- rbinom(n, 1, plogis(0.3 * L))
+  A2 <- factor(sample(c("low", "med", "high"), n, replace = TRUE))
+  Y <- 0.5 +
+    1.0 * A1 +
+    1.5 * (A2 == "high") +
+    0.7 * (A2 == "med") -
+    0.5 * L +
+    rnorm(n)
+  df <- data.frame(L = L, A1 = A1, A2 = A2, Y = Y)
+
+  ivs <- list(
+    high = list(A1 = static(1), A2 = static("high")),
+    low = list(A1 = static(0), A2 = static("low"))
+  )
+
+  fit_g <- causat(df, "Y", c("A1", "A2"), ~L, estimator = "gcomp")
+  fit_w <- causat(df, "Y", c("A1", "A2"), ~L, estimator = "ipw")
+
+  res_g <- contrast(fit_g, ivs, reference = "low")
+  res_w <- contrast(fit_w, ivs, reference = "low")
+
+  expect_true(
+    abs(res_g$contrasts$estimate[1] - res_w$contrasts$estimate[1]) < 0.2
+  )
+})
+
+test_that("mv IPW: propensity_family validates per-component shape", {
   df <- sim_bb()
   expect_error(
     causat(
@@ -446,9 +571,9 @@ test_that("mv IPW: propensity_family is rejected", {
       c("A1", "A2"),
       ~L,
       estimator = "ipw",
-      propensity_family = "negbin"
+      propensity_family = c("poisson", "negbin", "extra")
     ),
-    "not supported for multivariate IPW"
+    "must be NULL, length 1, or length K"
   )
 })
 

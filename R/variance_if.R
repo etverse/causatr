@@ -1961,11 +1961,16 @@ compute_ipw_if_self_contained_mv_one <- function(
     A_block_k <- A_beta_alpha[, idx, drop = FALSE]
     g_prop_k <- as.numeric(crossprod(A_block_k, h_msm_true))
 
-    prop_prep_k <- prepare_model_if(
-      treatment_models[[k]]$model,
-      fit_idx,
-      n_total
-    )
+    # Dispatch on multinomial vs GLM (same convention as the
+    # univariate `compute_ipw_if_self_contained_one()`). Multinomial
+    # propensity models are not GLMs and need their own
+    # bread/score primitive.
+    prop_model_k <- treatment_models[[k]]$model
+    prop_prep_k <- if (inherits(prop_model_k, "multinom")) {
+      prepare_model_if_multinom(prop_model_k, fit_idx, n_total)
+    } else {
+      prepare_model_if(prop_model_k, fit_idx, n_total)
+    }
     prop_res_k <- apply_model_correction(prop_prep_k, g_prop_k)
     total_prop_correction <- total_prop_correction + prop_res_k$correction
   }

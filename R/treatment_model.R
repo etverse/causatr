@@ -331,12 +331,24 @@ fit_treatment_model <- function(
 #' @param confounders One-sided formula of baseline confounders. The
 #'   k-th component formula is built as
 #'   `A_k ~ A_1 + ... + A_{k-1} + confounders`.
-#' @param model_fn Function. Forwarded to `fit_treatment_model()` per
-#'   component. Default `stats::glm`.
+#' @param model_fn Function. The default fitter for binary / continuous
+#'   / count components. Default `stats::glm`. Forwarded to
+#'   `fit_treatment_model()` per component as `model_fn` unless the
+#'   component is categorical or count and `propensity_model_fn` /
+#'   `propensity_family` triggers a different choice.
+#' @param propensity_model_fn Optional function or `NULL`. If non-`NULL`,
+#'   used as the per-component fitter for ALL components. Useful when
+#'   the user wants e.g. `mgcv::gam` for every propensity. `NULL`
+#'   (default) lets the engine auto-pick per component (multinomial
+#'   for categorical, GLM for everything else).
+#' @param propensity_family Optional character vector or `NULL`. Per-
+#'   component opt-in to count families (`"poisson"` / `"negbin"`).
+#'   `NULL` (default) lets the engine auto-detect each component from
+#'   the column type. Length 1 broadcasts to all K components; length
+#'   K applies per-component (entries `""` / `NA` skip auto-detect).
 #' @param weights Optional numeric vector of observation weights,
 #'   forwarded to each component's fit.
-#' @param ... Additional arguments forwarded to `model_fn` per
-#'   component.
+#' @param ... Additional arguments forwarded to the component fitter.
 #'
 #' @return A length-K list of `causatr_treatment_model` objects, one
 #'   per treatment component, in the order given by `treatment`. The
@@ -350,6 +362,8 @@ fit_treatment_models <- function(
   treatment,
   confounders,
   model_fn = stats::glm,
+  propensity_model_fn = NULL,
+  propensity_family = NULL,
   weights = NULL,
   ...
 ) {
@@ -383,28 +397,34 @@ fit_treatment_models <- function(
     baseline_terms <- "1"
   }
 
-  models <- vector("list", length(treatment))
+  K <- length(treatment)
+  models <- vector("list", K)
+
+  # Resolve per-component `propensity_family` opt-in. Three valid
+  # shapes:
+  #   - NULL: per-component auto-detect.
+  #   - length 1: broadcast to all K components (e.g. all-Poisson).
+  #   - length K: per-component override; entries `""` or NA fall back
+  #     to auto-detect.
+  if (is.null(propensity_family)) {
+    pf_vec <- rep(NA_character_, K)
+  } else if (length(propensity_family) == 1L) {
+    pf_vec <- rep(propensity_family, K)
+  } else if (length(propensity_family) == K) {
+    pf_vec <- as.character(propensity_family)
+  } else {
+    rlang::abort(
+      paste0(
+        "`propensity_family` must be NULL, length 1, or length K = ",
+        K,
+        " (got length ",
+        length(propensity_family),
+        ")."
+      )
+    )
+  }
 
   for (k in seq_along(treatment)) {
-    # Reject categorical / count components up front -- the v1
-    # multivariate path supports binary + continuous components only.
-    # Single-component categorical / count IPW is unaffected.
-    fam_k <- detect_treatment_family(data[[treatment[k]]])
-    if (fam_k == "categorical") {
-      rlang::abort(
-        c(
-          "Multivariate IPW does not support categorical treatment components.",
-          x = paste0(
-            "Component '",
-            treatment[k],
-            "' is classified as categorical."
-          ),
-          i = "Recode the component as binary 0/1, or use `estimator = 'gcomp'` for joint categorical interventions."
-        ),
-        class = "causatr_multivariate_categorical"
-      )
-    }
-
     # Component k formula: A_k ~ A_1 + ... + A_{k-1} + baseline_terms.
     # Prior treatments enter as additional conditioning columns. When
     # k == 1 the formula reduces to A_1 ~ baseline_terms.
@@ -415,15 +435,36 @@ fit_treatment_models <- function(
     }
     confounders_k <- stats::reformulate(rhs_terms)
 
-    # Defer per-component family decisions to `fit_treatment_model()`'s
-    # auto-detection. `propensity_family` is intentionally unset --
-    # opt-in count families would need a per-component vector here, a
-    # follow-up if users ask for it.
+    # Per-component family detection + fitter selection. The user can
+    # override the global fitter for ALL components via
+    # `propensity_model_fn`; otherwise we pick per-component:
+    #   categorical -> `nnet::multinom` (default categorical fitter)
+    #   negbin     -> `MASS::glm.nb` (no `family` arg accepted by NB)
+    #   bernoulli / gaussian / poisson -> `model_fn` (typically
+    #     `stats::glm`)
+    fam_k <- if (!is.na(pf_vec[k]) && nzchar(pf_vec[k])) {
+      pf_vec[k]
+    } else {
+      detect_treatment_family(data[[treatment[k]]])
+    }
+    fitter_k <- if (!is.null(propensity_model_fn)) {
+      propensity_model_fn
+    } else if (fam_k == "categorical") {
+      nnet::multinom
+    } else if (fam_k == "negbin") {
+      check_pkg("MASS")
+      MASS::glm.nb
+    } else {
+      model_fn
+    }
+    pf_arg_k <- if (!is.na(pf_vec[k]) && nzchar(pf_vec[k])) pf_vec[k] else NULL
+
     models[[k]] <- fit_treatment_model(
       data = data,
       treatment = treatment[k],
       confounders = confounders_k,
-      model_fn = model_fn,
+      model_fn = fitter_k,
+      propensity_family = pf_arg_k,
       weights = weights,
       ...
     )

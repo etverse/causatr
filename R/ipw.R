@@ -160,14 +160,9 @@ fit_ipw <- function(
     model_fn
   }
 
-  if (is_multivariate && !is.null(propensity_family)) {
-    rlang::abort(
-      c(
-        "`propensity_family` is not supported for multivariate IPW.",
-        i = "Each component's family is auto-detected from its column type."
-      )
-    )
-  }
+  # `propensity_family` for multivariate accepts NULL, length 1
+  # (broadcast across components), or length K (per-component opt-in
+  # to count families). `fit_treatment_models()` validates the shape.
 
   # Capture the user's `...` once. Stashed in `fit$details$dots` so
   # the bootstrap refit replays the exact same propensity fitting
@@ -182,11 +177,19 @@ fit_ipw <- function(
   # everything `make_weight_fn()` / `make_weight_fn_mv()` needs to
   # build a weight closure for any intervention downstream.
   if (is_multivariate) {
+    # For multivariate, defer per-component fitter selection to
+    # `fit_treatment_models()`. The `model_fn` is the default base
+    # (typically stats::glm) that's used for binary / continuous /
+    # poisson components; categorical components auto-pick
+    # `nnet::multinom`, negbin auto-picks `MASS::glm.nb`. The user
+    # can override globally via `propensity_model_fn`.
     tm_args <- list(
       data = fit_data,
       treatment = treatment,
       confounders = confounders,
-      model_fn = prop_model_fn
+      model_fn = model_fn,
+      propensity_model_fn = propensity_model_fn,
+      propensity_family = propensity_family
     )
     if (!is.null(weights)) {
       tm_args$weights <- weights[fit_rows]
