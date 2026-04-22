@@ -62,7 +62,13 @@ and pinned by a regression test.
   multinomial softmax closure in `mv_ht_closure`). Cat × bin, bin ×
   cat, and cat × cat all supported.
 - Count components (Poisson / negative binomial) via per-component
-  `propensity_family` opt-in (NULL / length-1 / length-K).
+  `propensity_family` opt-in (`NULL` / length-1 / length-K).
+  Truth-based tests cover bin $\times$ Poisson, bin $\times$ negbin,
+  and Poisson $\times$ continuous (the last exercises the
+  upstream $\to$ downstream chain-rule structure under sequential MTP:
+  shift($+1$) on $A_1$ propagates to $E[A_2 \mid A_1^d, L]$ through
+  the fitted $A_1 \to A_2$ coefficient, giving truth
+  $0.3 + 0.4 \cdot 0.2 = 0.38$ on the canonical DGP).
 - ATE only (matches the existing single-treatment ATT/ATC gate that
   rejects multivariate at fit time).
 - Sandwich + bootstrap variance, `by =`, `subset =`, survey weights.

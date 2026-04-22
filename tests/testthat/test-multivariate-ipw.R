@@ -590,6 +590,179 @@ test_that("mv IPW: propensity_family validates per-component shape", {
   )
 })
 
+# ---------------------------------------------------------------------
+# Count components (Poisson / negative binomial)
+# ---------------------------------------------------------------------
+
+# DGP (bin x Poisson): A2 independent of A1 under the true model, so
+# shift(+1) on A2 applies identically to both A1 arms and the A1
+# contrast collapses to the marginal A1 effect = 1.5.
+#   L ~ N(0, 1)
+#   A1 | L ~ Bernoulli(0.5)
+#   A2 | L ~ Poisson(exp(0.5 + 0.3 * L))
+#   Y    = 1 + 1.5*A1 + 0.4*A2 - 0.5*L + N(0, 1)
+sim_bpo <- function(n = 5000, seed = 42) {
+  set.seed(seed)
+  L <- rnorm(n)
+  A1 <- rbinom(n, 1, 0.5)
+  A2 <- rpois(n, lambda = exp(0.5 + 0.3 * L))
+  Y <- 1 + 1.5 * A1 + 0.4 * A2 - 0.5 * L + rnorm(n)
+  data.frame(L = L, A1 = A1, A2 = A2, Y = Y)
+}
+
+# DGP (bin x NB): same as bin x Poisson but A2 is overdispersed NB.
+#   A2 | L ~ NB(mu = exp(0.5 + 0.3*L), size = 2)
+sim_bnb <- function(n = 5000, seed = 42) {
+  set.seed(seed)
+  L <- rnorm(n)
+  A1 <- rbinom(n, 1, 0.5)
+  A2 <- stats::rnbinom(n, mu = exp(0.5 + 0.3 * L), size = 2)
+  Y <- 1 + 1.5 * A1 + 0.4 * A2 - 0.5 * L + rnorm(n)
+  data.frame(L = L, A1 = A1, A2 = A2, Y = Y)
+}
+
+# DGP (Poisson x cont): A1 Poisson, A2 continuous conditioning on A1.
+#   L ~ N(0, 1)
+#   A1 | L ~ Poisson(exp(0.5 + 0.3*L))
+#   A2 | A1, L ~ N(0.2*A1 + 0.5*L, 1)
+#   Y = 1 + 0.3*A1 + 0.4*A2 - 0.5*L + N(0, 1)
+#
+# Under shift(+1) on A1, natural course on A2 (sequential MTP):
+#   A1^d = A1^n + 1,  A2^d = A2^n (natural), A2^n ~ N(0.2*A1^d + 0.5*L, 1).
+# E[A1^d] = E[A1^n] + 1. E[A2^d] = 0.2*E[A1^d] + 0. So:
+# diff E[Y^d - Y^nat] = 0.3*1 + 0.4*0.2*1 = 0.38.
+sim_poc <- function(n = 5000, seed = 42) {
+  set.seed(seed)
+  L <- rnorm(n)
+  A1 <- rpois(n, lambda = exp(0.5 + 0.3 * L))
+  A2 <- 0.2 * A1 + 0.5 * L + rnorm(n)
+  Y <- 1 + 0.3 * A1 + 0.4 * A2 - 0.5 * L + rnorm(n)
+  data.frame(L = L, A1 = A1, A2 = A2, Y = Y)
+}
+
+test_that("mv IPW: bin x Poisson shift on A2 recovers A1 contrast truth", {
+  # With A2 independent of A1, shift(+1) on A2 adds the same expected
+  # amount to each A1 arm and the ATE(A1=1 vs 0) contrast is the
+  # marginal A1 effect in Y: 1.5.
+  df <- sim_bpo()
+  fit <- causat(
+    df,
+    "Y",
+    c("A1", "A2"),
+    ~L,
+    estimator = "ipw",
+    propensity_family = c("", "poisson")
+  )
+  expect_equal(fit$details$treatment_models[[1]]$family, "bernoulli")
+  expect_equal(fit$details$treatment_models[[2]]$family, "poisson")
+
+  res <- contrast(
+    fit,
+    interventions = list(
+      treat = list(A1 = static(1), A2 = shift(1L)),
+      control = list(A1 = static(0), A2 = shift(1L))
+    ),
+    reference = "control"
+  )
+  expect_true(abs(res$contrasts$estimate[1] - 1.5) < 0.3)
+  expect_true(res$contrasts$se[1] > 0 && is.finite(res$contrasts$se[1]))
+})
+
+test_that("mv IPW: bin x negbin shift on A2 recovers A1 contrast truth", {
+  skip_if_not_installed("MASS")
+  df <- sim_bnb()
+  fit <- causat(
+    df,
+    "Y",
+    c("A1", "A2"),
+    ~L,
+    estimator = "ipw",
+    propensity_family = c("", "negbin")
+  )
+  expect_equal(fit$details$treatment_models[[1]]$family, "bernoulli")
+  expect_equal(fit$details$treatment_models[[2]]$family, "negbin")
+  expect_true(is.numeric(fit$details$treatment_models[[2]]$theta))
+
+  res <- contrast(
+    fit,
+    interventions = list(
+      treat = list(A1 = static(1), A2 = shift(1L)),
+      control = list(A1 = static(0), A2 = shift(1L))
+    ),
+    reference = "control"
+  )
+  expect_true(abs(res$contrasts$estimate[1] - 1.5) < 0.3)
+  expect_true(res$contrasts$se[1] > 0 && is.finite(res$contrasts$se[1]))
+})
+
+test_that("mv IPW: Poisson x cont shift+natural recovers sequential-MTP truth", {
+  # Truth = 0.3 + 0.4*0.2 = 0.38 (shift A1 by +1 and propagate via the
+  # A1->A2 coefficient). Seed-averaged to damp MC noise.
+  ests <- numeric(5)
+  for (s in 1:5) {
+    df <- sim_poc(n = 5000, seed = s)
+    fit <- causat(
+      df,
+      "Y",
+      c("A1", "A2"),
+      ~L,
+      estimator = "ipw",
+      propensity_family = c("poisson", "")
+    )
+    res <- contrast(
+      fit,
+      interventions = list(
+        shifted = list(A1 = shift(1L), A2 = shift(0)),
+        natural = list(A1 = shift(0L), A2 = shift(0))
+      ),
+      reference = "natural"
+    )
+    ests[s] <- res$contrasts$estimate[1]
+  }
+  expect_true(abs(mean(ests) - 0.38) < 0.1)
+})
+
+test_that("mv IPW: count components reject static/threshold/dynamic", {
+  df <- sim_bpo(n = 500)
+  fit <- causat(
+    df,
+    "Y",
+    c("A1", "A2"),
+    ~L,
+    estimator = "ipw",
+    propensity_family = c("", "poisson")
+  )
+  # static() on a count component is rejected by the univariate
+  # compat check (dispatched inside compute_density_ratio_weights_mv()).
+  expect_error(
+    contrast(fit, list(iv = list(A1 = static(1), A2 = static(3L)))),
+    "static.*count"
+  )
+  # dynamic on count: also rejected.
+  expect_error(
+    contrast(
+      fit,
+      list(
+        iv = list(
+          A1 = static(1),
+          A2 = dynamic(function(data, trt) rep(3L, nrow(data)))
+        )
+      )
+    ),
+    "dynamic.*count"
+  )
+  # threshold on count: rejected.
+  expect_error(
+    contrast(fit, list(iv = list(A1 = static(1), A2 = threshold(1, 5)))),
+    "threshold.*count"
+  )
+  # non-integer shift on count: rejected.
+  expect_error(
+    contrast(fit, list(iv = list(A1 = static(1), A2 = shift(0.5)))),
+    "integer"
+  )
+})
+
 test_that("mv IPW: ATT/ATC fail at the existing trt-estimand check", {
   # Multivariate ATT/ATC has no clean definition (no single "treated"
   # arm); rejected upstream by `check_estimand_trt_compat()` not by

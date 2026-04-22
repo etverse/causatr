@@ -95,9 +95,15 @@ contrast(fit,
 - [x] Categorical branch in `mv_ht_closure()` using the multinomial softmax (flattened $(K-1) \times p$ alpha reshape).
 - [x] Multinomial propensity bread dispatch in `compute_ipw_if_self_contained_mv_one()` via `inherits(model, "multinom")` routing to `prepare_model_if_multinom()`.
 
+### 8d — count components (`c6d977f`)
+
+- [x] Add truth-based tests for count components. Bin $\times$ Poisson and bin $\times$ negbin tests use an $A_2 \perp A_1$ DGP so the truth collapses to the marginal $A_1$ effect ($1.5$). Poisson $\times$ continuous tests use the chain-rule DGP where shift($+1$) on $A_1$ propagates through $f_2(A_2 \mid A_1, L)$ via the $A_1 \to A_2$ coefficient; sequential-MTP truth is $0.3 + 0.4 \cdot 0.2 = 0.38$.
+- [x] Add rejection tests for count-component interventions: `static()`, `threshold()`, `dynamic()`, non-integer `shift()`. All already dispatched to by `check_intervention_family_compat()` per component.
+- Note: most of 8d's plumbing landed in 8c (per-component `propensity_family` in `fit_treatment_models()`, count branches in `mv_pushforward_closure()`). 8d is therefore test-only — no implementation changes.
+
 ### Tests
 
-- [x] `tests/testthat/test-multivariate-ipw.R` covers: bin × bin (static, binomial outcome with diff/ratio/OR, by, subset, dynamic, bootstrap parity), bin × cont (static + shift), cont × cont (shift + shift — sequential-MTP truth), K = 3 binary, gcomp cross-check for static, gcomp ESTIMAND DIVERGENCE pin for shift + shift, cross-method $A_1{:}\mathrm{sex}$ EM, bin × cat / cat × bin / cat × cat, plus rejection tests (IPSI, bare treatment in confounders, invalid `propensity_family` shape).
+- [x] `tests/testthat/test-multivariate-ipw.R` covers: bin × bin (static, binomial outcome with diff/ratio/OR, by, subset, dynamic, bootstrap parity), bin × cont (static + shift), cont × cont (shift + shift — sequential-MTP truth), K = 3 binary, gcomp cross-check for static, gcomp ESTIMAND DIVERGENCE pin for shift + shift, cross-method $A_1{:}\mathrm{sex}$ EM, bin × cat / cat × bin / cat × cat, bin × Poisson / bin × negbin / Poisson × cont count components, plus rejection tests (IPSI, bare treatment in confounders, invalid `propensity_family` shape, count-component `static` / `threshold` / `dynamic` / non-integer shift).
 
 ## Dependencies
 
