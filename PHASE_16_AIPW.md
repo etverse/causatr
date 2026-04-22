@@ -143,7 +143,7 @@ where $\tilde Y_{k+1}$ is the pseudo-outcome from the $(k+1)$-th AIPW step and $
 - **Phase 10 (longitudinal IPW) × AIPW.** This is exactly ICE-AIPW, chunk 16g.
 - **Phase 12 (stochastic) × AIPW.** MC integration applies to the outcome-model augmentation term (average $\hat{m}(A_{i,m}, L_i)$ across $M$ draws) and to the weight; AIPW is a scalar so regular MC averaging of the residual correction suffices. Add explicit subsection to `PHASE_12_STOCHASTIC.md` once Phase 16 lands.
 - **Phase 14 (IPCW) × AIPW.** Triply-weighted estimator: `ψ̂_AIPW,IPCW = standardization + (treatment weight × censoring weight) × outcome residual`. Sandwich: stacked EE with outcome model + propensity model + censoring model + plug-in. This is the **most efficient** estimator in the lineage and is a major deliverable once both Phase 14 and Phase 16 are done.
-- **Survival composition.** AIPW-survival (Bai et al. 2013; Zhang & Schaubel 2012) lives in the separate survival package; it imports Phase 16 as the scalar-outcome AIPW primitive and layers the cross-time delta chain on top. See `SURVIVAL_PACKAGE_HANDOFF.md`.
+- **Survival composition.** AIPW-survival (Bai et al. 2013; Zhang & Schaubel 2012) lives in the separate survival package (`etverse/survatr`); it imports Phase 16 as the scalar-outcome AIPW primitive and layers the cross-time delta chain on top.
 
 ## Chunks
 

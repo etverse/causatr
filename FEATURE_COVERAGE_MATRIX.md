@@ -187,10 +187,8 @@ Rejections (all ✅ tested): ipsi $\to$ test-ice.R, ATT/ATC $\to$ test-ice.R.
 ## Survival
 
 Causal survival analysis has been **moved out of causatr** into a
-separate etverse package. See `SURVIVAL_PACKAGE_HANDOFF.md` in the
-causatr repo root for the full scope, design, and links into
-causatr's reusable engine primitives. No survival rows remain in
-this matrix.
+separate etverse package (`etverse/survatr`). No survival rows
+remain in this matrix.
 
 ---
 

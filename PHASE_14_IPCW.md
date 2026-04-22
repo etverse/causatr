@@ -4,7 +4,7 @@
 
 causatr's `censoring =` parameter today is a **row filter** only. Phase 14 adds a **built-in IPCW** path so users do not have to compute censoring weights externally for MAR outcome censoring.
 
-Survival-specific IPCW (per-period cumulative censoring weights over a person-period grid, weighted pooled-logistic hazard, survival-curve variance) is owned by the separate survival package (see `SURVIVAL_PACKAGE_HANDOFF.md`). Phase 14 in causatr targets **scalar outcomes** only — point outcomes with MAR missingness and longitudinal ICE with a final scalar outcome. The survival package imports Phase 14 for the censoring-model fitting primitive and layers cross-time aggregation on top.
+Survival-specific IPCW (per-period cumulative censoring weights over a person-period grid, weighted pooled-logistic hazard, survival-curve variance) is owned by the separate survival package (`etverse/survatr`). Phase 14 in causatr targets **scalar outcomes** only — point outcomes with MAR missingness and longitudinal ICE with a final scalar outcome. The survival package imports Phase 14 for the censoring-model fitting primitive and layers cross-time aggregation on top.
 
 ### How `censoring =` works today
 

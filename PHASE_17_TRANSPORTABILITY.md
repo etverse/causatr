@@ -130,7 +130,7 @@ Phase 11 (diagnose rewrite) will fold this in; Phase 17 ships a minimal shim ana
 - **Phase 12 (stochastic) × Phase 17.** MC integration applies to the outcome-model augmentation (average $\hat{m}$ across stochastic draws); sampling weight is deterministic in L and unaffected. Clean composition.
 - **Phase 14 (IPCW) × Phase 17.** Four-way stack: outcome/propensity + censoring + sampling + plug-in. This is the most elaborate stacked EE in the package but composes mechanically.
 - **Phase 16 (AIPW) × Phase 17.** Already covered above as the "triple-robust" AIPW transport. Subsection in both Phase 16 and Phase 17 should point to the joint implementation.
-- **Survival composition.** Transporting a survival curve from study to target population is owned by the separate survival package; it imports Phase 17 for the scalar sampling-weight primitive and layers the cross-time delta chain on top. See `SURVIVAL_PACKAGE_HANDOFF.md`.
+- **Survival composition.** Transporting a survival curve from study to target population is owned by the separate survival package (`etverse/survatr`); it imports Phase 17 for the scalar sampling-weight primitive and layers the cross-time delta chain on top.
 
 ## Chunks
 
