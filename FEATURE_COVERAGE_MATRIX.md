@@ -98,6 +98,10 @@ Rejections: invalid family string ✅, missing outcome/treatment col ✅ (test-g
 | multi (bin × poisson) | gauss | static + shift | ATE | diff | sandwich | — | ✅ | test-multivariate-ipw.R |
 | multi (bin × negbin) | gauss | static + shift | ATE | diff | sandwich | — | ✅ | test-multivariate-ipw.R |
 | multi (poisson × cont) | gauss | shift + natural | ATE | diff | sandwich | — | ✅ seq-MTP | test-multivariate-ipw.R |
+| multi (bin × bin) | gauss | static + stabilize="marginal" | ATE | diff | sandwich | — | ✅ | test-multivariate-ipw.R |
+| multi (cont × cont) | gauss | shift + shift + stabilize="marginal" | ATE | diff | sandwich | — | ✅ | test-multivariate-ipw.R |
+| multi (bin × bin) | gauss | static + stabilize="marginal" | ATE | diff | bootstrap | — | ✅ | test-multivariate-ipw.R |
+| multi (bin × cat) | gauss | static + stabilize="marginal" | ATE | diff | sandwich | — | ✅ | test-multivariate-ipw.R |
 
 **Estimand note.** Multivariate IPW implements the *sequential MTP* estimand (Díaz et al. 2023, `lmtp`). Multivariate gcomp implements deterministic joint transformation. For static-only interventions the two coincide; for non-static interventions on non-final components they can differ by the upstream $\to$ downstream cross-dependence (e.g. shift $+$ shift on a cont $\times$ cont DGP with $A_1 \to A_2$ coefficient $0.3$: gcomp gives $-0.9$, IPW gives $-1.02$).
 
@@ -115,6 +119,7 @@ Rejections (all ✅ tested):
 - multivariate + bare treatment in confounders (`~ L + A1`) $\to$ test-multivariate-ipw.R
 - multivariate + `propensity_family` invalid shape $\to$ test-multivariate-ipw.R
 - multivariate count + `static()` / `threshold()` / `dynamic()` / non-integer `shift()` $\to$ test-multivariate-ipw.R
+- univariate IPW + `stabilize = "marginal"` $\to$ test-multivariate-ipw.R (`causatr_stabilize_univariate`)
 
 ---
 

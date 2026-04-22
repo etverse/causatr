@@ -83,6 +83,7 @@ fit_ipw <- function(
   model_fn,
   propensity_model_fn,
   propensity_family = NULL,
+  stabilize = "none",
   call,
   ...
 ) {
@@ -94,6 +95,20 @@ fit_ipw <- function(
   }
 
   is_multivariate <- length(treatment) > 1L
+
+  if (!is_multivariate && stabilize != "none") {
+    rlang::abort(
+      c(
+        paste0(
+          "`stabilize = '",
+          stabilize,
+          "'` is only supported for multivariate IPW."
+        ),
+        i = "Univariate IPW already uses Hajek normalization on the MSM; a separate numerator model is not implemented for single-treatment weights."
+      ),
+      class = "causatr_stabilize_univariate"
+    )
+  }
 
   # Parse effect-modification terms and reject bare treatment in
   # confounders (`~ L + A`). True EM terms (`A:sex`) are detected
@@ -189,7 +204,8 @@ fit_ipw <- function(
       confounders = confounders,
       model_fn = model_fn,
       propensity_model_fn = propensity_model_fn,
-      propensity_family = propensity_family
+      propensity_family = propensity_family,
+      stabilize = stabilize
     )
     if (!is.null(weights)) {
       tm_args$weights <- weights[fit_rows]
@@ -322,7 +338,8 @@ fit_ipw <- function(
       propensity_family = propensity_family,
       model_fn = model_fn,
       em_info = em_info,
-      is_multivariate = is_multivariate
+      is_multivariate = is_multivariate,
+      stabilize = stabilize
     )
   )
 }

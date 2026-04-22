@@ -773,3 +773,170 @@ test_that("mv IPW: ATT/ATC fail at the existing trt-estimand check", {
     causat(df, "Y", c("A1", "A2"), ~L, estimator = "ipw", estimand = "ATT")
   )
 })
+
+# ---------------------------------------------------------------------
+# Stabilized weights (stabilize = "marginal")
+# ---------------------------------------------------------------------
+
+test_that("mv IPW: stabilize = 'marginal' fits per-component numerator models", {
+  df <- sim_bb()
+  fit <- causat(
+    df,
+    "Y",
+    c("A1", "A2"),
+    ~L,
+    estimator = "ipw",
+    stabilize = "marginal"
+  )
+  expect_equal(fit$details$stabilize, "marginal")
+  tms <- fit$details$treatment_models
+  num_models <- attr(tms, "numerator_models")
+  expect_false(is.null(num_models))
+  expect_length(num_models, 2L)
+  # Numerator model for k = 1 conditions on "1" (intercept-only); for
+  # k = 2 conditions on A_1 only (no L).
+  ps1 <- deparse(num_models[[1]]$ps_formula)
+  ps2 <- deparse(num_models[[2]]$ps_formula)
+  expect_false(grepl("L", ps1, fixed = TRUE))
+  expect_false(grepl("L", ps2, fixed = TRUE))
+  expect_true(grepl("A1", ps2, fixed = TRUE))
+})
+
+test_that("mv IPW: stabilized static+static recovers truth (same estimand as unstabilized)", {
+  # Under static+static the Hajek normalization absorbs the numerator
+  # constants; stabilized and unstabilized weights produce the same
+  # point estimate up to numerical noise.
+  df <- sim_bb()
+  ivs <- list(
+    both = list(A1 = static(1), A2 = static(1)),
+    neither = list(A1 = static(0), A2 = static(0))
+  )
+  fit0 <- causat(df, "Y", c("A1", "A2"), ~L, estimator = "ipw")
+  fit1 <- causat(
+    df,
+    "Y",
+    c("A1", "A2"),
+    ~L,
+    estimator = "ipw",
+    stabilize = "marginal"
+  )
+  res0 <- contrast(fit0, ivs, reference = "neither")
+  res1 <- contrast(fit1, ivs, reference = "neither")
+
+  expect_true(
+    abs(res0$contrasts$estimate[1] - res1$contrasts$estimate[1]) < 0.01
+  )
+  expect_true(abs(res1$contrasts$estimate[1] - 2.5) < 0.3)
+  expect_true(res1$contrasts$se[1] > 0 && is.finite(res1$contrasts$se[1]))
+})
+
+test_that("mv IPW: stabilized shift+shift recovers sequential-MTP truth", {
+  # Same DGP and truth as the unstabilized shift+shift test (-1.02).
+  # Stabilization does NOT change the estimand -- both targets
+  # E[Y^d] - E[Y^natural] under sequential MTP. SEs may differ.
+  ests <- numeric(5)
+  for (s in 1:5) {
+    df <- sim_cc(n = 5000, seed = s)
+    fit <- causat(
+      df,
+      "Y",
+      c("A1", "A2"),
+      ~L,
+      estimator = "ipw",
+      stabilize = "marginal"
+    )
+    res <- contrast(
+      fit,
+      interventions = list(
+        shifted = list(A1 = shift(-1), A2 = shift(-1)),
+        natural = list(A1 = shift(0), A2 = shift(0))
+      ),
+      reference = "natural"
+    )
+    ests[s] <- res$contrasts$estimate[1]
+  }
+  expect_true(abs(mean(ests) - (-1.02)) < 0.15)
+})
+
+test_that("mv IPW: stabilize bootstrap refit works and SE is finite", {
+  # Bootstrap refits both numerator and denominator models per
+  # replicate, so it captures the full uncertainty (including gamma)
+  # that the nuisance-fixed sandwich understates.
+  df <- sim_bb(n = 500)
+  fit <- causat(
+    df,
+    "Y",
+    c("A1", "A2"),
+    ~L,
+    estimator = "ipw",
+    stabilize = "marginal"
+  )
+  ivs <- list(
+    both = list(A1 = static(1), A2 = static(1)),
+    neither = list(A1 = static(0), A2 = static(0))
+  )
+  res <- contrast(
+    fit,
+    ivs,
+    reference = "neither",
+    ci_method = "bootstrap",
+    n_boot = 50
+  )
+  expect_true(res$contrasts$se[1] > 0 && is.finite(res$contrasts$se[1]))
+})
+
+test_that("mv IPW: stabilize rejected for univariate IPW", {
+  df <- data.frame(
+    Y = rnorm(100),
+    A = rbinom(100, 1, 0.5),
+    L = rnorm(100)
+  )
+  expect_error(
+    causat(df, "Y", "A", ~L, estimator = "ipw", stabilize = "marginal"),
+    class = "causatr_stabilize_univariate"
+  )
+})
+
+test_that("mv IPW: stabilize accepts NULL (default 'none')", {
+  # Default should not fit numerator models.
+  df <- sim_bb()
+  fit <- causat(df, "Y", c("A1", "A2"), ~L, estimator = "ipw")
+  expect_equal(fit$details$stabilize, "none")
+  expect_null(attr(fit$details$treatment_models, "numerator_models"))
+})
+
+test_that("mv IPW: stabilize = 'marginal' works with categorical components", {
+  # Confirm the stabilize path handles the multinomial branch.
+  set.seed(42)
+  n <- 5000
+  L <- rnorm(n)
+  A1 <- rbinom(n, 1, plogis(0.3 * L))
+  A2 <- factor(sample(c("low", "med", "high"), n, replace = TRUE))
+  Y <- 0.5 +
+    1.0 * A1 +
+    1.5 * (A2 == "high") +
+    0.7 * (A2 == "med") -
+    0.5 * L +
+    rnorm(n)
+  df <- data.frame(L = L, A1 = A1, A2 = A2, Y = Y)
+
+  fit <- causat(
+    df,
+    "Y",
+    c("A1", "A2"),
+    ~L,
+    estimator = "ipw",
+    stabilize = "marginal"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(
+      high = list(A1 = static(1), A2 = static("high")),
+      low = list(A1 = static(0), A2 = static("low"))
+    ),
+    reference = "low"
+  )
+  # Truth: 1.0 + 1.5 = 2.5.
+  expect_true(abs(res$contrasts$estimate[1] - 2.5) < 0.3)
+  expect_true(res$contrasts$se[1] > 0 && is.finite(res$contrasts$se[1]))
+})

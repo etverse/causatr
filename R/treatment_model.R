@@ -364,6 +364,7 @@ fit_treatment_models <- function(
   model_fn = stats::glm,
   propensity_model_fn = NULL,
   propensity_family = NULL,
+  stabilize = "none",
   weights = NULL,
   ...
 ) {
@@ -471,7 +472,76 @@ fit_treatment_models <- function(
   }
 
   names(models) <- treatment
-  structure(models, class = c("causatr_treatment_models", "list"))
+
+  # Stabilized weights (sequential MTP; Robins, Hernan, Brumback 2000
+  # extended to multivariate). Under `stabilize = "marginal"`, the
+  # per-component numerator factor is swapped for a density that drops
+  # `L` from the conditioning -- `g_k(A_k | A_{1..k-1})`. The
+  # denominator stays at the full-L density. The per-component weight
+  # becomes
+  #   w_k^s = g_k(d_k^{-1}(A_k) | A_{1..k-1}) * |Jac| /
+  #           f_k(A_k | A_{1..k-1}, L)
+  # This dampens the multiplicative L-dependence across K factors and
+  # typically reduces weight variance.
+  num_models <- NULL
+  if (stabilize == "marginal") {
+    num_models <- vector("list", K)
+    for (k in seq_along(treatment)) {
+      # Numerator g_k(A_k | A_{1..k-1}) conditions only on prior
+      # treatments (no L / baseline confounders). For k = 1 the
+      # conditioning is empty -> intercept-only model.
+      if (k == 1L) {
+        num_rhs <- "1"
+      } else {
+        num_rhs <- treatment[seq_len(k - 1L)]
+      }
+      num_confounders_k <- stats::reformulate(num_rhs)
+
+      # Reuse the same per-component family / fitter dispatch as the
+      # denominator model -- the numerator density has the same
+      # marginal support structure (bernoulli stays bernoulli, count
+      # stays count, etc.).
+      fam_k <- if (!is.na(pf_vec[k]) && nzchar(pf_vec[k])) {
+        pf_vec[k]
+      } else {
+        detect_treatment_family(data[[treatment[k]]])
+      }
+      fitter_k <- if (!is.null(propensity_model_fn)) {
+        propensity_model_fn
+      } else if (fam_k == "categorical") {
+        nnet::multinom
+      } else if (fam_k == "negbin") {
+        check_pkg("MASS")
+        MASS::glm.nb
+      } else {
+        model_fn
+      }
+      pf_arg_k <- if (!is.na(pf_vec[k]) && nzchar(pf_vec[k])) {
+        pf_vec[k]
+      } else {
+        NULL
+      }
+
+      num_models[[k]] <- fit_treatment_model(
+        data = data,
+        treatment = treatment[k],
+        confounders = num_confounders_k,
+        model_fn = fitter_k,
+        propensity_family = pf_arg_k,
+        weights = weights,
+        ...
+      )
+    }
+    names(num_models) <- treatment
+    class(num_models) <- c("causatr_treatment_models", "list")
+  }
+
+  structure(
+    models,
+    class = c("causatr_treatment_models", "list"),
+    numerator_models = num_models,
+    stabilize = stabilize
+  )
 }
 
 

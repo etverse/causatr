@@ -753,40 +753,50 @@ compute_density_ratio_weights_mv <- function(
 
   # Per-component density ratio under the sequential MTP semantics
   # of Diaz, Williams, Hoffman, Schenck (2023). The k-th factor is
-  #   w_k = f_k(d_k^{-1}(A_k_obs) | A_{1..k-1}_obs, L) * |Jac d_k^{-1}|
+  #   w_k = f^num_k(d_k^{-1}(A_k_obs) | A_{1..k-1}_obs, L?) * |Jac d_k^{-1}|
   #         / f_k(A_k_obs | A_{1..k-1}_obs, L)
-  # Both numerator and denominator condition on OBSERVED upstream
-  # treatment values, not intervened. This is the standard sequential
-  # MTP interpretation (Diaz 2023 Sec 2): at each stage k the
-  # "natural" value A_k^n is drawn from the CONDITIONAL of A_k given
-  # the counterfactual history, which -- at evaluation point equal to
-  # the observed data -- plugs in observed A_{1..k-1} for the
-  # conditioning slots. The intervened density g_k^d(a | obs_hist, L)
-  # is then the pushforward of f_k(. | obs_hist, L) under d_k, which
-  # is `f_k(d_k^{-1}(a) | obs_hist, L) * |Jac d_k^{-1}|`.
+  # The DENOMINATOR always uses the full-L density model `f_k` fit on
+  # baseline confounders + prior treatments. Under `stabilize = "none"`
+  # the NUMERATOR evaluates on the same full-L model; under
+  # `stabilize = "marginal"` the numerator evaluates on a separately
+  # fit `g_k(A_k | A_{1..k-1})` that drops L -- `numerator_models[[k]]`
+  # from `fit_treatment_models(stabilize = "marginal")`. Both halves
+  # condition on OBSERVED upstream treatments.
   #
-  # For natural course on component k (d_k = identity), the ratio
-  # simplifies to 1 -- there is NO "upstream conditioning shift" to
-  # accumulate. This matches `lmtp::lmtp_ipw()` behavior.
+  # For natural course on component k under stabilize = "none", the
+  # ratio simplifies to 1. Under stabilize = "marginal" the ratio is
+  # g_k(A_k | ..._obs) / f_k(A_k | ..._obs, L) -- not 1, because the
+  # two models have different conditioning sets.
+  num_models <- attr(treatment_models, "numerator_models")
+  stabilize <- attr(treatment_models, "stabilize") %||% "none"
+
   joint_w <- rep(1, nrow(data))
   for (k in seq_len(K)) {
     iv_k <- interventions[[k]]
     tm_k <- treatment_models[[k]]
     a_obs_k <- data[[tm_k$treatment]]
+    # Pick numerator model: marginal g_k if stabilize; otherwise same
+    # full-L f_k as denominator.
+    tm_num_k <- if (stabilize == "marginal") num_models[[k]] else tm_k
 
-    # Denominator: observed density of A_k at observed conditioning.
+    # Denominator: observed density of A_k at observed conditioning
+    # under the full-L model f_k.
     f_obs <- evaluate_density(tm_k, a_obs_k, data)
     check_density_positivity(
       f_obs,
       paste0("multivariate density (component ", k, ")")
     )
 
-    # Numerator branches by intervention type. Both numerator and
-    # denominator use `data` (observed conditioning) as the evaluator
-    # newdata; only the k-th ARGUMENT (A_k vs d_k^{-1}(A_k)) changes.
     if (is.null(iv_k)) {
-      # Natural course: w_k = f_k(A_k | obs_hist, L) / f_k(A_k | obs_hist, L) = 1.
-      w_k <- rep(1, nrow(data))
+      # Natural course. Under stabilize = "none" the ratio is 1
+      # (identical models); under stabilize = "marginal" it's the
+      # density-ratio between the marginal and full-L models.
+      if (stabilize == "none") {
+        w_k <- rep(1, nrow(data))
+      } else {
+        f_num <- evaluate_density(tm_num_k, a_obs_k, data)
+        w_k <- f_num / f_obs
+      }
     } else {
       # Reuse the univariate compatibility check (rejects threshold,
       # bad family combos, etc.); IPSI was already rejected upstream
@@ -795,15 +805,25 @@ compute_density_ratio_weights_mv <- function(
       iv_type <- iv_k$type
 
       if (iv_type %in% c("static", "dynamic")) {
-        # HT branch on discrete treatment.
+        # HT branch on discrete treatment. Numerator density at the
+        # target value (evaluated under the numerator model when
+        # stabilized).
         target <- apply_intervention_to_values(iv_k, data, a_obs_k)
         ind <- as.numeric(a_obs_k == target)
-        # ATE only -- f_star = 1.
-        w_k <- ind / f_obs
+        if (stabilize == "none") {
+          w_k <- ind / f_obs
+        } else {
+          # Stabilized HT: indicator * g_k(target | ...) / f_k(A_obs | ..., L)
+          # The g evaluated at `target` (the intervention point)
+          # equals g evaluated at `a_obs_k` on surviving rows (where
+          # the indicator is 1), so we can reuse f_num at a_obs_k.
+          f_num <- evaluate_density(tm_num_k, a_obs_k, data)
+          w_k <- ind * f_num / f_obs
+        }
       } else if (iv_type == "shift") {
         delta <- iv_k$delta
         a_eval <- a_obs_k - delta
-        f_num <- evaluate_density(tm_k, a_eval, data)
+        f_num <- evaluate_density(tm_num_k, a_eval, data)
         warn_intervened_density_near_zero(
           f_num,
           paste0("multivariate shift (component ", k, ")")
@@ -817,7 +837,7 @@ compute_density_ratio_weights_mv <- function(
           )
         }
         a_eval <- a_obs_k / fct
-        f_num <- evaluate_density(tm_k, a_eval, data)
+        f_num <- evaluate_density(tm_num_k, a_eval, data)
         warn_intervened_density_near_zero(
           f_num,
           paste0("multivariate scale (component ", k, ")")
@@ -917,16 +937,27 @@ make_weight_fn_mv <- function(
 
   # Per-component sub-closures + alpha block lengths. Each sub-closure
   # produces the per-component MV weight
-  #   w_k(alpha_k) = f_k^d(A_k | A_{1..k-1}_obs, L; alpha_k) / f_k(A_k | A_{1..k-1}_obs, L; alpha_k)
-  # under the sequential MTP semantics of Diaz et al. 2023. Both
-  # numerator and denominator condition on OBSERVED upstream treatment
-  # values -- there is no intervened-conditioning substitution. The
-  # per-component branch mirrors `compute_density_ratio_weights_mv()`
-  # so the analytic cross-derivative `A_{beta, alpha}` from numDeriv
-  # matches the weights the MSM was fit with.
+  #   w_k(alpha_k) = f_num / f_k(A_k | A_{1..k-1}_obs, L; alpha_k)
+  # under the sequential MTP semantics of Diaz et al. 2023. The
+  # DENOMINATOR is always the full-L density model `f_k` perturbed
+  # through alpha_k. The NUMERATOR depends on `stabilize`:
+  #   - "none": f_num is evaluated on the same `f_k` at d_k^{-1}(A_k)
+  #     (pushforward) or via the indicator (HT) or equals f_obs
+  #     (natural course, ratio = 1).
+  #   - "marginal": f_num is a FIXED vector evaluated once from the
+  #     numerator model `g_k(A_k | A_{1..k-1}; gamma_hat)` at
+  #     closure-creation time. The numerator model's parameters are
+  #     held fixed under the variance engine's numDeriv perturbation
+  #     of alpha -- same "nuisance-fixed" convention as sigma
+  #     (Gaussian) and theta (negbin). Bootstrap refits both gamma
+  #     and alpha so the full-variance path is unaffected.
   sub_fns <- vector("list", K)
   block_lens <- integer(K)
   alpha_blocks <- vector("list", K)
+
+  stabilize <- attr(treatment_models, "stabilize") %||% "none"
+  num_models <- attr(treatment_models, "numerator_models")
+  n_rows <- nrow(data)
 
   for (k in seq_len(K)) {
     iv_k <- interventions[[k]]
@@ -941,41 +972,117 @@ make_weight_fn_mv <- function(
     fam_tag <- tm_k$family
     sigma <- tm_k$sigma
 
+    # Precompute the fixed-nuisance numerator vector under stabilization.
+    # NULL when not stabilized (closure uses alpha-dependent numerator).
+    f_num_fixed <- NULL
+    if (stabilize == "marginal") {
+      tm_num_k <- num_models[[k]]
+      # Pick the evaluation point of A_k in the numerator density:
+      # - natural course, HT (surviving rows): a_obs_k
+      # - shift: a_obs_k - delta
+      # - scale: a_obs_k / factor
+      a_eval_num <- if (is.null(iv_k)) {
+        a_obs_k
+      } else if (iv_k$type %in% c("static", "dynamic")) {
+        a_obs_k
+      } else if (iv_k$type == "shift") {
+        a_obs_k - iv_k$delta
+      } else if (iv_k$type == "scale") {
+        fct_tmp <- iv_k$factor
+        if (fct_tmp == 0) {
+          rlang::abort(
+            "`scale_by(0)` collapses the treatment support; not a valid MTP."
+          )
+        }
+        a_obs_k / fct_tmp
+      } else {
+        rlang::abort(
+          paste0(
+            "Internal error: make_weight_fn_mv stabilize branch has no numerator for iv_type='",
+            iv_k$type,
+            "'."
+          )
+        )
+      }
+      f_num_fixed <- evaluate_density(tm_num_k, a_eval_num, data)
+    }
+
     # Build the per-component closure based on (intervention, family).
-    # Natural course -> constant 1; static/dynamic -> HT indicator;
-    # shift/scale -> pushforward ratio with |Jac|. All branches
-    # evaluate numerator and denominator at the SAME X_prop (observed
-    # conditioning).
+    # Natural course -> constant 1 (unstabilized) or f_num_fixed / f_obs(α)
+    # (stabilized); static/dynamic -> HT indicator * (f_num_fixed? /) f_obs;
+    # shift/scale -> pushforward ratio with |Jac|, using f_num_fixed if
+    # stabilized, else the alpha-dependent f_num.
     if (is.null(iv_k)) {
-      # Natural course: w_k = 1 constant under sequential MTP (the
-      # ratio of f_k(A_k | obs_hist, L) / f_k(A_k | obs_hist, L) is 1
-      # regardless of alpha).
-      n <- nrow(data)
-      sub_fns[[k]] <- function(alpha) rep(1, n)
+      if (stabilize == "none") {
+        # Natural course: w_k = f_k(A_k | obs_hist, L) / f_k(A_k | obs_hist, L) = 1.
+        n <- n_rows
+        sub_fns[[k]] <- function(alpha) rep(1, n)
+      } else {
+        # Stabilized natural course: w_k = g_k(A_k | ...)/f_k(A_k | ..., L).
+        # Numerator is fixed; denominator via the alpha-dependent
+        # full-L density closure (reuse mv_natural_denominator_closure).
+        sub_fns[[k]] <- mv_stabilized_closure(
+          fam_tag = fam_tag,
+          X_prop = X_prop,
+          a_obs_k = a_obs_k,
+          f_num_fixed = f_num_fixed,
+          ind_or_jac = rep(1, n_rows),
+          sigma = sigma,
+          theta = tm_k$theta,
+          trt_levels = tm_k$levels
+        )
+      }
     } else {
       iv_type <- iv_k$type
       if (iv_type %in% c("static", "dynamic")) {
         target <- apply_intervention_to_values(iv_k, data, a_obs_k)
         ind <- as.numeric(a_obs_k == target)
-        sub_fns[[k]] <- mv_ht_closure(
-          fam_tag,
-          X_prop,
-          a_obs_k,
-          ind,
-          trt_levels = tm_k$levels
-        )
+        if (stabilize == "none") {
+          sub_fns[[k]] <- mv_ht_closure(
+            fam_tag,
+            X_prop,
+            a_obs_k,
+            ind,
+            trt_levels = tm_k$levels
+          )
+        } else {
+          # Stabilized HT: indicator * f_num_fixed / f_obs(alpha).
+          sub_fns[[k]] <- mv_stabilized_closure(
+            fam_tag = fam_tag,
+            X_prop = X_prop,
+            a_obs_k = a_obs_k,
+            f_num_fixed = f_num_fixed,
+            ind_or_jac = ind,
+            sigma = sigma,
+            theta = tm_k$theta,
+            trt_levels = tm_k$levels
+          )
+        }
       } else if (iv_type == "shift") {
         delta <- iv_k$delta
         a_eval <- a_obs_k - delta
-        sub_fns[[k]] <- mv_pushforward_closure(
-          fam_tag,
-          X_prop,
-          a_obs_k,
-          a_eval,
-          jac_abs = 1,
-          sigma = sigma,
-          theta = tm_k$theta
-        )
+        if (stabilize == "none") {
+          sub_fns[[k]] <- mv_pushforward_closure(
+            fam_tag,
+            X_prop,
+            a_obs_k,
+            a_eval,
+            jac_abs = 1,
+            sigma = sigma,
+            theta = tm_k$theta
+          )
+        } else {
+          # Stabilized pushforward: f_num_fixed * |Jac| / f_obs(alpha).
+          sub_fns[[k]] <- mv_stabilized_closure(
+            fam_tag = fam_tag,
+            X_prop = X_prop,
+            a_obs_k = a_obs_k,
+            f_num_fixed = f_num_fixed,
+            ind_or_jac = rep(1, n_rows),
+            sigma = sigma,
+            theta = tm_k$theta
+          )
+        }
       } else if (iv_type == "scale") {
         fct <- iv_k$factor
         if (fct == 0) {
@@ -984,15 +1091,27 @@ make_weight_fn_mv <- function(
           )
         }
         a_eval <- a_obs_k / fct
-        sub_fns[[k]] <- mv_pushforward_closure(
-          fam_tag,
-          X_prop,
-          a_obs_k,
-          a_eval,
-          jac_abs = abs(1 / fct),
-          sigma = sigma,
-          theta = tm_k$theta
-        )
+        if (stabilize == "none") {
+          sub_fns[[k]] <- mv_pushforward_closure(
+            fam_tag,
+            X_prop,
+            a_obs_k,
+            a_eval,
+            jac_abs = abs(1 / fct),
+            sigma = sigma,
+            theta = tm_k$theta
+          )
+        } else {
+          sub_fns[[k]] <- mv_stabilized_closure(
+            fam_tag = fam_tag,
+            X_prop = X_prop,
+            a_obs_k = a_obs_k,
+            f_num_fixed = f_num_fixed,
+            ind_or_jac = rep(abs(1 / fct), n_rows),
+            sigma = sigma,
+            theta = tm_k$theta
+          )
+        }
       } else {
         rlang::abort(
           paste0(
@@ -1169,6 +1288,126 @@ mv_pushforward_closure <- function(
       "mv_pushforward_closure: unsupported family '",
       fam_tag,
       "' for pushforward branch."
+    )
+  )
+}
+
+
+#' Per-component MV closure under stabilize = "marginal"
+#'
+#' @description
+#' Stabilized per-component multivariate weight factor, with a FIXED
+#' numerator density vector. The numerator `f_num_fixed` was
+#' precomputed from the separate numerator model
+#' `g_k(A_k \mid A_{1..k-1}; \hat\gamma)` at closure-creation time;
+#' its parameters are held fixed under the variance engine's numDeriv
+#' perturbation of alpha (same "nuisance-fixed" convention as sigma /
+#' theta). Only the denominator density depends on alpha:
+#' \deqn{w_k(\alpha_k) = \mathrm{ind\_or\_jac}_i \cdot \frac{f^{\mathrm{num}}_{\mathrm{fixed}, i}}{f_k(A_{k,i} \mid A_{1..k-1}^{\mathrm{obs}}, L_i; \alpha_k)}.}
+#'
+#' `ind_or_jac` is a length-`n` vector that carries either:
+#' - the HT indicator `I(A_k = target)` for static / dynamic
+#'   interventions (zero outside the target set);
+#' - a constant `|Jac|` per row for pushforward (shift / scale)
+#'   interventions;
+#' - all-`1`s for natural course.
+#'
+#' This one helper covers all three branches because the
+#' alpha-dependence always lives in the denominator only under the
+#' "nuisance-fixed" convention.
+#'
+#' Bootstrap variance correctly captures the full uncertainty
+#' (including gamma) because `refit_ipw()` re-fits both the
+#' denominator and numerator models on each replicate.
+#'
+#' @param fam_tag Character. Treatment density family tag.
+#' @param X_prop Design matrix of the full-L propensity model at
+#'   observed upstream conditioning.
+#' @param a_obs_k Observed treatment vector for component k.
+#' @param f_num_fixed Precomputed numerator density vector of length
+#'   `n` (evaluated on the numerator model at the appropriate A_k
+#'   point for the intervention).
+#' @param ind_or_jac Length-`n` vector carrying the intervention-
+#'   specific indicator / Jacobian (see description).
+#' @param sigma Residual SD (Gaussian only).
+#' @param theta NB dispersion (negbin only).
+#' @param trt_levels Character vector of factor levels (categorical
+#'   only).
+#' @return `function(alpha)` returning a length-`n` per-component
+#'   weight vector.
+#' @noRd
+mv_stabilized_closure <- function(
+  fam_tag,
+  X_prop,
+  a_obs_k,
+  f_num_fixed,
+  ind_or_jac,
+  sigma = NULL,
+  theta = NULL,
+  trt_levels = NULL
+) {
+  force(X_prop)
+  force(a_obs_k)
+  force(f_num_fixed)
+  force(ind_or_jac)
+  force(sigma)
+  force(theta)
+  force(trt_levels)
+  if (fam_tag == "bernoulli") {
+    return(function(alpha) {
+      p <- stats::plogis(as.numeric(X_prop %*% alpha))
+      f_obs <- ifelse(a_obs_k == 1, p, 1 - p)
+      ind_or_jac * f_num_fixed / f_obs
+    })
+  }
+  if (fam_tag == "categorical") {
+    if (is.null(trt_levels)) {
+      rlang::abort(
+        "mv_stabilized_closure: categorical branch requires `trt_levels`."
+      )
+    }
+    K_lev <- length(trt_levels)
+    Km1 <- K_lev - 1L
+    p_cols <- ncol(X_prop)
+    n_obs <- length(a_obs_k)
+    a_obs_char <- as.character(a_obs_k)
+    col_idx <- match(a_obs_char, trt_levels)
+    return(function(alpha) {
+      alpha_mat <- matrix(alpha, nrow = Km1, ncol = p_cols, byrow = TRUE)
+      eta <- X_prop %*% t(alpha_mat)
+      exp_eta <- exp(eta)
+      denom <- 1 + rowSums(exp_eta)
+      prob_mat <- cbind(1 / denom, exp_eta / denom)
+      f_obs <- prob_mat[cbind(seq_len(n_obs), col_idx)]
+      ind_or_jac * f_num_fixed / f_obs
+    })
+  }
+  if (fam_tag == "gaussian") {
+    return(function(alpha) {
+      mu <- as.numeric(X_prop %*% alpha)
+      f_obs <- stats::dnorm(a_obs_k, mean = mu, sd = sigma)
+      ind_or_jac * f_num_fixed / f_obs
+    })
+  }
+  if (fam_tag == "poisson") {
+    return(function(alpha) {
+      lam <- as.numeric(exp(X_prop %*% alpha))
+      f_obs <- stats::dpois(a_obs_k, lam)
+      ind_or_jac * f_num_fixed / f_obs
+    })
+  }
+  if (fam_tag == "negbin") {
+    return(function(alpha) {
+      lam <- as.numeric(exp(X_prop %*% alpha))
+      f_obs <- stats::dnbinom(a_obs_k, mu = lam, size = theta)
+      ind_or_jac * f_num_fixed / f_obs
+    })
+  }
+  rlang::abort(
+    paste0(
+      "mv_stabilized_closure: unsupported family '",
+      fam_tag,
+      "'."
     )
   )
 }

@@ -91,6 +91,37 @@ single-model `apply_model_correction()` results.
   closed form has no joint analogue.
 - Multivariate matching still rejected (MatchIt is binary-only).
 
+### Stabilized weights (Phase 8e)
+
+Multivariate IPW now accepts a `stabilize = c("none", "marginal")`
+argument. Under `"marginal"`, the per-component numerator factor is
+swapped for a separately-fit density $g_k(A_k \mid A_{1..k-1})$ that
+drops the full covariate vector $L$ from the conditioning (Robins,
+Hernán, Brumback 2000, extended to multivariate). The per-component
+weight becomes
+
+$$
+w_k^{s}(\alpha_k) = \frac{g_k\bigl(d_k^{-1}(A_k) \mid A_{1..k-1}\bigr) \cdot |\mathrm{Jac}|}{f_k(A_k \mid A_{1..k-1}, L; \alpha_k)}.
+$$
+
+The numerator model's parameters are held fixed in the sandwich
+variance (nuisance-fixed, same convention as $\sigma$ for Gaussian
+and $\theta$ for negative binomial). Bootstrap refits both numerator
+and denominator models on every replicate and captures the full
+variance correctly. Implemented for all treatment families the mv
+engine already supports (binary, continuous, categorical, Poisson,
+negative binomial) and every intervention shape (static, shift,
+scale, dynamic, natural course). Rejected with
+`causatr_stabilize_univariate` under univariate IPW (univariate
+already benefits from the Hájek normalization on the MSM).
+
+Whether stabilization reduces or inflates the sandwich SE depends on
+the DGP: when the marginal density of $A_k$ has smaller variance than
+the full-$L$ conditional, weights are dampened and the SE shrinks;
+when the full-$L$ conditional is tighter than the marginal,
+stabilization can inflate SE. This is a known property of MV MTP
+weights (Díaz et al. 2023) and a DGP-dependent tradeoff, not a bug.
+
 ## Breaking change: survival analysis removed
 
 Causal survival analysis has been extracted from causatr into its own

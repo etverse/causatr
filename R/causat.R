@@ -100,6 +100,22 @@
 #'   `MASS::glm.nb` is auto-selected as the propensity fitter unless
 #'   `propensity_model_fn` is explicitly provided. Ignored for
 #'   `"gcomp"` and `"matching"`.
+#' @param stabilize Character. Multivariate IPW only. Controls the
+#'   numerator density in each per-component weight factor.
+#'   \itemize{
+#'     \item `"none"` (default): numerator conditions on the same
+#'       covariates as the denominator. Per-component weight is
+#'       \eqn{f_k(d_k^{-1}(A_k) \mid A_{1..k-1}^{\mathrm{obs}}, L) \cdot |\mathrm{Jac}| / f_k(A_k \mid A_{1..k-1}^{\mathrm{obs}}, L)}.
+#'     \item `"marginal"`: numerator drops \eqn{L}, conditioning only
+#'       on prior treatments (Robins, Hernán, Brumback 2000). Fits a
+#'       second per-component density model \eqn{g_k(A_k \mid A_{1..k-1})}
+#'       and uses it in the numerator; the denominator stays at the
+#'       full-L density. This dampens the multiplicative L-dependence
+#'       across \eqn{K} factors and typically reduces weight variance
+#'       substantially on datasets where multiple components have
+#'       well-predicted propensities.
+#'   }
+#'   Ignored for univariate IPW, `"gcomp"`, and `"matching"`.
 #' @param ... Additional arguments passed to the underlying estimation
 #'   function. For `estimator = "ipw"`, dots are forwarded into the
 #'   user's `propensity_model_fn` via `fit_treatment_model()` (e.g.
@@ -315,8 +331,10 @@ causat <- function(
   model_fn = stats::glm,
   propensity_model_fn = NULL,
   propensity_family = NULL,
+  stabilize = c("none", "marginal"),
   ...
 ) {
+  stabilize <- rlang::arg_match(stabilize)
   # Capture the call for later display in print/summary of the result.
   call <- match.call()
   estimator <- rlang::arg_match(estimator)
@@ -437,7 +455,8 @@ causat <- function(
       model_fn,
       propensity_model_fn,
       propensity_family,
-      call,
+      stabilize = stabilize,
+      call = call,
       ...
     ),
     matching = fit_matching(

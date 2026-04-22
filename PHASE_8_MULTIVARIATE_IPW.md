@@ -95,11 +95,21 @@ contrast(fit,
 - [x] Categorical branch in `mv_ht_closure()` using the multinomial softmax (flattened $(K-1) \times p$ alpha reshape).
 - [x] Multinomial propensity bread dispatch in `compute_ipw_if_self_contained_mv_one()` via `inherits(model, "multinom")` routing to `prepare_model_if_multinom()`.
 
-### 8d — count components (`c6d977f`)
+### 8d — count components (`5f87acb`)
 
 - [x] Add truth-based tests for count components. Bin $\times$ Poisson and bin $\times$ negbin tests use an $A_2 \perp A_1$ DGP so the truth collapses to the marginal $A_1$ effect ($1.5$). Poisson $\times$ continuous tests use the chain-rule DGP where shift($+1$) on $A_1$ propagates through $f_2(A_2 \mid A_1, L)$ via the $A_1 \to A_2$ coefficient; sequential-MTP truth is $0.3 + 0.4 \cdot 0.2 = 0.38$.
 - [x] Add rejection tests for count-component interventions: `static()`, `threshold()`, `dynamic()`, non-integer `shift()`. All already dispatched to by `check_intervention_family_compat()` per component.
 - Note: most of 8d's plumbing landed in 8c (per-component `propensity_family` in `fit_treatment_models()`, count branches in `mv_pushforward_closure()`). 8d is therefore test-only — no implementation changes.
+
+### 8e — stabilized weights (`TBD`)
+
+- [x] Add `stabilize = c("none", "marginal")` argument to `causat()`, thread through `fit_ipw()`, stash in `fit$details$stabilize`.
+- [x] Extend `fit_treatment_models()` to fit per-component numerator models $g_k(A_k \mid A_{1..k-1})$ under `stabilize = "marginal"`. Stored as `attr(treatment_models, "numerator_models")`.
+- [x] `compute_density_ratio_weights_mv()` swaps the numerator density to $g_k$ when stabilized; denominator stays at the full-$L$ $f_k$.
+- [x] `make_weight_fn_mv()` precomputes a fixed-gamma numerator vector $f^{\mathrm{num}}_{\mathrm{fixed}}$ and routes to new `mv_stabilized_closure()` helper. The closure only varies with $\alpha$ (denominator parameters) — numerator $\gamma$ is held fixed under numDeriv perturbation (nuisance-fixed convention, matching $\sigma$ for Gaussian and $\theta$ for negbin).
+- [x] `refit_ipw()` replays `stabilize` so bootstrap captures the full (including $\gamma$) uncertainty.
+- [x] Reject stabilize under univariate IPW (`causatr_stabilize_univariate`).
+- [x] Tests: numerator-model structure check, static+static agreement with unstabilized, shift+shift recovery of sequential-MTP truth, bootstrap refit, univariate rejection, categorical component compatibility.
 
 ### Tests
 
@@ -113,4 +123,5 @@ Phase 4 (self-contained IPW engine), Phase 6 (EM infrastructure used by 8b).
 
 - Multivariate matching (MatchIt limitation).
 - Longitudinal multivariate IPW (Phase 10).
-- Stabilized weights (Phase 8e, design doc pending).
+- Sandwich variance that includes numerator-model uncertainty under `stabilize = "marginal"`. Currently the numerator parameters $\gamma$ are held fixed in the sandwich (nuisance-fixed convention); bootstrap gives the full variance. Follow-up if users need analytic full-variance SEs.
+- `stabilize = "baseline"` mode (keep baseline modifiers from EM, drop other covariates from numerator). Deferred — the current `"marginal"` drops all covariates.
