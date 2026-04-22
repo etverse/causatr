@@ -87,7 +87,13 @@ level of \code{by}.}
 (\code{ci_method = "bootstrap"} only). \code{"no"} (default) runs sequentially;
 \code{"multicore"} uses forked processes via \code{\link[parallel:mclapply]{parallel::mclapply()}} (Unix
 only); \code{"snow"} uses socket clusters via \code{\link[parallel:clusterApply]{parallel::parLapply()}}
-(cross-platform). Passed directly to \code{\link[boot:boot]{boot::boot()}}. Ignored when
+(cross-platform); \code{"future"} dispatches replicates through
+\code{\link[future.apply:future_lapply]{future.apply::future_lapply()}} so any active \code{\link[future:plan]{future::plan()}} is
+honoured (local multisession, remote cluster, \code{future.batchtools},
+etc.). The \code{"no" / "multicore" / "snow"} paths go through
+\code{\link[boot:boot]{boot::boot()}}; \code{"future"} bypasses it to let \code{future} own the
+scheduling, which means the \code{ncpus} argument is ignored for
+\code{"future"} (the plan's worker count governs). Ignored when
 \code{ci_method = "sandwich"}.}
 
 \item{ncpus}{Integer. Number of CPU cores for parallel bootstrap. Default

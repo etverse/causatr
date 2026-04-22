@@ -1,5 +1,32 @@
 # causatr (development version)
 
+## 2026-04-22 — `future` backend for bootstrap (Phase 9c)
+
+`contrast(parallel = "future")` now dispatches bootstrap replicates
+through `future.apply::future_lapply()`, so any active
+`future::plan()` is honoured. Users with remote / cluster /
+`future.batchtools` workflows no longer have to set up socket
+clusters by hand via `parallel = "snow"`.
+
+```r
+library(future)
+plan(multisession, workers = 4)
+contrast(fit, list(a1 = static(1), a0 = static(0)),
+         ci_method = "bootstrap", n_boot = 500,
+         parallel = "future")
+```
+
+- The `"no" / "multicore" / "snow"` paths remain unchanged and still
+  go through `boot::boot()`. `"future"` bypasses `boot::boot()` to
+  let the `future` plan own the scheduling.
+- `ncpus` is ignored under `"future"` — the plan's worker count is
+  the single source of truth.
+- Reproducibility: `future.seed = TRUE` gives each worker a
+  deterministic L'Ecuyer stream, so `set.seed()` at the dispatch site
+  governs every replicate.
+- `future` and `future.apply` are Suggests-only; `check_pkg()` gates
+  the dispatch.
+
 ## 2026-04-22 — `survey::svydesign` integration (Phase 9b)
 
 `causat(weights = )` now accepts a `survey::svydesign` object directly.

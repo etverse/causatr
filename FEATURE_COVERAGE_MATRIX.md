@@ -305,6 +305,8 @@ remain in this matrix.
 | Cluster rejections (matching + fit/contrast, unknown col, wrong length, NA) | ✅ | test-cluster-sandwich.R |
 | `causat(weights = survey::svydesign(...))` — weights + PSU auto-extract | ✅ | test-survey-design.R |
 | svydesign + matching rejected, row-count mismatch rejected | ✅ | test-survey-design.R |
+| `contrast(parallel = "future")` — gcomp + ICE via `future::plan()` | ✅ | test-future-backend.R |
+| `dispatch_boot()` — future vs boot MC equivalence | ✅ | test-future-backend.R |
 | `causat_mice()` stub | 🟡 | test-causat-mice.R |
 | Cross-method EM triangulation (gcomp + IPW + matching) | ✅ | test-effect-modification.R |
 
@@ -335,7 +337,7 @@ Unified `A:modifier` API across gcomp / IPW / matching / ICE. IPW MSM expansion 
 Joint density via sequential factorisation, product density-ratio weights under sequential-MTP semantics (Díaz et al. 2023), multi-model propensity sandwich (block-diagonal bread). **Done** (chunks 8a, 8a-fix, 8b, 8c, 8d, 8e). Supports binary / continuous / categorical / count components, mixed types, K = 2..K, effect modification (`A_k:modifier`), and optional stabilized weights (`stabilize = "marginal"` with per-component numerator models $g_k(A_k \mid A_{1..k-1})$). Rejects IPSI. See multi rows in the IPW table above.
 
 ### Phase 9 — Inference infrastructure
-Survey design integration, general cluster-robust sandwich, `future` backend. General cluster-robust sandwich ✅ (`cluster =` on `causat()` and `contrast()`; `sandwich::vcovCL` oracle). `svydesign` integration ✅ (`causat(weights = svydesign_obj)`). Parallel bootstrap ✅. `future` backend still ❌.
+Survey design integration, general cluster-robust sandwich, `future` backend. **All shipped.** General cluster-robust sandwich ✅ (`cluster =` on `causat()` and `contrast()`; `sandwich::vcovCL` oracle). `svydesign` integration ✅ (`causat(weights = svydesign_obj)`). Parallel bootstrap ✅. `future` backend ✅ (`parallel = "future"`).
 
 ### Phase 10 — Longitudinal IPW
 Sequential density-ratio weights, cumulative product weights, stabilized weights, time-varying MSM. All ❌.

@@ -81,7 +81,13 @@
 #'   (`ci_method = "bootstrap"` only). `"no"` (default) runs sequentially;
 #'   `"multicore"` uses forked processes via [parallel::mclapply()] (Unix
 #'   only); `"snow"` uses socket clusters via [parallel::parLapply()]
-#'   (cross-platform). Passed directly to [boot::boot()]. Ignored when
+#'   (cross-platform); `"future"` dispatches replicates through
+#'   [future.apply::future_lapply()] so any active [future::plan()] is
+#'   honoured (local multisession, remote cluster, `future.batchtools`,
+#'   etc.). The `"no" / "multicore" / "snow"` paths go through
+#'   [boot::boot()]; `"future"` bypasses it to let `future` own the
+#'   scheduling, which means the `ncpus` argument is ignored for
+#'   `"future"` (the plan's worker count governs). Ignored when
 #'   `ci_method = "sandwich"`.
 #' @param ncpus Integer. Number of CPU cores for parallel bootstrap. Default
 #'   `getOption("boot.ncpus", 1L)`. Passed directly to [boot::boot()].
@@ -241,7 +247,7 @@ contrast <- function(
   # defaults to `getOption("boot.parallel", "no")`, so a session-wide
   # `options(boot.parallel = "multicore")` flips bootstrap parallelism
   # on for every `contrast()` call without per-call plumbing.
-  parallel <- match.arg(parallel, c("no", "multicore", "snow"))
+  parallel <- match.arg(parallel, c("no", "multicore", "snow", "future"))
   # Capture the caller's frame ONCE, at the top level, so a `subset`
   # expression referring to a session variable (e.g. `quote(age >
   # cutoff)`) can still resolve `cutoff` deep inside

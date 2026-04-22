@@ -32,6 +32,8 @@ Imports:
 Suggests:
     cobalt,
     forrest,
+    future,
+    future.apply,
     knitr,
     litedown,
     lmtp,

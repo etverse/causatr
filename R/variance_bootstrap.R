@@ -1,3 +1,93 @@
+#' Run a bootstrap via `boot::boot()` or via the `future` backend
+#'
+#' @description
+#' Thin dispatcher between `boot::boot()`'s built-in parallelism
+#' (`parallel = "no" / "multicore" / "snow"`) and the `future` backend
+#' (`parallel = "future"`). The future path bypasses `boot::boot()`
+#' entirely, draws `R` resample index vectors, evaluates `statistic(d,
+#' idx)` via [future.apply::future_lapply()] so any active
+#' [future::plan()] is respected, and assembles a minimal
+#' `boot::boot`-compatible result (with slot `$t`) so
+#' `process_boot_results()` consumes it uniformly.
+#'
+#' Using `future_lapply` rather than e.g. `boot::boot(parallel = "snow",
+#' cl = future_cluster)` keeps us compatible with remote / cluster
+#' / cloud futures the user has configured (e.g. `plan(cluster,
+#' workers = <hostname_list>)` or `future.batchtools`). The tradeoff is
+#' that we lose `boot::boot`'s own seed-aware PRNG, so the future path
+#' seeds each worker via `future.seed = TRUE` to guarantee
+#' reproducibility under `set.seed()` at the dispatch site.
+#'
+#' The `stype = "i"` in the stub is what tells `boot.ci()` and the
+#' process function that `$t` holds per-replicate statistics keyed by
+#' integer resample indices, matching `boot::boot(sim = "ordinary")`.
+#'
+#' @param data Data passed as the first argument to `statistic`.
+#' @param statistic A `function(d, indices)` that returns a numeric
+#'   vector of length `k` per replicate.
+#' @param R Integer. Number of bootstrap replicates.
+#' @param parallel Character. `"no"`, `"multicore"`, `"snow"`, or
+#'   `"future"`.
+#' @param ncpus Integer. Forwarded to `boot::boot()` for the non-future
+#'   backends; ignored for `"future"` (the plan determines worker
+#'   count).
+#'
+#' @return A `boot`-compatible list with at minimum `$t` (an `R x k`
+#'   matrix of replicate statistics). Sufficient for
+#'   `process_boot_results()`.
+#'
+#' @noRd
+dispatch_boot <- function(data, statistic, R, parallel, ncpus) {
+  if (parallel != "future") {
+    return(boot::boot(
+      data = data,
+      statistic = statistic,
+      R = R,
+      parallel = parallel,
+      ncpus = ncpus
+    ))
+  }
+
+  check_pkg("future.apply")
+
+  # Build per-replicate resample indices up front. For numeric-index
+  # `boot_fn` (the shared point-treatment path) this is the full index
+  # vector `1..n`; for the ICE cluster bootstrap the "data" is already
+  # a vector of unique ids and `boot_fn` indexes into it. Either way,
+  # `boot::boot` draws `length(data)` indices per replicate from
+  # `1..length(data)` with replacement under `sim = "ordinary"`, so we
+  # replicate that contract locally.
+  n <- if (is.data.frame(data) || data.table::is.data.table(data)) {
+    nrow(data)
+  } else {
+    length(data)
+  }
+
+  indices_list <- replicate(
+    R,
+    sample.int(n, n, replace = TRUE),
+    simplify = FALSE
+  )
+
+  # `future.seed = TRUE` gives each worker a deterministic L'Ecuyer
+  # stream so the `set.seed()` call at the dispatch site governs
+  # every replicate -- matching `boot::boot`'s per-call determinism.
+  results <- future.apply::future_lapply(
+    indices_list,
+    function(idx) statistic(data, idx),
+    future.seed = TRUE
+  )
+
+  # Assemble an (R x k) matrix matching `boot::boot()$t`. Failed
+  # replicates (NA vectors from the caller's tryCatch) slot in as NA
+  # rows; `process_boot_results()` already filters those via
+  # `complete.cases()`.
+  t_mat <- do.call(rbind, results)
+
+  list(t = t_mat, R = R, sim = "ordinary", stype = "i")
+}
+
+
 #' Process bootstrap results into vcov matrix and boot_t
 #'
 #' Shared post-processing for `variance_bootstrap()` and
@@ -283,7 +373,7 @@ variance_bootstrap <- function(
     )
   }
 
-  boot_res <- boot::boot(
+  boot_res <- dispatch_boot(
     data = data,
     statistic = boot_fn,
     R = n_boot,
@@ -611,8 +701,9 @@ ice_variance_bootstrap <- function(
     )
   }
 
-  # Run bootstrap: pass individual IDs as data, boot::boot resamples them.
-  boot_res <- boot::boot(
+  # Run bootstrap: pass individual IDs as data, the dispatcher
+  # resamples them via `boot::boot()` or `future.apply` as configured.
+  boot_res <- dispatch_boot(
     data = all_ids,
     statistic = boot_fn,
     R = n_boot,
