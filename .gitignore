@@ -12,11 +12,7 @@ altdoc/pkgdown.yml
 .augment
 .claude/*
 !.claude/commands/
-!.claude/skills/
 !.claude/hard-rules.md
-.claude/skills/*
-!.claude/skills/implement-feature
-!.claude/skills/critical-review-loop
 .codebuddy
 .commandcode
 .continue
