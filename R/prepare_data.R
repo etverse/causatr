@@ -26,6 +26,7 @@ prepare_data <- function(
   time = NULL,
   censoring = NULL,
   history = 1L,
+  cluster = NULL,
   call = rlang::caller_env()
 ) {
   # Coerce to data.table once, up front. Everything downstream
@@ -60,7 +61,8 @@ prepare_data <- function(
     tv_vars,
     id,
     time,
-    censoring
+    censoring,
+    cluster
   ))
   keep_cols <- intersect(keep_cols, names(data))
 

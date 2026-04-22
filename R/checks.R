@@ -733,3 +733,108 @@ check_dots_na_action <- function(..., call = rlang::caller_env()) {
   }
   invisible(NULL)
 }
+
+
+#' Resolve `cluster` argument to a vector aligned with the sandwich IF rows
+#'
+#' @description
+#' Validates the user-supplied `cluster` argument to [contrast()] and
+#' returns the cluster vector (or `NULL`) that the variance engine will
+#' hand to `vcov_from_if(cluster = ...)`. Three shapes are accepted:
+#'
+#' - `NULL`: standard (ungrouped) sandwich aggregation.
+#' - `"col"`: name of a column in `fit$data`; the vector is extracted
+#'   from that column.
+#' - numeric / character / factor of length `nrow(fit$data)`: used
+#'   directly.
+#'
+#' NAs in the cluster vector are rejected upfront — `rowsum()` would
+#' silently treat each NA as its own implicit group (via `factor()`
+#' levels) and quietly produce an aggregated vcov that differs from a
+#' user-specified cluster where the NA handling is explicit.
+#'
+#' Matching is intentionally rejected here rather than silently ignored,
+#' because `variance_if_matching()` already clusters on `subclass` and a
+#' user-supplied cluster would either conflict or double-count. Users
+#' who genuinely need a design cluster outside the matched structure
+#' should estimate on `gcomp` or `ipw`.
+#'
+#' @param cluster `NULL`, column name string, or length-n vector.
+#' @param fit A `causatr_fit` object.
+#' @param call Caller environment for error messages.
+#'
+#' @return `NULL` (no clustering) or a length-n vector suitable for
+#'   `vcov_from_if(cluster = ...)`.
+#'
+#' @noRd
+resolve_cluster <- function(cluster, fit, call = rlang::caller_env()) {
+  if (is.null(cluster)) {
+    return(NULL)
+  }
+
+  if (fit$estimator == "matching") {
+    rlang::abort(
+      c(
+        "`cluster` is not supported for `estimator = \"matching\"`.",
+        i = paste0(
+          "Matching already aggregates IFs cluster-robustly on the ",
+          "matched `subclass`. Adding a user-supplied cluster on top ",
+          "would double-count within-subclass rows."
+        ),
+        i = "Use `estimator = \"gcomp\"` or `\"ipw\"` for a design cluster."
+      ),
+      class = "causatr_bad_cluster",
+      call = call
+    )
+  }
+
+  n <- nrow(fit$data)
+
+  # Accept a column name or a length-n vector. Anything else (e.g. a
+  # formula, a vector with the wrong length, a list) lands in the
+  # final abort below.
+  if (rlang::is_string(cluster)) {
+    if (!cluster %in% names(fit$data)) {
+      rlang::abort(
+        paste0(
+          "`cluster` column '",
+          cluster,
+          "' not found in `fit$data`."
+        ),
+        class = "causatr_bad_cluster",
+        call = call
+      )
+    }
+    vec <- fit$data[[cluster]]
+  } else if (
+    (is.numeric(cluster) || is.character(cluster) || is.factor(cluster)) &&
+      length(cluster) == n
+  ) {
+    vec <- cluster
+  } else {
+    rlang::abort(
+      c(
+        "`cluster` must be NULL, a column name in `fit$data`, or a vector matching `nrow(fit$data)`.",
+        i = paste0("Got length ", length(cluster), " vs n = ", n, ".")
+      ),
+      class = "causatr_bad_cluster",
+      call = call
+    )
+  }
+
+  if (anyNA(vec)) {
+    rlang::abort(
+      c(
+        "`cluster` contains NA values.",
+        i = paste0(
+          "Clustering requires every row to belong to an identifiable ",
+          "cluster. Drop NA rows or provide an explicit singleton id."
+        )
+      ),
+      class = "causatr_bad_cluster",
+      call = call
+    )
+  }
+
+  vec
+}

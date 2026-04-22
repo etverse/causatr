@@ -16,7 +16,8 @@ contrast(
   conf_level = 0.95,
   by = NULL,
   parallel = getOption("boot.parallel", "no"),
-  ncpus = getOption("boot.ncpus", 1L)
+  ncpus = getOption("boot.ncpus", 1L),
+  cluster = NULL
 )
 }
 \arguments{
@@ -91,6 +92,22 @@ only); \code{"snow"} uses socket clusters via \code{\link[parallel:clusterApply]
 
 \item{ncpus}{Integer. Number of CPU cores for parallel bootstrap. Default
 \code{getOption("boot.ncpus", 1L)}. Passed directly to \code{\link[boot:boot]{boot::boot()}}.}
+
+\item{cluster}{Character or \code{NULL}. Name of a column in \code{fit$data}
+identifying cluster membership (e.g. site, household, PSU id). When
+non-\code{NULL}, the sandwich variance is aggregated cluster-robustly:
+per-individual influence functions are \strong{summed within each cluster
+before squaring} (Liang & Zeger 1986), and the resulting
+\eqn{(1/n^2)\sum_c (\sum_{i \in c} \mathrm{IF}_i)^2} estimator is
+numerically equivalent to the stacked-EE cluster-robust sandwich and
+to \code{\link[sandwich:vcovCL]{sandwich::vcovCL()}} applied on the final predict-then-average
+step. Works for \code{estimator = "gcomp"}, \code{"ipw"}, and \code{"ice"}; aborts
+under \code{"matching"} (matching already clusters on its own
+\code{subclass}, and layering a user cluster on top would double-count).
+For ICE with a longitudinal fit, the cluster vector is read from the
+first-time-point rows. Cluster is unused when
+\code{ci_method = "bootstrap"} for point fits; ICE bootstrap already
+resamples entire individual trajectories.}
 }
 \value{
 A \code{causatr_result} object with slots:

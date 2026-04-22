@@ -85,6 +85,21 @@
 #'   `ci_method = "sandwich"`.
 #' @param ncpus Integer. Number of CPU cores for parallel bootstrap. Default
 #'   `getOption("boot.ncpus", 1L)`. Passed directly to [boot::boot()].
+#' @param cluster Character or `NULL`. Name of a column in `fit$data`
+#'   identifying cluster membership (e.g. site, household, PSU id). When
+#'   non-`NULL`, the sandwich variance is aggregated cluster-robustly:
+#'   per-individual influence functions are **summed within each cluster
+#'   before squaring** (Liang & Zeger 1986), and the resulting
+#'   \eqn{(1/n^2)\sum_c (\sum_{i \in c} \mathrm{IF}_i)^2} estimator is
+#'   numerically equivalent to the stacked-EE cluster-robust sandwich and
+#'   to [sandwich::vcovCL()] applied on the final predict-then-average
+#'   step. Works for `estimator = "gcomp"`, `"ipw"`, and `"ice"`; aborts
+#'   under `"matching"` (matching already clusters on its own
+#'   `subclass`, and layering a user cluster on top would double-count).
+#'   For ICE with a longitudinal fit, the cluster vector is read from the
+#'   first-time-point rows. Cluster is unused when
+#'   `ci_method = "bootstrap"` for point fits; ICE bootstrap already
+#'   resamples entire individual trajectories.
 #'
 #' @return A `causatr_result` object with slots:
 #'   \describe{
@@ -219,7 +234,8 @@ contrast <- function(
   conf_level = 0.95,
   by = NULL,
   parallel = getOption("boot.parallel", "no"),
-  ncpus = getOption("boot.ncpus", 1L)
+  ncpus = getOption("boot.ncpus", 1L),
+  cluster = NULL
 ) {
   # `parallel` accepts the same three values as `boot::boot()` and
   # defaults to `getOption("boot.parallel", "no")`, so a session-wide
@@ -338,6 +354,18 @@ contrast <- function(
   # cannot use `rlang::arg_match()` here (it derives choices from
   # the formal's default, which is a single resolved option string).
 
+  # Cluster resolution: validate and extract the cluster vector (or
+  # return NULL) before dispatching, so downstream variance branches
+  # can always trust a validated vector or a clean NULL. `cluster`
+  # passed at the fit stage is read back from `fit$details$cluster`
+  # and treated as the default when the user doesn't override it --
+  # this is what lets `causat(weights = svydesign(...))` auto-
+  # propagate its PSU into the sandwich without a second argument.
+  if (is.null(cluster)) {
+    cluster <- fit$details$cluster
+  }
+  cluster_vec <- resolve_cluster(cluster, fit)
+
   # Hand off to the internal engine. Everything above is argument
   # validation; the actual math lives in `compute_contrast()` and
   # its estimator-specific delegates.
@@ -355,7 +383,8 @@ contrast <- function(
     parallel,
     ncpus,
     call,
-    subset_env
+    subset_env,
+    cluster_vec = cluster_vec
   )
 }
 
@@ -475,7 +504,8 @@ compute_contrast <- function(
   parallel,
   ncpus,
   call,
-  subset_env = parent.frame()
+  subset_env = parent.frame(),
+  cluster_vec = NULL
 ) {
   data <- fit$data
   int_names <- names(interventions)
@@ -566,7 +596,8 @@ compute_contrast <- function(
           parallel,
           ncpus,
           call,
-          subset_env = subset_env
+          subset_env = subset_env,
+          cluster_vec = cluster_vec
         ),
         error = function(e) {
           # Match on the classed abort from build_point_channel_pieces()
@@ -725,7 +756,8 @@ compute_contrast <- function(
       vcov_mat <- variance_if(
         fit,
         ice_results = ice_results,
-        target_within_first = target_within_first
+        target_within_first = target_within_first,
+        cluster_vec = cluster_vec
       )
     } else {
       boot_res <- ice_variance_bootstrap(
@@ -771,7 +803,8 @@ compute_contrast <- function(
         mu_hat = mu_hat,
         ipw_bundles = ipw_point$bundles,
         ipw_fit_idx = ipw_point$fit_idx,
-        ipw_n_total = ipw_point$n_total
+        ipw_n_total = ipw_point$n_total,
+        cluster_vec = cluster_vec
       )
     } else {
       boot_res <- variance_bootstrap(
@@ -867,7 +900,8 @@ compute_contrast <- function(
         data_a_list = data_a_list,
         preds_list = preds_list,
         mu_hat = mu_hat,
-        target_idx = target_idx
+        target_idx = target_idx,
+        cluster_vec = cluster_vec
       )
     } else {
       boot_res <- variance_bootstrap(

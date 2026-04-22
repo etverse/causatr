@@ -623,7 +623,8 @@ variance_if_numeric <- function(
   preds_list,
   mu_hat,
   target_idx,
-  weights = NULL
+  weights = NULL,
+  cluster_vec = NULL
 ) {
   model <- fit$model
   int_names <- names(data_a_list)
@@ -713,7 +714,12 @@ variance_if_numeric <- function(
         IF
       })
       names(IF_list) <- int_names
-      return(vcov_from_if(IF_list, n_total, int_names))
+      return(vcov_from_if(
+        IF_list,
+        n_total,
+        int_names,
+        cluster = cluster_vec
+      ))
     }
   }
 
@@ -737,6 +743,24 @@ variance_if_numeric <- function(
   )
 
   Ch1_mat <- do.call(cbind, Ch1_list)
+  # Under Tier 2 we only own the V1 piece fully; V2 = J V_beta J^T
+  # ships whatever vcov the model exposes and we cannot cluster-adjust
+  # it without plumbing through the model's score. V1 is clusterable
+  # directly -- sum Ch1 within cluster before squaring -- so we apply
+  # the adjustment there and warn that V2 remains model-level.
+  if (!is.null(cluster_vec)) {
+    cluster_f <- factor(cluster_vec, levels = unique(cluster_vec))
+    Ch1_mat <- rowsum(Ch1_mat, cluster_f, reorder = FALSE)
+    rlang::warn(
+      paste0(
+        "Tier 2 numerical fallback: cluster-robust aggregation applied ",
+        "only to the Channel-1 variance block. The J V_beta J^T piece ",
+        "uses the model's standard vcov. Use `ci_method = \"bootstrap\"` ",
+        "for a fully cluster-robust variance."
+      ),
+      class = "causatr_tier2_cluster_partial"
+    )
+  }
   V1 <- crossprod(Ch1_mat) / n_total^2
   V_beta <- tryCatch(stats::vcov(model), error = function(e) NULL)
   if (is.null(V_beta)) {
@@ -818,10 +842,16 @@ variance_if <- function(
   target_within_first = NULL,
   ipw_bundles = NULL,
   ipw_fit_idx = NULL,
-  ipw_n_total = NULL
+  ipw_n_total = NULL,
+  cluster_vec = NULL
 ) {
   if (fit$type == "longitudinal") {
-    return(variance_if_ice(fit, ice_results, target_within_first))
+    return(variance_if_ice(
+      fit,
+      ice_results,
+      target_within_first,
+      cluster_vec = cluster_vec
+    ))
   }
 
   estimator <- fit$estimator
@@ -832,11 +862,16 @@ variance_if <- function(
       data_a_list,
       preds_list,
       mu_hat,
-      target_idx
+      target_idx,
+      cluster_vec = cluster_vec
     ))
   }
 
   if (estimator == "matching") {
+    # Matching's cluster-robust aggregation on `subclass` is structural
+    # and mutually exclusive with a user-supplied `cluster`. The
+    # `resolve_cluster()` guard upstream already hard-aborts in that
+    # case, so by the time we land here `cluster_vec` must be NULL.
     return(variance_if_matching(fit, interventions))
   }
 
@@ -847,7 +882,8 @@ variance_if <- function(
       target_idx,
       mu_hat,
       ipw_fit_idx,
-      ipw_n_total
+      ipw_n_total,
+      cluster_vec = cluster_vec
     ))
   }
 
@@ -1036,7 +1072,8 @@ variance_if_gcomp <- function(
   data_a_list,
   preds_list,
   mu_hat,
-  target_idx
+  target_idx,
+  cluster_vec = NULL
 ) {
   model <- fit$model
   int_names <- names(data_a_list)
@@ -1053,7 +1090,8 @@ variance_if_gcomp <- function(
       preds_list,
       mu_hat,
       target_idx,
-      weights = fit$details$weights
+      weights = fit$details$weights,
+      cluster_vec = cluster_vec
     ))
   }
 
@@ -1074,7 +1112,11 @@ variance_if_gcomp <- function(
   })
   names(IF_list) <- int_names
 
-  vcov_from_if(IF_list, pieces$n, int_names)
+  # `cluster_vec` has length `n = nrow(fit$data)` (validated upstream by
+  # `resolve_cluster()`), matching the length of each IF vector; passing
+  # it to `vcov_from_if()` switches aggregation from independent-sum to
+  # sum-within-cluster-then-square (Liang & Zeger 1986).
+  vcov_from_if(IF_list, pieces$n, int_names, cluster = cluster_vec)
 }
 
 
@@ -1173,18 +1215,36 @@ variance_if_matching <- function(fit, interventions) {
 #'   flagging the target population.
 #'
 #' @noRd
-variance_if_ice <- function(fit, ice_results, target_within_first) {
+variance_if_ice <- function(
+  fit,
+  ice_results,
+  target_within_first,
+  cluster_vec = NULL
+) {
   int_names <- names(ice_results)
   data <- fit$data
   first_time <- fit$details$time_points[1]
   rows_first <- data[[fit$time]] == first_time
   n <- sum(rows_first)
 
+  # Per-individual IFs in the ICE branch are indexed by unique id at
+  # the first time point (one IF per person). `cluster_vec` is supplied
+  # at full person-period length `nrow(fit$data)`; subset to first-time
+  # rows and align by id order so it matches the IF vector ordering
+  # produced by `variance_if_ice_one()`. If multiple person-period rows
+  # for the same id disagree on cluster, the first-time row wins — the
+  # cluster is expected to be an id-level attribute anyway.
+  cluster_first <- if (is.null(cluster_vec)) {
+    NULL
+  } else {
+    cluster_vec[rows_first]
+  }
+
   IF_list <- lapply(ice_results, function(res) {
     variance_if_ice_one(fit, res, target_within_first)
   })
 
-  vcov_from_if(IF_list, n, int_names)
+  vcov_from_if(IF_list, n, int_names, cluster = cluster_first)
 }
 
 
@@ -1408,7 +1468,8 @@ variance_if_ipw <- function(
   target_idx,
   mu_hat,
   fit_idx_full,
-  n_total
+  n_total,
+  cluster_vec = NULL
 ) {
   int_names <- names(bundles)
   data <- fit$data
@@ -1431,6 +1492,11 @@ variance_if_ipw <- function(
   n_sub <- length(fit_idx_full)
   target_sub <- target_idx[fit_rows]
   ext_w_sub <- if (is.null(ext_w)) NULL else ext_w[fit_rows]
+  # Align the cluster vector to the MSM fit-row subset. `cluster_vec`
+  # comes from `resolve_cluster()` at length `n_total = nrow(fit$data)`,
+  # and IFs in this branch live on `fit_rows` (outcome-filtered subset),
+  # so we subset in the same order the IFs are assembled.
+  cluster_sub <- if (is.null(cluster_vec)) NULL else cluster_vec[fit_rows]
 
   # Target-population weights for the Channel-1 / Jacobian averaging.
   # `sum_w_target` plays the role of the denominator in a Hajek mean
@@ -1587,7 +1653,7 @@ variance_if_ipw <- function(
   })
   names(IF_list) <- int_names
 
-  vcov_from_if(IF_list, n_sub, int_names)
+  vcov_from_if(IF_list, n_sub, int_names, cluster = cluster_sub)
 }
 
 

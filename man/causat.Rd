@@ -19,6 +19,7 @@ causat(
   history = 1L,
   numerator = NULL,
   weights = NULL,
+  cluster = NULL,
   type = NULL,
   model_fn = stats::glm,
   propensity_model_fn = NULL,
@@ -101,6 +102,15 @@ data.}
 (e.g. survey weights or externally computed IPCW). For \code{"gcomp"},
 passed to \code{glm()}. For \code{"ipw"}, multiplied with the estimated propensity
 weights.}
+
+\item{cluster}{Character or \code{NULL}. Name of a column in \code{data}
+identifying cluster membership (e.g. site, household, PSU id).
+Stored in the fit and preserved through \code{prepare_data()} so that
+\code{contrast()} can default its own \verb{cluster =} argument to this
+column, producing a cluster-robust sandwich without the user
+having to repeat the column name. Users can still override at
+contrast time by passing \verb{cluster = } explicitly. Forwarded to
+matching is not allowed (matching clusters on its own \code{subclass}).}
 
 \item{type}{Character or \code{NULL}. Whether the data are \code{"point"} (single
 time-point per individual) or \code{"longitudinal"} (repeated measures).

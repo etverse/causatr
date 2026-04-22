@@ -70,6 +70,14 @@
 #'   confounders only (no time-varying confounders), which gives the standard
 #'   stabilized weights. Only relevant for `estimator = "ipw"` with longitudinal
 #'   data.
+#' @param cluster Character or `NULL`. Name of a column in `data`
+#'   identifying cluster membership (e.g. site, household, PSU id).
+#'   Stored in the fit and preserved through `prepare_data()` so that
+#'   `contrast()` can default its own `cluster =` argument to this
+#'   column, producing a cluster-robust sandwich without the user
+#'   having to repeat the column name. Users can still override at
+#'   contrast time by passing `cluster = ` explicitly. Forwarded to
+#'   matching is not allowed (matching clusters on its own `subclass`).
 #' @param weights Numeric vector or `NULL`. Pre-computed observation weights
 #'   (e.g. survey weights or externally computed IPCW). For `"gcomp"`,
 #'   passed to `glm()`. For `"ipw"`, multiplied with the estimated propensity
@@ -327,6 +335,7 @@ causat <- function(
   history = 1L,
   numerator = NULL,
   weights = NULL,
+  cluster = NULL,
   type = NULL,
   model_fn = stats::glm,
   propensity_model_fn = NULL,
@@ -383,6 +392,38 @@ causat <- function(
   #   3. Validates that the person-period structure is rectangular
   #      (every id observed at every time, or consistently censored).
   # All downstream fit_* functions assume the prepared shape.
+  # `cluster` (if provided) must exist in `data` and is passed to
+  # `prepare_data()` so the column survives the column-stripping step
+  # and is available to `contrast()` at variance time.
+  if (!is.null(cluster)) {
+    check_string(cluster)
+    if (!cluster %in% names(data)) {
+      rlang::abort(
+        paste0(
+          "`cluster` column '",
+          cluster,
+          "' not found in `data`."
+        ),
+        class = "causatr_bad_cluster",
+        call = call
+      )
+    }
+    if (estimator == "matching") {
+      rlang::abort(
+        c(
+          "`cluster` is not supported for `estimator = \"matching\"`.",
+          i = paste0(
+            "Matching already aggregates IFs cluster-robustly on the ",
+            "matched `subclass`. Use `estimator = \"gcomp\"` or ",
+            "`\"ipw\"` if you need a design cluster."
+          )
+        ),
+        class = "causatr_bad_cluster",
+        call = call
+      )
+    }
+  }
+
   data <- prepare_data(
     # nolint: object_usage_linter
     data,
@@ -393,7 +434,8 @@ causat <- function(
     id = id,
     time = time,
     censoring = censoring,
-    history = history
+    history = history,
+    cluster = cluster
   )
 
   # NA check on treatment values: if any are missing, user must either
@@ -420,7 +462,7 @@ causat <- function(
   # Dispatch to the estimator-specific fitter. Each returns a
   # `causatr_fit` with the same S3 class and slot structure, which
   # contrast() and diagnose() then consume uniformly.
-  switch(
+  fit <- switch(
     estimator,
     gcomp = fit_gcomp(
       data,
@@ -480,4 +522,14 @@ causat <- function(
       i = "Must be one of: 'gcomp', 'ipw', 'matching'."
     ))
   )
+
+  # Stash the cluster column name on the fit so `contrast()` can
+  # default its own `cluster =` argument without the user having to
+  # repeat it. Threading this through every `fit_*()` signature would
+  # touch four files for one assignment; we do it once here instead.
+  if (!is.null(cluster)) {
+    fit$details$cluster <- cluster
+  }
+
+  fit
 }

@@ -1,5 +1,67 @@
 # causatr (development version)
 
+## 2026-04-22 — General cluster-robust sandwich (Phase 9a)
+
+`causat()` and `contrast()` accept a new `cluster` argument naming a
+column for cluster-robust sandwich variance aggregation. Before this
+change the only cluster-robust path was matching's internal subclass
+aggregation; users with design clusters (site, household, PSU, repeated
+measures) had to hand-roll their own SE.
+
+The implementation threads through the existing influence-function
+engine: `variance_if()` now accepts a `cluster_vec` argument that
+arrives at `vcov_from_if(cluster = ...)`, which has supported the
+sum-within-cluster-then-square Liang & Zeger (1986) aggregation since
+the matching branch was wired. Numerically equivalent to
+`sandwich::vcovCL(type = "HC0")` applied to the final
+predict-then-average step (agreement to within a `G / (G - 1)`
+small-cluster correction, pinned in `test-cluster-sandwich.R`).
+
+### Scope
+
+- **Supported**: `estimator = "gcomp"`, `"ipw"`, `"ice"` (including `by`
+  stratification and longitudinal ICE; for ICE the cluster vector is
+  read from the first-time-point rows).
+- **Rejected at fit + contrast**: `estimator = "matching"` already
+  clusters on its own `subclass`; layering a user cluster on top would
+  double-count within-subclass rows. Classed as `causatr_bad_cluster`.
+- **Tier 2 numerical fallback** (no `sandwich::estfun` method and no
+  analytic bread): only the Channel-1 block is cluster-adjusted; the
+  `J V_beta J^T` block uses the model's standard vcov. Emits a
+  classed warning `causatr_tier2_cluster_partial`.
+
+### API
+
+```r
+fit <- causat(data, outcome = "Y", treatment = "A",
+              confounders = ~ L, cluster = "site")
+# cluster auto-propagates from fit to contrast
+contrast(fit, list(a1 = static(1), a0 = static(0)))
+
+# or specify at contrast time only
+fit <- causat(data, outcome = "Y", treatment = "A", confounders = ~ L)
+contrast(fit, list(a1 = static(1), a0 = static(0)),
+         cluster = "site")     # column name
+contrast(fit, list(a1 = static(1), a0 = static(0)),
+         cluster = data$site)  # direct vector
+```
+
+### Truth testing
+
+- **gcomp oracle**: direct match against
+  `sandwich::vcovCL(fit$model, cluster = d$cl, type = "HC0")` on a
+  saturated `Y ~ A + L` model. Agreement to machine precision after
+  the `G / (G - 1)` correction.
+- **IPW + ICE**: cluster-randomised design (cluster-level treatment
+  assignment + cluster-level outcome shock) produces SE inflation
+  vs independent aggregation; regression-tested at 1.05x-1.1x lower
+  bounds.
+- **Singleton clusters**: one cluster per row reduces to the standard
+  independent aggregation (tested by equality to the `cluster = NULL`
+  path).
+
+---
+
 ## 2026-04-22 — Multivariate treatment IPW (Phase 8)
 
 `estimator = "ipw"` now accepts multivariate (joint) treatments
