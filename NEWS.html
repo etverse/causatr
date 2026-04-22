@@ -77,7 +77,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="site_libs/quarto-html/quarto-syntax-highlighting-7f8f88aac4f3542376d5c11b86a4c14d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-9682fa8c16a1743413a5d7392094a0c7.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-1fa89b94116c107d6ffe2fb26b06054e.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -501,7 +501,7 @@ window.Quarto = {
   <ul>
   <li><a href="#causatr-development-version" id="toc-causatr-development-version" class="nav-link active" data-scroll-target="#causatr-development-version">causatr (development version)</a>
   <ul class="collapse">
-  <li><a href="#multivariate-treatment-ipw-phase-8" id="toc-multivariate-treatment-ipw-phase-8" class="nav-link" data-scroll-target="#multivariate-treatment-ipw-phase-8">2026-04-20 — Multivariate treatment IPW (Phase 8)</a>
+  <li><a href="#multivariate-treatment-ipw-phase-8" id="toc-multivariate-treatment-ipw-phase-8" class="nav-link" data-scroll-target="#multivariate-treatment-ipw-phase-8">2026-04-22 — Multivariate treatment IPW (Phase 8)</a>
   <ul class="collapse">
   <li><a href="#estimand-semantics-sequential-mtp-díaz-et-al.-2023" id="toc-estimand-semantics-sequential-mtp-díaz-et-al.-2023" class="nav-link" data-scroll-target="#estimand-semantics-sequential-mtp-díaz-et-al.-2023">Estimand semantics: sequential MTP (Díaz et al.&nbsp;2023)</a></li>
   <li><a href="#supported-combinations" id="toc-supported-combinations" class="nav-link" data-scroll-target="#supported-combinations">Supported combinations</a></li>
@@ -566,7 +566,7 @@ window.Quarto = {
 <section id="causatr-development-version" class="level1">
 <h1>causatr (development version)</h1>
 <section id="multivariate-treatment-ipw-phase-8" class="level2">
-<h2 class="anchored" data-anchor-id="multivariate-treatment-ipw-phase-8">2026-04-20 — Multivariate treatment IPW (Phase 8)</h2>
+<h2 class="anchored" data-anchor-id="multivariate-treatment-ipw-phase-8">2026-04-22 — Multivariate treatment IPW (Phase 8)</h2>
 <p><code>estimator = "ipw"</code> now accepts multivariate (joint) treatments <code>treatment = c("A1", "A2", ...)</code>. Previously the path hard-aborted; users needed <code>estimator = "gcomp"</code> for joint interventions. The new implementation factorises the joint conditional density via the chain rule</p>
 <p><span class="math display">\[
 f(A_1, \ldots, A_K \mid L) = \prod_{k=1}^{K} f_k(A_k \mid A_{1..k-1}, L),
