@@ -98,8 +98,14 @@ confounders only (no time-varying confounders), which gives the standard
 stabilized weights. Only relevant for \code{estimator = "ipw"} with longitudinal
 data.}
 
-\item{weights}{Numeric vector or \code{NULL}. Pre-computed observation weights
-(e.g. survey weights or externally computed IPCW). For \code{"gcomp"},
+\item{weights}{Numeric vector, a \code{survey::svydesign} object, or
+\code{NULL}. Pre-computed observation weights (e.g. survey weights or
+externally computed IPCW). When a \code{survey.design} object is
+supplied, \code{stats::weights()} is used to extract the sampling
+weights and the first-stage cluster (PSU) is auto-propagated
+into the fit's \code{cluster} slot so the contrast-time sandwich is
+cluster-robust by default; override by passing an explicit
+\verb{cluster =} alongside. For \code{"gcomp"},
 passed to \code{glm()}. For \code{"ipw"}, multiplied with the estimated propensity
 weights.}
 

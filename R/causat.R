@@ -78,8 +78,14 @@
 #'   having to repeat the column name. Users can still override at
 #'   contrast time by passing `cluster = ` explicitly. Forwarded to
 #'   matching is not allowed (matching clusters on its own `subclass`).
-#' @param weights Numeric vector or `NULL`. Pre-computed observation weights
-#'   (e.g. survey weights or externally computed IPCW). For `"gcomp"`,
+#' @param weights Numeric vector, a `survey::svydesign` object, or
+#'   `NULL`. Pre-computed observation weights (e.g. survey weights or
+#'   externally computed IPCW). When a `survey.design` object is
+#'   supplied, `stats::weights()` is used to extract the sampling
+#'   weights and the first-stage cluster (PSU) is auto-propagated
+#'   into the fit's `cluster` slot so the contrast-time sandwich is
+#'   cluster-robust by default; override by passing an explicit
+#'   `cluster =` alongside. For `"gcomp"`,
 #'   passed to `glm()`. For `"ipw"`, multiplied with the estimated propensity
 #'   weights.
 #' @param type Character or `NULL`. Whether the data are `"point"` (single
@@ -385,6 +391,24 @@ causat <- function(
     history = history
   )
 
+  # `weights = svydesign_obj` path: unpack the sampling weights into a
+  # numeric vector and adopt the design's first-stage cluster (PSU) as
+  # the default contrast-time cluster unless the user passed their own
+  # `cluster =`. This keeps the convenience of
+  # `causat(..., weights = svydesign(...))` while letting users opt
+  # out of the cluster propagation if they want a non-clustered
+  # sandwich on survey-weighted data.
+  if (inherits(weights, "survey.design")) {
+    unpacked <- unpack_svydesign(
+      weights,
+      data = data,
+      user_cluster = cluster,
+      call = call
+    )
+    weights <- unpacked$weights
+    cluster <- unpacked$cluster
+  }
+
   # prepare_data() does three things:
   #   1. Coerces `data` to data.table (for fast subsetting + `:=`).
   #   2. For longitudinal data, sorts by (id, time) and materializes
@@ -532,4 +556,108 @@ causat <- function(
   }
 
   fit
+}
+
+
+#' Unpack a `survey::svydesign` object into weights + cluster
+#'
+#' @description
+#' Translates a `survey.design` object into the `weights` numeric vector
+#' and `cluster` column name that `causat()` internally consumes. The
+#' design's inverse sampling probabilities are extracted via
+#' `stats::weights()` (which dispatches to `survey:::weights.survey.design`),
+#' and the first-stage cluster (PSU) is adopted
+#' as the default contrast-time cluster unless the user has supplied
+#' their own `cluster =` at the `causat()` boundary (in which case the
+#' user's value is kept and the PSU is ignored).
+#'
+#' Validates that the design's `nrow(design$variables) == nrow(data)` so
+#' the weight vector aligns row-for-row with `data`. Requires the
+#' `survey` package to be installed (Suggests-only); aborts with a
+#' classed error otherwise.
+#'
+#' @param design A `survey::svydesign` / `survey.design` object.
+#' @param data The `data` frame passed to `causat()`.
+#' @param user_cluster The user's explicit `cluster =` argument (or
+#'   `NULL`); the design's PSU is only adopted when this is `NULL`.
+#' @param call Caller environment for error messages.
+#'
+#' @return A list with two components: `weights` (numeric vector
+#'   aligned to `data`) and `cluster` (either the adopted PSU column
+#'   name, the user's explicit override, or `NULL` if neither is
+#'   available).
+#'
+#' @noRd
+unpack_svydesign <- function(
+  design,
+  data,
+  user_cluster = NULL,
+  call = rlang::caller_env()
+) {
+  check_pkg("survey")
+
+  n_design <- nrow(design$variables)
+  n_data <- nrow(data)
+  if (n_design != n_data) {
+    rlang::abort(
+      c(
+        paste0(
+          "`svydesign` row count (",
+          n_design,
+          ") does not match `data` row count (",
+          n_data,
+          ")."
+        ),
+        i = paste0(
+          "Pass the same `data` to `causat()` and `svydesign()`, with ",
+          "rows in identical order. The weight vector must align ",
+          "row-for-row."
+        )
+      ),
+      class = "causatr_bad_svydesign",
+      call = call
+    )
+  }
+
+  # `weights()` is a generic; `survey` ships
+  # `weights.survey.design()` which returns the design's sampling
+  # weights. We go through `stats::weights()` (the generic) rather
+  # than referencing the method directly so this works whether the
+  # dispatch table finds the method via `survey:::weights.survey.design`
+  # or via the base `weights.default`.
+  w <- stats::weights(design)
+  if (length(w) != n_data) {
+    rlang::abort(
+      paste0(
+        "`survey::weights(design)` returned ",
+        length(w),
+        " values but `data` has ",
+        n_data,
+        " rows."
+      ),
+      class = "causatr_bad_svydesign",
+      call = call
+    )
+  }
+
+  # First-stage PSU. `design$cluster` is a data.frame with one column
+  # per cluster stage (column 1 = first stage / primary sampling unit).
+  # We adopt column 1 only when (a) the user hasn't given an explicit
+  # override, (b) the column name survives into `data` unchanged
+  # (which is always true when the design was built on the same
+  # `data`), and (c) the cluster is nontrivial (> 1 unique level -- a
+  # single-PSU design has no within-cluster correlation to model).
+  adopted_cluster <- user_cluster
+  if (is.null(user_cluster) && !is.null(design$cluster)) {
+    psu_name <- names(design$cluster)[1]
+    if (
+      !is.null(psu_name) &&
+        psu_name %in% names(data) &&
+        length(unique(design$cluster[[1]])) > 1L
+    ) {
+      adopted_cluster <- psu_name
+    }
+  }
+
+  list(weights = as.numeric(w), cluster = adopted_cluster)
 }

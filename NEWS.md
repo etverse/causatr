@@ -1,5 +1,35 @@
 # causatr (development version)
 
+## 2026-04-22 — `survey::svydesign` integration (Phase 9b)
+
+`causat(weights = )` now accepts a `survey::svydesign` object directly.
+The sampling weights are extracted via `stats::weights(design)` and the
+design's first-stage cluster (PSU) is auto-propagated into the fit's
+`cluster` slot so the contrast-time sandwich is cluster-robust by
+default.
+
+```r
+library(survey)
+des <- svydesign(ids = ~psu, weights = ~pw, data = d)
+fit <- causat(d, outcome = "Y", treatment = "A",
+              confounders = ~ L, weights = des)
+# weights and cluster both applied automatically
+contrast(fit, list(a1 = static(1), a0 = static(0)))
+```
+
+Behaviour:
+
+- Equivalent to `causat(weights = weights(des), cluster = names(des$cluster)[1])`
+  — identical point estimate and SE (pinned in `test-survey-design.R`).
+- Users can override the auto-adopted PSU by passing `cluster =`
+  explicitly; the override wins.
+- Single-PSU designs (`svydesign(ids = ~1, ...)`) do not auto-adopt a
+  cluster — only the weights flow through.
+- Row counts must match: a design built on a larger / different data
+  frame aborts with `causatr_bad_svydesign`.
+- `survey` is Suggests-only; `check_pkg("survey")` gates the unpack
+  path.
+
 ## 2026-04-22 — General cluster-robust sandwich (Phase 9a)
 
 `causat()` and `contrast()` accept a new `cluster` argument naming a

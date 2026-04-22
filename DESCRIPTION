@@ -42,6 +42,7 @@ Suggests:
     optmatch,
     quarto,
     stdReg2,
+    survey,
     tinyplot,
     tinytable,
     WeightIt,
