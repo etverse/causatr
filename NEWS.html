@@ -507,6 +507,7 @@ window.Quarto = {
   <li><a href="#supported-combinations" id="toc-supported-combinations" class="nav-link" data-scroll-target="#supported-combinations">Supported combinations</a></li>
   <li><a href="#internal-bits" id="toc-internal-bits" class="nav-link" data-scroll-target="#internal-bits">Internal bits</a></li>
   <li><a href="#rejected-with-classed-errors" id="toc-rejected-with-classed-errors" class="nav-link" data-scroll-target="#rejected-with-classed-errors">Rejected with classed errors</a></li>
+  <li><a href="#stabilized-weights-phase-8e" id="toc-stabilized-weights-phase-8e" class="nav-link" data-scroll-target="#stabilized-weights-phase-8e">Stabilized weights (Phase 8e)</a></li>
   </ul></li>
   <li><a href="#breaking-change-survival-analysis-removed" id="toc-breaking-change-survival-analysis-removed" class="nav-link" data-scroll-target="#breaking-change-survival-analysis-removed">Breaking change: survival analysis removed</a></li>
   <li><a href="#bug-fixes" id="toc-bug-fixes" class="nav-link" data-scroll-target="#bug-fixes">Bug fixes</a></li>
@@ -589,7 +590,7 @@ w_k(\alpha_k) = \frac{f_k(d_k^{-1}(A_k) \mid A_{1..k-1}^{\mathrm{obs}}, L; \alph
 <li>Continuous × continuous, shift + shift, scale + scale, dynamic components.</li>
 <li>Effect modification via <code>A_k:modifier</code> (per-component propensity formulas strip treatment-touching terms; MSM expands to <code>Y ~ 1 + modifier_main_effects</code>). Baseline-modifier constraint from Phase 6 carries over.</li>
 <li>Categorical components (via <code>nnet::multinom</code> per component; multinomial softmax closure in <code>mv_ht_closure</code>). Cat × bin, bin × cat, and cat × cat all supported.</li>
-<li>Count components (Poisson / negative binomial) via per-component <code>propensity_family</code> opt-in (NULL / length-1 / length-K).</li>
+<li>Count components (Poisson / negative binomial) via per-component <code>propensity_family</code> opt-in (<code>NULL</code> / length-1 / length-K). Truth-based tests cover bin <span class="math inline">\(\times\)</span> Poisson, bin <span class="math inline">\(\times\)</span> negbin, and Poisson <span class="math inline">\(\times\)</span> continuous (the last exercises the upstream <span class="math inline">\(\to\)</span> downstream chain-rule structure under sequential MTP: shift(<span class="math inline">\(+1\)</span>) on <span class="math inline">\(A_1\)</span> propagates to <span class="math inline">\(E[A_2 \mid A_1^d, L]\)</span> through the fitted <span class="math inline">\(A_1 \to A_2\)</span> coefficient, giving truth <span class="math inline">\(0.3 + 0.4 \cdot 0.2 = 0.38\)</span> on the canonical DGP).</li>
 <li>ATE only (matches the existing single-treatment ATT/ATC gate that rejects multivariate at fit time).</li>
 <li>Sandwich + bootstrap variance, <code>by =</code>, <code>subset =</code>, survey weights.</li>
 </ul>
@@ -604,6 +605,15 @@ w_k(\alpha_k) = \frac{f_k(d_k^{-1}(A_k) \mid A_{1..k-1}^{\mathrm{obs}}, L; \alph
 <li><code>ipsi()</code> in any component (<code>causatr_multivariate_ipsi</code>) — Kennedy’s closed form has no joint analogue.</li>
 <li>Multivariate matching still rejected (MatchIt is binary-only).</li>
 </ul>
+</section>
+<section id="stabilized-weights-phase-8e" class="level3">
+<h3 class="anchored" data-anchor-id="stabilized-weights-phase-8e">Stabilized weights (Phase 8e)</h3>
+<p>Multivariate IPW now accepts a <code>stabilize = c("none", "marginal")</code> argument. Under <code>"marginal"</code>, the per-component numerator factor is swapped for a separately-fit density <span class="math inline">\(g_k(A_k \mid A_{1..k-1})\)</span> that drops the full covariate vector <span class="math inline">\(L\)</span> from the conditioning (Robins, Hernán, Brumback 2000, extended to multivariate). The per-component weight becomes</p>
+<p><span class="math display">\[
+w_k^{s}(\alpha_k) = \frac{g_k\bigl(d_k^{-1}(A_k) \mid A_{1..k-1}\bigr) \cdot |\mathrm{Jac}|}{f_k(A_k \mid A_{1..k-1}, L; \alpha_k)}.
+\]</span></p>
+<p>The numerator model’s parameters are held fixed in the sandwich variance (nuisance-fixed, same convention as <span class="math inline">\(\sigma\)</span> for Gaussian and <span class="math inline">\(\theta\)</span> for negative binomial). Bootstrap refits both numerator and denominator models on every replicate and captures the full variance correctly. Implemented for all treatment families the mv engine already supports (binary, continuous, categorical, Poisson, negative binomial) and every intervention shape (static, shift, scale, dynamic, natural course). Rejected with <code>causatr_stabilize_univariate</code> under univariate IPW (univariate already benefits from the Hájek normalization on the MSM).</p>
+<p>Whether stabilization reduces or inflates the sandwich SE depends on the DGP: when the marginal density of <span class="math inline">\(A_k\)</span> has smaller variance than the full-<span class="math inline">\(L\)</span> conditional, weights are dampened and the SE shrinks; when the full-<span class="math inline">\(L\)</span> conditional is tighter than the marginal, stabilization can inflate SE. This is a known property of MV MTP weights (Díaz et al.&nbsp;2023) and a DGP-dependent tradeoff, not a bug.</p>
 </section>
 </section>
 <section id="breaking-change-survival-analysis-removed" class="level2">
