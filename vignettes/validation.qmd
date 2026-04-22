@@ -665,8 +665,16 @@ Several additional R packages would extend this validation suite:
   a natural addition to section 4a.
 - **`survey::svyglm()`** (combined with a user-supplied weights column) is
   the standard reference for survey-weighted IPW. Since causatr validates
-  survey-weight handling in its tests, a vignette comparison would mostly
-  duplicate that coverage.
+  survey-weight handling in its tests — including the direct
+  `causat(weights = svydesign(...))` convenience path that auto-extracts
+  the design's sampling weights and first-stage PSU into the
+  contrast-time cluster — a vignette comparison would mostly duplicate
+  that coverage.
+- **`sandwich::vcovCL()`** is the oracle for causatr's general
+  cluster-robust sandwich (`causat(cluster = ...)` /
+  `contrast(cluster = ...)`). Agreement on a saturated `Y ~ A + L`
+  model is pinned to machine precision after the `G/(G-1)` small-cluster
+  correction in `test-cluster-sandwich.R`.
 
 If you'd like to contribute a reference comparison for one of these (or for a
 package not listed here), open an issue — the pattern is the same as in

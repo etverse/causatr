@@ -256,10 +256,16 @@ result_boot
 ```
 
 The `parallel` and `ncpus` arguments enable parallel bootstrap replicates for
-larger datasets:
+larger datasets. Four backends are supported: `"no"` (sequential), `"multicore"`
+(Unix fork, default on most Linux/macOS setups), `"snow"` (cross-platform
+socket cluster, both via `boot::boot()`), and `"future"` (any active
+`future::plan()` — local multisession, remote `plan(cluster, ...)`, or
+`future.batchtools` for HPC job arrays). `"future"` bypasses `boot::boot()` so
+the plan itself owns the scheduling; `ncpus` is ignored in that case.
 
 ```{r}
 #| eval: false
+# boot::boot parallel (fork / socket)
 result_par <- contrast(
   fit,
   interventions = list(always = static(1), never = static(0)),
@@ -268,6 +274,18 @@ result_par <- contrast(
   n_boot = 20L,
   parallel = "multicore",
   ncpus = 4L
+)
+
+# future backend (any future::plan())
+library(future)
+plan(multisession, workers = 4)
+result_future <- contrast(
+  fit,
+  interventions = list(always = static(1), never = static(0)),
+  reference = "never",
+  ci_method = "bootstrap",
+  n_boot = 500L,
+  parallel = "future"
 )
 ```
 
@@ -965,16 +983,33 @@ This requires **only outcome models** --- unlike forward simulation
   to uncensored at each backward step; the resulting estimator is IPCW-valid
   when the censoring mechanism is conditionally random given the covariate
   history.
-- `weights`: external survey weights or pre-computed IPCW. Validated upfront
-  by `check_weights()` (rejects NA, Inf, negative, mis-sized) and propagated
-  through every step of the backward recursion. The ICE sandwich variance
-  engine accounts for the weights via the `A_{k-1,k}` cascade gradient —
-  dropping them would underestimate the SE under heterogeneous weights by
-  roughly a factor of two.
-- `parallel` / `ncpus`: passed straight through to `boot::boot()` on the
-  bootstrap path. Defaults to `getOption("boot.parallel", "no")` /
+- `weights`: external survey weights or pre-computed IPCW. Accepts either a
+  numeric vector or a `survey::svydesign` object directly; with a
+  design, the sampling weights are unpacked via `stats::weights()` and
+  the design's first-stage PSU is auto-adopted as the contrast-time
+  cluster. Validated upfront by `check_weights()` (rejects NA, Inf,
+  negative, mis-sized) and propagated through every step of the
+  backward recursion. The ICE sandwich variance engine accounts for
+  the weights via the `A_{k-1,k}` cascade gradient — dropping them
+  would underestimate the SE under heterogeneous weights by roughly a
+  factor of two.
+- `cluster`: column name in `data` identifying a design cluster (site,
+  household, PSU, repeated-measures id). Preserved through
+  `prepare_data()` and consumed at contrast time by the
+  sum-within-cluster-then-square IF aggregator
+  (`vcov_from_if(cluster = ...)`). Defaults from the fit into
+  `contrast()` so users don't have to repeat it; override or switch
+  off at contrast time by passing a different `cluster =` (or NULL).
+  Matching rejects this argument with `causatr_bad_cluster` because
+  its subclass clustering is structural.
+- `parallel` / `ncpus`: four backends — `"no"`, `"multicore"`, `"snow"`
+  (all via `boot::boot()`), and `"future"` (via
+  `future.apply::future_lapply()` so any active `future::plan()` is
+  honoured). Defaults to `getOption("boot.parallel", "no")` /
   `getOption("boot.ncpus", 1L)` so a session-wide `options(boot.parallel =
   "multicore")` flips parallelism on for every `contrast()` call.
+  `ncpus` is ignored when `parallel = "future"` (the plan owns the
+  worker count).
 
 For a full enumeration of the sandwich-vs-bootstrap, continuous/binary,
 external-weights, censoring, multivariate-treatment, and ipsi-rejection
@@ -1072,6 +1107,8 @@ informative error.
 | Binary | Binary | Static / Dynamic | ATE | Difference | Sandwich / bootstrap | none | ✅ (2 periods) |
 | Binary | Binary | Static | ATE | Difference | Sandwich | none | ✅ (4 periods) |
 | Binary | Binary | Static | ATE | Difference | Bootstrap (parallel) | none | ✅ |
+| Binary | Binary | Static | ATE | Difference | Bootstrap (future backend) | none | ✅ |
+| Binary | Continuous | Static | ATE | Difference | Sandwich (cluster-robust) | none | ✅ |
 | Binary | Continuous | Static | ATE | Difference | Sandwich | censoring | ✅ |
 | Binary | Continuous | Static + EM | ATE | Difference | Sandwich / bootstrap | none | ✅ |
 | Continuous | Continuous | Shift + EM | ATE | Difference | Sandwich | none | ✅ |

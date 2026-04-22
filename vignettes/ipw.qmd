@@ -696,6 +696,43 @@ res_ipw_sv <- contrast(
 res_ipw_sv
 ```
 
+### Direct `survey::svydesign` integration
+
+`causat(weights = ...)` also accepts a `survey::svydesign` object
+directly — `stats::weights(design)` is used to extract the sampling
+weights and the design's first-stage PSU is auto-adopted as the
+contrast-time cluster (see below). Explicit `cluster =` overrides the
+adoption; single-PSU designs (`svydesign(ids = ~1, ...)`) propagate
+only the weights.
+
+```{r}
+#| eval: false
+library(survey)
+des <- svydesign(ids = ~psu, weights = ~pw, data = d)
+fit <- causat(d, outcome = "Y", treatment = "A",
+              confounders = ~ L, estimator = "ipw",
+              weights = des)
+```
+
+## Cluster-robust sandwich
+
+For design clusters (site, household, PSU, repeated measures) the IPW
+sandwich should account for within-cluster comovement of the
+per-individual IFs. `causat(cluster = "col")` preserves the column
+through `prepare_data()` and stashes it on the fit; `contrast()`
+defaults to that cluster and runs the sum-within-cluster-then-square
+IF aggregation. Numerically equivalent to `sandwich::vcovCL(type =
+"HC0")` on the final MSM-fit → predict-then-average step, up to the
+usual $G/(G-1)$ small-cluster factor.
+
+```{r}
+#| eval: false
+fit_cl <- causat(d, outcome = "Y", treatment = "A",
+                 confounders = ~ L, estimator = "ipw",
+                 cluster = "site")
+contrast(fit_cl, list(a1 = static(1), a0 = static(0)))
+```
+
 ## Comparing estimands
 
 ```{r}

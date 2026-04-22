@@ -162,14 +162,36 @@ res_ate_bs
 
 ### ATT with external survey weights
 
-Pre-computed survey weights are passed via `weights =` to `causat()` and
-validated upfront by `check_weights()`. Internally causatr **multiplies**
-the survey weights by the match weights from `MatchIt`; the combined
-weight drives the outcome-model fit on the matched sample and enters the
-cluster-robust IF variance via `prior.weights`. The row-alignment
-between the matched sample and the user-supplied weights is handled by
+Pre-computed survey weights are passed via `weights =` to `causat()`
+(either as a numeric vector or as a `survey::svydesign` object — the
+latter is unpacked automatically) and validated upfront by
+`check_weights()`. Internally causatr **multiplies** the survey weights
+by the match weights from `MatchIt`; the combined weight drives the
+outcome-model fit on the matched sample and enters the cluster-robust
+IF variance via `prior.weights`. The row-alignment between the matched
+sample and the user-supplied weights is handled by
 `combine_match_and_external_weights()` (defined in `R/matching.R`) so
 the invariant is asserted in exactly one place.
+
+::: {.callout-note}
+## Cluster argument not available for matching
+
+`causat(cluster = ...)` and `contrast(cluster = ...)` are rejected with a
+`causatr_bad_cluster` abort under `estimator = "matching"`. The matched
+sample is already aggregated cluster-robustly on `subclass` (pair or
+stratum), and a user-supplied design cluster would either conflict with
+or double-count the within-subclass rows. For a design cluster outside
+the matched structure (site, household, PSU), use `estimator = "gcomp"`
+or `"ipw"` instead — both expose the same sum-within-cluster-then-square
+IF aggregation via `cluster =`.
+
+Similarly, passing a `survey::svydesign` object with non-trivial PSUs
+to `weights =` under matching aborts: the design's first-stage cluster
+would land in the cluster slot and hit the same rejection. Use
+`svydesign(ids = ~1, weights = ~pw, data = d)` to declare a
+sampling-weight-only design (no clustering), or supply the weights
+as a numeric vector.
+:::
 
 ```{r}
 set.seed(42)

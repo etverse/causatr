@@ -1869,14 +1869,22 @@ is computed.
 
 | Method | Stacked equations | Channel 2 models | Aggregation |
 |---|---|---|---|
-| **G-comp** | Outcome model + mean eq. | 1 (outcome) | Standard |
-| **IPW** | Propensity + MSM + mean eq. | 2 (propensity, MSM) | Standard |
-| **Matching** | Outcome model + mean eq. | 1 (outcome) | Cluster-robust |
-| **ICE** | $K\!+\!1$ outcome models + mean eq. | $K\!+\!1$ (backward chain) | Standard |
+| **G-comp** | Outcome model + mean eq. | 1 (outcome) | Standard or user-cluster |
+| **IPW** | Propensity + MSM + mean eq. | 2 (propensity, MSM) | Standard or user-cluster |
+| **Matching** | Outcome model + mean eq. | 1 (outcome) | Cluster-robust on subclass |
+| **ICE** | $K\!+\!1$ outcome models + mean eq. | $K\!+\!1$ (backward chain) | Standard or user-cluster |
 
 The IF formula handles all cases uniformly. The only per-method variation is
 **which models contribute** to Channel 2 and **how IFs are aggregated** (summed
-within clusters for matching, directly for all others).
+within clusters for matching, or within any user-supplied design cluster via
+`contrast(cluster = ...)`; directly otherwise). Matching's subclass cluster is
+structural — `contrast(cluster = ...)` is rejected there with a
+`causatr_bad_cluster` abort because layering a user cluster on top would
+double-count within-subclass rows. For `gcomp`, `ipw`, and `ice`, the same
+sum-within-cluster-then-square primitive that Section 4.3 derives for
+matching is exposed directly via the `cluster` argument; numerically
+equivalent to `sandwich::vcovCL(type = "HC0")` applied to the final
+predict-then-average step (up to a small $G/(G-1)$ cluster-count factor).
 
 
 ## 5. Chained estimators: ICE g-computation
@@ -2327,10 +2335,16 @@ The full $k \times k$ covariance matrix is then used for contrasts.
 6. **Matching**: one model correction (outcome model), same as g-comp.
    Aggregation is cluster-robust (sum IFs within matched subclasses).
 
-7. **Chained estimators** (ICE): $K\!+\!1$ model corrections computed by
+7. **User-supplied cluster** (`contrast(cluster = ...)`): the same
+   sum-within-cluster-then-square aggregation matching uses internally is
+   exposed directly on gcomp, IPW, and ICE. Numerically equivalent to
+   `sandwich::vcovCL(type = "HC0")` on the final predict-then-average step;
+   rejected on matching because subclass clustering is already structural.
+
+8. **Chained estimators** (ICE): $K\!+\!1$ model corrections computed by
    backward recursion of sensitivities.
 
-8. **The delta method** ($\color{#31A354}{J} V_\beta
+9. **The delta method** ($\color{#31A354}{J} V_\beta
    \color{#31A354}{J^T}$) is a shortcut that captures Channel 2 only. It is
    exact when Channel 1 = 0 (constant predictions), but underestimates
    otherwise. The full IF avoids this limitation.

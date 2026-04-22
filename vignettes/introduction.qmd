@@ -162,6 +162,35 @@ contrast(fit,
 )
 ```
 
+## Survey designs and cluster-robust inference
+
+`causat()` and `contrast()` support two inference-infrastructure
+conveniences for design-aware studies.
+
+**Sampling weights via `survey::svydesign`.** Pass a design object
+directly to `weights =` and causatr unpacks both the sampling weights
+(via `stats::weights()`) and the first-stage cluster (PSU):
+
+```{r}
+#| eval: false
+library(survey)
+des <- svydesign(ids = ~psu, weights = ~pw, data = nhefs)
+fit <- causat(nhefs, outcome = "wt82_71", treatment = "qsmk",
+              confounders = ~ sex + age + wt71, weights = des)
+```
+
+**Cluster-robust sandwich.** Use `cluster = "col"` on `causat()` (or
+`contrast()`) to aggregate per-individual influence functions
+within-cluster before squaring (Liang & Zeger 1986). Numerically
+equivalent to `sandwich::vcovCL(type = "HC0")` applied to the final
+predict-then-average step. Supported for gcomp / IPW / ICE; rejected
+for matching (subclass clustering is already structural).
+
+**`future` backend for bootstrap.** `contrast(parallel = "future")`
+dispatches replicates through `future.apply::future_lapply()`, so any
+`future::plan()` (local multisession, remote cluster,
+`future.batchtools` for HPC) is honoured.
+
 ## Diagnostics
 
 Use `diagnose()` to check positivity and covariate balance after fitting:
