@@ -1,6 +1,6 @@
 # causatr (development version)
 
-## 2026-04-20 — Multivariate treatment IPW (Phase 8)
+## 2026-04-22 — Multivariate treatment IPW (Phase 8)
 
 `estimator = "ipw"` now accepts multivariate (joint) treatments
 `treatment = c("A1", "A2", ...)`. Previously the path hard-aborted;

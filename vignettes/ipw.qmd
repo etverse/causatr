@@ -1004,10 +1004,15 @@ recovers the marginal `A1` effect (truth = 2).
 | Binary | Gaussian | Static (with `A:modifier`) | ATE | Difference | Sandwich / Bootstrap | none | ✅ |
 | Multi (bin × bin) | Gaussian | Static | ATE | Difference | Sandwich / Bootstrap | none | ✅ |
 | Multi (bin × cont) | Gaussian | Static + Shift | ATE | Difference | Sandwich | none | ✅ |
-| Multi (cont × cont) | Gaussian | Shift + Shift | ATE | Difference | Sandwich | none | ✅ |
+| Multi (cont × cont) | Gaussian | Shift + Shift | ATE | Difference | Sandwich | none | ✅ (seq-MTP) |
 | Multi (bin × bin) | Binary | Static | ATE | Diff / Ratio / OR | Sandwich | none | ✅ |
 | Multi (3+ binary) | Gaussian | Static | ATE | Difference | Sandwich | none | ✅ |
-| Multi + IPSI / EM / categorical / count component | --- | --- | --- | --- | --- | --- | ⛔ |
+| Multi (bin × bin) | Gaussian | Static (with `A_k:modifier`) | by-stratified | Difference | Sandwich | none | ✅ |
+| Multi (bin × categorical) | Gaussian | Static | ATE | Difference | Sandwich | none | ✅ |
+| Multi (bin × Poisson) | Gaussian | Static + Shift | ATE | Difference | Sandwich | none | ✅ |
+| Multi (bin × negbin) | Gaussian | Static + Shift | ATE | Difference | Sandwich | none | ✅ |
+| Multi (any) | --- | Any + `stabilize = "marginal"` | ATE | --- | Sandwich / Bootstrap | none | ✅ |
+| Multi + IPSI component | --- | --- | --- | --- | --- | --- | ⛔ |
 | Longitudinal | --- | --- | --- | --- | --- | --- | ⛔ (use ICE) |
 
 See [`FEATURE_COVERAGE_MATRIX.md`](https://github.com/etverse/causatr/blob/main/FEATURE_COVERAGE_MATRIX.md)

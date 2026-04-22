@@ -1,6 +1,6 @@
 # Phase 8 — Multivariate Treatment IPW
 
-> **Status: DONE (2026-04-20)**
+> **Status: DONE (2026-04-22)**
 
 ## Scope
 
@@ -67,7 +67,7 @@ contrast(fit,
 )
 ```
 
-## Items (chunks 8a – 8c)
+## Items (chunks 8a – 8e)
 
 ### 8a — core (commits `62a25f8` + `8a-fix` sequential-MTP semantics correction)
 
@@ -101,7 +101,7 @@ contrast(fit,
 - [x] Add rejection tests for count-component interventions: `static()`, `threshold()`, `dynamic()`, non-integer `shift()`. All already dispatched to by `check_intervention_family_compat()` per component.
 - Note: most of 8d's plumbing landed in 8c (per-component `propensity_family` in `fit_treatment_models()`, count branches in `mv_pushforward_closure()`). 8d is therefore test-only — no implementation changes.
 
-### 8e — stabilized weights (`TBD`)
+### 8e — stabilized weights (`e5eefd9`)
 
 - [x] Add `stabilize = c("none", "marginal")` argument to `causat()`, thread through `fit_ipw()`, stash in `fit$details$stabilize`.
 - [x] Extend `fit_treatment_models()` to fit per-component numerator models $g_k(A_k \mid A_{1..k-1})$ under `stabilize = "marginal"`. Stored as `attr(treatment_models, "numerator_models")`.
