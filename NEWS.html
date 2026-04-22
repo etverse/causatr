@@ -619,8 +619,7 @@ w_k^{s}(\alpha_k) = \frac{g_k\bigl(d_k^{-1}(A_k) \mid A_{1..k-1}\bigr) \cdot |\m
 <section id="breaking-change-survival-analysis-removed" class="level2">
 <h2 class="anchored" data-anchor-id="breaking-change-survival-analysis-removed">Breaking change: survival analysis removed</h2>
 <p>Causal survival analysis has been extracted from causatr into its own etverse package. This removes the scaffolded Phase 7 surface — the <code>causat_survival()</code> export, <code>type = "survival"</code> branch in <code>contrast()</code>, <code>PHASE_7_SURVIVAL.md</code>, the <code>survival.qmd</code> vignette, and all survival tests and snapshots. <code>to_person_period()</code> stays in causatr because it also serves general longitudinal data.</p>
-<p>The <code>SURVIVAL_PACKAGE_HANDOFF.md</code> document in the causatr repo root is the full hand-off to the new survival package: scope, design (pooled logistic + ICE hazards + competing risks), inheritance from causatr’s engine primitives, and implementation chunks.</p>
-<p>If you were using <code>causat_survival()</code>, switch to the new survival package once it ships. Until then, manual pooled-logistic regression on person-period data (via <code>causat(..., estimator = "gcomp")</code> plus custom intervention + cumulative-product code) remains possible.</p>
+<p>If you were using <code>causat_survival()</code>, switch to the new survival package (<code>etverse/survatr</code>). Until then, manual pooled-logistic regression on person-period data (via <code>causat(..., estimator = "gcomp")</code> plus custom intervention + cumulative-product code) remains possible.</p>
 </section>
 <section id="bug-fixes" class="level2">
 <h2 class="anchored" data-anchor-id="bug-fixes">Bug fixes</h2>
