@@ -895,14 +895,56 @@ res_mv <- contrast(
 tt(tidy(res_mv))
 ```
 
-Truth on this DGP: \\(E[Y(1,1)] = 4.5\\), \\(E[Y(0,0)] = 2.0\\),
-\\(\\text{ATE}(\\text{both vs neither}) = 2.5\\). Each component intervention
-uses any of the regular constructors (`static()`, `shift()`,
-`scale_by()`, `dynamic()`); IPSI in any component is rejected because
-Kennedy's closed form has no joint analogue. Effect modification
-(`A:modifier` confounders), categorical / count components, and
-opt-in `propensity_family` are also rejected with classed errors;
-multivariate matching remains rejected because `MatchIt` is binary-only.
+Truth on this DGP: $E[Y(1,1)] = 4.5$, $E[Y(0,0)] = 2.0$,
+$\mathrm{ATE}(\text{both vs neither}) = 2.5$. Each component
+intervention uses any of the regular constructors (`static()`,
+`shift()`, `scale_by()`, `dynamic()`); IPSI in any component is
+rejected because Kennedy's closed form has no joint analogue.
+Component types can mix freely: binary × continuous, binary ×
+categorical (via `nnet::multinom`), binary × Poisson / negative
+binomial (via `propensity_family = c("", "poisson")` / `c("", "negbin")`),
+continuous × continuous, and up to $K$-component combinations.
+Effect modification `A_k:modifier` is supported — per-component
+propensity formulas strip all treatment-touching terms and the MSM
+expands to $Y \sim 1 + \mathrm{modifier\_main\_effects}$. Multivariate
+matching remains rejected because `MatchIt` is binary-only.
+
+### Stabilized weights
+
+Pass `stabilize = "marginal"` to swap the per-component numerator for
+a separately-fit model $g_k(A_k \mid A_{1..k-1})$ that drops $L$ from
+the conditioning (Robins, Hernán, Brumback 2000, extended to
+multivariate). The per-component weight becomes
+
+$$
+w_k^{s}(\alpha_k) = \frac{g_k\bigl(d_k^{-1}(A_k) \mid A_{1..k-1}\bigr) \cdot |\mathrm{Jac}|}{f_k(A_k \mid A_{1..k-1}, L; \alpha_k)}.
+$$
+
+```{r}
+fit_mv_stab <- causat(
+  df_mv, "Y", c("A1", "A2"), ~ L,
+  estimator = "ipw", stabilize = "marginal"
+)
+res_mv_stab <- contrast(
+  fit_mv_stab,
+  interventions = list(
+    both    = list(A1 = static(1), A2 = static(1)),
+    neither = list(A1 = static(0), A2 = static(0))
+  ),
+  reference = "neither"
+)
+tt(tidy(res_mv_stab))
+```
+
+Whether stabilization reduces or inflates the sandwich SE depends on
+whether the marginal density of $A_k$ has lower variance than the
+full-$L$ conditional — it's not universally beneficial, just a
+common variance-reduction lever when $L$ strongly predicts $A_k$.
+Numerator-model uncertainty is held fixed in the sandwich
+(nuisance-fixed convention, same as $\sigma$ / $\theta$); bootstrap
+refits both models and captures full variance.
+
+### Mixed-type example
 
 Mixed-type treatment (binary + continuous) just works:
 
