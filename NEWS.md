@@ -1,5 +1,36 @@
 # causatr (development version)
 
+## 2026-04-26 — Effect modification under longitudinal IPW (Phase 10 chunk 10c)
+
+`A:modifier` interactions in `confounders =` are now supported under
+longitudinal IPW. The per-period propensity formulas strip every
+treatment-touching term via `parse_effect_mod()` (modifier main
+effects are kept; only the `A:sex` interaction is removed because A
+is the response of the propensity model), and the final-period MSM
+expands from `Y ~ 1` to `Y ~ 1 + modifier` via the existing
+`build_ipw_msm_formula()` so `predict()` returns stratum-specific
+counterfactual means.
+
+```r
+fit <- causat(d, outcome = "Y", treatment = "A",
+              confounders = ~ L0 + sex + A:sex,
+              confounders_tv = ~ L,
+              id = "id", time = "time", estimator = "ipw")
+contrast(fit, list(a = static(1), z = static(0)),
+         reference = "z", by = "sex")
+```
+
+**Known limitation.** The modifier MUST be a baseline covariate
+(Robins 2000). A time-varying modifier in an MSM conditions on a
+post-treatment variable, biasing the estimand. Not enforced at
+runtime (time-varying status isn't inferable from data); doc-level
+constraint only. Use a structural nested model (Phase 18) for
+time-varying effect modification.
+
+The chunk 10a `causatr_longitudinal_em_pending` rejection is removed.
+Bare treatment in confounders (`~ L + A`) continues to be rejected
+upstream by `check_em_compat()` with `causatr_bare_treatment_in_confounders`.
+
 ## 2026-04-26 — Stabilized longitudinal IPW (Phase 10 chunk 10b)
 
 `causat(estimator = "ipw", id, time, stabilize = "marginal")` now

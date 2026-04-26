@@ -1,6 +1,6 @@
 # Phase 10 — Longitudinal IPW
 
-> **Status: chunks 10a + 10b DONE (2026-04-26); chunk 10c effect modification PENDING.**
+> **Status: chunks 10a + 10b + 10c DONE (2026-04-26). Phase 10 complete.**
 >
 > **Depends on:** Phase 4 (self-contained IPW engine), Phase 5 (ICE data structures/conventions)
 
@@ -97,13 +97,14 @@ All longitudinal-compatible interventions from ICE should work:
 - [x] Tests in `test-longitudinal-ipw.R`: numerator-model structure under default and custom `numerator = ~ L0`, stabilized + static binary recovers identical estimate **and** SE as unstabilized (T-long-ipw-stab2), stabilized + shift cross-method agreement vs ICE on continuous DGP (T-long-ipw-stab3), bootstrap captures γ uncertainty (T-long-ipw-stab4).
 - [x] Coverage matrix + NEWS + CLAUDE.md updates.
 
-### 10c — effect modification (PENDING)
+### 10c — effect modification (DONE 2026-04-26)
 
-- [ ] Lift `causatr_longitudinal_em_pending` rejection.
-- [ ] Per-period propensity formula stripping via `parse_effect_mod()`'s `confounder_terms` slot in `fit_longitudinal_ipw()`.
-- [ ] MSM expansion `Y ~ 1 + modifier` via the existing `build_ipw_msm_formula()`; nothing to change in the variance engine (the MSM is already built generically).
-- [ ] Carry the Phase 6 baseline-modifier constraint as a doc-level note (modifier MUST be baseline; time-varying modifier under MSM violates Robins 2000).
-- [ ] Truth-based test on `make_em_ice_scm()`-style DGP (sex-stratified ATE recovers analytical truth).
+- [x] Lift the chunk 10a `causatr_longitudinal_em_pending` rejection in `fit_longitudinal_ipw()`. `check_em_compat()` upstream still rejects bare treatment in confounders (`~ L + A`) with `causatr_bare_treatment_in_confounders` — the only invalid use of treatment-touching terms.
+- [x] Per-period propensity formulas strip `A:modifier` via the chunk 10a wiring (`em_info$confounder_terms` → `baseline_terms`); modifier main effects (`sex`) are retained in the propensity. No new code -- the existing chunk 10a path was already EM-aware.
+- [x] MSM expansion via `build_ipw_msm_formula(outcome, em_info)` in `compute_ipw_contrast_longitudinal()`: replaces the hard-coded `Y ~ 1` with `Y ~ 1 + modifier` whenever `em_info$has_em` is `TRUE`. Variance engine unchanged -- the expanded MSM design matrix flows through `iv_design_matrix()` and `apply_model_correction()` transparently.
+- [x] Doc-level baseline-modifier constraint (Robins 2000) carried in NEWS, PHASE_10 doc, and the longitudinal vignette.
+- [x] Truth-based tests in `test-longitudinal-ipw.R`: T-long-ipw-em1 recovers ATE|sex=0 = 5 and ATE|sex=1 = 8 from `make_em_ice_scm()`; T-long-ipw-em2 verifies per-period propensity strips `A:sex` and the MSM expands to `Y ~ 1 + sex`; T-long-ipw-em3 cross-method agreement vs ICE EM.
+- [x] Coverage matrix + NEWS + CLAUDE.md updates.
 
 ## Dependencies
 

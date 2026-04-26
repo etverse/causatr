@@ -430,9 +430,13 @@ test_that("R-long-ipw3: numerator = formula without stabilize = 'marginal' is re
 })
 
 
-test_that("R-long-ipw4: A:modifier (effect modification) is rejected under longitudinal IPW", {
+test_that("R-long-ipw4: bare treatment in confounders (~ L + A) is rejected under longitudinal IPW", {
+  # `check_em_compat()` rejects `~ L + A` because it puts A on both
+  # sides of the propensity model. True EM (`A:sex`) is supported in
+  # chunk 10c; bare treatment is invalid by construction and stays
+  # rejected with a `causatr_bare_treatment_in_confounders` error.
   set.seed(7103)
-  d <- make_em_ice_scm(n = 200, n_times = 2, seed = 7103)
+  d <- make_linear_scm(n = 200, seed = 7103)
   d <- data.table::as.data.table(d)
 
   expect_error(
@@ -440,13 +444,13 @@ test_that("R-long-ipw4: A:modifier (effect modification) is rejected under longi
       d,
       outcome = "Y",
       treatment = "A",
-      confounders = ~ L0 + sex + A:sex,
+      confounders = ~ L0 + A,
       confounders_tv = ~L,
       id = "id",
       time = "time",
       estimator = "ipw"
     ),
-    class = "causatr_longitudinal_em_pending"
+    class = "causatr_bare_treatment_in_confounders"
   )
 })
 
@@ -764,4 +768,166 @@ test_that("T-long-ipw-stab5: custom numerator = ~ baseline keeps treatment lags 
   expect_equal(deparse(num_models[[1]]$ps_formula), "A ~ L0")
   # Period 2: lag1_A + L0 -> A ~ lag1_A + L0 (treatment lags first).
   expect_equal(deparse(num_models[[2]]$ps_formula), "A ~ lag1_A + L0")
+})
+
+
+# ----------------------------------------------------------------------
+# Chunk 10c: effect modification (baseline modifier)
+# ----------------------------------------------------------------------
+
+test_that("T-long-ipw-em1: stratified ATE recovers analytical truth on EM-ICE DGP", {
+  # `make_em_ice_scm()` is the canonical 2-period sex-stratified DGP
+  # with treatment-confounder feedback and per-period treatment effect
+  # (2 + 1.5*sex). For `always vs never` over 2 periods the analytical
+  # truths are ATE|sex=0 = 5 and ATE|sex=1 = 8 (derivation in
+  # helper-dgp.R).
+  set.seed(7700)
+  d <- make_em_ice_scm(n = 2500, n_times = 2, seed = 7700)
+  d <- data.table::as.data.table(d)
+
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L0 + sex + A:sex,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    estimator = "ipw"
+  )
+
+  # The MSM should expand from `Y ~ 1` to `Y ~ 1 + sex` automatically.
+  # `compute_ipw_contrast_longitudinal()` reads em_info from
+  # fit$details and routes through `build_ipw_msm_formula()`.
+  expect_true(fit$details$em_info$has_em)
+  expect_equal(fit$details$em_info$modifier_vars, "sex")
+
+  res <- contrast(
+    fit,
+    interventions = list(a = static(1), z = static(0)),
+    reference = "z",
+    ci_method = "sandwich",
+    by = "sex"
+  )
+
+  con_dt <- as.data.frame(res$contrasts)
+  est_sex0 <- con_dt$estimate[con_dt$by == "0"]
+  est_sex1 <- con_dt$estimate[con_dt$by == "1"]
+
+  # Analytical truths from `make_em_ice_scm` derivation: 5 and 8.
+  expect_lt(abs(est_sex0 - 5), 0.6)
+  expect_lt(abs(est_sex1 - 8), 0.7)
+
+  # SEs are finite and positive.
+  expect_true(all(is.finite(con_dt$se) & con_dt$se > 0))
+})
+
+
+test_that("T-long-ipw-em2: per-period propensity strips A:modifier; MSM expands to Y ~ 1 + modifier", {
+  # Structural check: with EM in confounders, the per-period
+  # propensity formula must NOT carry the `A:sex` term (A is the
+  # response of the propensity model -- can't appear on both sides),
+  # and the MSM in compute_ipw_contrast_longitudinal must include
+  # the modifier main effect.
+  set.seed(7701)
+  d <- make_em_ice_scm(n = 400, n_times = 2, seed = 7701)
+  d <- data.table::as.data.table(d)
+
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L0 + sex + A:sex,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    estimator = "ipw"
+  )
+
+  # Per-period propensity formula: A ~ baseline + tv + lags. Must not
+  # contain `:sex` (which would put A on both sides via A:sex).
+  ps_terms_p1 <- attr(
+    stats::terms(fit$details$per_period_formula[[1]]),
+    "term.labels"
+  )
+  ps_terms_p2 <- attr(
+    stats::terms(fit$details$per_period_formula[[2]]),
+    "term.labels"
+  )
+  expect_false(any(grepl(":sex", ps_terms_p1)))
+  expect_false(any(grepl(":sex", ps_terms_p2)))
+  # Modifier main effect IS in the propensity (main-effect baseline
+  # confounder; only the interaction is stripped).
+  expect_true("sex" %in% ps_terms_p1)
+
+  # Verify the MSM formula expands to `Y ~ 1 + sex` when EM is
+  # present; the longitudinal contrast path uses the same
+  # `build_ipw_msm_formula()` as the point IPW path.
+  expanded_formula <- build_ipw_msm_formula("Y", fit$details$em_info)
+  expect_true("sex" %in% all.vars(expanded_formula))
+  # Trigger one contrast to confirm the wired MSM gets fit (no abort,
+  # finite SE).
+  res <- contrast(
+    fit,
+    interventions = list(a = static(1)),
+    ci_method = "sandwich"
+  )
+  expect_s3_class(res, "causatr_result")
+  expect_true(all(is.finite(res$estimates$se)))
+})
+
+
+test_that("T-long-ipw-em3: longitudinal IPW EM agrees with ICE EM cross-method", {
+  # ICE g-comp with `A:sex` interaction is the baseline that
+  # longitudinal IPW EM should agree with on the same DGP. Both
+  # estimate the same target (sex-stratified ATE under the
+  # always-vs-never contrast).
+  set.seed(7702)
+  d <- make_em_ice_scm(n = 2000, n_times = 2, seed = 7702)
+  d <- data.table::as.data.table(d)
+
+  fit_ipw <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L0 + sex + A:sex,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    estimator = "ipw"
+  )
+  res_ipw <- contrast(
+    fit_ipw,
+    interventions = list(a = static(1), z = static(0)),
+    reference = "z",
+    ci_method = "sandwich",
+    by = "sex"
+  )
+
+  fit_ice <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L0 + sex + A:sex,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    estimator = "gcomp"
+  )
+  res_ice <- suppressMessages(contrast(
+    fit_ice,
+    interventions = list(a = static(1), z = static(0)),
+    reference = "z",
+    by = "sex"
+  ))
+
+  ipw_dt <- as.data.frame(res_ipw$contrasts)
+  ice_dt <- as.data.frame(res_ice$contrasts)
+  ipw_sex0 <- ipw_dt$estimate[ipw_dt$by == "0"]
+  ipw_sex1 <- ipw_dt$estimate[ipw_dt$by == "1"]
+  ice_sex0 <- ice_dt$estimate[ice_dt$by == "0"]
+  ice_sex1 <- ice_dt$estimate[ice_dt$by == "1"]
+
+  expect_lt(abs(ipw_sex0 - ice_sex0), 0.5)
+  expect_lt(abs(ipw_sex1 - ice_sex1), 0.5)
 })

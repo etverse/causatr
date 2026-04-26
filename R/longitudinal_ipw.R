@@ -133,27 +133,25 @@ fit_longitudinal_ipw <- function(
     check_formula(numerator)
   }
 
-  # Effect modification under longitudinal IPW is also deferred. The
-  # baseline-modifier MSM expansion already exists
-  # (`build_ipw_msm_formula()`); the per-period propensity stripping is
-  # already handled by `parse_effect_mod()` -- chunk 10c just wires the
-  # two together. Reject for now to surface the gap clearly rather than
-  # silently dropping the EM term.
+  # Effect modification under longitudinal IPW reuses the same parser
+  # the point IPW path uses (`parse_effect_mod()`). EM terms appear in
+  # `confounders` as `A:modifier`; the per-period propensity formulas
+  # strip every treatment-touching term via `em_info$confounder_terms`
+  # (so the propensity is `A ~ baseline + tv + lags` with no `A:`
+  # interactions), and the final-period MSM expands from `Y ~ 1` to
+  # `Y ~ 1 + modifier` via `build_ipw_msm_formula()`.
+  #
+  # Known limitation (Phase 6 / Robins 2000): the modifier MUST be a
+  # **baseline** covariate. A time-varying modifier in an MSM
+  # conditions on a post-treatment variable, biasing the estimand
+  # via mediator + collider paths. We don't enforce baseline-ness at
+  # runtime because time-varying status isn't inferable from the data;
+  # the constraint is doc-level.
   em_info <- check_confounders_treatment(
     confounders,
     treatment,
     estimator = "ipw"
   )
-  if (em_info$has_em) {
-    rlang::abort(
-      c(
-        "Effect modification (`A:modifier`) is not yet supported under longitudinal IPW.",
-        i = "Baseline-modifier EM under longitudinal IPW ships in chunk 10c.",
-        i = "Drop the `A:modifier` term from `confounders` or use ICE g-computation (`estimator = 'gcomp'`)."
-      ),
-      class = "causatr_longitudinal_em_pending"
-    )
-  }
 
   # Sorted unique time points. Per-period propensity models index into
   # `time_points[k]`; lag columns (`lag1_A`, ...) created by
@@ -648,6 +646,14 @@ compute_ipw_contrast_longitudinal <- function(
 
   ext_w_final <- if (is.null(ext_w)) NULL else ext_w[fit_rows_final]
 
+  # MSM formula. Default `Y ~ 1` (intercept-only Hájek). With
+  # baseline-modifier effect modification (`A:modifier` in
+  # `confounders`), expands to `Y ~ 1 + modifier` via the existing
+  # `build_ipw_msm_formula()` so `predict()` returns
+  # stratum-specific counterfactual means.
+  em_info <- details$em_info
+  msm_formula <- build_ipw_msm_formula(outcome, em_info)
+
   int_names <- names(interventions)
 
   # Reject `ipsi()` under longitudinal IPW for chunk 10a. Kennedy's
@@ -696,11 +702,12 @@ compute_ipw_contrast_longitudinal <- function(
     # population.
     w_combined <- if (is.null(ext_w_final)) w_final else w_final * ext_w_final
 
-    # Final-period weighted MSM. Intercept-only Hajek -- the cumulative
-    # product weight collapses surviving rows onto the counterfactual
-    # treatment trajectory, and the (sole) coefficient is `E[Y^d]`.
+    # Final-period weighted MSM. Intercept-only Hajek under
+    # `Y ~ 1`; with EM the MSM is `Y ~ 1 + modifier` so `predict()`
+    # returns stratum-specific counterfactual means. The treatment is
+    # absorbed by the cumulative density-ratio weight.
     msm_args <- list(
-      formula = stats::reformulate("1", response = outcome),
+      formula = msm_formula,
       data = data_final,
       family = fam_obj,
       weights = w_combined
@@ -709,7 +716,10 @@ compute_ipw_contrast_longitudinal <- function(
 
     # Counterfactual marginal mean over the target subset of
     # individuals. `target_within_first` is length n_id; subset to the
-    # final-period rows that correspond to target ids.
+    # final-period rows that correspond to target ids. Under EM the
+    # MSM contains modifier columns, so `predict()` correctly returns
+    # the per-row stratum mean -- aggregation by modifier value is
+    # handled by the user via `by =` in `contrast()`.
     target_ids_final <- target_within_first[id_to_first_idx[ids_final]]
     preds_final <- stats::predict(msm_model, type = "response")
     valid_final <- target_ids_final & !is.na(preds_final)

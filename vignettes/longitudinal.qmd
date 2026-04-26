@@ -846,11 +846,46 @@ nuisance-fixed convention as Phase 8e for multivariate IPW); bootstrap
 refits both numerator and denominator per replicate and captures the
 full uncertainty.
 
-**What's not yet supported (chunk 10c).** Effect-modification
-(`A:modifier` in `confounders`), multivariate longitudinal treatment,
-and per-period `ipsi()` are rejected with `_pending` classed errors
-pointing at the deferred follow-up chunks. Use `estimator = "gcomp"`
-(ICE) for those scenarios today.
+### Effect modification (baseline modifier)
+
+When `confounders =` includes an `A:modifier` interaction term, the
+per-period propensity formulas automatically strip the
+treatment-touching interaction (the modifier main effect is kept),
+and the final-period MSM expands from `Y ~ 1` to `Y ~ 1 + modifier`
+so `predict()` returns stratum-specific counterfactual means.
+
+```{r}
+#| eval: false
+fit_em <- causat(
+  long_data,
+  outcome     = "Y",
+  treatment   = "A",
+  confounders = ~ baseline + sex + A:sex,
+  confounders_tv = ~ L,
+  id          = "id",
+  time        = "time",
+  estimator   = "ipw"
+)
+contrast(
+  fit_em,
+  interventions = list(a = static(1), z = static(0)),
+  reference     = "z",
+  by            = "sex"
+)
+```
+
+**Known limitation (Robins 2000).** Under longitudinal IPW, the
+modifier MUST be a **baseline** covariate. A time-varying modifier
+in an MSM conditions on a post-treatment variable, which biases the
+estimand via mediator and collider paths. causatr does not enforce
+baseline-ness at runtime (time-varying status isn't inferable from
+data); the constraint is documented only. The scientifically
+correct tool for time-varying effect modification is a structural
+nested model (Phase 18; `etverse/snmestr`).
+
+**What's not yet supported.** Multivariate longitudinal treatment
+and per-period `ipsi()` are rejected with `_pending` classed errors.
+Use `estimator = "gcomp"` (ICE) for those scenarios today.
 
 ## Multivariate time-varying treatment
 
