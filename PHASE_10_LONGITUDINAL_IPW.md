@@ -110,8 +110,9 @@ All longitudinal-compatible interventions from ICE should work:
 
 Phase 4 (self-contained IPW engine), Phase 5 (ICE data structures, person-period conventions).
 
-## Out of scope
+## Out of scope (tracked under their own phase docs)
 
-- Longitudinal multivariate IPW (combine with Phase 8 multivariate)
-- Grace period / visit-process interventions (future enhancement)
-- Stratified ICE option (future enhancement)
+- **Longitudinal multivariate IPW** — `treatment = c("A1", "A2")` jointly with `id`/`time`. Tracked in [`PHASE_19_LONGITUDINAL_MULTIVARIATE_IPW.md`](PHASE_19_LONGITUDINAL_MULTIVARIATE_IPW.md). Currently rejected with `causatr_longitudinal_multivariate_pending`.
+- **Per-period IPSI** — Kennedy (2019) IPSI extended to a per-period product. Tracked in [`PHASE_20_LONGITUDINAL_IPSI.md`](PHASE_20_LONGITUDINAL_IPSI.md). Currently rejected with `causatr_longitudinal_ipsi_pending`.
+- Grace period / visit-process interventions (future enhancement; no phase doc yet).
+- Stratified ICE option (future enhancement; no phase doc yet).
