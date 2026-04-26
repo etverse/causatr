@@ -714,6 +714,100 @@ res_mtp
 Structural truth for `shift(-1)` is $-3.85$ (see derivation above). The
 `shift_m1` estimate should be close to this value.
 
+## Longitudinal IPW (sequential density-ratio weights)
+
+ICE g-computation models the **outcome** at each period and iterates
+backward. The IPW analogue models the **treatment density** at each
+period and accumulates a per-id density-ratio weight, then fits a
+weighted final-period MSM. Both target the same counterfactual mean
+$E[Y^d]$; agreement between them is the methodological-triangulation
+test causatr is built around.
+
+The mathematical structure is the same chain rule we used for
+multivariate IPW (Phase 8) but indexed by **time** rather than
+treatment component. For an intervention $d$ applied at every period
+$k = 0, 1, \ldots, K$:
+
+$$
+W_i = \prod_{k=0}^{K} \frac{f_k\bigl(d(A_{k,i}, L_{k,i}) \mid \bar A_{k-1,i}^{\mathrm{obs}}, \bar L_{k,i}\bigr) \cdot \lvert \mathrm{Jac}\,d^{-1} \rvert}{f_k\bigl(A_{k,i} \mid \bar A_{k-1,i}^{\mathrm{obs}}, \bar L_{k,i}\bigr)}.
+$$
+
+Both numerator and denominator condition on **observed** upstream
+treatments — the sequential-MTP semantics of Robins, Hernán, Brumback
+(2000) and Díaz et al. (2023). The MSM is intercept-only Hájek on
+the final-period rows, weighted by the per-id cumulative product;
+the (sole) coefficient is $E[Y^d]$.
+
+```{r}
+fit_ipw_long <- causat(
+  cont_long,
+  outcome     = "Y",
+  treatment   = "A",
+  confounders = ~ 1,
+  confounders_tv = ~ L,
+  id          = "id",
+  time        = "time",
+  estimator   = "ipw"
+)
+
+res_ipw_long <- contrast(
+  fit_ipw_long,
+  interventions = list(observed = NULL, shift_m1 = shift(-1)),
+  reference     = "observed",
+  type          = "difference",
+  ci_method     = "sandwich"
+)
+res_ipw_long
+```
+
+ICE g-comp and longitudinal IPW estimate the same target parameter,
+so on a correctly-specified linear-Gaussian DGP they should agree on
+the point estimate up to Monte Carlo error. Sandwich SEs differ —
+IPW typically has heavier variance than g-computation when the
+outcome model is correct, so the IPW SE is usually larger.
+
+```{r}
+res_mtp$contrasts
+res_ipw_long$contrasts
+```
+
+**Supported interventions.** `static()` / `shift()` / `scale_by()` /
+`dynamic()` are dispatched per period through the same family-aware
+gates as point IPW (`check_intervention_family_compat()`). Natural
+course (`NULL`) collapses every per-period weight to 1 and recovers
+the observed marginal mean.
+
+**Bootstrap.** `ci_method = "bootstrap"` resamples **individuals**
+(every person-period row of a sampled id travels together). Cloning
+ids that are sampled multiple times mirrors the ICE bootstrap
+convention so within-person dependence is preserved.
+
+```{r}
+res_ipw_boot <- contrast(
+  fit_ipw_long,
+  interventions = list(observed = NULL, shift_m1 = shift(-1)),
+  reference     = "observed",
+  type          = "difference",
+  ci_method     = "bootstrap",
+  n_boot        = 100
+)
+res_ipw_boot$contrasts
+```
+
+**Sequential positivity warning.** When any per-period weight has a
+heavy tail (max > 100 by default) the engine emits a
+`causatr_longitudinal_seq_positivity` warning naming the offending
+period(s) and their per-period max weight. The cumulative product
+loses period attribution, so this per-period diagnostic is the
+primary way to identify which time step is the bottleneck.
+
+**What's not yet supported (chunk 10a).** Effect-modification
+(`A:modifier` in `confounders`), `stabilize = "marginal"` /
+`numerator =` for stabilized weights, multivariate longitudinal
+treatment, and per-period `ipsi()` are rejected with `_pending`
+classed errors pointing at the deferred follow-up chunks. Use
+`estimator = "gcomp"` (ICE) for those scenarios today.
+
 ## Multivariate time-varying treatment
 
 When multiple treatments vary over time (e.g. two drugs dosed jointly),

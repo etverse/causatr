@@ -1,5 +1,41 @@
 # causatr (development version)
 
+## 2026-04-26 — Longitudinal IPW core (Phase 10 chunk 10a)
+
+`causat(estimator = "ipw", id = ..., time = ...)` now ships:
+fits a per-period treatment density chain $f(A_k \mid \bar A_{k-1},
+\bar L_k)$ across `time_points`, builds the cumulative density-ratio
+weight per individual under sequential-MTP semantics (Robins, Hernán,
+Brumback 2000; Díaz et al. 2023), refits an intercept-only Hájek MSM
+on final-period outcomes, and reads $\hat\mu_a$ off the intercept.
+
+```r
+fit <- causat(d, outcome = "Y", treatment = "A",
+              confounders = ~ L0, confounders_tv = ~ L,
+              id = "id", time = "time", estimator = "ipw")
+contrast(fit, list(s = shift(0.5), n = NULL),
+         reference = "n", ci_method = "sandwich")
+```
+
+- Supported interventions: `static()` / `shift()` / `scale_by()` /
+  `dynamic()` (per-period dispatch through the existing
+  `check_intervention_family_compat()` gates).
+- Variance: stacked sandwich (`variance_if_ipw_longitudinal()`) with
+  block-diagonal propensity bread across periods, plus id-clustered
+  nonparametric bootstrap that resamples entire individual
+  trajectories.
+- Sequential positivity: per-period weight tails are scanned and a
+  `causatr_longitudinal_seq_positivity` warning surfaces the offending
+  period(s) (default threshold 100).
+- Rejected (deferred to follow-up chunks): effect-modification
+  (`A:modifier`), `stabilize = "marginal"` / `numerator =`,
+  multivariate longitudinal treatment, `ipsi()` per period. Each
+  rejection ships with a `_pending` classed error pointing at the
+  alternative.
+- The longitudinal-IPW rejection in `check_causat_inputs()` is
+  removed; matching is the only estimator still gated for longitudinal
+  data.
+
 ## 2026-04-22 — `future` backend for bootstrap (Phase 9c)
 
 `contrast(parallel = "future")` now dispatches bootstrap replicates

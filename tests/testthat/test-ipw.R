@@ -77,26 +77,25 @@ test_that("IPW continuous treatment fits and contrasts", {
   expect_equal(fit$details$treatment_model$family, "gaussian")
 })
 
-test_that("causat(estimator = 'ipw') rejects longitudinal data", {
-  df <- data.frame(
-    Y = c(0, 1, 0, 1),
-    A = c(0, 1, 0, 1),
-    L = c(1, 1, 2, 2),
-    id = c(1, 1, 2, 2),
-    time = c(0, 1, 0, 1)
+test_that("causat(estimator = 'ipw') accepts longitudinal data (Phase 10)", {
+  # Longitudinal IPW lights up via `fit_longitudinal_ipw()` -- a 2-row
+  # per id person-period frame should fit a per-period density chain
+  # without aborting. Numerical correctness is exercised in
+  # test-longitudinal-ipw.R; this is just the entry-gate smoke check.
+  d <- make_linear_scm(n = 80, n_times = 2, seed = 7)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    estimator = "ipw",
+    id = "id",
+    time = "time"
   )
-  expect_error(
-    causat(
-      df,
-      outcome = "Y",
-      treatment = "A",
-      confounders = ~L,
-      estimator = "ipw",
-      id = "id",
-      time = "time"
-    ),
-    "longitudinal"
-  )
+  expect_s3_class(fit, "causatr_fit")
+  expect_equal(fit$type, "longitudinal")
+  expect_equal(length(fit$details$treatment_models_by_time), 2L)
 })
 
 test_that("IPW with propensity_model_fn = mgcv::gam fits", {
@@ -165,14 +164,11 @@ test_that("IPW rejects bare treatment in confounders", {
 })
 
 # `fit_ipw()` rejects scientifically out-of-scope combinations up
-# front: longitudinal IPW (Phase 10 work) and multivariate treatment
-# (Phase 8 work). The aborts ship today as actionable error messages
-# pointing users to the supported alternatives.
-test_that("IPW rejects type = 'longitudinal' upstream and via fit_ipw()", {
-  # Two paths: `check_causat_inputs()` rejects it at the top of
-  # `causat()` (the user-facing path), and `fit_ipw()` has its own
-  # defensive abort for the same condition (the dispatcher path used
-  # by the bootstrap refitter). The test exercises both.
+# front. Multivariate treatment is the historically-rejected path
+# preserved here; longitudinal IPW now ships (Phase 10) and is
+# exercised in test-longitudinal-ipw.R. Matching is rejected for
+# longitudinal data via `check_causat_inputs()`.
+test_that("matching is rejected for longitudinal data", {
   d <- simulate_binary_continuous(n = 100, seed = 411)
   d$id <- seq_len(nrow(d))
   d$t <- 0L
@@ -182,27 +178,12 @@ test_that("IPW rejects type = 'longitudinal' upstream and via fit_ipw()", {
       outcome = "Y",
       treatment = "A",
       confounders = ~L,
-      estimator = "ipw",
+      estimator = "matching",
       id = "id",
       time = "t",
       type = "longitudinal"
     ),
     "does not support longitudinal data"
-  )
-  # Direct call to fit_ipw with type = "longitudinal" hits the
-  # internal abort branch.
-  expect_error(
-    fit_ipw(
-      data = data.table::as.data.table(d),
-      outcome = "Y",
-      treatment = "A",
-      confounders = ~L,
-      family = "gaussian",
-      estimand = "ATE",
-      type = "longitudinal",
-      call = NULL
-    ),
-    "Longitudinal IPW is not supported"
   )
 })
 

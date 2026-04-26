@@ -482,7 +482,7 @@ refit_ipw <- function(fit, d_b, weights = NULL) {
     confounders_tv = fit$confounders_tv,
     family = fit$family,
     estimand = fit$estimand,
-    type = "point",
+    type = fit$type,
     history = fit$history,
     numerator = fit$numerator,
     weights = weights,
@@ -492,6 +492,12 @@ refit_ipw <- function(fit, d_b, weights = NULL) {
     stabilize = fit$details$stabilize %||% "none",
     call = NULL
   )
+  # Longitudinal IPW needs the id / time slots threaded through to
+  # `fit_longitudinal_ipw()`; point IPW ignores them.
+  if (fit$type == "longitudinal") {
+    args$id <- fit$id
+    args$time <- fit$time
+  }
   fit_b <- do.call(fit_ipw, c(args, fit$details$dots))
   fit_b$call <- fit$call
   fit_b
@@ -549,6 +555,129 @@ refit_matching <- function(fit, d_b, weights = NULL) {
     weights = matched_weights,
     family = fit$model$family
   )
+}
+
+
+#' Bootstrap variance for longitudinal IPW
+#'
+#' @description
+#' Resamples **individuals** (all their person-period rows together)
+#' and re-runs the full longitudinal-IPW pipeline on each replicate.
+#' Mirrors `ice_variance_bootstrap()` exactly -- same id-cluster logic
+#' (clone rows + reassign integer ids on duplicates) and same target /
+#' subset / external-weight handling -- but the per-replicate body
+#' refits via `fit_longitudinal_ipw()` and reads marginal means via
+#' `compute_ipw_contrast_longitudinal()`.
+#'
+#' @inheritParams ice_variance_bootstrap
+#'
+#' @return A list with `vcov`, `boot_t`, `boot_info`.
+#'
+#' @noRd
+ipw_longitudinal_variance_bootstrap <- function(
+  fit,
+  interventions,
+  n_boot,
+  target_within_first,
+  est,
+  subset,
+  parallel = "no",
+  ncpus = 1L,
+  subset_env = parent.frame()
+) {
+  data <- fit$data
+  int_names <- names(interventions)
+  id_col <- fit$id
+  time_col <- fit$time
+  treatment <- fit$treatment
+  first_time <- fit$details$time_points[1]
+
+  all_ids <- unique(data[[id_col]])
+  n_ids <- length(all_ids)
+  orig_weights <- fit$details$weights
+
+  boot_fn <- function(ids, indices) {
+    sampled_ids <- ids[indices]
+
+    # Cluster bootstrap clone-and-reassign (same logic as
+    # `ice_variance_bootstrap()`). When an id is sampled multiple
+    # times, replicate its rows with fresh integer ids so the
+    # downstream pipeline treats the duplicates as distinct
+    # individuals.
+    id_counts <- table(sampled_ids)
+    d_b_list <- vector("list", length(sampled_ids))
+    w_b_list <- if (!is.null(orig_weights)) {
+      vector("list", length(sampled_ids))
+    }
+    new_id <- 0L
+    for (orig_id in names(id_counts)) {
+      n_copies <- as.integer(id_counts[[orig_id]])
+      orig_rows <- which(data[[id_col]] == orig_id)
+      sub <- data[orig_rows]
+      sub_w <- if (!is.null(orig_weights)) orig_weights[orig_rows]
+      for (cc in seq_len(n_copies)) {
+        new_id <- new_id + 1L
+        sub_copy <- data.table::copy(sub)
+        sub_copy[, (id_col) := new_id]
+        d_b_list[[new_id]] <- sub_copy
+        if (!is.null(orig_weights)) w_b_list[[new_id]] <- sub_w
+      }
+    }
+    d_b <- data.table::rbindlist(d_b_list)
+    w_b <- if (!is.null(orig_weights)) unlist(w_b_list)
+
+    fit_b <- tryCatch(
+      withCallingHandlers(
+        suppressWarnings(refit_ipw(fit, d_b, weights = w_b)),
+        warning = function(w) {
+          if (inherits(w, "causatr_singular_bread")) {
+            invokeRestart("muffleWarning")
+          }
+        }
+      ),
+      error = function(e) NULL
+    )
+    if (is.null(fit_b)) {
+      return(rep(NA_real_, length(int_names)))
+    }
+
+    # Determine the bootstrap-replicate target population at the first
+    # period. Same shape as `ice_variance_bootstrap()`: evaluate the
+    # user's `subset` against `d_b` if provided, AND with the
+    # first-period mask, then collapse to a length-n_ids logical.
+    rows_b_first <- d_b[[time_col]] == first_time
+    if (!is.null(subset)) {
+      target_b <- rows_b_first &
+        as.logical(eval(subset, envir = d_b, enclos = subset_env))
+    } else {
+      target_b <- rows_b_first
+    }
+    target_b_within <- target_b[rows_b_first]
+
+    ipw_long_b <- tryCatch(
+      compute_ipw_contrast_longitudinal(
+        fit_b,
+        interventions,
+        target_b_within
+      ),
+      error = function(e) NULL
+    )
+    if (is.null(ipw_long_b)) {
+      return(rep(NA_real_, length(int_names)))
+    }
+
+    ipw_long_b$mu_hat
+  }
+
+  boot_res <- dispatch_boot(
+    data = all_ids,
+    statistic = boot_fn,
+    R = n_boot,
+    parallel = parallel,
+    ncpus = ncpus
+  )
+
+  process_boot_results(boot_res, int_names, n_boot)
 }
 
 

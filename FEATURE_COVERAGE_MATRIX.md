@@ -113,13 +113,37 @@ Rejections (all ✅ tested):
 - non-integer `shift()` on count $\to$ test-ipw-count.R
 - non-integer-preserving `scale_by()` on count $\to$ test-ipw-count.R
 - shift/scale_by/dynamic/ipsi + ATT/ATC $\to$ test-estimand-intervention-compat.R
-- longitudinal $\to$ test-ipw.R
 - multivariate + ATT/ATC $\to$ test-multivariate.R, test-multivariate-ipw.R
 - multivariate + ipsi() in any component $\to$ test-multivariate-ipw.R
 - multivariate + bare treatment in confounders (`~ L + A1`) $\to$ test-multivariate-ipw.R
 - multivariate + `propensity_family` invalid shape $\to$ test-multivariate-ipw.R
 - multivariate count + `static()` / `threshold()` / `dynamic()` / non-integer `shift()` $\to$ test-multivariate-ipw.R
 - univariate IPW + `stabilize = "marginal"` $\to$ test-multivariate-ipw.R (`causatr_stabilize_univariate`)
+
+---
+
+## Longitudinal IPW (Phase 10)
+
+Per-period treatment density chain $f(A_k \mid \bar A_{k-1}, \bar L_k)$ + cumulative product weights + final-period intercept-only Hájek MSM + stacked sandwich (block-diagonal propensity bread across periods) + id-clustered bootstrap.
+
+| Trt | Outcome | Intervention | Periods | Variance | Wt | Status | Test |
+|---|---|---|---|---|---|---|---|
+| cont | gauss | shift | 2 | sandwich | — | ✅ vs ICE | test-longitudinal-ipw.R |
+| cont | gauss | shift | 2 | bootstrap | — | ✅ vs sandwich | test-longitudinal-ipw.R |
+| cont | gauss | shift | 2 | sandwich | — | ✅ vs lmtp::lmtp_sdr | test-longitudinal-ipw.R |
+| bin | gauss | static (always vs never) | 2 | sandwich | — | ✅ vs ICE | test-longitudinal-ipw.R |
+| bin | gauss | natural course (NULL) | 2 | sandwich | — | ✅ recovers observed mean | test-longitudinal-ipw.R |
+
+Sequential positivity warning (`causatr_longitudinal_seq_positivity`): fires when any per-period weight max exceeds 100 (default threshold); silent below threshold. Tested directly on `warn_seq_positivity()`.
+
+Rejections (all ✅ tested, "_pending" classed errors deferred to follow-up chunks):
+- `ipsi()` $\to$ test-longitudinal-ipw.R (`causatr_longitudinal_ipsi_pending`; per-period IPSI extension deferred)
+- `stabilize = "marginal"` $\to$ test-longitudinal-ipw.R (`causatr_longitudinal_stabilize_pending`; chunk 10b)
+- `numerator =` formula $\to$ test-longitudinal-ipw.R (`causatr_longitudinal_numerator_pending`; chunk 10b)
+- `A:modifier` (effect modification) $\to$ test-longitudinal-ipw.R (`causatr_longitudinal_em_pending`; chunk 10c)
+- multivariate longitudinal IPW $\to$ test-longitudinal-ipw.R (`causatr_longitudinal_multivariate_pending`)
+- ATT / ATC under longitudinal IPW $\to$ test-longitudinal-ipw.R (inherits `check_estimand_trt_compat`)
+- single-period data labelled `type = "longitudinal"` $\to$ test-longitudinal-ipw.R (`causatr_longitudinal_too_few_times`)
 
 ---
 

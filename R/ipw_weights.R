@@ -1820,3 +1820,338 @@ check_intervention_family_compat <- function(
 
   invisible(NULL)
 }
+
+
+#' Compute cumulative density-ratio weights for one longitudinal intervention
+#'
+#' @description
+#' Longitudinal companion to `compute_density_ratio_weights()` and
+#' `compute_density_ratio_weights_mv()`. For a fixed intervention `d`
+#' applied at every period `k = 1..K`, builds the per-individual joint
+#' weight
+#' \deqn{W_i = \prod_{k=1}^{K} w_k(A_{k,i}, L_{k,i})
+#'      = \prod_{k=1}^{K} \frac{f_k(d(A_{k,i}, L_{k,i}) \mid \bar A_{k-1,i}^{\mathrm{obs}}, \bar L_{k,i})}
+#'                              {f_k(A_{k,i} \mid \bar A_{k-1,i}^{\mathrm{obs}}, \bar L_{k,i})}}
+#' under the sequential-MTP semantics of Robins, Hernán, Brumback (2000) and
+#' Díaz et al. (2023). The k-th per-period factor is computed by
+#' reusing `compute_density_ratio_weights()` against the period-k
+#' subset `data_at_time = fit_data_by_time[[k]]` and the period-k
+#' density model `tm_k`. The product is taken **across time** within
+#' each individual.
+#'
+#' Issues a sequential-positivity warning when any per-period weight
+#' has a heavy right tail (`max > positivity_threshold`); the per-period
+#' breakdown helps the user identify which period is unstable, which
+#' the cumulative product alone would obscure.
+#'
+#' Natural course (NULL intervention) collapses to a constant 1 vector
+#' -- every per-period factor equals 1 because numerator and
+#' denominator densities coincide.
+#'
+#' @param treatment_models_by_time Named list of K per-period
+#'   `causatr_treatment_model` objects from `fit_longitudinal_ipw()`.
+#' @param fit_data_by_time Named list of K per-period data subsets
+#'   (one row per individual at each period).
+#' @param ids_first Character vector of individual ids in the order
+#'   the returned weight vector is indexed by.
+#' @param id_col Character. Name of the id column.
+#' @param intervention A `causatr_intervention` object or `NULL`.
+#' @param estimand Character. ATE only for longitudinal IPW.
+#' @param positivity_threshold Positive scalar. Per-period max weight
+#'   above this triggers the sequential-positivity warning.
+#'
+#' @return Numeric vector of length `length(ids_first)` -- the
+#'   cumulative product weight per individual, ordered by `ids_first`.
+#'
+#' @noRd
+compute_longitudinal_weights <- function(
+  treatment_models_by_time,
+  fit_data_by_time,
+  ids_first,
+  id_col,
+  intervention,
+  estimand = "ATE",
+  positivity_threshold = 100
+) {
+  if (estimand != "ATE") {
+    rlang::abort(
+      "Longitudinal IPW only supports estimand = 'ATE'.",
+      class = "causatr_longitudinal_estimand"
+    )
+  }
+
+  n_times <- length(treatment_models_by_time)
+  n_id <- length(ids_first)
+
+  # Natural course: w = 1 for every individual at every period; the
+  # product is identically 1.
+  if (is.null(intervention)) {
+    return(rep(1, n_id))
+  }
+
+  # Per-period weights stacked into an `n_id × K` matrix so we can
+  # diagnose positivity per period and then take row-products to get
+  # the per-id cumulative weight. Each column is built by reusing the
+  # univariate `compute_density_ratio_weights()` engine against the
+  # period-k model and subset.
+  W_per_period <- matrix(NA_real_, nrow = n_id, ncol = n_times)
+
+  for (k in seq_len(n_times)) {
+    tm_k <- treatment_models_by_time[[k]]
+    data_k <- fit_data_by_time[[k]]
+    ids_k <- as.character(data_k[[id_col]])
+
+    # The univariate density-ratio engine respects `tm_k$fit_rows`
+    # internally -- the period-k subset already has one row per id, so
+    # `tm_k$fit_rows` is all-TRUE under the no-missingness assumption.
+    # The returned weight has length `sum(tm_k$fit_rows)` and is
+    # ordered to match the subset rows.
+    w_k <- compute_density_ratio_weights(
+      treatment_model = tm_k,
+      data = data_k,
+      intervention = intervention,
+      estimand = estimand
+    )
+
+    # Align per-period weight to the canonical id ordering. Some ids
+    # may have been dropped at period k by `fit_treatment_model()`'s
+    # NA mask; for chunk 10a we expect a complete-case design so this
+    # is identity. Defensive: rows that weren't fit at period k get
+    # weight 0 (absorbed into the cumulative product, drops them
+    # from the Hajek mean).
+    period_ids <- ids_k[tm_k$fit_rows]
+    w_aligned <- rep(0, n_id)
+    pos <- match(period_ids, ids_first)
+    w_aligned[pos] <- w_k
+    W_per_period[, k] <- w_aligned
+  }
+
+  # Sequential positivity warning. We surface the per-period max weight
+  # (and the time index) so users can spot which period is the
+  # bottleneck. The default threshold of 100 mirrors a common rule of
+  # thumb (`cobalt::col_w_dist`) for IPW weights; a single per-period
+  # excursion above this is enough to inflate the cumulative product
+  # noticeably.
+  warn_seq_positivity(
+    W_per_period,
+    time_points = names(treatment_models_by_time),
+    threshold = positivity_threshold
+  )
+
+  # Row-product across time. `apply(W, 1, prod)` is fine here because
+  # K is typically small (< 10) and the matrix is dense.
+  apply(W_per_period, 1L, prod)
+}
+
+
+#' Warn when any per-period weight has a heavy right tail
+#'
+#' @description
+#' Sequential positivity check for longitudinal IPW. Issues a single
+#' rate-limited `rlang::warn()` listing every period whose maximum
+#' weight exceeds `threshold`, along with the per-period max weight
+#' (sortable by user). No-op when every per-period weight is below
+#' threshold.
+#'
+#' Detection lives here rather than in `diagnose()` because the
+#' per-period decomposition is not preserved past
+#' `compute_longitudinal_weights()` -- once the product is taken,
+#' a single bad period is indistinguishable from a uniform mild
+#' inflation across periods. The full diagnostic integration is
+#' planned for the `diagnose()` rewrite.
+#'
+#' @param W_per_period Numeric matrix `n_id × K` of per-period
+#'   weights.
+#' @param time_points Character vector (length K) labelling the time
+#'   points -- typically `as.character(time_points)` from the fit.
+#' @param threshold Positive scalar. Per-period max above which a
+#'   warning fires.
+#'
+#' @return `NULL` invisibly.
+#'
+#' @noRd
+warn_seq_positivity <- function(W_per_period, time_points, threshold = 100) {
+  per_period_max <- apply(W_per_period, 2L, max, na.rm = TRUE)
+  bad_idx <- which(per_period_max > threshold)
+  if (length(bad_idx) == 0L) {
+    return(invisible(NULL))
+  }
+
+  bad_summary <- vapply(
+    bad_idx,
+    function(k) {
+      paste0(
+        "time = ",
+        time_points[k],
+        " (max weight ",
+        format(per_period_max[k], digits = 3),
+        ")"
+      )
+    },
+    character(1)
+  )
+
+  rlang::warn(
+    c(
+      paste0(
+        "Sequential positivity warning: ",
+        length(bad_idx),
+        " period(s) have a per-period density-ratio weight > ",
+        threshold,
+        "."
+      ),
+      i = paste0(
+        "Affected periods: ",
+        paste(bad_summary, collapse = "; "),
+        "."
+      ),
+      i = paste0(
+        "The cumulative product weight may be unstable. Consider a ",
+        "richer propensity model (`propensity_model_fn = mgcv::gam`), ",
+        "tighter intervention (smaller shift), or an MTP that stays ",
+        "closer to the natural treatment distribution."
+      )
+    ),
+    class = "causatr_longitudinal_seq_positivity",
+    .frequency = "regularly",
+    .frequency_id = "causatr_longitudinal_seq_positivity"
+  )
+  invisible(NULL)
+}
+
+
+#' Construct the stacked-alpha closure for longitudinal IPW variance
+#'
+#' @description
+#' Longitudinal companion to `make_weight_fn()` /
+#' `make_weight_fn_mv()`. For a fixed intervention applied at every
+#' period, builds a closure
+#' \deqn{W_i(\alpha) = \prod_{k=1}^{K} w_k(\alpha_k)}
+#' where `\alpha = (\alpha_1, \ldots, \alpha_K)` is the concatenation
+#' of per-period propensity coefficients. Each per-period sub-closure
+#' is built by `make_weight_fn()` applied to the period-k subset and
+#' density model.
+#'
+#' The K propensity models are fit on **disjoint** row subsets (one
+#' subset per period), so the bread of the stacked propensity system
+#' is block-diagonal -- the variance engine handles the propensity
+#' correction as a sum of K single-model corrections. The closure
+#' itself is what `numDeriv::jacobian()` consumes to compute the
+#' cross-derivative `A_{beta, alpha}`.
+#'
+#' Each sub-closure returns a length-`n_id` vector ordered to match
+#' the canonical `ids_first` ordering -- per-period ids are mapped
+#' back to that index space before multiplication, mirroring the
+#' alignment in `compute_longitudinal_weights()`.
+#'
+#' @param treatment_models_by_time Named list of K per-period
+#'   `causatr_treatment_model` objects.
+#' @param fit_data_by_time Named list of K per-period data subsets.
+#' @param ids_first Character vector of individual ids in the
+#'   canonical first-period order.
+#' @param id_col Character. ID column name.
+#' @param intervention A `causatr_intervention` object or `NULL`.
+#' @param estimand Character. ATE only for longitudinal IPW.
+#'
+#' @return A list with components:
+#'   \describe{
+#'     \item{`weight_fn`}{`function(alpha)` returning a length-`n_id`
+#'       cumulative product weight vector.}
+#'     \item{`offsets`}{Integer (K+1)-vector. `offsets[k]:offsets[k+1]
+#'       - 1` gives the alpha-block indices for period k.}
+#'     \item{`alpha_hat`}{Stacked initial alpha (concatenation of
+#'       per-period `alpha_hat`).}
+#'   }
+#'
+#' @noRd
+make_weight_fn_longitudinal <- function(
+  treatment_models_by_time,
+  fit_data_by_time,
+  ids_first,
+  id_col,
+  intervention,
+  estimand = "ATE"
+) {
+  if (estimand != "ATE") {
+    rlang::abort(
+      "Longitudinal IPW only supports estimand = 'ATE'.",
+      class = "causatr_longitudinal_estimand"
+    )
+  }
+
+  K <- length(treatment_models_by_time)
+  n_id <- length(ids_first)
+
+  # Natural course: weight is identically 1 regardless of alpha. Still
+  # return a closure so the variance engine's loop has a uniform
+  # contract. `numDeriv::jacobian` on a constant function returns
+  # zero, which is correct -- natural course carries no propensity-
+  # uncertainty.
+  if (is.null(intervention)) {
+    return(list(
+      weight_fn = function(alpha) rep(1, n_id),
+      offsets = c(1L, 1L),
+      alpha_hat = numeric(0)
+    ))
+  }
+
+  # Per-period sub-closures + alpha block lengths + alignment maps
+  # back to the canonical id ordering.
+  sub_fns <- vector("list", K)
+  block_lens <- integer(K)
+  alpha_blocks <- vector("list", K)
+  align_idx <- vector("list", K)
+
+  for (k in seq_len(K)) {
+    tm_k <- treatment_models_by_time[[k]]
+    data_k <- fit_data_by_time[[k]]
+    ids_k <- as.character(data_k[[id_col]])
+
+    # Per-period sub-closure. `make_weight_fn()` already handles every
+    # supported (intervention, family) combination -- we just borrow
+    # it per period.
+    sub_fn_k <- make_weight_fn(
+      treatment_model = tm_k,
+      data = data_k,
+      intervention = intervention,
+      estimand = estimand
+    )
+
+    period_ids <- ids_k[tm_k$fit_rows]
+    pos <- match(period_ids, ids_first)
+    align_idx[[k]] <- pos
+
+    sub_fns[[k]] <- sub_fn_k
+    alpha_k <- tm_k$alpha_hat
+    alpha_blocks[[k]] <- alpha_k
+    block_lens[k] <- length(alpha_k)
+  }
+
+  offsets <- c(1L, cumsum(block_lens) + 1L)
+  alpha_hat <- unlist(alpha_blocks, use.names = FALSE)
+
+  weight_fn <- function(alpha) {
+    W <- rep(1, n_id)
+    for (k in seq_len(K)) {
+      idx <- offsets[k]:(offsets[k + 1L] - 1L)
+      alpha_k <- alpha[idx]
+      w_period <- sub_fns[[k]](alpha_k)
+
+      # Project per-period weight (length n_period_k) onto the
+      # canonical id ordering. Periods missing an id contribute
+      # weight 0 (drops the id from the Hajek mean). Under the
+      # complete-case assumption of chunk 10a, alignment is the
+      # identity.
+      w_aligned <- rep(0, n_id)
+      w_aligned[align_idx[[k]]] <- w_period
+      W <- W * w_aligned
+    }
+    W
+  }
+
+  list(
+    weight_fn = weight_fn,
+    offsets = offsets,
+    alpha_hat = alpha_hat
+  )
+}

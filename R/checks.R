@@ -463,15 +463,16 @@ check_causat_inputs <- function(
   # catches the "only one present" mistake.
   type <- if (!is.null(id) && !is.null(time)) "longitudinal" else "point"
 
-  # Estimator x type compatibility: longitudinal data is ICE-only.
-  # IPW/matching for longitudinal would need weightitMSM/matchit for
-  # repeated measures, which is not supported.
-  if (type == "longitudinal" && estimator %in% c("ipw", "matching")) {
+  # Estimator x type compatibility: longitudinal data is supported by
+  # gcomp (ICE) and ipw (per-period density chain). Matching has no
+  # longitudinal analogue (MatchIt assumes a single matching period),
+  # so it stays rejected.
+  if (type == "longitudinal" && estimator == "matching") {
     rlang::abort(
       paste0(
         "estimator = '",
         estimator,
-        "' does not support longitudinal data. Use estimator = 'gcomp'."
+        "' does not support longitudinal data. Use estimator = 'gcomp' or 'ipw'."
       ),
       call = call
     )

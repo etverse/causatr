@@ -692,94 +692,118 @@ compute_contrast <- function(
   # assembly) is shared between point and longitudinal g-computation.
 
   if (fit$type == "longitudinal") {
-    # -- Longitudinal ICE g-computation.
+    # -- Longitudinal data: dispatch on estimator.
     # The target population for longitudinal data is defined at the
     # FIRST time point: every unique individual shows up once at
     # baseline, so that's where we enumerate the target. Subsetting is
     # evaluated against `data` but then collapsed to a baseline-only
     # logical vector (`target_within_first`) because that's what the
-    # downstream ICE variance engine expects.
+    # downstream variance engine (ICE or longitudinal IPW) expects.
     time_col <- fit$time
     first_time <- fit$details$time_points[1]
     rows_first <- data[[time_col]] == first_time
 
     if (!is.null(subset)) {
-      # Evaluate the user's subset expression against the full
-      # data.table, then AND with the baseline-row mask. `data` is
-      # already a data.table (inheriting from list), so `eval()` can
-      # look up column names directly without us having to
-      # `as.list()`-materialize a copy. `subset_env` is the caller
-      # frame captured at `contrast()`'s top level so
-      # `quote(age > cutoff)` can still resolve `cutoff` from the
-      # user's session -- `parent.frame()` here would be the internal
-      # dispatch frame, not the user's.
       target_baseline <- rows_first &
         as.logical(eval(subset, envir = data, enclos = subset_env))
     } else {
       target_baseline <- rows_first
     }
-    # Collapse to a length-n_first logical -- the per-individual target
-    # mask used by `variance_if_ice_one()` and the mu_hat average.
     target_within_first <- target_baseline[rows_first]
     n_target <- sum(target_within_first)
 
-    # Run ICE backward iteration once per intervention. Each call
-    # returns the vector of individual pseudo-outcomes at baseline
-    # (\hat Y^*_{0,i}) along with the fitted chain of models, which
-    # the sandwich variance engine consumes directly.
-    ice_results <- stats::setNames(
-      lapply(interventions, function(iv) ice_iterate(fit, iv)),
-      int_names
-    )
-
-    # Marginal mean: weighted average of pseudo-outcomes over the
-    # target population. `maybe_weighted_mean()` is NA-safe and
-    # handles the NULL-weights fall-through.
-    ext_w <- fit$details$weights
-    if (!is.null(ext_w)) {
-      w_first <- ext_w[rows_first]
-      w_target_ice <- w_first[target_within_first]
-    } else {
-      w_target_ice <- NULL
-    }
-    mu_hat <- vapply(
-      ice_results,
-      function(res) {
-        maybe_weighted_mean(
-          res$pseudo_final[target_within_first],
-          w_target_ice
-        )
-      },
-      numeric(1)
-    )
-    names(mu_hat) <- int_names
-
-    # Variance: sandwich via the IF engine (default, fast) or
-    # bootstrap via `ice_variance_bootstrap()` (clustered on `id`).
     boot_t <- NULL
     boot_info <- NULL
-    if (ci_method == "sandwich") {
-      vcov_mat <- variance_if(
-        fit,
-        ice_results = ice_results,
-        target_within_first = target_within_first,
-        cluster_vec = cluster_vec
-      )
-    } else {
-      boot_res <- ice_variance_bootstrap(
+
+    if (fit$estimator == "ipw") {
+      # Longitudinal IPW (chunk 10a). Per-intervention bundles refit
+      # the final-period weighted Hajek MSM under the cumulative
+      # density-ratio weight. Variance dispatches through
+      # `variance_if_ipw_longitudinal()` (sandwich) or
+      # `ipw_longitudinal_variance_bootstrap()` (bootstrap, id-
+      # clustered).
+      ipw_long <- compute_ipw_contrast_longitudinal(
         fit,
         interventions,
-        n_boot,
-        target_within_first,
-        est,
-        subset,
-        parallel,
-        ncpus,
-        subset_env = subset_env
+        target_within_first
       )
-      vcov_mat <- boot_res$vcov
-      boot_t <- boot_res$boot_t
-      boot_info <- boot_res$boot_info
+      mu_hat <- ipw_long$mu_hat
+
+      if (ci_method == "sandwich") {
+        vcov_mat <- variance_if(
+          fit,
+          ipw_bundles = ipw_long$bundles,
+          target_within_first = target_within_first,
+          cluster_vec = cluster_vec
+        )
+      } else {
+        boot_res <- ipw_longitudinal_variance_bootstrap(
+          fit,
+          interventions,
+          n_boot,
+          target_within_first,
+          est,
+          subset,
+          parallel,
+          ncpus,
+          subset_env = subset_env
+        )
+        vcov_mat <- boot_res$vcov
+        boot_t <- boot_res$boot_t
+        boot_info <- boot_res$boot_info
+      }
+    } else {
+      # ICE g-computation (default longitudinal path). Each call
+      # returns per-individual pseudo-outcomes at baseline along with
+      # the fitted chain of models the sandwich variance engine
+      # consumes.
+      ice_results <- stats::setNames(
+        lapply(interventions, function(iv) ice_iterate(fit, iv)),
+        int_names
+      )
+
+      ext_w <- fit$details$weights
+      if (!is.null(ext_w)) {
+        w_first <- ext_w[rows_first]
+        w_target_ice <- w_first[target_within_first]
+      } else {
+        w_target_ice <- NULL
+      }
+      mu_hat <- vapply(
+        ice_results,
+        function(res) {
+          maybe_weighted_mean(
+            res$pseudo_final[target_within_first],
+            w_target_ice
+          )
+        },
+        numeric(1)
+      )
+      names(mu_hat) <- int_names
+
+      if (ci_method == "sandwich") {
+        vcov_mat <- variance_if(
+          fit,
+          ice_results = ice_results,
+          target_within_first = target_within_first,
+          cluster_vec = cluster_vec
+        )
+      } else {
+        boot_res <- ice_variance_bootstrap(
+          fit,
+          interventions,
+          n_boot,
+          target_within_first,
+          est,
+          subset,
+          parallel,
+          ncpus,
+          subset_env = subset_env
+        )
+        vcov_mat <- boot_res$vcov
+        boot_t <- boot_res$boot_t
+        boot_info <- boot_res$boot_info
+      }
     }
   } else if (fit$estimator == "ipw") {
     # Point-treatment IPW. The density-ratio weights depend on the

@@ -84,14 +84,38 @@ fit_ipw <- function(
   propensity_model_fn,
   propensity_family = NULL,
   stabilize = "none",
+  id = NULL,
+  time = NULL,
   call,
   ...
 ) {
+  # Longitudinal IPW dispatch (chunk 10a). The full point-treatment
+  # body below is preserved unchanged; longitudinal data takes a
+  # dedicated path through `fit_longitudinal_ipw()` that builds the
+  # per-period density chain. Effect modification, multivariate
+  # treatment, and `stabilize = "marginal"` are gated by the
+  # longitudinal fitter with explicit "_pending" classed errors.
   if (type == "longitudinal") {
-    rlang::abort(
-      "Longitudinal IPW is not supported. Use `estimator = 'gcomp'` with `type = 'longitudinal'` for time-varying treatments.",
-      .call = FALSE
-    )
+    return(fit_longitudinal_ipw(
+      data = data,
+      outcome = outcome,
+      treatment = treatment,
+      confounders = confounders,
+      confounders_tv = confounders_tv,
+      family = family,
+      estimand = estimand,
+      history = history,
+      numerator = numerator,
+      weights = weights,
+      model_fn = model_fn,
+      propensity_model_fn = propensity_model_fn,
+      propensity_family = propensity_family,
+      stabilize = stabilize,
+      id = id,
+      time = time,
+      call = call,
+      ...
+    ))
   }
 
   is_multivariate <- length(treatment) > 1L
