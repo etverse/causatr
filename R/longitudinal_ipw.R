@@ -116,29 +116,21 @@ fit_longitudinal_ipw <- function(
     )
   }
 
-  if (stabilize != "none") {
-    rlang::abort(
-      c(
-        paste0(
-          "`stabilize = '",
-          stabilize,
-          "'` is not yet supported under longitudinal IPW."
-        ),
-        i = "Stabilized longitudinal weights ship in chunk 10b.",
-        i = "Use `stabilize = 'none'` (the default) for now."
-      ),
-      class = "causatr_longitudinal_stabilize_pending"
-    )
-  }
-
+  # `numerator =` is the user-facing knob for a custom numerator
+  # formula. Under `stabilize = "none"` it has no meaning -- the
+  # numerator is the same density as the denominator -- so reject the
+  # combination upfront.
   if (!is.null(numerator)) {
-    rlang::abort(
-      c(
-        "`numerator =` (stabilized longitudinal IPW) is not yet supported.",
-        i = "Stabilized weights via `numerator` ship in chunk 10b. Drop the argument for now."
-      ),
-      class = "causatr_longitudinal_numerator_pending"
-    )
+    if (stabilize == "none") {
+      rlang::abort(
+        c(
+          "`numerator =` requires `stabilize = 'marginal'`.",
+          i = "Drop `numerator` or set `stabilize = 'marginal'`."
+        ),
+        class = "causatr_longitudinal_numerator_without_stabilize"
+      )
+    }
+    check_formula(numerator)
   }
 
   # Effect modification under longitudinal IPW is also deferred. The
@@ -289,6 +281,58 @@ fit_longitudinal_ipw <- function(
   names(fit_data_by_time) <- as.character(time_points)
   names(per_period_formula) <- as.character(time_points)
 
+  # Stabilized weights: per-period numerator models g_k(A_k | A_{k-1},
+  # ..., A_0) with L stripped from the conditioning. The full
+  # density-ratio weight per period becomes
+  #   w_k = g_k(d(A_k, L_k) | A_{1..k-1}^obs) * |Jac d^{-1}|
+  #         / f_k(A_k | A_{1..k-1}^obs, L_{1..k}^obs).
+  # Numerator parameters gamma are held fixed under the variance
+  # engine's `numDeriv` perturbation of the denominator alpha (same
+  # nuisance-fixed convention as Phase 8e for multivariate IPW and
+  # sigma / theta for Gaussian / negbin densities). Bootstrap refits
+  # both gamma and alpha, capturing full variance.
+  #
+  # Custom `numerator` formula overrides the default "drop L" rule:
+  # `numerator = ~ baseline` keeps only baseline confounders;
+  # `numerator = ~ 1` reduces to a marginal-by-period density.
+  numerator_models_by_time <- NULL
+  if (stabilize == "marginal") {
+    numerator_models_by_time <- vector("list", n_times)
+    for (k in seq_len(n_times)) {
+      data_k <- fit_data_by_time[[k]]
+      available_lags <- min(k - 1L, max_lag)
+
+      # Per-period numerator formula. Default behaviour (no `numerator`
+      # argument): drop L (baseline + tv + lag_L); keep treatment lags
+      # only. With a user-supplied `numerator` formula we honour it
+      # verbatim as the conditioning RHS, plus the available treatment
+      # lags so the per-period factorisation g_k(A_k | A_{1..k-1}, V)
+      # still respects the chain rule. `V` is the user-supplied set.
+      num_ps_formula <- build_longitudinal_numerator_ps_formula(
+        treatment = treatment,
+        numerator = numerator,
+        available_lags = available_lags,
+        data_at_time = data_k
+      )
+
+      num_args <- list(
+        data = data_k,
+        treatment = treatment,
+        confounders = remove_response(num_ps_formula),
+        model_fn = prop_model_fn,
+        propensity_family = propensity_family
+      )
+      if (!is.null(weights)) {
+        num_args$weights <- weights[data[[time]] == time_points[k]]
+      }
+      numerator_models_by_time[[k]] <- do.call(
+        fit_treatment_model,
+        c(num_args, dots)
+      )
+    }
+    names(numerator_models_by_time) <- as.character(time_points)
+  }
+
   # Final-period rows define the MSM scope and the marginal-mean
   # average. The Hajek intercept of `Y ~ 1` weighted by the cumulative
   # product weight reads `E[Y^d]` directly off the (sole) coefficient.
@@ -352,6 +396,7 @@ fit_longitudinal_ipw <- function(
       tv_vars = tv_vars,
       em_info = em_info,
       treatment_models_by_time = treatment_models_by_time,
+      numerator_models_by_time = numerator_models_by_time,
       fit_data_by_time = fit_data_by_time,
       per_period_formula = per_period_formula,
       fit_rows_final = fit_rows_final,
@@ -442,6 +487,74 @@ build_longitudinal_ps_formula <- function(
 }
 
 
+#' Build the per-period numerator propensity formula for stabilized longitudinal IPW
+#'
+#' @description
+#' Counterpart to `build_longitudinal_ps_formula()` for the per-period
+#' numerator model `g_k(A_k | A_{1..k-1}, V)` under
+#' `stabilize = "marginal"`. The chain rule keeps treatment lags in
+#' the conditioning set; only the time-varying confounders are
+#' dropped (the whole point of stabilization is to remove the
+#' multiplicative L-dependence across periods that inflates the
+#' cumulative product weight).
+#'
+#' Two paths:
+#'
+#' - `numerator = NULL` (default): condition on treatment lags only.
+#'   The k-th formula is `A ~ lag1_A + ... + lag_m_A`.
+#' - `numerator = ~ V`: user supplies an explicit conditioning set
+#'   (typically baseline covariates). The k-th formula is
+#'   `A ~ lag1_A + ... + lag_m_A + V`.
+#'
+#' Treatment lags are kept by default because dropping them would
+#' break the chain-rule factorisation of the joint numerator density
+#' (Robins, Hernán, Brumback 2000) -- the stabilizer must still
+#' integrate to 1 over the joint support of the treatment trajectory.
+#'
+#' @param treatment Character scalar.
+#' @param numerator One-sided formula or `NULL`.
+#' @param available_lags Integer.
+#' @param data_at_time data.table for the current period (used to drop
+#'   all-NA lag columns at `time_points[1]`).
+#' @return Two-sided formula `A ~ ...`.
+#' @noRd
+build_longitudinal_numerator_ps_formula <- function(
+  treatment,
+  numerator,
+  available_lags,
+  data_at_time
+) {
+  rhs_dynamic <- character(0L)
+  if (available_lags > 0L) {
+    for (lag_k in seq_len(available_lags)) {
+      rhs_dynamic <- c(rhs_dynamic, paste0("lag", lag_k, "_", treatment))
+    }
+  }
+
+  valid <- vapply(
+    rhs_dynamic,
+    function(col) {
+      col %in% names(data_at_time) && !all(is.na(data_at_time[[col]]))
+    },
+    logical(1)
+  )
+  rhs_dynamic <- rhs_dynamic[valid]
+
+  user_terms <- if (is.null(numerator)) {
+    character(0L)
+  } else {
+    attr(stats::terms(numerator), "term.labels")
+  }
+
+  rhs_terms <- c(rhs_dynamic, user_terms)
+  if (length(rhs_terms) == 0L) {
+    rhs_terms <- "1"
+  }
+
+  stats::reformulate(rhs_terms, response = treatment)
+}
+
+
 #' Strip the response from a two-sided formula
 #'
 #' @description
@@ -500,6 +613,7 @@ compute_ipw_contrast_longitudinal <- function(
   outcome <- fit$outcome
   details <- fit$details
   treatment_models_by_time <- details$treatment_models_by_time
+  numerator_models_by_time <- details$numerator_models_by_time
   fit_data_by_time <- details$fit_data_by_time
   time_points <- details$time_points
   n_times <- details$n_times
@@ -569,7 +683,8 @@ compute_ipw_contrast_longitudinal <- function(
       fit_data_by_time = fit_data_by_time,
       ids_first = ids_first,
       id_col = id_col,
-      intervention = iv
+      intervention = iv,
+      numerator_models_by_time = numerator_models_by_time
     )
 
     # Project per-id weights onto the final-period row order.

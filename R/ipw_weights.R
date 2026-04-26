@@ -1848,6 +1848,14 @@ check_intervention_family_compat <- function(
 #' -- every per-period factor equals 1 because numerator and
 #' denominator densities coincide.
 #'
+#' Under `stabilize = "marginal"` the per-period numerator density is
+#' swapped for `g_k(d(A_k) | A_{1..k-1}, V)` from a separately fit
+#' numerator model that drops time-varying confounders `L_k` (with
+#' optional baseline conditioning `V` if `numerator =` was supplied).
+#' The denominator stays at the full-L density `f_k`. Numerator
+#' parameters are held fixed in the variance engine; bootstrap refits
+#' both numerator and denominator and captures the full uncertainty.
+#'
 #' @param treatment_models_by_time Named list of K per-period
 #'   `causatr_treatment_model` objects from `fit_longitudinal_ipw()`.
 #' @param fit_data_by_time Named list of K per-period data subsets
@@ -1859,6 +1867,11 @@ check_intervention_family_compat <- function(
 #' @param estimand Character. ATE only for longitudinal IPW.
 #' @param positivity_threshold Positive scalar. Per-period max weight
 #'   above this triggers the sequential-positivity warning.
+#' @param numerator_models_by_time Optional named list of K per-period
+#'   numerator density models (from
+#'   `fit_longitudinal_ipw(stabilize = "marginal")`). When `NULL`
+#'   (the default) the routine returns unstabilized weights identical
+#'   to `stabilize = "none"`.
 #'
 #' @return Numeric vector of length `length(ids_first)` -- the
 #'   cumulative product weight per individual, ordered by `ids_first`.
@@ -1871,7 +1884,8 @@ compute_longitudinal_weights <- function(
   id_col,
   intervention,
   estimand = "ATE",
-  positivity_threshold = 100
+  positivity_threshold = 100,
+  numerator_models_by_time = NULL
 ) {
   if (estimand != "ATE") {
     rlang::abort(
@@ -1896,6 +1910,8 @@ compute_longitudinal_weights <- function(
   # period-k model and subset.
   W_per_period <- matrix(NA_real_, nrow = n_id, ncol = n_times)
 
+  stabilize <- !is.null(numerator_models_by_time)
+
   for (k in seq_len(n_times)) {
     tm_k <- treatment_models_by_time[[k]]
     data_k <- fit_data_by_time[[k]]
@@ -1906,12 +1922,22 @@ compute_longitudinal_weights <- function(
     # `tm_k$fit_rows` is all-TRUE under the no-missingness assumption.
     # The returned weight has length `sum(tm_k$fit_rows)` and is
     # ordered to match the subset rows.
-    w_k <- compute_density_ratio_weights(
-      treatment_model = tm_k,
-      data = data_k,
-      intervention = intervention,
-      estimand = estimand
-    )
+    if (stabilize) {
+      tm_num_k <- numerator_models_by_time[[k]]
+      w_k <- compute_stabilized_period_weight(
+        tm_denom = tm_k,
+        tm_num = tm_num_k,
+        data = data_k,
+        intervention = intervention
+      )
+    } else {
+      w_k <- compute_density_ratio_weights(
+        treatment_model = tm_k,
+        data = data_k,
+        intervention = intervention,
+        estimand = estimand
+      )
+    }
 
     # Align per-period weight to the canonical id ordering. Some ids
     # may have been dropped at period k by `fit_treatment_model()`'s
@@ -1941,6 +1967,125 @@ compute_longitudinal_weights <- function(
   # Row-product across time. `apply(W, 1, prod)` is fine here because
   # K is typically small (< 10) and the matrix is dense.
   apply(W_per_period, 1L, prod)
+}
+
+
+#' Compute one period's stabilized density-ratio weight
+#'
+#' @description
+#' Helper for `compute_longitudinal_weights()` under
+#' `stabilize = "marginal"`. The per-period weight is
+#' \deqn{w_k = \frac{g_k(d(A_{k}, L_k) \mid A_{1..k-1}^{\mathrm{obs}}, V) \cdot |\mathrm{Jac}\,d^{-1}|}{f_k(A_k \mid A_{1..k-1}^{\mathrm{obs}}, \bar L_k)},}
+#' where the **numerator** density `g_k` (no L conditioning) replaces
+#' the denominator `f_k` (full-L conditioning) used in the
+#' unstabilized form. This dampens the multiplicative L-dependence
+#' across K factors and typically reduces the cumulative product's
+#' variance.
+#'
+#' Implementation reuses the existing per-family branches of
+#' `compute_density_ratio_weights()` for the **denominator**
+#' (which still depends on L via the full-L model `f_k`) and for the
+#' **shape of the numerator evaluation**: HT indicator on discrete,
+#' pushforward on continuous / count. Only the density-evaluation
+#' model is swapped from `tm_denom` to `tm_num`.
+#'
+#' @param tm_denom Per-period denominator density model (full-L `f_k`).
+#' @param tm_num Per-period numerator density model (`g_k`,
+#'   no-L conditioning under default; user-customised via
+#'   `numerator =`).
+#' @param data data.table for the period-k subset.
+#' @param intervention `causatr_intervention` object or `NULL`
+#'   (natural course; unstabilized branch -> ratio is 1, stabilized
+#'   -> ratio is `g_k(A_k | ...) / f_k(A_k | ..., L)`).
+#' @return Numeric weight vector, length `sum(tm_denom$fit_rows)`.
+#' @noRd
+compute_stabilized_period_weight <- function(
+  tm_denom,
+  tm_num,
+  data,
+  intervention
+) {
+  fit_rows <- tm_denom$fit_rows
+  fit_data <- data[fit_rows]
+  trt_col <- tm_denom$treatment
+  a_obs <- fit_data[[trt_col]]
+  family_tag <- tm_denom$family
+
+  # Denominator: f_k(A_obs | A_{1..k-1}_obs, L_obs).
+  f_obs <- evaluate_density(tm_denom, a_obs, fit_data)
+  check_density_positivity(
+    f_obs,
+    "stabilized longitudinal weight (denominator)"
+  )
+
+  if (is.null(intervention)) {
+    # Stabilized natural course: g_k(A_obs | ...) / f_k(A_obs | ..., L).
+    f_num <- evaluate_density(tm_num, a_obs, fit_data)
+    return(f_num / f_obs)
+  }
+
+  check_intervention_family_compat(intervention, tm_denom)
+  iv_type <- intervention$type
+
+  if (iv_type == "ipsi") {
+    # IPSI under longitudinal IPW is rejected upstream
+    # (`causatr_longitudinal_ipsi_pending`); reaching this branch
+    # means the rejection was bypassed.
+    rlang::abort(
+      "Internal error: stabilized longitudinal weight reached IPSI branch."
+    )
+  }
+
+  # Discrete HT branch (static / dynamic on Bernoulli / categorical).
+  # Numerator evaluates `g_k` at the target value; surviving rows
+  # (where the indicator is 1) have observed A == target, so the
+  # numerator density at those rows equals `g_k(A_obs | ...)` -- no
+  # need to substitute the target into newdata. Multivariate IPW's
+  # `mv_stabilized_closure()` HT branch uses the same shortcut.
+  is_ht <- iv_type %in%
+    c("static", "dynamic") &&
+    family_tag %in% c("bernoulli", "categorical")
+  if (is_ht) {
+    target <- apply_intervention_to_values(intervention, fit_data, a_obs)
+    ind <- as.numeric(a_obs == target)
+    f_num <- evaluate_density(tm_num, a_obs, fit_data)
+    return(ind * f_num / f_obs)
+  }
+
+  # Smooth pushforward branch (shift / scale_by on Gaussian / count).
+  if (iv_type == "shift") {
+    delta <- intervention$delta
+    a_eval <- a_obs - delta
+    f_num <- evaluate_density(tm_num, a_eval, fit_data)
+    warn_intervened_density_near_zero(
+      f_num,
+      "stabilized longitudinal shift"
+    )
+    return(f_num / f_obs)
+  }
+  if (iv_type == "scale") {
+    fct <- intervention$factor
+    if (fct == 0) {
+      rlang::abort(
+        "`scale_by(0)` collapses the treatment support; not a valid MTP."
+      )
+    }
+    a_eval <- a_obs / fct
+    f_num <- evaluate_density(tm_num, a_eval, fit_data)
+    warn_intervened_density_near_zero(
+      f_num,
+      "stabilized longitudinal scale"
+    )
+    return((f_num / f_obs) / abs(fct))
+  }
+
+  rlang::abort(
+    paste0(
+      "Internal error: stabilized longitudinal weight has no branch for iv_type='",
+      iv_type,
+      "'."
+    )
+  )
 }
 
 
@@ -2070,7 +2215,8 @@ make_weight_fn_longitudinal <- function(
   ids_first,
   id_col,
   intervention,
-  estimand = "ATE"
+  estimand = "ATE",
+  numerator_models_by_time = NULL
 ) {
   if (estimand != "ATE") {
     rlang::abort(
@@ -2081,13 +2227,19 @@ make_weight_fn_longitudinal <- function(
 
   K <- length(treatment_models_by_time)
   n_id <- length(ids_first)
+  stabilize <- !is.null(numerator_models_by_time)
 
-  # Natural course: weight is identically 1 regardless of alpha. Still
-  # return a closure so the variance engine's loop has a uniform
-  # contract. `numDeriv::jacobian` on a constant function returns
-  # zero, which is correct -- natural course carries no propensity-
-  # uncertainty.
-  if (is.null(intervention)) {
+  # Natural course unstabilized: weight is identically 1 regardless of
+  # alpha. Still return a closure so the variance engine's loop has a
+  # uniform contract. `numDeriv::jacobian` on a constant function
+  # returns zero, which is correct -- natural course carries no
+  # propensity-uncertainty.
+  #
+  # Natural course **stabilized** is non-trivial: the per-period
+  # weight is `g_k(A_obs | ...) / f_k(A_obs | ..., L; alpha_k)`, which
+  # depends on alpha through the denominator. We fall through to the
+  # general per-period closure builder below.
+  if (is.null(intervention) && !stabilize) {
     return(list(
       weight_fn = function(alpha) rep(1, n_id),
       offsets = c(1L, 1L),
@@ -2107,15 +2259,27 @@ make_weight_fn_longitudinal <- function(
     data_k <- fit_data_by_time[[k]]
     ids_k <- as.character(data_k[[id_col]])
 
-    # Per-period sub-closure. `make_weight_fn()` already handles every
-    # supported (intervention, family) combination -- we just borrow
-    # it per period.
-    sub_fn_k <- make_weight_fn(
-      treatment_model = tm_k,
-      data = data_k,
-      intervention = intervention,
-      estimand = estimand
-    )
+    if (stabilize) {
+      # Stabilized closure: numerator density g_k is precomputed once
+      # at closure-creation time (gamma fixed under numDeriv
+      # perturbation; same nuisance-fixed convention as Phase 8e).
+      # Only the denominator f_k(A | ..., L; alpha) varies with alpha.
+      tm_num_k <- numerator_models_by_time[[k]]
+      sub_fn_k <- make_long_stabilized_period_closure(
+        tm_denom = tm_k,
+        tm_num = tm_num_k,
+        data = data_k,
+        intervention = intervention
+      )
+    } else {
+      # Unstabilized: reuse the existing per-period closure builder.
+      sub_fn_k <- make_weight_fn(
+        treatment_model = tm_k,
+        data = data_k,
+        intervention = intervention,
+        estimand = estimand
+      )
+    }
 
     period_ids <- ids_k[tm_k$fit_rows]
     pos <- match(period_ids, ids_first)
@@ -2153,5 +2317,106 @@ make_weight_fn_longitudinal <- function(
     weight_fn = weight_fn,
     offsets = offsets,
     alpha_hat = alpha_hat
+  )
+}
+
+
+#' Per-period stabilized closure for longitudinal IPW variance
+#'
+#' @description
+#' Wrapper around `mv_stabilized_closure()` for one period of
+#' longitudinal IPW. Builds the per-period inputs (precomputed
+#' numerator density, indicator / Jacobian) from `tm_num`,
+#' `tm_denom`, and `intervention`, then delegates to
+#' `mv_stabilized_closure()` -- both helpers compute the same
+#' "fixed numerator / alpha-dependent denominator" weight closure.
+#'
+#' Reusing `mv_stabilized_closure()` keeps a single
+#' implementation of the Bernoulli / Gaussian / categorical / count
+#' branches; the only difference between the multivariate and
+#' longitudinal stabilized paths is what the per-component / per-period
+#' upstream conditioning is (component-prior vs time-prior), and that's
+#' baked into `tm_denom$X_prop` / `tm_num` at fit time.
+#'
+#' @param tm_denom Per-period denominator density model (full-L `f_k`).
+#' @param tm_num Per-period numerator density model (`g_k`,
+#'   no-L conditioning).
+#' @param data data.table for the period-k subset.
+#' @param intervention `causatr_intervention` object or `NULL`.
+#' @return `function(alpha)` returning a length `nrow(data)` weight
+#'   vector, with `alpha` indexing the denominator's flattened
+#'   coefficient vector.
+#' @noRd
+make_long_stabilized_period_closure <- function(
+  tm_denom,
+  tm_num,
+  data,
+  intervention
+) {
+  fam_tag <- tm_denom$family
+  X_prop <- tm_denom$X_prop
+  trt_col <- tm_denom$treatment
+  fit_rows <- tm_denom$fit_rows
+  fit_data <- data[fit_rows]
+  a_obs <- fit_data[[trt_col]]
+  n_rows <- length(a_obs)
+
+  # Per-intervention build-up of `f_num_fixed` (the precomputed
+  # numerator density vector) and `ind_or_jac` (the
+  # indicator-or-Jacobian multiplier). Mirrors the construction in
+  # `make_weight_fn_mv()`'s stabilized branch.
+  if (is.null(intervention)) {
+    f_num_fixed <- evaluate_density(tm_num, a_obs, fit_data)
+    ind_or_jac <- rep(1, n_rows)
+  } else {
+    check_intervention_family_compat(intervention, tm_denom)
+    iv_type <- intervention$type
+    if (iv_type == "ipsi") {
+      rlang::abort(
+        "Internal error: stabilized longitudinal closure reached IPSI branch."
+      )
+    }
+    if (iv_type %in% c("static", "dynamic")) {
+      target <- apply_intervention_to_values(intervention, fit_data, a_obs)
+      ind_or_jac <- as.numeric(a_obs == target)
+      # Same surviving-rows shortcut as `mv_stabilized_closure()`'s HT
+      # branch: at rows where ind = 1, target = a_obs, so
+      # g_k(target | ...) = g_k(a_obs | ...).
+      f_num_fixed <- evaluate_density(tm_num, a_obs, fit_data)
+    } else if (iv_type == "shift") {
+      delta <- intervention$delta
+      a_eval <- a_obs - delta
+      f_num_fixed <- evaluate_density(tm_num, a_eval, fit_data)
+      ind_or_jac <- rep(1, n_rows)
+    } else if (iv_type == "scale") {
+      fct <- intervention$factor
+      if (fct == 0) {
+        rlang::abort(
+          "`scale_by(0)` collapses the treatment support; not a valid MTP."
+        )
+      }
+      a_eval <- a_obs / fct
+      f_num_fixed <- evaluate_density(tm_num, a_eval, fit_data)
+      ind_or_jac <- rep(abs(1 / fct), n_rows)
+    } else {
+      rlang::abort(
+        paste0(
+          "Internal error: stabilized longitudinal closure has no branch for iv_type='",
+          iv_type,
+          "'."
+        )
+      )
+    }
+  }
+
+  mv_stabilized_closure(
+    fam_tag = fam_tag,
+    X_prop = X_prop,
+    a_obs_k = a_obs,
+    f_num_fixed = f_num_fixed,
+    ind_or_jac = ind_or_jac,
+    sigma = tm_denom$sigma,
+    theta = tm_denom$theta,
+    trt_levels = tm_denom$levels
   )
 }

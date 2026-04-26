@@ -1,6 +1,6 @@
 # Phase 10 — Longitudinal IPW
 
-> **Status: chunk 10a DONE (2026-04-26); chunks 10b stabilization + 10c effect modification PENDING.**
+> **Status: chunks 10a + 10b DONE (2026-04-26); chunk 10c effect modification PENDING.**
 >
 > **Depends on:** Phase 4 (self-contained IPW engine), Phase 5 (ICE data structures/conventions)
 
@@ -87,14 +87,15 @@ All longitudinal-compatible interventions from ICE should work:
 - [x] Truth-based tests in `tests/testthat/test-longitudinal-ipw.R`: cross-method agreement vs ICE on continuous shift + binary static DGPs, sandwich vs bootstrap parity, lmtp::lmtp_sdr point-estimate cross-check (skipped if SuperLearner unavailable), positivity warning fires/doesn't-fire, natural course recovers observed marginal mean, all rejection paths under `_pending` classed errors.
 - [x] Coverage matrix + NEWS + CLAUDE.md updates.
 
-### 10b — stabilized weights (PENDING)
+### 10b — stabilized weights (DONE 2026-04-26)
 
-- [ ] Lift `causatr_longitudinal_stabilize_pending` and `causatr_longitudinal_numerator_pending` rejections.
-- [ ] Per-period numerator models $g_k(A_k \mid \bar A_{k-1})$ (drops $L$); fit via a parallel sweep through `time_points` in `fit_longitudinal_ipw()` and stash in `attr(fit$details$treatment_models_by_time, "numerator_models")`.
-- [ ] Extend `compute_longitudinal_weights()` to swap the per-period numerator under `stabilize = "marginal"`.
-- [ ] Extend `make_weight_fn_longitudinal()` to precompute fixed-γ numerator vectors per period and route to a stabilized closure (γ held fixed under `numDeriv` perturbation; same nuisance-fixed convention as multivariate Phase 8e).
-- [ ] `refit_ipw()` already replays `stabilize`; just confirm it threads through under `type = "longitudinal"`.
-- [ ] Tests: numerator-model structure, stabilized + static recovers same point estimate as unstabilized + static, stabilized + shift truth recovery, bootstrap captures γ uncertainty.
+- [x] Lift the chunk 10a `_stabilize_pending` / `_numerator_pending` rejections in `fit_longitudinal_ipw()`. Replaced with a `causatr_longitudinal_numerator_without_stabilize` guard for the (custom numerator + `stabilize = "none"`) combination.
+- [x] Per-period numerator models $g_k(A_k \mid \bar A_{k-1}, V)$ via a second sweep through `time_points` in `fit_longitudinal_ipw()`. Stashed in `fit$details$numerator_models_by_time` (parallel to `treatment_models_by_time`). `build_longitudinal_numerator_ps_formula()` is the per-period formula builder; default behaviour drops time-varying confounders and keeps treatment lags (chain-rule validity), and `numerator = ~ V` adds the user-supplied baseline conditioning set on top of the lags.
+- [x] `compute_longitudinal_weights()` accepts `numerator_models_by_time =` and routes per-period weights through new `compute_stabilized_period_weight()` helper when stabilized. Reuses the per-family branches of the unstabilized engine; only the density-evaluation model is swapped.
+- [x] `make_weight_fn_longitudinal()` accepts `numerator_models_by_time =` and builds per-period stabilized closures via new `make_long_stabilized_period_closure()` helper, which delegates to the existing `mv_stabilized_closure()` for the actual fixed-γ / alpha-dependent weight (same primitive used by Phase 8e multivariate IPW).
+- [x] `refit_ipw()` already replays `stabilize` and `numerator`; chunk 10a's type-aware threading covers the longitudinal case.
+- [x] Tests in `test-longitudinal-ipw.R`: numerator-model structure under default and custom `numerator = ~ L0`, stabilized + static binary recovers identical estimate **and** SE as unstabilized (T-long-ipw-stab2), stabilized + shift cross-method agreement vs ICE on continuous DGP (T-long-ipw-stab3), bootstrap captures γ uncertainty (T-long-ipw-stab4).
+- [x] Coverage matrix + NEWS + CLAUDE.md updates.
 
 ### 10c — effect modification (PENDING)
 

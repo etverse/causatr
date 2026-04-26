@@ -1,5 +1,39 @@
 # causatr (development version)
 
+## 2026-04-26 — Stabilized longitudinal IPW (Phase 10 chunk 10b)
+
+`causat(estimator = "ipw", id, time, stabilize = "marginal")` now
+fits per-period numerator models $g_k(A_k \mid \bar A_{k-1}, V)$
+that drop time-varying confounders from the conditioning set. The
+per-period weight becomes $g_k(d(A_k) \mid \bar A_{k-1}, V) \cdot
+\lvert \mathrm{Jac} \rvert / f_k(A_k \mid \bar A_{k-1}, \bar L_k)$,
+dampening the multiplicative L-dependence across periods that
+inflates the cumulative product.
+
+```r
+fit <- causat(d, outcome = "Y", treatment = "A",
+              confounders = ~ L0, confounders_tv = ~ L,
+              id = "id", time = "time", estimator = "ipw",
+              stabilize = "marginal", numerator = ~ L0)
+```
+
+- Default `numerator = NULL` keeps treatment lags only (drops L from
+  every period). Custom `numerator = ~ V` adds the user-supplied
+  baseline conditioning set on top of the treatment lags so the
+  chain-rule factorisation of $g_k$ stays valid.
+- Sandwich variance treats numerator parameters $\gamma$ as fixed
+  (same nuisance-fixed convention as Phase 8e for multivariate IPW
+  and $\sigma$ / $\theta$ for Gaussian / negbin densities). Bootstrap
+  refits both numerator and denominator per replicate and captures
+  the full uncertainty.
+- Stabilized + static binary recovers identical point estimate **and**
+  SE as unstabilized (HT indicator collapses surviving rows so
+  numerator and denominator densities coincide).
+- Stabilized + `numerator =` without `stabilize = "marginal"` is
+  rejected with a `causatr_longitudinal_numerator_without_stabilize`
+  classed error (no semantically valid use case for a custom
+  numerator without stabilization).
+
 ## 2026-04-26 — Longitudinal IPW core (Phase 10 chunk 10a)
 
 `causat(estimator = "ipw", id = ..., time = ...)` now ships:

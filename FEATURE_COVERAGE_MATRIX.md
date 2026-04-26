@@ -133,13 +133,17 @@ Per-period treatment density chain $f(A_k \mid \bar A_{k-1}, \bar L_k)$ + cumula
 | cont | gauss | shift | 2 | sandwich | — | ✅ vs lmtp::lmtp_sdr | test-longitudinal-ipw.R |
 | bin | gauss | static (always vs never) | 2 | sandwich | — | ✅ vs ICE | test-longitudinal-ipw.R |
 | bin | gauss | natural course (NULL) | 2 | sandwich | — | ✅ recovers observed mean | test-longitudinal-ipw.R |
+| bin | gauss | static (always vs never) + stabilize="marginal" | 2 | sandwich | — | ✅ identical to unstabilized | test-longitudinal-ipw.R |
+| bin | gauss | static (always vs never) + stabilize="marginal" | 2 | bootstrap | — | ✅ vs sandwich | test-longitudinal-ipw.R |
+| cont | gauss | shift + stabilize="marginal" + numerator=~L0 | 2 | sandwich | — | ✅ vs ICE | test-longitudinal-ipw.R |
+| (numerator structure) | — | default `~ 1` / `~ lag1_A` per period | 2 | — | — | ✅ formula check | test-longitudinal-ipw.R |
+| (numerator structure) | — | custom `numerator = ~ L0` keeps treatment lags | 2 | — | — | ✅ formula check | test-longitudinal-ipw.R |
 
 Sequential positivity warning (`causatr_longitudinal_seq_positivity`): fires when any per-period weight max exceeds 100 (default threshold); silent below threshold. Tested directly on `warn_seq_positivity()`.
 
 Rejections (all ✅ tested, "_pending" classed errors deferred to follow-up chunks):
 - `ipsi()` $\to$ test-longitudinal-ipw.R (`causatr_longitudinal_ipsi_pending`; per-period IPSI extension deferred)
-- `stabilize = "marginal"` $\to$ test-longitudinal-ipw.R (`causatr_longitudinal_stabilize_pending`; chunk 10b)
-- `numerator =` formula $\to$ test-longitudinal-ipw.R (`causatr_longitudinal_numerator_pending`; chunk 10b)
+- `numerator =` without `stabilize = "marginal"` $\to$ test-longitudinal-ipw.R (`causatr_longitudinal_numerator_without_stabilize`)
 - `A:modifier` (effect modification) $\to$ test-longitudinal-ipw.R (`causatr_longitudinal_em_pending`; chunk 10c)
 - multivariate longitudinal IPW $\to$ test-longitudinal-ipw.R (`causatr_longitudinal_multivariate_pending`)
 - ATT / ATC under longitudinal IPW $\to$ test-longitudinal-ipw.R (inherits `check_estimand_trt_compat`)

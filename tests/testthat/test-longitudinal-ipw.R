@@ -408,29 +408,7 @@ test_that("R-long-ipw1: multivariate longitudinal IPW is rejected", {
 })
 
 
-test_that("R-long-ipw2: stabilize = 'marginal' is rejected under longitudinal IPW", {
-  set.seed(7101)
-  d <- make_linear_scm(n = 100, seed = 7101)
-  d <- data.table::as.data.table(d)
-
-  expect_error(
-    causat(
-      d,
-      outcome = "Y",
-      treatment = "A",
-      confounders = ~L0,
-      confounders_tv = ~L,
-      id = "id",
-      time = "time",
-      estimator = "ipw",
-      stabilize = "marginal"
-    ),
-    class = "causatr_longitudinal_stabilize_pending"
-  )
-})
-
-
-test_that("R-long-ipw3: numerator = formula is rejected under longitudinal IPW", {
+test_that("R-long-ipw3: numerator = formula without stabilize = 'marginal' is rejected", {
   set.seed(7102)
   d <- make_linear_scm(n = 100, seed = 7102)
   d <- data.table::as.data.table(d)
@@ -447,7 +425,7 @@ test_that("R-long-ipw3: numerator = formula is rejected under longitudinal IPW",
       estimator = "ipw",
       numerator = ~1
     ),
-    class = "causatr_longitudinal_numerator_pending"
+    class = "causatr_longitudinal_numerator_without_stabilize"
   )
 })
 
@@ -540,4 +518,250 @@ test_that("R-long-ipw7: single-period data is rejected with a clear error", {
     ),
     class = "causatr_longitudinal_too_few_times"
   )
+})
+
+
+# ----------------------------------------------------------------------
+# Chunk 10b: stabilized weights
+# ----------------------------------------------------------------------
+
+test_that("T-long-ipw-stab1: stabilize = 'marginal' fits per-period numerator models with the right structure", {
+  set.seed(7600)
+  d <- make_linear_scm(n = 200, seed = 7600)
+  d <- data.table::as.data.table(d)
+
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    estimator = "ipw",
+    stabilize = "marginal"
+  )
+
+  num_models <- fit$details$numerator_models_by_time
+  expect_false(is.null(num_models))
+  expect_length(num_models, 2L)
+
+  # Period 1 (first period): no lags available, no L. Default
+  # numerator drops everything -> intercept-only.
+  expect_equal(
+    deparse(num_models[[1]]$ps_formula),
+    "A ~ 1"
+  )
+  # Period 2: one lag of treatment, no L.
+  expect_equal(
+    deparse(num_models[[2]]$ps_formula),
+    "A ~ lag1_A"
+  )
+
+  # Each numerator model has its own alpha_hat with the expected
+  # parameter count.
+  expect_length(num_models[[1]]$alpha_hat, 1L) # intercept only
+  expect_length(num_models[[2]]$alpha_hat, 2L) # intercept + lag1_A
+})
+
+
+test_that("T-long-ipw-stab2: stabilized + static binary recovers identical estimate as unstabilized", {
+  # Under static interventions on a discrete treatment, the per-period
+  # weight is `I(A = a) * f^*/f`. For the surviving rows, f^* = f at
+  # the same evaluation point (numerator and denominator densities
+  # coincide because the indicator pins A to the static target). The
+  # marginal-mean Hájek therefore agrees exactly with unstabilized.
+  # This is the same equality Phase 8e asserts for multivariate IPW.
+  set.seed(7601)
+  d <- make_linear_scm(n = 1500, seed = 7601)
+  d <- data.table::as.data.table(d)
+
+  fit_us <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    estimator = "ipw"
+  )
+  fit_st <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    estimator = "ipw",
+    stabilize = "marginal"
+  )
+  res_us <- contrast(
+    fit_us,
+    interventions = list(a = static(1), z = static(0)),
+    reference = "z",
+    ci_method = "sandwich"
+  )
+  res_st <- contrast(
+    fit_st,
+    interventions = list(a = static(1), z = static(0)),
+    reference = "z",
+    ci_method = "sandwich"
+  )
+
+  # Point estimates and SEs must match exactly because the per-period
+  # weight is identical on surviving rows.
+  expect_equal(
+    res_st$contrasts$estimate,
+    res_us$contrasts$estimate,
+    tolerance = 1e-6
+  )
+  expect_equal(
+    res_st$contrasts$se,
+    res_us$contrasts$se,
+    tolerance = 1e-6
+  )
+})
+
+
+test_that("T-long-ipw-stab3: stabilized shift contrast recovers ICE point on baseline-numerator DGP", {
+  # For shift on continuous treatment, the stabilized natural-course
+  # arm carries a non-unit weight `g(A|...)/f(A|..., L)`, so the
+  # contrast against MTP-shifted depends on how well the numerator
+  # captures the structural treatment generation. With `numerator =
+  # ~L0` (baseline conditioning), the per-period numerator is close
+  # enough to the denominator to recover the SCM contrast that ICE
+  # gives at large N.
+  set.seed(7602)
+  d <- make_continuous_scm(n = 2000, seed = 7602)
+  d <- data.table::as.data.table(d)
+
+  fit_st <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    estimator = "ipw",
+    stabilize = "marginal",
+    numerator = ~L0
+  )
+  res_st <- contrast(
+    fit_st,
+    interventions = list(s = shift(0.5), n = NULL),
+    reference = "n",
+    ci_method = "sandwich"
+  )
+
+  fit_ice <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    estimator = "gcomp"
+  )
+  res_ice <- suppressMessages(contrast(
+    fit_ice,
+    interventions = list(s = shift(0.5), n = NULL),
+    reference = "n"
+  ))
+
+  # Cross-method agreement on the contrast point estimate. Tolerance
+  # widened relative to T-long-ipw1 because stabilized IPW has a
+  # second source of finite-sample noise from the numerator fit.
+  expect_lt(
+    abs(res_st$contrasts$estimate[1] - res_ice$contrasts$estimate[1]),
+    0.6
+  )
+  # Sandwich SE finite, positive.
+  expect_true(all(is.finite(res_st$contrasts$se) & res_st$contrasts$se > 0))
+})
+
+
+test_that("T-long-ipw-stab4: bootstrap captures gamma uncertainty under stabilization", {
+  # Bootstrap refits both numerator (gamma) and denominator (alpha)
+  # on every replicate, so the bootstrap SE picks up gamma uncertainty
+  # the sandwich (which holds gamma fixed) does not. For a static
+  # binary DGP both methods should agree to within MC noise because
+  # gamma uncertainty is small relative to alpha uncertainty.
+  set.seed(7603)
+  d <- make_linear_scm(n = 600, seed = 7603)
+  d <- data.table::as.data.table(d)
+
+  fit_st <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    estimator = "ipw",
+    stabilize = "marginal"
+  )
+
+  res_sand <- contrast(
+    fit_st,
+    interventions = list(a = static(1), z = static(0)),
+    reference = "z",
+    ci_method = "sandwich"
+  )
+  res_boot <- suppressWarnings(contrast(
+    fit_st,
+    interventions = list(a = static(1), z = static(0)),
+    reference = "z",
+    ci_method = "bootstrap",
+    n_boot = 100
+  ))
+
+  expect_true(
+    is.finite(res_boot$contrasts$se[1]) &&
+      res_boot$contrasts$se[1] > 0
+  )
+  ratio <- res_boot$contrasts$se[1] / res_sand$contrasts$se[1]
+  expect_gt(ratio, 0.4)
+  expect_lt(ratio, 2.5)
+
+  # Point estimates agree across variance methods.
+  expect_equal(
+    res_sand$contrasts$estimate[1],
+    res_boot$contrasts$estimate[1],
+    tolerance = 1e-6
+  )
+})
+
+
+test_that("T-long-ipw-stab5: custom numerator = ~ baseline keeps treatment lags by default", {
+  # The chain-rule factorisation of g_k requires conditioning on
+  # prior treatments to be a valid joint density. `numerator = ~ L0`
+  # adds L0 to the per-period numerator without dropping the
+  # treatment lags `lag1_A` etc.
+  set.seed(7604)
+  d <- make_linear_scm(n = 200, seed = 7604)
+  d <- data.table::as.data.table(d)
+
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    estimator = "ipw",
+    stabilize = "marginal",
+    numerator = ~L0
+  )
+
+  num_models <- fit$details$numerator_models_by_time
+  # Period 1: no lags + L0 -> A ~ L0.
+  expect_equal(deparse(num_models[[1]]$ps_formula), "A ~ L0")
+  # Period 2: lag1_A + L0 -> A ~ lag1_A + L0 (treatment lags first).
+  expect_equal(deparse(num_models[[2]]$ps_formula), "A ~ lag1_A + L0")
 })

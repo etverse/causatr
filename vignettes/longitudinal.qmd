@@ -801,12 +801,56 @@ period(s) and their per-period max weight. The cumulative product
 loses period attribution, so this per-period diagnostic is the
 primary way to identify which time step is the bottleneck.
 
-**What's not yet supported (chunk 10a).** Effect-modification
-(`A:modifier` in `confounders`), `stabilize = "marginal"` /
-`numerator =` for stabilized weights, multivariate longitudinal
-treatment, and per-period `ipsi()` are rejected with `_pending`
-classed errors pointing at the deferred follow-up chunks. Use
-`estimator = "gcomp"` (ICE) for those scenarios today.
+### Stabilized weights
+
+`stabilize = "marginal"` swaps each period's numerator density for a
+**marginal** model $g_k(A_k \mid \bar A_{k-1}, V)$ that drops the
+time-varying confounder $L_k$ (and optionally adds a user-supplied
+baseline conditioning set $V$ via `numerator = ~ V`). The denominator
+stays at the full-$L$ density. Per-period weight becomes
+$g_k(d(A_k) \mid \bar A_{k-1}, V) \cdot \lvert \mathrm{Jac} \rvert /
+f_k(A_k \mid \bar A_{k-1}, \bar L_k)$, which dampens the
+multiplicative $L$-dependence across $K$ factors and typically
+reduces the cumulative product's variance.
+
+```{r}
+fit_ipw_long_stab <- causat(
+  cont_long,
+  outcome     = "Y",
+  treatment   = "A",
+  confounders = ~ 1,
+  confounders_tv = ~ L,
+  id          = "id",
+  time        = "time",
+  estimator   = "ipw",
+  stabilize   = "marginal"
+)
+
+contrast(
+  fit_ipw_long_stab,
+  interventions = list(observed = NULL, shift_m1 = shift(-1)),
+  reference     = "observed",
+  type          = "difference",
+  ci_method     = "sandwich"
+)
+```
+
+By default the per-period numerator drops every confounder and
+conditions only on prior treatment lags. A custom `numerator =`
+formula adds baseline-only covariates on top of the lags, which
+typically gives the most stable contrast estimate when the structural
+treatment generation depends on baseline characteristics.
+
+Sandwich variance treats the numerator parameters as fixed (same
+nuisance-fixed convention as Phase 8e for multivariate IPW); bootstrap
+refits both numerator and denominator per replicate and captures the
+full uncertainty.
+
+**What's not yet supported (chunk 10c).** Effect-modification
+(`A:modifier` in `confounders`), multivariate longitudinal treatment,
+and per-period `ipsi()` are rejected with `_pending` classed errors
+pointing at the deferred follow-up chunks. Use `estimator = "gcomp"`
+(ICE) for those scenarios today.
 
 ## Multivariate time-varying treatment
 

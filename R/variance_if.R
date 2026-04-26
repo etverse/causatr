@@ -2114,6 +2114,7 @@ variance_if_ipw_longitudinal <- function(
   details <- fit$details
   data <- fit$data
   treatment_models_by_time <- details$treatment_models_by_time
+  numerator_models_by_time <- details$numerator_models_by_time
   fit_data_by_time <- details$fit_data_by_time
   time_points <- details$time_points
   n_times <- details$n_times
@@ -2211,7 +2212,8 @@ variance_if_ipw_longitudinal <- function(
       ids_first = ids_first,
       id_col = id_col,
       intervention = intervention,
-      estimand = "ATE"
+      estimand = "ATE",
+      numerator_models_by_time = numerator_models_by_time
     )
 
     # The closure returns a length-n_id vector; the MSM bread, however,
