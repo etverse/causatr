@@ -189,7 +189,9 @@ print.causatr_result <- function(x, ...) {
 #' @description
 #' Displays positivity summaries, covariate balance tables, weight
 #' distributions (IPW), and match quality metrics (matching) from a
-#' [causatr_diag][diagnose] object.
+#' [causatr_diag][diagnose] object. Multi-panel diagnostics (built with
+#' a non-`NULL` `interventions =` argument) print each panel in turn,
+#' headed by its intervention key.
 #'
 #' @param x A `causatr_diag` object.
 #' @param ... Currently unused.
@@ -197,34 +199,84 @@ print.causatr_result <- function(x, ...) {
 #' @seealso [summary.causatr_diag()], [diagnose()]
 #' @export
 print.causatr_diag <- function(x, ...) {
-  cat("<causatr_diag>\n", " Estimator:", x$estimator, "\n\n", sep = "")
-  # Each section is conditionally printed based on which diagnostics
-  # the underlying estimator supports:
-  #   - positivity: any estimator (when treatment is binary)
-  #   - balance:    always (cobalt table or simple SMD fallback)
-  #   - weights:    IPW only (NULL elsewhere)
-  #   - match_quality: matching only (NULL elsewhere)
-  # The NULL checks let us print one compact block per estimator
-  # without a switch() on estimator type.
-  if (!is.null(x$positivity)) {
-    cat("Positivity (propensity score):\n")
-    print(x$positivity, row.names = FALSE)
-    cat("\n")
+  cat("<causatr_diag>\n", " Estimator:", x$estimator, "\n", sep = "")
+  fit_info <- x$fit_info
+  # `fit_info` was added in chunk 11a; legacy `causatr_diag` objects
+  # (e.g. those constructed by hand in older user scripts) won't carry
+  # it, so guard each accessor before printing.
+  if (!is.null(fit_info$treatment_type)) {
+    cat(" Treatment: ", fit_info$treatment_type, "\n", sep = "")
   }
-  if (!is.null(x$balance)) {
-    cat("Covariate balance:\n")
-    print(x$balance)
-    cat("\n")
+  if (!is.null(fit_info$estimand)) {
+    cat(" Estimand:  ", fit_info$estimand, "\n", sep = "")
   }
-  if (!is.null(x$weights)) {
-    cat("Weight distribution:\n")
-    print(x$weights, row.names = FALSE)
-    cat("\n")
+  cat("\n")
+
+  panels <- x$per_intervention
+  if (is.null(panels) || length(panels) == 0L) {
+    # Defensive fall-through for legacy objects: use the flat slots.
+    print_diag_panel(
+      list(
+        positivity = x$positivity,
+        balance = x$balance,
+        weights = x$weights
+      ),
+      header = NULL
+    )
+  } else if (length(panels) == 1L) {
+    # Single-panel layout matches the pre-chunk-11a flat output: no
+    # intervention header, just the three sub-tables. Existing
+    # `expect_output(print(diag), "Positivity")` style tests continue
+    # to pass without change.
+    print_diag_panel(panels[[1L]], header = NULL)
+  } else {
+    # Multi-panel layout: section by intervention key. Each section
+    # is offset by a blank line so the intervention break is visible
+    # without ANSI styling (the package targets headless test runs
+    # too, so we keep the formatting plain).
+    nms <- names(panels)
+    for (i in seq_along(panels)) {
+      print_diag_panel(panels[[i]], header = nms[i])
+      if (i < length(panels)) {
+        cat("\n")
+      }
+    }
   }
+
   if (!is.null(x$match_quality)) {
     cat("Match quality:\n")
     print(x$match_quality, row.names = FALSE)
     cat("\n")
   }
   invisible(x)
+}
+
+#' Print a single diagnostic panel
+#'
+#' @param panel A list with optional `positivity` / `balance` / `weights`
+#'   slots. Each is printed only if non-`NULL`.
+#' @param header Character scalar intervention key, or `NULL` for the
+#'   single-panel layout where no intervention header is shown.
+#' @return `NULL` invisibly.
+#' @noRd
+print_diag_panel <- function(panel, header = NULL) {
+  if (!is.null(header)) {
+    cat("Intervention: ", header, "\n", sep = "")
+  }
+  if (!is.null(panel$positivity)) {
+    cat("Positivity (propensity score):\n")
+    print(panel$positivity, row.names = FALSE)
+    cat("\n")
+  }
+  if (!is.null(panel$balance)) {
+    cat("Covariate balance:\n")
+    print(panel$balance)
+    cat("\n")
+  }
+  if (!is.null(panel$weights)) {
+    cat("Weight distribution:\n")
+    print(panel$weights, row.names = FALSE)
+    cat("\n")
+  }
+  invisible(NULL)
 }

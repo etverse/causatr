@@ -366,11 +366,13 @@ test_that("print.causatr_result shows estimand", {
 })
 
 test_that("diagnose() aborts on continuous treatment IPW", {
-  # The self-contained density-ratio engine's weight summary is only
-  # well-defined for binary bernoulli density models; under a gaussian
-  # density the "IPW weight" depends on the intervention, which
-  # `diagnose()` is not scoped to. The dispatcher aborts with a flat
-  # factual error carrying class `causatr_diag_unsupported_family`.
+  # The chunk 11a foundation routes every unsupported treatment family
+  # through a `causatr_diag_*_pending` classed error so future chunks
+  # lift each rejection one family at a time. Continuous (gaussian)
+  # IPW lands `causatr_diag_continuous_pending`; the diagnostic body
+  # is identical to the rejected categorical / count / multivariate
+  # paths and lives behind the same gate (see `test-diagnose.R` for
+  # the full set of pending-class expectations).
   set.seed(42)
   df <- data.frame(
     Y = rnorm(100),
@@ -386,7 +388,7 @@ test_that("diagnose() aborts on continuous treatment IPW", {
   )
   expect_error(
     diagnose(fit),
-    class = "causatr_diag_unsupported_family"
+    class = "causatr_diag_continuous_pending"
   )
 })
 

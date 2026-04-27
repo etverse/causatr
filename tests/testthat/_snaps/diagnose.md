@@ -4,6 +4,6 @@
       diagnose(fit)
     Condition
       Error in `diagnose()`:
-      ! `diagnose()` is not supported for longitudinal fits.
-      i Run `diagnose()` on a point-treatment subset of the data (e.g. baseline with `time == min(time)`).
+      ! `diagnose()` for longitudinal fits is not yet implemented.
+      i Per-period positivity / balance / weight diagnostics for ICE fits land in a later chunk of the `diagnose()` rewrite.
 

@@ -1,5 +1,53 @@
 # causatr (development version)
 
+## 2026-04-26 — `diagnose()` rewrite foundation (Phase 11 chunk 11a)
+
+`diagnose()` now accepts an `interventions =` argument that mirrors
+`contrast()`'s signature, and the returned `causatr_diag` object exposes
+a nested `per_intervention` named list (one panel per intervention key
+with `positivity`, `balance`, and `weights` slots). The default call
+`diagnose(fit)` is unchanged: a single panel keyed `obs` is auto-
+injected, populated with the observed-treatment Horvitz-Thompson view
+(`1/p` on treated, `1/(1-p)` on controls). Top-level `positivity` /
+`balance` / `weights` slots continue to point at the first panel so every
+existing flat-shape consumer keeps working without modification.
+
+```r
+diag <- diagnose(fit,
+                 interventions = list(a1 = static(1), a0 = static(0)))
+diag$per_intervention$a1$weights  # weight summary under static(1)
+diag$per_intervention$a0$weights  # weight summary under static(0)
+```
+
+User-named interventions route through `compute_density_ratio_weights()`
+to build the per-intervention HT-style weight; the resulting
+treated / control / overall summary uses the same Kish effective sample
+size formula as the legacy view, with a divide-by-zero guard so the
+zero-weight off-arm under a static-arm intervention reports `ess = 0`
+cleanly.
+
+Seven `causatr_diag_*_pending` classed errors gate every sub-feature
+that the rewrite has not yet absorbed:
+`causatr_diag_continuous_pending` (continuous IPW),
+`causatr_diag_categorical_pending` (categorical IPW),
+`causatr_diag_count_pending` (Poisson / negbin IPW),
+`causatr_diag_multivariate_pending` (multivariate IPW),
+`causatr_diag_longitudinal_pending` (replaces the pre-chunk-11a flat
+abort on ICE fits), `causatr_diag_estimand_pending` (IPW under ATT /
+ATC — gcomp and matching are unaffected because their diagnostic paths
+are estimand-agnostic), and `causatr_diag_em_pending` (the `by =`
+argument is reserved at the signature level so future chunks can lift
+the rejection without a signature break). The chunk 11a balance view
+remains the unadjusted SMD across treatment groups; per-intervention
+post-weighting balance lands in chunk 11d alongside the ATT / ATC
+rewrite.
+
+The 12 pre-existing test blocks in `test-diagnose.R` continue to pass
+unchanged as regression anchors; 12 new test blocks cover the per-
+intervention dispatch path (with manual `1/p` ESS reconstruction
+sanity), the multi-panel `print()` output, and one classed-error check
+per `_pending` gate.
+
 ## 2026-04-26 — Effect modification under longitudinal IPW (Phase 10 chunk 10c)
 
 `A:modifier` interactions in `confounders =` are now supported under

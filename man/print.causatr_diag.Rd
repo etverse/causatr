@@ -17,7 +17,9 @@ Invisibly returns \code{x}.
 \description{
 Displays positivity summaries, covariate balance tables, weight
 distributions (IPW), and match quality metrics (matching) from a
-\link[=diagnose]{causatr_diag} object.
+\link[=diagnose]{causatr_diag} object. Multi-panel diagnostics (built with
+a non-\code{NULL} \verb{interventions =} argument) print each panel in turn,
+headed by its intervention key.
 }
 \seealso{
 \code{\link[=summary.causatr_diag]{summary.causatr_diag()}}, \code{\link[=diagnose]{diagnose()}}

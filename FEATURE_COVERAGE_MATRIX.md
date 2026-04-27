@@ -302,7 +302,15 @@ remain in this matrix.
 | `causat()` rejects bad inputs | ✅ | test-causat.R |
 | `contrast()` rejects bad estimand/reference/intervention | ✅ | test-contrast.R |
 | `diagnose()` gcomp/matching | ✅ 🟡 | test-diagnose.R |
-| `diagnose()` IPW (binary static ATE shim) | 🟡 | test-diagnose.R |
+| `diagnose()` IPW binary ATE — default `obs` panel | ✅ | test-diagnose.R |
+| `diagnose()` IPW binary ATE — per-intervention panels (`interventions = list(...)`) | ✅ | test-diagnose.R |
+| `diagnose()` `causatr_diag_continuous_pending` rejection | ✅ | test-diagnose.R |
+| `diagnose()` `causatr_diag_categorical_pending` rejection | ✅ | test-diagnose.R |
+| `diagnose()` `causatr_diag_count_pending` rejection | ✅ | test-diagnose.R |
+| `diagnose()` `causatr_diag_multivariate_pending` rejection | ✅ | test-diagnose.R |
+| `diagnose()` `causatr_diag_longitudinal_pending` rejection | ✅ | test-diagnose.R |
+| `diagnose()` `causatr_diag_estimand_pending` rejection (IPW + ATT/ATC) | ✅ | test-diagnose.R |
+| `diagnose()` `causatr_diag_em_pending` rejection (`by =`) | ✅ | test-diagnose.R |
 | S3 methods (print/summary/plot/coef/vcov/confint/tidy/glance) | 🟡 | test-s3-methods.R |
 | `knit_print.causatr_result` + `.onLoad` registration | ✅ | test-knit-print.R |
 | Input-validation helpers (`check_string`, `check_formula`, `check_col_exists`, `check_pkg`) | ✅ | test-checks.R |
@@ -376,7 +384,7 @@ Survey design integration, general cluster-robust sandwich, `future` backend. **
 Sequential density-ratio weights, cumulative product weights, stabilized weights, time-varying MSM. All ❌.
 
 ### Phase 11 — diagnose() rewrite
-Intervention-aware, treatment-type-aware, estimand-aware, longitudinal-aware diagnostics. All ❌.
+Intervention-aware, treatment-type-aware, estimand-aware, longitudinal-aware diagnostics. **Chunk 11a shipped** (foundation): nested per-intervention `causatr_diag` shape, `interventions =` argument with auto-injected `obs` panel, binary IPW per-intervention weight summary via `compute_density_ratio_weights()`, seven `causatr_diag_*_pending` classed-error gates for every deferred sub-feature. Chunks 11b–11e (treatment-type dispatch, longitudinal, ATT/ATC + EM, plot overhaul + vignette) still ❌.
 
 ### Phase 12 — Stochastic interventions
 `stochastic()` under gcomp (point + ICE), MC g-formula, MC-averaged IFs. IPW/matching rejected. All ❌.

@@ -16,7 +16,8 @@ Invisibly returns \code{object}.
 }
 \description{
 Prints positivity, balance, weight, and match quality diagnostics from a
-\link[=diagnose]{causatr_diag} object.
+\link[=diagnose]{causatr_diag} object, followed by a compact view of the
+underlying causal fit.
 }
 \seealso{
 \code{\link[=print.causatr_diag]{print.causatr_diag()}}, \code{\link[=diagnose]{diagnose()}}

@@ -449,3 +449,311 @@ test_that("compute_positivity() returns NULL for IPW with non-bernoulli treatmen
   )
   expect_null(compute_positivity(fake_fit, ps_bounds = c(0.05, 0.95)))
 })
+
+# ============================================================
+# CHUNK 11A: PER-INTERVENTION DISPATCH
+# ============================================================
+
+# The chunk 11a rewrite of diagnose() introduced a per-intervention
+# panel architecture. Default `diagnose(fit)` produces a single panel
+# keyed `obs` using the observed-treatment Horvitz-Thompson view (the
+# pre-chunk-11a default behaviour, preserved here as a regression
+# anchor). User-supplied `interventions =` produces one panel per key,
+# each with a per-intervention density-ratio weight summary.
+
+test_that("diagnose() default returns a single `obs` panel matching the legacy view", {
+  df <- simulate_binary_continuous(n = 500)
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw"
+  )
+  diag <- diagnose(fit)
+
+  expect_s3_class(diag, "causatr_diag")
+  expect_named(diag$per_intervention, "obs")
+  expect_equal(diag$interventions, "obs")
+  # Backward-compat top-level slots must point to the obs panel.
+  expect_identical(diag$positivity, diag$per_intervention$obs$positivity)
+  expect_identical(diag$balance, diag$per_intervention$obs$balance)
+  expect_identical(diag$weights, diag$per_intervention$obs$weights)
+
+  # The default obs panel for binary IPW reports the observed-arm
+  # HT weights (treated -> 1/p, control -> 1/(1-p)). Reconstruct
+  # those manually and check the weight summary matches.
+  ps <- as.numeric(stats::predict(
+    fit$details$propensity_model,
+    newdata = fit$data[fit$details$fit_rows],
+    type = "response"
+  ))
+  a <- fit$data[fit$details$fit_rows][[fit$treatment]]
+  w_obs <- ifelse(a == 1, 1 / ps, 1 / (1 - ps))
+  ess_treated_manual <- sum(w_obs[a == 1])^2 / sum(w_obs[a == 1]^2)
+  panel_w <- diag$per_intervention$obs$weights
+  expect_equal(
+    panel_w$ess[panel_w$group == "treated"],
+    ess_treated_manual,
+    tolerance = 1e-10
+  )
+})
+
+test_that("diagnose() with interventions = list(a1, a0) produces two panels", {
+  df <- simulate_binary_continuous(n = 500)
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw"
+  )
+  diag <- diagnose(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0))
+  )
+
+  expect_named(diag$per_intervention, c("a1", "a0"))
+  expect_equal(diag$interventions, c("a1", "a0"))
+
+  # Each panel carries the (intervention-independent) shared
+  # positivity / balance plus a per-intervention weight table.
+  expect_false(is.null(diag$per_intervention$a1$positivity))
+  expect_false(is.null(diag$per_intervention$a0$positivity))
+  expect_false(is.null(diag$per_intervention$a1$weights))
+  expect_false(is.null(diag$per_intervention$a0$weights))
+
+  # Manual reconstruction: the a1 panel's treated-arm weights are
+  # `1{A=1}/p` (=> mean(w[treated]) = mean(1/p[treated])); the a0
+  # panel's control-arm weights are `1{A=0}/(1-p)`.
+  ps <- as.numeric(stats::predict(
+    fit$details$propensity_model,
+    newdata = fit$data[fit$details$fit_rows],
+    type = "response"
+  ))
+  a <- fit$data[fit$details$fit_rows][[fit$treatment]]
+  w_a1 <- as.numeric(a == 1) / ps
+  w_a0 <- as.numeric(a == 0) / (1 - ps)
+
+  panel_a1 <- diag$per_intervention$a1$weights
+  panel_a0 <- diag$per_intervention$a0$weights
+
+  ess <- function(w) {
+    s2 <- sum(w^2)
+    if (s2 == 0) 0 else sum(w)^2 / s2
+  }
+  expect_equal(
+    panel_a1$ess[panel_a1$group == "treated"],
+    ess(w_a1[a == 1]),
+    tolerance = 1e-10
+  )
+  expect_equal(
+    panel_a0$ess[panel_a0$group == "control"],
+    ess(w_a0[a == 0]),
+    tolerance = 1e-10
+  )
+  # The a1 panel's control arm has all-zero weights (HT indicator
+  # zeros the off-arm), so ESS = 0 by the divide-by-zero guard.
+  expect_equal(panel_a1$ess[panel_a1$group == "control"], 0)
+  expect_equal(panel_a0$ess[panel_a0$group == "treated"], 0)
+})
+
+test_that("diagnose() with `interventions = list(natural = NULL)` reports unit weights", {
+  # Distinct from the auto-injected `obs` panel (which uses the
+  # observed-arm HT view): a literal NULL intervention requests
+  # `compute_density_ratio_weights(tm, data, NULL)` which returns
+  # the all-1 natural-course weight vector. Useful as a sanity
+  # check that the sentinel branch is wired correctly.
+  df <- simulate_binary_continuous(n = 500)
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw"
+  )
+  diag <- diagnose(fit, interventions = list(natural = NULL))
+
+  panel <- diag$per_intervention$natural$weights
+  expect_equal(panel$mean[panel$group == "overall"], 1, tolerance = 1e-10)
+  expect_equal(panel$min[panel$group == "overall"], 1, tolerance = 1e-10)
+  expect_equal(panel$max[panel$group == "overall"], 1, tolerance = 1e-10)
+})
+
+test_that("diagnose() rejects un-named `interventions =` lists", {
+  df <- simulate_binary_continuous(n = 500)
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw"
+  )
+  expect_error(
+    diagnose(fit, interventions = list(static(1), static(0))),
+    "must be named"
+  )
+})
+
+test_that("print.causatr_diag handles multi-panel output", {
+  df <- simulate_binary_continuous(n = 500)
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw"
+  )
+  diag <- diagnose(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0))
+  )
+  out <- capture.output(print(diag))
+  expect_true(any(grepl("Intervention: a1", out)))
+  expect_true(any(grepl("Intervention: a0", out)))
+})
+
+# ============================================================
+# CHUNK 11A: PENDING REJECTION GATES
+# ============================================================
+
+# Each unsupported combination must abort with its `causatr_diag_*_pending`
+# class so future chunks can lift the rejection by removing the gate.
+
+test_that("diagnose() aborts with causatr_diag_em_pending when by= is supplied", {
+  df <- simulate_binary_continuous(n = 200)
+  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L)
+  expect_error(
+    diagnose(fit, by = "L"),
+    class = "causatr_diag_em_pending"
+  )
+})
+
+test_that("diagnose() aborts with causatr_diag_estimand_pending for IPW under ATT", {
+  set.seed(7)
+  n <- 600
+  L <- rnorm(n)
+  A <- rbinom(n, 1, plogis(0.5 * L))
+  Y <- 2 + 3 * A + 1.5 * L + rnorm(n)
+  d <- data.table::data.table(Y = Y, A = A, L = L)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw",
+    estimand = "ATT"
+  )
+  expect_error(
+    diagnose(fit),
+    class = "causatr_diag_estimand_pending"
+  )
+})
+
+test_that("diagnose() aborts with causatr_diag_estimand_pending for IPW under ATC", {
+  set.seed(7)
+  n <- 600
+  L <- rnorm(n)
+  A <- rbinom(n, 1, plogis(0.5 * L))
+  Y <- 2 + 3 * A + 1.5 * L + rnorm(n)
+  d <- data.table::data.table(Y = Y, A = A, L = L)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw",
+    estimand = "ATC"
+  )
+  expect_error(
+    diagnose(fit),
+    class = "causatr_diag_estimand_pending"
+  )
+})
+
+test_that("diagnose() aborts with causatr_diag_continuous_pending for IPW + continuous", {
+  set.seed(11)
+  n <- 400
+  L <- rnorm(n)
+  A <- 0.5 * L + rnorm(n)
+  Y <- 1 + 2 * A + L + rnorm(n)
+  d <- data.table::data.table(Y = Y, A = A, L = L)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw"
+  )
+  expect_error(
+    diagnose(fit),
+    class = "causatr_diag_continuous_pending"
+  )
+})
+
+test_that("diagnose() aborts with causatr_diag_categorical_pending for IPW + categorical", {
+  skip_if_not_installed("nnet")
+  set.seed(13)
+  n <- 600
+  L <- rnorm(n)
+  pr <- exp(cbind(0, 0.4 * L, -0.3 * L))
+  pr <- pr / rowSums(pr)
+  A_idx <- apply(pr, 1, function(p) sample(seq_along(p), 1, prob = p))
+  A <- factor(c("low", "med", "hi")[A_idx])
+  Y <- 1 + 2 * (A == "med") + 3 * (A == "hi") + L + rnorm(n)
+  d <- data.table::data.table(Y = Y, A = A, L = L)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw"
+  )
+  expect_error(
+    diagnose(fit),
+    class = "causatr_diag_categorical_pending"
+  )
+})
+
+test_that("diagnose() aborts with causatr_diag_count_pending for IPW + count", {
+  skip_if_not_installed("MASS")
+  set.seed(17)
+  n <- 600
+  L <- rnorm(n)
+  A <- rpois(n, lambda = exp(0.3 + 0.2 * L))
+  Y <- 1 + 2 * A + L + rnorm(n)
+  d <- data.table::data.table(Y = Y, A = A, L = L)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw",
+    propensity_family = "poisson"
+  )
+  expect_error(
+    diagnose(fit),
+    class = "causatr_diag_count_pending"
+  )
+})
+
+test_that("diagnose() aborts with causatr_diag_multivariate_pending for multivariate IPW", {
+  set.seed(19)
+  n <- 500
+  L <- rnorm(n)
+  A1 <- rbinom(n, 1, plogis(0.4 * L))
+  A2 <- rbinom(n, 1, plogis(0.3 * L + 0.5 * A1))
+  Y <- 1 + A1 + A2 + L + rnorm(n)
+  d <- data.table::data.table(Y = Y, A1 = A1, A2 = A2, L = L)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = c("A1", "A2"),
+    confounders = ~L,
+    estimator = "ipw"
+  )
+  expect_error(
+    diagnose(fit),
+    class = "causatr_diag_multivariate_pending"
+  )
+})

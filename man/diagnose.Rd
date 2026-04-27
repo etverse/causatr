@@ -6,6 +6,8 @@
 \usage{
 diagnose(
   fit,
+  interventions = NULL,
+  by = NULL,
   stats = c("m", "v"),
   thresholds = c(m = 0.1),
   ps_bounds = c(0.025, 0.975)
@@ -13,6 +15,17 @@ diagnose(
 }
 \arguments{
 \item{fit}{A \code{causatr_fit} object returned by \code{\link[=causat]{causat()}}.}
+
+\item{interventions}{Named list of \code{causatr_intervention} objects (or
+\code{NULL} entries for natural course). When \code{NULL} (the default), a single
+panel keyed \code{obs} is produced using the standard observed-treatment
+diagnostic for the estimator. When non-\code{NULL}, each named entry spawns
+its own per-intervention panel.}
+
+\item{by}{Character scalar naming a baseline modifier for stratified
+balance reporting. Currently rejected with
+\code{causatr_diag_em_pending} -- the hook is reserved so future chunks can
+lift the rejection without a signature break.}
 
 \item{stats}{Character vector. Balance statistics to compute. Passed to
 \code{cobalt::bal.tab()}. For binary treatments, valid options include \code{"m"}
@@ -28,15 +41,20 @@ flagging positivity violations. Default \code{c(0.025, 0.975)}.}
 \value{
 A \code{causatr_diag} object with slots:
 \describe{
-\item{\code{balance}}{\code{cobalt::bal.tab} object (if cobalt installed) or a
-data.table of SMDs. Covariate balance summary.}
-\item{\code{positivity}}{data.table: propensity score summary and count of
-near-violations.}
-\item{\code{weights}}{data.table or \code{NULL}: weight distribution summary
-(IPW only).}
+\item{\code{per_intervention}}{Named list of per-intervention panels. Each
+panel is itself a list with \code{positivity}, \code{balance}, \code{weights}
+slots (any of which may be \code{NULL}).}
+\item{\code{interventions}}{Character vector of intervention keys, in the
+order they appear in \code{per_intervention}.}
+\item{\code{positivity}, \code{balance}, \code{weights}}{Top-level shortcuts that
+point to the corresponding slots of the first panel; preserved for
+backward compatibility with the flat shape used pre-chunk 11a.}
 \item{\code{match_quality}}{data.table or \code{NULL}: match quality summary
-(matching only).}
+(matching only). Lives at the top level because matching is done
+once at fit time and is intervention-agnostic.}
 \item{\code{estimator}}{Character: the causal estimator.}
+\item{\code{fit_info}}{Named list with summary metadata
+(\code{treatment_type}, \code{estimand}, \code{type}, \code{has_em}).}
 \item{\code{fit}}{The original \code{causatr_fit} (stored for \code{plot()}).}
 }
 }
@@ -46,22 +64,29 @@ Computes diagnostics appropriate to the causal estimator:
 \item \strong{All estimators}: positivity checks (flags covariate strata where the
 probability of treatment is near 0 or 1).
 \item \code{"ipw"} with binary treatment: covariate balance via \code{cobalt} on the
-propensity formula, plus an observed-treatment weight distribution
-summary (\code{1/p} on treated rows, \code{1/(1-p)} on controls) with mean, SD,
-min, max, and effective sample size.
+propensity formula, plus a weight-distribution summary (one panel per
+intervention, or the observed-treatment Horvitz-Thompson summary when
+\code{interventions = NULL}).
 \item \code{"matching"}: covariate balance before and after matching (via \code{cobalt}),
 match quality summary (\% matched, caliper info).
 \item \code{"gcomp"}: unadjusted covariate imbalance between treatment groups.
 }
 
-\strong{Point-treatment fits only.} \code{diagnose()} aborts on a longitudinal
-(ICE) \code{fit}. For longitudinal data, inspect per-period propensity /
-balance tables manually.
+\strong{Per-intervention dispatch.} When \verb{interventions =} is supplied, each
+intervention spawns its own diagnostic panel: the propensity-score summary
+is shared across panels (it depends only on the fitted treatment density
+model, not the intervention), but the weight-distribution summary is
+computed via \code{compute_density_ratio_weights()} for that specific
+intervention. The default call \code{diagnose(fit)} produces a single \code{obs}
+panel using the standard Horvitz-Thompson observed-treatment view
+(\code{1/p} on treated rows, \code{1/(1-p)} on controls) for IPW.
 
-\strong{Binary treatment only for IPW weight summaries.} Continuous and
-categorical IPW fits abort with \code{causatr_diag_unsupported_family}: the
-density-ratio weight under those families depends on the intervention,
-and \code{diagnose()} is an intervention-free diagnostic.
+\strong{Point-treatment and binary IPW only in this chunk.} The full rewrite
+(continuous / categorical / count / multivariate IPW; longitudinal ICE;
+ATT / ATC balance; effect-modification stratification; per-intervention
+propensity histograms; weight-distribution plots; \code{vignettes/diagnostics.qmd})
+lands in subsequent chunks. Each currently-unsupported combination aborts
+with a \verb{causatr_diag_*_pending} classed error.
 }
 \details{
 \subsection{Positivity}{
@@ -70,21 +95,30 @@ For binary treatment, fits a logistic regression of the treatment on the
 confounders and flags individuals whose estimated propensity score falls
 outside \code{ps_bounds}. The returned \code{positivity} table summarises the
 propensity score distribution and the number/fraction of near-violations.
+The propensity score is intervention-independent, so each panel carries
+an identical positivity table.
 }
 
 \subsection{Balance (IPW and matching)}{
 
 If the \code{cobalt} package is installed, balance is computed via
-\code{cobalt::bal.tab()} on the internal \code{weightit} or \code{matchit} object. This
+\code{cobalt::bal.tab()} on the propensity formula or matchit object. This
 provides standardised mean differences (SMD), variance ratios, and KS
-statistics before and after adjustment. If \code{cobalt} is not installed, a
-simpler data.table-based SMD comparison is returned.
+statistics. If \code{cobalt} is not installed, a simpler data.table-based SMD
+comparison is returned. The chunk 11a balance view is the unadjusted
+SMD across treatment groups -- post-weighting balance under specific
+interventions / estimands lands in a later chunk.
 }
 
 \subsection{Weight distribution (IPW only)}{
 
-Summarises the IPW weights: mean, SD, min, max, and the effective sample
-size (ESS) for the treated and control groups.
+For the default \code{obs} panel: summarises the observed-treatment
+Horvitz-Thompson weights (\code{1/p} on treated, \code{1/(1-p)} on controls), which
+is the standard Hernán & Robins Ch. 12 IPW weight diagnostic. For each
+user-supplied intervention: summarises the per-intervention density-ratio
+weight from \code{compute_density_ratio_weights()}. Both views report
+mean / SD / min / max plus the effective sample size (Kish 1965)
+\verb{ESS = (sum w)^2 / sum(w^2)} for treated / control / overall groups.
 }
 
 \subsection{Match quality (matching only)}{
@@ -99,15 +133,22 @@ data("nhefs", package = "causatr")
 fit <- causat(nhefs, outcome = "wt82_71", treatment = "qsmk",
               confounders = ~ sex + age + wt71,
               estimator = "ipw")
+# Default: single observed-treatment panel.
 diag <- diagnose(fit)
 print(diag)
 plot(diag)
+
+# Per-intervention dispatch:
+diag2 <- diagnose(fit, interventions = list(a1 = static(1), a0 = static(0)))
+print(diag2)
 }
 
 }
 \references{
 Greifer N (2024). cobalt: Covariate Balance Tables and Plots.
 \url{https://ngreifer.github.io/cobalt/}
+
+Hernán MA, Robins JM (2020). \emph{Causal Inference: What If}. CRC.
 }
 \seealso{
 \code{\link[=causat]{causat()}}, \code{\link[=plot.causatr_diag]{plot.causatr_diag()}}

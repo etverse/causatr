@@ -1,6 +1,6 @@
 # Phase 11 — Full `diagnose()` rewrite
 
-> **Status: PENDING** (design doc)
+> **Status: IN PROGRESS** — chunk 11a shipped 2026-04-26.
 > Dependencies: Phase 4 (done), Phase 5 (done), Phase 6 (effect modification), Phase 8 (multivariate IPW), Phase 10 (longitudinal IPW), Phase 14 (IPCW)
 
 ## Why this deserves its own phase
@@ -128,24 +128,135 @@ The Phase 4 shim keeps `diagnose(fit)` working on the common binary static ATE c
 
 ## Items (to be landed in Phase 11)
 
-**Design:**
-- [ ] Decide on the final shape of `causatr_diag` (probably nested list of named sub-diagnostics per intervention, with a print method that dispatches on presence/absence of longitudinal / modifier panels).
-- [ ] Decide on the `intervention = ` argument default: `list(NULL = NULL)` (natural course) or `list(obs = NULL)` (named natural course). The latter is better for the print output.
+**Design (resolved in chunk 11a):**
+- [x] Final shape of `causatr_diag`: nested `per_intervention` list, top-level
+  `match_quality` and `fit_info` slots, backward-compat flat slots
+  (`positivity`, `balance`, `weights`) shadow the first panel's contents.
+- [x] `intervention =` argument default: `interventions = NULL` auto-injects a
+  named `list(obs = ...)` so the print output stays readable.
 
-**Core rewrite:**
-- [ ] `R/diagnose.R` — full rewrite. Remove all `fit$weights_obj` accesses; route everything through `fit$details$propensity_model`, `fit$model`, `fit$match_obj`, `fit$type`, `fit$family`, `fit$estimand`.
-- [ ] Positivity + balance + weight helpers, one per treatment type (bernoulli / gaussian / categorical), each intervention-aware.
-- [ ] Longitudinal dispatch path (`variance_if_ice`-style loop over time points).
+**Core rewrite (in progress):**
+- [x] `R/diagnose.R` chunk 11a — `interventions =` arg, per-intervention
+  dispatch, seven `causatr_diag_*_pending` rejection gates, helpers split
+  into `compute_weight_summary_observed()` / `compute_weight_summary_intervention()`
+  / `summarise_weights_by_arm()`.
+- [ ] Positivity + balance + weight helpers, one per treatment type
+  (chunk 11b — `gaussian` / `categorical` / `count` / multivariate).
+- [ ] Longitudinal dispatch path (chunk 11c).
+- [ ] Estimand-aware ATT / ATC balance + `by =` stratification (chunk 11d).
 
 **Tests:**
-- [ ] Extend `test-diagnose.R` with one test per (estimator × treatment type × intervention type × estimand) combination that's supported.
-- [ ] `cobalt` oracle: when `cobalt` is installed, balance numbers should match `cobalt::bal.tab()` output to high precision on the cross-sectional static binary case (this is what Phase 3 already does, carried forward).
+- [x] `test-diagnose.R` chunk 11a — per-intervention dispatch on binary IPW;
+  manual `1/p` ESS reconstruction; one `expect_error(class = "causatr_diag_*_pending")`
+  per pending gate; multi-panel `print()` output check.
+- [ ] One test per (estimator × treatment type × intervention type × estimand)
+  combination as each follow-up chunk lifts its rejection.
 
 **Vignettes:**
-- [ ] `vignettes/diagnostics.qmd` — user-facing tour of all diagnose outputs across estimators / treatments / estimands.
+- [ ] `vignettes/diagnostics.qmd` (chunk 11e).
 
 **FEATURE_COVERAGE_MATRIX:**
-- [ ] New section "diagnose() coverage" enumerating which (fit shape × intervention × estimand) combinations are covered, matching the main feature matrix's granularity.
+- [x] Phase 11 row updated with chunk 11a status.
+- [ ] Per-treatment-type / per-estimand cells fill in across chunks 11b–11d.
+
+## Chunks
+
+The rewrite is staged into five focused chunks so each lands with its own
+plan / test / commit cycle. The chunk pattern mirrors phases 4 (chunks
+4a–4j), 6 (6a–6d), 8 (8a–8e), and 10 (10a–10c).
+
+### Chunk 11a — Foundation (DONE, 2026-04-26)
+
+What shipped:
+
+- New nested `causatr_diag` shape — top-level slots `per_intervention`
+  (named list, key → `{positivity, balance, weights}`), `interventions`
+  (character vector of keys), `match_quality` (top-level, intervention-
+  agnostic), `fit_info` (`treatment_type`, `estimand`, `type`, `has_em`).
+  Backward-compat top-level `positivity` / `balance` / `weights` slots
+  point to the first panel so the pre-chunk-11a flat shape continues to
+  work for every existing caller and test.
+- `interventions =` argument on `diagnose()`, parallel to `contrast()`'s
+  signature. Default `NULL` auto-injects a single `obs` panel using the
+  observed-treatment Horvitz-Thompson view (`1/p` on treated, `1/(1-p)`
+  on controls) — preserves the legacy default behaviour. Each user-named
+  entry spawns its own per-intervention density-ratio weight summary via
+  `compute_density_ratio_weights()`.
+- Hard-pending classed errors for every sub-feature deferred to a later
+  chunk: `causatr_diag_continuous_pending`,
+  `causatr_diag_categorical_pending`, `causatr_diag_count_pending`,
+  `causatr_diag_multivariate_pending`,
+  `causatr_diag_longitudinal_pending`,
+  `causatr_diag_estimand_pending` (IPW + ATT/ATC only — gcomp/matching
+  pass through as before), and `causatr_diag_em_pending` (the `by =`
+  argument is reserved at the signature level so future chunks lift the
+  rejection without a signature break).
+- S3 method updates: `print.causatr_diag()` dispatches on number of
+  panels (single-panel layout matches pre-chunk-11a output verbatim;
+  multi-panel layout sections by intervention key);
+  `plot.causatr_diag()` and `summary.causatr_diag()` carry through the
+  nested shape unchanged because the cobalt object is intervention-
+  independent in chunk 11a.
+- Test suite expanded from 12 to 24 test blocks, including per-
+  intervention dispatch checks, manual `1/p` reconstruction sanity, and
+  one `expect_error(class = "causatr_diag_*_pending")` per pending
+  rejection gate.
+
+What deferred to later chunks (with the rejection class that gates each
+combination today):
+
+| Sub-feature | Chunk | Pending class |
+|---|---|---|
+| Continuous IPW per-intervention diagnostics | 11b | `causatr_diag_continuous_pending` |
+| Categorical IPW per-intervention diagnostics | 11b | `causatr_diag_categorical_pending` |
+| Count (poisson / negbin) IPW | 11b | `causatr_diag_count_pending` |
+| Multivariate IPW | 11b | `causatr_diag_multivariate_pending` |
+| Longitudinal (ICE) per-period diagnostics | 11c | `causatr_diag_longitudinal_pending` |
+| ATT / ATC balance for IPW | 11d | `causatr_diag_estimand_pending` |
+| Effect modification (`by = "modifier"`) | 11d | `causatr_diag_em_pending` |
+| Propensity histograms + weight-distribution plots | 11e | (no rejection — current Love plot still works) |
+| `vignettes/diagnostics.qmd` | 11e | — |
+
+Note: chunk 11a's balance view is the unadjusted SMD across treatment
+groups — the same view the cobalt formula interface produces today. Per-
+intervention post-weighting balance (which couples tightly to estimand
+semantics) lands in chunk 11d alongside the ATT / ATC rewrite.
+
+### Chunk 11b — Treatment-type dispatch (PENDING)
+
+Lift `causatr_diag_continuous_pending`, `causatr_diag_categorical_pending`,
+`causatr_diag_count_pending`, and `causatr_diag_multivariate_pending`.
+Add per-treatment-type positivity and weight-distribution helpers:
+density-range checks for gaussian, per-level distributions for
+categorical, discrete-density quantiles for poisson / negbin, and per-
+component summaries for multivariate. Reuse `detect_treatment_family()`
+and the existing `compute_density_ratio_weights*` family.
+
+### Chunk 11c — Longitudinal (ICE) dispatch (PENDING)
+
+Lift `causatr_diag_longitudinal_pending`. Add per-period positivity,
+balance, censoring-attrition, and weight-distribution diagnostics on the
+ICE / longitudinal-IPW fits. Loop over `time_points` similar to
+`variance_if_ice()`'s per-period iteration. Surface results under a
+`time_points` nested list in the `causatr_diag` output.
+
+### Chunk 11d — Estimand and effect-modification awareness (PENDING)
+
+Lift `causatr_diag_estimand_pending` and `causatr_diag_em_pending`. Per-
+intervention post-weighting balance using the standard ATE-IPW combined
+weight `A/p + (1-A)/(1-p)` for static interventions, ATT-flavoured
+within-treated balance using `A + (1-A) * p/(1-p)`, and the symmetric
+ATC view. EM stratification via `cobalt::bal.tab(..., cluster = by)` or
+manual subset loop. Both gate on baseline-modifier status (Phase 6's
+known limitation under MSMs).
+
+### Chunk 11e — Plot overhaul and vignette (PENDING)
+
+Faceted propensity-score histograms (one panel per intervention),
+faceted weight-distribution histograms with log-scale option, and a Love
+plot grid faceted by intervention × modifier stratum. Write
+`vignettes/diagnostics.qmd` as a user-facing tour of every supported
+combination.
 
 ## Open questions
 

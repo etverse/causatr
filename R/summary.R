@@ -105,7 +105,8 @@ summary.causatr_result <- function(object, ...) {
 #'
 #' @description
 #' Prints positivity, balance, weight, and match quality diagnostics from a
-#' [causatr_diag][diagnose] object.
+#' [causatr_diag][diagnose] object, followed by a compact view of the
+#' underlying causal fit.
 #'
 #' @param object A `causatr_diag` object.
 #' @param ... Currently unused.

@@ -226,29 +226,63 @@ new_causatr_result <- function(
 
 #' Construct a `causatr_diag` object
 #'
-#' @param balance Balance table (from cobalt or simple SMD computation).
-#' @param positivity data.table of propensity score summaries.
-#' @param weights data.table of weight distribution summaries (IPW) or `NULL`.
-#' @param match_quality data.table of match quality metrics or `NULL`.
+#' @description
+#' Builds the nested per-intervention diagnostic container. Each entry in
+#' `per_intervention` is a named list with `positivity`, `balance`, and
+#' `weights` slots (any of which may be `NULL` when the underlying estimator
+#' or treatment family does not support that diagnostic). The top-level
+#' `positivity` / `balance` / `weights` slots are populated from the first
+#' panel for backward compatibility with the flat shape that downstream
+#' callers (`print.causatr_diag()`, `plot.causatr_diag()`, existing tests)
+#' originally consumed.
+#'
+#' @param per_intervention Named list, one entry per intervention key, each
+#'   itself a list with slots `positivity`, `balance`, `weights`.
+#' @param match_quality data.table of match quality metrics or `NULL`. Lives
+#'   at the top level rather than per-intervention because matching is done
+#'   once at fit time and is intervention-agnostic.
 #' @param estimator Character causal estimator.
+#' @param fit_info Named list with summary metadata about the fit
+#'   (`treatment_type`, `estimand`, `type`, `has_em`). Used by the print
+#'   method to render the panel header.
 #' @param fit The original `causatr_fit` (stored for `plot()` method).
 #' @return A list with class `"causatr_diag"`.
 #' @noRd
 new_causatr_diag <- function(
-  balance,
-  positivity,
-  weights,
-  match_quality,
+  per_intervention,
+  match_quality = NULL,
   estimator,
+  fit_info = list(),
   fit = NULL
 ) {
+  if (!is.list(per_intervention) || length(per_intervention) == 0L) {
+    rlang::abort(
+      "Internal error: `per_intervention` must be a non-empty named list."
+    )
+  }
+  if (
+    is.null(names(per_intervention)) || any(!nzchar(names(per_intervention)))
+  ) {
+    rlang::abort(
+      "Internal error: every panel in `per_intervention` must be named."
+    )
+  }
+  # First panel feeds the backward-compat top-level slots. The flat
+  # access pattern (`diag$positivity`, `diag$balance`, `diag$weights`)
+  # was the public API before chunk 11a; preserving it lets every
+  # existing test, print-tests, and downstream user expression keep
+  # working unchanged when no `interventions =` argument was passed.
+  first <- per_intervention[[1L]]
   structure(
     list(
-      balance = balance,
-      positivity = positivity,
-      weights = weights,
+      per_intervention = per_intervention,
+      interventions = names(per_intervention),
+      positivity = first$positivity,
+      balance = first$balance,
+      weights = first$weights,
       match_quality = match_quality,
       estimator = estimator,
+      fit_info = fit_info,
       fit = fit
     ),
     class = "causatr_diag"
