@@ -2800,29 +2800,29 @@ V_\beta = \color{#3182BD}{A^{-1}}
 <td><strong>G-comp</strong></td>
 <td>Outcome model + mean eq.</td>
 <td>1 (outcome)</td>
-<td>Standard</td>
+<td>Standard or user-cluster</td>
 </tr>
 <tr class="even">
 <td><strong>IPW</strong></td>
 <td>Propensity + MSM + mean eq.</td>
 <td>2 (propensity, MSM)</td>
-<td>Standard</td>
+<td>Standard or user-cluster</td>
 </tr>
 <tr class="odd">
 <td><strong>Matching</strong></td>
 <td>Outcome model + mean eq.</td>
 <td>1 (outcome)</td>
-<td>Cluster-robust</td>
+<td>Cluster-robust on subclass</td>
 </tr>
 <tr class="even">
 <td><strong>ICE</strong></td>
 <td><span class="math inline">\(K\!+\!1\)</span> outcome models + mean eq.</td>
 <td><span class="math inline">\(K\!+\!1\)</span> (backward chain)</td>
-<td>Standard</td>
+<td>Standard or user-cluster</td>
 </tr>
 </tbody>
 </table>
-<p>The IF formula handles all cases uniformly. The only per-method variation is <strong>which models contribute</strong> to Channel 2 and <strong>how IFs are aggregated</strong> (summed within clusters for matching, directly for all others).</p>
+<p>The IF formula handles all cases uniformly. The only per-method variation is <strong>which models contribute</strong> to Channel 2 and <strong>how IFs are aggregated</strong> (summed within clusters for matching, or within any user-supplied design cluster via <code>contrast(cluster = ...)</code>; directly otherwise). Matching’s subclass cluster is structural — <code>contrast(cluster = ...)</code> is rejected there with a <code>causatr_bad_cluster</code> abort because layering a user cluster on top would double-count within-subclass rows. For <code>gcomp</code>, <code>ipw</code>, and <code>ice</code>, the same sum-within-cluster-then-square primitive that Section 4.3 derives for matching is exposed directly via the <code>cluster</code> argument; numerically equivalent to <code>sandwich::vcovCL(type = "HC0")</code> applied to the final predict-then-average step (up to a small <span class="math inline">\(G/(G-1)\)</span> cluster-count factor).</p>
 </section>
 </section>
 <section id="chained-estimators-ice-g-computation" class="level2">
@@ -3248,6 +3248,7 @@ n_k \cdot \color{#E6550D}{d_{k,i}} \cdot r^{\text{score}}_{k,i}
 <li><p><strong>G-computation</strong>: one model correction (outcome model). Channel 1 nonzero.</p></li>
 <li><p><strong>IPW</strong>: two model corrections (MSM + propensity). The propensity correction captures weight estimation uncertainty via the cross-derivative <span class="math inline">\(A_{\beta\alpha}\)</span>.</p></li>
 <li><p><strong>Matching</strong>: one model correction (outcome model), same as g-comp. Aggregation is cluster-robust (sum IFs within matched subclasses).</p></li>
+<li><p><strong>User-supplied cluster</strong> (<code>contrast(cluster = ...)</code>): the same sum-within-cluster-then-square aggregation matching uses internally is exposed directly on gcomp, IPW, and ICE. Numerically equivalent to <code>sandwich::vcovCL(type = "HC0")</code> on the final predict-then-average step; rejected on matching because subclass clustering is already structural.</p></li>
 <li><p><strong>Chained estimators</strong> (ICE): <span class="math inline">\(K\!+\!1\)</span> model corrections computed by backward recursion of sensitivities.</p></li>
 <li><p><strong>The delta method</strong> (<span class="math inline">\(\color{#31A354}{J} V_\beta
 \color{#31A354}{J^T}\)</span>) is a shortcut that captures Channel 2 only. It is exact when Channel 1 = 0 (constant predictions), but underestimates otherwise. The full IF avoids this limitation.</p></li>
@@ -5603,512 +5604,526 @@ n_k \cdot \color{#E6550D}{d_{k,i}} \cdot r^{\text{score}}_{k,i}
 <span id="cb14-1909"><a href="#cb14-1909" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb14-1910"><a href="#cb14-1910" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Method <span class="pp">|</span> Stacked equations <span class="pp">|</span> Channel 2 models <span class="pp">|</span> Aggregation <span class="pp">|</span></span>
 <span id="cb14-1911"><a href="#cb14-1911" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|---|</span></span>
-<span id="cb14-1912"><a href="#cb14-1912" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **G-comp** <span class="pp">|</span> Outcome model + mean eq. <span class="pp">|</span> 1 (outcome) <span class="pp">|</span> Standard <span class="pp">|</span></span>
-<span id="cb14-1913"><a href="#cb14-1913" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **IPW** <span class="pp">|</span> Propensity + MSM + mean eq. <span class="pp">|</span> 2 (propensity, MSM) <span class="pp">|</span> Standard <span class="pp">|</span></span>
-<span id="cb14-1914"><a href="#cb14-1914" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Matching** <span class="pp">|</span> Outcome model + mean eq. <span class="pp">|</span> 1 (outcome) <span class="pp">|</span> Cluster-robust <span class="pp">|</span></span>
-<span id="cb14-1915"><a href="#cb14-1915" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **ICE** <span class="pp">|</span> $K<span class="sc">\!</span>+<span class="sc">\!</span>1$ outcome models + mean eq. <span class="pp">|</span> $K<span class="sc">\!</span>+<span class="sc">\!</span>1$ (backward chain) <span class="pp">|</span> Standard <span class="pp">|</span></span>
+<span id="cb14-1912"><a href="#cb14-1912" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **G-comp** <span class="pp">|</span> Outcome model + mean eq. <span class="pp">|</span> 1 (outcome) <span class="pp">|</span> Standard or user-cluster <span class="pp">|</span></span>
+<span id="cb14-1913"><a href="#cb14-1913" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **IPW** <span class="pp">|</span> Propensity + MSM + mean eq. <span class="pp">|</span> 2 (propensity, MSM) <span class="pp">|</span> Standard or user-cluster <span class="pp">|</span></span>
+<span id="cb14-1914"><a href="#cb14-1914" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Matching** <span class="pp">|</span> Outcome model + mean eq. <span class="pp">|</span> 1 (outcome) <span class="pp">|</span> Cluster-robust on subclass <span class="pp">|</span></span>
+<span id="cb14-1915"><a href="#cb14-1915" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **ICE** <span class="pp">|</span> $K<span class="sc">\!</span>+<span class="sc">\!</span>1$ outcome models + mean eq. <span class="pp">|</span> $K<span class="sc">\!</span>+<span class="sc">\!</span>1$ (backward chain) <span class="pp">|</span> Standard or user-cluster <span class="pp">|</span></span>
 <span id="cb14-1916"><a href="#cb14-1916" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb14-1917"><a href="#cb14-1917" aria-hidden="true" tabindex="-1"></a>The IF formula handles all cases uniformly. The only per-method variation is</span>
 <span id="cb14-1918"><a href="#cb14-1918" aria-hidden="true" tabindex="-1"></a>**which models contribute** to Channel 2 and **how IFs are aggregated** (summed</span>
-<span id="cb14-1919"><a href="#cb14-1919" aria-hidden="true" tabindex="-1"></a>within clusters for matching, directly for all others).</span>
-<span id="cb14-1920"><a href="#cb14-1920" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-1921"><a href="#cb14-1921" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-1922"><a href="#cb14-1922" aria-hidden="true" tabindex="-1"></a><span class="fu">## 5. Chained estimators: ICE g-computation</span></span>
-<span id="cb14-1923"><a href="#cb14-1923" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-1924"><a href="#cb14-1924" aria-hidden="true" tabindex="-1"></a><span class="fu">### 5.1 The chain rule for influence functions</span></span>
-<span id="cb14-1925"><a href="#cb14-1925" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-1926"><a href="#cb14-1926" aria-hidden="true" tabindex="-1"></a>Section 3 derived the IF for a two-step estimator (fit $\hat\beta$, then</span>
-<span id="cb14-1927"><a href="#cb14-1927" aria-hidden="true" tabindex="-1"></a>compute $\hat\mu_a$). What happens with **multiple models in a chain**, where</span>
-<span id="cb14-1928"><a href="#cb14-1928" aria-hidden="true" tabindex="-1"></a>each model's response is a prediction from the next? The same logic applies</span>
-<span id="cb14-1929"><a href="#cb14-1929" aria-hidden="true" tabindex="-1"></a>recursively. If $\hat\mu = f(\hat\beta_0, \hat\beta_1, \ldots, \hat\beta_K)$</span>
-<span id="cb14-1930"><a href="#cb14-1930" aria-hidden="true" tabindex="-1"></a>and each $\hat\beta_k$ is an M-estimator with bread $\color{#3182BD}{A_k}$ and</span>
-<span id="cb14-1931"><a href="#cb14-1931" aria-hidden="true" tabindex="-1"></a>score $\psi_k$, the IF of $\hat\mu$ is (Hampel et al., 1986; Huber, 1981):</span>
-<span id="cb14-1932"><a href="#cb14-1932" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-1933"><a href="#cb14-1933" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb14-1934"><a href="#cb14-1934" aria-hidden="true" tabindex="-1"></a>\text{IF}_i(\hat\mu)</span>
-<span id="cb14-1935"><a href="#cb14-1935" aria-hidden="true" tabindex="-1"></a>\;=\;</span>
-<span id="cb14-1936"><a href="#cb14-1936" aria-hidden="true" tabindex="-1"></a>\text{IF}_i^{\text{direct}}</span>
-<span id="cb14-1937"><a href="#cb14-1937" aria-hidden="true" tabindex="-1"></a>\;+\;</span>
-<span id="cb14-1938"><a href="#cb14-1938" aria-hidden="true" tabindex="-1"></a>\sum_{k=0}^{K}</span>
-<span id="cb14-1939"><a href="#cb14-1939" aria-hidden="true" tabindex="-1"></a>\frac{\partial \hat\mu}{\partial \hat\beta_k^T}</span>
-<span id="cb14-1940"><a href="#cb14-1940" aria-hidden="true" tabindex="-1"></a>\;\cdot\;</span>
-<span id="cb14-1941"><a href="#cb14-1941" aria-hidden="true" tabindex="-1"></a>\color{#3182BD}{A_k^{-1}} \; \psi_k(O_i; \hat\beta_k)</span>
-<span id="cb14-1942"><a href="#cb14-1942" aria-hidden="true" tabindex="-1"></a>$$ {#eq-if-chain}</span>
-<span id="cb14-1943"><a href="#cb14-1943" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-1944"><a href="#cb14-1944" aria-hidden="true" tabindex="-1"></a>Each term in the sum is a "Channel 2" from Section 3.2 applied to model $k$:</span>
-<span id="cb14-1945"><a href="#cb14-1945" aria-hidden="true" tabindex="-1"></a>the Jacobian $\partial\hat\mu/\partial\hat\beta_k^T$ (how $\hat\mu$ depends on</span>
-<span id="cb14-1946"><a href="#cb14-1946" aria-hidden="true" tabindex="-1"></a>model $k$) times the IF of model $k$'s parameters</span>
-<span id="cb14-1947"><a href="#cb14-1947" aria-hidden="true" tabindex="-1"></a>($\color{#3182BD}{A_k^{-1}}\psi_{k,i}$).</span>
-<span id="cb14-1948"><a href="#cb14-1948" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-1949"><a href="#cb14-1949" aria-hidden="true" tabindex="-1"></a>::: {.callout-note}</span>
-<span id="cb14-1950"><a href="#cb14-1950" aria-hidden="true" tabindex="-1"></a><span class="fu">### Connections to other frameworks</span></span>
-<span id="cb14-1951"><a href="#cb14-1951" aria-hidden="true" tabindex="-1"></a>This IF-based approach is equivalent to:</span>
-<span id="cb14-1952"><a href="#cb14-1952" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-1953"><a href="#cb14-1953" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Stacked estimating equations** (Stefanski &amp; Boos, 2002; Zivich et al.,</span>
-<span id="cb14-1954"><a href="#cb14-1954" aria-hidden="true" tabindex="-1"></a>   2024): concatenate all models' estimating equations and apply the generic</span>
-<span id="cb14-1955"><a href="#cb14-1955" aria-hidden="true" tabindex="-1"></a>   sandwich to the full stack.</span>
-<span id="cb14-1956"><a href="#cb14-1956" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**Semiparametric efficiency theory** (Tsiatis, 2006): derive the efficient</span>
-<span id="cb14-1957"><a href="#cb14-1957" aria-hidden="true" tabindex="-1"></a>   influence function (EIF) and project onto the parametric model.</span>
-<span id="cb14-1958"><a href="#cb14-1958" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-1959"><a href="#cb14-1959" aria-hidden="true" tabindex="-1"></a>All yield the same variance estimate.</span>
-<span id="cb14-1960"><a href="#cb14-1960" aria-hidden="true" tabindex="-1"></a>:::</span>
-<span id="cb14-1961"><a href="#cb14-1961" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-1962"><a href="#cb14-1962" aria-hidden="true" tabindex="-1"></a><span class="fu">### 5.2 ICE g-computation: the motivating example</span></span>
-<span id="cb14-1963"><a href="#cb14-1963" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-1964"><a href="#cb14-1964" aria-hidden="true" tabindex="-1"></a>Iterated conditional expectation (ICE) g-computation estimates the</span>
-<span id="cb14-1965"><a href="#cb14-1965" aria-hidden="true" tabindex="-1"></a>counterfactual mean under a treatment strategy in longitudinal data (Robins,</span>
-<span id="cb14-1966"><a href="#cb14-1966" aria-hidden="true" tabindex="-1"></a>1986; Bang &amp; Robins, 2005; Zivich et al., 2024). It fits $K+1$ outcome models</span>
-<span id="cb14-1967"><a href="#cb14-1967" aria-hidden="true" tabindex="-1"></a>backward in time:</span>
-<span id="cb14-1968"><a href="#cb14-1968" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-1971"><a href="#cb14-1971" aria-hidden="true" tabindex="-1"></a><span class="in">```{mermaid}</span></span>
-<span id="cb14-1972"><a href="#cb14-1972" aria-hidden="true" tabindex="-1"></a>%%| label: fig-ice-chain</span>
-<span id="cb14-1973"><a href="#cb14-1973" aria-hidden="true" tabindex="-1"></a>%%| fig-cap: <span class="ot">"</span><span class="st">ICE backward iteration. Models are fit from final time to baseline. Each model's predictions become the next model's response.</span><span class="ot">"</span></span>
-<span id="cb14-1974"><a href="#cb14-1974" aria-hidden="true" tabindex="-1"></a>flowchart RL</span>
-<span id="cb14-1975"><a href="#cb14-1975" aria-hidden="true" tabindex="-1"></a>  MK[<span class="ot">"</span><span class="st">Model K (final time)&lt;br/&gt;Fit: E[Y | A_K, H_K]&lt;br/&gt;Predict → Ỹ_K</span><span class="ot">"</span>] --&gt;|<span class="ot">"</span><span class="st">Ỹ_K becomes&lt;br/&gt;response for</span><span class="ot">"</span>| MK1[<span class="ot">"</span><span class="st">Model K-1&lt;br/&gt;Fit: E[Ỹ_K | A_{K-1}, H_{K-1}]&lt;br/&gt;Predict → Ỹ_{K-1}</span><span class="ot">"</span>]</span>
-<span id="cb14-1976"><a href="#cb14-1976" aria-hidden="true" tabindex="-1"></a>  MK1 --&gt;|<span class="ot">"</span><span class="st">Ỹ_{K-1} becomes&lt;br/&gt;response for</span><span class="ot">"</span>| Mdots[<span class="ot">"</span><span class="st">⋯</span><span class="ot">"</span>]</span>
-<span id="cb14-1977"><a href="#cb14-1977" aria-hidden="true" tabindex="-1"></a>  Mdots --&gt;|<span class="ot">"</span><span class="st">response for</span><span class="ot">"</span>| M0[<span class="ot">"</span><span class="st">Model 0 (baseline)&lt;br/&gt;Fit: E[Ỹ_1 | A_0, H_0]&lt;br/&gt;Predict → Ỹ_0</span><span class="ot">"</span>]</span>
-<span id="cb14-1978"><a href="#cb14-1978" aria-hidden="true" tabindex="-1"></a>  M0 --&gt;|<span class="ot">"</span><span class="st">average</span><span class="ot">"</span>| MU[<span class="ot">"</span><span class="st">μ̂ = mean(Ỹ_0)</span><span class="ot">"</span>]</span>
-<span id="cb14-1979"><a href="#cb14-1979" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-1980"><a href="#cb14-1980" aria-hidden="true" tabindex="-1"></a>  style MK fill:<span class="co">#f0f4ff,stroke:#3182BD</span></span>
-<span id="cb14-1981"><a href="#cb14-1981" aria-hidden="true" tabindex="-1"></a>  style MK1 fill:<span class="co">#f0f4ff,stroke:#3182BD</span></span>
-<span id="cb14-1982"><a href="#cb14-1982" aria-hidden="true" tabindex="-1"></a>  style M0 fill:<span class="co">#f0f4ff,stroke:#3182BD</span></span>
-<span id="cb14-1983"><a href="#cb14-1983" aria-hidden="true" tabindex="-1"></a>  style MU fill:<span class="co">#e8f5e9,stroke:#31A354</span></span>
-<span id="cb14-1984"><a href="#cb14-1984" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb14-1985"><a href="#cb14-1985" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-1986"><a href="#cb14-1986" aria-hidden="true" tabindex="-1"></a>Each model's response ($\tilde{Y}_k$) is a *prediction* from the next model in</span>
-<span id="cb14-1987"><a href="#cb14-1987" aria-hidden="true" tabindex="-1"></a>the chain. This creates a cascade of dependencies.</span>
-<span id="cb14-1988"><a href="#cb14-1988" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-1989"><a href="#cb14-1989" aria-hidden="true" tabindex="-1"></a><span class="fu">### 5.3 Why naive approaches fail</span></span>
-<span id="cb14-1990"><a href="#cb14-1990" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-1991"><a href="#cb14-1991" aria-hidden="true" tabindex="-1"></a>**Naive 1: Variance of pseudo-outcomes only.** Uses only Channel 1 — ignores</span>
-<span id="cb14-1992"><a href="#cb14-1992" aria-hidden="true" tabindex="-1"></a>all model correction terms.</span>
+<span id="cb14-1919"><a href="#cb14-1919" aria-hidden="true" tabindex="-1"></a>within clusters for matching, or within any user-supplied design cluster via</span>
+<span id="cb14-1920"><a href="#cb14-1920" aria-hidden="true" tabindex="-1"></a><span class="in">`contrast(cluster = ...)`</span>; directly otherwise). Matching's subclass cluster is</span>
+<span id="cb14-1921"><a href="#cb14-1921" aria-hidden="true" tabindex="-1"></a>structural — <span class="in">`contrast(cluster = ...)`</span> is rejected there with a</span>
+<span id="cb14-1922"><a href="#cb14-1922" aria-hidden="true" tabindex="-1"></a><span class="in">`causatr_bad_cluster`</span> abort because layering a user cluster on top would</span>
+<span id="cb14-1923"><a href="#cb14-1923" aria-hidden="true" tabindex="-1"></a>double-count within-subclass rows. For <span class="in">`gcomp`</span>, <span class="in">`ipw`</span>, and <span class="in">`ice`</span>, the same</span>
+<span id="cb14-1924"><a href="#cb14-1924" aria-hidden="true" tabindex="-1"></a>sum-within-cluster-then-square primitive that Section 4.3 derives for</span>
+<span id="cb14-1925"><a href="#cb14-1925" aria-hidden="true" tabindex="-1"></a>matching is exposed directly via the <span class="in">`cluster`</span> argument; numerically</span>
+<span id="cb14-1926"><a href="#cb14-1926" aria-hidden="true" tabindex="-1"></a>equivalent to <span class="in">`sandwich::vcovCL(type = "HC0")`</span> applied to the final</span>
+<span id="cb14-1927"><a href="#cb14-1927" aria-hidden="true" tabindex="-1"></a>predict-then-average step (up to a small $G/(G-1)$ cluster-count factor).</span>
+<span id="cb14-1928"><a href="#cb14-1928" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-1929"><a href="#cb14-1929" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-1930"><a href="#cb14-1930" aria-hidden="true" tabindex="-1"></a><span class="fu">## 5. Chained estimators: ICE g-computation</span></span>
+<span id="cb14-1931"><a href="#cb14-1931" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-1932"><a href="#cb14-1932" aria-hidden="true" tabindex="-1"></a><span class="fu">### 5.1 The chain rule for influence functions</span></span>
+<span id="cb14-1933"><a href="#cb14-1933" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-1934"><a href="#cb14-1934" aria-hidden="true" tabindex="-1"></a>Section 3 derived the IF for a two-step estimator (fit $\hat\beta$, then</span>
+<span id="cb14-1935"><a href="#cb14-1935" aria-hidden="true" tabindex="-1"></a>compute $\hat\mu_a$). What happens with **multiple models in a chain**, where</span>
+<span id="cb14-1936"><a href="#cb14-1936" aria-hidden="true" tabindex="-1"></a>each model's response is a prediction from the next? The same logic applies</span>
+<span id="cb14-1937"><a href="#cb14-1937" aria-hidden="true" tabindex="-1"></a>recursively. If $\hat\mu = f(\hat\beta_0, \hat\beta_1, \ldots, \hat\beta_K)$</span>
+<span id="cb14-1938"><a href="#cb14-1938" aria-hidden="true" tabindex="-1"></a>and each $\hat\beta_k$ is an M-estimator with bread $\color{#3182BD}{A_k}$ and</span>
+<span id="cb14-1939"><a href="#cb14-1939" aria-hidden="true" tabindex="-1"></a>score $\psi_k$, the IF of $\hat\mu$ is (Hampel et al., 1986; Huber, 1981):</span>
+<span id="cb14-1940"><a href="#cb14-1940" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-1941"><a href="#cb14-1941" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb14-1942"><a href="#cb14-1942" aria-hidden="true" tabindex="-1"></a>\text{IF}_i(\hat\mu)</span>
+<span id="cb14-1943"><a href="#cb14-1943" aria-hidden="true" tabindex="-1"></a>\;=\;</span>
+<span id="cb14-1944"><a href="#cb14-1944" aria-hidden="true" tabindex="-1"></a>\text{IF}_i^{\text{direct}}</span>
+<span id="cb14-1945"><a href="#cb14-1945" aria-hidden="true" tabindex="-1"></a>\;+\;</span>
+<span id="cb14-1946"><a href="#cb14-1946" aria-hidden="true" tabindex="-1"></a>\sum_{k=0}^{K}</span>
+<span id="cb14-1947"><a href="#cb14-1947" aria-hidden="true" tabindex="-1"></a>\frac{\partial \hat\mu}{\partial \hat\beta_k^T}</span>
+<span id="cb14-1948"><a href="#cb14-1948" aria-hidden="true" tabindex="-1"></a>\;\cdot\;</span>
+<span id="cb14-1949"><a href="#cb14-1949" aria-hidden="true" tabindex="-1"></a>\color{#3182BD}{A_k^{-1}} \; \psi_k(O_i; \hat\beta_k)</span>
+<span id="cb14-1950"><a href="#cb14-1950" aria-hidden="true" tabindex="-1"></a>$$ {#eq-if-chain}</span>
+<span id="cb14-1951"><a href="#cb14-1951" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-1952"><a href="#cb14-1952" aria-hidden="true" tabindex="-1"></a>Each term in the sum is a "Channel 2" from Section 3.2 applied to model $k$:</span>
+<span id="cb14-1953"><a href="#cb14-1953" aria-hidden="true" tabindex="-1"></a>the Jacobian $\partial\hat\mu/\partial\hat\beta_k^T$ (how $\hat\mu$ depends on</span>
+<span id="cb14-1954"><a href="#cb14-1954" aria-hidden="true" tabindex="-1"></a>model $k$) times the IF of model $k$'s parameters</span>
+<span id="cb14-1955"><a href="#cb14-1955" aria-hidden="true" tabindex="-1"></a>($\color{#3182BD}{A_k^{-1}}\psi_{k,i}$).</span>
+<span id="cb14-1956"><a href="#cb14-1956" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-1957"><a href="#cb14-1957" aria-hidden="true" tabindex="-1"></a>::: {.callout-note}</span>
+<span id="cb14-1958"><a href="#cb14-1958" aria-hidden="true" tabindex="-1"></a><span class="fu">### Connections to other frameworks</span></span>
+<span id="cb14-1959"><a href="#cb14-1959" aria-hidden="true" tabindex="-1"></a>This IF-based approach is equivalent to:</span>
+<span id="cb14-1960"><a href="#cb14-1960" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-1961"><a href="#cb14-1961" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Stacked estimating equations** (Stefanski &amp; Boos, 2002; Zivich et al.,</span>
+<span id="cb14-1962"><a href="#cb14-1962" aria-hidden="true" tabindex="-1"></a>   2024): concatenate all models' estimating equations and apply the generic</span>
+<span id="cb14-1963"><a href="#cb14-1963" aria-hidden="true" tabindex="-1"></a>   sandwich to the full stack.</span>
+<span id="cb14-1964"><a href="#cb14-1964" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**Semiparametric efficiency theory** (Tsiatis, 2006): derive the efficient</span>
+<span id="cb14-1965"><a href="#cb14-1965" aria-hidden="true" tabindex="-1"></a>   influence function (EIF) and project onto the parametric model.</span>
+<span id="cb14-1966"><a href="#cb14-1966" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-1967"><a href="#cb14-1967" aria-hidden="true" tabindex="-1"></a>All yield the same variance estimate.</span>
+<span id="cb14-1968"><a href="#cb14-1968" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb14-1969"><a href="#cb14-1969" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-1970"><a href="#cb14-1970" aria-hidden="true" tabindex="-1"></a><span class="fu">### 5.2 ICE g-computation: the motivating example</span></span>
+<span id="cb14-1971"><a href="#cb14-1971" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-1972"><a href="#cb14-1972" aria-hidden="true" tabindex="-1"></a>Iterated conditional expectation (ICE) g-computation estimates the</span>
+<span id="cb14-1973"><a href="#cb14-1973" aria-hidden="true" tabindex="-1"></a>counterfactual mean under a treatment strategy in longitudinal data (Robins,</span>
+<span id="cb14-1974"><a href="#cb14-1974" aria-hidden="true" tabindex="-1"></a>1986; Bang &amp; Robins, 2005; Zivich et al., 2024). It fits $K+1$ outcome models</span>
+<span id="cb14-1975"><a href="#cb14-1975" aria-hidden="true" tabindex="-1"></a>backward in time:</span>
+<span id="cb14-1976"><a href="#cb14-1976" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-1979"><a href="#cb14-1979" aria-hidden="true" tabindex="-1"></a><span class="in">```{mermaid}</span></span>
+<span id="cb14-1980"><a href="#cb14-1980" aria-hidden="true" tabindex="-1"></a>%%| label: fig-ice-chain</span>
+<span id="cb14-1981"><a href="#cb14-1981" aria-hidden="true" tabindex="-1"></a>%%| fig-cap: <span class="ot">"</span><span class="st">ICE backward iteration. Models are fit from final time to baseline. Each model's predictions become the next model's response.</span><span class="ot">"</span></span>
+<span id="cb14-1982"><a href="#cb14-1982" aria-hidden="true" tabindex="-1"></a>flowchart RL</span>
+<span id="cb14-1983"><a href="#cb14-1983" aria-hidden="true" tabindex="-1"></a>  MK[<span class="ot">"</span><span class="st">Model K (final time)&lt;br/&gt;Fit: E[Y | A_K, H_K]&lt;br/&gt;Predict → Ỹ_K</span><span class="ot">"</span>] --&gt;|<span class="ot">"</span><span class="st">Ỹ_K becomes&lt;br/&gt;response for</span><span class="ot">"</span>| MK1[<span class="ot">"</span><span class="st">Model K-1&lt;br/&gt;Fit: E[Ỹ_K | A_{K-1}, H_{K-1}]&lt;br/&gt;Predict → Ỹ_{K-1}</span><span class="ot">"</span>]</span>
+<span id="cb14-1984"><a href="#cb14-1984" aria-hidden="true" tabindex="-1"></a>  MK1 --&gt;|<span class="ot">"</span><span class="st">Ỹ_{K-1} becomes&lt;br/&gt;response for</span><span class="ot">"</span>| Mdots[<span class="ot">"</span><span class="st">⋯</span><span class="ot">"</span>]</span>
+<span id="cb14-1985"><a href="#cb14-1985" aria-hidden="true" tabindex="-1"></a>  Mdots --&gt;|<span class="ot">"</span><span class="st">response for</span><span class="ot">"</span>| M0[<span class="ot">"</span><span class="st">Model 0 (baseline)&lt;br/&gt;Fit: E[Ỹ_1 | A_0, H_0]&lt;br/&gt;Predict → Ỹ_0</span><span class="ot">"</span>]</span>
+<span id="cb14-1986"><a href="#cb14-1986" aria-hidden="true" tabindex="-1"></a>  M0 --&gt;|<span class="ot">"</span><span class="st">average</span><span class="ot">"</span>| MU[<span class="ot">"</span><span class="st">μ̂ = mean(Ỹ_0)</span><span class="ot">"</span>]</span>
+<span id="cb14-1987"><a href="#cb14-1987" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-1988"><a href="#cb14-1988" aria-hidden="true" tabindex="-1"></a>  style MK fill:<span class="co">#f0f4ff,stroke:#3182BD</span></span>
+<span id="cb14-1989"><a href="#cb14-1989" aria-hidden="true" tabindex="-1"></a>  style MK1 fill:<span class="co">#f0f4ff,stroke:#3182BD</span></span>
+<span id="cb14-1990"><a href="#cb14-1990" aria-hidden="true" tabindex="-1"></a>  style M0 fill:<span class="co">#f0f4ff,stroke:#3182BD</span></span>
+<span id="cb14-1991"><a href="#cb14-1991" aria-hidden="true" tabindex="-1"></a>  style MU fill:<span class="co">#e8f5e9,stroke:#31A354</span></span>
+<span id="cb14-1992"><a href="#cb14-1992" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb14-1993"><a href="#cb14-1993" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-1994"><a href="#cb14-1994" aria-hidden="true" tabindex="-1"></a>**Naive 2: $\color{#31A354}{J}V_\beta\color{#31A354}{J^T}$ from model 0</span>
-<span id="cb14-1995"><a href="#cb14-1995" aria-hidden="true" tabindex="-1"></a>only.** Captures Channel 2 for model 0 but ignores models $1, \ldots, K$.</span>
+<span id="cb14-1994"><a href="#cb14-1994" aria-hidden="true" tabindex="-1"></a>Each model's response ($\tilde{Y}_k$) is a *prediction* from the next model in</span>
+<span id="cb14-1995"><a href="#cb14-1995" aria-hidden="true" tabindex="-1"></a>the chain. This creates a cascade of dependencies.</span>
 <span id="cb14-1996"><a href="#cb14-1996" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-1997"><a href="#cb14-1997" aria-hidden="true" tabindex="-1"></a>**Correct: Full IF chain.** Account for all $K+1$ models via the chain rule.</span>
+<span id="cb14-1997"><a href="#cb14-1997" aria-hidden="true" tabindex="-1"></a><span class="fu">### 5.3 Why naive approaches fail</span></span>
 <span id="cb14-1998"><a href="#cb14-1998" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-1999"><a href="#cb14-1999" aria-hidden="true" tabindex="-1"></a><span class="fu">### 5.4 Deriving the IF for chained models</span></span>
-<span id="cb14-2000"><a href="#cb14-2000" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2001"><a href="#cb14-2001" aria-hidden="true" tabindex="-1"></a><span class="fu">#### The IF decomposition</span></span>
-<span id="cb14-2002"><a href="#cb14-2002" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2003"><a href="#cb14-2003" aria-hidden="true" tabindex="-1"></a>Applying the chain rule (Section 5.1):</span>
+<span id="cb14-1999"><a href="#cb14-1999" aria-hidden="true" tabindex="-1"></a>**Naive 1: Variance of pseudo-outcomes only.** Uses only Channel 1 — ignores</span>
+<span id="cb14-2000"><a href="#cb14-2000" aria-hidden="true" tabindex="-1"></a>all model correction terms.</span>
+<span id="cb14-2001"><a href="#cb14-2001" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2002"><a href="#cb14-2002" aria-hidden="true" tabindex="-1"></a>**Naive 2: $\color{#31A354}{J}V_\beta\color{#31A354}{J^T}$ from model 0</span>
+<span id="cb14-2003"><a href="#cb14-2003" aria-hidden="true" tabindex="-1"></a>only.** Captures Channel 2 for model 0 but ignores models $1, \ldots, K$.</span>
 <span id="cb14-2004"><a href="#cb14-2004" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2005"><a href="#cb14-2005" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb14-2006"><a href="#cb14-2006" aria-hidden="true" tabindex="-1"></a>\text{IF}_i</span>
-<span id="cb14-2007"><a href="#cb14-2007" aria-hidden="true" tabindex="-1"></a>= \underbrace{\frac{1}{n_t}(\tilde{Y}_{0,i} - \hat\mu)}_{\text{Channel 1}}</span>
-<span id="cb14-2008"><a href="#cb14-2008" aria-hidden="true" tabindex="-1"></a><span class="ss">+ </span>\sum_{k=0}^{K}</span>
-<span id="cb14-2009"><a href="#cb14-2009" aria-hidden="true" tabindex="-1"></a>\underbrace{</span>
-<span id="cb14-2010"><a href="#cb14-2010" aria-hidden="true" tabindex="-1"></a>\color{#E6550D}{d_{k,i}} \cdot r^{\text{score}}_{k,i}</span>
-<span id="cb14-2011"><a href="#cb14-2011" aria-hidden="true" tabindex="-1"></a>}_{\text{Channel 2 for model } k}</span>
-<span id="cb14-2012"><a href="#cb14-2012" aria-hidden="true" tabindex="-1"></a>$$ {#eq-if-ice}</span>
-<span id="cb14-2013"><a href="#cb14-2013" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2014"><a href="#cb14-2014" aria-hidden="true" tabindex="-1"></a>where $\color{#E6550D}{d_{k,i}}$ is the **sensitivity** — how much a</span>
-<span id="cb14-2015"><a href="#cb14-2015" aria-hidden="true" tabindex="-1"></a>perturbation at model $k$ propagates to $\hat\mu$ — and</span>
-<span id="cb14-2016"><a href="#cb14-2016" aria-hidden="true" tabindex="-1"></a>$r^{\text{score}}_{k,i}$ is individual $i$'s **score residual** at</span>
-<span id="cb14-2017"><a href="#cb14-2017" aria-hidden="true" tabindex="-1"></a>model $k$:</span>
-<span id="cb14-2018"><a href="#cb14-2018" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2019"><a href="#cb14-2019" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb14-2020"><a href="#cb14-2020" aria-hidden="true" tabindex="-1"></a>r^{\text{score}}_{k,i}</span>
-<span id="cb14-2021"><a href="#cb14-2021" aria-hidden="true" tabindex="-1"></a>\;=\; (Y_{k,i} - \hat{Y}_{k,i}) \cdot</span>
-<span id="cb14-2022"><a href="#cb14-2022" aria-hidden="true" tabindex="-1"></a>\frac{d\mu/d\eta\big|_{\eta_{k,i}}}{V(\hat{Y}_{k,i})}</span>
-<span id="cb14-2023"><a href="#cb14-2023" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb14-2024"><a href="#cb14-2024" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2025"><a href="#cb14-2025" aria-hidden="true" tabindex="-1"></a>i.e. the response residual $r_{k,i} = Y_{k,i} - \hat{Y}_{k,i}$ weighted</span>
-<span id="cb14-2026"><a href="#cb14-2026" aria-hidden="true" tabindex="-1"></a>by the link-scale factor from the GLM score (Section 1.2, route 3).</span>
-<span id="cb14-2027"><a href="#cb14-2027" aria-hidden="true" tabindex="-1"></a>For **canonical** links (logistic-logit, Poisson-log, Gaussian-identity)</span>
-<span id="cb14-2028"><a href="#cb14-2028" aria-hidden="true" tabindex="-1"></a>the ratio $(d\mu/d\eta)/V(\mu) = 1$ and $r^{\text{score}}_{k,i}$</span>
-<span id="cb14-2029"><a href="#cb14-2029" aria-hidden="true" tabindex="-1"></a>collapses to the ordinary response residual $r_{k,i}$. For</span>
-<span id="cb14-2030"><a href="#cb14-2030" aria-hidden="true" tabindex="-1"></a>**non-canonical** links (probit, cloglog, Gamma-log, Poisson-sqrt,</span>
-<span id="cb14-2031"><a href="#cb14-2031" aria-hidden="true" tabindex="-1"></a>etc.) the factor is not $1$ and must be applied.</span>
+<span id="cb14-2005"><a href="#cb14-2005" aria-hidden="true" tabindex="-1"></a>**Correct: Full IF chain.** Account for all $K+1$ models via the chain rule.</span>
+<span id="cb14-2006"><a href="#cb14-2006" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2007"><a href="#cb14-2007" aria-hidden="true" tabindex="-1"></a><span class="fu">### 5.4 Deriving the IF for chained models</span></span>
+<span id="cb14-2008"><a href="#cb14-2008" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2009"><a href="#cb14-2009" aria-hidden="true" tabindex="-1"></a><span class="fu">#### The IF decomposition</span></span>
+<span id="cb14-2010"><a href="#cb14-2010" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2011"><a href="#cb14-2011" aria-hidden="true" tabindex="-1"></a>Applying the chain rule (Section 5.1):</span>
+<span id="cb14-2012"><a href="#cb14-2012" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2013"><a href="#cb14-2013" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb14-2014"><a href="#cb14-2014" aria-hidden="true" tabindex="-1"></a>\text{IF}_i</span>
+<span id="cb14-2015"><a href="#cb14-2015" aria-hidden="true" tabindex="-1"></a>= \underbrace{\frac{1}{n_t}(\tilde{Y}_{0,i} - \hat\mu)}_{\text{Channel 1}}</span>
+<span id="cb14-2016"><a href="#cb14-2016" aria-hidden="true" tabindex="-1"></a><span class="ss">+ </span>\sum_{k=0}^{K}</span>
+<span id="cb14-2017"><a href="#cb14-2017" aria-hidden="true" tabindex="-1"></a>\underbrace{</span>
+<span id="cb14-2018"><a href="#cb14-2018" aria-hidden="true" tabindex="-1"></a>\color{#E6550D}{d_{k,i}} \cdot r^{\text{score}}_{k,i}</span>
+<span id="cb14-2019"><a href="#cb14-2019" aria-hidden="true" tabindex="-1"></a>}_{\text{Channel 2 for model } k}</span>
+<span id="cb14-2020"><a href="#cb14-2020" aria-hidden="true" tabindex="-1"></a>$$ {#eq-if-ice}</span>
+<span id="cb14-2021"><a href="#cb14-2021" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2022"><a href="#cb14-2022" aria-hidden="true" tabindex="-1"></a>where $\color{#E6550D}{d_{k,i}}$ is the **sensitivity** — how much a</span>
+<span id="cb14-2023"><a href="#cb14-2023" aria-hidden="true" tabindex="-1"></a>perturbation at model $k$ propagates to $\hat\mu$ — and</span>
+<span id="cb14-2024"><a href="#cb14-2024" aria-hidden="true" tabindex="-1"></a>$r^{\text{score}}_{k,i}$ is individual $i$'s **score residual** at</span>
+<span id="cb14-2025"><a href="#cb14-2025" aria-hidden="true" tabindex="-1"></a>model $k$:</span>
+<span id="cb14-2026"><a href="#cb14-2026" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2027"><a href="#cb14-2027" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb14-2028"><a href="#cb14-2028" aria-hidden="true" tabindex="-1"></a>r^{\text{score}}_{k,i}</span>
+<span id="cb14-2029"><a href="#cb14-2029" aria-hidden="true" tabindex="-1"></a>\;=\; (Y_{k,i} - \hat{Y}_{k,i}) \cdot</span>
+<span id="cb14-2030"><a href="#cb14-2030" aria-hidden="true" tabindex="-1"></a>\frac{d\mu/d\eta\big|_{\eta_{k,i}}}{V(\hat{Y}_{k,i})}</span>
+<span id="cb14-2031"><a href="#cb14-2031" aria-hidden="true" tabindex="-1"></a>$$</span>
 <span id="cb14-2032"><a href="#cb14-2032" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2033"><a href="#cb14-2033" aria-hidden="true" tabindex="-1"></a>::: {.callout-warning}</span>
-<span id="cb14-2034"><a href="#cb14-2034" aria-hidden="true" tabindex="-1"></a><span class="fu">### Why the score residual, not the response residual</span></span>
-<span id="cb14-2035"><a href="#cb14-2035" aria-hidden="true" tabindex="-1"></a>$\text{Ch.2}_i = J_k A_k^{-1} \psi_{k,i}$ contains the full GLM score</span>
-<span id="cb14-2036"><a href="#cb14-2036" aria-hidden="true" tabindex="-1"></a>$\psi_{k,i} = (Y - \mu)\cdot(d\mu/d\eta)/V(\mu)\cdot X_i$, not the bare</span>
-<span id="cb14-2037"><a href="#cb14-2037" aria-hidden="true" tabindex="-1"></a>residual $(Y - \mu)\cdot X_i$. Working through the algebra:</span>
-<span id="cb14-2038"><a href="#cb14-2038" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2039"><a href="#cb14-2039" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb14-2040"><a href="#cb14-2040" aria-hidden="true" tabindex="-1"></a>\color{#31A354}{J_k}\color{#3182BD}{A_k^{-1}}\psi_{k,i}</span>
-<span id="cb14-2041"><a href="#cb14-2041" aria-hidden="true" tabindex="-1"></a>\;=\; n\cdot d_{k,i}\cdot (Y_{k,i} - \hat Y_{k,i})\cdot</span>
-<span id="cb14-2042"><a href="#cb14-2042" aria-hidden="true" tabindex="-1"></a>\frac{d\mu/d\eta\big|_{\eta_{k,i}}}{V(\hat Y_{k,i})}</span>
-<span id="cb14-2043"><a href="#cb14-2043" aria-hidden="true" tabindex="-1"></a>\;=\; n\cdot d_{k,i}\cdot r^{\text{score}}_{k,i}</span>
-<span id="cb14-2044"><a href="#cb14-2044" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb14-2045"><a href="#cb14-2045" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2046"><a href="#cb14-2046" aria-hidden="true" tabindex="-1"></a>The factor of $n$ arises from $A_k^{-1} = n(X_k^T W_k X_k)^{-1}$</span>
-<span id="cb14-2047"><a href="#cb14-2047" aria-hidden="true" tabindex="-1"></a>(Section 5.5). Omitting the $(d\mu/d\eta)/V$ factor and using the plain</span>
-<span id="cb14-2048"><a href="#cb14-2048" aria-hidden="true" tabindex="-1"></a>response residual is correct only when it equals $1$ — i.e., only for</span>
-<span id="cb14-2049"><a href="#cb14-2049" aria-hidden="true" tabindex="-1"></a>canonical links. This mistake is silent on logistic/Poisson-log/Gaussian</span>
-<span id="cb14-2050"><a href="#cb14-2050" aria-hidden="true" tabindex="-1"></a>models but miscalibrates probit and cloglog.</span>
-<span id="cb14-2051"><a href="#cb14-2051" aria-hidden="true" tabindex="-1"></a>:::</span>
-<span id="cb14-2052"><a href="#cb14-2052" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2053"><a href="#cb14-2053" aria-hidden="true" tabindex="-1"></a><span class="fu">#### What the sensitivities measure</span></span>
-<span id="cb14-2054"><a href="#cb14-2054" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2055"><a href="#cb14-2055" aria-hidden="true" tabindex="-1"></a>Each model correction requires a **sensitivity** $\color{#E6550D}{d_{k,i}}$: a</span>
-<span id="cb14-2056"><a href="#cb14-2056" aria-hidden="true" tabindex="-1"></a>scalar that answers "if individual $i$'s residual at model $k$ increased by one</span>
-<span id="cb14-2057"><a href="#cb14-2057" aria-hidden="true" tabindex="-1"></a>unit, how much would $\hat\mu$ change?" Computing $\color{#E6550D}{d_{k,i}}$</span>
-<span id="cb14-2058"><a href="#cb14-2058" aria-hidden="true" tabindex="-1"></a>takes three steps, each with a clear role:</span>
-<span id="cb14-2059"><a href="#cb14-2059" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2060"><a href="#cb14-2060" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Gradient** $g_k$ ($p_k \times 1$): the total sensitivity of $\hat\mu$ to</span>
-<span id="cb14-2061"><a href="#cb14-2061" aria-hidden="true" tabindex="-1"></a>   model $k$'s coefficient vector $\beta_k$. This is a Jacobian — the same</span>
-<span id="cb14-2062"><a href="#cb14-2062" aria-hidden="true" tabindex="-1"></a>   object as $\color{#31A354}{J_a}$ from Section 3.2, but computed recursively</span>
-<span id="cb14-2063"><a href="#cb14-2063" aria-hidden="true" tabindex="-1"></a>   for $k &gt; 0$.</span>
-<span id="cb14-2064"><a href="#cb14-2064" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**Solve** $h_k = (X_k^T W_k X_k)^{-1} g_k$ ($p_k \times 1$): convert from</span>
-<span id="cb14-2065"><a href="#cb14-2065" aria-hidden="true" tabindex="-1"></a>   "how $\hat\mu$ responds to $\beta_k$" to "how $\hat\mu$ responds to</span>
-<span id="cb14-2066"><a href="#cb14-2066" aria-hidden="true" tabindex="-1"></a>   individual score contributions." This is the bread inverse</span>
-<span id="cb14-2067"><a href="#cb14-2067" aria-hidden="true" tabindex="-1"></a>   $\color{#3182BD}{A_k^{-1}}$ applied to $g_k$.</span>
-<span id="cb14-2068"><a href="#cb14-2068" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**Distribute** $\color{#E6550D}{d_{k,i}} = h_k^T X_{k,i}$ (scalar): project</span>
-<span id="cb14-2069"><a href="#cb14-2069" aria-hidden="true" tabindex="-1"></a>   onto individual $i$'s covariate vector to get their personal sensitivity.</span>
-<span id="cb14-2070"><a href="#cb14-2070" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2071"><a href="#cb14-2071" aria-hidden="true" tabindex="-1"></a><span class="fu">#### Base case: model 0</span></span>
-<span id="cb14-2072"><a href="#cb14-2072" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2073"><a href="#cb14-2073" aria-hidden="true" tabindex="-1"></a>$\hat\mu$ is a direct average of model 0's predictions. The gradient of</span>
-<span id="cb14-2074"><a href="#cb14-2074" aria-hidden="true" tabindex="-1"></a>$\hat\mu$ w.r.t. $\beta_0$ is therefore the Jacobian from Section 3.2:</span>
-<span id="cb14-2075"><a href="#cb14-2075" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2076"><a href="#cb14-2076" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb14-2077"><a href="#cb14-2077" aria-hidden="true" tabindex="-1"></a>\underset{p_0 \times 1}{g_0}</span>
-<span id="cb14-2078"><a href="#cb14-2078" aria-hidden="true" tabindex="-1"></a>= \frac{1}{n_t}\sum_{j \in \text{target}}</span>
-<span id="cb14-2079"><a href="#cb14-2079" aria-hidden="true" tabindex="-1"></a>\frac{d\mu}{d\eta}\bigg|_{\eta_{0,j}^*}</span>
-<span id="cb14-2080"><a href="#cb14-2080" aria-hidden="true" tabindex="-1"></a>\;\cdot\; X_{0,j}^*</span>
-<span id="cb14-2081"><a href="#cb14-2081" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb14-2082"><a href="#cb14-2082" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2083"><a href="#cb14-2083" aria-hidden="true" tabindex="-1"></a>$g_0$ tells us the total sensitivity of $\hat\mu$ to $\beta_0$, but the IF</span>
-<span id="cb14-2084"><a href="#cb14-2084" aria-hidden="true" tabindex="-1"></a>requires a per-individual quantity. We need to ask: "of the total shift in</span>
-<span id="cb14-2085"><a href="#cb14-2085" aria-hidden="true" tabindex="-1"></a>$\hat\beta_0$ caused by the data, how much came from individual $i$?" The</span>
-<span id="cb14-2086"><a href="#cb14-2086" aria-hidden="true" tabindex="-1"></a>answer uses two facts: (a) individual $i$'s influence on $\hat\beta_0$ is</span>
-<span id="cb14-2087"><a href="#cb14-2087" aria-hidden="true" tabindex="-1"></a>proportional to their score $\psi_{0,i} = (d\mu/d\eta)_i / V(\mu_i) \cdot</span>
-<span id="cb14-2088"><a href="#cb14-2088" aria-hidden="true" tabindex="-1"></a>r_{0,i} \cdot X_{0,i}$; and (b) the constant of proportionality involves</span>
-<span id="cb14-2089"><a href="#cb14-2089" aria-hidden="true" tabindex="-1"></a>the bread inverse $(X_0^T W_0 X_0)^{-1}$. Combining:</span>
+<span id="cb14-2033"><a href="#cb14-2033" aria-hidden="true" tabindex="-1"></a>i.e. the response residual $r_{k,i} = Y_{k,i} - \hat{Y}_{k,i}$ weighted</span>
+<span id="cb14-2034"><a href="#cb14-2034" aria-hidden="true" tabindex="-1"></a>by the link-scale factor from the GLM score (Section 1.2, route 3).</span>
+<span id="cb14-2035"><a href="#cb14-2035" aria-hidden="true" tabindex="-1"></a>For **canonical** links (logistic-logit, Poisson-log, Gaussian-identity)</span>
+<span id="cb14-2036"><a href="#cb14-2036" aria-hidden="true" tabindex="-1"></a>the ratio $(d\mu/d\eta)/V(\mu) = 1$ and $r^{\text{score}}_{k,i}$</span>
+<span id="cb14-2037"><a href="#cb14-2037" aria-hidden="true" tabindex="-1"></a>collapses to the ordinary response residual $r_{k,i}$. For</span>
+<span id="cb14-2038"><a href="#cb14-2038" aria-hidden="true" tabindex="-1"></a>**non-canonical** links (probit, cloglog, Gamma-log, Poisson-sqrt,</span>
+<span id="cb14-2039"><a href="#cb14-2039" aria-hidden="true" tabindex="-1"></a>etc.) the factor is not $1$ and must be applied.</span>
+<span id="cb14-2040"><a href="#cb14-2040" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2041"><a href="#cb14-2041" aria-hidden="true" tabindex="-1"></a>::: {.callout-warning}</span>
+<span id="cb14-2042"><a href="#cb14-2042" aria-hidden="true" tabindex="-1"></a><span class="fu">### Why the score residual, not the response residual</span></span>
+<span id="cb14-2043"><a href="#cb14-2043" aria-hidden="true" tabindex="-1"></a>$\text{Ch.2}_i = J_k A_k^{-1} \psi_{k,i}$ contains the full GLM score</span>
+<span id="cb14-2044"><a href="#cb14-2044" aria-hidden="true" tabindex="-1"></a>$\psi_{k,i} = (Y - \mu)\cdot(d\mu/d\eta)/V(\mu)\cdot X_i$, not the bare</span>
+<span id="cb14-2045"><a href="#cb14-2045" aria-hidden="true" tabindex="-1"></a>residual $(Y - \mu)\cdot X_i$. Working through the algebra:</span>
+<span id="cb14-2046"><a href="#cb14-2046" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2047"><a href="#cb14-2047" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb14-2048"><a href="#cb14-2048" aria-hidden="true" tabindex="-1"></a>\color{#31A354}{J_k}\color{#3182BD}{A_k^{-1}}\psi_{k,i}</span>
+<span id="cb14-2049"><a href="#cb14-2049" aria-hidden="true" tabindex="-1"></a>\;=\; n\cdot d_{k,i}\cdot (Y_{k,i} - \hat Y_{k,i})\cdot</span>
+<span id="cb14-2050"><a href="#cb14-2050" aria-hidden="true" tabindex="-1"></a>\frac{d\mu/d\eta\big|_{\eta_{k,i}}}{V(\hat Y_{k,i})}</span>
+<span id="cb14-2051"><a href="#cb14-2051" aria-hidden="true" tabindex="-1"></a>\;=\; n\cdot d_{k,i}\cdot r^{\text{score}}_{k,i}</span>
+<span id="cb14-2052"><a href="#cb14-2052" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb14-2053"><a href="#cb14-2053" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2054"><a href="#cb14-2054" aria-hidden="true" tabindex="-1"></a>The factor of $n$ arises from $A_k^{-1} = n(X_k^T W_k X_k)^{-1}$</span>
+<span id="cb14-2055"><a href="#cb14-2055" aria-hidden="true" tabindex="-1"></a>(Section 5.5). Omitting the $(d\mu/d\eta)/V$ factor and using the plain</span>
+<span id="cb14-2056"><a href="#cb14-2056" aria-hidden="true" tabindex="-1"></a>response residual is correct only when it equals $1$ — i.e., only for</span>
+<span id="cb14-2057"><a href="#cb14-2057" aria-hidden="true" tabindex="-1"></a>canonical links. This mistake is silent on logistic/Poisson-log/Gaussian</span>
+<span id="cb14-2058"><a href="#cb14-2058" aria-hidden="true" tabindex="-1"></a>models but miscalibrates probit and cloglog.</span>
+<span id="cb14-2059"><a href="#cb14-2059" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb14-2060"><a href="#cb14-2060" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2061"><a href="#cb14-2061" aria-hidden="true" tabindex="-1"></a><span class="fu">#### What the sensitivities measure</span></span>
+<span id="cb14-2062"><a href="#cb14-2062" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2063"><a href="#cb14-2063" aria-hidden="true" tabindex="-1"></a>Each model correction requires a **sensitivity** $\color{#E6550D}{d_{k,i}}$: a</span>
+<span id="cb14-2064"><a href="#cb14-2064" aria-hidden="true" tabindex="-1"></a>scalar that answers "if individual $i$'s residual at model $k$ increased by one</span>
+<span id="cb14-2065"><a href="#cb14-2065" aria-hidden="true" tabindex="-1"></a>unit, how much would $\hat\mu$ change?" Computing $\color{#E6550D}{d_{k,i}}$</span>
+<span id="cb14-2066"><a href="#cb14-2066" aria-hidden="true" tabindex="-1"></a>takes three steps, each with a clear role:</span>
+<span id="cb14-2067"><a href="#cb14-2067" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2068"><a href="#cb14-2068" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Gradient** $g_k$ ($p_k \times 1$): the total sensitivity of $\hat\mu$ to</span>
+<span id="cb14-2069"><a href="#cb14-2069" aria-hidden="true" tabindex="-1"></a>   model $k$'s coefficient vector $\beta_k$. This is a Jacobian — the same</span>
+<span id="cb14-2070"><a href="#cb14-2070" aria-hidden="true" tabindex="-1"></a>   object as $\color{#31A354}{J_a}$ from Section 3.2, but computed recursively</span>
+<span id="cb14-2071"><a href="#cb14-2071" aria-hidden="true" tabindex="-1"></a>   for $k &gt; 0$.</span>
+<span id="cb14-2072"><a href="#cb14-2072" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**Solve** $h_k = (X_k^T W_k X_k)^{-1} g_k$ ($p_k \times 1$): convert from</span>
+<span id="cb14-2073"><a href="#cb14-2073" aria-hidden="true" tabindex="-1"></a>   "how $\hat\mu$ responds to $\beta_k$" to "how $\hat\mu$ responds to</span>
+<span id="cb14-2074"><a href="#cb14-2074" aria-hidden="true" tabindex="-1"></a>   individual score contributions." This is the bread inverse</span>
+<span id="cb14-2075"><a href="#cb14-2075" aria-hidden="true" tabindex="-1"></a>   $\color{#3182BD}{A_k^{-1}}$ applied to $g_k$.</span>
+<span id="cb14-2076"><a href="#cb14-2076" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**Distribute** $\color{#E6550D}{d_{k,i}} = h_k^T X_{k,i}$ (scalar): project</span>
+<span id="cb14-2077"><a href="#cb14-2077" aria-hidden="true" tabindex="-1"></a>   onto individual $i$'s covariate vector to get their personal sensitivity.</span>
+<span id="cb14-2078"><a href="#cb14-2078" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2079"><a href="#cb14-2079" aria-hidden="true" tabindex="-1"></a><span class="fu">#### Base case: model 0</span></span>
+<span id="cb14-2080"><a href="#cb14-2080" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2081"><a href="#cb14-2081" aria-hidden="true" tabindex="-1"></a>$\hat\mu$ is a direct average of model 0's predictions. The gradient of</span>
+<span id="cb14-2082"><a href="#cb14-2082" aria-hidden="true" tabindex="-1"></a>$\hat\mu$ w.r.t. $\beta_0$ is therefore the Jacobian from Section 3.2:</span>
+<span id="cb14-2083"><a href="#cb14-2083" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2084"><a href="#cb14-2084" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb14-2085"><a href="#cb14-2085" aria-hidden="true" tabindex="-1"></a>\underset{p_0 \times 1}{g_0}</span>
+<span id="cb14-2086"><a href="#cb14-2086" aria-hidden="true" tabindex="-1"></a>= \frac{1}{n_t}\sum_{j \in \text{target}}</span>
+<span id="cb14-2087"><a href="#cb14-2087" aria-hidden="true" tabindex="-1"></a>\frac{d\mu}{d\eta}\bigg|_{\eta_{0,j}^*}</span>
+<span id="cb14-2088"><a href="#cb14-2088" aria-hidden="true" tabindex="-1"></a>\;\cdot\; X_{0,j}^*</span>
+<span id="cb14-2089"><a href="#cb14-2089" aria-hidden="true" tabindex="-1"></a>$$</span>
 <span id="cb14-2090"><a href="#cb14-2090" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2091"><a href="#cb14-2091" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb14-2092"><a href="#cb14-2092" aria-hidden="true" tabindex="-1"></a>h_0 = \underbrace{(X_0^T W_0 X_0)^{-1}}_{\text{bread inverse}} g_0,</span>
-<span id="cb14-2093"><a href="#cb14-2093" aria-hidden="true" tabindex="-1"></a>\qquad</span>
-<span id="cb14-2094"><a href="#cb14-2094" aria-hidden="true" tabindex="-1"></a>\color{#E6550D}{d_{0,i}} = h_0^T X_{0,i}</span>
-<span id="cb14-2095"><a href="#cb14-2095" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb14-2096"><a href="#cb14-2096" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2097"><a href="#cb14-2097" aria-hidden="true" tabindex="-1"></a>Now $\color{#E6550D}{d_{0,i}} \cdot r^{\text{score}}_{0,i}$ gives</span>
-<span id="cb14-2098"><a href="#cb14-2098" aria-hidden="true" tabindex="-1"></a>individual $i$'s Channel 2 contribution: their **score residual**</span>
-<span id="cb14-2099"><a href="#cb14-2099" aria-hidden="true" tabindex="-1"></a>$r^{\text{score}}_{0,i} = (Y_{0,i} - \hat Y_{0,i}) \cdot (d\mu/d\eta)_i /</span>
-<span id="cb14-2100"><a href="#cb14-2100" aria-hidden="true" tabindex="-1"></a>V(\mu_i)$ (how much their data "disagrees" with model 0, on the</span>
-<span id="cb14-2101"><a href="#cb14-2101" aria-hidden="true" tabindex="-1"></a>link-scaled score metric) scaled by $\color{#E6550D}{d_{0,i}}$ (how much</span>
-<span id="cb14-2102"><a href="#cb14-2102" aria-hidden="true" tabindex="-1"></a>that disagreement matters for $\hat\mu$). For canonical links</span>
-<span id="cb14-2103"><a href="#cb14-2103" aria-hidden="true" tabindex="-1"></a>$(d\mu/d\eta)/V = 1$ and the score residual collapses to the response</span>
-<span id="cb14-2104"><a href="#cb14-2104" aria-hidden="true" tabindex="-1"></a>residual $r_{0,i}$. For non-canonical links the link-scale factor must</span>
-<span id="cb14-2105"><a href="#cb14-2105" aria-hidden="true" tabindex="-1"></a>be kept. This is equivalent to</span>
-<span id="cb14-2106"><a href="#cb14-2106" aria-hidden="true" tabindex="-1"></a>$\color{#31A354}{J_0}\color{#3182BD}{A_0^{-1}}\psi_{0,i}$ from</span>
-<span id="cb14-2107"><a href="#cb14-2107" aria-hidden="true" tabindex="-1"></a>Section 3.2, factored into the three steps above.</span>
-<span id="cb14-2108"><a href="#cb14-2108" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2109"><a href="#cb14-2109" aria-hidden="true" tabindex="-1"></a><span class="fu">#### Recursive case: model $k = 1, \ldots, K$</span></span>
-<span id="cb14-2110"><a href="#cb14-2110" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2111"><a href="#cb14-2111" aria-hidden="true" tabindex="-1"></a>Model $k$ does not feed into $\hat\mu$ directly. Instead, model $k$'s</span>
-<span id="cb14-2112"><a href="#cb14-2112" aria-hidden="true" tabindex="-1"></a>predictions become model $k-1$'s pseudo-outcomes (response variable). We already</span>
-<span id="cb14-2113"><a href="#cb14-2113" aria-hidden="true" tabindex="-1"></a>know how sensitive $\hat\mu$ is to each of those pseudo-outcomes — that is</span>
-<span id="cb14-2114"><a href="#cb14-2114" aria-hidden="true" tabindex="-1"></a>$\color{#E6550D}{d_{k-1,j}}$ from the previous step.</span>
-<span id="cb14-2115"><a href="#cb14-2115" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2116"><a href="#cb14-2116" aria-hidden="true" tabindex="-1"></a>The gradient of $\hat\mu$ w.r.t. $\beta_k$ therefore weights each individual's</span>
-<span id="cb14-2117"><a href="#cb14-2117" aria-hidden="true" tabindex="-1"></a>contribution by the previously-computed sensitivity, further scaled by the</span>
-<span id="cb14-2118"><a href="#cb14-2118" aria-hidden="true" tabindex="-1"></a>prior weight $w_{k-1,j}$ that the $(k-1)$-th score function carries for</span>
-<span id="cb14-2119"><a href="#cb14-2119" aria-hidden="true" tabindex="-1"></a>row $j$:</span>
-<span id="cb14-2120"><a href="#cb14-2120" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2121"><a href="#cb14-2121" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb14-2122"><a href="#cb14-2122" aria-hidden="true" tabindex="-1"></a>\underset{p_k \times 1}{g_k}</span>
-<span id="cb14-2123"><a href="#cb14-2123" aria-hidden="true" tabindex="-1"></a>= \sum_{j \in \text{fit}_{k-1}}</span>
-<span id="cb14-2124"><a href="#cb14-2124" aria-hidden="true" tabindex="-1"></a>w_{k-1,j}\;\cdot\;</span>
-<span id="cb14-2125"><a href="#cb14-2125" aria-hidden="true" tabindex="-1"></a>\color{#E6550D}{d_{k-1,j}}</span>
-<span id="cb14-2126"><a href="#cb14-2126" aria-hidden="true" tabindex="-1"></a>\;\cdot\;</span>
-<span id="cb14-2127"><a href="#cb14-2127" aria-hidden="true" tabindex="-1"></a>\frac{d\mu}{d\eta}\bigg|_{\eta_{k,j}^*}</span>
-<span id="cb14-2128"><a href="#cb14-2128" aria-hidden="true" tabindex="-1"></a>\;\cdot\; X_{k,j}^*</span>
+<span id="cb14-2091"><a href="#cb14-2091" aria-hidden="true" tabindex="-1"></a>$g_0$ tells us the total sensitivity of $\hat\mu$ to $\beta_0$, but the IF</span>
+<span id="cb14-2092"><a href="#cb14-2092" aria-hidden="true" tabindex="-1"></a>requires a per-individual quantity. We need to ask: "of the total shift in</span>
+<span id="cb14-2093"><a href="#cb14-2093" aria-hidden="true" tabindex="-1"></a>$\hat\beta_0$ caused by the data, how much came from individual $i$?" The</span>
+<span id="cb14-2094"><a href="#cb14-2094" aria-hidden="true" tabindex="-1"></a>answer uses two facts: (a) individual $i$'s influence on $\hat\beta_0$ is</span>
+<span id="cb14-2095"><a href="#cb14-2095" aria-hidden="true" tabindex="-1"></a>proportional to their score $\psi_{0,i} = (d\mu/d\eta)_i / V(\mu_i) \cdot</span>
+<span id="cb14-2096"><a href="#cb14-2096" aria-hidden="true" tabindex="-1"></a>r_{0,i} \cdot X_{0,i}$; and (b) the constant of proportionality involves</span>
+<span id="cb14-2097"><a href="#cb14-2097" aria-hidden="true" tabindex="-1"></a>the bread inverse $(X_0^T W_0 X_0)^{-1}$. Combining:</span>
+<span id="cb14-2098"><a href="#cb14-2098" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2099"><a href="#cb14-2099" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb14-2100"><a href="#cb14-2100" aria-hidden="true" tabindex="-1"></a>h_0 = \underbrace{(X_0^T W_0 X_0)^{-1}}_{\text{bread inverse}} g_0,</span>
+<span id="cb14-2101"><a href="#cb14-2101" aria-hidden="true" tabindex="-1"></a>\qquad</span>
+<span id="cb14-2102"><a href="#cb14-2102" aria-hidden="true" tabindex="-1"></a>\color{#E6550D}{d_{0,i}} = h_0^T X_{0,i}</span>
+<span id="cb14-2103"><a href="#cb14-2103" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb14-2104"><a href="#cb14-2104" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2105"><a href="#cb14-2105" aria-hidden="true" tabindex="-1"></a>Now $\color{#E6550D}{d_{0,i}} \cdot r^{\text{score}}_{0,i}$ gives</span>
+<span id="cb14-2106"><a href="#cb14-2106" aria-hidden="true" tabindex="-1"></a>individual $i$'s Channel 2 contribution: their **score residual**</span>
+<span id="cb14-2107"><a href="#cb14-2107" aria-hidden="true" tabindex="-1"></a>$r^{\text{score}}_{0,i} = (Y_{0,i} - \hat Y_{0,i}) \cdot (d\mu/d\eta)_i /</span>
+<span id="cb14-2108"><a href="#cb14-2108" aria-hidden="true" tabindex="-1"></a>V(\mu_i)$ (how much their data "disagrees" with model 0, on the</span>
+<span id="cb14-2109"><a href="#cb14-2109" aria-hidden="true" tabindex="-1"></a>link-scaled score metric) scaled by $\color{#E6550D}{d_{0,i}}$ (how much</span>
+<span id="cb14-2110"><a href="#cb14-2110" aria-hidden="true" tabindex="-1"></a>that disagreement matters for $\hat\mu$). For canonical links</span>
+<span id="cb14-2111"><a href="#cb14-2111" aria-hidden="true" tabindex="-1"></a>$(d\mu/d\eta)/V = 1$ and the score residual collapses to the response</span>
+<span id="cb14-2112"><a href="#cb14-2112" aria-hidden="true" tabindex="-1"></a>residual $r_{0,i}$. For non-canonical links the link-scale factor must</span>
+<span id="cb14-2113"><a href="#cb14-2113" aria-hidden="true" tabindex="-1"></a>be kept. This is equivalent to</span>
+<span id="cb14-2114"><a href="#cb14-2114" aria-hidden="true" tabindex="-1"></a>$\color{#31A354}{J_0}\color{#3182BD}{A_0^{-1}}\psi_{0,i}$ from</span>
+<span id="cb14-2115"><a href="#cb14-2115" aria-hidden="true" tabindex="-1"></a>Section 3.2, factored into the three steps above.</span>
+<span id="cb14-2116"><a href="#cb14-2116" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2117"><a href="#cb14-2117" aria-hidden="true" tabindex="-1"></a><span class="fu">#### Recursive case: model $k = 1, \ldots, K$</span></span>
+<span id="cb14-2118"><a href="#cb14-2118" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2119"><a href="#cb14-2119" aria-hidden="true" tabindex="-1"></a>Model $k$ does not feed into $\hat\mu$ directly. Instead, model $k$'s</span>
+<span id="cb14-2120"><a href="#cb14-2120" aria-hidden="true" tabindex="-1"></a>predictions become model $k-1$'s pseudo-outcomes (response variable). We already</span>
+<span id="cb14-2121"><a href="#cb14-2121" aria-hidden="true" tabindex="-1"></a>know how sensitive $\hat\mu$ is to each of those pseudo-outcomes — that is</span>
+<span id="cb14-2122"><a href="#cb14-2122" aria-hidden="true" tabindex="-1"></a>$\color{#E6550D}{d_{k-1,j}}$ from the previous step.</span>
+<span id="cb14-2123"><a href="#cb14-2123" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2124"><a href="#cb14-2124" aria-hidden="true" tabindex="-1"></a>The gradient of $\hat\mu$ w.r.t. $\beta_k$ therefore weights each individual's</span>
+<span id="cb14-2125"><a href="#cb14-2125" aria-hidden="true" tabindex="-1"></a>contribution by the previously-computed sensitivity, further scaled by the</span>
+<span id="cb14-2126"><a href="#cb14-2126" aria-hidden="true" tabindex="-1"></a>prior weight $w_{k-1,j}$ that the $(k-1)$-th score function carries for</span>
+<span id="cb14-2127"><a href="#cb14-2127" aria-hidden="true" tabindex="-1"></a>row $j$:</span>
+<span id="cb14-2128"><a href="#cb14-2128" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb14-2129"><a href="#cb14-2129" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb14-2130"><a href="#cb14-2130" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2131"><a href="#cb14-2131" aria-hidden="true" tabindex="-1"></a>The $w_{k-1,j}$ factor comes from $A_{k-1,k} =</span>
-<span id="cb14-2132"><a href="#cb14-2132" aria-hidden="true" tabindex="-1"></a>E<span class="co">[</span><span class="ot">\partial s_{k-1,j}/\partial \beta_k</span><span class="co">]</span>$, and $s_{k-1,j}$ inherits</span>
-<span id="cb14-2133"><a href="#cb14-2133" aria-hidden="true" tabindex="-1"></a>$w_{k-1,j}$ because the $(k-1)$-th pseudo-outcome model is a weighted</span>
-<span id="cb14-2134"><a href="#cb14-2134" aria-hidden="true" tabindex="-1"></a>fit. In the unweighted case $w_{k-1,j} \equiv 1$ and the factor drops</span>
-<span id="cb14-2135"><a href="#cb14-2135" aria-hidden="true" tabindex="-1"></a>out; dropping it under non-uniform external weights (e.g. IPCW,</span>
-<span id="cb14-2136"><a href="#cb14-2136" aria-hidden="true" tabindex="-1"></a>survey weights) silently underestimates the sandwich variance by a</span>
-<span id="cb14-2137"><a href="#cb14-2137" aria-hidden="true" tabindex="-1"></a>factor that scales with weight heterogeneity.</span>
+<span id="cb14-2130"><a href="#cb14-2130" aria-hidden="true" tabindex="-1"></a>\underset{p_k \times 1}{g_k}</span>
+<span id="cb14-2131"><a href="#cb14-2131" aria-hidden="true" tabindex="-1"></a>= \sum_{j \in \text{fit}_{k-1}}</span>
+<span id="cb14-2132"><a href="#cb14-2132" aria-hidden="true" tabindex="-1"></a>w_{k-1,j}\;\cdot\;</span>
+<span id="cb14-2133"><a href="#cb14-2133" aria-hidden="true" tabindex="-1"></a>\color{#E6550D}{d_{k-1,j}}</span>
+<span id="cb14-2134"><a href="#cb14-2134" aria-hidden="true" tabindex="-1"></a>\;\cdot\;</span>
+<span id="cb14-2135"><a href="#cb14-2135" aria-hidden="true" tabindex="-1"></a>\frac{d\mu}{d\eta}\bigg|_{\eta_{k,j}^*}</span>
+<span id="cb14-2136"><a href="#cb14-2136" aria-hidden="true" tabindex="-1"></a>\;\cdot\; X_{k,j}^*</span>
+<span id="cb14-2137"><a href="#cb14-2137" aria-hidden="true" tabindex="-1"></a>$$</span>
 <span id="cb14-2138"><a href="#cb14-2138" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2139"><a href="#cb14-2139" aria-hidden="true" tabindex="-1"></a>Compare this to $g_0$: the uniform weight $\frac{1}{n_t}$ over the target</span>
-<span id="cb14-2140"><a href="#cb14-2140" aria-hidden="true" tabindex="-1"></a>population is replaced by $w_{k-1,j} \cdot \color{#E6550D}{d_{k-1,j}}$ over</span>
-<span id="cb14-2141"><a href="#cb14-2141" aria-hidden="true" tabindex="-1"></a>the previous model's fitting set. Everything else — solve and distribute —</span>
-<span id="cb14-2142"><a href="#cb14-2142" aria-hidden="true" tabindex="-1"></a>is identical:</span>
-<span id="cb14-2143"><a href="#cb14-2143" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2144"><a href="#cb14-2144" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb14-2145"><a href="#cb14-2145" aria-hidden="true" tabindex="-1"></a>h_k = (X_k^T W_k X_k)^{-1} g_k,</span>
-<span id="cb14-2146"><a href="#cb14-2146" aria-hidden="true" tabindex="-1"></a>\qquad</span>
-<span id="cb14-2147"><a href="#cb14-2147" aria-hidden="true" tabindex="-1"></a>\color{#E6550D}{d_{k,i}} = h_k^T X_{k,i}</span>
-<span id="cb14-2148"><a href="#cb14-2148" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb14-2149"><a href="#cb14-2149" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2150"><a href="#cb14-2150" aria-hidden="true" tabindex="-1"></a><span class="fu">### 5.5 Scaling: the factor of $n$</span></span>
+<span id="cb14-2139"><a href="#cb14-2139" aria-hidden="true" tabindex="-1"></a>The $w_{k-1,j}$ factor comes from $A_{k-1,k} =</span>
+<span id="cb14-2140"><a href="#cb14-2140" aria-hidden="true" tabindex="-1"></a>E<span class="co">[</span><span class="ot">\partial s_{k-1,j}/\partial \beta_k</span><span class="co">]</span>$, and $s_{k-1,j}$ inherits</span>
+<span id="cb14-2141"><a href="#cb14-2141" aria-hidden="true" tabindex="-1"></a>$w_{k-1,j}$ because the $(k-1)$-th pseudo-outcome model is a weighted</span>
+<span id="cb14-2142"><a href="#cb14-2142" aria-hidden="true" tabindex="-1"></a>fit. In the unweighted case $w_{k-1,j} \equiv 1$ and the factor drops</span>
+<span id="cb14-2143"><a href="#cb14-2143" aria-hidden="true" tabindex="-1"></a>out; dropping it under non-uniform external weights (e.g. IPCW,</span>
+<span id="cb14-2144"><a href="#cb14-2144" aria-hidden="true" tabindex="-1"></a>survey weights) silently underestimates the sandwich variance by a</span>
+<span id="cb14-2145"><a href="#cb14-2145" aria-hidden="true" tabindex="-1"></a>factor that scales with weight heterogeneity.</span>
+<span id="cb14-2146"><a href="#cb14-2146" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2147"><a href="#cb14-2147" aria-hidden="true" tabindex="-1"></a>Compare this to $g_0$: the uniform weight $\frac{1}{n_t}$ over the target</span>
+<span id="cb14-2148"><a href="#cb14-2148" aria-hidden="true" tabindex="-1"></a>population is replaced by $w_{k-1,j} \cdot \color{#E6550D}{d_{k-1,j}}$ over</span>
+<span id="cb14-2149"><a href="#cb14-2149" aria-hidden="true" tabindex="-1"></a>the previous model's fitting set. Everything else — solve and distribute —</span>
+<span id="cb14-2150"><a href="#cb14-2150" aria-hidden="true" tabindex="-1"></a>is identical:</span>
 <span id="cb14-2151"><a href="#cb14-2151" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2152"><a href="#cb14-2152" aria-hidden="true" tabindex="-1"></a>Each model correction involves $\color{#3182BD}{A_k^{-1}}$. Since</span>
-<span id="cb14-2153"><a href="#cb14-2153" aria-hidden="true" tabindex="-1"></a>$\color{#3182BD}{A_k} = \frac{1}{n_k} X_k^T W_k X_k$, we have</span>
-<span id="cb14-2154"><a href="#cb14-2154" aria-hidden="true" tabindex="-1"></a>$\color{#3182BD}{A_k^{-1}} = n_k(X_k^T W_k X_k)^{-1}$. So the correction at</span>
-<span id="cb14-2155"><a href="#cb14-2155" aria-hidden="true" tabindex="-1"></a>step $k$ is:</span>
-<span id="cb14-2156"><a href="#cb14-2156" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2157"><a href="#cb14-2157" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb14-2158"><a href="#cb14-2158" aria-hidden="true" tabindex="-1"></a>n_k \cdot \color{#E6550D}{d_{k,i}} \cdot r^{\text{score}}_{k,i}</span>
-<span id="cb14-2159"><a href="#cb14-2159" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb14-2160"><a href="#cb14-2160" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2161"><a href="#cb14-2161" aria-hidden="true" tabindex="-1"></a>The factor $n_k$ ensures each IF contribution is $O(1)$ per individual, giving</span>
-<span id="cb14-2162"><a href="#cb14-2162" aria-hidden="true" tabindex="-1"></a>the correct $\text{Var}(\hat\mu) = O(1/n)$.</span>
-<span id="cb14-2163"><a href="#cb14-2163" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2164"><a href="#cb14-2164" aria-hidden="true" tabindex="-1"></a>::: {.callout-warning}</span>
-<span id="cb14-2165"><a href="#cb14-2165" aria-hidden="true" tabindex="-1"></a><span class="fu">### A common bug</span></span>
-<span id="cb14-2166"><a href="#cb14-2166" aria-hidden="true" tabindex="-1"></a>Omitting $n_k$ makes each correction $O(1/n)$, yielding $\text{Var} = O(1/n^3)$</span>
-<span id="cb14-2167"><a href="#cb14-2167" aria-hidden="true" tabindex="-1"></a>— confidence intervals that are much too narrow.</span>
-<span id="cb14-2168"><a href="#cb14-2168" aria-hidden="true" tabindex="-1"></a>:::</span>
-<span id="cb14-2169"><a href="#cb14-2169" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2170"><a href="#cb14-2170" aria-hidden="true" tabindex="-1"></a>::: {.panel-tabset}</span>
+<span id="cb14-2152"><a href="#cb14-2152" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb14-2153"><a href="#cb14-2153" aria-hidden="true" tabindex="-1"></a>h_k = (X_k^T W_k X_k)^{-1} g_k,</span>
+<span id="cb14-2154"><a href="#cb14-2154" aria-hidden="true" tabindex="-1"></a>\qquad</span>
+<span id="cb14-2155"><a href="#cb14-2155" aria-hidden="true" tabindex="-1"></a>\color{#E6550D}{d_{k,i}} = h_k^T X_{k,i}</span>
+<span id="cb14-2156"><a href="#cb14-2156" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb14-2157"><a href="#cb14-2157" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2158"><a href="#cb14-2158" aria-hidden="true" tabindex="-1"></a><span class="fu">### 5.5 Scaling: the factor of $n$</span></span>
+<span id="cb14-2159"><a href="#cb14-2159" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2160"><a href="#cb14-2160" aria-hidden="true" tabindex="-1"></a>Each model correction involves $\color{#3182BD}{A_k^{-1}}$. Since</span>
+<span id="cb14-2161"><a href="#cb14-2161" aria-hidden="true" tabindex="-1"></a>$\color{#3182BD}{A_k} = \frac{1}{n_k} X_k^T W_k X_k$, we have</span>
+<span id="cb14-2162"><a href="#cb14-2162" aria-hidden="true" tabindex="-1"></a>$\color{#3182BD}{A_k^{-1}} = n_k(X_k^T W_k X_k)^{-1}$. So the correction at</span>
+<span id="cb14-2163"><a href="#cb14-2163" aria-hidden="true" tabindex="-1"></a>step $k$ is:</span>
+<span id="cb14-2164"><a href="#cb14-2164" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2165"><a href="#cb14-2165" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb14-2166"><a href="#cb14-2166" aria-hidden="true" tabindex="-1"></a>n_k \cdot \color{#E6550D}{d_{k,i}} \cdot r^{\text{score}}_{k,i}</span>
+<span id="cb14-2167"><a href="#cb14-2167" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb14-2168"><a href="#cb14-2168" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2169"><a href="#cb14-2169" aria-hidden="true" tabindex="-1"></a>The factor $n_k$ ensures each IF contribution is $O(1)$ per individual, giving</span>
+<span id="cb14-2170"><a href="#cb14-2170" aria-hidden="true" tabindex="-1"></a>the correct $\text{Var}(\hat\mu) = O(1/n)$.</span>
 <span id="cb14-2171"><a href="#cb14-2171" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2172"><a href="#cb14-2172" aria-hidden="true" tabindex="-1"></a><span class="fu">## Math</span></span>
-<span id="cb14-2173"><a href="#cb14-2173" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2174"><a href="#cb14-2174" aria-hidden="true" tabindex="-1"></a>For a 2-period ICE with outcome model $m_1$ at $k=1$ and pseudo-outcome</span>
-<span id="cb14-2175"><a href="#cb14-2175" aria-hidden="true" tabindex="-1"></a>model $m_0$ at $k=0$, the IF is</span>
-<span id="cb14-2176"><a href="#cb14-2176" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2177"><a href="#cb14-2177" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb14-2178"><a href="#cb14-2178" aria-hidden="true" tabindex="-1"></a>\mathrm{IF}_i(\hat\mu)</span>
-<span id="cb14-2179"><a href="#cb14-2179" aria-hidden="true" tabindex="-1"></a>= \big(\hat m_0(H_0^{(a)}) - \hat\mu\big)</span>
-<span id="cb14-2180"><a href="#cb14-2180" aria-hidden="true" tabindex="-1"></a><span class="ss">+ </span>n_1\,d_{1,i}\,r^{\text{score}}_{1,i}</span>
-<span id="cb14-2181"><a href="#cb14-2181" aria-hidden="true" tabindex="-1"></a><span class="ss">+ </span>n_0\,d_{0,i}\,r^{\text{score}}_{0,i},</span>
-<span id="cb14-2182"><a href="#cb14-2182" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb14-2183"><a href="#cb14-2183" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2184"><a href="#cb14-2184" aria-hidden="true" tabindex="-1"></a>with the sensitivities $d_{k,i}$ propagated forward by the recursion of</span>
-<span id="cb14-2185"><a href="#cb14-2185" aria-hidden="true" tabindex="-1"></a>Section 5.4. The $n_k$ factors are essential (Section 5.5). For the</span>
-<span id="cb14-2186"><a href="#cb14-2186" aria-hidden="true" tabindex="-1"></a>linear-Gaussian DGP below, the true joint ATE under</span>
-<span id="cb14-2187"><a href="#cb14-2187" aria-hidden="true" tabindex="-1"></a>$(a_0=1, a_1=1)$ vs $(a_0=0, a_1=0)$ is exactly $0.8 + 0.6 = 1.4$ by</span>
-<span id="cb14-2188"><a href="#cb14-2188" aria-hidden="true" tabindex="-1"></a>construction, and we check that causatr's sandwich CI covers it.</span>
-<span id="cb14-2189"><a href="#cb14-2189" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2190"><a href="#cb14-2190" aria-hidden="true" tabindex="-1"></a><span class="fu">## Code</span></span>
+<span id="cb14-2172"><a href="#cb14-2172" aria-hidden="true" tabindex="-1"></a>::: {.callout-warning}</span>
+<span id="cb14-2173"><a href="#cb14-2173" aria-hidden="true" tabindex="-1"></a><span class="fu">### A common bug</span></span>
+<span id="cb14-2174"><a href="#cb14-2174" aria-hidden="true" tabindex="-1"></a>Omitting $n_k$ makes each correction $O(1/n)$, yielding $\text{Var} = O(1/n^3)$</span>
+<span id="cb14-2175"><a href="#cb14-2175" aria-hidden="true" tabindex="-1"></a>— confidence intervals that are much too narrow.</span>
+<span id="cb14-2176"><a href="#cb14-2176" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb14-2177"><a href="#cb14-2177" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2178"><a href="#cb14-2178" aria-hidden="true" tabindex="-1"></a>::: {.panel-tabset}</span>
+<span id="cb14-2179"><a href="#cb14-2179" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2180"><a href="#cb14-2180" aria-hidden="true" tabindex="-1"></a><span class="fu">## Math</span></span>
+<span id="cb14-2181"><a href="#cb14-2181" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2182"><a href="#cb14-2182" aria-hidden="true" tabindex="-1"></a>For a 2-period ICE with outcome model $m_1$ at $k=1$ and pseudo-outcome</span>
+<span id="cb14-2183"><a href="#cb14-2183" aria-hidden="true" tabindex="-1"></a>model $m_0$ at $k=0$, the IF is</span>
+<span id="cb14-2184"><a href="#cb14-2184" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2185"><a href="#cb14-2185" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb14-2186"><a href="#cb14-2186" aria-hidden="true" tabindex="-1"></a>\mathrm{IF}_i(\hat\mu)</span>
+<span id="cb14-2187"><a href="#cb14-2187" aria-hidden="true" tabindex="-1"></a>= \big(\hat m_0(H_0^{(a)}) - \hat\mu\big)</span>
+<span id="cb14-2188"><a href="#cb14-2188" aria-hidden="true" tabindex="-1"></a><span class="ss">+ </span>n_1\,d_{1,i}\,r^{\text{score}}_{1,i}</span>
+<span id="cb14-2189"><a href="#cb14-2189" aria-hidden="true" tabindex="-1"></a><span class="ss">+ </span>n_0\,d_{0,i}\,r^{\text{score}}_{0,i},</span>
+<span id="cb14-2190"><a href="#cb14-2190" aria-hidden="true" tabindex="-1"></a>$$</span>
 <span id="cb14-2191"><a href="#cb14-2191" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2194"><a href="#cb14-2194" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb14-2195"><a href="#cb14-2195" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: verify-ice</span></span>
-<span id="cb14-2196"><a href="#cb14-2196" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">7</span>)</span>
-<span id="cb14-2197"><a href="#cb14-2197" aria-hidden="true" tabindex="-1"></a>n_ice <span class="ot">&lt;-</span> <span class="dv">500</span></span>
-<span id="cb14-2198"><a href="#cb14-2198" aria-hidden="true" tabindex="-1"></a>id    <span class="ot">&lt;-</span> <span class="fu">seq_len</span>(n_ice)</span>
-<span id="cb14-2199"><a href="#cb14-2199" aria-hidden="true" tabindex="-1"></a>L0    <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n_ice)</span>
-<span id="cb14-2200"><a href="#cb14-2200" aria-hidden="true" tabindex="-1"></a>A0    <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n_ice, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="fl">0.3</span> <span class="sc">*</span> L0))</span>
-<span id="cb14-2201"><a href="#cb14-2201" aria-hidden="true" tabindex="-1"></a>L1    <span class="ot">&lt;-</span> <span class="fl">0.5</span> <span class="sc">*</span> L0 <span class="sc">+</span> <span class="fl">0.4</span> <span class="sc">*</span> A0 <span class="sc">+</span> <span class="fu">rnorm</span>(n_ice)</span>
-<span id="cb14-2202"><a href="#cb14-2202" aria-hidden="true" tabindex="-1"></a>A1    <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n_ice, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="fl">0.2</span> <span class="sc">*</span> L1 <span class="sc">+</span> <span class="fl">0.3</span> <span class="sc">*</span> A0))</span>
-<span id="cb14-2203"><a href="#cb14-2203" aria-hidden="true" tabindex="-1"></a>Y_ice <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">+</span> <span class="fl">0.8</span> <span class="sc">*</span> A0 <span class="sc">+</span> <span class="fl">0.6</span> <span class="sc">*</span> A1 <span class="sc">+</span> <span class="fl">0.5</span> <span class="sc">*</span> L0 <span class="sc">+</span> <span class="fl">0.4</span> <span class="sc">*</span> L1 <span class="sc">+</span> <span class="fu">rnorm</span>(n_ice)</span>
-<span id="cb14-2204"><a href="#cb14-2204" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2205"><a href="#cb14-2205" aria-hidden="true" tabindex="-1"></a>long <span class="ot">&lt;-</span> <span class="fu">rbind</span>(</span>
-<span id="cb14-2206"><a href="#cb14-2206" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">id =</span> id, <span class="at">time =</span> <span class="dv">0</span>L, <span class="at">A =</span> A0, <span class="at">L =</span> L0, <span class="at">Y =</span> <span class="cn">NA_real_</span>),</span>
-<span id="cb14-2207"><a href="#cb14-2207" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">id =</span> id, <span class="at">time =</span> <span class="dv">1</span>L, <span class="at">A =</span> A1, <span class="at">L =</span> L1, <span class="at">Y =</span> Y_ice)</span>
-<span id="cb14-2208"><a href="#cb14-2208" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb14-2209"><a href="#cb14-2209" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2210"><a href="#cb14-2210" aria-hidden="true" tabindex="-1"></a>fit_ice <span class="ot">&lt;-</span> <span class="fu">causat</span>(</span>
-<span id="cb14-2211"><a href="#cb14-2211" aria-hidden="true" tabindex="-1"></a>  long, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
-<span id="cb14-2212"><a href="#cb14-2212" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders     =</span> <span class="sc">~</span> <span class="dv">1</span>,</span>
-<span id="cb14-2213"><a href="#cb14-2213" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders_tv  =</span> <span class="sc">~</span> L,</span>
-<span id="cb14-2214"><a href="#cb14-2214" aria-hidden="true" tabindex="-1"></a>  <span class="at">id =</span> <span class="st">"id"</span>, <span class="at">time =</span> <span class="st">"time"</span></span>
-<span id="cb14-2215"><a href="#cb14-2215" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb14-2216"><a href="#cb14-2216" aria-hidden="true" tabindex="-1"></a>res_ice <span class="ot">&lt;-</span> <span class="fu">contrast</span>(</span>
-<span id="cb14-2217"><a href="#cb14-2217" aria-hidden="true" tabindex="-1"></a>  fit_ice,</span>
-<span id="cb14-2218"><a href="#cb14-2218" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">a11 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a00 =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
-<span id="cb14-2219"><a href="#cb14-2219" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference     =</span> <span class="st">"a00"</span>,</span>
-<span id="cb14-2220"><a href="#cb14-2220" aria-hidden="true" tabindex="-1"></a>  <span class="at">ci_method     =</span> <span class="st">"sandwich"</span></span>
-<span id="cb14-2221"><a href="#cb14-2221" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb14-2222"><a href="#cb14-2222" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2223"><a href="#cb14-2223" aria-hidden="true" tabindex="-1"></a>ate_ice <span class="ot">&lt;-</span> res_ice<span class="sc">$</span>contrasts<span class="sc">$</span>estimate</span>
-<span id="cb14-2224"><a href="#cb14-2224" aria-hidden="true" tabindex="-1"></a>se_ice  <span class="ot">&lt;-</span> res_ice<span class="sc">$</span>contrasts<span class="sc">$</span>se</span>
-<span id="cb14-2225"><a href="#cb14-2225" aria-hidden="true" tabindex="-1"></a>ci_lo   <span class="ot">&lt;-</span> res_ice<span class="sc">$</span>contrasts<span class="sc">$</span>ci_lower</span>
-<span id="cb14-2226"><a href="#cb14-2226" aria-hidden="true" tabindex="-1"></a>ci_hi   <span class="ot">&lt;-</span> res_ice<span class="sc">$</span>contrasts<span class="sc">$</span>ci_upper</span>
-<span id="cb14-2227"><a href="#cb14-2227" aria-hidden="true" tabindex="-1"></a>truth   <span class="ot">&lt;-</span> <span class="fl">0.8</span> <span class="sc">+</span> <span class="fl">0.6</span>  <span class="co"># structural sum of the two causal coefficients</span></span>
-<span id="cb14-2228"><a href="#cb14-2228" aria-hidden="true" tabindex="-1"></a>covered <span class="ot">&lt;-</span> (truth <span class="sc">&gt;=</span> ci_lo) <span class="sc">&amp;&amp;</span> (truth <span class="sc">&lt;=</span> ci_hi)</span>
-<span id="cb14-2229"><a href="#cb14-2229" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb14-2192"><a href="#cb14-2192" aria-hidden="true" tabindex="-1"></a>with the sensitivities $d_{k,i}$ propagated forward by the recursion of</span>
+<span id="cb14-2193"><a href="#cb14-2193" aria-hidden="true" tabindex="-1"></a>Section 5.4. The $n_k$ factors are essential (Section 5.5). For the</span>
+<span id="cb14-2194"><a href="#cb14-2194" aria-hidden="true" tabindex="-1"></a>linear-Gaussian DGP below, the true joint ATE under</span>
+<span id="cb14-2195"><a href="#cb14-2195" aria-hidden="true" tabindex="-1"></a>$(a_0=1, a_1=1)$ vs $(a_0=0, a_1=0)$ is exactly $0.8 + 0.6 = 1.4$ by</span>
+<span id="cb14-2196"><a href="#cb14-2196" aria-hidden="true" tabindex="-1"></a>construction, and we check that causatr's sandwich CI covers it.</span>
+<span id="cb14-2197"><a href="#cb14-2197" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2198"><a href="#cb14-2198" aria-hidden="true" tabindex="-1"></a><span class="fu">## Code</span></span>
+<span id="cb14-2199"><a href="#cb14-2199" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2202"><a href="#cb14-2202" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb14-2203"><a href="#cb14-2203" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: verify-ice</span></span>
+<span id="cb14-2204"><a href="#cb14-2204" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">7</span>)</span>
+<span id="cb14-2205"><a href="#cb14-2205" aria-hidden="true" tabindex="-1"></a>n_ice <span class="ot">&lt;-</span> <span class="dv">500</span></span>
+<span id="cb14-2206"><a href="#cb14-2206" aria-hidden="true" tabindex="-1"></a>id    <span class="ot">&lt;-</span> <span class="fu">seq_len</span>(n_ice)</span>
+<span id="cb14-2207"><a href="#cb14-2207" aria-hidden="true" tabindex="-1"></a>L0    <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n_ice)</span>
+<span id="cb14-2208"><a href="#cb14-2208" aria-hidden="true" tabindex="-1"></a>A0    <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n_ice, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="fl">0.3</span> <span class="sc">*</span> L0))</span>
+<span id="cb14-2209"><a href="#cb14-2209" aria-hidden="true" tabindex="-1"></a>L1    <span class="ot">&lt;-</span> <span class="fl">0.5</span> <span class="sc">*</span> L0 <span class="sc">+</span> <span class="fl">0.4</span> <span class="sc">*</span> A0 <span class="sc">+</span> <span class="fu">rnorm</span>(n_ice)</span>
+<span id="cb14-2210"><a href="#cb14-2210" aria-hidden="true" tabindex="-1"></a>A1    <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n_ice, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="fl">0.2</span> <span class="sc">*</span> L1 <span class="sc">+</span> <span class="fl">0.3</span> <span class="sc">*</span> A0))</span>
+<span id="cb14-2211"><a href="#cb14-2211" aria-hidden="true" tabindex="-1"></a>Y_ice <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">+</span> <span class="fl">0.8</span> <span class="sc">*</span> A0 <span class="sc">+</span> <span class="fl">0.6</span> <span class="sc">*</span> A1 <span class="sc">+</span> <span class="fl">0.5</span> <span class="sc">*</span> L0 <span class="sc">+</span> <span class="fl">0.4</span> <span class="sc">*</span> L1 <span class="sc">+</span> <span class="fu">rnorm</span>(n_ice)</span>
+<span id="cb14-2212"><a href="#cb14-2212" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2213"><a href="#cb14-2213" aria-hidden="true" tabindex="-1"></a>long <span class="ot">&lt;-</span> <span class="fu">rbind</span>(</span>
+<span id="cb14-2214"><a href="#cb14-2214" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">id =</span> id, <span class="at">time =</span> <span class="dv">0</span>L, <span class="at">A =</span> A0, <span class="at">L =</span> L0, <span class="at">Y =</span> <span class="cn">NA_real_</span>),</span>
+<span id="cb14-2215"><a href="#cb14-2215" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">id =</span> id, <span class="at">time =</span> <span class="dv">1</span>L, <span class="at">A =</span> A1, <span class="at">L =</span> L1, <span class="at">Y =</span> Y_ice)</span>
+<span id="cb14-2216"><a href="#cb14-2216" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb14-2217"><a href="#cb14-2217" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2218"><a href="#cb14-2218" aria-hidden="true" tabindex="-1"></a>fit_ice <span class="ot">&lt;-</span> <span class="fu">causat</span>(</span>
+<span id="cb14-2219"><a href="#cb14-2219" aria-hidden="true" tabindex="-1"></a>  long, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
+<span id="cb14-2220"><a href="#cb14-2220" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders     =</span> <span class="sc">~</span> <span class="dv">1</span>,</span>
+<span id="cb14-2221"><a href="#cb14-2221" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders_tv  =</span> <span class="sc">~</span> L,</span>
+<span id="cb14-2222"><a href="#cb14-2222" aria-hidden="true" tabindex="-1"></a>  <span class="at">id =</span> <span class="st">"id"</span>, <span class="at">time =</span> <span class="st">"time"</span></span>
+<span id="cb14-2223"><a href="#cb14-2223" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb14-2224"><a href="#cb14-2224" aria-hidden="true" tabindex="-1"></a>res_ice <span class="ot">&lt;-</span> <span class="fu">contrast</span>(</span>
+<span id="cb14-2225"><a href="#cb14-2225" aria-hidden="true" tabindex="-1"></a>  fit_ice,</span>
+<span id="cb14-2226"><a href="#cb14-2226" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">a11 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a00 =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
+<span id="cb14-2227"><a href="#cb14-2227" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference     =</span> <span class="st">"a00"</span>,</span>
+<span id="cb14-2228"><a href="#cb14-2228" aria-hidden="true" tabindex="-1"></a>  <span class="at">ci_method     =</span> <span class="st">"sandwich"</span></span>
+<span id="cb14-2229"><a href="#cb14-2229" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb14-2230"><a href="#cb14-2230" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2231"><a href="#cb14-2231" aria-hidden="true" tabindex="-1"></a><span class="fu">## Result</span></span>
-<span id="cb14-2232"><a href="#cb14-2232" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2235"><a href="#cb14-2235" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb14-2236"><a href="#cb14-2236" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: verify-ice-result</span></span>
-<span id="cb14-2237"><a href="#cb14-2237" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: false</span></span>
-<span id="cb14-2238"><a href="#cb14-2238" aria-hidden="true" tabindex="-1"></a>out <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
-<span id="cb14-2239"><a href="#cb14-2239" aria-hidden="true" tabindex="-1"></a>  <span class="at">quantity =</span> <span class="fu">c</span>(<span class="st">"ICE ATE (causatr sandwich)"</span>,</span>
-<span id="cb14-2240"><a href="#cb14-2240" aria-hidden="true" tabindex="-1"></a>               <span class="st">"$</span><span class="sc">\\</span><span class="st">mathrm{SE}$"</span>,</span>
-<span id="cb14-2241"><a href="#cb14-2241" aria-hidden="true" tabindex="-1"></a>               <span class="st">"95% CI lower"</span>,</span>
-<span id="cb14-2242"><a href="#cb14-2242" aria-hidden="true" tabindex="-1"></a>               <span class="st">"95% CI upper"</span>,</span>
-<span id="cb14-2243"><a href="#cb14-2243" aria-hidden="true" tabindex="-1"></a>               <span class="st">"Truth ($0.8 + 0.6$)"</span>,</span>
-<span id="cb14-2244"><a href="#cb14-2244" aria-hidden="true" tabindex="-1"></a>               <span class="st">"Truth $</span><span class="sc">\\</span><span class="st">in$ 95% CI?"</span>),</span>
-<span id="cb14-2245"><a href="#cb14-2245" aria-hidden="true" tabindex="-1"></a>  <span class="at">value    =</span> <span class="fu">c</span>(ate_ice, se_ice, ci_lo, ci_hi, truth,</span>
-<span id="cb14-2246"><a href="#cb14-2246" aria-hidden="true" tabindex="-1"></a>               <span class="fu">ifelse</span>(covered, <span class="st">"yes"</span>, <span class="st">"no"</span>))</span>
-<span id="cb14-2247"><a href="#cb14-2247" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb14-2248"><a href="#cb14-2248" aria-hidden="true" tabindex="-1"></a><span class="fu">tt</span>(out, <span class="at">caption =</span> <span class="st">"ICE chained IF on a 2-period linear-Gaussian DGP"</span>) <span class="sc">|&gt;</span></span>
-<span id="cb14-2249"><a href="#cb14-2249" aria-hidden="true" tabindex="-1"></a>  <span class="fu">format_tt</span>(<span class="at">j =</span> <span class="st">"quantity"</span>, <span class="at">markdown =</span> <span class="cn">TRUE</span>) <span class="sc">|&gt;</span></span>
-<span id="cb14-2250"><a href="#cb14-2250" aria-hidden="true" tabindex="-1"></a>  <span class="fu">format_tt</span>(<span class="at">j =</span> <span class="dv">2</span>, <span class="at">digits =</span> <span class="dv">4</span>)</span>
-<span id="cb14-2251"><a href="#cb14-2251" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb14-2252"><a href="#cb14-2252" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2253"><a href="#cb14-2253" aria-hidden="true" tabindex="-1"></a>The sandwich CI produced by <span class="in">`variance_if_ice()`</span> covers the structural</span>
-<span id="cb14-2254"><a href="#cb14-2254" aria-hidden="true" tabindex="-1"></a>truth of $1.4$, and the chained IF machinery is doing what Section 5.4</span>
-<span id="cb14-2255"><a href="#cb14-2255" aria-hidden="true" tabindex="-1"></a>says it should.</span>
-<span id="cb14-2256"><a href="#cb14-2256" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2257"><a href="#cb14-2257" aria-hidden="true" tabindex="-1"></a>:::</span>
-<span id="cb14-2258"><a href="#cb14-2258" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2259"><a href="#cb14-2259" aria-hidden="true" tabindex="-1"></a><span class="fu">### 5.6 Pseudo-code: IF for a chained estimator</span></span>
+<span id="cb14-2231"><a href="#cb14-2231" aria-hidden="true" tabindex="-1"></a>ate_ice <span class="ot">&lt;-</span> res_ice<span class="sc">$</span>contrasts<span class="sc">$</span>estimate</span>
+<span id="cb14-2232"><a href="#cb14-2232" aria-hidden="true" tabindex="-1"></a>se_ice  <span class="ot">&lt;-</span> res_ice<span class="sc">$</span>contrasts<span class="sc">$</span>se</span>
+<span id="cb14-2233"><a href="#cb14-2233" aria-hidden="true" tabindex="-1"></a>ci_lo   <span class="ot">&lt;-</span> res_ice<span class="sc">$</span>contrasts<span class="sc">$</span>ci_lower</span>
+<span id="cb14-2234"><a href="#cb14-2234" aria-hidden="true" tabindex="-1"></a>ci_hi   <span class="ot">&lt;-</span> res_ice<span class="sc">$</span>contrasts<span class="sc">$</span>ci_upper</span>
+<span id="cb14-2235"><a href="#cb14-2235" aria-hidden="true" tabindex="-1"></a>truth   <span class="ot">&lt;-</span> <span class="fl">0.8</span> <span class="sc">+</span> <span class="fl">0.6</span>  <span class="co"># structural sum of the two causal coefficients</span></span>
+<span id="cb14-2236"><a href="#cb14-2236" aria-hidden="true" tabindex="-1"></a>covered <span class="ot">&lt;-</span> (truth <span class="sc">&gt;=</span> ci_lo) <span class="sc">&amp;&amp;</span> (truth <span class="sc">&lt;=</span> ci_hi)</span>
+<span id="cb14-2237"><a href="#cb14-2237" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb14-2238"><a href="#cb14-2238" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2239"><a href="#cb14-2239" aria-hidden="true" tabindex="-1"></a><span class="fu">## Result</span></span>
+<span id="cb14-2240"><a href="#cb14-2240" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2243"><a href="#cb14-2243" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb14-2244"><a href="#cb14-2244" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: verify-ice-result</span></span>
+<span id="cb14-2245"><a href="#cb14-2245" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: false</span></span>
+<span id="cb14-2246"><a href="#cb14-2246" aria-hidden="true" tabindex="-1"></a>out <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb14-2247"><a href="#cb14-2247" aria-hidden="true" tabindex="-1"></a>  <span class="at">quantity =</span> <span class="fu">c</span>(<span class="st">"ICE ATE (causatr sandwich)"</span>,</span>
+<span id="cb14-2248"><a href="#cb14-2248" aria-hidden="true" tabindex="-1"></a>               <span class="st">"$</span><span class="sc">\\</span><span class="st">mathrm{SE}$"</span>,</span>
+<span id="cb14-2249"><a href="#cb14-2249" aria-hidden="true" tabindex="-1"></a>               <span class="st">"95% CI lower"</span>,</span>
+<span id="cb14-2250"><a href="#cb14-2250" aria-hidden="true" tabindex="-1"></a>               <span class="st">"95% CI upper"</span>,</span>
+<span id="cb14-2251"><a href="#cb14-2251" aria-hidden="true" tabindex="-1"></a>               <span class="st">"Truth ($0.8 + 0.6$)"</span>,</span>
+<span id="cb14-2252"><a href="#cb14-2252" aria-hidden="true" tabindex="-1"></a>               <span class="st">"Truth $</span><span class="sc">\\</span><span class="st">in$ 95% CI?"</span>),</span>
+<span id="cb14-2253"><a href="#cb14-2253" aria-hidden="true" tabindex="-1"></a>  <span class="at">value    =</span> <span class="fu">c</span>(ate_ice, se_ice, ci_lo, ci_hi, truth,</span>
+<span id="cb14-2254"><a href="#cb14-2254" aria-hidden="true" tabindex="-1"></a>               <span class="fu">ifelse</span>(covered, <span class="st">"yes"</span>, <span class="st">"no"</span>))</span>
+<span id="cb14-2255"><a href="#cb14-2255" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb14-2256"><a href="#cb14-2256" aria-hidden="true" tabindex="-1"></a><span class="fu">tt</span>(out, <span class="at">caption =</span> <span class="st">"ICE chained IF on a 2-period linear-Gaussian DGP"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb14-2257"><a href="#cb14-2257" aria-hidden="true" tabindex="-1"></a>  <span class="fu">format_tt</span>(<span class="at">j =</span> <span class="st">"quantity"</span>, <span class="at">markdown =</span> <span class="cn">TRUE</span>) <span class="sc">|&gt;</span></span>
+<span id="cb14-2258"><a href="#cb14-2258" aria-hidden="true" tabindex="-1"></a>  <span class="fu">format_tt</span>(<span class="at">j =</span> <span class="dv">2</span>, <span class="at">digits =</span> <span class="dv">4</span>)</span>
+<span id="cb14-2259"><a href="#cb14-2259" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb14-2260"><a href="#cb14-2260" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2263"><a href="#cb14-2263" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb14-2264"><a href="#cb14-2264" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: false</span></span>
-<span id="cb14-2265"><a href="#cb14-2265" aria-hidden="true" tabindex="-1"></a><span class="co">#| code-fold: true</span></span>
-<span id="cb14-2266"><a href="#cb14-2266" aria-hidden="true" tabindex="-1"></a><span class="co">#| code-summary: "Pseudo-code: chained_influence()"</span></span>
-<span id="cb14-2267"><a href="#cb14-2267" aria-hidden="true" tabindex="-1"></a>chained_influence <span class="ot">&lt;-</span> <span class="cf">function</span>(models, data_iv, target) {</span>
-<span id="cb14-2268"><a href="#cb14-2268" aria-hidden="true" tabindex="-1"></a>  n <span class="ot">&lt;-</span> number_of_individuals</span>
-<span id="cb14-2269"><a href="#cb14-2269" aria-hidden="true" tabindex="-1"></a>  K <span class="ot">&lt;-</span> <span class="fu">length</span>(models) <span class="sc">-</span> <span class="dv">1</span></span>
-<span id="cb14-2270"><a href="#cb14-2270" aria-hidden="true" tabindex="-1"></a>  mu_hat <span class="ot">&lt;-</span> <span class="fu">mean</span>(pseudo_final[target])</span>
-<span id="cb14-2271"><a href="#cb14-2271" aria-hidden="true" tabindex="-1"></a>  n_target <span class="ot">&lt;-</span> <span class="fu">sum</span>(target)</span>
-<span id="cb14-2272"><a href="#cb14-2272" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2273"><a href="#cb14-2273" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Channel 1 with target-subpopulation scaling (see Sec. 3.6).</span></span>
-<span id="cb14-2274"><a href="#cb14-2274" aria-hidden="true" tabindex="-1"></a>  IF <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">0</span>, n)</span>
-<span id="cb14-2275"><a href="#cb14-2275" aria-hidden="true" tabindex="-1"></a>  IF[target] <span class="ot">&lt;-</span> (n <span class="sc">/</span> n_target) <span class="sc">*</span> (pseudo_final[target] <span class="sc">-</span> mu_hat)</span>
-<span id="cb14-2276"><a href="#cb14-2276" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2277"><a href="#cb14-2277" aria-hidden="true" tabindex="-1"></a>  d <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">0</span>, n)  <span class="co"># sensitivities from previous step</span></span>
-<span id="cb14-2278"><a href="#cb14-2278" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2279"><a href="#cb14-2279" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (step <span class="cf">in</span> <span class="dv">0</span><span class="sc">:</span>K) {</span>
-<span id="cb14-2280"><a href="#cb14-2280" aria-hidden="true" tabindex="-1"></a>    model_k <span class="ot">&lt;-</span> models[[step <span class="sc">+</span> <span class="dv">1</span>]]</span>
-<span id="cb14-2281"><a href="#cb14-2281" aria-hidden="true" tabindex="-1"></a>    family_k <span class="ot">&lt;-</span> model_k<span class="sc">$</span>family</span>
-<span id="cb14-2282"><a href="#cb14-2282" aria-hidden="true" tabindex="-1"></a>    X_k <span class="ot">&lt;-</span> <span class="fu">model.matrix</span>(model_k)         <span class="co"># fitting design matrix</span></span>
-<span id="cb14-2283"><a href="#cb14-2283" aria-hidden="true" tabindex="-1"></a>    eta_k <span class="ot">&lt;-</span> model_k<span class="sc">$</span>linear.predictors</span>
-<span id="cb14-2284"><a href="#cb14-2284" aria-hidden="true" tabindex="-1"></a>    mu_eta_k <span class="ot">&lt;-</span> family_k<span class="sc">$</span><span class="fu">mu.eta</span>(eta_k)   <span class="co"># dmu/deta at fitted values</span></span>
-<span id="cb14-2285"><a href="#cb14-2285" aria-hidden="true" tabindex="-1"></a>    V_k <span class="ot">&lt;-</span> family_k<span class="sc">$</span><span class="fu">variance</span>(<span class="fu">fitted</span>(model_k))</span>
-<span id="cb14-2286"><a href="#cb14-2286" aria-hidden="true" tabindex="-1"></a>    W_k <span class="ot">&lt;-</span> mu_eta_k<span class="sc">^</span><span class="dv">2</span> <span class="sc">/</span> V_k              <span class="co"># IWLS working weights</span></span>
-<span id="cb14-2287"><a href="#cb14-2287" aria-hidden="true" tabindex="-1"></a>    fit_ids_k <span class="ot">&lt;-</span> model_k<span class="sc">$</span>fitting_ids</span>
-<span id="cb14-2288"><a href="#cb14-2288" aria-hidden="true" tabindex="-1"></a>    n_k <span class="ot">&lt;-</span> <span class="fu">length</span>(fit_ids_k)</span>
-<span id="cb14-2289"><a href="#cb14-2289" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2290"><a href="#cb14-2290" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Score residual = response residual * (dmu/deta) / V(mu). For</span></span>
-<span id="cb14-2291"><a href="#cb14-2291" aria-hidden="true" tabindex="-1"></a>    <span class="co"># canonical links this factor is 1; for non-canonical (probit,</span></span>
-<span id="cb14-2292"><a href="#cb14-2292" aria-hidden="true" tabindex="-1"></a>    <span class="co"># cloglog, Gamma-log, ...) it is not.</span></span>
-<span id="cb14-2293"><a href="#cb14-2293" aria-hidden="true" tabindex="-1"></a>    r_response_k <span class="ot">&lt;-</span> <span class="fu">residuals</span>(model_k, <span class="at">type =</span> <span class="st">"response"</span>)</span>
-<span id="cb14-2294"><a href="#cb14-2294" aria-hidden="true" tabindex="-1"></a>    r_score_k <span class="ot">&lt;-</span> r_response_k <span class="sc">*</span> mu_eta_k <span class="sc">/</span> V_k</span>
-<span id="cb14-2295"><a href="#cb14-2295" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2296"><a href="#cb14-2296" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Intervention design matrix and link derivatives (dmu/deta)</span></span>
-<span id="cb14-2297"><a href="#cb14-2297" aria-hidden="true" tabindex="-1"></a>    X_star_k <span class="ot">&lt;-</span> <span class="fu">model.matrix</span>(model_k, <span class="at">newdata =</span> intervention_data[[step <span class="sc">+</span> <span class="dv">1</span>]])</span>
-<span id="cb14-2298"><a href="#cb14-2298" aria-hidden="true" tabindex="-1"></a>    eta_star <span class="ot">&lt;-</span> X_star_k <span class="sc">%*%</span> <span class="fu">coef</span>(model_k)</span>
-<span id="cb14-2299"><a href="#cb14-2299" aria-hidden="true" tabindex="-1"></a>    mu_eta_star <span class="ot">&lt;-</span> family_k<span class="sc">$</span><span class="fu">mu.eta</span>(eta_star)</span>
-<span id="cb14-2300"><a href="#cb14-2300" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2301"><a href="#cb14-2301" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Step 1: Gradient g_k = d mu_hat / d beta_k. The step &gt; 0 branch</span></span>
-<span id="cb14-2302"><a href="#cb14-2302" aria-hidden="true" tabindex="-1"></a>    <span class="co"># carries w_{k-1} from the previous-step fit's prior weights.</span></span>
-<span id="cb14-2303"><a href="#cb14-2303" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (step <span class="sc">==</span> <span class="dv">0</span>) {</span>
-<span id="cb14-2304"><a href="#cb14-2304" aria-hidden="true" tabindex="-1"></a>      g_k <span class="ot">&lt;-</span> <span class="fu">crossprod</span>(X_star_k[target, ], mu_eta_star[target]) <span class="sc">/</span> n_target</span>
-<span id="cb14-2305"><a href="#cb14-2305" aria-hidden="true" tabindex="-1"></a>    } <span class="cf">else</span> {</span>
-<span id="cb14-2306"><a href="#cb14-2306" aria-hidden="true" tabindex="-1"></a>      prev_ids <span class="ot">&lt;-</span> models[[step]]<span class="sc">$</span>fitting_ids</span>
-<span id="cb14-2307"><a href="#cb14-2307" aria-hidden="true" tabindex="-1"></a>      w_prev <span class="ot">&lt;-</span> models[[step]]<span class="sc">$</span>prior.weights  <span class="co"># 1-vector if unweighted</span></span>
-<span id="cb14-2308"><a href="#cb14-2308" aria-hidden="true" tabindex="-1"></a>      g_k <span class="ot">&lt;-</span> <span class="fu">crossprod</span>(</span>
-<span id="cb14-2309"><a href="#cb14-2309" aria-hidden="true" tabindex="-1"></a>        X_star_k[prev_ids, ],</span>
-<span id="cb14-2310"><a href="#cb14-2310" aria-hidden="true" tabindex="-1"></a>        w_prev <span class="sc">*</span> d[prev_ids] <span class="sc">*</span> mu_eta_star[prev_ids]</span>
-<span id="cb14-2311"><a href="#cb14-2311" aria-hidden="true" tabindex="-1"></a>      )</span>
-<span id="cb14-2312"><a href="#cb14-2312" aria-hidden="true" tabindex="-1"></a>    }</span>
-<span id="cb14-2313"><a href="#cb14-2313" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2314"><a href="#cb14-2314" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Step 2: Solve h_k = (X'WX)^{-1} g_k</span></span>
-<span id="cb14-2315"><a href="#cb14-2315" aria-hidden="true" tabindex="-1"></a>    h_k <span class="ot">&lt;-</span> <span class="fu">solve</span>(<span class="fu">crossprod</span>(X_k, X_k <span class="sc">*</span> W_k)) <span class="sc">%*%</span> g_k</span>
-<span id="cb14-2316"><a href="#cb14-2316" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2317"><a href="#cb14-2317" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Step 3: Distribute d_{k,i} = h_k' X_{k,i}</span></span>
-<span id="cb14-2318"><a href="#cb14-2318" aria-hidden="true" tabindex="-1"></a>    d <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">0</span>, n)</span>
-<span id="cb14-2319"><a href="#cb14-2319" aria-hidden="true" tabindex="-1"></a>    d[fit_ids_k] <span class="ot">&lt;-</span> X_k <span class="sc">%*%</span> h_k</span>
-<span id="cb14-2320"><a href="#cb14-2320" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2321"><a href="#cb14-2321" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Channel 2 for model k: n_k * d_{k,i} * r_score_{k,i}</span></span>
-<span id="cb14-2322"><a href="#cb14-2322" aria-hidden="true" tabindex="-1"></a>    r_vec <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">0</span>, n)</span>
-<span id="cb14-2323"><a href="#cb14-2323" aria-hidden="true" tabindex="-1"></a>    r_vec[fit_ids_k] <span class="ot">&lt;-</span> r_score_k</span>
-<span id="cb14-2324"><a href="#cb14-2324" aria-hidden="true" tabindex="-1"></a>    IF <span class="ot">&lt;-</span> IF <span class="sc">+</span> n_k <span class="sc">*</span> d <span class="sc">*</span> r_vec</span>
-<span id="cb14-2325"><a href="#cb14-2325" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb14-2326"><a href="#cb14-2326" aria-hidden="true" tabindex="-1"></a>  IF</span>
-<span id="cb14-2327"><a href="#cb14-2327" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb14-2328"><a href="#cb14-2328" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb14-2329"><a href="#cb14-2329" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2330"><a href="#cb14-2330" aria-hidden="true" tabindex="-1"></a><span class="fu">### 5.7 From individual IFs to the variance</span></span>
-<span id="cb14-2331"><a href="#cb14-2331" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2332"><a href="#cb14-2332" aria-hidden="true" tabindex="-1"></a>Once we have the per-individual $\text{IF}_i$ from the recursion above, variance</span>
-<span id="cb14-2333"><a href="#cb14-2333" aria-hidden="true" tabindex="-1"></a>estimation follows from the same formula as always (@eq-var-if):</span>
-<span id="cb14-2334"><a href="#cb14-2334" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2335"><a href="#cb14-2335" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb14-2336"><a href="#cb14-2336" aria-hidden="true" tabindex="-1"></a>\widehat{\text{Var}}(\hat\mu)</span>
-<span id="cb14-2337"><a href="#cb14-2337" aria-hidden="true" tabindex="-1"></a>= \frac{1}{n^2}\sum_{i=1}^n \text{IF}_i^2</span>
-<span id="cb14-2338"><a href="#cb14-2338" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb14-2261"><a href="#cb14-2261" aria-hidden="true" tabindex="-1"></a>The sandwich CI produced by <span class="in">`variance_if_ice()`</span> covers the structural</span>
+<span id="cb14-2262"><a href="#cb14-2262" aria-hidden="true" tabindex="-1"></a>truth of $1.4$, and the chained IF machinery is doing what Section 5.4</span>
+<span id="cb14-2263"><a href="#cb14-2263" aria-hidden="true" tabindex="-1"></a>says it should.</span>
+<span id="cb14-2264"><a href="#cb14-2264" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2265"><a href="#cb14-2265" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb14-2266"><a href="#cb14-2266" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2267"><a href="#cb14-2267" aria-hidden="true" tabindex="-1"></a><span class="fu">### 5.6 Pseudo-code: IF for a chained estimator</span></span>
+<span id="cb14-2268"><a href="#cb14-2268" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2271"><a href="#cb14-2271" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb14-2272"><a href="#cb14-2272" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: false</span></span>
+<span id="cb14-2273"><a href="#cb14-2273" aria-hidden="true" tabindex="-1"></a><span class="co">#| code-fold: true</span></span>
+<span id="cb14-2274"><a href="#cb14-2274" aria-hidden="true" tabindex="-1"></a><span class="co">#| code-summary: "Pseudo-code: chained_influence()"</span></span>
+<span id="cb14-2275"><a href="#cb14-2275" aria-hidden="true" tabindex="-1"></a>chained_influence <span class="ot">&lt;-</span> <span class="cf">function</span>(models, data_iv, target) {</span>
+<span id="cb14-2276"><a href="#cb14-2276" aria-hidden="true" tabindex="-1"></a>  n <span class="ot">&lt;-</span> number_of_individuals</span>
+<span id="cb14-2277"><a href="#cb14-2277" aria-hidden="true" tabindex="-1"></a>  K <span class="ot">&lt;-</span> <span class="fu">length</span>(models) <span class="sc">-</span> <span class="dv">1</span></span>
+<span id="cb14-2278"><a href="#cb14-2278" aria-hidden="true" tabindex="-1"></a>  mu_hat <span class="ot">&lt;-</span> <span class="fu">mean</span>(pseudo_final[target])</span>
+<span id="cb14-2279"><a href="#cb14-2279" aria-hidden="true" tabindex="-1"></a>  n_target <span class="ot">&lt;-</span> <span class="fu">sum</span>(target)</span>
+<span id="cb14-2280"><a href="#cb14-2280" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2281"><a href="#cb14-2281" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Channel 1 with target-subpopulation scaling (see Sec. 3.6).</span></span>
+<span id="cb14-2282"><a href="#cb14-2282" aria-hidden="true" tabindex="-1"></a>  IF <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">0</span>, n)</span>
+<span id="cb14-2283"><a href="#cb14-2283" aria-hidden="true" tabindex="-1"></a>  IF[target] <span class="ot">&lt;-</span> (n <span class="sc">/</span> n_target) <span class="sc">*</span> (pseudo_final[target] <span class="sc">-</span> mu_hat)</span>
+<span id="cb14-2284"><a href="#cb14-2284" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2285"><a href="#cb14-2285" aria-hidden="true" tabindex="-1"></a>  d <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">0</span>, n)  <span class="co"># sensitivities from previous step</span></span>
+<span id="cb14-2286"><a href="#cb14-2286" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2287"><a href="#cb14-2287" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (step <span class="cf">in</span> <span class="dv">0</span><span class="sc">:</span>K) {</span>
+<span id="cb14-2288"><a href="#cb14-2288" aria-hidden="true" tabindex="-1"></a>    model_k <span class="ot">&lt;-</span> models[[step <span class="sc">+</span> <span class="dv">1</span>]]</span>
+<span id="cb14-2289"><a href="#cb14-2289" aria-hidden="true" tabindex="-1"></a>    family_k <span class="ot">&lt;-</span> model_k<span class="sc">$</span>family</span>
+<span id="cb14-2290"><a href="#cb14-2290" aria-hidden="true" tabindex="-1"></a>    X_k <span class="ot">&lt;-</span> <span class="fu">model.matrix</span>(model_k)         <span class="co"># fitting design matrix</span></span>
+<span id="cb14-2291"><a href="#cb14-2291" aria-hidden="true" tabindex="-1"></a>    eta_k <span class="ot">&lt;-</span> model_k<span class="sc">$</span>linear.predictors</span>
+<span id="cb14-2292"><a href="#cb14-2292" aria-hidden="true" tabindex="-1"></a>    mu_eta_k <span class="ot">&lt;-</span> family_k<span class="sc">$</span><span class="fu">mu.eta</span>(eta_k)   <span class="co"># dmu/deta at fitted values</span></span>
+<span id="cb14-2293"><a href="#cb14-2293" aria-hidden="true" tabindex="-1"></a>    V_k <span class="ot">&lt;-</span> family_k<span class="sc">$</span><span class="fu">variance</span>(<span class="fu">fitted</span>(model_k))</span>
+<span id="cb14-2294"><a href="#cb14-2294" aria-hidden="true" tabindex="-1"></a>    W_k <span class="ot">&lt;-</span> mu_eta_k<span class="sc">^</span><span class="dv">2</span> <span class="sc">/</span> V_k              <span class="co"># IWLS working weights</span></span>
+<span id="cb14-2295"><a href="#cb14-2295" aria-hidden="true" tabindex="-1"></a>    fit_ids_k <span class="ot">&lt;-</span> model_k<span class="sc">$</span>fitting_ids</span>
+<span id="cb14-2296"><a href="#cb14-2296" aria-hidden="true" tabindex="-1"></a>    n_k <span class="ot">&lt;-</span> <span class="fu">length</span>(fit_ids_k)</span>
+<span id="cb14-2297"><a href="#cb14-2297" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2298"><a href="#cb14-2298" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Score residual = response residual * (dmu/deta) / V(mu). For</span></span>
+<span id="cb14-2299"><a href="#cb14-2299" aria-hidden="true" tabindex="-1"></a>    <span class="co"># canonical links this factor is 1; for non-canonical (probit,</span></span>
+<span id="cb14-2300"><a href="#cb14-2300" aria-hidden="true" tabindex="-1"></a>    <span class="co"># cloglog, Gamma-log, ...) it is not.</span></span>
+<span id="cb14-2301"><a href="#cb14-2301" aria-hidden="true" tabindex="-1"></a>    r_response_k <span class="ot">&lt;-</span> <span class="fu">residuals</span>(model_k, <span class="at">type =</span> <span class="st">"response"</span>)</span>
+<span id="cb14-2302"><a href="#cb14-2302" aria-hidden="true" tabindex="-1"></a>    r_score_k <span class="ot">&lt;-</span> r_response_k <span class="sc">*</span> mu_eta_k <span class="sc">/</span> V_k</span>
+<span id="cb14-2303"><a href="#cb14-2303" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2304"><a href="#cb14-2304" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Intervention design matrix and link derivatives (dmu/deta)</span></span>
+<span id="cb14-2305"><a href="#cb14-2305" aria-hidden="true" tabindex="-1"></a>    X_star_k <span class="ot">&lt;-</span> <span class="fu">model.matrix</span>(model_k, <span class="at">newdata =</span> intervention_data[[step <span class="sc">+</span> <span class="dv">1</span>]])</span>
+<span id="cb14-2306"><a href="#cb14-2306" aria-hidden="true" tabindex="-1"></a>    eta_star <span class="ot">&lt;-</span> X_star_k <span class="sc">%*%</span> <span class="fu">coef</span>(model_k)</span>
+<span id="cb14-2307"><a href="#cb14-2307" aria-hidden="true" tabindex="-1"></a>    mu_eta_star <span class="ot">&lt;-</span> family_k<span class="sc">$</span><span class="fu">mu.eta</span>(eta_star)</span>
+<span id="cb14-2308"><a href="#cb14-2308" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2309"><a href="#cb14-2309" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Step 1: Gradient g_k = d mu_hat / d beta_k. The step &gt; 0 branch</span></span>
+<span id="cb14-2310"><a href="#cb14-2310" aria-hidden="true" tabindex="-1"></a>    <span class="co"># carries w_{k-1} from the previous-step fit's prior weights.</span></span>
+<span id="cb14-2311"><a href="#cb14-2311" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (step <span class="sc">==</span> <span class="dv">0</span>) {</span>
+<span id="cb14-2312"><a href="#cb14-2312" aria-hidden="true" tabindex="-1"></a>      g_k <span class="ot">&lt;-</span> <span class="fu">crossprod</span>(X_star_k[target, ], mu_eta_star[target]) <span class="sc">/</span> n_target</span>
+<span id="cb14-2313"><a href="#cb14-2313" aria-hidden="true" tabindex="-1"></a>    } <span class="cf">else</span> {</span>
+<span id="cb14-2314"><a href="#cb14-2314" aria-hidden="true" tabindex="-1"></a>      prev_ids <span class="ot">&lt;-</span> models[[step]]<span class="sc">$</span>fitting_ids</span>
+<span id="cb14-2315"><a href="#cb14-2315" aria-hidden="true" tabindex="-1"></a>      w_prev <span class="ot">&lt;-</span> models[[step]]<span class="sc">$</span>prior.weights  <span class="co"># 1-vector if unweighted</span></span>
+<span id="cb14-2316"><a href="#cb14-2316" aria-hidden="true" tabindex="-1"></a>      g_k <span class="ot">&lt;-</span> <span class="fu">crossprod</span>(</span>
+<span id="cb14-2317"><a href="#cb14-2317" aria-hidden="true" tabindex="-1"></a>        X_star_k[prev_ids, ],</span>
+<span id="cb14-2318"><a href="#cb14-2318" aria-hidden="true" tabindex="-1"></a>        w_prev <span class="sc">*</span> d[prev_ids] <span class="sc">*</span> mu_eta_star[prev_ids]</span>
+<span id="cb14-2319"><a href="#cb14-2319" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb14-2320"><a href="#cb14-2320" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb14-2321"><a href="#cb14-2321" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2322"><a href="#cb14-2322" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Step 2: Solve h_k = (X'WX)^{-1} g_k</span></span>
+<span id="cb14-2323"><a href="#cb14-2323" aria-hidden="true" tabindex="-1"></a>    h_k <span class="ot">&lt;-</span> <span class="fu">solve</span>(<span class="fu">crossprod</span>(X_k, X_k <span class="sc">*</span> W_k)) <span class="sc">%*%</span> g_k</span>
+<span id="cb14-2324"><a href="#cb14-2324" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2325"><a href="#cb14-2325" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Step 3: Distribute d_{k,i} = h_k' X_{k,i}</span></span>
+<span id="cb14-2326"><a href="#cb14-2326" aria-hidden="true" tabindex="-1"></a>    d <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">0</span>, n)</span>
+<span id="cb14-2327"><a href="#cb14-2327" aria-hidden="true" tabindex="-1"></a>    d[fit_ids_k] <span class="ot">&lt;-</span> X_k <span class="sc">%*%</span> h_k</span>
+<span id="cb14-2328"><a href="#cb14-2328" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2329"><a href="#cb14-2329" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Channel 2 for model k: n_k * d_{k,i} * r_score_{k,i}</span></span>
+<span id="cb14-2330"><a href="#cb14-2330" aria-hidden="true" tabindex="-1"></a>    r_vec <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">0</span>, n)</span>
+<span id="cb14-2331"><a href="#cb14-2331" aria-hidden="true" tabindex="-1"></a>    r_vec[fit_ids_k] <span class="ot">&lt;-</span> r_score_k</span>
+<span id="cb14-2332"><a href="#cb14-2332" aria-hidden="true" tabindex="-1"></a>    IF <span class="ot">&lt;-</span> IF <span class="sc">+</span> n_k <span class="sc">*</span> d <span class="sc">*</span> r_vec</span>
+<span id="cb14-2333"><a href="#cb14-2333" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb14-2334"><a href="#cb14-2334" aria-hidden="true" tabindex="-1"></a>  IF</span>
+<span id="cb14-2335"><a href="#cb14-2335" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb14-2336"><a href="#cb14-2336" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb14-2337"><a href="#cb14-2337" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2338"><a href="#cb14-2338" aria-hidden="true" tabindex="-1"></a><span class="fu">### 5.7 From individual IFs to the variance</span></span>
 <span id="cb14-2339"><a href="#cb14-2339" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2340"><a href="#cb14-2340" aria-hidden="true" tabindex="-1"></a>For two interventions $a$ and $b$ on the same data:</span>
-<span id="cb14-2341"><a href="#cb14-2341" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2342"><a href="#cb14-2342" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb14-2343"><a href="#cb14-2343" aria-hidden="true" tabindex="-1"></a>\widehat{\text{Cov}}(\hat\mu_a, \hat\mu_b)</span>
-<span id="cb14-2344"><a href="#cb14-2344" aria-hidden="true" tabindex="-1"></a>= \frac{1}{n^2}\sum_{i=1}^n \text{IF}_i^{(a)} \cdot \text{IF}_i^{(b)}</span>
-<span id="cb14-2345"><a href="#cb14-2345" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb14-2346"><a href="#cb14-2346" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2347"><a href="#cb14-2347" aria-hidden="true" tabindex="-1"></a>The full $k \times k$ covariance matrix is then used for contrasts.</span>
-<span id="cb14-2348"><a href="#cb14-2348" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2340"><a href="#cb14-2340" aria-hidden="true" tabindex="-1"></a>Once we have the per-individual $\text{IF}_i$ from the recursion above, variance</span>
+<span id="cb14-2341"><a href="#cb14-2341" aria-hidden="true" tabindex="-1"></a>estimation follows from the same formula as always (@eq-var-if):</span>
+<span id="cb14-2342"><a href="#cb14-2342" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2343"><a href="#cb14-2343" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb14-2344"><a href="#cb14-2344" aria-hidden="true" tabindex="-1"></a>\widehat{\text{Var}}(\hat\mu)</span>
+<span id="cb14-2345"><a href="#cb14-2345" aria-hidden="true" tabindex="-1"></a>= \frac{1}{n^2}\sum_{i=1}^n \text{IF}_i^2</span>
+<span id="cb14-2346"><a href="#cb14-2346" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb14-2347"><a href="#cb14-2347" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2348"><a href="#cb14-2348" aria-hidden="true" tabindex="-1"></a>For two interventions $a$ and $b$ on the same data:</span>
 <span id="cb14-2349"><a href="#cb14-2349" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2350"><a href="#cb14-2350" aria-hidden="true" tabindex="-1"></a><span class="fu">## 6. Summary</span></span>
-<span id="cb14-2351"><a href="#cb14-2351" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2352"><a href="#cb14-2352" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**One method**: the influence function. For any causal estimand $\hat\mu$,</span>
-<span id="cb14-2353"><a href="#cb14-2353" aria-hidden="true" tabindex="-1"></a>   write down the complete estimating equations (nuisance models + target</span>
-<span id="cb14-2354"><a href="#cb14-2354" aria-hidden="true" tabindex="-1"></a>   estimand), compute each individual's $\text{IF}_i$, and take</span>
-<span id="cb14-2355"><a href="#cb14-2355" aria-hidden="true" tabindex="-1"></a>   $\widehat{\text{Var}}(\hat\mu) = \frac{1}{n^2}\sum_i \text{IF}_i^2$.</span>
+<span id="cb14-2350"><a href="#cb14-2350" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb14-2351"><a href="#cb14-2351" aria-hidden="true" tabindex="-1"></a>\widehat{\text{Cov}}(\hat\mu_a, \hat\mu_b)</span>
+<span id="cb14-2352"><a href="#cb14-2352" aria-hidden="true" tabindex="-1"></a>= \frac{1}{n^2}\sum_{i=1}^n \text{IF}_i^{(a)} \cdot \text{IF}_i^{(b)}</span>
+<span id="cb14-2353"><a href="#cb14-2353" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb14-2354"><a href="#cb14-2354" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2355"><a href="#cb14-2355" aria-hidden="true" tabindex="-1"></a>The full $k \times k$ covariance matrix is then used for contrasts.</span>
 <span id="cb14-2356"><a href="#cb14-2356" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2357"><a href="#cb14-2357" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**The IF is the sandwich**: the IF formula is the sandwich</span>
-<span id="cb14-2358"><a href="#cb14-2358" aria-hidden="true" tabindex="-1"></a>   $\color{#3182BD}{A^{-1}} \color{#E6550D}{B} \color{#3182BD}{(A^{-1})^T}$</span>
-<span id="cb14-2359"><a href="#cb14-2359" aria-hidden="true" tabindex="-1"></a>   applied to the stacked estimating equations, with the block-triangular</span>
-<span id="cb14-2360"><a href="#cb14-2360" aria-hidden="true" tabindex="-1"></a>   bread inverted by back-substitution. The bread, meat, and scores are all</span>
-<span id="cb14-2361"><a href="#cb14-2361" aria-hidden="true" tabindex="-1"></a>   present — the IF just computes $A^{-1}\psi_i$ per individual instead of</span>
-<span id="cb14-2362"><a href="#cb14-2362" aria-hidden="true" tabindex="-1"></a>   forming the full matrices.</span>
-<span id="cb14-2363"><a href="#cb14-2363" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2364"><a href="#cb14-2364" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**Two channels**: the IF always decomposes into a **direct term**</span>
-<span id="cb14-2365"><a href="#cb14-2365" aria-hidden="true" tabindex="-1"></a>   (Channel 1: covariate sampling) and **model corrections** (Channel 2:</span>
-<span id="cb14-2366"><a href="#cb14-2366" aria-hidden="true" tabindex="-1"></a>   one per nuisance model). What varies across methods is only which models</span>
-<span id="cb14-2367"><a href="#cb14-2367" aria-hidden="true" tabindex="-1"></a>   contribute to Channel 2.</span>
-<span id="cb14-2368"><a href="#cb14-2368" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2369"><a href="#cb14-2369" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>**G-computation**: one model correction (outcome model). Channel 1 nonzero.</span>
-<span id="cb14-2370"><a href="#cb14-2370" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2371"><a href="#cb14-2371" aria-hidden="true" tabindex="-1"></a><span class="ss">5. </span>**IPW**: two model corrections (MSM + propensity). The propensity</span>
-<span id="cb14-2372"><a href="#cb14-2372" aria-hidden="true" tabindex="-1"></a>   correction captures weight estimation uncertainty via the cross-derivative</span>
-<span id="cb14-2373"><a href="#cb14-2373" aria-hidden="true" tabindex="-1"></a>   $A_{\beta\alpha}$.</span>
-<span id="cb14-2374"><a href="#cb14-2374" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2375"><a href="#cb14-2375" aria-hidden="true" tabindex="-1"></a><span class="ss">6. </span>**Matching**: one model correction (outcome model), same as g-comp.</span>
-<span id="cb14-2376"><a href="#cb14-2376" aria-hidden="true" tabindex="-1"></a>   Aggregation is cluster-robust (sum IFs within matched subclasses).</span>
-<span id="cb14-2377"><a href="#cb14-2377" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2378"><a href="#cb14-2378" aria-hidden="true" tabindex="-1"></a><span class="ss">7. </span>**Chained estimators** (ICE): $K<span class="sc">\!</span>+<span class="sc">\!</span>1$ model corrections computed by</span>
-<span id="cb14-2379"><a href="#cb14-2379" aria-hidden="true" tabindex="-1"></a>   backward recursion of sensitivities.</span>
-<span id="cb14-2380"><a href="#cb14-2380" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2381"><a href="#cb14-2381" aria-hidden="true" tabindex="-1"></a><span class="ss">8. </span>**The delta method** ($\color{#31A354}{J} V_\beta</span>
-<span id="cb14-2382"><a href="#cb14-2382" aria-hidden="true" tabindex="-1"></a>   \color{#31A354}{J^T}$) is a shortcut that captures Channel 2 only. It is</span>
-<span id="cb14-2383"><a href="#cb14-2383" aria-hidden="true" tabindex="-1"></a>   exact when Channel 1 = 0 (constant predictions), but underestimates</span>
-<span id="cb14-2384"><a href="#cb14-2384" aria-hidden="true" tabindex="-1"></a>   otherwise. The full IF avoids this limitation.</span>
+<span id="cb14-2357"><a href="#cb14-2357" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2358"><a href="#cb14-2358" aria-hidden="true" tabindex="-1"></a><span class="fu">## 6. Summary</span></span>
+<span id="cb14-2359"><a href="#cb14-2359" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2360"><a href="#cb14-2360" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**One method**: the influence function. For any causal estimand $\hat\mu$,</span>
+<span id="cb14-2361"><a href="#cb14-2361" aria-hidden="true" tabindex="-1"></a>   write down the complete estimating equations (nuisance models + target</span>
+<span id="cb14-2362"><a href="#cb14-2362" aria-hidden="true" tabindex="-1"></a>   estimand), compute each individual's $\text{IF}_i$, and take</span>
+<span id="cb14-2363"><a href="#cb14-2363" aria-hidden="true" tabindex="-1"></a>   $\widehat{\text{Var}}(\hat\mu) = \frac{1}{n^2}\sum_i \text{IF}_i^2$.</span>
+<span id="cb14-2364"><a href="#cb14-2364" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2365"><a href="#cb14-2365" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**The IF is the sandwich**: the IF formula is the sandwich</span>
+<span id="cb14-2366"><a href="#cb14-2366" aria-hidden="true" tabindex="-1"></a>   $\color{#3182BD}{A^{-1}} \color{#E6550D}{B} \color{#3182BD}{(A^{-1})^T}$</span>
+<span id="cb14-2367"><a href="#cb14-2367" aria-hidden="true" tabindex="-1"></a>   applied to the stacked estimating equations, with the block-triangular</span>
+<span id="cb14-2368"><a href="#cb14-2368" aria-hidden="true" tabindex="-1"></a>   bread inverted by back-substitution. The bread, meat, and scores are all</span>
+<span id="cb14-2369"><a href="#cb14-2369" aria-hidden="true" tabindex="-1"></a>   present — the IF just computes $A^{-1}\psi_i$ per individual instead of</span>
+<span id="cb14-2370"><a href="#cb14-2370" aria-hidden="true" tabindex="-1"></a>   forming the full matrices.</span>
+<span id="cb14-2371"><a href="#cb14-2371" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2372"><a href="#cb14-2372" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**Two channels**: the IF always decomposes into a **direct term**</span>
+<span id="cb14-2373"><a href="#cb14-2373" aria-hidden="true" tabindex="-1"></a>   (Channel 1: covariate sampling) and **model corrections** (Channel 2:</span>
+<span id="cb14-2374"><a href="#cb14-2374" aria-hidden="true" tabindex="-1"></a>   one per nuisance model). What varies across methods is only which models</span>
+<span id="cb14-2375"><a href="#cb14-2375" aria-hidden="true" tabindex="-1"></a>   contribute to Channel 2.</span>
+<span id="cb14-2376"><a href="#cb14-2376" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2377"><a href="#cb14-2377" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>**G-computation**: one model correction (outcome model). Channel 1 nonzero.</span>
+<span id="cb14-2378"><a href="#cb14-2378" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2379"><a href="#cb14-2379" aria-hidden="true" tabindex="-1"></a><span class="ss">5. </span>**IPW**: two model corrections (MSM + propensity). The propensity</span>
+<span id="cb14-2380"><a href="#cb14-2380" aria-hidden="true" tabindex="-1"></a>   correction captures weight estimation uncertainty via the cross-derivative</span>
+<span id="cb14-2381"><a href="#cb14-2381" aria-hidden="true" tabindex="-1"></a>   $A_{\beta\alpha}$.</span>
+<span id="cb14-2382"><a href="#cb14-2382" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2383"><a href="#cb14-2383" aria-hidden="true" tabindex="-1"></a><span class="ss">6. </span>**Matching**: one model correction (outcome model), same as g-comp.</span>
+<span id="cb14-2384"><a href="#cb14-2384" aria-hidden="true" tabindex="-1"></a>   Aggregation is cluster-robust (sum IFs within matched subclasses).</span>
 <span id="cb14-2385"><a href="#cb14-2385" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2386"><a href="#cb14-2386" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2387"><a href="#cb14-2387" aria-hidden="true" tabindex="-1"></a><span class="fu">## References</span></span>
-<span id="cb14-2388"><a href="#cb14-2388" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2389"><a href="#cb14-2389" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Bang H, Robins JM (2005). Doubly robust estimation in missing data and</span>
-<span id="cb14-2390"><a href="#cb14-2390" aria-hidden="true" tabindex="-1"></a>  causal inference models. *Biometrics* 61:962–973.</span>
-<span id="cb14-2391"><a href="#cb14-2391" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Hampel FR, Ronchetti EM, Rousseeuw PJ, Stahel WA (1986). *Robust</span>
-<span id="cb14-2392"><a href="#cb14-2392" aria-hidden="true" tabindex="-1"></a>  Statistics: The Approach Based on Influence Functions*. Wiley.</span>
-<span id="cb14-2393"><a href="#cb14-2393" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Hirano K, Imbens GW, Ridder G (2003). Efficient estimation of average</span>
-<span id="cb14-2394"><a href="#cb14-2394" aria-hidden="true" tabindex="-1"></a>  treatment effects using the estimated propensity score.</span>
-<span id="cb14-2395"><a href="#cb14-2395" aria-hidden="true" tabindex="-1"></a>  *Econometrica* 71:1161–1189.</span>
-<span id="cb14-2396"><a href="#cb14-2396" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Hernán MA, Robins JM (2025). *Causal Inference: What If*.</span>
-<span id="cb14-2397"><a href="#cb14-2397" aria-hidden="true" tabindex="-1"></a>  Chapman &amp; Hall/CRC.</span>
-<span id="cb14-2398"><a href="#cb14-2398" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Huber PJ (1967). The behavior of maximum likelihood estimates under</span>
-<span id="cb14-2399"><a href="#cb14-2399" aria-hidden="true" tabindex="-1"></a>  nonstandard conditions. *Proceedings of the Fifth Berkeley Symposium*</span>
-<span id="cb14-2400"><a href="#cb14-2400" aria-hidden="true" tabindex="-1"></a>  1:221–233.</span>
-<span id="cb14-2401"><a href="#cb14-2401" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Huber PJ (1981). *Robust Statistics*. Wiley.</span>
-<span id="cb14-2402"><a href="#cb14-2402" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Lunceford JK, Davidian M (2004). Stratification and weighting via the</span>
-<span id="cb14-2403"><a href="#cb14-2403" aria-hidden="true" tabindex="-1"></a>  propensity score in estimation of causal treatment effects: a comparative</span>
-<span id="cb14-2404"><a href="#cb14-2404" aria-hidden="true" tabindex="-1"></a>  study. *Statistics in Medicine* 23:2937–2960.</span>
-<span id="cb14-2405"><a href="#cb14-2405" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Robins JM (1986). A new approach to causal inference in mortality studies</span>
-<span id="cb14-2406"><a href="#cb14-2406" aria-hidden="true" tabindex="-1"></a>  with a sustained exposure period. *Mathematical Modelling* 7:1393–1512.</span>
-<span id="cb14-2407"><a href="#cb14-2407" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Stefanski LA, Boos DD (2002). The calculus of M-estimation.</span>
-<span id="cb14-2408"><a href="#cb14-2408" aria-hidden="true" tabindex="-1"></a>  *The American Statistician* 56:29–38.</span>
-<span id="cb14-2409"><a href="#cb14-2409" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Tsiatis AA (2006). *Semiparametric Theory and Missing Data*. Springer.</span>
-<span id="cb14-2410"><a href="#cb14-2410" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>van der Laan MJ, Robins JM (2003). *Unified Methods for Censored</span>
-<span id="cb14-2411"><a href="#cb14-2411" aria-hidden="true" tabindex="-1"></a>  Longitudinal Data and Causality*. Springer.</span>
-<span id="cb14-2412"><a href="#cb14-2412" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>White H (1980). A heteroskedasticity-consistent covariance matrix estimator</span>
-<span id="cb14-2413"><a href="#cb14-2413" aria-hidden="true" tabindex="-1"></a>  and a direct test for heteroskedasticity. *Econometrica* 48:817–838.</span>
-<span id="cb14-2414"><a href="#cb14-2414" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>White H (1982). Maximum likelihood estimation of misspecified models.</span>
-<span id="cb14-2415"><a href="#cb14-2415" aria-hidden="true" tabindex="-1"></a>  *Econometrica* 50:1–25.</span>
-<span id="cb14-2416"><a href="#cb14-2416" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Zeileis A (2004). Econometric computing with HC and HAC covariance matrix</span>
-<span id="cb14-2417"><a href="#cb14-2417" aria-hidden="true" tabindex="-1"></a>  estimators. *Journal of Statistical Software* 11(10):1–17.</span>
-<span id="cb14-2418"><a href="#cb14-2418" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Zeileis A (2006). Object-oriented computation of sandwich estimators.</span>
-<span id="cb14-2419"><a href="#cb14-2419" aria-hidden="true" tabindex="-1"></a>  *Journal of Statistical Software* 16(9):1–16.</span>
-<span id="cb14-2420"><a href="#cb14-2420" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Zivich PN, Klose M, Cole SR, Edwards JK, Shook-Sa BE (2022).</span>
-<span id="cb14-2421"><a href="#cb14-2421" aria-hidden="true" tabindex="-1"></a>  Delicatessen: a Python package for the generalized computation of the</span>
-<span id="cb14-2422"><a href="#cb14-2422" aria-hidden="true" tabindex="-1"></a>  sandwich estimator. *arXiv preprint* arXiv:2203.11300.</span>
-<span id="cb14-2423"><a href="#cb14-2423" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Zivich PN, Ross RK, Shook-Sa BE, Cole SR, Edwards JK (2024). Empirical</span>
-<span id="cb14-2424"><a href="#cb14-2424" aria-hidden="true" tabindex="-1"></a>  sandwich variance estimator for iterated conditional expectation</span>
-<span id="cb14-2425"><a href="#cb14-2425" aria-hidden="true" tabindex="-1"></a>  g-computation. *Statistics in Medicine* 43:5562–5572.</span>
+<span id="cb14-2386"><a href="#cb14-2386" aria-hidden="true" tabindex="-1"></a><span class="ss">7. </span>**User-supplied cluster** (<span class="in">`contrast(cluster = ...)`</span>): the same</span>
+<span id="cb14-2387"><a href="#cb14-2387" aria-hidden="true" tabindex="-1"></a>   sum-within-cluster-then-square aggregation matching uses internally is</span>
+<span id="cb14-2388"><a href="#cb14-2388" aria-hidden="true" tabindex="-1"></a>   exposed directly on gcomp, IPW, and ICE. Numerically equivalent to</span>
+<span id="cb14-2389"><a href="#cb14-2389" aria-hidden="true" tabindex="-1"></a>   <span class="in">`sandwich::vcovCL(type = "HC0")`</span> on the final predict-then-average step;</span>
+<span id="cb14-2390"><a href="#cb14-2390" aria-hidden="true" tabindex="-1"></a>   rejected on matching because subclass clustering is already structural.</span>
+<span id="cb14-2391"><a href="#cb14-2391" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2392"><a href="#cb14-2392" aria-hidden="true" tabindex="-1"></a><span class="ss">8. </span>**Chained estimators** (ICE): $K<span class="sc">\!</span>+<span class="sc">\!</span>1$ model corrections computed by</span>
+<span id="cb14-2393"><a href="#cb14-2393" aria-hidden="true" tabindex="-1"></a>   backward recursion of sensitivities.</span>
+<span id="cb14-2394"><a href="#cb14-2394" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2395"><a href="#cb14-2395" aria-hidden="true" tabindex="-1"></a><span class="ss">9. </span>**The delta method** ($\color{#31A354}{J} V_\beta</span>
+<span id="cb14-2396"><a href="#cb14-2396" aria-hidden="true" tabindex="-1"></a>   \color{#31A354}{J^T}$) is a shortcut that captures Channel 2 only. It is</span>
+<span id="cb14-2397"><a href="#cb14-2397" aria-hidden="true" tabindex="-1"></a>   exact when Channel 1 = 0 (constant predictions), but underestimates</span>
+<span id="cb14-2398"><a href="#cb14-2398" aria-hidden="true" tabindex="-1"></a>   otherwise. The full IF avoids this limitation.</span>
+<span id="cb14-2399"><a href="#cb14-2399" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2400"><a href="#cb14-2400" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2401"><a href="#cb14-2401" aria-hidden="true" tabindex="-1"></a><span class="fu">## References</span></span>
+<span id="cb14-2402"><a href="#cb14-2402" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2403"><a href="#cb14-2403" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Bang H, Robins JM (2005). Doubly robust estimation in missing data and</span>
+<span id="cb14-2404"><a href="#cb14-2404" aria-hidden="true" tabindex="-1"></a>  causal inference models. *Biometrics* 61:962–973.</span>
+<span id="cb14-2405"><a href="#cb14-2405" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Hampel FR, Ronchetti EM, Rousseeuw PJ, Stahel WA (1986). *Robust</span>
+<span id="cb14-2406"><a href="#cb14-2406" aria-hidden="true" tabindex="-1"></a>  Statistics: The Approach Based on Influence Functions*. Wiley.</span>
+<span id="cb14-2407"><a href="#cb14-2407" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Hirano K, Imbens GW, Ridder G (2003). Efficient estimation of average</span>
+<span id="cb14-2408"><a href="#cb14-2408" aria-hidden="true" tabindex="-1"></a>  treatment effects using the estimated propensity score.</span>
+<span id="cb14-2409"><a href="#cb14-2409" aria-hidden="true" tabindex="-1"></a>  *Econometrica* 71:1161–1189.</span>
+<span id="cb14-2410"><a href="#cb14-2410" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Hernán MA, Robins JM (2025). *Causal Inference: What If*.</span>
+<span id="cb14-2411"><a href="#cb14-2411" aria-hidden="true" tabindex="-1"></a>  Chapman &amp; Hall/CRC.</span>
+<span id="cb14-2412"><a href="#cb14-2412" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Huber PJ (1967). The behavior of maximum likelihood estimates under</span>
+<span id="cb14-2413"><a href="#cb14-2413" aria-hidden="true" tabindex="-1"></a>  nonstandard conditions. *Proceedings of the Fifth Berkeley Symposium*</span>
+<span id="cb14-2414"><a href="#cb14-2414" aria-hidden="true" tabindex="-1"></a>  1:221–233.</span>
+<span id="cb14-2415"><a href="#cb14-2415" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Huber PJ (1981). *Robust Statistics*. Wiley.</span>
+<span id="cb14-2416"><a href="#cb14-2416" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Lunceford JK, Davidian M (2004). Stratification and weighting via the</span>
+<span id="cb14-2417"><a href="#cb14-2417" aria-hidden="true" tabindex="-1"></a>  propensity score in estimation of causal treatment effects: a comparative</span>
+<span id="cb14-2418"><a href="#cb14-2418" aria-hidden="true" tabindex="-1"></a>  study. *Statistics in Medicine* 23:2937–2960.</span>
+<span id="cb14-2419"><a href="#cb14-2419" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Robins JM (1986). A new approach to causal inference in mortality studies</span>
+<span id="cb14-2420"><a href="#cb14-2420" aria-hidden="true" tabindex="-1"></a>  with a sustained exposure period. *Mathematical Modelling* 7:1393–1512.</span>
+<span id="cb14-2421"><a href="#cb14-2421" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Stefanski LA, Boos DD (2002). The calculus of M-estimation.</span>
+<span id="cb14-2422"><a href="#cb14-2422" aria-hidden="true" tabindex="-1"></a>  *The American Statistician* 56:29–38.</span>
+<span id="cb14-2423"><a href="#cb14-2423" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Tsiatis AA (2006). *Semiparametric Theory and Missing Data*. Springer.</span>
+<span id="cb14-2424"><a href="#cb14-2424" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>van der Laan MJ, Robins JM (2003). *Unified Methods for Censored</span>
+<span id="cb14-2425"><a href="#cb14-2425" aria-hidden="true" tabindex="-1"></a>  Longitudinal Data and Causality*. Springer.</span>
+<span id="cb14-2426"><a href="#cb14-2426" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>White H (1980). A heteroskedasticity-consistent covariance matrix estimator</span>
+<span id="cb14-2427"><a href="#cb14-2427" aria-hidden="true" tabindex="-1"></a>  and a direct test for heteroskedasticity. *Econometrica* 48:817–838.</span>
+<span id="cb14-2428"><a href="#cb14-2428" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>White H (1982). Maximum likelihood estimation of misspecified models.</span>
+<span id="cb14-2429"><a href="#cb14-2429" aria-hidden="true" tabindex="-1"></a>  *Econometrica* 50:1–25.</span>
+<span id="cb14-2430"><a href="#cb14-2430" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Zeileis A (2004). Econometric computing with HC and HAC covariance matrix</span>
+<span id="cb14-2431"><a href="#cb14-2431" aria-hidden="true" tabindex="-1"></a>  estimators. *Journal of Statistical Software* 11(10):1–17.</span>
+<span id="cb14-2432"><a href="#cb14-2432" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Zeileis A (2006). Object-oriented computation of sandwich estimators.</span>
+<span id="cb14-2433"><a href="#cb14-2433" aria-hidden="true" tabindex="-1"></a>  *Journal of Statistical Software* 16(9):1–16.</span>
+<span id="cb14-2434"><a href="#cb14-2434" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Zivich PN, Klose M, Cole SR, Edwards JK, Shook-Sa BE (2022).</span>
+<span id="cb14-2435"><a href="#cb14-2435" aria-hidden="true" tabindex="-1"></a>  Delicatessen: a Python package for the generalized computation of the</span>
+<span id="cb14-2436"><a href="#cb14-2436" aria-hidden="true" tabindex="-1"></a>  sandwich estimator. *arXiv preprint* arXiv:2203.11300.</span>
+<span id="cb14-2437"><a href="#cb14-2437" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Zivich PN, Ross RK, Shook-Sa BE, Cole SR, Edwards JK (2024). Empirical</span>
+<span id="cb14-2438"><a href="#cb14-2438" aria-hidden="true" tabindex="-1"></a>  sandwich variance estimator for iterated conditional expectation</span>
+<span id="cb14-2439"><a href="#cb14-2439" aria-hidden="true" tabindex="-1"></a>  g-computation. *Statistics in Medicine* 43:5562–5572.</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

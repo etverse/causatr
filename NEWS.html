@@ -501,6 +501,18 @@ window.Quarto = {
   <ul>
   <li><a href="#causatr-development-version" id="toc-causatr-development-version" class="nav-link active" data-scroll-target="#causatr-development-version">causatr (development version)</a>
   <ul class="collapse">
+  <li><a href="#diagnose-rewrite-foundation-phase-11-chunk-11a" id="toc-diagnose-rewrite-foundation-phase-11-chunk-11a" class="nav-link" data-scroll-target="#diagnose-rewrite-foundation-phase-11-chunk-11a">2026-04-26 — <code>diagnose()</code> rewrite foundation (Phase 11 chunk 11a)</a></li>
+  <li><a href="#effect-modification-under-longitudinal-ipw-phase-10-chunk-10c" id="toc-effect-modification-under-longitudinal-ipw-phase-10-chunk-10c" class="nav-link" data-scroll-target="#effect-modification-under-longitudinal-ipw-phase-10-chunk-10c">2026-04-26 — Effect modification under longitudinal IPW (Phase 10 chunk 10c)</a></li>
+  <li><a href="#stabilized-longitudinal-ipw-phase-10-chunk-10b" id="toc-stabilized-longitudinal-ipw-phase-10-chunk-10b" class="nav-link" data-scroll-target="#stabilized-longitudinal-ipw-phase-10-chunk-10b">2026-04-26 — Stabilized longitudinal IPW (Phase 10 chunk 10b)</a></li>
+  <li><a href="#longitudinal-ipw-core-phase-10-chunk-10a" id="toc-longitudinal-ipw-core-phase-10-chunk-10a" class="nav-link" data-scroll-target="#longitudinal-ipw-core-phase-10-chunk-10a">2026-04-26 — Longitudinal IPW core (Phase 10 chunk 10a)</a></li>
+  <li><a href="#future-backend-for-bootstrap-phase-9c" id="toc-future-backend-for-bootstrap-phase-9c" class="nav-link" data-scroll-target="#future-backend-for-bootstrap-phase-9c">2026-04-22 — <code>future</code> backend for bootstrap (Phase 9c)</a></li>
+  <li><a href="#surveysvydesign-integration-phase-9b" id="toc-surveysvydesign-integration-phase-9b" class="nav-link" data-scroll-target="#surveysvydesign-integration-phase-9b">2026-04-22 — <code>survey::svydesign</code> integration (Phase 9b)</a></li>
+  <li><a href="#general-cluster-robust-sandwich-phase-9a" id="toc-general-cluster-robust-sandwich-phase-9a" class="nav-link" data-scroll-target="#general-cluster-robust-sandwich-phase-9a">2026-04-22 — General cluster-robust sandwich (Phase 9a)</a>
+  <ul class="collapse">
+  <li><a href="#scope" id="toc-scope" class="nav-link" data-scroll-target="#scope">Scope</a></li>
+  <li><a href="#api" id="toc-api" class="nav-link" data-scroll-target="#api">API</a></li>
+  <li><a href="#truth-testing" id="toc-truth-testing" class="nav-link" data-scroll-target="#truth-testing">Truth testing</a></li>
+  </ul></li>
   <li><a href="#multivariate-treatment-ipw-phase-8" id="toc-multivariate-treatment-ipw-phase-8" class="nav-link" data-scroll-target="#multivariate-treatment-ipw-phase-8">2026-04-22 — Multivariate treatment IPW (Phase 8)</a>
   <ul class="collapse">
   <li><a href="#estimand-semantics-sequential-mtp-díaz-et-al.-2023" id="toc-estimand-semantics-sequential-mtp-díaz-et-al.-2023" class="nav-link" data-scroll-target="#estimand-semantics-sequential-mtp-díaz-et-al.-2023">Estimand semantics: sequential MTP (Díaz et al.&nbsp;2023)</a></li>
@@ -565,6 +577,130 @@ window.Quarto = {
 
 <section id="causatr-development-version" class="level1">
 <h1>causatr (development version)</h1>
+<section id="diagnose-rewrite-foundation-phase-11-chunk-11a" class="level2">
+<h2 class="anchored" data-anchor-id="diagnose-rewrite-foundation-phase-11-chunk-11a">2026-04-26 — <code>diagnose()</code> rewrite foundation (Phase 11 chunk 11a)</h2>
+<p><code>diagnose()</code> now accepts an <code>interventions =</code> argument that mirrors <code>contrast()</code>’s signature, and the returned <code>causatr_diag</code> object exposes a nested <code>per_intervention</code> named list (one panel per intervention key with <code>positivity</code>, <code>balance</code>, and <code>weights</code> slots). The default call <code>diagnose(fit)</code> is unchanged: a single panel keyed <code>obs</code> is auto- injected, populated with the observed-treatment Horvitz-Thompson view (<code>1/p</code> on treated, <code>1/(1-p)</code> on controls). Top-level <code>positivity</code> / <code>balance</code> / <code>weights</code> slots continue to point at the first panel so every existing flat-shape consumer keeps working without modification.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>diag <span class="ot">&lt;-</span> <span class="fu">diagnose</span>(fit,</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>                 <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)))</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>diag<span class="sc">$</span>per_intervention<span class="sc">$</span>a1<span class="sc">$</span>weights  <span class="co"># weight summary under static(1)</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>diag<span class="sc">$</span>per_intervention<span class="sc">$</span>a0<span class="sc">$</span>weights  <span class="co"># weight summary under static(0)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>User-named interventions route through <code>compute_density_ratio_weights()</code> to build the per-intervention HT-style weight; the resulting treated / control / overall summary uses the same Kish effective sample size formula as the legacy view, with a divide-by-zero guard so the zero-weight off-arm under a static-arm intervention reports <code>ess = 0</code> cleanly.</p>
+<p>Seven <code>causatr_diag_*_pending</code> classed errors gate every sub-feature that the rewrite has not yet absorbed: <code>causatr_diag_continuous_pending</code> (continuous IPW), <code>causatr_diag_categorical_pending</code> (categorical IPW), <code>causatr_diag_count_pending</code> (Poisson / negbin IPW), <code>causatr_diag_multivariate_pending</code> (multivariate IPW), <code>causatr_diag_longitudinal_pending</code> (replaces the pre-chunk-11a flat abort on ICE fits), <code>causatr_diag_estimand_pending</code> (IPW under ATT / ATC — gcomp and matching are unaffected because their diagnostic paths are estimand-agnostic), and <code>causatr_diag_em_pending</code> (the <code>by =</code> argument is reserved at the signature level so future chunks can lift the rejection without a signature break). The chunk 11a balance view remains the unadjusted SMD across treatment groups; per-intervention post-weighting balance lands in chunk 11d alongside the ATT / ATC rewrite.</p>
+<p>The 12 pre-existing test blocks in <code>test-diagnose.R</code> continue to pass unchanged as regression anchors; 12 new test blocks cover the per- intervention dispatch path (with manual <code>1/p</code> ESS reconstruction sanity), the multi-panel <code>print()</code> output, and one classed-error check per <code>_pending</code> gate.</p>
+</section>
+<section id="effect-modification-under-longitudinal-ipw-phase-10-chunk-10c" class="level2">
+<h2 class="anchored" data-anchor-id="effect-modification-under-longitudinal-ipw-phase-10-chunk-10c">2026-04-26 — Effect modification under longitudinal IPW (Phase 10 chunk 10c)</h2>
+<p><code>A:modifier</code> interactions in <code>confounders =</code> are now supported under longitudinal IPW. The per-period propensity formulas strip every treatment-touching term via <code>parse_effect_mod()</code> (modifier main effects are kept; only the <code>A:sex</code> interaction is removed because A is the response of the propensity model), and the final-period MSM expands from <code>Y ~ 1</code> to <code>Y ~ 1 + modifier</code> via the existing <code>build_ipw_msm_formula()</code> so <code>predict()</code> returns stratum-specific counterfactual means.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(d, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>              <span class="at">confounders =</span> <span class="sc">~</span> L0 <span class="sc">+</span> sex <span class="sc">+</span> A<span class="sc">:</span>sex,</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>              <span class="at">confounders_tv =</span> <span class="sc">~</span> L,</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>              <span class="at">id =</span> <span class="st">"id"</span>, <span class="at">time =</span> <span class="st">"time"</span>, <span class="at">estimator =</span> <span class="st">"ipw"</span>)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit, <span class="fu">list</span>(<span class="at">a =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">z =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>         <span class="at">reference =</span> <span class="st">"z"</span>, <span class="at">by =</span> <span class="st">"sex"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>Known limitation.</strong> The modifier MUST be a baseline covariate (Robins 2000). A time-varying modifier in an MSM conditions on a post-treatment variable, biasing the estimand. Not enforced at runtime (time-varying status isn’t inferable from data); doc-level constraint only. Use a structural nested model (Phase 18) for time-varying effect modification.</p>
+<p>The chunk 10a <code>causatr_longitudinal_em_pending</code> rejection is removed. Bare treatment in confounders (<code>~ L + A</code>) continues to be rejected upstream by <code>check_em_compat()</code> with <code>causatr_bare_treatment_in_confounders</code>.</p>
+</section>
+<section id="stabilized-longitudinal-ipw-phase-10-chunk-10b" class="level2">
+<h2 class="anchored" data-anchor-id="stabilized-longitudinal-ipw-phase-10-chunk-10b">2026-04-26 — Stabilized longitudinal IPW (Phase 10 chunk 10b)</h2>
+<p><code>causat(estimator = "ipw", id, time, stabilize = "marginal")</code> now fits per-period numerator models <span class="math inline">\(g_k(A_k \mid \bar A_{k-1}, V)\)</span> that drop time-varying confounders from the conditioning set. The per-period weight becomes <span class="math inline">\(g_k(d(A_k) \mid \bar A_{k-1}, V) \cdot
+\lvert \mathrm{Jac} \rvert / f_k(A_k \mid \bar A_{k-1}, \bar L_k)\)</span>, dampening the multiplicative L-dependence across periods that inflates the cumulative product.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(d, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>              <span class="at">confounders =</span> <span class="sc">~</span> L0, <span class="at">confounders_tv =</span> <span class="sc">~</span> L,</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>              <span class="at">id =</span> <span class="st">"id"</span>, <span class="at">time =</span> <span class="st">"time"</span>, <span class="at">estimator =</span> <span class="st">"ipw"</span>,</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>              <span class="at">stabilize =</span> <span class="st">"marginal"</span>, <span class="at">numerator =</span> <span class="sc">~</span> L0)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<ul>
+<li>Default <code>numerator = NULL</code> keeps treatment lags only (drops L from every period). Custom <code>numerator = ~ V</code> adds the user-supplied baseline conditioning set on top of the treatment lags so the chain-rule factorisation of <span class="math inline">\(g_k\)</span> stays valid.</li>
+<li>Sandwich variance treats numerator parameters <span class="math inline">\(\gamma\)</span> as fixed (same nuisance-fixed convention as Phase 8e for multivariate IPW and <span class="math inline">\(\sigma\)</span> / <span class="math inline">\(\theta\)</span> for Gaussian / negbin densities). Bootstrap refits both numerator and denominator per replicate and captures the full uncertainty.</li>
+<li>Stabilized + static binary recovers identical point estimate <strong>and</strong> SE as unstabilized (HT indicator collapses surviving rows so numerator and denominator densities coincide).</li>
+<li>Stabilized + <code>numerator =</code> without <code>stabilize = "marginal"</code> is rejected with a <code>causatr_longitudinal_numerator_without_stabilize</code> classed error (no semantically valid use case for a custom numerator without stabilization).</li>
+</ul>
+</section>
+<section id="longitudinal-ipw-core-phase-10-chunk-10a" class="level2">
+<h2 class="anchored" data-anchor-id="longitudinal-ipw-core-phase-10-chunk-10a">2026-04-26 — Longitudinal IPW core (Phase 10 chunk 10a)</h2>
+<p><code>causat(estimator = "ipw", id = ..., time = ...)</code> now ships: fits a per-period treatment density chain <span class="math inline">\(f(A_k \mid \bar A_{k-1},
+\bar L_k)\)</span> across <code>time_points</code>, builds the cumulative density-ratio weight per individual under sequential-MTP semantics (Robins, Hernán, Brumback 2000; Díaz et al.&nbsp;2023), refits an intercept-only Hájek MSM on final-period outcomes, and reads <span class="math inline">\(\hat\mu_a\)</span> off the intercept.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(d, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>              <span class="at">confounders =</span> <span class="sc">~</span> L0, <span class="at">confounders_tv =</span> <span class="sc">~</span> L,</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>              <span class="at">id =</span> <span class="st">"id"</span>, <span class="at">time =</span> <span class="st">"time"</span>, <span class="at">estimator =</span> <span class="st">"ipw"</span>)</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit, <span class="fu">list</span>(<span class="at">s =</span> <span class="fu">shift</span>(<span class="fl">0.5</span>), <span class="at">n =</span> <span class="cn">NULL</span>),</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>         <span class="at">reference =</span> <span class="st">"n"</span>, <span class="at">ci_method =</span> <span class="st">"sandwich"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<ul>
+<li>Supported interventions: <code>static()</code> / <code>shift()</code> / <code>scale_by()</code> / <code>dynamic()</code> (per-period dispatch through the existing <code>check_intervention_family_compat()</code> gates).</li>
+<li>Variance: stacked sandwich (<code>variance_if_ipw_longitudinal()</code>) with block-diagonal propensity bread across periods, plus id-clustered nonparametric bootstrap that resamples entire individual trajectories.</li>
+<li>Sequential positivity: per-period weight tails are scanned and a <code>causatr_longitudinal_seq_positivity</code> warning surfaces the offending period(s) (default threshold 100).</li>
+<li>Rejected (deferred to follow-up chunks): effect-modification (<code>A:modifier</code>), <code>stabilize = "marginal"</code> / <code>numerator =</code>, multivariate longitudinal treatment, <code>ipsi()</code> per period. Each rejection ships with a <code>_pending</code> classed error pointing at the alternative.</li>
+<li>The longitudinal-IPW rejection in <code>check_causat_inputs()</code> is removed; matching is the only estimator still gated for longitudinal data.</li>
+</ul>
+</section>
+<section id="future-backend-for-bootstrap-phase-9c" class="level2">
+<h2 class="anchored" data-anchor-id="future-backend-for-bootstrap-phase-9c">2026-04-22 — <code>future</code> backend for bootstrap (Phase 9c)</h2>
+<p><code>contrast(parallel = "future")</code> now dispatches bootstrap replicates through <code>future.apply::future_lapply()</code>, so any active <code>future::plan()</code> is honoured. Users with remote / cluster / <code>future.batchtools</code> workflows no longer have to set up socket clusters by hand via <code>parallel = "snow"</code>.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(future)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">plan</span>(multisession, <span class="at">workers =</span> <span class="dv">4</span>)</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit, <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>         <span class="at">ci_method =</span> <span class="st">"bootstrap"</span>, <span class="at">n_boot =</span> <span class="dv">500</span>,</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>         <span class="at">parallel =</span> <span class="st">"future"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<ul>
+<li>The <code>"no" / "multicore" / "snow"</code> paths remain unchanged and still go through <code>boot::boot()</code>. <code>"future"</code> bypasses <code>boot::boot()</code> to let the <code>future</code> plan own the scheduling.</li>
+<li><code>ncpus</code> is ignored under <code>"future"</code> — the plan’s worker count is the single source of truth.</li>
+<li>Reproducibility: <code>future.seed = TRUE</code> gives each worker a deterministic L’Ecuyer stream, so <code>set.seed()</code> at the dispatch site governs every replicate.</li>
+<li><code>future</code> and <code>future.apply</code> are Suggests-only; <code>check_pkg()</code> gates the dispatch.</li>
+</ul>
+</section>
+<section id="surveysvydesign-integration-phase-9b" class="level2">
+<h2 class="anchored" data-anchor-id="surveysvydesign-integration-phase-9b">2026-04-22 — <code>survey::svydesign</code> integration (Phase 9b)</h2>
+<p><code>causat(weights = )</code> now accepts a <code>survey::svydesign</code> object directly. The sampling weights are extracted via <code>stats::weights(design)</code> and the design’s first-stage cluster (PSU) is auto-propagated into the fit’s <code>cluster</code> slot so the contrast-time sandwich is cluster-robust by default.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(survey)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>des <span class="ot">&lt;-</span> <span class="fu">svydesign</span>(<span class="at">ids =</span> <span class="sc">~</span>psu, <span class="at">weights =</span> <span class="sc">~</span>pw, <span class="at">data =</span> d)</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(d, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>              <span class="at">confounders =</span> <span class="sc">~</span> L, <span class="at">weights =</span> des)</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="co"># weights and cluster both applied automatically</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit, <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Behaviour:</p>
+<ul>
+<li>Equivalent to <code>causat(weights = weights(des), cluster = names(des$cluster)[1])</code> — identical point estimate and SE (pinned in <code>test-survey-design.R</code>).</li>
+<li>Users can override the auto-adopted PSU by passing <code>cluster =</code> explicitly; the override wins.</li>
+<li>Single-PSU designs (<code>svydesign(ids = ~1, ...)</code>) do not auto-adopt a cluster — only the weights flow through.</li>
+<li>Row counts must match: a design built on a larger / different data frame aborts with <code>causatr_bad_svydesign</code>.</li>
+<li><code>survey</code> is Suggests-only; <code>check_pkg("survey")</code> gates the unpack path.</li>
+</ul>
+</section>
+<section id="general-cluster-robust-sandwich-phase-9a" class="level2">
+<h2 class="anchored" data-anchor-id="general-cluster-robust-sandwich-phase-9a">2026-04-22 — General cluster-robust sandwich (Phase 9a)</h2>
+<p><code>causat()</code> and <code>contrast()</code> accept a new <code>cluster</code> argument naming a column for cluster-robust sandwich variance aggregation. Before this change the only cluster-robust path was matching’s internal subclass aggregation; users with design clusters (site, household, PSU, repeated measures) had to hand-roll their own SE.</p>
+<p>The implementation threads through the existing influence-function engine: <code>variance_if()</code> now accepts a <code>cluster_vec</code> argument that arrives at <code>vcov_from_if(cluster = ...)</code>, which has supported the sum-within-cluster-then-square Liang &amp; Zeger (1986) aggregation since the matching branch was wired. Numerically equivalent to <code>sandwich::vcovCL(type = "HC0")</code> applied to the final predict-then-average step (agreement to within a <code>G / (G - 1)</code> small-cluster correction, pinned in <code>test-cluster-sandwich.R</code>).</p>
+<section id="scope" class="level3">
+<h3 class="anchored" data-anchor-id="scope">Scope</h3>
+<ul>
+<li><strong>Supported</strong>: <code>estimator = "gcomp"</code>, <code>"ipw"</code>, <code>"ice"</code> (including <code>by</code> stratification and longitudinal ICE; for ICE the cluster vector is read from the first-time-point rows).</li>
+<li><strong>Rejected at fit + contrast</strong>: <code>estimator = "matching"</code> already clusters on its own <code>subclass</code>; layering a user cluster on top would double-count within-subclass rows. Classed as <code>causatr_bad_cluster</code>.</li>
+<li><strong>Tier 2 numerical fallback</strong> (no <code>sandwich::estfun</code> method and no analytic bread): only the Channel-1 block is cluster-adjusted; the <code>J V_beta J^T</code> block uses the model’s standard vcov. Emits a classed warning <code>causatr_tier2_cluster_partial</code>.</li>
+</ul>
+</section>
+<section id="api" class="level3">
+<h3 class="anchored" data-anchor-id="api">API</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(data, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>              <span class="at">confounders =</span> <span class="sc">~</span> L, <span class="at">cluster =</span> <span class="st">"site"</span>)</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="co"># cluster auto-propagates from fit to contrast</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit, <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)))</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="co"># or specify at contrast time only</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(data, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>, <span class="at">confounders =</span> <span class="sc">~</span> L)</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit, <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>         <span class="at">cluster =</span> <span class="st">"site"</span>)     <span class="co"># column name</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit, <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>         <span class="at">cluster =</span> data<span class="sc">$</span>site)  <span class="co"># direct vector</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="truth-testing" class="level3">
+<h3 class="anchored" data-anchor-id="truth-testing">Truth testing</h3>
+<ul>
+<li><strong>gcomp oracle</strong>: direct match against <code>sandwich::vcovCL(fit$model, cluster = d$cl, type = "HC0")</code> on a saturated <code>Y ~ A + L</code> model. Agreement to machine precision after the <code>G / (G - 1)</code> correction.</li>
+<li><strong>IPW + ICE</strong>: cluster-randomised design (cluster-level treatment assignment + cluster-level outcome shock) produces SE inflation vs independent aggregation; regression-tested at 1.05x-1.1x lower bounds.</li>
+<li><strong>Singleton clusters</strong>: one cluster per row reduces to the standard independent aggregation (tested by equality to the <code>cluster = NULL</code> path).</li>
+</ul>
+<hr>
+</section>
+</section>
 <section id="multivariate-treatment-ipw-phase-8" class="level2">
 <h2 class="anchored" data-anchor-id="multivariate-treatment-ipw-phase-8">2026-04-22 — Multivariate treatment IPW (Phase 8)</h2>
 <p><code>estimator = "ipw"</code> now accepts multivariate (joint) treatments <code>treatment = c("A1", "A2", ...)</code>. Previously the path hard-aborted; users needed <code>estimator = "gcomp"</code> for joint interventions. The new implementation factorises the joint conditional density via the chain rule</p>
@@ -847,8 +983,8 @@ w_k^{s}(\alpha_k) = \frac{g_k\bigl(d_k^{-1}(A_k) \mid A_{1..k-1}\bigr) \cdot |\m
 <h2 class="anchored" data-anchor-id="breaking-causat-causat_survival-argument-method-renamed-to-estimator">Breaking: <code>causat()</code> / <code>causat_survival()</code> argument <code>method</code> renamed to <code>estimator</code></h2>
 <p><code>causat(method = ...)</code> shadowed <code>WeightIt::weightit(method = ...)</code> and <code>MatchIt::matchit(method = ...)</code>, making it impossible to forward those packages’ own <code>method</code> selector through <code>...</code>. The causatr argument has been renamed to <code>estimator</code>; extra <code>...</code> arguments now flow cleanly into WeightIt / MatchIt. This is a hard rename with no deprecation shim — update call sites from <code>method = "gcomp" | "ipw" | "matching"</code> to <code>estimator = "..."</code>, and from <code>fit$method</code> / <code>result$method</code> / <code>diag$method</code> to <code>fit$estimator</code> / <code>result$estimator</code> / <code>diag$estimator</code>. The <code>glance.causatr_result()</code> output column is renamed in the same way.</p>
 <p>After the rename, forwarding e.g.&nbsp;a CBPS propensity model is a one-liner:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(data, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>, <span class="at">confounders =</span> <span class="sc">~</span> L1 <span class="sc">+</span> L2,</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>              <span class="at">estimator =</span> <span class="st">"ipw"</span>, <span class="at">method =</span> <span class="st">"cbps"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(data, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>, <span class="at">confounders =</span> <span class="sc">~</span> L1 <span class="sc">+</span> L2,</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>              <span class="at">estimator =</span> <span class="st">"ipw"</span>, <span class="at">method =</span> <span class="st">"cbps"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>See <code>vignette("ipw")</code> for a worked example. <code>ci_method</code> is a separate concept and is unchanged.</p>
 </section>
 <section id="critical-review-sweep-r1r9-s1s9" class="level2">

@@ -2481,7 +2481,8 @@ Y   &amp;= 1 + \sum_{k=1}^{K} A_k + 0.3 \, L_K + \varepsilon, \quad \varepsilon 
 <p>Several additional R packages would extend this validation suite:</p>
 <ul>
 <li><strong><code>gfoRmula</code></strong> implements the parametric g-formula on wide longitudinal data and is the most direct peer of causatr’s ICE engine. Its intervention specification is more verbose (lists of <code>intvars</code>, <code>interventions</code>, <code>int_descript</code>), but a comparison on static “always vs never” would make a natural addition to section 4a.</li>
-<li><strong><code>survey::svyglm()</code></strong> (combined with a user-supplied weights column) is the standard reference for survey-weighted IPW. Since causatr validates survey-weight handling in its tests, a vignette comparison would mostly duplicate that coverage.</li>
+<li><strong><code>survey::svyglm()</code></strong> (combined with a user-supplied weights column) is the standard reference for survey-weighted IPW. Since causatr validates survey-weight handling in its tests — including the direct <code>causat(weights = svydesign(...))</code> convenience path that auto-extracts the design’s sampling weights and first-stage PSU into the contrast-time cluster — a vignette comparison would mostly duplicate that coverage.</li>
+<li><strong><code>sandwich::vcovCL()</code></strong> is the oracle for causatr’s general cluster-robust sandwich (<code>causat(cluster = ...)</code> / <code>contrast(cluster = ...)</code>). Agreement on a saturated <code>Y ~ A + L</code> model is pinned to machine precision after the <code>G/(G-1)</code> small-cluster correction in <code>test-cluster-sandwich.R</code>.</li>
 </ul>
 <p>If you’d like to contribute a reference comparison for one of these (or for a package not listed here), open an issue — the pattern is the same as in sections 1–4: fit the same quantity two ways, pass both to <code>compare_row()</code>, and print the resulting two-row table.</p>
 
@@ -3609,13 +3610,21 @@ Y   &amp;= 1 + \sum_{k=1}^{K} A_k + 0.3 \, L_K + \varepsilon, \quad \varepsilon 
 <span id="cb17-699"><a href="#cb17-699" aria-hidden="true" tabindex="-1"></a>  a natural addition to section 4a.</span>
 <span id="cb17-700"><a href="#cb17-700" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**`survey::svyglm()`** (combined with a user-supplied weights column) is</span>
 <span id="cb17-701"><a href="#cb17-701" aria-hidden="true" tabindex="-1"></a>  the standard reference for survey-weighted IPW. Since causatr validates</span>
-<span id="cb17-702"><a href="#cb17-702" aria-hidden="true" tabindex="-1"></a>  survey-weight handling in its tests, a vignette comparison would mostly</span>
-<span id="cb17-703"><a href="#cb17-703" aria-hidden="true" tabindex="-1"></a>  duplicate that coverage.</span>
-<span id="cb17-704"><a href="#cb17-704" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-705"><a href="#cb17-705" aria-hidden="true" tabindex="-1"></a>If you'd like to contribute a reference comparison for one of these (or for a</span>
-<span id="cb17-706"><a href="#cb17-706" aria-hidden="true" tabindex="-1"></a>package not listed here), open an issue — the pattern is the same as in</span>
-<span id="cb17-707"><a href="#cb17-707" aria-hidden="true" tabindex="-1"></a>sections 1–4: fit the same quantity two ways, pass both to <span class="in">`compare_row()`</span>,</span>
-<span id="cb17-708"><a href="#cb17-708" aria-hidden="true" tabindex="-1"></a>and print the resulting two-row table.</span>
+<span id="cb17-702"><a href="#cb17-702" aria-hidden="true" tabindex="-1"></a>  survey-weight handling in its tests — including the direct</span>
+<span id="cb17-703"><a href="#cb17-703" aria-hidden="true" tabindex="-1"></a>  <span class="in">`causat(weights = svydesign(...))`</span> convenience path that auto-extracts</span>
+<span id="cb17-704"><a href="#cb17-704" aria-hidden="true" tabindex="-1"></a>  the design's sampling weights and first-stage PSU into the</span>
+<span id="cb17-705"><a href="#cb17-705" aria-hidden="true" tabindex="-1"></a>  contrast-time cluster — a vignette comparison would mostly duplicate</span>
+<span id="cb17-706"><a href="#cb17-706" aria-hidden="true" tabindex="-1"></a>  that coverage.</span>
+<span id="cb17-707"><a href="#cb17-707" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**`sandwich::vcovCL()`** is the oracle for causatr's general</span>
+<span id="cb17-708"><a href="#cb17-708" aria-hidden="true" tabindex="-1"></a>  cluster-robust sandwich (<span class="in">`causat(cluster = ...)`</span> /</span>
+<span id="cb17-709"><a href="#cb17-709" aria-hidden="true" tabindex="-1"></a>  <span class="in">`contrast(cluster = ...)`</span>). Agreement on a saturated <span class="in">`Y ~ A + L`</span></span>
+<span id="cb17-710"><a href="#cb17-710" aria-hidden="true" tabindex="-1"></a>  model is pinned to machine precision after the <span class="in">`G/(G-1)`</span> small-cluster</span>
+<span id="cb17-711"><a href="#cb17-711" aria-hidden="true" tabindex="-1"></a>  correction in <span class="in">`test-cluster-sandwich.R`</span>.</span>
+<span id="cb17-712"><a href="#cb17-712" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-713"><a href="#cb17-713" aria-hidden="true" tabindex="-1"></a>If you'd like to contribute a reference comparison for one of these (or for a</span>
+<span id="cb17-714"><a href="#cb17-714" aria-hidden="true" tabindex="-1"></a>package not listed here), open an issue — the pattern is the same as in</span>
+<span id="cb17-715"><a href="#cb17-715" aria-hidden="true" tabindex="-1"></a>sections 1–4: fit the same quantity two ways, pass both to <span class="in">`compare_row()`</span>,</span>
+<span id="cb17-716"><a href="#cb17-716" aria-hidden="true" tabindex="-1"></a>and print the resulting two-row table.</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

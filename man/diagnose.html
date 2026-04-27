@@ -500,7 +500,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p><strong>All estimators</strong>: positivity checks (flags covariate strata where the probability of treatment is near 0 or 1).</p>
 </li>
 <li>
-<p><code>“ipw”</code> with binary treatment: covariate balance via <code>cobalt</code> on the propensity formula, plus an observed-treatment weight distribution summary (<code>1/p</code> on treated rows, <code>1/(1-p)</code> on controls) with mean, SD, min, max, and effective sample size.</p>
+<p><code>“ipw”</code> with binary treatment: covariate balance via <code>cobalt</code> on the propensity formula, plus a weight-distribution summary (one panel per intervention, or the observed-treatment Horvitz-Thompson summary when <code>interventions = NULL</code>).</p>
 </li>
 <li>
 <p><code>“matching”</code>: covariate balance before and after matching (via <code>cobalt</code>), match quality summary (% matched, caliper info).</p>
@@ -509,13 +509,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p><code>“gcomp”</code>: unadjusted covariate imbalance between treatment groups.</p>
 </li>
 </ul>
-<p><strong>Point-treatment fits only.</strong> <code>diagnose()</code> aborts on a longitudinal (ICE) <code>fit</code>. For longitudinal data, inspect per-period propensity / balance tables manually.</p>
-<p><strong>Binary treatment only for IPW weight summaries.</strong> Continuous and categorical IPW fits abort with <code>causatr_diag_unsupported_family</code>: the density-ratio weight under those families depends on the intervention, and <code>diagnose()</code> is an intervention-free diagnostic.</p>
+<p><strong>Per-intervention dispatch.</strong> When <code style="white-space: pre;">interventions =</code> is supplied, each intervention spawns its own diagnostic panel: the propensity-score summary is shared across panels (it depends only on the fitted treatment density model, not the intervention), but the weight-distribution summary is computed via <code>compute_density_ratio_weights()</code> for that specific intervention. The default call <code>diagnose(fit)</code> produces a single <code>obs</code> panel using the standard Horvitz-Thompson observed-treatment view (<code>1/p</code> on treated rows, <code>1/(1-p)</code> on controls) for IPW.</p>
+<p><strong>Point-treatment and binary IPW only in this chunk.</strong> The full rewrite (continuous / categorical / count / multivariate IPW; longitudinal ICE; ATT / ATC balance; effect-modification stratification; per-intervention propensity histograms; weight-distribution plots; <code>vignettes/diagnostics.qmd</code>) lands in subsequent chunks. Each currently-unsupported combination aborts with a <code style="white-space: pre;">causatr_diag_*_pending</code> classed error.</p>
 </section>
 <section id="usage" class="level3">
 <h3 class="anchored" data-anchor-id="usage">Usage</h3>
 <pre><code class="language-R">diagnose(
   fit,
+  interventions = NULL,
+  by = NULL,
   stats = c("m", "v"),
   thresholds = c(m = 0.1),
   ps_bounds = c(0.025, 0.975)
@@ -531,6 +533,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </td>
 <td>
 A <code>causatr_fit</code> object returned by <code>causat()</code>.
+</td>
+</tr>
+<tr>
+<td style="white-space: collapse; font-family: monospace; vertical-align: top">
+<code id="interventions">interventions</code>
+</td>
+<td>
+Named list of <code>causatr_intervention</code> objects (or <code>NULL</code> entries for natural course). When <code>NULL</code> (the default), a single panel keyed <code>obs</code> is produced using the standard observed-treatment diagnostic for the estimator. When non-<code>NULL</code>, each named entry spawns its own per-intervention panel.
+</td>
+</tr>
+<tr>
+<td style="white-space: collapse; font-family: monospace; vertical-align: top">
+<code id="by">by</code>
+</td>
+<td>
+Character scalar naming a baseline modifier for stratified balance reporting. Currently rejected with <code>causatr_diag_em_pending</code> – the hook is reserved so future chunks can lift the rejection without a signature break.
 </td>
 </tr>
 <tr>
@@ -564,15 +582,15 @@ Numeric vector of length 2. Lower and upper bounds for flagging positivity viola
 <h4 class="anchored">
 Positivity
 </h4>
-<p>For binary treatment, fits a logistic regression of the treatment on the confounders and flags individuals whose estimated propensity score falls outside <code>ps_bounds</code>. The returned <code>positivity</code> table summarises the propensity score distribution and the number/fraction of near-violations.</p>
+<p>For binary treatment, fits a logistic regression of the treatment on the confounders and flags individuals whose estimated propensity score falls outside <code>ps_bounds</code>. The returned <code>positivity</code> table summarises the propensity score distribution and the number/fraction of near-violations. The propensity score is intervention-independent, so each panel carries an identical positivity table.</p>
 <h4 class="anchored">
 Balance (IPW and matching)
 </h4>
-<p>If the <code>cobalt</code> package is installed, balance is computed via <code>cobalt::bal.tab()</code> on the internal <code>weightit</code> or <code>matchit</code> object. This provides standardised mean differences (SMD), variance ratios, and KS statistics before and after adjustment. If <code>cobalt</code> is not installed, a simpler data.table-based SMD comparison is returned.</p>
+<p>If the <code>cobalt</code> package is installed, balance is computed via <code>cobalt::bal.tab()</code> on the propensity formula or matchit object. This provides standardised mean differences (SMD), variance ratios, and KS statistics. If <code>cobalt</code> is not installed, a simpler data.table-based SMD comparison is returned. The chunk 11a balance view is the unadjusted SMD across treatment groups – post-weighting balance under specific interventions / estimands lands in a later chunk.</p>
 <h4 class="anchored">
 Weight distribution (IPW only)
 </h4>
-<p>Summarises the IPW weights: mean, SD, min, max, and the effective sample size (ESS) for the treated and control groups.</p>
+<p>For the default <code>obs</code> panel: summarises the observed-treatment Horvitz-Thompson weights (<code>1/p</code> on treated, <code>1/(1-p)</code> on controls), which is the standard Hernán &amp; Robins Ch. 12 IPW weight diagnostic. For each user-supplied intervention: summarises the per-intervention density-ratio weight from <code>compute_density_ratio_weights()</code>. Both views report mean / SD / min / max plus the effective sample size (Kish 1965) <code style="white-space: pre;">ESS = (sum w)^2 / sum(w^2)</code> for treated / control / overall groups.</p>
 <h4 class="anchored">
 Match quality (matching only)
 </h4>
@@ -583,34 +601,40 @@ Match quality (matching only)
 <p>A <code>causatr_diag</code> object with slots:</p>
 <dl>
 <dt>
-<code>balance</code>
+<code>per_intervention</code>
 </dt>
 <dd>
-<code>cobalt::bal.tab</code> object (if cobalt installed) or a data.table of SMDs. Covariate balance summary.
+Named list of per-intervention panels. Each panel is itself a list with <code>positivity</code>, <code>balance</code>, <code>weights</code> slots (any of which may be <code>NULL</code>).
 </dd>
 <dt>
-<code>positivity</code>
+<code>interventions</code>
 </dt>
 <dd>
-data.table: propensity score summary and count of near-violations.
+Character vector of intervention keys, in the order they appear in <code>per_intervention</code>.
 </dd>
 <dt>
-<code>weights</code>
+<code>positivity</code>, <code>balance</code>, <code>weights</code>
 </dt>
 <dd>
-data.table or <code>NULL</code>: weight distribution summary (IPW only).
+Top-level shortcuts that point to the corresponding slots of the first panel; preserved for backward compatibility with the flat shape used pre-chunk 11a.
 </dd>
 <dt>
 <code>match_quality</code>
 </dt>
 <dd>
-data.table or <code>NULL</code>: match quality summary (matching only).
+data.table or <code>NULL</code>: match quality summary (matching only). Lives at the top level because matching is done once at fit time and is intervention-agnostic.
 </dd>
 <dt>
 <code>estimator</code>
 </dt>
 <dd>
 Character: the causal estimator.
+</dd>
+<dt>
+<code>fit_info</code>
+</dt>
+<dd>
+Named list with summary metadata (<code>treatment_type</code>, <code>estimand</code>, <code>type</code>, <code>has_em</code>).
 </dd>
 <dt>
 <code>fit</code>
@@ -623,6 +647,7 @@ The original <code>causatr_fit</code> (stored for <code>plot()</code>).
 <section id="references" class="level3">
 <h3 class="anchored" data-anchor-id="references">References</h3>
 <p>Greifer N (2024). cobalt: Covariate Balance Tables and Plots. <a href="https://ngreifer.github.io/cobalt/">https://ngreifer.github.io/cobalt/</a></p>
+<p>Hernán MA, Robins JM (2020). <em>Causal Inference: What If</em>. CRC.</p>
 </section>
 <section id="see-also" class="level3">
 <h3 class="anchored" data-anchor-id="see-also">See Also</h3>
@@ -637,9 +662,14 @@ The original <code>causatr_fit</code> (stored for <code>plot()</code>).
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(nhefs, <span class="at">outcome =</span> <span class="st">"wt82_71"</span>, <span class="at">treatment =</span> <span class="st">"qsmk"</span>,</span>
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>              <span class="at">confounders =</span> <span class="sc">~</span> sex <span class="sc">+</span> age <span class="sc">+</span> wt71,</span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>              <span class="at">estimator =</span> <span class="st">"ipw"</span>)</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>diag <span class="ot">&lt;-</span> <span class="fu">diagnose</span>(fit)</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(diag)</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(diag)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Default: single observed-treatment panel.</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>diag <span class="ot">&lt;-</span> <span class="fu">diagnose</span>(fit)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(diag)</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(diag)</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Per-intervention dispatch:</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>diag2 <span class="ot">&lt;-</span> <span class="fu">diagnose</span>(fit, <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)))</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(diag2)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 
 

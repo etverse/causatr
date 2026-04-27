@@ -543,6 +543,7 @@ window.Quarto = {
   history = 1L,
   numerator = NULL,
   weights = NULL,
+  cluster = NULL,
   type = NULL,
   model_fn = stats::glm,
   propensity_model_fn = NULL,
@@ -664,7 +665,15 @@ A one-sided formula or <code>NULL</code>. Numerator formula for stabilized IPW w
 <code id="weights">weights</code>
 </td>
 <td>
-Numeric vector or <code>NULL</code>. Pre-computed observation weights (e.g.&nbsp;survey weights or externally computed IPCW). For <code>“gcomp”</code>, passed to <code>glm()</code>. For <code>“ipw”</code>, multiplied with the estimated propensity weights.
+Numeric vector, a <code>survey::svydesign</code> object, or <code>NULL</code>. Pre-computed observation weights (e.g.&nbsp;survey weights or externally computed IPCW). When a <code>survey.design</code> object is supplied, <code>stats::weights()</code> is used to extract the sampling weights and the first-stage cluster (PSU) is auto-propagated into the fit’s <code>cluster</code> slot so the contrast-time sandwich is cluster-robust by default; override by passing an explicit <code style="white-space: pre;">cluster =</code> alongside. For <code>“gcomp”</code>, passed to <code>glm()</code>. For <code>“ipw”</code>, multiplied with the estimated propensity weights.
+</td>
+</tr>
+<tr>
+<td style="white-space: collapse; font-family: monospace; vertical-align: top">
+<code id="cluster">cluster</code>
+</td>
+<td>
+Character or <code>NULL</code>. Name of a column in <code>data</code> identifying cluster membership (e.g.&nbsp;site, household, PSU id). Stored in the fit and preserved through <code>prepare_data()</code> so that <code>contrast()</code> can default its own <code style="white-space: pre;">cluster =</code> argument to this column, producing a cluster-robust sandwich without the user having to repeat the column name. Users can still override at contrast time by passing <code style="white-space: pre;">cluster = </code> explicitly. Forwarded to matching is not allowed (matching clusters on its own <code>subclass</code>).
 </td>
 </tr>
 <tr>
