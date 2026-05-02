@@ -1,6 +1,6 @@
 # Phase 11 — Full `diagnose()` rewrite
 
-> **Status: IN PROGRESS** — chunks 11a (2026-04-26) and 11b (2026-05-02) shipped.
+> **Status: IN PROGRESS** — chunks 11a (2026-04-26), 11b (2026-05-02), and 11c (2026-05-02) shipped.
 > Dependencies: Phase 4 (done), Phase 5 (done), Phase 6 (effect modification), Phase 8 (multivariate IPW), Phase 10 (longitudinal IPW), Phase 14 (IPCW)
 
 ## Why this deserves its own phase
@@ -142,7 +142,8 @@ The Phase 4 shim keeps `diagnose(fit)` working on the common binary static ATE c
   / `summarise_weights_by_arm()`.
 - [x] Positivity + balance + weight helpers, one per treatment type
   (chunk 11b — `gaussian` / `categorical` / `count` / multivariate).
-- [ ] Longitudinal dispatch path (chunk 11c).
+- [x] Longitudinal dispatch path (chunk 11c — per-period positivity,
+  balance, and weight diagnostics for ICE + longitudinal IPW).
 - [ ] Estimand-aware ATT / ATC balance + `by =` stratification (chunk 11d).
 
 **Tests:**
@@ -152,6 +153,9 @@ The Phase 4 shim keeps `diagnose(fit)` working on the common binary static ATE c
 - [x] Chunk 11b tests: continuous / categorical / count / multivariate IPW
   diagnostics, truth-based density-ratio weight reconstruction, per-component
   intervention panels.
+- [x] Chunk 11c tests: longitudinal ICE balance, longitudinal IPW
+  positivity/balance/weights, continuous longitudinal IPW with shift
+  intervention, truth-based cumulative weight reconstruction.
 - [ ] One test per (estimator × treatment type × intervention type × estimand)
   combination as each follow-up chunk lifts its rejection.
 
@@ -160,7 +164,8 @@ The Phase 4 shim keeps `diagnose(fit)` working on the common binary static ATE c
 
 **FEATURE_COVERAGE_MATRIX:**
 - [x] Phase 11 row updated with chunk 11a status.
-- [ ] Per-treatment-type / per-estimand cells fill in across chunks 11b–11d.
+- [x] Chunk 11b/11c coverage rows added.
+- [ ] Per-estimand cells fill in with chunk 11d.
 
 ## Chunks
 
@@ -252,13 +257,43 @@ What shipped:
   count (Poisson + negbin), and multivariate (default + per-component
   interventions).
 
-### Chunk 11c — Longitudinal (ICE) dispatch (PENDING)
+### Chunk 11c — Longitudinal dispatch (DONE, 2026-05-02)
 
-Lift `causatr_diag_longitudinal_pending`. Add per-period positivity,
-balance, censoring-attrition, and weight-distribution diagnostics on the
-ICE / longitudinal-IPW fits. Loop over `time_points` similar to
-`variance_if_ice()`'s per-period iteration. Surface results under a
-`time_points` nested list in the `causatr_diag` output.
+What shipped:
+
+- Removed `causatr_diag_longitudinal_pending` rejection gate.
+- `diagnose_longitudinal()` dispatches longitudinal fits to per-period
+  diagnostic helpers. Each panel stores `positivity`, `balance`, and
+  `weights` as named lists keyed by time-point string
+  (e.g. `"0"`, `"1"`).
+- `compute_positivity_longitudinal()` loops over
+  `treatment_models_by_time`, builds a fake single-period fit per time
+  point, and dispatches to the family-appropriate positivity helper
+  (binary PS quantiles, density-range, categorical per-level).
+- `compute_balance_longitudinal()` computes per-period balance by
+  subsetting data to each time point and running cobalt (or the simple
+  fallback) on the available baseline + time-varying confounders.
+- `compute_weights_longitudinal()` computes per-period weight summaries
+  (HT by arm for binary, overall for non-binary) plus a cumulative
+  product-weight summary. Supports both the default `obs` view and
+  user-supplied interventions; stabilized weights are handled via
+  `compute_stabilized_period_weight()`.
+- `detect_diag_treatment_type()` updated to check
+  `treatment_models_by_time` before the point-IPW
+  `treatment_model` branch, since longitudinal IPW stores the latter
+  as a list-of-models rather than a single `causatr_treatment_model`.
+- `print_diag_panel()` extended to handle per-period `balance` and
+  `weights` (named lists printed with time-point headers), in addition
+  to the existing per-component/per-period `positivity` support.
+- `print.causatr_diag()` header shows "Type: longitudinal" for
+  longitudinal fits.
+- Tests: 4 new test blocks — ICE balance-only, longitudinal IPW
+  binary (positivity + weights + balance), continuous longitudinal IPW
+  with shift intervention, and truth-based cumulative weight
+  reconstruction matching `compute_longitudinal_weights()`.
+
+What deferred: censoring-attrition diagnostics and visit-process
+diagnostics land with Phase 14 (IPCW).
 
 ### Chunk 11d — Estimand and effect-modification awareness (PENDING)
 

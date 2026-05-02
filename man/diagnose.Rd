@@ -75,6 +75,11 @@ covariate balance, weight distribution.
 \item \strong{Multivariate IPW}: per-component positivity, covariate
 balance on the first component, combined product-weight
 distribution.
+\item \strong{Longitudinal IPW}: per-period positivity and weight
+distribution from \code{treatment_models_by_time}, per-period
+covariate balance.
+\item \strong{Longitudinal gcomp (ICE)}: per-period covariate balance
+(no weights or positivity since ICE has no treatment model).
 \item \code{"matching"}: covariate balance before and after matching (via
 \code{cobalt}), match quality summary.
 \item \code{"gcomp"}: unadjusted covariate imbalance between treatment

@@ -16,14 +16,7 @@ test_that("diagnose() rejects non-causatr_fit input", {
 })
 
 
-test_that("diagnose() rejects longitudinal fits with a clear error", {
-  # Coverage gap: running diagnose() on a longitudinal fit used to
-  # produce a degenerate single-row positivity table (logistic on all
-  # time points pooled) and then crash inside cobalt's print method.
-  # Reject explicitly until per-period diagnostics land in a future
-  # phase. Snapshot locks the message so a future refactor can't
-  # silently downgrade the error or accidentally re-enable the broken
-  # code path.
+test_that("diagnose() works for longitudinal ICE fits", {
   set.seed(1)
   n <- 60
   L0 <- stats::rnorm(n)
@@ -47,7 +40,189 @@ test_that("diagnose() rejects longitudinal fits with a clear error", {
     id = "id",
     time = "time"
   )
-  expect_snapshot(error = TRUE, diagnose(fit))
+  diag <- diagnose(fit)
+  expect_s3_class(diag, "causatr_diag")
+  expect_equal(diag$estimator, "gcomp")
+  expect_equal(diag$fit_info$type, "longitudinal")
+
+  # ICE has no treatment model, so positivity and weights are NULL.
+  panel <- diag$per_intervention[[1]]
+  expect_null(panel$positivity)
+  expect_null(panel$weights)
+
+  # Balance is per-period (named list keyed by time point).
+  bal <- panel$balance
+  expect_true(is.list(bal))
+  expect_true(all(c("0", "1") %in% names(bal)))
+
+  # Print should not error.
+  expect_output(print(diag), "longitudinal")
+})
+
+
+test_that("diagnose() works for longitudinal IPW fits", {
+  set.seed(2)
+  n <- 100
+  L0 <- stats::rnorm(n)
+  A0 <- stats::rbinom(n, 1, plogis(0.4 * L0))
+  L1 <- L0 + 0.3 * A0 + stats::rnorm(n)
+  A1 <- stats::rbinom(n, 1, plogis(0.4 * L1))
+  Y <- 1 + A0 + A1 + 0.5 * L1 + stats::rnorm(n)
+  long <- data.table::data.table(
+    id = rep(seq_len(n), each = 2),
+    time = rep(0:1, times = n),
+    A = as.numeric(rbind(A0, A1)),
+    L = as.numeric(rbind(L0, L1)),
+    Y = rep(Y, each = 2)
+  )
+  fit <- causat(
+    long,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~1,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    estimator = "ipw"
+  )
+  diag <- diagnose(fit)
+  expect_s3_class(diag, "causatr_diag")
+  expect_equal(diag$estimator, "ipw")
+  expect_equal(diag$fit_info$type, "longitudinal")
+  expect_equal(diag$fit_info$treatment_type, "binary")
+
+  panel <- diag$per_intervention[[1]]
+
+  # Positivity: per-period (named list with one table per time point).
+  pos <- panel$positivity
+  expect_true(is.list(pos))
+  expect_true(all(c("0", "1") %in% names(pos)))
+  expect_s3_class(pos[["0"]], "data.table")
+  # Binary positivity table has the propensity-score quantiles.
+  expect_true("min" %in% pos[["0"]]$statistic)
+
+  # Weights: per-period + cumulative.
+  wts <- panel$weights
+  expect_true(is.list(wts))
+  expect_true("cumulative" %in% names(wts))
+  expect_true(all(c("0", "1") %in% names(wts)))
+  # Per-period weight tables have the standard column schema.
+  expect_true("ess" %in% names(wts[["0"]]))
+  # Cumulative weight table is a single overall row.
+  expect_equal(wts[["cumulative"]]$group, "overall")
+
+  # Balance: per-period.
+  bal <- panel$balance
+  expect_true(is.list(bal))
+
+  # Print should not error.
+  expect_output(print(diag), "longitudinal")
+})
+
+
+test_that("diagnose() longitudinal IPW with intervention", {
+  set.seed(3)
+  n <- 80
+  L0 <- stats::rnorm(n)
+  A0 <- 0.5 * L0 + stats::rnorm(n)
+  L1 <- 0.3 * A0 + L0 + stats::rnorm(n)
+  A1 <- 0.5 * L1 + stats::rnorm(n)
+  Y <- A0 + A1 + L1 + stats::rnorm(n)
+  long <- data.table::data.table(
+    id = rep(seq_len(n), each = 2),
+    time = rep(0:1, times = n),
+    A = as.numeric(rbind(A0, A1)),
+    L = as.numeric(rbind(L0, L1)),
+    Y = rep(Y, each = 2)
+  )
+  fit <- causat(
+    long,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~1,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    estimator = "ipw"
+  )
+  diag <- diagnose(
+    fit,
+    interventions = list(s1 = shift(0.5))
+  )
+  expect_s3_class(diag, "causatr_diag")
+  expect_equal(diag$fit_info$treatment_type, "continuous")
+
+  panel <- diag$per_intervention[["s1"]]
+
+  # Positivity: per-period density-range summaries.
+  pos <- panel$positivity
+  expect_true(is.list(pos))
+  expect_s3_class(pos[["0"]], "data.table")
+  expect_true("n_low_density" %in% pos[["0"]]$statistic)
+
+  # Weights: per-period + cumulative with non-trivial values.
+  wts <- panel$weights
+  expect_true(is.list(wts))
+  expect_true("cumulative" %in% names(wts))
+  cum_ess <- wts[["cumulative"]]$ess
+  expect_true(is.finite(cum_ess))
+  expect_gt(cum_ess, 0)
+
+  # Cumulative ESS should be <= n (reweighting reduces ESS).
+  expect_lte(cum_ess, n)
+})
+
+
+test_that("diagnose() longitudinal IPW cumulative weight equals manual product", {
+  # Truth-based: manually multiply per-period density ratios and
+  # verify the cumulative ESS matches.
+  set.seed(4)
+  n <- 120
+  L0 <- stats::rnorm(n)
+  A0 <- stats::rbinom(n, 1, plogis(0.3 * L0))
+  L1 <- L0 + 0.2 * A0 + stats::rnorm(n)
+  A1 <- stats::rbinom(n, 1, plogis(0.3 * L1))
+  Y <- A0 + A1 + L1 + stats::rnorm(n)
+  long <- data.table::data.table(
+    id = rep(seq_len(n), each = 2),
+    time = rep(0:1, times = n),
+    A = as.numeric(rbind(A0, A1)),
+    L = as.numeric(rbind(L0, L1)),
+    Y = rep(Y, each = 2)
+  )
+  fit <- causat(
+    long,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~1,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    estimator = "ipw"
+  )
+  diag <- diagnose(
+    fit,
+    interventions = list(a1 = static(1))
+  )
+  wts <- diag$per_intervention[["a1"]]$weights
+
+  # Manually compute the cumulative weight via the package's engine.
+  w_manual <- compute_longitudinal_weights(
+    treatment_models_by_time = fit$details$treatment_models_by_time,
+    fit_data_by_time = fit$details$fit_data_by_time,
+    ids_first = as.character(
+      fit$details$fit_data_by_time[["0"]][[fit$id]]
+    ),
+    id_col = fit$id,
+    intervention = static(1)
+  )
+  manual_ess <- sum(w_manual)^2 / sum(w_manual^2)
+
+  expect_equal(
+    wts[["cumulative"]]$ess,
+    manual_ess,
+    tolerance = 1e-6
+  )
 })
 
 test_that("diagnose() returns causatr_diag for gcomp", {

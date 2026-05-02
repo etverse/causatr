@@ -210,6 +210,9 @@ print.causatr_diag <- function(x, ...) {
   if (!is.null(fit_info$estimand)) {
     cat(" Estimand:  ", fit_info$estimand, "\n", sep = "")
   }
+  if (identical(fit_info$type, "longitudinal")) {
+    cat(" Type:      longitudinal\n")
+  }
   cat("\n")
 
   panels <- x$per_intervention
@@ -266,7 +269,8 @@ print_diag_panel <- function(panel, header = NULL) {
   if (!is.null(panel$positivity)) {
     pos <- panel$positivity
     if (is.list(pos) && !data.table::is.data.table(pos)) {
-      # Multivariate: named list of per-component tables.
+      # Named list: per-component (multivariate) or per-period
+      # (longitudinal) tables.
       for (nm in names(pos)) {
         cat("Positivity (", nm, "):\n", sep = "")
         print(pos[[nm]], row.names = FALSE)
@@ -279,14 +283,38 @@ print_diag_panel <- function(panel, header = NULL) {
     }
   }
   if (!is.null(panel$balance)) {
-    cat("Covariate balance:\n")
-    print(panel$balance)
-    cat("\n")
+    bal <- panel$balance
+    if (
+      is.list(bal) &&
+        !data.table::is.data.table(bal) &&
+        !inherits(bal, "bal.tab")
+    ) {
+      # Per-period balance (longitudinal).
+      for (nm in names(bal)) {
+        cat("Covariate balance (", nm, "):\n", sep = "")
+        print(bal[[nm]])
+        cat("\n")
+      }
+    } else {
+      cat("Covariate balance:\n")
+      print(bal)
+      cat("\n")
+    }
   }
   if (!is.null(panel$weights)) {
-    cat("Weight distribution:\n")
-    print(panel$weights, row.names = FALSE)
-    cat("\n")
+    wts <- panel$weights
+    if (is.list(wts) && !data.table::is.data.table(wts)) {
+      # Per-period weights (longitudinal).
+      for (nm in names(wts)) {
+        cat("Weight distribution (", nm, "):\n", sep = "")
+        print(wts[[nm]], row.names = FALSE)
+        cat("\n")
+      }
+    } else {
+      cat("Weight distribution:\n")
+      print(wts, row.names = FALSE)
+      cat("\n")
+    }
   }
   invisible(NULL)
 }
