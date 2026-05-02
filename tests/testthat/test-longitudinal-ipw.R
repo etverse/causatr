@@ -231,7 +231,7 @@ test_that("T-long-ipw4: longitudinal IPW shift point estimate agrees with lmtp::
       trt = c("A_0", "A_1"),
       outcome = "Y",
       baseline = "L0",
-      time_vary = list("L_1"),
+      time_vary = list(NULL, "L_1"),
       shift = shift_fn,
       outcome_type = "continuous",
       learners_trt = "SL.glm",
