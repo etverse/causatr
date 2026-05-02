@@ -39,10 +39,10 @@
 #'   panel keyed `obs` is produced using the standard observed-treatment
 #'   diagnostic for the estimator. When non-`NULL`, each named entry spawns
 #'   its own per-intervention panel.
-#' @param by Character scalar naming a baseline modifier for stratified
-#'   balance reporting. Currently rejected with
-#'   `causatr_diag_em_pending` -- the hook is reserved so future chunks can
-#'   lift the rejection without a signature break.
+#' @param by Character scalar naming a baseline variable for stratified
+#'   balance reporting. When non-`NULL`, covariate balance is computed
+#'   within each stratum of `by` via `cobalt::bal.tab(..., cluster = by)`.
+#'   The variable must be present in the data.
 #' @param stats Character vector. Balance statistics to compute. Passed to
 #'   `cobalt::bal.tab()`. For binary treatments, valid options include `"m"`
 #'   (standardised mean differences), `"v"` (variance ratios), and `"ks"`
@@ -138,7 +138,7 @@ diagnose <- function(
     rlang::abort("`fit` must be a `causatr_fit` object returned by `causat()`.")
   }
 
-  check_diag_pending_gates(fit, interventions, by, call = rlang::current_env())
+  check_diag_by_arg(fit, by, call = rlang::current_env())
 
   # Resolve the panel set. `default_view = TRUE` flags the auto-injected
   # `obs` panel so the IPW handler knows to use the observed-treatment
@@ -180,7 +180,7 @@ diagnose <- function(
   # the unadjusted balance view (chunk 11a). Both are shared across
   # every panel below.
   positivity_shared <- compute_positivity(fit, ps_bounds)
-  balance_shared <- compute_balance(fit, stats, thresholds)
+  balance_shared <- compute_balance(fit, stats, thresholds, by = by)
 
   per_intervention <- lapply(seq_along(interventions), function(i) {
     nm <- names(interventions)[i]
@@ -212,62 +212,36 @@ diagnose <- function(
   )
 }
 
-#' Reject combinations not yet supported by `diagnose()`
+#' Validate `by =` argument for stratified diagnostics
 #'
 #' @description
-#' Centralises the up-front rejection gates so each unsupported
-#' combination aborts with a stable `causatr_diag_*_pending` classed
-#' error. Two gates remain: IPW + ATT/ATC estimand (chunk 11d) and
-#' `by =` effect-modification stratification (chunk 11d).
+#' Checks that the `by` variable exists in the data and is a
+#' baseline variable. Aborts with an informative error if the
+#' variable is missing or not present in the data.
 #'
 #' @param fit A `causatr_fit` object.
-#' @param interventions Named list (or `NULL`).
 #' @param by Character scalar or `NULL`.
-#' @param call Caller environment for error attribution (so the
-#'   user-visible message names `diagnose()` rather than the helper).
-#' @return `NULL` invisibly; aborts with the appropriate classed error.
+#' @param call Caller environment for error attribution.
+#' @return `NULL` invisibly.
 #' @noRd
-check_diag_pending_gates <- function(fit, interventions, by, call) {
-  if (!is.null(by)) {
+check_diag_by_arg <- function(fit, by, call) {
+  if (is.null(by)) {
+    return(invisible(NULL))
+  }
+
+  if (!is.character(by) || length(by) != 1L) {
     rlang::abort(
-      c(
-        "`by =` stratified diagnostics are not yet implemented.",
-        i = paste0(
-          "Effect-modification-aware balance lands in a later chunk; ",
-          "the `by =` argument is reserved so future chunks can lift this ",
-          "rejection without a signature break."
-        )
-      ),
-      class = "causatr_diag_em_pending",
+      "`by` must be a single character string naming a variable.",
       call = call
     )
   }
 
-  if (fit$estimator != "ipw") {
-    # gcomp + matching under ATT / ATC are unchanged from ATE in
-    # chunk 11a: gcomp's balance is the unadjusted SMD (estimand-
-    # agnostic), and matching's diagnostics flow from the matchit
-    # object, which already reflects the requested estimand. Only
-    # IPW needs the within-treated / within-control balance rewrite,
-    # so the estimand gate fires only there.
-    return(invisible(NULL))
-  }
-
-  if (fit$estimand %in% c("ATT", "ATC")) {
+  if (!by %in% names(fit$data)) {
     rlang::abort(
       c(
-        paste0(
-          "`diagnose()` for IPW under `estimand = '",
-          fit$estimand,
-          "'` is not yet implemented."
-        ),
-        i = paste0(
-          "Within-treated / within-control balance and the corresponding ",
-          "weight summary land in a later chunk; the chunk 11a IPW balance ",
-          "view assumes ATE."
-        )
+        paste0("`by = \"", by, "\"` not found in the data."),
+        i = "The `by` variable must be a column in the data passed to `causat()`."
       ),
-      class = "causatr_diag_estimand_pending",
       call = call
     )
   }
@@ -674,11 +648,23 @@ compute_positivity_multivariate <- function(fit, ps_bounds) {
 #' @param fit A `causatr_fit` object.
 #' @param stats Character vector of balance statistics for cobalt.
 #' @param thresholds Named list of thresholds for cobalt.
+#' @param by Character scalar or `NULL`. When non-`NULL`, passed as
+#'   `cluster =` to `cobalt::bal.tab()` for stratified balance.
 #' @return A cobalt `bal.tab` object or a data.table of SMDs.
 #' @noRd
-compute_balance <- function(fit, stats, thresholds) {
+compute_balance <- function(fit, stats, thresholds, by = NULL) {
   if (!rlang::is_installed("cobalt")) {
-    return(compute_balance_simple(fit))
+    return(compute_balance_simple(fit, by = by))
+  }
+
+  # cobalt::bal.tab() accepts `cluster =` for stratified balance.
+  cluster_arg <- if (!is.null(by)) {
+    fit_rows <- if (!is.null(fit$details$fit_rows)) {
+      fit$details$fit_rows
+    } else {
+      get_fit_rows(fit$data, fit$outcome, fit$censoring)
+    }
+    fit$data[fit_rows][[by]]
   }
 
   if (
@@ -686,14 +672,6 @@ compute_balance <- function(fit, stats, thresholds) {
       (!is.null(fit$details$treatment_model) ||
         !is.null(fit$details$treatment_models))
   ) {
-    # The self-contained density-ratio engine has no `weightit` object
-    # to feed cobalt directly. Call the formula interface on the
-    # observed treatment -- this produces the "unadjusted" balance view.
-    # For multivariate, use the first treatment component only --
-    # `build_ps_formula()` requires a scalar response, and cobalt's
-    # formula interface handles one treatment at a time. Per-component
-    # balance across all K components would need K separate bal.tab
-    # calls (reserved for a future chunk).
     trt <- if (length(fit$treatment) > 1L) {
       fit$treatment[1]
     } else {
@@ -701,31 +679,48 @@ compute_balance <- function(fit, stats, thresholds) {
     }
     ps_formula <- build_ps_formula(fit$confounders, trt)
     fit_rows <- fit$details$fit_rows
-    cobalt::bal.tab(
-      ps_formula,
+    bal_args <- list(
+      x = ps_formula,
       data = as.data.frame(fit$data[fit_rows]),
       stats = stats,
       thresholds = thresholds,
       binary = "std"
     )
+    if (!is.null(cluster_arg)) {
+      bal_args$cluster <- cluster_arg
+    }
+    do.call(cobalt::bal.tab, bal_args)
   } else if (fit$estimator == "matching" && !is.null(fit$match_obj)) {
-    cobalt::bal.tab(
-      fit$match_obj,
+    bal_args <- list(
+      x = fit$match_obj,
       un = TRUE,
       stats = stats,
       thresholds = thresholds,
       binary = "std"
     )
+    if (!is.null(cluster_arg)) {
+      bal_args$cluster <- cluster_arg
+    }
+    do.call(cobalt::bal.tab, bal_args)
   } else {
     ps_formula <- build_ps_formula(fit$confounders, fit$treatment)
     fit_rows <- get_fit_rows(fit$data, fit$outcome, fit$censoring)
-    cobalt::bal.tab(
-      ps_formula,
+    bal_args <- list(
+      x = ps_formula,
       data = as.data.frame(fit$data[fit_rows]),
       stats = stats,
       thresholds = thresholds,
       binary = "std"
     )
+    if (!is.null(cluster_arg)) {
+      cluster_rows <- get_fit_rows(
+        fit$data,
+        fit$outcome,
+        fit$censoring
+      )
+      bal_args$cluster <- fit$data[cluster_rows][[by]]
+    }
+    do.call(cobalt::bal.tab, bal_args)
   }
 }
 
@@ -741,7 +736,7 @@ compute_balance <- function(fit, stats, thresholds) {
 #' @param fit A `causatr_fit` object.
 #' @return A data.table of balance metrics, or `NULL`.
 #' @noRd
-compute_balance_simple <- function(fit) {
+compute_balance_simple <- function(fit, by = NULL) {
   data <- fit$data
   treatment <- fit$treatment
   outcome <- fit$outcome
@@ -857,7 +852,11 @@ compute_weight_summary_observed <- function(fit) {
   fit_rows <- fit$details$fit_rows
   fit_data <- fit$data[fit_rows]
 
-  # Binary: Horvitz-Thompson observed-arm view.
+  # Binary: Horvitz-Thompson observed-arm view. The weight formula
+  # depends on the estimand:
+  #   ATE: w = A/p + (1-A)/(1-p)
+  #   ATT: w = A + (1-A) * p/(1-p)
+  #   ATC: w = A * (1-p)/p + (1-A)
   if (tm$family == "bernoulli") {
     a_obs <- fit_data[[fit$treatment[1]]]
     p <- as.numeric(stats::predict(
@@ -865,7 +864,14 @@ compute_weight_summary_observed <- function(fit) {
       newdata = fit_data,
       type = "response"
     ))
-    w <- ifelse(a_obs == 1, 1 / p, 1 / (1 - p))
+    estimand <- fit$estimand %||% "ATE"
+    if (estimand == "ATT") {
+      w <- ifelse(a_obs == 1, 1, p / (1 - p))
+    } else if (estimand == "ATC") {
+      w <- ifelse(a_obs == 1, (1 - p) / p, 1)
+    } else {
+      w <- ifelse(a_obs == 1, 1 / p, 1 / (1 - p))
+    }
     return(summarise_weights_by_arm(w, a_obs))
   }
 

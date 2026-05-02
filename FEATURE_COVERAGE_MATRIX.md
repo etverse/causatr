@@ -315,8 +315,11 @@ remain in this matrix.
 | `diagnose()` longitudinal IPW binary — per-period positivity + weights + balance | ✅ | test-diagnose.R |
 | `diagnose()` longitudinal IPW continuous — shift intervention per-period diagnostics | ✅ | test-diagnose.R |
 | `diagnose()` longitudinal IPW — cumulative weight matches manual product | ✅ | test-diagnose.R |
-| `diagnose()` `causatr_diag_estimand_pending` rejection (IPW + ATT/ATC) | ✅ | test-diagnose.R |
-| `diagnose()` `causatr_diag_em_pending` rejection (`by =`) | ✅ | test-diagnose.R |
+| `diagnose()` IPW ATT — treated weight = 1, control = p/(1-p) | ✅ | test-diagnose.R |
+| `diagnose()` IPW ATC — control weight = 1, treated = (1-p)/p | ✅ | test-diagnose.R |
+| `diagnose()` IPW ATT ESS sanity: ESS_treated = n_treated | ✅ | test-diagnose.R |
+| `diagnose()` `by =` stratified balance via cobalt cluster | ✅ | test-diagnose.R |
+| `diagnose()` `by =` validation (missing column, non-scalar) | ✅ | test-diagnose.R |
 | S3 methods (print/summary/plot/coef/vcov/confint/tidy/glance) | 🟡 | test-s3-methods.R |
 | `knit_print.causatr_result` + `.onLoad` registration | ✅ | test-knit-print.R |
 | Input-validation helpers (`check_string`, `check_formula`, `check_col_exists`, `check_pkg`) | ✅ | test-checks.R |
@@ -390,7 +393,7 @@ Survey design integration, general cluster-robust sandwich, `future` backend. **
 Sequential density-ratio weights, cumulative product weights, stabilized weights, time-varying MSM. All ❌.
 
 ### Phase 11 — diagnose() rewrite
-Intervention-aware, treatment-type-aware, estimand-aware, longitudinal-aware diagnostics. **Chunks 11a–11c shipped.** 11a (foundation): nested per-intervention `causatr_diag` shape, `interventions =` argument, binary IPW per-intervention weight summary. 11b (treatment-type dispatch): density-range positivity for continuous/count, per-level positivity for categorical, per-component positivity for multivariate, overall weight summaries for all non-binary types, truth-based weight reconstruction test. 11c (longitudinal dispatch): per-period positivity/balance/weight diagnostics for longitudinal IPW, per-period balance for ICE, cumulative weight summary. Chunks 11d–11e (ATT/ATC + EM, plot overhaul + vignette) still ❌.
+Intervention-aware, treatment-type-aware, estimand-aware, longitudinal-aware diagnostics. **Chunks 11a–11d shipped.** 11a (foundation): nested per-intervention `causatr_diag` shape, `interventions =` argument, binary IPW per-intervention weight summary. 11b (treatment-type dispatch): density-range positivity for continuous/count, per-level positivity for categorical, per-component positivity for multivariate, overall weight summaries for all non-binary types, truth-based weight reconstruction test. 11c (longitudinal dispatch): per-period positivity/balance/weight diagnostics for longitudinal IPW, per-period balance for ICE, cumulative weight summary. 11d (estimand + EM): IPW ATT/ATC observed-treatment weights, `by =` stratified balance via cobalt `cluster`. Chunk 11e (plot overhaul + vignette) still ❌.
 
 ### Phase 12 — Stochastic interventions
 `stochastic()` under gcomp (point + ICE), MC g-formula, MC-averaged IFs. IPW/matching rejected. All ❌.

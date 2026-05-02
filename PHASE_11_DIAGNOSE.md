@@ -1,6 +1,6 @@
 # Phase 11 — Full `diagnose()` rewrite
 
-> **Status: IN PROGRESS** — chunks 11a (2026-04-26), 11b (2026-05-02), and 11c (2026-05-02) shipped.
+> **Status: IN PROGRESS** — chunks 11a (2026-04-26), 11b–11d (2026-05-02) shipped.
 > Dependencies: Phase 4 (done), Phase 5 (done), Phase 6 (effect modification), Phase 8 (multivariate IPW), Phase 10 (longitudinal IPW), Phase 14 (IPCW)
 
 ## Why this deserves its own phase
@@ -144,7 +144,9 @@ The Phase 4 shim keeps `diagnose(fit)` working on the common binary static ATE c
   (chunk 11b — `gaussian` / `categorical` / `count` / multivariate).
 - [x] Longitudinal dispatch path (chunk 11c — per-period positivity,
   balance, and weight diagnostics for ICE + longitudinal IPW).
-- [ ] Estimand-aware ATT / ATC balance + `by =` stratification (chunk 11d).
+- [x] Estimand-aware ATT / ATC weights + `by =` stratification
+  (chunk 11d — IPW ATT/ATC observed-treatment HT weights,
+  `by =` via cobalt `cluster`).
 
 **Tests:**
 - [x] `test-diagnose.R` chunk 11a — per-intervention dispatch on binary IPW;
@@ -164,8 +166,7 @@ The Phase 4 shim keeps `diagnose(fit)` working on the common binary static ATE c
 
 **FEATURE_COVERAGE_MATRIX:**
 - [x] Phase 11 row updated with chunk 11a status.
-- [x] Chunk 11b/11c coverage rows added.
-- [ ] Per-estimand cells fill in with chunk 11d.
+- [x] Chunk 11b/11c/11d coverage rows added.
 
 ## Chunks
 
@@ -295,15 +296,24 @@ What shipped:
 What deferred: censoring-attrition diagnostics and visit-process
 diagnostics land with Phase 14 (IPCW).
 
-### Chunk 11d — Estimand and effect-modification awareness (PENDING)
+### Chunk 11d — Estimand and effect-modification awareness (DONE, 2026-05-02)
 
-Lift `causatr_diag_estimand_pending` and `causatr_diag_em_pending`. Per-
-intervention post-weighting balance using the standard ATE-IPW combined
-weight `A/p + (1-A)/(1-p)` for static interventions, ATT-flavoured
-within-treated balance using `A + (1-A) * p/(1-p)`, and the symmetric
-ATC view. EM stratification via `cobalt::bal.tab(..., cluster = by)` or
-manual subset loop. Both gate on baseline-modifier status (Phase 6's
-known limitation under MSMs).
+What shipped:
+
+- Removed `causatr_diag_estimand_pending` and
+  `causatr_diag_em_pending` rejection gates. All pending gates from
+  chunk 11a are now lifted.
+- `compute_weight_summary_observed()` now produces estimand-specific
+  HT weights: ATE uses `1/p` and `1/(1-p)`, ATT uses `1` (treated)
+  and `p/(1-p)` (control), ATC uses `(1-p)/p` (treated) and `1`
+  (control). This correctly reflects the per-arm weighting scheme.
+- `by =` argument fully implemented: `check_diag_by_arg()` validates
+  the variable exists and is scalar; `compute_balance()` passes it
+  as `cluster =` to `cobalt::bal.tab()` for stratified balance.
+- Tests: 5 new test blocks — IPW ATT (weight mean/sd), IPW ATC
+  (weight mean), ATT ESS sanity check (ESS_treated = n_treated),
+  `by =` stratified balance, and `by =` validation (missing column,
+  non-scalar).
 
 ### Chunk 11e — Plot overhaul and vignette (PENDING)
 

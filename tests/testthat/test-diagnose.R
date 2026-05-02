@@ -791,16 +791,7 @@ test_that("print.causatr_diag handles multi-panel output", {
 # Each unsupported combination must abort with its `causatr_diag_*_pending`
 # class so future chunks can lift the rejection by removing the gate.
 
-test_that("diagnose() aborts with causatr_diag_em_pending when by= is supplied", {
-  df <- simulate_binary_continuous(n = 200)
-  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L)
-  expect_error(
-    diagnose(fit, by = "L"),
-    class = "causatr_diag_em_pending"
-  )
-})
-
-test_that("diagnose() aborts with causatr_diag_estimand_pending for IPW under ATT", {
+test_that("diagnose() works for IPW under ATT", {
   set.seed(7)
   n <- 600
   L <- rnorm(n)
@@ -815,13 +806,22 @@ test_that("diagnose() aborts with causatr_diag_estimand_pending for IPW under AT
     estimator = "ipw",
     estimand = "ATT"
   )
-  expect_error(
-    diagnose(fit),
-    class = "causatr_diag_estimand_pending"
-  )
+  diag <- diagnose(fit)
+  expect_s3_class(diag, "causatr_diag")
+  expect_equal(diag$fit_info$estimand, "ATT")
+
+  # Under ATT, treated get weight 1, controls get p/(1-p).
+  wts <- diag$weights
+  treated_row <- wts[wts$group == "treated", ]
+  expect_equal(treated_row$mean, 1)
+  expect_equal(treated_row$sd, 0)
+
+  # Control weights should be > 0 and have some variance.
+  control_row <- wts[wts$group == "control", ]
+  expect_gt(control_row$mean, 0)
 })
 
-test_that("diagnose() aborts with causatr_diag_estimand_pending for IPW under ATC", {
+test_that("diagnose() works for IPW under ATC", {
   set.seed(7)
   n <- 600
   L <- rnorm(n)
@@ -836,10 +836,69 @@ test_that("diagnose() aborts with causatr_diag_estimand_pending for IPW under AT
     estimator = "ipw",
     estimand = "ATC"
   )
-  expect_error(
-    diagnose(fit),
-    class = "causatr_diag_estimand_pending"
+  diag <- diagnose(fit)
+  expect_s3_class(diag, "causatr_diag")
+  expect_equal(diag$fit_info$estimand, "ATC")
+
+  # Under ATC, controls get weight 1, treated get (1-p)/p.
+  wts <- diag$weights
+  control_row <- wts[wts$group == "control", ]
+  expect_equal(control_row$mean, 1)
+
+  treated_row <- wts[wts$group == "treated", ]
+  expect_gt(treated_row$mean, 0)
+})
+
+test_that("diagnose() with by= produces stratified balance", {
+  set.seed(8)
+  n <- 400
+  sex <- sample(c("M", "F"), n, replace = TRUE)
+  L <- rnorm(n)
+  A <- rbinom(n, 1, plogis(0.5 * L))
+  Y <- 2 + 3 * A + L + rnorm(n)
+  d <- data.table::data.table(Y = Y, A = A, L = L, sex = sex)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L + sex,
+    estimator = "ipw"
   )
+  diag <- diagnose(fit, by = "sex")
+  expect_s3_class(diag, "causatr_diag")
+  bal <- diag$balance
+  # cobalt::bal.tab with cluster= returns a bal.tab.cluster object.
+  expect_true(!is.null(bal))
+})
+
+test_that("diagnose() rejects invalid by= argument", {
+  df <- simulate_binary_continuous(n = 200)
+  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L)
+  expect_error(diagnose(fit, by = "nonexistent"), "not found")
+  expect_error(diagnose(fit, by = c("a", "b")), "single character")
+})
+
+test_that("diagnose() ATT weight sanity: ESS_treated = n_treated", {
+  # Under ATT, all treated units get weight = 1, so
+  # ESS_treated should equal n_treated exactly.
+  set.seed(9)
+  n <- 500
+  L <- rnorm(n)
+  A <- rbinom(n, 1, plogis(0.5 * L))
+  Y <- 2 + 3 * A + L + rnorm(n)
+  d <- data.table::data.table(Y = Y, A = A, L = L)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw",
+    estimand = "ATT"
+  )
+  diag <- diagnose(fit)
+  wts <- diag$weights
+  treated <- wts[wts$group == "treated", ]
+  expect_equal(treated$ess, treated$n)
 })
 
 # ============================================================

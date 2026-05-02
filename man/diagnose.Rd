@@ -22,10 +22,10 @@ panel keyed \code{obs} is produced using the standard observed-treatment
 diagnostic for the estimator. When non-\code{NULL}, each named entry spawns
 its own per-intervention panel.}
 
-\item{by}{Character scalar naming a baseline modifier for stratified
-balance reporting. Currently rejected with
-\code{causatr_diag_em_pending} -- the hook is reserved so future chunks can
-lift the rejection without a signature break.}
+\item{by}{Character scalar naming a baseline variable for stratified
+balance reporting. When non-\code{NULL}, covariate balance is computed
+within each stratum of \code{by} via \code{cobalt::bal.tab(..., cluster = by)}.
+The variable must be present in the data.}
 
 \item{stats}{Character vector. Balance statistics to compute. Passed to
 \code{cobalt::bal.tab()}. For binary treatments, valid options include \code{"m"}
