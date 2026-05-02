@@ -1,0 +1,81 @@
+# Generated docs (roxygen2 output)
+man/
+
+# Generated namespace
+NAMESPACE
+
+# Binary data
+data/*.rda
+data/*.RData
+
+# Data-raw build artifacts
+data-raw/zepid_venv/
+data-raw/*.csv
+
+# Rendered vignette output
+vignettes/*.html
+vignettes/*_files/
+vignettes/.quarto/
+
+# Quarto site build
+_quarto/
+docs/
+
+# altdoc build artifacts
+altdoc/freeze.rds
+
+# R build/check artifacts
+*.Rproj.user
+*.tar.gz
+Rplots.pdf
+tests/testthat/Rplots.pdf
+
+# Phase design docs (read on demand, not needed in context by default)
+PHASE_*.md
+
+# NEWS (long changelog, rarely needed)
+NEWS.md
+
+# pkgdown config
+_pkgdown.yml
+
+# OS artifacts
+.DS_Store
+
+# AI tool configs (not this project's code)
+.adal/
+.agents/
+.augment/
+.codebuddy/
+.commandcode/
+.continue/
+.cortex/
+.crush/
+.factory/
+.goose/
+.iflow/
+.junie/
+.kilocode/
+.kiro/
+.kode/
+.mcpjam/
+.mux/
+.neovate/
+.openhands/
+.pi/
+.pochi/
+.qoder/
+.qwen/
+.roo/
+.trae/
+.vibe/
+.windsurf/
+.zencoder/
+skills/
+skills-lock.json
+
+# Git internals
+.git/
+
+# IDE
+.vscode/
