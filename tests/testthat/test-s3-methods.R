@@ -365,14 +365,7 @@ test_that("print.causatr_result shows estimand", {
   expect_true(any(grepl("ATE", out)))
 })
 
-test_that("diagnose() aborts on continuous treatment IPW", {
-  # The chunk 11a foundation routes every unsupported treatment family
-  # through a `causatr_diag_*_pending` classed error so future chunks
-  # lift each rejection one family at a time. Continuous (gaussian)
-  # IPW lands `causatr_diag_continuous_pending`; the diagnostic body
-  # is identical to the rejected categorical / count / multivariate
-  # paths and lives behind the same gate (see `test-diagnose.R` for
-  # the full set of pending-class expectations).
+test_that("diagnose() works on continuous treatment IPW", {
   set.seed(42)
   df <- data.frame(
     Y = rnorm(100),
@@ -386,10 +379,9 @@ test_that("diagnose() aborts on continuous treatment IPW", {
     confounders = ~L,
     estimator = "ipw"
   )
-  expect_error(
-    diagnose(fit),
-    class = "causatr_diag_continuous_pending"
-  )
+  diag <- diagnose(fit)
+  expect_s3_class(diag, "causatr_diag")
+  expect_equal(diag$fit_info$treatment_type, "continuous")
 })
 
 test_that("coef.causatr_result returns named numeric vector", {

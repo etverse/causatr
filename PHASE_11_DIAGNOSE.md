@@ -1,6 +1,6 @@
 # Phase 11 — Full `diagnose()` rewrite
 
-> **Status: IN PROGRESS** — chunk 11a shipped 2026-04-26.
+> **Status: IN PROGRESS** — chunks 11a (2026-04-26) and 11b (2026-05-02) shipped.
 > Dependencies: Phase 4 (done), Phase 5 (done), Phase 6 (effect modification), Phase 8 (multivariate IPW), Phase 10 (longitudinal IPW), Phase 14 (IPCW)
 
 ## Why this deserves its own phase
@@ -140,7 +140,7 @@ The Phase 4 shim keeps `diagnose(fit)` working on the common binary static ATE c
   dispatch, seven `causatr_diag_*_pending` rejection gates, helpers split
   into `compute_weight_summary_observed()` / `compute_weight_summary_intervention()`
   / `summarise_weights_by_arm()`.
-- [ ] Positivity + balance + weight helpers, one per treatment type
+- [x] Positivity + balance + weight helpers, one per treatment type
   (chunk 11b — `gaussian` / `categorical` / `count` / multivariate).
 - [ ] Longitudinal dispatch path (chunk 11c).
 - [ ] Estimand-aware ATT / ATC balance + `by =` stratification (chunk 11d).
@@ -149,6 +149,9 @@ The Phase 4 shim keeps `diagnose(fit)` working on the common binary static ATE c
 - [x] `test-diagnose.R` chunk 11a — per-intervention dispatch on binary IPW;
   manual `1/p` ESS reconstruction; one `expect_error(class = "causatr_diag_*_pending")`
   per pending gate; multi-panel `print()` output check.
+- [x] Chunk 11b tests: continuous / categorical / count / multivariate IPW
+  diagnostics, truth-based density-ratio weight reconstruction, per-component
+  intervention panels.
 - [ ] One test per (estimator × treatment type × intervention type × estimand)
   combination as each follow-up chunk lifts its rejection.
 
@@ -222,15 +225,32 @@ groups — the same view the cobalt formula interface produces today. Per-
 intervention post-weighting balance (which couples tightly to estimand
 semantics) lands in chunk 11d alongside the ATT / ATC rewrite.
 
-### Chunk 11b — Treatment-type dispatch (PENDING)
+### Chunk 11b — Treatment-type dispatch (DONE, 2026-05-02)
 
-Lift `causatr_diag_continuous_pending`, `causatr_diag_categorical_pending`,
-`causatr_diag_count_pending`, and `causatr_diag_multivariate_pending`.
-Add per-treatment-type positivity and weight-distribution helpers:
-density-range checks for gaussian, per-level distributions for
-categorical, discrete-density quantiles for poisson / negbin, and per-
-component summaries for multivariate. Reuse `detect_treatment_family()`
-and the existing `compute_density_ratio_weights*` family.
+What shipped:
+
+- Removed four `causatr_diag_*_pending` rejection gates for continuous,
+  categorical, count, and multivariate IPW treatment types.
+- `compute_positivity()` now dispatches by treatment family:
+  `compute_positivity_binary()` (propensity-score quantiles),
+  `compute_positivity_density()` (density-range quantiles for
+  gaussian / poisson / negbin), `compute_positivity_categorical()`
+  (per-level P(A=k|L) quantiles), `compute_positivity_multivariate()`
+  (per-component positivity list).
+- `compute_weight_summary_observed()` and
+  `compute_weight_summary_intervention()` now handle all treatment
+  types. Non-binary treatments report an `overall`-only row via
+  `summarise_weights_overall()`. Multivariate uses
+  `compute_density_ratio_weights_mv()` for combined product weights.
+- `compute_balance()` handles multivariate (first-component formula).
+  `compute_balance_simple()` extended with correlation-based fallback
+  for continuous treatments via `compute_balance_simple_corr()`.
+- `print_diag_panel()` handles multivariate per-component positivity
+  (named list of tables).
+- Tests: 10 new test blocks covering continuous (default + shift
+  intervention + truth-based weight reconstruction), categorical,
+  count (Poisson + negbin), and multivariate (default + per-component
+  interventions).
 
 ### Chunk 11c — Longitudinal (ICE) dispatch (PENDING)
 

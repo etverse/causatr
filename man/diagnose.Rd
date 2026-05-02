@@ -59,34 +59,34 @@ once at fit time and is intervention-agnostic.}
 }
 }
 \description{
-Computes diagnostics appropriate to the causal estimator:
+Computes diagnostics appropriate to the causal estimator and
+treatment type:
 \itemize{
-\item \strong{All estimators}: positivity checks (flags covariate strata where the
-probability of treatment is near 0 or 1).
-\item \code{"ipw"} with binary treatment: covariate balance via \code{cobalt} on the
-propensity formula, plus a weight-distribution summary (one panel per
-intervention, or the observed-treatment Horvitz-Thompson summary when
-\code{interventions = NULL}).
-\item \code{"matching"}: covariate balance before and after matching (via \code{cobalt}),
-match quality summary (\% matched, caliper info).
-\item \code{"gcomp"}: unadjusted covariate imbalance between treatment groups.
+\item \strong{Binary IPW}: propensity-score positivity (tail violations),
+covariate balance (SMDs via \code{cobalt}), weight distribution
+(treated / control / overall with ESS).
+\item \strong{Continuous IPW}: density-range positivity (low-density tail
+observations), covariate balance (correlations), weight
+distribution (overall ESS).
+\item \strong{Categorical IPW}: per-level probability positivity, covariate
+balance (pairwise SMDs via \code{cobalt}), weight distribution.
+\item \strong{Count IPW} (Poisson / NB): density-range positivity,
+covariate balance, weight distribution.
+\item \strong{Multivariate IPW}: per-component positivity, covariate
+balance on the first component, combined product-weight
+distribution.
+\item \code{"matching"}: covariate balance before and after matching (via
+\code{cobalt}), match quality summary.
+\item \code{"gcomp"}: unadjusted covariate imbalance between treatment
+groups.
 }
 
-\strong{Per-intervention dispatch.} When \verb{interventions =} is supplied, each
-intervention spawns its own diagnostic panel: the propensity-score summary
-is shared across panels (it depends only on the fitted treatment density
-model, not the intervention), but the weight-distribution summary is
-computed via \code{compute_density_ratio_weights()} for that specific
-intervention. The default call \code{diagnose(fit)} produces a single \code{obs}
-panel using the standard Horvitz-Thompson observed-treatment view
-(\code{1/p} on treated rows, \code{1/(1-p)} on controls) for IPW.
-
-\strong{Point-treatment and binary IPW only in this chunk.} The full rewrite
-(continuous / categorical / count / multivariate IPW; longitudinal ICE;
-ATT / ATC balance; effect-modification stratification; per-intervention
-propensity histograms; weight-distribution plots; \code{vignettes/diagnostics.qmd})
-lands in subsequent chunks. Each currently-unsupported combination aborts
-with a \verb{causatr_diag_*_pending} classed error.
+\strong{Per-intervention dispatch.} When \verb{interventions =} is supplied,
+each intervention spawns its own diagnostic panel: the positivity
+summary is shared across panels (it depends only on the fitted
+treatment density model, not the intervention), but the weight
+distribution is computed per intervention. The default call
+\code{diagnose(fit)} produces a single \code{obs} panel.
 }
 \details{
 \subsection{Positivity}{

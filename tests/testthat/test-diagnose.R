@@ -404,12 +404,11 @@ test_that("diagnose() excludes censored rows for gcomp with censoring", {
   expect_equal(bal$smd[bal$variable == "L"], smd_manual, tolerance = 1e-10)
 })
 
-# compute_positivity() short-circuits ------------------------------------
+# compute_positivity_binary() short-circuits
 #
-# The PS-quantile table is only meaningful for a single binary
-# treatment. Multivariate, non-{0,1}, non-bernoulli IPW, and matching
-# fits with a missing distance vector all need to return NULL silently
-# so `diagnose()` can fall back to its other diagnostics.
+# Binary positivity (PS quantiles) is only meaningful for a single
+# binary treatment. Multivariate gcomp, non-{0,1} values, and
+# non-bernoulli IPW all return NULL from the binary helper.
 
 test_that("compute_positivity() returns NULL for multivariate treatment", {
   fake_fit <- list(
@@ -433,10 +432,7 @@ test_that("compute_positivity() returns NULL for non-{0,1} treatment values", {
   expect_null(compute_positivity(fake_fit, ps_bounds = c(0.05, 0.95)))
 })
 
-test_that("compute_positivity() returns NULL for IPW with non-bernoulli treatment_model", {
-  # Build a fake fit shaped like an IPW result whose treatment_model
-  # has family != "bernoulli". The early NULL return at line ~171
-  # protects diagnose() from trying to threshold a continuous PS.
+test_that("compute_positivity_binary() returns NULL for non-{0,1} IPW treatment", {
   d <- data.table::data.table(A = c(0, 1, 0, 1), L = rnorm(4), Y = rnorm(4))
   fake_tm <- list(family = "gaussian")
   fake_fit <- list(
@@ -447,7 +443,7 @@ test_that("compute_positivity() returns NULL for IPW with non-bernoulli treatmen
     outcome = "Y",
     details = list(treatment_model = fake_tm)
   )
-  expect_null(compute_positivity(fake_fit, ps_bounds = c(0.05, 0.95)))
+  expect_null(compute_positivity_binary(fake_fit, ps_bounds = c(0.05, 0.95)))
 })
 
 # ============================================================
@@ -671,7 +667,15 @@ test_that("diagnose() aborts with causatr_diag_estimand_pending for IPW under AT
   )
 })
 
-test_that("diagnose() aborts with causatr_diag_continuous_pending for IPW + continuous", {
+# ============================================================
+# CHUNK 11B: TREATMENT-TYPE DISPATCH
+# ============================================================
+
+# Chunk 11b lifts the four treatment-type pending gates and adds
+# density-range positivity, per-level categorical positivity, and
+# overall weight summaries for non-binary treatment types.
+
+test_that("diagnose() works for continuous-treatment IPW", {
   set.seed(11)
   n <- 400
   L <- rnorm(n)
@@ -685,13 +689,57 @@ test_that("diagnose() aborts with causatr_diag_continuous_pending for IPW + cont
     confounders = ~L,
     estimator = "ipw"
   )
-  expect_error(
-    diagnose(fit),
-    class = "causatr_diag_continuous_pending"
-  )
+  diag <- diagnose(fit)
+
+  expect_s3_class(diag, "causatr_diag")
+  expect_equal(diag$estimator, "ipw")
+  expect_equal(diag$fit_info$treatment_type, "continuous")
+
+  # Density-range positivity table.
+  pos <- diag$positivity
+  expect_s3_class(pos, "data.table")
+  expect_true("min" %in% pos$statistic)
+  expect_true("n_low_density" %in% pos$statistic)
+
+  # Overall-only weight summary (no treated/control split).
+  w <- diag$weights
+  expect_s3_class(w, "data.table")
+  expect_equal(nrow(w), 1L)
+  expect_equal(w$group, "overall")
+  expect_true(w$ess > 0)
 })
 
-test_that("diagnose() aborts with causatr_diag_categorical_pending for IPW + categorical", {
+test_that("diagnose() continuous IPW with shift() intervention has non-trivial weights", {
+  set.seed(11)
+  n <- 400
+  L <- rnorm(n)
+  A <- 0.5 * L + rnorm(n)
+  Y <- 1 + 2 * A + L + rnorm(n)
+  d <- data.table::data.table(Y = Y, A = A, L = L)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw"
+  )
+  diag <- diagnose(
+    fit,
+    interventions = list(up = shift(0.5), nat = NULL)
+  )
+
+  expect_named(diag$per_intervention, c("up", "nat"))
+
+  # Shift intervention should produce non-trivial density-ratio weights.
+  w_up <- diag$per_intervention$up$weights
+  expect_true(w_up$sd > 0)
+
+  # Natural course should produce unit weights (mean = 1).
+  w_nat <- diag$per_intervention$nat$weights
+  expect_equal(w_nat$mean, 1, tolerance = 1e-10)
+})
+
+test_that("diagnose() works for categorical-treatment IPW", {
   skip_if_not_installed("nnet")
   set.seed(13)
   n <- 600
@@ -709,13 +757,27 @@ test_that("diagnose() aborts with causatr_diag_categorical_pending for IPW + cat
     confounders = ~L,
     estimator = "ipw"
   )
-  expect_error(
-    diagnose(fit),
-    class = "causatr_diag_categorical_pending"
-  )
+  diag <- diagnose(fit)
+
+  expect_s3_class(diag, "causatr_diag")
+  expect_equal(diag$fit_info$treatment_type, "categorical")
+
+  # Per-level positivity table.
+  pos <- diag$positivity
+  expect_s3_class(pos, "data.table")
+  expect_true("level" %in% names(pos))
+  expect_equal(nrow(pos), 3L)
+  expect_true(all(c("hi", "low", "med") %in% pos$level))
+  expect_true("n_low_prob" %in% names(pos))
+
+  # Overall-only weight summary.
+  w <- diag$weights
+  expect_s3_class(w, "data.table")
+  expect_equal(nrow(w), 1L)
+  expect_equal(w$group, "overall")
 })
 
-test_that("diagnose() aborts with causatr_diag_count_pending for IPW + count", {
+test_that("diagnose() works for count-treatment IPW (Poisson)", {
   skip_if_not_installed("MASS")
   set.seed(17)
   n <- 600
@@ -731,13 +793,48 @@ test_that("diagnose() aborts with causatr_diag_count_pending for IPW + count", {
     estimator = "ipw",
     propensity_family = "poisson"
   )
-  expect_error(
-    diagnose(fit),
-    class = "causatr_diag_count_pending"
-  )
+  diag <- diagnose(fit)
+
+  expect_s3_class(diag, "causatr_diag")
+  expect_equal(diag$fit_info$treatment_type, "count")
+
+  # Density-range positivity (shared with continuous).
+  pos <- diag$positivity
+  expect_s3_class(pos, "data.table")
+  expect_true("n_low_density" %in% pos$statistic)
+
+  # Overall-only weight summary.
+  w <- diag$weights
+  expect_equal(nrow(w), 1L)
+  expect_equal(w$group, "overall")
+  expect_true(w$ess > 0)
 })
 
-test_that("diagnose() aborts with causatr_diag_multivariate_pending for multivariate IPW", {
+test_that("diagnose() works for count-treatment IPW (negbin)", {
+  skip_if_not_installed("MASS")
+  set.seed(23)
+  n <- 600
+  L <- rnorm(n)
+  A <- MASS::rnegbin(n, mu = exp(0.3 + 0.2 * L), theta = 2)
+  Y <- 1 + 0.5 * A + L + rnorm(n)
+  d <- data.table::data.table(Y = Y, A = A, L = L)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw",
+    propensity_family = "negbin"
+  )
+  diag <- diagnose(fit)
+
+  expect_s3_class(diag, "causatr_diag")
+  expect_equal(diag$fit_info$treatment_type, "count")
+  expect_false(is.null(diag$positivity))
+  expect_false(is.null(diag$weights))
+})
+
+test_that("diagnose() works for multivariate IPW", {
   set.seed(19)
   n <- 500
   L <- rnorm(n)
@@ -752,8 +849,94 @@ test_that("diagnose() aborts with causatr_diag_multivariate_pending for multivar
     confounders = ~L,
     estimator = "ipw"
   )
-  expect_error(
-    diagnose(fit),
-    class = "causatr_diag_multivariate_pending"
+  diag <- diagnose(fit)
+
+  expect_s3_class(diag, "causatr_diag")
+  expect_equal(diag$fit_info$treatment_type, "multivariate")
+
+  # Multivariate positivity: named list with one entry per component.
+  pos <- diag$positivity
+  expect_true(is.list(pos))
+  expect_named(pos, c("A1", "A2"))
+  expect_s3_class(pos$A1, "data.table")
+  expect_s3_class(pos$A2, "data.table")
+  # Both components are binary -> propensity-score table.
+  expect_true("n_violations" %in% pos$A1$statistic)
+
+  # Overall-only combined product weight.
+  w <- diag$weights
+  expect_s3_class(w, "data.table")
+  expect_equal(nrow(w), 1L)
+  expect_equal(w$group, "overall")
+  expect_true(w$ess > 0)
+})
+
+test_that("diagnose() multivariate IPW with per-component interventions", {
+  set.seed(19)
+  n <- 500
+  L <- rnorm(n)
+  A1 <- rbinom(n, 1, plogis(0.4 * L))
+  A2 <- rbinom(n, 1, plogis(0.3 * L + 0.5 * A1))
+  Y <- 1 + A1 + A2 + L + rnorm(n)
+  d <- data.table::data.table(Y = Y, A1 = A1, A2 = A2, L = L)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = c("A1", "A2"),
+    confounders = ~L,
+    estimator = "ipw"
   )
+  diag <- diagnose(
+    fit,
+    interventions = list(
+      both1 = list(A1 = static(1), A2 = static(1)),
+      both0 = list(A1 = static(0), A2 = static(0))
+    )
+  )
+
+  expect_named(diag$per_intervention, c("both1", "both0"))
+  # Each panel has the combined product weight.
+  w1 <- diag$per_intervention$both1$weights
+  w0 <- diag$per_intervention$both0$weights
+  expect_equal(nrow(w1), 1L)
+  expect_equal(nrow(w0), 1L)
+})
+
+test_that("diagnose() continuous IPW weight reconstruction matches manual density ratio", {
+  set.seed(42)
+  n <- 500
+  L <- rnorm(n)
+  A <- 0.5 * L + rnorm(n)
+  Y <- 1 + 2 * A + L + rnorm(n)
+  d <- data.table::data.table(Y = Y, A = A, L = L)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw"
+  )
+
+  # Reconstruct shift(1) weights manually: w = f(A-1|L) / f(A|L).
+  tm <- fit$details$treatment_model
+  fit_data <- fit$data[fit$details$fit_rows]
+  a_obs <- fit_data$A
+  mu <- as.numeric(stats::predict(
+    tm$model,
+    newdata = fit_data,
+    type = "response"
+  ))
+  sigma <- tm$sigma
+  f_obs <- stats::dnorm(a_obs, mean = mu, sd = sigma)
+  f_int <- stats::dnorm(a_obs - 1, mean = mu, sd = sigma)
+  w_manual <- f_int / f_obs
+
+  diag <- diagnose(
+    fit,
+    interventions = list(up1 = shift(1))
+  )
+  w_panel <- diag$per_intervention$up1$weights
+  ess_manual <- sum(w_manual)^2 / sum(w_manual^2)
+  expect_equal(w_panel$ess, ess_manual, tolerance = 1e-8)
+  expect_equal(w_panel$mean, mean(w_manual), tolerance = 1e-8)
 })

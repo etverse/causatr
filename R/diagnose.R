@@ -1,32 +1,32 @@
 #' Diagnostics for a fitted causal model
 #'
 #' @description
-#' Computes diagnostics appropriate to the causal estimator:
-#' - **All estimators**: positivity checks (flags covariate strata where the
-#'   probability of treatment is near 0 or 1).
-#' - `"ipw"` with binary treatment: covariate balance via `cobalt` on the
-#'   propensity formula, plus a weight-distribution summary (one panel per
-#'   intervention, or the observed-treatment Horvitz-Thompson summary when
-#'   `interventions = NULL`).
-#' - `"matching"`: covariate balance before and after matching (via `cobalt`),
-#'   match quality summary (% matched, caliper info).
-#' - `"gcomp"`: unadjusted covariate imbalance between treatment groups.
+#' Computes diagnostics appropriate to the causal estimator and
+#' treatment type:
+#' - **Binary IPW**: propensity-score positivity (tail violations),
+#'   covariate balance (SMDs via `cobalt`), weight distribution
+#'   (treated / control / overall with ESS).
+#' - **Continuous IPW**: density-range positivity (low-density tail
+#'   observations), covariate balance (correlations), weight
+#'   distribution (overall ESS).
+#' - **Categorical IPW**: per-level probability positivity, covariate
+#'   balance (pairwise SMDs via `cobalt`), weight distribution.
+#' - **Count IPW** (Poisson / NB): density-range positivity,
+#'   covariate balance, weight distribution.
+#' - **Multivariate IPW**: per-component positivity, covariate
+#'   balance on the first component, combined product-weight
+#'   distribution.
+#' - `"matching"`: covariate balance before and after matching (via
+#'   `cobalt`), match quality summary.
+#' - `"gcomp"`: unadjusted covariate imbalance between treatment
+#'   groups.
 #'
-#' **Per-intervention dispatch.** When `interventions =` is supplied, each
-#' intervention spawns its own diagnostic panel: the propensity-score summary
-#' is shared across panels (it depends only on the fitted treatment density
-#' model, not the intervention), but the weight-distribution summary is
-#' computed via `compute_density_ratio_weights()` for that specific
-#' intervention. The default call `diagnose(fit)` produces a single `obs`
-#' panel using the standard Horvitz-Thompson observed-treatment view
-#' (`1/p` on treated rows, `1/(1-p)` on controls) for IPW.
-#'
-#' **Point-treatment and binary IPW only in this chunk.** The full rewrite
-#' (continuous / categorical / count / multivariate IPW; longitudinal ICE;
-#' ATT / ATC balance; effect-modification stratification; per-intervention
-#' propensity histograms; weight-distribution plots; `vignettes/diagnostics.qmd`)
-#' lands in subsequent chunks. Each currently-unsupported combination aborts
-#' with a `causatr_diag_*_pending` classed error.
+#' **Per-intervention dispatch.** When `interventions =` is supplied,
+#' each intervention spawns its own diagnostic panel: the positivity
+#' summary is shared across panels (it depends only on the fitted
+#' treatment density model, not the intervention), but the weight
+#' distribution is computed per intervention. The default call
+#' `diagnose(fit)` produces a single `obs` panel.
 #'
 #' @param fit A `causatr_fit` object returned by [causat()].
 #' @param interventions Named list of `causatr_intervention` objects (or
@@ -200,16 +200,14 @@ diagnose <- function(
   )
 }
 
-#' Reject combinations not yet supported by the chunk 11a `diagnose()` rewrite
+#' Reject combinations not yet supported by `diagnose()`
 #'
 #' @description
-#' Centralises the up-front rejection gates so each unsupported combination
-#' aborts with a stable `causatr_diag_*_pending` classed error. Order is
-#' load-bearing: longitudinal is checked first because subsequent gates
-#' inspect `fit$details$treatment_model`, which only exists for point-
-#' treatment IPW. Inside IPW the multivariate gate beats the family gate
-#' (multivariate fits store `treatment_models`, not a singular
-#' `treatment_model`).
+#' Centralises the up-front rejection gates so each unsupported
+#' combination aborts with a stable `causatr_diag_*_pending` classed
+#' error. Three gates remain: longitudinal (chunk 11c),
+#' IPW + ATT/ATC estimand (chunk 11d), and `by =` effect-modification
+#' stratification (chunk 11d).
 #'
 #' @param fit A `causatr_fit` object.
 #' @param interventions Named list (or `NULL`).
@@ -277,67 +275,6 @@ check_diag_pending_gates <- function(fit, interventions, by, call) {
     )
   }
 
-  if (isTRUE(fit$details$is_multivariate)) {
-    rlang::abort(
-      c(
-        "`diagnose()` for multivariate IPW is not yet implemented.",
-        i = paste0(
-          "Per-component propensity / weight diagnostics for multivariate ",
-          "IPW land in a later chunk."
-        )
-      ),
-      class = "causatr_diag_multivariate_pending",
-      call = call
-    )
-  }
-
-  tm <- fit$details$treatment_model
-  if (is.null(tm)) {
-    rlang::abort(
-      "Internal error: IPW point-treatment fit is missing `details$treatment_model`."
-    )
-  }
-  fam <- tm$family
-  if (identical(fam, "gaussian")) {
-    rlang::abort(
-      c(
-        "`diagnose()` for continuous-treatment IPW is not yet implemented.",
-        i = paste0(
-          "Density-range positivity and weight-distribution diagnostics for ",
-          "gaussian treatment models land in a later chunk."
-        )
-      ),
-      class = "causatr_diag_continuous_pending",
-      call = call
-    )
-  }
-  if (identical(fam, "categorical")) {
-    rlang::abort(
-      c(
-        "`diagnose()` for categorical-treatment IPW is not yet implemented.",
-        i = paste0(
-          "Per-level positivity and weight-distribution diagnostics for ",
-          "multinomial treatment models land in a later chunk."
-        )
-      ),
-      class = "causatr_diag_categorical_pending",
-      call = call
-    )
-  }
-  if (fam %in% c("poisson", "negbin")) {
-    rlang::abort(
-      c(
-        "`diagnose()` for count-treatment IPW is not yet implemented.",
-        i = paste0(
-          "Discrete-density positivity and weight-distribution diagnostics ",
-          "for Poisson / negative-binomial treatment models land in a later ",
-          "chunk."
-        )
-      ),
-      class = "causatr_diag_count_pending",
-      call = call
-    )
-  }
   invisible(NULL)
 }
 
@@ -419,20 +356,70 @@ detect_diag_treatment_type <- function(fit) {
   "unknown"
 }
 
-#' Compute propensity score positivity diagnostics
+#' Compute positivity diagnostics
 #'
-#' @param fit A `causatr_fit` object (binary treatment only).
-#' @param ps_bounds Numeric vector of length 2 defining violation thresholds.
-#' @return A data.table with PS quantiles and violation counts, or `NULL` for
-#'   non-binary treatments.
+#' @description
+#' Dispatches to the appropriate positivity helper based on treatment
+#' type. Binary treatments get the classic propensity-score quantile
+#' table with violation counts (Crump et al. 2009). Continuous and
+#' count treatments get a density-range summary: quantiles of
+#' \eqn{f(A_i \mid L_i)} and a count of low-density tail
+#' observations. Categorical treatments get per-level
+#' \eqn{P(A = k \mid L)} quantile summaries. Multivariate
+#' treatments get a per-component positivity list.
+#'
+#' @param fit A `causatr_fit` object.
+#' @param ps_bounds Numeric vector of length 2 defining violation
+#'   thresholds for binary treatments, or the density tail quantile
+#'   for non-binary treatments. Default `c(0.025, 0.975)`.
+#' @return A data.table (or list of data.tables for multivariate),
+#'   or `NULL` when no positivity diagnostic applies.
 #' @noRd
 compute_positivity <- function(fit, ps_bounds) {
   treatment <- fit$treatment
 
-  # Positivity is only meaningful for a single binary treatment --
-  # that's where "probability of treatment" is a scalar we can
-  # threshold. Multivariate / categorical / continuous treatments
-  # return NULL (diagnose() skips positivity for those).
+  # Multivariate: per-component positivity.
+  if (length(treatment) > 1L) {
+    return(compute_positivity_multivariate(fit, ps_bounds))
+  }
+
+  # IPW with a treatment density model: dispatch by family.
+  if (fit$estimator == "ipw" && !is.null(fit$details$treatment_model)) {
+    tm <- fit$details$treatment_model
+    fam <- tm$family
+    if (fam == "bernoulli") {
+      return(compute_positivity_binary(fit, ps_bounds))
+    }
+    if (fam == "gaussian") {
+      return(compute_positivity_density(fit, ps_bounds))
+    }
+    if (fam == "categorical") {
+      return(compute_positivity_categorical(fit, ps_bounds))
+    }
+    if (fam %in% c("poisson", "negbin")) {
+      return(compute_positivity_density(fit, ps_bounds))
+    }
+    return(NULL)
+  }
+
+  # Non-IPW estimators (gcomp, matching): binary PS check only.
+  compute_positivity_binary(fit, ps_bounds)
+}
+
+#' Compute binary propensity-score positivity diagnostics
+#'
+#' @description
+#' The classic propensity-score positivity table: quantiles of
+#' \eqn{P(A = 1 \mid L)} plus violation counts. Only applicable
+#' to binary 0/1 treatments.
+#'
+#' @param fit A `causatr_fit` object.
+#' @param ps_bounds Numeric vector of length 2.
+#' @return A data.table or `NULL`.
+#' @noRd
+compute_positivity_binary <- function(fit, ps_bounds) {
+  treatment <- fit$treatment
+
   if (length(treatment) > 1L) {
     return(NULL)
   }
@@ -443,14 +430,10 @@ compute_positivity <- function(fit, ps_bounds) {
     return(NULL)
   }
 
-  # Source the propensity scores from whatever's already been fit:
-  #   - IPW:      pull from the self-contained bernoulli density model
-  #               stashed in `fit$details$propensity_model`.
-  #   - Matching: reuse the MatchIt distance vector (PS when the
-  #               distance method is logistic, which is the default).
-  #   - G-comp:   no PS was fit, so run a quick logistic regression
-  #               of treatment on confounders to get one. This is
-  #               purely for diagnostics -- it doesn't affect estimation.
+  # Source propensity scores from the fitted model:
+  #   IPW:      bernoulli density model in fit$details$propensity_model
+  #   Matching: MatchIt distance vector (logistic PS by default)
+  #   Gcomp:    fit a quick logistic regression for diagnostics only
   if (fit$estimator == "ipw") {
     tm <- fit$details$treatment_model
     if (is.null(tm) || tm$family != "bernoulli") {
@@ -475,11 +458,7 @@ compute_positivity <- function(fit, ps_bounds) {
     ps <- stats::fitted(ps_model)
   }
 
-  # Count violations on both tails. `ps_bounds = c(0.025, 0.975)` is
-  # the Crump et al. (2009) default for "extreme overlap zones";
-  # individuals outside this range have near-zero probability of
-  # being in one arm and contribute unstable weights (or can't be
-  # matched at all).
+  # Crump et al. (2009) tail thresholds.
   n_low <- sum(ps < ps_bounds[1], na.rm = TRUE)
   n_high <- sum(ps > ps_bounds[2], na.rm = TRUE)
   n_total <- length(ps)
@@ -510,6 +489,166 @@ compute_positivity <- function(fit, ps_bounds) {
   )
 }
 
+#' Compute density-range positivity diagnostics
+#'
+#' @description
+#' For continuous and count treatments, "positivity" means the fitted
+#' conditional density \eqn{f(A_i \mid L_i)} evaluated at the
+#' observed treatment value is bounded away from zero. A very small
+#' density means the observed treatment is unlikely given the
+#' covariates, yielding extreme density-ratio weights. This helper
+#' reports quantiles of the fitted density plus a count of low-density
+#' observations (those below the 1st percentile of the density
+#' distribution).
+#'
+#' @param fit A `causatr_fit` with an IPW treatment model.
+#' @param ps_bounds Numeric vector of length 2 (used to define the
+#'   low-density fraction; observations with density below the
+#'   `ps_bounds[1]`-th quantile are flagged).
+#' @return A data.table with density quantiles and low-density counts.
+#' @noRd
+compute_positivity_density <- function(fit, ps_bounds) {
+  tm <- fit$details$treatment_model
+  fit_rows <- fit$details$fit_rows
+  fit_data <- fit$data[fit_rows]
+  a_obs <- fit_data[[fit$treatment[1]]]
+
+  f_obs <- evaluate_density(tm, a_obs, fit_data)
+
+  # Low-density threshold: observations below the 1st percentile of
+  # the density distribution. These are the analogues of extreme PS
+  # tails for binary treatment.
+  low_thresh <- stats::quantile(f_obs, 0.01, na.rm = TRUE)
+  n_low <- sum(f_obs < low_thresh, na.rm = TRUE)
+  n_total <- length(f_obs)
+
+  data.table::data.table(
+    statistic = c(
+      "min",
+      "q25",
+      "median",
+      "q75",
+      "max",
+      "n_low_density",
+      "pct_low_density"
+    ),
+    value = c(
+      min(f_obs, na.rm = TRUE),
+      stats::quantile(f_obs, 0.25, na.rm = TRUE),
+      stats::quantile(f_obs, 0.50, na.rm = TRUE),
+      stats::quantile(f_obs, 0.75, na.rm = TRUE),
+      max(f_obs, na.rm = TRUE),
+      n_low,
+      round(100 * n_low / n_total, 2)
+    )
+  )
+}
+
+#' Compute per-level positivity for categorical treatments
+#'
+#' @description
+#' For categorical treatments with \eqn{k \ge 2} levels, reports
+#' quantiles of \eqn{P(A = k \mid L)} for each level, plus the
+#' count of low-probability cells (predicted probability below 0.01).
+#' A low predicted probability for a level means some individuals
+#' are very unlikely to receive that treatment level given their
+#' covariates -- a positivity concern.
+#'
+#' @param fit A `causatr_fit` with a categorical IPW treatment model.
+#' @param ps_bounds Numeric vector of length 2 (unused, kept for
+#'   interface consistency).
+#' @return A data.table with per-level probability summaries.
+#' @noRd
+compute_positivity_categorical <- function(fit, ps_bounds) {
+  tm <- fit$details$treatment_model
+  fit_rows <- fit$details$fit_rows
+  fit_data <- fit$data[fit_rows]
+  a_obs <- fit_data[[fit$treatment[1]]]
+  trt_levels <- tm$levels
+
+  # Get the full predicted probability matrix from the multinomial
+  # model. `predict(type = "probs")` returns n x K for K > 2 or a
+  # vector for K = 2.
+  prob_raw <- stats::predict(
+    tm$model,
+    newdata = fit_data,
+    type = "probs"
+  )
+  if (is.null(dim(prob_raw))) {
+    prob_mat <- cbind(1 - prob_raw, prob_raw)
+    colnames(prob_mat) <- trt_levels
+  } else {
+    prob_mat <- prob_raw
+  }
+
+  # Per-level summary: quantiles + low-probability count.
+  rows <- lapply(trt_levels, function(lev) {
+    p_lev <- prob_mat[, lev]
+    n_low <- sum(p_lev < 0.01, na.rm = TRUE)
+    data.table::data.table(
+      level = lev,
+      min = min(p_lev, na.rm = TRUE),
+      q25 = stats::quantile(p_lev, 0.25, na.rm = TRUE),
+      median = stats::quantile(p_lev, 0.50, na.rm = TRUE),
+      q75 = stats::quantile(p_lev, 0.75, na.rm = TRUE),
+      max = max(p_lev, na.rm = TRUE),
+      n_low_prob = n_low,
+      pct_low_prob = round(100 * n_low / length(p_lev), 2)
+    )
+  })
+  data.table::rbindlist(rows)
+}
+
+#' Compute per-component positivity for multivariate treatments
+#'
+#' @description
+#' Loops over each component's `causatr_treatment_model` and calls
+#' the appropriate single-component positivity helper. Returns a
+#' named list of positivity tables, one per treatment component.
+#'
+#' @param fit A `causatr_fit` with multivariate IPW.
+#' @param ps_bounds Numeric vector of length 2.
+#' @return A named list of data.tables (one per component), or NULL
+#'   for non-IPW fits.
+#' @noRd
+compute_positivity_multivariate <- function(fit, ps_bounds) {
+  if (fit$estimator != "ipw") {
+    return(NULL)
+  }
+  tms <- fit$details$treatment_models
+  if (is.null(tms)) {
+    return(NULL)
+  }
+
+  # Build a fake single-component fit for each component, then
+  # dispatch to the family-appropriate helper.
+  result <- lapply(names(tms), function(trt_name) {
+    tm_k <- tms[[trt_name]]
+    fake_fit <- list(
+      treatment = trt_name,
+      estimator = "ipw",
+      data = fit$data,
+      confounders = fit$confounders,
+      outcome = fit$outcome,
+      details = list(
+        treatment_model = tm_k,
+        propensity_model = tm_k$model,
+        fit_rows = fit$details$fit_rows
+      )
+    )
+    fam <- tm_k$family
+    if (fam == "bernoulli") {
+      compute_positivity_binary(fake_fit, ps_bounds)
+    } else if (fam == "categorical") {
+      compute_positivity_categorical(fake_fit, ps_bounds)
+    } else {
+      compute_positivity_density(fake_fit, ps_bounds)
+    }
+  })
+  names(result) <- names(tms)
+  result
+}
+
 #' Compute covariate balance (via cobalt or simple SMD fallback)
 #'
 #' @param fit A `causatr_fit` object.
@@ -522,15 +661,25 @@ compute_balance <- function(fit, stats, thresholds) {
     return(compute_balance_simple(fit))
   }
 
-  if (fit$estimator == "ipw" && !is.null(fit$details$treatment_model)) {
+  if (
+    fit$estimator == "ipw" &&
+      (!is.null(fit$details$treatment_model) ||
+        !is.null(fit$details$treatment_models))
+  ) {
     # The self-contained density-ratio engine has no `weightit` object
     # to feed cobalt directly. Call the formula interface on the
-    # observed treatment -- this produces the "unadjusted" standardised
-    # mean differences, which is the most universal balance view the
-    # density-ratio engine can surface without committing to one
-    # specific intervention's post-weighting balance. Per-intervention
-    # post-weighting balance lands in a later chunk.
-    ps_formula <- build_ps_formula(fit$confounders, fit$treatment)
+    # observed treatment -- this produces the "unadjusted" balance view.
+    # For multivariate, use the first treatment component only --
+    # `build_ps_formula()` requires a scalar response, and cobalt's
+    # formula interface handles one treatment at a time. Per-component
+    # balance across all K components would need K separate bal.tab
+    # calls (reserved for a future chunk).
+    trt <- if (length(fit$treatment) > 1L) {
+      fit$treatment[1]
+    } else {
+      fit$treatment
+    }
+    ps_formula <- build_ps_formula(fit$confounders, trt)
     fit_rows <- fit$details$fit_rows
     cobalt::bal.tab(
       ps_formula,
@@ -560,47 +709,61 @@ compute_balance <- function(fit, stats, thresholds) {
   }
 }
 
-#' Compute simple SMD balance table without cobalt
+#' Compute simple balance table without cobalt
 #'
-#' @param fit A `causatr_fit` object with binary treatment.
-#' @return A data.table with columns `variable`, `mean_treated`,
-#'   `mean_control`, and `smd`, or `NULL` for non-binary treatments.
+#' @description
+#' Minimal fallback when cobalt isn't installed. For binary
+#' treatments, computes unadjusted SMDs per confounder. For
+#' continuous treatments, computes Pearson correlations between
+#' treatment and each confounder. For categorical / multivariate,
+#' returns NULL (no simple fallback -- cobalt is needed).
+#'
+#' @param fit A `causatr_fit` object.
+#' @return A data.table of balance metrics, or `NULL`.
 #' @noRd
 compute_balance_simple <- function(fit) {
-  # Minimal fallback when cobalt isn't installed: compute unadjusted
-  # standardised mean differences (SMDs) for each confounder, one
-  # row per confounder. Not as rich as cobalt (no weighted SMDs, no
-  # variance ratios, no factor-level breakdown), but enough to
-  # surface gross imbalance in a no-dependency environment.
   data <- fit$data
   treatment <- fit$treatment
   outcome <- fit$outcome
 
-  # Same narrowing as compute_positivity: binary scalar treatment only.
   if (length(treatment) > 1L) {
     return(NULL)
   }
 
-  trt_vals <- unique(stats::na.omit(data[[treatment]]))
-  if (!all(trt_vals %in% c(0, 1))) {
-    return(NULL)
-  }
-
-  # Drop rows with missing outcome and censored rows -- same
-  # fitting-row definition as the main pipeline, so balance is
-  # computed on the analysis sample (not the pre-filter raw data).
   fit_rows <- get_fit_rows(data, outcome, fit$censoring)
   d <- data[fit_rows]
   confounder_vars <- all.vars(fit$confounders)
   confounder_vars <- intersect(confounder_vars, names(d))
 
+  trt_vals <- unique(stats::na.omit(d[[treatment]]))
+  is_binary <- all(trt_vals %in% c(0, 1))
+
+  if (is_binary) {
+    return(compute_balance_simple_binary(d, treatment, confounder_vars))
+  }
+
+  # Continuous / count: Pearson correlation between treatment and
+  # each numeric confounder.
+  if (is.numeric(d[[treatment]])) {
+    return(compute_balance_simple_corr(d, treatment, confounder_vars))
+  }
+
+  # Categorical: no simple fallback.
+  NULL
+}
+
+#' SMD balance table for binary treatments (cobalt fallback)
+#'
+#' @param d data.table of analysis-sample rows.
+#' @param treatment Character treatment column name.
+#' @param confounder_vars Character vector of confounder names.
+#' @return A data.table with `variable`, `mean_treated`,
+#'   `mean_control`, `smd` columns.
+#' @noRd
+compute_balance_simple_binary <- function(d, treatment, confounder_vars) {
   rows_1 <- d[[treatment]] == 1
   rows_0 <- d[[treatment]] == 0
 
-  # Per-confounder SMD. Factors/characters are skipped (return NULL
-  # and get filtered by `!vapply(., is.null, .)` below) -- a proper
-  # balance table for categoricals would split into levels, which is
-  # what cobalt::bal.tab() does.
   results <- lapply(confounder_vars, function(v) {
     x <- d[[v]]
     if (!is.numeric(x)) {
@@ -608,9 +771,7 @@ compute_balance_simple <- function(fit) {
     }
     m1 <- mean(x[rows_1], na.rm = TRUE)
     m0 <- mean(x[rows_0], na.rm = TRUE)
-    # Pooled SD denominator per Rosenbaum & Rubin (1985): sqrt of
-    # the average of per-group variances. Threshold convention is
-    # |SMD| < 0.1 for good balance.
+    # Rosenbaum & Rubin (1985) pooled SD.
     s_pooled <- sqrt(
       (stats::var(x[rows_1], na.rm = TRUE) +
         stats::var(x[rows_0], na.rm = TRUE)) /
@@ -628,81 +789,131 @@ compute_balance_simple <- function(fit) {
   data.table::rbindlist(results[!vapply(results, is.null, logical(1))])
 }
 
-#' Observed-treatment IPW weight distribution summary (binary)
+#' Correlation balance table for continuous treatments (cobalt fallback)
 #'
-#' @description
-#' Reconstructs the observed-treatment Horvitz-Thompson weights `1/p` on
-#' treated rows and `1/(1-p)` on controls from the stashed bernoulli
-#' density model, and summarises them by arm plus an overall row. This is
-#' the canonical Hernan & Robins Ch. 12 IPW weight diagnostic, decoupled
-#' from any specific intervention. Used for the auto-injected `obs` panel
-#' under `diagnose(fit)` (no `interventions =` argument).
-#'
-#' @param fit A `causatr_fit` with `estimator = "ipw"` and a bernoulli
-#'   treatment model.
-#' @return A `data.table` with columns `group`, `n`, `mean`, `sd`, `min`,
-#'   `max`, `ess` -- one row per group (`treated`, `control`, `overall`).
-#'
+#' @param d data.table of analysis-sample rows.
+#' @param treatment Character treatment column name.
+#' @param confounder_vars Character vector of confounder names.
+#' @return A data.table with `variable` and `correlation` columns.
 #' @noRd
-compute_weight_summary_observed <- function(fit) {
-  fit_rows <- fit$details$fit_rows
-  fit_data <- fit$data[fit_rows]
-  a_obs <- fit_data[[fit$treatment[1]]]
-
-  p <- as.numeric(stats::predict(
-    fit$details$propensity_model,
-    newdata = fit_data,
-    type = "response"
-  ))
-  w <- ifelse(a_obs == 1, 1 / p, 1 / (1 - p))
-  summarise_weights_by_arm(w, a_obs)
+compute_balance_simple_corr <- function(d, treatment, confounder_vars) {
+  a <- d[[treatment]]
+  results <- lapply(confounder_vars, function(v) {
+    x <- d[[v]]
+    if (!is.numeric(x)) {
+      return(NULL)
+    }
+    r <- stats::cor(a, x, use = "pairwise.complete.obs")
+    data.table::data.table(variable = v, correlation = r)
+  })
+  data.table::rbindlist(results[!vapply(results, is.null, logical(1))])
 }
 
-#' Per-intervention IPW weight distribution summary (binary)
+#' Observed-treatment IPW weight distribution summary
 #'
 #' @description
-#' Reconstructs the per-intervention density-ratio weight via
-#' `compute_density_ratio_weights()` and summarises it by arm plus an
-#' overall row. The summary structure (treated / control / overall with
-#' ESS) mirrors `compute_weight_summary_observed()` so downstream
-#' consumers can render either panel uniformly.
+#' For binary treatments, reconstructs the Horvitz-Thompson weights
+#' `1/p` on treated rows and `1/(1-p)` on controls and summarises by
+#' arm. For non-binary treatments (continuous, categorical, count),
+#' the observed-treatment density-ratio weight is identically 1
+#' (natural-course view), so the summary reports unit weights. For
+#' multivariate treatments, computes the product of per-component
+#' natural-course weights (also unit). Used for the auto-injected
+#' `obs` panel under `diagnose(fit)`.
 #'
-#' Under static-arm interventions on a binary treatment, the
-#' Horvitz-Thompson indicator zeroes the off-arm rows. The "control" row
-#' for `static(1)` therefore reports `mean = 0`, `ess = 0` -- this is the
-#' correct M-estimation view of the ATE-arm functional and is intended,
-#' not a bug.
-#'
-#' @param fit A `causatr_fit` with `estimator = "ipw"` and a bernoulli
-#'   treatment model.
-#' @param intervention A `causatr_intervention` object (or `NULL` for
-#'   literal natural course).
-#' @return A `data.table` with the same columns as
-#'   `compute_weight_summary_observed()`.
-#'
+#' @param fit A `causatr_fit` with `estimator = "ipw"`.
+#' @return A `data.table` with columns `group`, `n`, `mean`, `sd`,
+#'   `min`, `max`, `ess`.
 #' @noRd
-compute_weight_summary_intervention <- function(fit, intervention) {
+compute_weight_summary_observed <- function(fit) {
+  # Multivariate: natural-course product weight = 1 for all.
+  if (isTRUE(fit$details$is_multivariate)) {
+    fit_rows <- fit$details$fit_rows
+    n <- sum(fit_rows)
+    return(summarise_weights_overall(rep(1, n)))
+  }
+
   tm <- fit$details$treatment_model
   fit_rows <- fit$details$fit_rows
   fit_data <- fit$data[fit_rows]
-  a_obs <- fit_data[[fit$treatment[1]]]
 
-  # `compute_density_ratio_weights()` indexes into `data` via
-  # `tm$fit_rows` (relative to `fit_data`, i.e. the outcome-filtered
-  # subset, per the 2026-04-16 outcome-NA fix). When the propensity
-  # mask is a strict subset of the outcome mask (e.g. confounder NAs)
-  # the returned weight vector is shorter than `a_obs`; align by
-  # subsetting `a_obs` to the same propensity mask before grouping.
+  # Binary: Horvitz-Thompson observed-arm view.
+  if (tm$family == "bernoulli") {
+    a_obs <- fit_data[[fit$treatment[1]]]
+    p <- as.numeric(stats::predict(
+      fit$details$propensity_model,
+      newdata = fit_data,
+      type = "response"
+    ))
+    w <- ifelse(a_obs == 1, 1 / p, 1 / (1 - p))
+    return(summarise_weights_by_arm(w, a_obs))
+  }
+
+  # Non-binary (continuous / categorical / count): the "observed"
+  # density-ratio weight f(A|L)/f(A|L) = 1. Report unit weights so
+  # the panel is still meaningful (ESS = n, no instability).
+  n <- sum(fit_rows)
+  summarise_weights_overall(rep(1, n))
+}
+
+#' Per-intervention IPW weight distribution summary
+#'
+#' @description
+#' Computes the density-ratio weight for a specific intervention and
+#' summarises it. Binary treatments are split by arm (treated /
+#' control / overall); non-binary treatments report overall only.
+#' Multivariate treatments compute the combined product weight
+#' across all components.
+#'
+#' Under static-arm interventions on a binary treatment, the
+#' Horvitz-Thompson indicator zeroes the off-arm rows. The "control"
+#' row for `static(1)` reports `mean = 0`, `ess = 0` -- this is the
+#' correct M-estimation view.
+#'
+#' @param fit A `causatr_fit` with `estimator = "ipw"`.
+#' @param intervention A `causatr_intervention` object (or `NULL` for
+#'   natural course). For multivariate, a named list of per-component
+#'   interventions.
+#' @return A `data.table` with weight summary columns.
+#' @noRd
+compute_weight_summary_intervention <- function(fit, intervention) {
+  # Multivariate: compute combined product weight via the multivariate
+  # weight engine.
+  if (isTRUE(fit$details$is_multivariate)) {
+    tms <- fit$details$treatment_models
+    fit_rows <- fit$details$fit_rows
+    fit_data <- fit$data[fit_rows]
+    w <- compute_density_ratio_weights_mv(
+      tms,
+      fit_data,
+      intervention,
+      fit$estimand
+    )
+    return(summarise_weights_overall(w))
+  }
+
+  tm <- fit$details$treatment_model
+  fit_rows <- fit$details$fit_rows
+  fit_data <- fit$data[fit_rows]
+
   w <- compute_density_ratio_weights(
     tm,
     fit_data,
     intervention,
     fit$estimand
   )
-  if (!isTRUE(all(tm$fit_rows))) {
-    a_obs <- a_obs[tm$fit_rows]
+
+  # Binary: split by observed treatment arm.
+  if (tm$family == "bernoulli") {
+    a_obs <- fit_data[[fit$treatment[1]]]
+    if (!isTRUE(all(tm$fit_rows))) {
+      a_obs <- a_obs[tm$fit_rows]
+    }
+    return(summarise_weights_by_arm(w, a_obs))
   }
-  summarise_weights_by_arm(w, a_obs)
+
+  # Non-binary: overall summary only (no arm split).
+  summarise_weights_overall(w)
 }
 
 #' Aggregate a weight vector into the (treated / control / overall) summary
@@ -743,6 +954,30 @@ summarise_weights_by_arm <- function(w, a_obs) {
     )
   })
   data.table::rbindlist(rows)
+}
+
+#' Aggregate a weight vector into a single overall row
+#'
+#' @description
+#' Used by non-binary treatment types where splitting by "treated /
+#' control" is not meaningful. Reports a single `overall` row with
+#' the same column schema as `summarise_weights_by_arm()` so
+#' downstream print / plot code can handle both shapes uniformly.
+#'
+#' @param w Numeric weight vector.
+#' @return A `data.table` with a single `overall` row.
+#' @noRd
+summarise_weights_overall <- function(w) {
+  ess_val <- if (sum(w^2) == 0) 0 else sum(w)^2 / sum(w^2)
+  data.table::data.table(
+    group = "overall",
+    n = length(w),
+    mean = mean(w),
+    sd = if (length(w) < 2L) NA_real_ else stats::sd(w),
+    min = min(w),
+    max = max(w),
+    ess = ess_val
+  )
 }
 
 #' Compute matching quality metrics

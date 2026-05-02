@@ -264,9 +264,19 @@ print_diag_panel <- function(panel, header = NULL) {
     cat("Intervention: ", header, "\n", sep = "")
   }
   if (!is.null(panel$positivity)) {
-    cat("Positivity (propensity score):\n")
-    print(panel$positivity, row.names = FALSE)
-    cat("\n")
+    pos <- panel$positivity
+    if (is.list(pos) && !data.table::is.data.table(pos)) {
+      # Multivariate: named list of per-component tables.
+      for (nm in names(pos)) {
+        cat("Positivity (", nm, "):\n", sep = "")
+        print(pos[[nm]], row.names = FALSE)
+        cat("\n")
+      }
+    } else {
+      cat("Positivity:\n")
+      print(pos, row.names = FALSE)
+      cat("\n")
+    }
   }
   if (!is.null(panel$balance)) {
     cat("Covariate balance:\n")
