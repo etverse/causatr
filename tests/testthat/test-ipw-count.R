@@ -94,13 +94,14 @@ test_that("evaluate_density() negbin returns dnbinom per row", {
   skip_if_not_installed("MASS")
   d <- simulate_count_treatment(n = 300, seed = 4)
   dt <- data.table::as.data.table(d)
-  tm <- fit_treatment_model(
+  # theta.ml iteration warning is expected: Poisson DGP has theta = Inf.
+  tm <- suppressWarnings(fit_treatment_model(
     dt,
     treatment = "A",
     confounders = ~L,
     model_fn = MASS::glm.nb,
     propensity_family = "negbin"
-  )
+  ))
 
   fit_data <- dt[tm$fit_rows]
   a_obs <- fit_data$A
@@ -168,14 +169,15 @@ test_that("ipw × count trt × negbin agrees with Poisson on Poisson DGP", {
     ci_method = "sandwich"
   )
 
-  fit_nb <- causat(
+  # theta.ml iteration warning is expected: Poisson DGP has theta = Inf.
+  fit_nb <- suppressWarnings(causat(
     d,
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
     estimator = "ipw",
     propensity_family = "negbin"
-  )
+  ))
   res_nb <- contrast(
     fit_nb,
     interventions = list(s1 = shift(1), s0 = NULL),

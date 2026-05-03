@@ -709,7 +709,7 @@ compute_ipw_contrast_longitudinal <- function(
     msm_args <- list(
       formula = msm_formula,
       data = data_final,
-      family = fam_obj,
+      family = msm_family(fam_obj),
       weights = w_combined
     )
     msm_model <- do.call(model_fn, msm_args)

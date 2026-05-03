@@ -476,3 +476,23 @@ check_pkg <- function(pkg) {
     )
   }
 }
+
+#' Swap binomial for quasibinomial in weighted MSM fits
+#'
+#' @description
+#' IPW outcome MSMs are fit with density-ratio weights, which are
+#' non-integer. R's `glm.fit` warns "non-integer #successes in a
+#' binomial glm!" for binomial families with non-integer weights.
+#' quasibinomial produces identical coefficients, SEs, and
+#' predictions but suppresses the warning.
+#'
+#' @param fam A family object (as returned by `resolve_family()`).
+#' @return The same family, or `quasibinomial()` if the input was
+#'   `binomial`.
+#' @noRd
+msm_family <- function(fam) {
+  if (is.list(fam) && identical(fam$family, "binomial")) {
+    return(stats::quasibinomial(link = fam$link))
+  }
+  fam
+}

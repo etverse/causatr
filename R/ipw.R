@@ -510,7 +510,7 @@ compute_ipw_contrast_point <- function(
     msm_args <- list(
       formula = msm_formula,
       data = fit_data,
-      family = fam_obj,
+      family = msm_family(fam_obj),
       weights = w_final
     )
     msm_model <- do.call(model_fn, msm_args)

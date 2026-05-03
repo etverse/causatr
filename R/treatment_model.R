@@ -625,10 +625,18 @@ fit_bernoulli_density <- function(
   # against later newdata frames (e.g. inside `stats::predict()`) and
   # fails with "object 'weights_fit' not found". `do.call()` with a
   # list of actual values avoids the lookup.
+  # When external weights are present, use quasibinomial() instead of
+  # binomial() to suppress "non-integer #successes" warnings. The
+  # coefficient estimates, SEs, and predictions are identical.
+  fam <- if (!is.null(weights_fit)) {
+    stats::quasibinomial()
+  } else {
+    stats::binomial()
+  }
   base_args <- list(
     formula = ps_formula,
     data = fit_data,
-    family = stats::binomial()
+    family = fam
   )
   if (!is.null(weights_fit)) {
     base_args$weights <- weights_fit
