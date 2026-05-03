@@ -798,6 +798,125 @@ test_that("stochastic gcomp: sandwich and bootstrap SEs agree (binomial)", {
   expect_lt(ratio, 2.0)
 })
 
+test_that("stochastic gcomp: sandwich and bootstrap SEs agree (continuous)", {
+  skip_on_cran()
+  dgp <- simulate_stochastic_continuous_gaussian(n = 2000, seed = 42)
+  fit <- causat(
+    dgp$data,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "gcomp"
+  )
+  set.seed(606)
+  res_sw <- contrast(
+    fit,
+    interventions = list(g = stochastic(dgp$sampler, n_mc = 50L)),
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  set.seed(606)
+  res_bs <- contrast(
+    fit,
+    interventions = list(g = stochastic(dgp$sampler, n_mc = 50L)),
+    type = "difference",
+    ci_method = "bootstrap",
+    n_boot = 200
+  )
+  expect_equal(
+    res_sw$estimates$estimate,
+    res_bs$estimates$estimate,
+    tolerance = 1e-10
+  )
+  ratio <- res_sw$estimates$se / res_bs$estimates$se
+  expect_gt(ratio, 0.5)
+  expect_lt(ratio, 2.0)
+})
+
+test_that("stochastic gcomp: sandwich and bootstrap SEs agree (categorical)", {
+  skip_on_cran()
+  dgp <- simulate_stochastic_categorical_gaussian(
+    n = 2000, seed = 42
+  )
+  fit <- causat(
+    dgp$data,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "gcomp"
+  )
+  set.seed(707)
+  res_sw <- contrast(
+    fit,
+    interventions = list(g = stochastic(dgp$sampler, n_mc = 50L)),
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  set.seed(707)
+  res_bs <- contrast(
+    fit,
+    interventions = list(g = stochastic(dgp$sampler, n_mc = 50L)),
+    type = "difference",
+    ci_method = "bootstrap",
+    n_boot = 200
+  )
+  expect_equal(
+    res_sw$estimates$estimate,
+    res_bs$estimates$estimate,
+    tolerance = 1e-10
+  )
+  ratio <- res_sw$estimates$se / res_bs$estimates$se
+  expect_gt(ratio, 0.5)
+  expect_lt(ratio, 2.0)
+})
+
+test_that("stochastic gcomp: sandwich and bootstrap SEs agree (multivariate)", {
+  skip_on_cran()
+  dgp <- simulate_stochastic_multivariate_gaussian(
+    n = 2000, seed = 42
+  )
+  fit <- causat(
+    dgp$data,
+    outcome = "Y",
+    treatment = c("A1", "A2"),
+    confounders = ~L,
+    estimator = "gcomp"
+  )
+  set.seed(808)
+  res_sw <- contrast(
+    fit,
+    interventions = list(
+      g = list(
+        A1 = stochastic(dgp$sampler_a1, n_mc = 50L),
+        A2 = stochastic(dgp$sampler_a2, n_mc = 50L)
+      )
+    ),
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  set.seed(808)
+  res_bs <- contrast(
+    fit,
+    interventions = list(
+      g = list(
+        A1 = stochastic(dgp$sampler_a1, n_mc = 50L),
+        A2 = stochastic(dgp$sampler_a2, n_mc = 50L)
+      )
+    ),
+    type = "difference",
+    ci_method = "bootstrap",
+    n_boot = 200
+  )
+  expect_equal(
+    res_sw$estimates$estimate,
+    res_bs$estimates$estimate,
+    tolerance = 1e-10
+  )
+  ratio <- res_sw$estimates$se / res_bs$estimates$se
+  expect_gt(ratio, 0.5)
+  expect_lt(ratio, 2.0)
+})
+
 # -- Chunk 5: Sandwich vs bootstrap agreement (ICE) ---------------------------
 
 test_that("stochastic ICE: sandwich and bootstrap SEs agree", {
@@ -897,7 +1016,7 @@ test_that("stochastic gcomp: agrees with lmtp_sdr (point)", {
   expect_lt(abs(est_causatr - est_lmtp), 0.3)
 })
 
-test_that("stochastic ICE: point estimate agrees with lmtp::lmtp_sdr (longitudinal)", {
+test_that("stochastic ICE: agrees with lmtp_sdr (longitudinal)", {
   skip_on_cran()
   skip_if_not_installed("lmtp")
   skip_if_not_installed("SuperLearner")

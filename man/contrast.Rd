@@ -27,7 +27,8 @@ contrast(
 one of:
 \itemize{
 \item A \code{causatr_intervention} object created by \code{\link[=static]{static()}}, \code{\link[=shift]{shift()}},
-\code{\link[=dynamic]{dynamic()}}, \code{\link[=scale_by]{scale_by()}}, \code{\link[=threshold]{threshold()}}, or \code{\link[=ipsi]{ipsi()}}.
+\code{\link[=dynamic]{dynamic()}}, \code{\link[=scale_by]{scale_by()}}, \code{\link[=threshold]{threshold()}}, \code{\link[=ipsi]{ipsi()}}, or
+\code{\link[=stochastic]{stochastic()}}.
 \item \code{NULL}, meaning the natural course (observed treatment values are used
 as-is). The natural course is the standard reference for modified
 treatment policies on continuous treatments (e.g. \code{shift(-10)} vs
@@ -42,7 +43,8 @@ every treatment variable specified in \code{causat()}.
 }
 
 \strong{Note:} Non-static interventions (\code{shift()}, \code{scale_by()}, \code{threshold()},
-\code{dynamic()}, \code{ipsi()}) are only supported for \code{estimator = "gcomp"}.
+\code{dynamic()}, \code{ipsi()}, \code{stochastic()}) are only supported for
+\code{estimator = "gcomp"}.
 For IPW and matching, the weights/matched sets were estimated under the
 observed treatment distribution; applying a different regime requires
 re-calling \code{\link[=causat]{causat()}} with updated data. \code{ipsi()} additionally requires
@@ -197,7 +199,7 @@ be changed after fitting.
 \subsection{Treatment types and intervention support}{\tabular{lll}{
    Method \tab Treatment types \tab Intervention types \cr
    \code{"gcomp"} \tab binary, categorical, continuous, multivariate \tab all \cr
-   \code{"ipw"} \tab binary, continuous \tab binary: \code{static()} / \code{dynamic()} / \code{ipsi()}; continuous: \code{shift()} / \code{scale_by()} \cr
+   \code{"ipw"} \tab binary, continuous \tab all deterministic \cr
    \code{"matching"} \tab binary \tab \code{static()} only \cr
 }
 
@@ -259,6 +261,18 @@ contrast(fit_cat,
   type = "difference",
   reference = "radio"
 )
+
+# Stochastic intervention: random treatment assignment
+sampler <- function(data, trt) {
+  rbinom(nrow(data), 1, plogis(0.3 * data$age))
+}
+contrast(fit,
+  interventions = list(
+    stoch = stochastic(sampler, n_mc = 100L),
+    always = static(1)
+  ),
+  type = "difference"
+)
 }
 
 }
@@ -276,5 +290,6 @@ g-computation. \emph{Statistics in Medicine} 43:5562-5572.
 }
 \seealso{
 \code{\link[=causat]{causat()}}, \code{\link[=static]{static()}}, \code{\link[=shift]{shift()}}, \code{\link[=dynamic]{dynamic()}},
-\code{\link[=coef.causatr_result]{coef.causatr_result()}}, \code{\link[=confint.causatr_result]{confint.causatr_result()}}
+\code{\link[=stochastic]{stochastic()}}, \code{\link[=coef.causatr_result]{coef.causatr_result()}},
+\code{\link[=confint.causatr_result]{confint.causatr_result()}}
 }

@@ -31,7 +31,8 @@
 #' @param interventions A named list of interventions. Each element must be
 #'   one of:
 #'   - A `causatr_intervention` object created by [static()], [shift()],
-#'     [dynamic()], [scale_by()], [threshold()], or [ipsi()].
+#'     [dynamic()], [scale_by()], [threshold()], [ipsi()], or
+#'     [stochastic()].
 #'   - `NULL`, meaning the natural course (observed treatment values are used
 #'     as-is). The natural course is the standard reference for modified
 #'     treatment policies on continuous treatments (e.g. `shift(-10)` vs
@@ -45,7 +46,8 @@
 #'     every treatment variable specified in `causat()`.
 #'
 #'   **Note:** Non-static interventions (`shift()`, `scale_by()`, `threshold()`,
-#'   `dynamic()`, `ipsi()`) are only supported for `estimator = "gcomp"`.
+#'   `dynamic()`, `ipsi()`, `stochastic()`) are only supported for
+#'   `estimator = "gcomp"`.
 #'   For IPW and matching, the weights/matched sets were estimated under the
 #'   observed treatment distribution; applying a different regime requires
 #'   re-calling [causat()] with updated data. `ipsi()` additionally requires
@@ -155,7 +157,7 @@
 #' | Method | Treatment types | Intervention types |
 #' |---|---|---|
 #' | `"gcomp"` | binary, categorical, continuous, multivariate | all |
-#' | `"ipw"` | binary, continuous | binary: `static()` / `dynamic()` / `ipsi()`; continuous: `shift()` / `scale_by()` |
+#' | `"ipw"` | binary, continuous | all deterministic |
 #' | `"matching"` | binary | `static()` only |
 #'
 #' ## Variance estimation
@@ -223,10 +225,23 @@
 #'   type = "difference",
 #'   reference = "radio"
 #' )
+#'
+#' # Stochastic intervention: random treatment assignment
+#' sampler <- function(data, trt) {
+#'   rbinom(nrow(data), 1, plogis(0.3 * data$age))
+#' }
+#' contrast(fit,
+#'   interventions = list(
+#'     stoch = stochastic(sampler, n_mc = 100L),
+#'     always = static(1)
+#'   ),
+#'   type = "difference"
+#' )
 #' }
 #'
 #' @seealso [causat()], [static()], [shift()], [dynamic()],
-#'   [coef.causatr_result()], [confint.causatr_result()]
+#'   [stochastic()], [coef.causatr_result()],
+#'   [confint.causatr_result()]
 #' @export
 contrast <- function(
   fit,
@@ -251,7 +266,7 @@ contrast <- function(
   # Capture the caller's frame ONCE, at the top level, so a `subset`
   # expression referring to a session variable (e.g. `quote(age >
   # cutoff)`) can still resolve `cutoff` deep inside
-  # `compute_contrast()` / `variance_bootstrap()` / `ice_variance_bootstrap()`
+  # the compute_contrast, variance_bootstrap, ice_variance_bootstrap paths
   # where `parent.frame()` no longer points at the user. Threading
   # `subset_env` explicitly instead of re-capturing downstream is the
   # only correct way -- see B1 in the 2026-04-15 critical review.
@@ -454,7 +469,8 @@ check_interventions_compat <- function(
       # intervention-agnostic, so it handles all regimes uniformly.
       rlang::abort(
         paste0(
-          "Non-static interventions (shift, dynamic, scale, threshold, ipsi, stochastic) ",
+          "Non-static interventions ",
+          "(shift, dynamic, scale, threshold, ipsi, stochastic) ",
           "are not supported for estimator = '",
           estimator,
           "'. ",
@@ -517,16 +533,15 @@ predict_under_intervention <- function(model, data, treatment, iv) {
 #' predictions over the target population rows.
 #'
 #' @param fit A `causatr_fit` object.
-#' @param interventions Named list of `causatr_intervention` objects (or `NULL`).
-#' @param type Contrast scale: `"difference"`, `"ratio"`, or `"or"`.
-#' @param estimand Character or `NULL`. `"ATE"`, `"ATT"`, or `"ATC"`.
-#' @param subset Quoted expression or `NULL`. Rows to average over.
-#' @param reference Character or `NULL`. Name of the reference intervention.
-#' @param ci_method Character. `"sandwich"` (IF variance via `variance_if()`)
-#'   or `"bootstrap"`.
-#' @param n_boot Integer. Bootstrap replications (for `ci_method = "bootstrap"`).
-#' @param conf_level Numeric. Confidence level (e.g. 0.95).
-#' @param by Character or `NULL`. Stratification variable for effect modification.
+#' @param interventions Named list of interventions (or `NULL`).
+#' @param type Contrast scale: `"difference"`, `"ratio"`, `"or"`.
+#' @param estimand `"ATE"`, `"ATT"`, `"ATC"`, or `NULL`.
+#' @param subset Quoted expression or `NULL`.
+#' @param reference Name of the reference intervention or `NULL`.
+#' @param ci_method `"sandwich"` (IF variance) or `"bootstrap"`.
+#' @param n_boot Bootstrap replications (for `"bootstrap"`).
+#' @param conf_level Confidence level (e.g. 0.95).
+#' @param by Stratification variable or `NULL`.
 #' @param call The original `contrast()` call.
 #'
 #' @return A `causatr_result` object.
@@ -1117,9 +1132,9 @@ compute_contrast <- function(
           ". The risk/mean ratio is undefined (log-scale CI requires log(0))."
         ))
       }
-      # Delta method for R = mu_a / mu_ref:
-      #   dR/dmu_a    = 1/mu_ref
-      #   dR/dmu_ref  = -mu_a/mu_ref^2
+      # Delta method for R := mu_a / mu_ref.
+      # Gradient w.r.t. mu_a is 1/mu_ref;
+      # w.r.t. mu_ref is -mu_a / mu_ref^2.
       # Linear-scale SE from grad^T V grad, then convert to log-scale
       # CI: log(R) +/- z * se_log, se_log = se / R. Log-scale CIs respect
       # the (0, Inf) support of a ratio and have better coverage than
@@ -1144,8 +1159,8 @@ compute_contrast <- function(
       # Odds ratio:
       #   OR = [mu_a/(1 - mu_a)] / [mu_ref/(1 - mu_ref)]
       # Delta method gradients:
-      #   dOR/dmu_a   = OR / (mu_a * (1 - mu_a))
-      #   dOR/dmu_ref = -OR / (mu_ref * (1 - mu_ref))
+      # Gradient w.r.t. mu_a is OR / (mu_a * (1 - mu_a));
+      # w.r.t. mu_ref is -OR / (mu_ref * (1 - mu_ref)).
       # These come from differentiating log(OR) w.r.t. each mu and
       # multiplying by OR. Same log-scale CI pattern as ratios.
       est_c <- (mu_a / (1 - mu_a)) / (mu_ref / (1 - mu_ref))
