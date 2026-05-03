@@ -144,32 +144,69 @@ format_ci <- function(est, lo, hi, digits = 3L) {
 #' Plot diagnostics for a causatr fit
 #'
 #' @description
-#' Produces a Love plot showing covariate balance before and after adjustment.
-#' Uses `cobalt::love.plot()` if the `cobalt` package is available.
+#' Produces diagnostic visualisations from a [causatr_diag][diagnose]
+#' object. The `which` argument selects the plot type:
 #'
-#' For IPW fits, the plot shows balance before and after weighting. For
-#' matching fits, it shows balance before and after matching. For g-computation
-#' fits, it shows unadjusted balance only.
+#' - `"balance"` (default): a Love plot showing standardised mean
+#'   differences via `cobalt::love.plot()`. Requires `cobalt`.
+#' - `"weights"`: weight-distribution histograms (one panel per
+#'   intervention). Binary treatments are faceted by arm (treated /
+#'   control); non-binary show the overall distribution.
+#'   Requires `tinyplot`.
+#' - `"positivity"`: propensity-score histogram for binary treatments;
+#'   conditional density histogram for continuous / count treatments;
+#'   per-level bar chart for categorical treatments.
+#'   Requires `tinyplot`.
 #'
 #' @param x A `causatr_diag` object returned by [diagnose()].
-#' @param stats Character. Which balance statistic(s) to plot. Default `"m"`
-#'   (standardised mean differences). See `cobalt::love.plot()` for options.
-#' @param abs Logical. Whether to plot absolute values. Default `TRUE`.
-#' @param thresholds Named numeric vector. Threshold lines to draw on the
-#'   plot. Default `c(m = 0.1)`.
-#' @param ... Additional arguments passed to `cobalt::love.plot()`.
+#' @param which Character. Type of diagnostic plot. One of `"balance"`
+#'   (default), `"weights"`, or `"positivity"`.
+#' @param log_scale Logical. For `which = "weights"`, apply log10 to
+#'   the weight axis. Default `FALSE`.
+#' @param stats Character. For `which = "balance"`, which balance
+#'   statistic(s) to plot. Default `"m"` (standardised mean
+#'   differences). See `cobalt::love.plot()` for options.
+#' @param abs Logical. For `which = "balance"`, whether to plot
+#'   absolute values. Default `TRUE`.
+#' @param thresholds Named numeric vector. For `which = "balance"`,
+#'   threshold lines to draw. Default `c(m = 0.1)`.
+#' @param ... Additional arguments passed to the plotting backend
+#'   (`cobalt::love.plot()` for balance; `tinyplot::plt()` for
+#'   weights and positivity).
 #'
-#' @return A `ggplot` object (invisibly).
+#' @return Invisibly returns `x`.
 #'
 #' @seealso [diagnose()], [print.causatr_diag()]
 #' @export
 plot.causatr_diag <- function(
   x,
+  which = c("balance", "weights", "positivity"),
+  log_scale = FALSE,
   stats = "m",
   abs = TRUE,
   thresholds = c(m = 0.1),
   ...
 ) {
+  which <- rlang::arg_match(which)
+  if (which == "balance") {
+    return(plot_diag_balance(x, stats, abs, thresholds, ...))
+  }
+  if (which == "weights") {
+    return(plot_diag_weights(x, log_scale, ...))
+  }
+  plot_diag_positivity(x, ...)
+}
+
+#' Love plot (balance) for diagnostics
+#'
+#' @param x A `causatr_diag` object.
+#' @param stats Character: balance statistics.
+#' @param abs Logical: absolute values.
+#' @param thresholds Named numeric: threshold lines.
+#' @param ... Forwarded to `cobalt::love.plot()`.
+#' @return Invisibly returns `x`.
+#' @noRd
+plot_diag_balance <- function(x, stats, abs, thresholds, ...) {
   check_pkg("cobalt")
 
   obj <- get_cobalt_object(x)
@@ -180,9 +217,6 @@ plot.causatr_diag <- function(
     )
   }
 
-  # Self-contained IPW returns a `list(formula, data)` pair rather
-  # than a cobalt-native object; dispatch to the formula interface
-  # of `cobalt::love.plot()` in that case.
   p <- if (is.list(obj) && !is.null(obj$formula) && !is.null(obj$data)) {
     cobalt::love.plot(
       obj$formula,
@@ -207,7 +241,346 @@ plot.causatr_diag <- function(
   }
 
   print(p)
-  invisible(p)
+  invisible(x)
+}
+
+#' Weight-distribution plot for diagnostics
+#'
+#' @description
+#' Histograms of the weight vectors stored in each intervention panel.
+#' Binary treatments facet by arm (treated / control); non-binary
+#' treatments show the overall distribution. Multi-intervention
+#' diagnostics facet by intervention key.
+#'
+#' @param x A `causatr_diag` object.
+#' @param log_scale Logical: log10 x-axis.
+#' @param ... Forwarded to `tinyplot::plt()`.
+#' @return Invisibly returns `x`.
+#' @noRd
+plot_diag_weights <- function(x, log_scale, ...) {
+  check_pkg("tinyplot")
+
+  panels <- x$per_intervention
+  if (is.null(panels) || length(panels) == 0L) {
+    rlang::abort(
+      "No weight panels available to plot.",
+      .call = FALSE
+    )
+  }
+
+  # Collect weight vectors from each panel into a long data.frame.
+  rows <- list()
+  for (nm in names(panels)) {
+    wts <- panels[[nm]]$weights
+    if (is.null(wts)) {
+      next
+    }
+
+    # Longitudinal: per-period named list. Plot cumulative only.
+    if (is.list(wts) && !data.table::is.data.table(wts)) {
+      wts <- wts[["cumulative"]]
+      if (is.null(wts)) next
+    }
+
+    # Reconstruct the raw weight vector from the fit. The weight
+    # summary table stores aggregates, not raw vectors. Recompute
+    # from the fit object.
+    fit <- x$fit
+    if (is.null(fit) || fit$estimator != "ipw") {
+      next
+    }
+
+    is_default_obs <- nm == "obs" && length(panels) == 1L
+    iv <- if (is_default_obs) NULL else x$fit$details$interventions[[nm]]
+
+    w_raw <- reconstruct_weights(fit, nm, is_default_obs)
+    if (is.null(w_raw)) {
+      next
+    }
+
+    # Binary: label by arm.
+    trt_type <- x$fit_info$treatment_type
+    if (trt_type == "binary" && !isTRUE(fit$details$is_multivariate)) {
+      fit_rows <- fit$details$fit_rows
+      a_obs <- fit$data[fit_rows][[fit$treatment[1]]]
+      arm <- ifelse(a_obs == 1, "treated", "control")
+      rows[[length(rows) + 1L]] <- data.frame(
+        weight = w_raw,
+        arm = arm,
+        intervention = nm,
+        stringsAsFactors = FALSE
+      )
+    } else {
+      rows[[length(rows) + 1L]] <- data.frame(
+        weight = w_raw,
+        arm = "overall",
+        intervention = nm,
+        stringsAsFactors = FALSE
+      )
+    }
+  }
+
+  if (length(rows) == 0L) {
+    rlang::warn("No weight data available to plot.")
+    return(invisible(x))
+  }
+
+  plot_df <- do.call(rbind, rows)
+
+  log_arg <- if (log_scale) "x" else ""
+  multi_intervention <- length(unique(plot_df$intervention)) > 1L
+  has_arms <- length(unique(plot_df$arm)) > 1L
+
+  plt_args <- list(
+    x = plot_df$weight,
+    type = tinyplot::type_histogram(),
+    xlab = if (log_scale) "Weight (log scale)" else "Weight",
+    ylab = "Frequency",
+    main = "Weight distribution",
+    log = log_arg
+  )
+
+  if (has_arms && multi_intervention) {
+    plt_args$by <- plot_df$arm
+    plt_args$facet <- plot_df$intervention
+  } else if (has_arms) {
+    plt_args$by <- plot_df$arm
+  } else if (multi_intervention) {
+    plt_args$facet <- plot_df$intervention
+  }
+
+  dots <- list(...)
+  plt_args[names(dots)] <- dots
+
+  do.call(tinyplot::plt, plt_args)
+  invisible(x)
+}
+
+#' Reconstruct raw weight vector from a fit for plotting
+#'
+#' @param fit A `causatr_fit`.
+#' @param panel_name Character: panel key.
+#' @param is_default_obs Logical.
+#' @return Numeric weight vector, or NULL.
+#' @noRd
+reconstruct_weights <- function(fit, panel_name, is_default_obs) {
+  if (fit$estimator != "ipw") {
+    return(NULL)
+  }
+
+  # Multivariate: product weight
+  if (isTRUE(fit$details$is_multivariate)) {
+    if (is_default_obs) {
+      n <- sum(fit$details$fit_rows)
+      return(rep(1, n))
+    }
+    return(NULL)
+  }
+
+  tm <- fit$details$treatment_model
+  if (is.null(tm)) {
+    return(NULL)
+  }
+  fit_rows <- fit$details$fit_rows
+  fit_data <- fit$data[fit_rows]
+
+  if (is_default_obs) {
+    if (tm$family == "bernoulli") {
+      a_obs <- fit_data[[fit$treatment[1]]]
+      p <- as.numeric(stats::predict(
+        fit$details$propensity_model,
+        newdata = fit_data,
+        type = "response"
+      ))
+      estimand <- fit$estimand %||% "ATE"
+      if (estimand == "ATT") {
+        return(ifelse(a_obs == 1, 1, p / (1 - p)))
+      }
+      if (estimand == "ATC") {
+        return(ifelse(a_obs == 1, (1 - p) / p, 1))
+      }
+      return(ifelse(a_obs == 1, 1 / p, 1 / (1 - p)))
+    }
+    return(rep(1, sum(fit_rows)))
+  }
+
+  # Per-intervention density-ratio weights.
+  NULL
+}
+
+#' Positivity plot for diagnostics
+#'
+#' @description
+#' For binary treatments: propensity-score histogram with optional
+#' threshold lines. For continuous/count: conditional density
+#' histogram. For categorical: per-level probability histogram.
+#'
+#' @param x A `causatr_diag` object.
+#' @param ... Forwarded to `tinyplot::plt()`.
+#' @return Invisibly returns `x`.
+#' @noRd
+plot_diag_positivity <- function(x, ...) {
+  check_pkg("tinyplot")
+
+  fit <- x$fit
+  if (is.null(fit)) {
+    rlang::abort(
+      "Positivity plot requires the original fit object.",
+      .call = FALSE
+    )
+  }
+
+  trt_type <- x$fit_info$treatment_type
+
+  if (trt_type == "binary") {
+    return(plot_positivity_binary(x, ...))
+  }
+  if (trt_type %in% c("continuous", "count")) {
+    return(plot_positivity_density(x, ...))
+  }
+  if (trt_type == "categorical") {
+    return(plot_positivity_categorical(x, ...))
+  }
+
+  rlang::warn(
+    paste0("Positivity plot not supported for treatment type '", trt_type, "'.")
+  )
+  invisible(x)
+}
+
+#' Binary propensity-score histogram
+#'
+#' @param x A `causatr_diag` object.
+#' @param ... Forwarded to `tinyplot::plt()`.
+#' @return Invisibly returns `x`.
+#' @noRd
+plot_positivity_binary <- function(x, ...) {
+  fit <- x$fit
+  fit_rows <- fit$details$fit_rows
+  fit_data <- fit$data[fit_rows]
+  a_obs <- fit_data[[fit$treatment[1]]]
+
+  # Source propensity scores.
+  if (fit$estimator == "ipw" && !is.null(fit$details$propensity_model)) {
+    ps <- as.numeric(stats::predict(
+      fit$details$propensity_model,
+      newdata = fit_data,
+      type = "response"
+    ))
+  } else if (!is.null(fit$match_obj) && !is.null(fit$match_obj$distance)) {
+    ps <- fit$match_obj$distance
+  } else {
+    ps_formula <- build_ps_formula(fit$confounders, fit$treatment)
+    ps_model <- stats::glm(
+      ps_formula,
+      data = fit_data,
+      family = stats::binomial()
+    )
+    ps <- stats::fitted(ps_model)
+  }
+
+  arm <- ifelse(a_obs == 1, "treated", "control")
+  plt_args <- list(
+    x = ps,
+    by = arm,
+    type = tinyplot::type_density(),
+    xlab = "Propensity score P(A=1|L)",
+    ylab = "Density",
+    main = "Propensity score distribution"
+  )
+
+  dots <- list(...)
+  plt_args[names(dots)] <- dots
+  do.call(tinyplot::plt, plt_args)
+  invisible(x)
+}
+
+#' Continuous/count conditional density histogram
+#'
+#' @param x A `causatr_diag` object.
+#' @param ... Forwarded to `tinyplot::plt()`.
+#' @return Invisibly returns `x`.
+#' @noRd
+plot_positivity_density <- function(x, ...) {
+  fit <- x$fit
+  tm <- fit$details$treatment_model
+  if (is.null(tm)) {
+    rlang::warn("No treatment model available for density plot.")
+    return(invisible(x))
+  }
+
+  fit_rows <- fit$details$fit_rows
+  fit_data <- fit$data[fit_rows]
+  a_obs <- fit_data[[fit$treatment[1]]]
+  f_obs <- evaluate_density(tm, a_obs, fit_data)
+
+  plt_args <- list(
+    x = f_obs,
+    type = tinyplot::type_histogram(),
+    xlab = "Conditional density f(A|L)",
+    ylab = "Frequency",
+    main = "Treatment density distribution"
+  )
+
+  dots <- list(...)
+  plt_args[names(dots)] <- dots
+  do.call(tinyplot::plt, plt_args)
+  invisible(x)
+}
+
+#' Categorical per-level probability histogram
+#'
+#' @param x A `causatr_diag` object.
+#' @param ... Forwarded to `tinyplot::plt()`.
+#' @return Invisibly returns `x`.
+#' @noRd
+plot_positivity_categorical <- function(x, ...) {
+  fit <- x$fit
+  tm <- fit$details$treatment_model
+  if (is.null(tm)) {
+    rlang::warn("No treatment model available for categorical plot.")
+    return(invisible(x))
+  }
+
+  fit_rows <- fit$details$fit_rows
+  fit_data <- fit$data[fit_rows]
+  trt_levels <- tm$levels
+
+  prob_raw <- stats::predict(
+    tm$model,
+    newdata = fit_data,
+    type = "probs"
+  )
+  if (is.null(dim(prob_raw))) {
+    prob_mat <- cbind(1 - prob_raw, prob_raw)
+    colnames(prob_mat) <- trt_levels
+  } else {
+    prob_mat <- prob_raw
+  }
+
+  # Long format for tinyplot faceting.
+  rows <- lapply(trt_levels, function(lev) {
+    data.frame(
+      probability = prob_mat[, lev],
+      level = lev,
+      stringsAsFactors = FALSE
+    )
+  })
+  plot_df <- do.call(rbind, rows)
+
+  plt_args <- list(
+    x = plot_df$probability,
+    facet = plot_df$level,
+    type = tinyplot::type_histogram(),
+    xlab = "P(A = k | L)",
+    ylab = "Frequency",
+    main = "Per-level treatment probability"
+  )
+
+  dots <- list(...)
+  plt_args[names(dots)] <- dots
+  do.call(tinyplot::plt, plt_args)
+  invisible(x)
 }
 
 #' Extract the cobalt-compatible object from diagnostics

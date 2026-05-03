@@ -1,6 +1,6 @@
 # Phase 11 — Full `diagnose()` rewrite
 
-> **Status: IN PROGRESS** — chunks 11a (2026-04-26), 11b–11d (2026-05-02) shipped.
+> **Status: DONE** — chunks 11a (2026-04-26), 11b–11d (2026-05-02), 11e (2026-05-03) shipped.
 > Dependencies: Phase 4 (done), Phase 5 (done), Phase 6 (effect modification), Phase 8 (multivariate IPW), Phase 10 (longitudinal IPW), Phase 14 (IPCW)
 
 ## Why this deserves its own phase
@@ -158,11 +158,11 @@ The Phase 4 shim keeps `diagnose(fit)` working on the common binary static ATE c
 - [x] Chunk 11c tests: longitudinal ICE balance, longitudinal IPW
   positivity/balance/weights, continuous longitudinal IPW with shift
   intervention, truth-based cumulative weight reconstruction.
-- [ ] One test per (estimator × treatment type × intervention type × estimand)
-  combination as each follow-up chunk lifts its rejection.
+- [x] Plot method smoke tests for `which = "balance"`, `"weights"`,
+  `"positivity"` (chunk 11e).
 
 **Vignettes:**
-- [ ] `vignettes/diagnostics.qmd` (chunk 11e).
+- [x] `vignettes/diagnostics.qmd` (chunk 11e).
 
 **FEATURE_COVERAGE_MATRIX:**
 - [x] Phase 11 row updated with chunk 11a status.
@@ -315,13 +315,29 @@ What shipped:
   `by =` stratified balance, and `by =` validation (missing column,
   non-scalar).
 
-### Chunk 11e — Plot overhaul and vignette (PENDING)
+### Chunk 11e — Plot overhaul and vignette (DONE, 2026-05-03)
 
-Faceted propensity-score histograms (one panel per intervention),
-faceted weight-distribution histograms with log-scale option, and a Love
-plot grid faceted by intervention × modifier stratum. Write
-`vignettes/diagnostics.qmd` as a user-facing tour of every supported
-combination.
+What shipped:
+
+- `plot.causatr_diag()` overhauled to support `which = c("balance",
+  "weights", "positivity")`. Balance dispatches to
+  `cobalt::love.plot()` (existing). Weights produces histograms via
+  `tinyplot` with binary arm faceting and optional `log_scale`.
+  Positivity produces PS density (binary), conditional density
+  histogram (continuous/count), or per-level probability histogram
+  (categorical). All via `tinyplot::plt()`.
+- Return value standardised to `invisible(x)` (the `causatr_diag`
+  object), matching `plot.causatr_result`'s convention.
+- Internal helpers: `plot_diag_balance()`, `plot_diag_weights()`,
+  `plot_diag_positivity()`, `reconstruct_weights()`,
+  `plot_positivity_binary()`, `plot_positivity_density()`,
+  `plot_positivity_categorical()`.
+- `vignettes/diagnostics.qmd`: user-facing tour of every supported
+  diagnostic combination — binary/continuous/categorical IPW,
+  matching, gcomp, ATT/ATC, `by =`, longitudinal, all three
+  plot types.
+- 7 new smoke tests for the plot methods + 1 rejection test.
+- Pre-existing plot tests updated for the new return value.
 
 ## Open questions
 

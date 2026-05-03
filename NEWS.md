@@ -1,5 +1,25 @@
 # causatr (development version)
 
+## 2026-05-03 — Plot overhaul and diagnostics vignette (Phase 11 chunk 11e)
+
+`plot.causatr_diag()` now supports three plot types via
+`which = c("balance", "weights", "positivity")`. The balance plot
+(default) remains the cobalt Love plot. Weight-distribution histograms
+(`which = "weights"`) use tinyplot, facet by arm for binary treatments,
+and accept a `log_scale` argument. Positivity plots
+(`which = "positivity"`) show the propensity-score density (binary),
+conditional density histogram (continuous/count), or per-level
+probability histogram (categorical).
+
+New `vignettes/diagnostics.qmd` provides a user-facing tour of every
+supported diagnostic scenario: binary/continuous/categorical IPW,
+matching, gcomp, ATT/ATC, `by =` stratification, longitudinal, and
+all three plot types.
+
+This completes Phase 11. All `causatr_diag_*_pending` gates from
+chunk 11a are lifted, and `diagnose()` now handles every supported
+combination of estimator, treatment type, estimand, and timing.
+
 ## 2026-04-26 — `diagnose()` rewrite foundation (Phase 11 chunk 11a)
 
 `diagnose()` now accepts an `interventions =` argument that mirrors

@@ -393,7 +393,18 @@ Survey design integration, general cluster-robust sandwich, `future` backend. **
 Sequential density-ratio weights, cumulative product weights, stabilized weights, time-varying MSM. All ❌.
 
 ### Phase 11 — diagnose() rewrite
-Intervention-aware, treatment-type-aware, estimand-aware, longitudinal-aware diagnostics. **Chunks 11a–11d shipped.** 11a (foundation): nested per-intervention `causatr_diag` shape, `interventions =` argument, binary IPW per-intervention weight summary. 11b (treatment-type dispatch): density-range positivity for continuous/count, per-level positivity for categorical, per-component positivity for multivariate, overall weight summaries for all non-binary types, truth-based weight reconstruction test. 11c (longitudinal dispatch): per-period positivity/balance/weight diagnostics for longitudinal IPW, per-period balance for ICE, cumulative weight summary. 11d (estimand + EM): IPW ATT/ATC observed-treatment weights, `by =` stratified balance via cobalt `cluster`. Chunk 11e (plot overhaul + vignette) still ❌.
+Intervention-aware, treatment-type-aware, estimand-aware, longitudinal-aware diagnostics. **All chunks shipped (11a–11e).** 11a (foundation): nested per-intervention `causatr_diag` shape, `interventions =` argument, binary IPW per-intervention weight summary. 11b (treatment-type dispatch): density-range positivity for continuous/count, per-level positivity for categorical, per-component positivity for multivariate, overall weight summaries for all non-binary types, truth-based weight reconstruction test. 11c (longitudinal dispatch): per-period positivity/balance/weight diagnostics for longitudinal IPW, per-period balance for ICE, cumulative weight summary. 11d (estimand + EM): IPW ATT/ATC observed-treatment weights, `by =` stratified balance via cobalt `cluster`. 11e (plot overhaul + vignette): `plot.causatr_diag()` with `which = c("balance", "weights", "positivity")`, `diagnostics.qmd` vignette.
+
+| Feature | Status | Test |
+|---|---|---|
+| plot(diag, which="balance") — Love plot (IPW) | 🟡 | test-diagnose.R |
+| plot(diag, which="balance") — Love plot (matching) | 🟡 | test-diagnose.R |
+| plot(diag, which="weights") — weight histogram | 🟡 | test-diagnose.R |
+| plot(diag, which="weights", log_scale=TRUE) | 🟡 | test-diagnose.R |
+| plot(diag, which="positivity") — binary PS density | 🟡 | test-diagnose.R |
+| plot(diag, which="positivity") — continuous density | 🟡 | test-diagnose.R |
+| plot(diag, which="balance") errors for gcomp | ⛔ | test-diagnose.R |
+| plot(diag, which="weights") warns for gcomp (no wts) | ⛔ | test-diagnose.R |
 
 ### Phase 12 — Stochastic interventions
 `stochastic()` under gcomp (point + ICE), MC g-formula, MC-averaged IFs. IPW/matching rejected. All ❌.

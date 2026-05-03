@@ -4,31 +4,57 @@
 \alias{plot.causatr_diag}
 \title{Plot diagnostics for a causatr fit}
 \usage{
-\method{plot}{causatr_diag}(x, stats = "m", abs = TRUE, thresholds = c(m = 0.1), ...)
+\method{plot}{causatr_diag}(
+  x,
+  which = c("balance", "weights", "positivity"),
+  log_scale = FALSE,
+  stats = "m",
+  abs = TRUE,
+  thresholds = c(m = 0.1),
+  ...
+)
 }
 \arguments{
 \item{x}{A \code{causatr_diag} object returned by \code{\link[=diagnose]{diagnose()}}.}
 
-\item{stats}{Character. Which balance statistic(s) to plot. Default \code{"m"}
-(standardised mean differences). See \code{cobalt::love.plot()} for options.}
+\item{which}{Character. Type of diagnostic plot. One of \code{"balance"}
+(default), \code{"weights"}, or \code{"positivity"}.}
 
-\item{abs}{Logical. Whether to plot absolute values. Default \code{TRUE}.}
+\item{log_scale}{Logical. For \code{which = "weights"}, apply log10 to
+the weight axis. Default \code{FALSE}.}
 
-\item{thresholds}{Named numeric vector. Threshold lines to draw on the
-plot. Default \code{c(m = 0.1)}.}
+\item{stats}{Character. For \code{which = "balance"}, which balance
+statistic(s) to plot. Default \code{"m"} (standardised mean
+differences). See \code{cobalt::love.plot()} for options.}
 
-\item{...}{Additional arguments passed to \code{cobalt::love.plot()}.}
+\item{abs}{Logical. For \code{which = "balance"}, whether to plot
+absolute values. Default \code{TRUE}.}
+
+\item{thresholds}{Named numeric vector. For \code{which = "balance"},
+threshold lines to draw. Default \code{c(m = 0.1)}.}
+
+\item{...}{Additional arguments passed to the plotting backend
+(\code{cobalt::love.plot()} for balance; \code{tinyplot::plt()} for
+weights and positivity).}
 }
 \value{
-A \code{ggplot} object (invisibly).
+Invisibly returns \code{x}.
 }
 \description{
-Produces a Love plot showing covariate balance before and after adjustment.
-Uses \code{cobalt::love.plot()} if the \code{cobalt} package is available.
-
-For IPW fits, the plot shows balance before and after weighting. For
-matching fits, it shows balance before and after matching. For g-computation
-fits, it shows unadjusted balance only.
+Produces diagnostic visualisations from a \link[=diagnose]{causatr_diag}
+object. The \code{which} argument selects the plot type:
+\itemize{
+\item \code{"balance"} (default): a Love plot showing standardised mean
+differences via \code{cobalt::love.plot()}. Requires \code{cobalt}.
+\item \code{"weights"}: weight-distribution histograms (one panel per
+intervention). Binary treatments are faceted by arm (treated /
+control); non-binary show the overall distribution.
+Requires \code{tinyplot}.
+\item \code{"positivity"}: propensity-score histogram for binary treatments;
+conditional density histogram for continuous / count treatments;
+per-level bar chart for categorical treatments.
+Requires \code{tinyplot}.
+}
 }
 \seealso{
 \code{\link[=diagnose]{diagnose()}}, \code{\link[=print.causatr_diag]{print.causatr_diag()}}

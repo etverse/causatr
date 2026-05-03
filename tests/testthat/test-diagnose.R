@@ -455,7 +455,7 @@ test_that("plot.causatr_diag produces a love plot for IPW", {
   diag <- diagnose(fit)
 
   p <- plot(diag)
-  expect_true(inherits(p, "gg") || inherits(p, "gtable"))
+  expect_s3_class(p, "causatr_diag")
 })
 
 test_that("plot.causatr_diag produces a love plot for matching", {
@@ -473,15 +473,15 @@ test_that("plot.causatr_diag produces a love plot for matching", {
   diag <- diagnose(fit)
 
   p <- plot(diag)
-  expect_true(inherits(p, "gg") || inherits(p, "gtable"))
+  expect_s3_class(p, "causatr_diag")
 })
 
-test_that("plot.causatr_diag errors for gcomp (no love plot available)", {
+test_that("plot.causatr_diag errors for gcomp balance (no love plot)", {
   df <- simulate_binary_continuous(n = 500)
   fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L)
   diag <- diagnose(fit)
 
-  expect_error(plot(diag), "IPW or matching")
+  expect_error(plot(diag, which = "balance"), "IPW or matching")
 })
 
 # ============================================================
@@ -1173,4 +1173,75 @@ test_that("diagnose() continuous IPW weight reconstruction matches manual densit
   ess_manual <- sum(w_manual)^2 / sum(w_manual^2)
   expect_equal(w_panel$ess, ess_manual, tolerance = 1e-8)
   expect_equal(w_panel$mean, mean(w_manual), tolerance = 1e-8)
+})
+
+
+# ============================================================
+# PLOT METHODS
+# ============================================================
+
+test_that("plot.causatr_diag with which='balance' produces a plot", {
+  skip_if_not_installed("cobalt")
+  d <- simulate_binary_continuous(n = 200)
+  fit <- causat(d, outcome = "Y", treatment = "A",
+                confounders = ~ L, estimator = "ipw")
+  diag <- diagnose(fit)
+  expect_invisible(plot(diag, which = "balance"))
+})
+
+test_that("plot.causatr_diag with which='weights' produces a plot", {
+  skip_if_not_installed("tinyplot")
+  d <- simulate_binary_continuous(n = 200)
+  fit <- causat(d, outcome = "Y", treatment = "A",
+                confounders = ~ L, estimator = "ipw")
+  diag <- diagnose(fit)
+  expect_invisible(plot(diag, which = "weights"))
+})
+
+test_that("plot.causatr_diag with which='weights' and log_scale", {
+  skip_if_not_installed("tinyplot")
+  d <- simulate_binary_continuous(n = 200)
+  fit <- causat(d, outcome = "Y", treatment = "A",
+                confounders = ~ L, estimator = "ipw")
+  diag <- diagnose(fit)
+  expect_invisible(plot(diag, which = "weights", log_scale = TRUE))
+})
+
+test_that("plot.causatr_diag with which='positivity' works for binary", {
+  skip_if_not_installed("tinyplot")
+  d <- simulate_binary_continuous(n = 200)
+  fit <- causat(d, outcome = "Y", treatment = "A",
+                confounders = ~ L, estimator = "ipw")
+  diag <- diagnose(fit)
+  expect_invisible(plot(diag, which = "positivity"))
+})
+
+test_that("plot.causatr_diag with which='positivity' works for continuous", {
+  skip_if_not_installed("tinyplot")
+  d <- simulate_binary_continuous(n = 200)
+  d$A_cont <- rnorm(nrow(d), mean = d$L)
+  fit <- causat(d, outcome = "Y", treatment = "A_cont",
+                confounders = ~ L, estimator = "ipw")
+  diag <- diagnose(fit)
+  expect_invisible(plot(diag, which = "positivity"))
+})
+
+test_that("plot.causatr_diag rejects invalid which argument", {
+  d <- simulate_binary_continuous(n = 200)
+  fit <- causat(d, outcome = "Y", treatment = "A",
+                confounders = ~ L, estimator = "ipw")
+  diag <- diagnose(fit)
+  expect_error(plot(diag, which = "invalid"))
+})
+
+test_that("plot.causatr_diag weights warns for gcomp (no weights)", {
+  skip_if_not_installed("tinyplot")
+  d <- simulate_binary_continuous(n = 200)
+  fit <- causat(d, outcome = "Y", treatment = "A",
+                confounders = ~ L, estimator = "gcomp")
+  diag <- diagnose(fit)
+  expect_warning(
+    plot(diag, which = "weights"),
+    "No weight data"
+  )
 })
