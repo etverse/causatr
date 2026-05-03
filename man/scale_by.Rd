@@ -29,5 +29,6 @@ contrast(fit, interventions = list(
 
 }
 \seealso{
-\code{\link[=static]{static()}}, \code{\link[=shift]{shift()}}, \code{\link[=threshold]{threshold()}}, \code{\link[=dynamic]{dynamic()}}, \code{\link[=ipsi]{ipsi()}}
+\code{\link[=static]{static()}}, \code{\link[=shift]{shift()}}, \code{\link[=threshold]{threshold()}}, \code{\link[=dynamic]{dynamic()}}, \code{\link[=ipsi]{ipsi()}},
+\code{\link[=stochastic]{stochastic()}}
 }

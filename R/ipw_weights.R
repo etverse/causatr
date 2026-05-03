@@ -1650,6 +1650,29 @@ check_intervention_family_compat <- function(
   fam <- treatment_model$family
   is_count <- fam %in% c("poisson", "negbin")
 
+  if (iv_type == "stochastic") {
+    rlang::abort(
+      c(
+        paste0(
+          "`stochastic()` interventions are only supported ",
+          "under `estimator = 'gcomp'`."
+        ),
+        i = paste0(
+          "Stochastic interventions require Monte Carlo ",
+          "integration over the counterfactual treatment ",
+          "distribution, which is only available via the ",
+          "g-formula (outcome-model prediction)."
+        ),
+        i = paste0(
+          "Use `causat(..., estimator = 'gcomp')`, or ",
+          "rewrite the intervention as a deterministic ",
+          "`dynamic()` rule if the policy is actually ",
+          "deterministic."
+        )
+      )
+    )
+  }
+
   if (iv_type == "ipsi" && fam != "bernoulli") {
     rlang::abort(
       c(

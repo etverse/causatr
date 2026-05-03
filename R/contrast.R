@@ -454,7 +454,7 @@ check_interventions_compat <- function(
       # intervention-agnostic, so it handles all regimes uniformly.
       rlang::abort(
         paste0(
-          "Non-static interventions (shift, dynamic, scale, threshold, ipsi) ",
+          "Non-static interventions (shift, dynamic, scale, threshold, ipsi, stochastic) ",
           "are not supported for estimator = '",
           estimator,
           "'. ",
@@ -467,6 +467,42 @@ check_interventions_compat <- function(
     }
   }
 }
+
+#' Predict under an intervention (deterministic or stochastic MC)
+#'
+#' @description
+#' For deterministic interventions, returns a single prediction vector.
+#' For stochastic interventions, runs `n_mc` Monte Carlo draws through the
+#' sampler, predicts under each, and returns the row-wise MC average.
+#'
+#' @param model Fitted model object (GLM, GAM, or custom).
+#' @param data data.table. Full dataset.
+#' @param treatment Character. Treatment column name(s).
+#' @param iv A `causatr_intervention` or `NULL`.
+#'
+#' @return A list with:
+#'   - `preds`: length-n numeric prediction vector (MC-averaged for stochastic).
+#'   - `data_a`: one counterfactual data.table (last MC draw for stochastic).
+#'
+#' @noRd
+predict_under_intervention <- function(model, data, treatment, iv) {
+  if (!has_stochastic_component(iv)) {
+    data_a <- apply_intervention(data, treatment, iv)
+    preds <- stats::predict(model, newdata = data_a, type = "response")
+    return(list(preds = preds, data_a = data_a))
+  }
+
+  n_mc <- get_stochastic_n_mc(iv)
+  one_draw <- function(m) {
+    data_a_m <- apply_intervention(data, treatment, iv)
+    stats::predict(model, newdata = data_a_m, type = "response")
+  }
+  preds_mat <- mc_sapply(seq_len(n_mc), one_draw, n_rows = nrow(data))
+  data_a_last <- apply_intervention(data, treatment, iv)
+  preds_avg <- rowMeans(preds_mat, na.rm = TRUE)
+  list(preds = preds_avg, data_a = data_a_last)
+}
+
 
 #' Core standardisation engine for causal contrasts
 #'
@@ -866,19 +902,14 @@ compute_contrast <- function(
     # ATC -> controls at baseline) and the optional `subset`.
     target_idx <- get_target_idx(data, fit$treatment, est, subset, subset_env)
 
-    # Build one counterfactual data.table per intervention. Each is a
-    # copy of `data` with the treatment column(s) overwritten according
-    # to the intervention rule (static, shift, dynamic, ...).
-    data_a_list <- lapply(interventions, function(iv) {
-      apply_intervention(data, fit$treatment, iv)
+    # Predict E[Y | A = a(L_i), L_i] under each intervention. For
+    # deterministic interventions this is a single apply + predict; for
+    # stochastic interventions, MC-average over n_mc draws.
+    pred_results <- lapply(interventions, function(iv) {
+      predict_under_intervention(model, data, fit$treatment, iv)
     })
-
-    # Predict E[Y | A = a(L_i), L_i] under each intervention. This is
-    # the g-computation step: the outcome model was fit on observed A,
-    # but we plug in the counterfactual A value row-by-row.
-    preds_list <- lapply(data_a_list, function(da) {
-      predict(model, newdata = da, type = "response")
-    })
+    preds_list <- lapply(pred_results, `[[`, "preds")
+    data_a_list <- lapply(pred_results, `[[`, "data_a")
 
     # Handle NA predictions (e.g. rows with missing confounders).
     # Intersect a "valid-across-all-interventions" mask with the target

@@ -56,9 +56,14 @@ are already in place.
 
 ## Non-scope
 
-- Stochastic interventions under IPW (beyond `ipsi()`) — would require
-  the user to supply the intervention density, and the variance engine
-  would need a fundamentally different cross-derivative. Out of scope.
+- Stochastic interventions under IPW (beyond `ipsi()`) — deferred to a
+  future phase (Phase 12b). The mechanism is straightforward: the user
+  supplies an optional `density` function `g*(a | L)` in `stochastic()`,
+  and IPW computes importance weights `w_i = g*(A_i | L_i) / ĝ(A_i | L_i)`.
+  This requires adding an optional `density` parameter to the constructor
+  and a new weight-computation branch in `compute_density_ratio_weights()`.
+  The variance engine would need the score of the intervention density
+  (or a numeric derivative). Out of scope for Phase 12.
 - Stochastic interventions under matching — architecturally incompatible.
 - Optimal treatment regime estimation (DTR) — different problem class.
 - TMLE/SDR for stochastic interventions — `lmtp` covers this.

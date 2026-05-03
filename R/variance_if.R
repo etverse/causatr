@@ -876,6 +876,7 @@ variance_if <- function(
       preds_list,
       mu_hat,
       target_idx,
+      interventions = interventions,
       cluster_vec = cluster_vec
     ))
   }
@@ -941,7 +942,8 @@ build_point_channel_pieces <- function(
   data_a_list,
   preds_list,
   mu_hat,
-  target_idx
+  target_idx,
+  interventions = NULL
 ) {
   model <- fit$model
   int_names <- names(data_a_list)
@@ -1006,16 +1008,50 @@ build_point_channel_pieces <- function(
     }
     Ch1_list[[j]] <- ch1
 
-    X_star <- iv_design_matrix(model, data_a_frames[[j]])
-    eta_star <- as.numeric(X_star %*% beta_hat)
-    mu_eta_star <- model$family$mu.eta(eta_star)
-
-    if (has_weights) {
-      w_t <- ext_w[target_idx]
-      grad_list[[j]] <- as.numeric(crossprod(X_star, w_t * mu_eta_star)) /
-        sum_w_target
+    iv_j <- if (!is.null(interventions)) interventions[[j]] else NULL
+    if (has_stochastic_component(iv_j)) {
+      # MC-average the gradient over n_mc draws. Each draw produces a
+      # different counterfactual dataset, so the design matrix and
+      # $\mu'(\eta^*)$ change per draw.
+      n_mc <- get_stochastic_n_mc(iv_j)
+      p_coef <- length(beta_hat)
+      grad_sum <- numeric(p_coef)
+      data_full <- fit$data
+      treatment <- fit$treatment
+      for (m in seq_len(n_mc)) {
+        data_a_m <- apply_intervention(data_full, treatment, iv_j)
+        da_m_target <- data_a_m[target_idx, , drop = FALSE]
+        X_star_m <- iv_design_matrix(model, da_m_target)
+        eta_star_m <- as.numeric(X_star_m %*% beta_hat)
+        mu_eta_star_m <- model$family$mu.eta(eta_star_m)
+        if (has_weights) {
+          w_t <- ext_w[target_idx]
+          grad_sum <- grad_sum +
+            as.numeric(crossprod(X_star_m, w_t * mu_eta_star_m))
+        } else {
+          grad_sum <- grad_sum +
+            as.numeric(crossprod(X_star_m, mu_eta_star_m))
+        }
+      }
+      denom <- if (has_weights) sum_w_target * n_mc else n_target * n_mc
+      grad_list[[j]] <- grad_sum / denom
     } else {
-      grad_list[[j]] <- as.numeric(crossprod(X_star, mu_eta_star)) / n_target
+      X_star <- iv_design_matrix(model, data_a_frames[[j]])
+      eta_star <- as.numeric(X_star %*% beta_hat)
+      mu_eta_star <- model$family$mu.eta(eta_star)
+
+      if (has_weights) {
+        w_t <- ext_w[target_idx]
+        grad_list[[j]] <- as.numeric(
+          crossprod(X_star, w_t * mu_eta_star)
+        ) /
+          sum_w_target
+      } else {
+        grad_list[[j]] <- as.numeric(
+          crossprod(X_star, mu_eta_star)
+        ) /
+          n_target
+      }
     }
   }
 
@@ -1063,14 +1099,16 @@ prepare_point_variance <- function(
   data_a_list,
   preds_list,
   mu_hat,
-  target_idx
+  target_idx,
+  interventions = NULL
 ) {
   pieces <- build_point_channel_pieces(
     fit,
     data_a_list,
     preds_list,
     mu_hat,
-    target_idx
+    target_idx,
+    interventions = interventions
   )
   prep <- prepare_model_if(model, pieces$fit_idx, pieces$n)
   list(pieces = pieces, prep = prep)
@@ -1086,6 +1124,7 @@ variance_if_gcomp <- function(
   preds_list,
   mu_hat,
   target_idx,
+  interventions = NULL,
   cluster_vec = NULL
 ) {
   model <- fit$model
@@ -1114,7 +1153,8 @@ variance_if_gcomp <- function(
     data_a_list,
     preds_list,
     mu_hat,
-    target_idx
+    target_idx,
+    interventions = interventions
   )
   pieces <- bundle$pieces
   prep <- bundle$prep
@@ -1363,71 +1403,125 @@ variance_if_ice_one <- function(fit, ice_result, target) {
     # Subset the (already intervention-modified) longitudinal data to
     # the rows at the current time step, and record which individuals
     # are present (some may have been censored out before this step).
+    intervention <- ice_result$intervention
+    is_stoch <- has_stochastic_component(intervention)
     rows_iv_current <- data_iv[[time_col]] == current_time
     iv_data_current <- data_iv[rows_iv_current]
     iv_ids_current <- as.character(iv_data_current[[id_col]])
-
-    # Build the counterfactual design matrix for this time step's
-    # model. `iv_design_matrix()` handles both GLMs (via `model.matrix`
-    # with stored xlevels) and GAMs (via `predict(..., type =
-    # "lpmatrix")`), and accepts data.table input -- so ICE can run the
-    # same sandwich-variance pipeline on GAM outcome models without any
-    # special casing here.
-    X_star_k <- iv_design_matrix(model_k, iv_data_current)
-
-    # Counterfactual linear predictor and its derivative w.r.t. eta.
-    # `mu_eta_star = dmu/deta` is needed to convert the gradient of the
-    # marginal mean w.r.t. beta into the gradient of the linear
-    # predictor, which is what the Channel-2 correction operates on.
-    eta_star <- as.numeric(X_star_k %*% stats::coef(model_k))
-    mu_eta_star <- model_k$family$mu.eta(eta_star)
 
     if (step_i == 1L) {
       target_in_iv <- match(all_ids[target], iv_ids_current)
       valid_target <- !is.na(target_in_iv)
       target_in_iv <- target_in_iv[valid_target]
-      # Unified gradient using the same weighted form as the IF above:
-      # `w_t` is rep(1, n_target) in the unweighted branch (constructed
-      # at the top of this function), so dividing by `sum_w_target`
-      # recovers the unweighted `/ n_target` scale exactly. See B7 in
-      # the 2026-04-15 review.
       target_w <- w_t[valid_target]
-      g_k <- as.numeric(
-        crossprod(
-          X_star_k[target_in_iv, , drop = FALSE],
-          target_w * mu_eta_star[target_in_iv]
+
+      if (is_stoch) {
+        n_mc_ice <- get_stochastic_n_mc(intervention)
+        p_coef <- length(stats::coef(model_k))
+        g_k_sum <- numeric(p_coef)
+        for (m in seq_len(n_mc_ice)) {
+          dv_m <- ice_apply_intervention_long(
+            data,
+            fit$treatment,
+            intervention,
+            id_col,
+            time_col
+          )
+          iv_cur_m <- dv_m[dv_m[[time_col]] == current_time]
+          X_m <- iv_design_matrix(model_k, iv_cur_m)
+          eta_m <- as.numeric(X_m %*% stats::coef(model_k))
+          mu_eta_m <- model_k$family$mu.eta(eta_m)
+          ids_m <- as.character(iv_cur_m[[id_col]])
+          tgt_in_m <- match(all_ids[target], ids_m)
+          vt_m <- !is.na(tgt_in_m)
+          tgt_in_m <- tgt_in_m[vt_m]
+          g_k_sum <- g_k_sum +
+            as.numeric(
+              crossprod(
+                X_m[tgt_in_m, , drop = FALSE],
+                target_w[vt_m] * mu_eta_m[tgt_in_m]
+              )
+            )
+        }
+        g_k <- g_k_sum / (n_mc_ice * sum_w_target)
+      } else {
+        X_star_k <- iv_design_matrix(model_k, iv_data_current)
+        eta_star <- as.numeric(
+          X_star_k %*% stats::coef(model_k)
         )
-      ) /
-        sum_w_target
+        mu_eta_star <- model_k$family$mu.eta(eta_star)
+        g_k <- as.numeric(
+          crossprod(
+            X_star_k[target_in_iv, , drop = FALSE],
+            target_w * mu_eta_star[target_in_iv]
+          )
+        ) /
+          sum_w_target
+      }
     } else {
       prev_fit_ids <- fit_ids_list[[step_i - 1L]]
       idx_in_all <- id_to_idx[prev_fit_ids]
       rows_in_iv <- match(prev_fit_ids, iv_ids_current)
-
       keep <- !is.na(idx_in_all) & !is.na(rows_in_iv)
+
       if (any(keep)) {
         d_prev <- d_vec[idx_in_all[keep]]
-        # Cascade gradient g_k^eff = A_{k-1,k}^T h_{k-1}
-        #   = sum_j w_{k-1,j} * d_{k-1,j} * X^*_{k,j} * mu_eta_{k,j}
-        # The w_{k-1,j} factor comes from \partial s_{k-1,j}/\partial
-        # \beta_k, which carries the prior weights from the (k-1)-th
-        # fit because the pseudo-outcome model at step k-1 is weighted.
-        # Unweighted ICE has w == 1 so this collapses to the previous
-        # formula; see variance-theory vignette Section 5.4.
         w_prev <- if (has_weights) {
           unname(w_at_step[[step_i - 1L]][prev_fit_ids[keep]])
         } else {
           rep(1, sum(keep))
         }
-        weights_g <- w_prev * d_prev * mu_eta_star[rows_in_iv[keep]]
-        g_k <- as.numeric(
-          crossprod(
-            X_star_k[rows_in_iv[keep], , drop = FALSE],
-            weights_g
+
+        if (is_stoch) {
+          n_mc_ice <- get_stochastic_n_mc(intervention)
+          p_coef <- length(stats::coef(model_k))
+          g_k_sum <- numeric(p_coef)
+          for (m in seq_len(n_mc_ice)) {
+            dv_m <- ice_apply_intervention_long(
+              data,
+              fit$treatment,
+              intervention,
+              id_col,
+              time_col
+            )
+            iv_cur_m <- dv_m[dv_m[[time_col]] == current_time]
+            X_m <- iv_design_matrix(model_k, iv_cur_m)
+            eta_m <- as.numeric(X_m %*% stats::coef(model_k))
+            mu_eta_m <- model_k$family$mu.eta(eta_m)
+            ids_m <- as.character(iv_cur_m[[id_col]])
+            riv_m <- match(prev_fit_ids, ids_m)
+            keep_m <- !is.na(idx_in_all) & !is.na(riv_m)
+            if (any(keep_m)) {
+              wg_m <- w_prev[keep_m] *
+                d_prev[keep_m] *
+                mu_eta_m[riv_m[keep_m]]
+              g_k_sum <- g_k_sum +
+                as.numeric(
+                  crossprod(
+                    X_m[riv_m[keep_m], , drop = FALSE],
+                    wg_m
+                  )
+                )
+            }
+          }
+          g_k <- g_k_sum / n_mc_ice
+        } else {
+          X_star_k <- iv_design_matrix(model_k, iv_data_current)
+          eta_star <- as.numeric(
+            X_star_k %*% stats::coef(model_k)
           )
-        )
+          mu_eta_star <- model_k$family$mu.eta(eta_star)
+          weights_g <- w_prev * d_prev * mu_eta_star[rows_in_iv[keep]]
+          g_k <- as.numeric(
+            crossprod(
+              X_star_k[rows_in_iv[keep], , drop = FALSE],
+              weights_g
+            )
+          )
+        }
       } else {
-        g_k <- rep(0, ncol(X_star_k))
+        p_coef <- length(stats::coef(model_k))
+        g_k <- rep(0, p_coef)
       }
     }
 

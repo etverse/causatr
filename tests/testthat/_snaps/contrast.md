@@ -36,7 +36,7 @@
       contrast(fit, list(a1 = dynamic(function(d, a) 1), a0 = static(0)))
     Condition
       Error in `contrast()`:
-      ! Non-static interventions (shift, dynamic, scale, threshold, ipsi) are not supported for estimator = 'matching'. The weights/matched sets were estimated under the original treatment regime and are not valid under a different intervention. Use estimator = 'gcomp' instead.
+      ! Non-static interventions (shift, dynamic, scale, threshold, ipsi, stochastic) are not supported for estimator = 'matching'. The weights/matched sets were estimated under the original treatment regime and are not valid under a different intervention. Use estimator = 'gcomp' instead.
 
 # contrast() rejects estimand and subset together
 

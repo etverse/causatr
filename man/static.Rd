@@ -32,5 +32,5 @@ Hall/CRC. Chapter 1 (static interventions).
 }
 \seealso{
 \code{\link[=shift]{shift()}}, \code{\link[=dynamic]{dynamic()}}, \code{\link[=scale_by]{scale_by()}}, \code{\link[=threshold]{threshold()}}, \code{\link[=ipsi]{ipsi()}},
-\code{\link[=contrast]{contrast()}}
+\code{\link[=stochastic]{stochastic()}}, \code{\link[=contrast]{contrast()}}
 }

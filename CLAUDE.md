@@ -7,7 +7,7 @@ Part of the [etverse](https://github.com/etverse) ecosystem.
 ## Guide files
 
 - `FEATURE_COVERAGE_MATRIX.md` — **single source of truth for "what works".** Every PR that changes a feature MUST update this file.
-- `PHASE_*.md` — per-phase implementation guides in the project root. Completed: 2–6, 8–11. Pending: 12–20 (design docs).
+- `PHASE_*.md` — per-phase implementation guides in the project root. Completed: 2–6, 8–12. Pending: 13–20 (design docs).
 
 ## Project structure
 
@@ -16,7 +16,7 @@ This is an R package: `R/` (source), `tests/testthat/` (tests, `test-foo.R` mirr
 ### R/ file layout
 
 **Core API:** `causat.R` (main fitting), `contrast.R` (causal contrasts), `diagnose.R` (diagnostics).
-**Interventions:** `interventions.R` — `static()`, `shift()`, `scale_by()`, `threshold()`, `dynamic()`, `ipsi()`.
+**Interventions:** `interventions.R` — `static()`, `shift()`, `scale_by()`, `threshold()`, `dynamic()`, `ipsi()`, `stochastic()`.
 **Estimation:** `gcomp.R`, `ice.R`, `ipw.R`, `longitudinal_ipw.R`, `matching.R`.
 **Inference:** `variance_if.R` (IF sandwich engine), `variance_bootstrap.R`.
 **Data:** `to_person_period.R`, `prepare_data.R`.
@@ -95,7 +95,7 @@ causatr owns g-comp (parametric g-formula + ICE), a self-contained IPW density-r
 | **Treatment timing** | point, longitudinal (ICE + longitudinal IPW) |
 | **Treatment type** | binary, continuous, categorical k>2, count (IPW: Poisson/NB), multivariate (gcomp + IPW) |
 | **Outcome family** | gaussian, binomial, quasibinomial, poisson, Gamma, any GLM family, `MASS::glm.nb` |
-| **Interventions** | `static`, `shift`, `scale_by`, `threshold` (gcomp only), `dynamic`, `ipsi` (IPW only) |
+| **Interventions** | `static`, `shift`, `scale_by`, `threshold` (gcomp only), `dynamic`, `ipsi` (IPW only), `stochastic` (gcomp only) |
 | **Estimand** | ATE, ATT, ATC, `by`-stratified |
 | **Contrast** | difference, ratio, OR |
 | **Variance** | sandwich (analytic IF), bootstrap, numeric Tier 1/2 fallback |

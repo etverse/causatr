@@ -566,3 +566,257 @@ make_em_ice_binom_scm <- function(n = 5000, seed = 42) {
     )
   )
 }
+
+# -- Stochastic intervention DGPs -------------------------------------------
+#
+# Each DGP returns a list with:
+#   $data  — the observed data
+#   $truth — the analytical E[Y^g] under the stochastic policy
+#   $sampler — the sampler function for stochastic()
+
+# Stochastic DGP 1: Binary treatment, Gaussian outcome
+#   L ~ N(0, 1)
+#   A | L ~ Bernoulli(expit(0.5 * L))
+#   Y = 2 + 3 * A + 1.5 * L + \epsilon,  \epsilon ~ N(0, 1)
+#   Policy: A* ~ Bernoulli(expit(0.5 + 0.3 * L))
+#   Truth: E[Y^g] = 2 + 3 * E_L[expit(0.5 + 0.3 * L)]
+#          (since E[L] = 0 under L ~ N(0,1))
+simulate_stochastic_binary_gaussian <- function(n = 5000, seed = 42) {
+  set.seed(seed)
+  L <- rnorm(n)
+  A <- rbinom(n, 1, plogis(0.5 * L))
+  Y <- 2 + 3 * A + 1.5 * L + rnorm(n)
+  data <- data.frame(Y = Y, A = A, L = L)
+
+  # Analytical truth via numerical integration
+  integrand <- function(l) plogis(0.5 + 0.3 * l) * dnorm(l)
+  e_pg <- integrate(integrand, lower = -10, upper = 10)$value
+  truth <- 2 + 3 * e_pg
+
+  sampler <- function(data, trt) {
+    rbinom(nrow(data), 1, plogis(0.5 + 0.3 * data$L))
+  }
+
+  list(data = data, truth = truth, sampler = sampler)
+}
+
+# Stochastic DGP 2: Continuous treatment, Gaussian outcome
+#   L ~ N(0, 1)
+#   A | L ~ N(L, 1)
+#   Y = 2 + A + 1.5 * L + \epsilon,  \epsilon ~ N(0, 1)
+#   Policy: A* = A + \epsilon_{shift}, \epsilon_{shift} ~ N(0.5, 0.25)
+#   Truth: E[Y^g] = 2 + E[A] + 0.5 + 1.5 * E[L]
+#        = 2 + E[L] + 0.5 + 1.5 * E[L] = 2 + 0 + 0.5 + 0 = 2.5
+simulate_stochastic_continuous_gaussian <- function(n = 5000, seed = 42) {
+  set.seed(seed)
+  L <- rnorm(n)
+  A <- L + rnorm(n)
+  Y <- 2 + A + 1.5 * L + rnorm(n)
+  data <- data.frame(Y = Y, A = A, L = L)
+
+  truth <- 2.5
+
+  sampler <- function(data, trt) {
+    trt + rnorm(length(trt), mean = 0.5, sd = 0.5)
+  }
+
+  list(data = data, truth = truth, sampler = sampler)
+}
+
+# Stochastic DGP 3: Binary treatment, Binomial outcome
+#   L ~ N(0, 1)
+#   A | L ~ Bernoulli(expit(0.5 * L))
+#   Y | A, L ~ Bernoulli(expit(-1 + 2 * A + L))
+#   Policy: A* ~ Bernoulli(expit(0.5 + 0.3 * L))
+#   Truth: E[Y^g] = E_L[ p_g(L) * expit(1 + L) + (1 - p_g(L)) * expit(-1 + L) ]
+#   where p_g(L) = expit(0.5 + 0.3 * L)
+simulate_stochastic_binary_binomial <- function(n = 5000, seed = 42) {
+  set.seed(seed)
+  L <- rnorm(n)
+  A <- rbinom(n, 1, plogis(0.5 * L))
+  Y <- rbinom(n, 1, plogis(-1 + 2 * A + L))
+  data <- data.frame(Y = Y, A = A, L = L)
+
+  integrand <- function(l) {
+    pg <- plogis(0.5 + 0.3 * l)
+    ey <- pg * plogis(-1 + 2 + l) + (1 - pg) * plogis(-1 + l)
+    ey * dnorm(l)
+  }
+  truth <- integrate(integrand, lower = -10, upper = 10)$value
+
+  sampler <- function(data, trt) {
+    rbinom(nrow(data), 1, plogis(0.5 + 0.3 * data$L))
+  }
+
+  list(data = data, truth = truth, sampler = sampler)
+}
+
+# Stochastic DGP 4: Categorical treatment (k=3), Gaussian outcome
+#   L ~ N(0, 1)
+#   A | L ~ Categorical(softmax(0, 0.5*L, -0.3*L)), levels = c("a","b","c")
+#   Y = 1 + 2 * I(A=="b") + 3 * I(A=="c") + L + \epsilon
+#   Policy: A* ~ Uniform("a", "b", "c")
+#   Truth: E[Y^g] = 1 + 2 * (1/3) + 3 * (1/3) + E[L]
+#        = 1 + 2/3 + 1 + 0 = 8/3
+simulate_stochastic_categorical_gaussian <- function(n = 5000, seed = 42) {
+  set.seed(seed)
+  L <- rnorm(n)
+  logits <- cbind(0, 0.5 * L, -0.3 * L)
+  probs <- exp(logits) / rowSums(exp(logits))
+  A_idx <- apply(probs, 1, function(p) sample(1:3, 1, prob = p))
+  A <- factor(c("a", "b", "c")[A_idx], levels = c("a", "b", "c"))
+  Y <- 1 + 2 * (A == "b") + 3 * (A == "c") + L + rnorm(n)
+  data <- data.frame(Y = Y, A = A, L = L)
+
+  truth <- 1 + 2 / 3 + 3 / 3
+
+  sampler <- function(data, trt) {
+    factor(
+      sample(c("a", "b", "c"), nrow(data), replace = TRUE),
+      levels = levels(trt)
+    )
+  }
+
+  list(data = data, truth = truth, sampler = sampler)
+}
+
+# Stochastic DGP 5: Multivariate treatment (binary + continuous), Gaussian
+#   L ~ N(0, 1)
+#   A1 | L ~ Bernoulli(expit(L))
+#   A2 | A1, L ~ N(L + A1, 1)
+#   Y = 1 + A1 + 0.5 * A2 + L + \epsilon
+#   Policy: A1* ~ Bernoulli(0.7), A2* = A2 + \epsilon, \epsilon ~ N(0.5, 0.25)
+#   Truth: E[Y^g] = 1 + 0.7 + 0.5 * (E[A2] + 0.5) + E[L]
+#   E[A2] = E[L + A1] = E[L] + E[A1] = 0 + E_L[expit(L)]
+#   E_L[expit(L)] with L ~ N(0,1) = 0.5 (symmetry of expit around 0)
+#   E[A2] = 0.5, E[A2*] = 0.5 + 0.5 = 1.0
+#   Truth = 1 + 0.7 + 0.5 * 1.0 + 0 = 2.2
+simulate_stochastic_multivariate_gaussian <- function(n = 5000, seed = 42) {
+  set.seed(seed)
+  L <- rnorm(n)
+  A1 <- rbinom(n, 1, plogis(L))
+  A2 <- L + A1 + rnorm(n)
+  Y <- 1 + A1 + 0.5 * A2 + L + rnorm(n)
+  data <- data.frame(Y = Y, A1 = A1, A2 = A2, L = L)
+
+  # Exact E_L[expit(L)] via integration
+  e_expit_l <- integrate(
+    function(l) plogis(l) * dnorm(l),
+    lower = -10,
+    upper = 10
+  )$value
+  e_a2 <- e_expit_l
+  truth <- 1 + 0.7 + 0.5 * (e_a2 + 0.5)
+
+  sampler_a1 <- function(data, trt) {
+    rbinom(nrow(data), 1, 0.7)
+  }
+  sampler_a2 <- function(data, trt) {
+    trt + rnorm(length(trt), mean = 0.5, sd = 0.5)
+  }
+
+  list(
+    data = data,
+    truth = truth,
+    sampler_a1 = sampler_a1,
+    sampler_a2 = sampler_a2
+  )
+}
+
+# -- Longitudinal stochastic DGPs -------------------------------------------
+
+# Longitudinal stochastic DGP 1: Binary treatment, 2-period, Gaussian outcome
+#   L_0 ~ N(0, 1)
+#   A_0 ~ Bernoulli(expit(0.5 * L_0))
+#   L_1 = 0.5 * A_0 + 0.5 * L_0 + \epsilon_L
+#   A_1 ~ Bernoulli(expit(0.3 * L_1))
+#   Y = 1 + A_0 + A_1 + 0.5 * L_0 + 0.5 * L_1 + \epsilon_Y
+#   Policy: A*_k ~ Bernoulli(expit(0.2 + 0.3 * L_k))
+#
+# Truth via large-n simulation oracle (n = 10^6) since analytical
+# nested integration is complex with treatment-confounder feedback.
+simulate_stochastic_ice_binary_gaussian <- function(
+  n = 5000,
+  seed = 42
+) {
+  set.seed(seed)
+  L0 <- rnorm(n)
+  A0 <- rbinom(n, 1, plogis(0.5 * L0))
+  L1 <- 0.5 * A0 + 0.5 * L0 + rnorm(n, 0, 0.5)
+  A1 <- rbinom(n, 1, plogis(0.3 * L1))
+  Y <- 1 + A0 + A1 + 0.5 * L0 + 0.5 * L1 + rnorm(n)
+
+  data <- rbind(
+    data.frame(id = seq_len(n), time = 0L, A = A0, L = NA_real_,
+               L0 = L0, Y = NA_real_),
+    data.frame(id = seq_len(n), time = 1L, A = A1, L = L1,
+               L0 = L0, Y = Y)
+  )
+
+  # Monte Carlo truth via large-n simulation (n = 10^6)
+  set.seed(1)
+  n_mc_truth <- 1e6
+  L0_mc <- rnorm(n_mc_truth)
+  A0_mc <- rbinom(n_mc_truth, 1, plogis(0.2 + 0.3 * L0_mc))
+  L1_mc <- 0.5 * A0_mc + 0.5 * L0_mc + rnorm(n_mc_truth, 0, 0.5)
+  A1_mc <- rbinom(n_mc_truth, 1, plogis(0.2 + 0.3 * L1_mc))
+  Y_mc <- 1 + A0_mc + A1_mc + 0.5 * L0_mc + 0.5 * L1_mc
+  truth <- mean(Y_mc)
+
+  sampler <- function(data, trt) {
+    if ("L" %in% names(data) && !all(is.na(data$L))) {
+      cov_col <- data$L
+      cov_col[is.na(cov_col)] <- data$L0[is.na(cov_col)]
+    } else {
+      cov_col <- data$L0
+    }
+    rbinom(nrow(data), 1, plogis(0.2 + 0.3 * cov_col))
+  }
+
+  list(data = data, truth = truth, sampler = sampler)
+}
+
+# Longitudinal stochastic DGP 2: Continuous treatment, 2-period, Gaussian
+#   L_0 ~ N(0, 1)
+#   A_0 ~ N(L_0, 1)
+#   L_1 = 0.5 * A_0 + 0.5 * L_0 + \epsilon_L
+#   A_1 ~ N(L_1, 1)
+#   Y = 1 + 0.5 * A_0 + 0.5 * A_1 + 0.5 * L_0 + 0.5 * L_1 + \epsilon_Y
+#   Policy: A*_k = A_k + 0.5 (deterministic shift encoded as stochastic)
+#   Truth via simulation oracle.
+simulate_stochastic_ice_continuous_gaussian <- function(
+  n = 5000,
+  seed = 42
+) {
+  set.seed(seed)
+  L0 <- rnorm(n)
+  A0 <- L0 + rnorm(n)
+  L1 <- 0.5 * A0 + 0.5 * L0 + rnorm(n, 0, 0.5)
+  A1 <- L1 + rnorm(n)
+  Y <- 1 + 0.5 * A0 + 0.5 * A1 + 0.5 * L0 + 0.5 * L1 + rnorm(n)
+
+  data <- rbind(
+    data.frame(id = seq_len(n), time = 0L, A = A0, L = NA_real_,
+               L0 = L0, Y = NA_real_),
+    data.frame(id = seq_len(n), time = 1L, A = A1, L = L1,
+               L0 = L0, Y = Y)
+  )
+
+  # Additive shift of +0.5 at each time point.
+  # Truth: E[Y^g] = 1 + 0.5 * (E[A0] + 0.5) + 0.5 * (E[A1*] + ...)
+  # Use simulation oracle.
+  set.seed(1)
+  n_mc_truth <- 1e6
+  L0_mc <- rnorm(n_mc_truth)
+  A0_mc <- L0_mc + rnorm(n_mc_truth) + 0.5
+  L1_mc <- 0.5 * A0_mc + 0.5 * L0_mc + rnorm(n_mc_truth, 0, 0.5)
+  A1_mc <- L1_mc + rnorm(n_mc_truth) + 0.5
+  Y_mc <- 1 + 0.5 * A0_mc + 0.5 * A1_mc + 0.5 * L0_mc + 0.5 * L1_mc
+  truth <- mean(Y_mc)
+
+  sampler <- function(data, trt) {
+    trt + 0.5
+  }
+
+  list(data = data, truth = truth, sampler = sampler)
+}

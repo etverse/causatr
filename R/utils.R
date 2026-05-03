@@ -496,3 +496,89 @@ msm_family <- function(fam) {
   }
   fam
 }
+
+
+#' Check whether an intervention is stochastic
+#'
+#' @param iv A `causatr_intervention` object or `NULL`.
+#' @return Logical scalar.
+#' @noRd
+is_stochastic_intervention <- function(iv) {
+  !is.null(iv) &&
+    inherits(iv, "causatr_intervention") &&
+    iv$type == "stochastic"
+}
+
+#' Check whether an intervention (scalar or multivariate list) has any
+#' stochastic component
+#'
+#' @param iv A `causatr_intervention`, a named list of them, or `NULL`.
+#' @return Logical scalar.
+#' @noRd
+has_stochastic_component <- function(iv) {
+  if (is.null(iv)) {
+    return(FALSE)
+  }
+  if (inherits(iv, "causatr_intervention")) {
+    return(iv$type == "stochastic")
+  }
+  if (is.list(iv)) {
+    return(any(vapply(iv, is_stochastic_intervention, logical(1))))
+  }
+  FALSE
+}
+
+#' Extract n_mc from an intervention (scalar or multivariate list)
+#'
+#' For multivariate interventions, returns the maximum `n_mc` across
+#' all stochastic components (all components use the same MC loop).
+#'
+#' @param iv A `causatr_intervention` or named list of them.
+#' @return Integer `n_mc`, or `NULL` if no stochastic component.
+#' @noRd
+get_stochastic_n_mc <- function(iv) {
+  if (is_stochastic_intervention(iv)) {
+    return(iv$n_mc)
+  }
+  if (is.list(iv) && !inherits(iv, "causatr_intervention")) {
+    nms <- vapply(
+      iv,
+      function(x) {
+        if (is_stochastic_intervention(x)) x$n_mc else 0L
+      },
+      integer(1)
+    )
+    m <- max(nms)
+    if (m > 0L) return(m)
+  }
+  NULL
+}
+
+#' Parallel-aware sapply for Monte Carlo loops
+#'
+#' Uses `future.apply::future_sapply()` when a non-sequential `future`
+#' plan is registered; otherwise falls back to `vapply()`. The
+#' `future.seed = TRUE` argument ensures reproducible RNG streams across
+#' workers (L'Ecuyer-CMRG).
+#'
+#' @param X Integer sequence (e.g. `seq_len(n_mc)`).
+#' @param FUN Function taking one element of `X` and returning a numeric
+#'   vector of length `n_rows`.
+#' @param n_rows Integer. Expected length of each FUN return value.
+#' @return A numeric matrix of dimension `n_rows x length(X)`.
+#' @noRd
+mc_sapply <- function(X, FUN, n_rows) {
+  use_future <- requireNamespace("future.apply", quietly = TRUE) &&
+    requireNamespace("future", quietly = TRUE) &&
+    !inherits(future::plan(), "sequential")
+  if (use_future) {
+    future.apply::future_sapply(
+      X,
+      FUN,
+      future.seed = TRUE,
+      simplify = TRUE
+    )
+  } else {
+    vapply(X, FUN, numeric(n_rows))
+  }
+}

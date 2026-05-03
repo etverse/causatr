@@ -22,7 +22,7 @@
 #' }
 #'
 #' @seealso [shift()], [dynamic()], [scale_by()], [threshold()], [ipsi()],
-#'   [contrast()]
+#'   [stochastic()], [contrast()]
 #' @export
 static <- function(value) {
   # Accept both numeric (binary/continuous treatments) and character
@@ -68,7 +68,8 @@ static <- function(value) {
 #' ))
 #' }
 #'
-#' @seealso [static()], [scale_by()], [threshold()], [dynamic()], [ipsi()]
+#' @seealso [static()], [scale_by()], [threshold()], [dynamic()], [ipsi()],
+#'   [stochastic()]
 #' @export
 shift <- function(delta) {
   if (!(is.numeric(delta) && length(delta) == 1L && !is.na(delta))) {
@@ -98,7 +99,8 @@ shift <- function(delta) {
 #' ))
 #' }
 #'
-#' @seealso [static()], [shift()], [threshold()], [dynamic()], [ipsi()]
+#' @seealso [static()], [shift()], [threshold()], [dynamic()], [ipsi()],
+#'   [stochastic()]
 #' @export
 scale_by <- function(factor) {
   if (!(is.numeric(factor) && length(factor) == 1L && !is.na(factor))) {
@@ -129,7 +131,8 @@ scale_by <- function(factor) {
 #' ))
 #' }
 #'
-#' @seealso [static()], [shift()], [scale_by()], [dynamic()], [ipsi()]
+#' @seealso [static()], [shift()], [scale_by()], [dynamic()], [ipsi()],
+#'   [stochastic()]
 #' @export
 threshold <- function(lower = -Inf, upper = Inf) {
   if (!(is.numeric(lower) && length(lower) == 1L && !is.na(lower))) {
@@ -183,7 +186,8 @@ threshold <- function(lower = -Inf, upper = Inf) {
 #' # lets the rule dispatch per-row).
 #' adaptive <- dynamic(\(data, trt) as.integer(!is.na(data$L) & data$L > 0))
 #'
-#' @seealso [static()], [shift()], [scale_by()], [threshold()], [ipsi()]
+#' @seealso [static()], [shift()], [scale_by()], [threshold()], [ipsi()],
+#'   [stochastic()]
 #' @export
 dynamic <- function(rule) {
   if (!is.function(rule)) {
@@ -231,7 +235,8 @@ dynamic <- function(rule) {
 #' ))
 #' }
 #'
-#' @seealso [static()], [shift()], [dynamic()], [scale_by()], [threshold()]
+#' @seealso [static()], [shift()], [dynamic()], [scale_by()], [threshold()],
+#'   [stochastic()]
 #' @export
 ipsi <- function(delta) {
   # IPSI transforms the treatment probability as
@@ -264,6 +269,73 @@ ipsi <- function(delta) {
     rlang::abort("`delta` must be positive.")
   }
   new_causatr_intervention("ipsi", list(delta = delta))
+}
+
+#' Stochastic intervention (user-supplied sampling function)
+#'
+#' @description
+#' Creates a stochastic intervention where the counterfactual treatment
+#' for each individual is drawn from a user-supplied distribution that
+#' may depend on the individual's covariates. Each call to `sampler`
+#' should return an independent draw.
+#'
+#' Only supported under `estimator = "gcomp"` (point and longitudinal).
+#' The g-formula evaluates \eqn{E[Y^g]} via Monte Carlo integration: for each
+#' of `n_mc` draws, the sampler assigns counterfactual treatments, the
+#' outcome model predicts, and the predictions are averaged across draws.
+#'
+#' @param sampler A function with signature `function(data, treatment)`
+#'   that returns a vector of treatment values of length `nrow(data)`.
+#'   `data` is the full counterfactual data.table (same as [dynamic()]);
+#'   `treatment` is the observed treatment vector. Each call must return
+#'   an independent random draw from the stochastic policy.
+#' @param n_mc Positive integer. Number of Monte Carlo draws for the
+#'   g-formula integration. Default 100. Larger values reduce MC noise
+#'   at the cost of computation time. For sandwich variance, `n_mc`
+#'   should be large enough that MC noise is negligible relative to
+#'   the estimation error (100--500 is typical).
+#'
+#' @return A `causatr_intervention` object.
+#'
+#' @references
+#' Diaz I, van der Laan MJ (2012). Population intervention causal
+#' effects based on stochastic interventions. *Biometrics* 68:541--549.
+#'
+#' @examples
+#' # Binary treatment: covariate-dependent randomisation
+#' stochastic(\(data, trt) rbinom(nrow(data), 1, plogis(0.5 + 0.3 * data$L)))
+#'
+#' # Continuous treatment: additive random shift
+#' stochastic(\(data, trt) trt + rnorm(length(trt), mean = 0.5, sd = 0.25))
+#'
+#' @seealso [static()], [shift()], [scale_by()], [threshold()], [dynamic()],
+#'   [ipsi()], [contrast()]
+#' @export
+stochastic <- function(sampler, n_mc = 100L) {
+  if (!is.function(sampler)) {
+    rlang::abort(
+      "`sampler` must be a function with signature function(data, treatment)."
+    )
+  }
+  if (
+    !(rlang::is_scalar_integerish(n_mc) &&
+      !is.na(n_mc) &&
+      n_mc >= 1L)
+  ) {
+    rlang::abort("`n_mc` must be a positive integer.")
+  }
+  n_mc <- as.integer(n_mc)
+  if (n_mc < 10L) {
+    rlang::warn(
+      paste0(
+        "`n_mc = ",
+        n_mc,
+        "` is very low for Monte Carlo integration. ",
+        "Consider using n_mc >= 100 for reliable estimates."
+      )
+    )
+  }
+  new_causatr_intervention("stochastic", list(sampler = sampler, n_mc = n_mc))
 }
 
 #' Print a causatr intervention
@@ -379,19 +451,145 @@ apply_intervention <- function(data, treatment, iv) {
   }
 }
 
+#' Validate that an intervention return value matches the treatment column type
+#'
+#' @description
+#' Shared validation for `dynamic()` and `stochastic()` branches of
+#' `apply_single_intervention()`. Checks that `new_trt` is type-compatible
+#' with the original treatment column (numeric, factor, or character) and
+#' has the correct length. For factor columns, accepts either a matching
+#' factor or a character vector whose values are existing levels (coerced
+#' back to factor). Aborts with an informative message on mismatch.
+#'
+#' @param new_trt The vector returned by the user's rule/sampler.
+#' @param orig_trt The original treatment vector from the data.
+#' @param trt_col Character. Name of the treatment column (for messages).
+#' @param iv_label Character. Intervention label for messages
+#'   (e.g. `"dynamic()"` or `"stochastic()"`).
+#' @param n_rows Integer. Expected length of `new_trt`.
+#'
+#' @return The validated (and possibly coerced) `new_trt` vector.
+#'
+#' @noRd
+validate_intervention_return <- function(
+  new_trt,
+  orig_trt,
+  trt_col,
+  iv_label,
+  n_rows
+) {
+  if (is.numeric(orig_trt)) {
+    if (!is.numeric(new_trt)) {
+      rlang::abort(
+        paste0(
+          "`",
+          iv_label,
+          "` rule returned ",
+          typeof(new_trt),
+          " but treatment column `",
+          trt_col,
+          "` is numeric."
+        ),
+        .call = FALSE
+      )
+    }
+  } else if (is.factor(orig_trt)) {
+    if (is.character(new_trt)) {
+      unknown <- setdiff(unique(new_trt), levels(orig_trt))
+      if (length(unknown) > 0L) {
+        rlang::abort(
+          paste0(
+            "`",
+            iv_label,
+            "` rule returned value(s) not present as ",
+            "levels of factor treatment `",
+            trt_col,
+            "`: ",
+            paste(shQuote(unknown), collapse = ", "),
+            "."
+          ),
+          .call = FALSE
+        )
+      }
+      new_trt <- factor(new_trt, levels = levels(orig_trt))
+    } else if (is.factor(new_trt)) {
+      if (!identical(levels(new_trt), levels(orig_trt))) {
+        rlang::abort(
+          paste0(
+            "`",
+            iv_label,
+            "` rule returned a factor with levels that ",
+            "do not match treatment column `",
+            trt_col,
+            "`."
+          ),
+          .call = FALSE
+        )
+      }
+    } else {
+      rlang::abort(
+        paste0(
+          "`",
+          iv_label,
+          "` rule returned ",
+          typeof(new_trt),
+          " but treatment column `",
+          trt_col,
+          "` is a factor -- return a character or factor vector."
+        ),
+        .call = FALSE
+      )
+    }
+  } else if (is.character(orig_trt)) {
+    if (!is.character(new_trt)) {
+      rlang::abort(
+        paste0(
+          "`",
+          iv_label,
+          "` rule returned ",
+          typeof(new_trt),
+          " but treatment column `",
+          trt_col,
+          "` is character."
+        ),
+        .call = FALSE
+      )
+    }
+  } else {
+    rlang::abort(
+      paste0(
+        "`",
+        iv_label,
+        "` does not support treatment columns of type ",
+        typeof(orig_trt),
+        "."
+      ),
+      .call = FALSE
+    )
+  }
+  if (length(new_trt) != n_rows) {
+    rlang::abort(
+      paste0(
+        "`",
+        iv_label,
+        "` rule must return a vector of length ",
+        n_rows,
+        " (got ",
+        length(new_trt),
+        ")."
+      ),
+      .call = FALSE
+    )
+  }
+  new_trt
+}
+
+
 #' Apply one intervention rule to a single treatment column (in-place)
 #'
 #' @description
 #' Modifies `data` in-place (via data.table `:=`) by transforming `trt_col`
-#' according to the intervention type:
-#'
-#' | Type | Transformation |
-#' |---|---|
-#' | `static` | Set every value to `iv$value` |
-#' | `shift` | Add `iv$delta` to each observed value |
-#' | `scale` | Multiply each observed value by `iv$factor` |
-#' | `threshold` | Clamp each value to `[iv$lower, iv$upper]` |
-#' | `dynamic` | Apply user function `iv$rule(data, treatment_vector)` |
+#' according to the intervention type.
 #'
 #' @param data A data.table (modified by reference).
 #' @param trt_col Character. Name of the treatment column to modify.
@@ -420,114 +618,27 @@ apply_single_intervention <- function(data, trt_col, iv) {
       data[, (trt_col) := pmax(pmin(get(trt_col), iv$upper), iv$lower)]
     },
     dynamic = {
-      # 2026-04-15 fourth-round critical review Issue #10: previously
-      # only validated the return type, not that it matched the
-      # treatment column's type. A `dynamic()` rule returning numeric
-      # on a character / factor treatment column silently coerced the
-      # column to numeric; downstream `predict()` then either errored
-      # with a cryptic factor-level mismatch or silently evaluated at
-      # a numeric dummy the outcome model never saw.
-      #
-      # Fix: require type-compatible return. Character / factor
-      # treatments ARE a first-class use case (see `static()` character
-      # support and IPW's multinomial path), so dynamic() must support
-      # them -- just without silent coercion. For factor columns we
-      # accept either a factor return with identical levels, or a
-      # character return whose unique values are all existing levels
-      # (coerced back on assignment). Unknown levels abort rather than
-      # becoming NA silently.
       orig_trt <- data[[trt_col]]
       new_trt <- iv$rule(data, orig_trt)
-
-      if (is.numeric(orig_trt)) {
-        if (!is.numeric(new_trt)) {
-          rlang::abort(
-            paste0(
-              "`dynamic()` rule returned ",
-              typeof(new_trt),
-              " but treatment column `",
-              trt_col,
-              "` is numeric."
-            ),
-            .call = FALSE
-          )
-        }
-      } else if (is.factor(orig_trt)) {
-        if (is.character(new_trt)) {
-          unknown <- setdiff(unique(new_trt), levels(orig_trt))
-          if (length(unknown) > 0L) {
-            rlang::abort(
-              paste0(
-                "`dynamic()` rule returned value(s) not present as ",
-                "levels of factor treatment `",
-                trt_col,
-                "`: ",
-                paste(shQuote(unknown), collapse = ", "),
-                "."
-              ),
-              .call = FALSE
-            )
-          }
-          new_trt <- factor(new_trt, levels = levels(orig_trt))
-        } else if (is.factor(new_trt)) {
-          if (!identical(levels(new_trt), levels(orig_trt))) {
-            rlang::abort(
-              paste0(
-                "`dynamic()` rule returned a factor with levels that ",
-                "do not match treatment column `",
-                trt_col,
-                "`."
-              ),
-              .call = FALSE
-            )
-          }
-        } else {
-          rlang::abort(
-            paste0(
-              "`dynamic()` rule returned ",
-              typeof(new_trt),
-              " but treatment column `",
-              trt_col,
-              "` is a factor -- return a character or factor vector."
-            ),
-            .call = FALSE
-          )
-        }
-      } else if (is.character(orig_trt)) {
-        if (!is.character(new_trt)) {
-          rlang::abort(
-            paste0(
-              "`dynamic()` rule returned ",
-              typeof(new_trt),
-              " but treatment column `",
-              trt_col,
-              "` is character."
-            ),
-            .call = FALSE
-          )
-        }
-      } else {
-        rlang::abort(
-          paste0(
-            "`dynamic()` does not support treatment columns of type ",
-            typeof(orig_trt),
-            "."
-          ),
-          .call = FALSE
-        )
-      }
-      if (length(new_trt) != nrow(data)) {
-        rlang::abort(
-          paste0(
-            "`dynamic()` rule must return a vector of length ",
-            nrow(data),
-            " (got ",
-            length(new_trt),
-            ")."
-          ),
-          .call = FALSE
-        )
-      }
+      new_trt <- validate_intervention_return(
+        new_trt,
+        orig_trt,
+        trt_col,
+        "dynamic()",
+        nrow(data)
+      )
+      data[, (trt_col) := new_trt]
+    },
+    stochastic = {
+      orig_trt <- data[[trt_col]]
+      new_trt <- iv$sampler(data, orig_trt)
+      new_trt <- validate_intervention_return(
+        new_trt,
+        orig_trt,
+        trt_col,
+        "stochastic()",
+        nrow(data)
+      )
       data[, (trt_col) := new_trt]
     },
     ipsi = {

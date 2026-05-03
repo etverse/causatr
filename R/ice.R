@@ -529,13 +529,35 @@ ice_iterate <- function(fit, intervention) {
   # g-formula pattern: fit on a subset with observed outcomes, predict
   # for the whole target population under the counterfactual.
   pred_mask <- mask_final & uncens
-  pred_data <- data_iv[pred_mask]
-  preds <- stats::predict(
-    models[[n_times]],
-    newdata = pred_data,
-    type = "response"
-  )
   pred_ids <- as.character(data[pred_mask][[id_col]])
+
+  if (has_stochastic_component(intervention)) {
+    n_mc <- get_stochastic_n_mc(intervention)
+    n_pred <- sum(pred_mask)
+    preds_mat <- matrix(NA_real_, nrow = n_pred, ncol = n_mc)
+    for (m in seq_len(n_mc)) {
+      data_iv_m <- ice_apply_intervention_long(
+        data,
+        treatment,
+        intervention,
+        id_col,
+        time_col
+      )
+      preds_mat[, m] <- stats::predict(
+        models[[n_times]],
+        newdata = data_iv_m[pred_mask],
+        type = "response"
+      )
+    }
+    preds <- rowMeans(preds_mat, na.rm = TRUE)
+  } else {
+    pred_data <- data_iv[pred_mask]
+    preds <- stats::predict(
+      models[[n_times]],
+      newdata = pred_data,
+      type = "response"
+    )
+  }
   pseudo[pred_ids] <- preds
   # Saturation check on the final-time predictions. These are the
   # inputs to the backward recursion: any row whose prediction lands
@@ -627,18 +649,41 @@ ice_iterate <- function(fit, intervention) {
     # time point (not just the fitting subset). This keeps the
     # population covariate trajectory intact as the recursion walks
     # backward toward baseline.
-    pred_all <- data_iv[mask_current]
-    preds <- stats::predict(
-      models[[step_i]],
-      newdata = pred_all,
-      type = "response"
-    )
+    pred_ids_all <- as.character(data[mask_current][[id_col]])
+
+    if (has_stochastic_component(intervention)) {
+      n_mc_bk <- get_stochastic_n_mc(intervention)
+      n_pred_bk <- sum(mask_current)
+      preds_mat_bk <- matrix(NA_real_, nrow = n_pred_bk, ncol = n_mc_bk)
+      for (m in seq_len(n_mc_bk)) {
+        data_iv_m <- ice_apply_intervention_long(
+          data,
+          treatment,
+          intervention,
+          id_col,
+          time_col
+        )
+        preds_mat_bk[, m] <- stats::predict(
+          models[[step_i]],
+          newdata = data_iv_m[mask_current],
+          type = "response"
+        )
+      }
+      preds <- rowMeans(preds_mat_bk, na.rm = TRUE)
+    } else {
+      pred_all <- data_iv[mask_current]
+      preds <- stats::predict(
+        models[[step_i]],
+        newdata = pred_all,
+        type = "response"
+      )
+    }
+
     # Saturation check on each backward step's predictions (see the
     # companion call after the final-time model for rationale).
     if (step_i > 1L && is_binary_family(family_pseudo)) {
       warn_ice_boundary_saturation(preds, current_time)
     }
-    pred_ids_all <- as.character(data[mask_current][[id_col]])
     pseudo[pred_ids_all] <- preds
   }
 
@@ -655,7 +700,8 @@ ice_iterate <- function(fit, intervention) {
     pseudo_final = pseudo_final,
     models = models,
     data_iv = data_iv,
-    fit_ids = fit_ids
+    fit_ids = fit_ids,
+    intervention = intervention
   )
 }
 

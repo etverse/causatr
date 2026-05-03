@@ -407,7 +407,42 @@ Intervention-aware, treatment-type-aware, estimand-aware, longitudinal-aware dia
 | plot(diag, which="weights") warns for gcomp (no wts) | ⛔ | test-diagnose.R |
 
 ### Phase 12 — Stochastic interventions
-`stochastic()` under gcomp (point + ICE), MC g-formula, MC-averaged IFs. IPW/matching rejected. All ❌.
+`stochastic()` under gcomp (point + ICE), MC g-formula, MC-averaged IFs. IPW/matching rejected.
+
+| Feature | Status | Test file |
+|---|---|---|
+| `stochastic()` constructor + validation | ✅ | test-stochastic.R |
+| `stochastic()` n_mc < 10 warning | ✅ | test-stochastic.R |
+| `stochastic()` n_mc coercion | ✅ | test-stochastic.R |
+| `apply_single_intervention()` stochastic (numeric) | ✅ | test-stochastic.R |
+| `apply_single_intervention()` stochastic (factor) | ✅ | test-stochastic.R |
+| Stochastic rejected under IPW | ✅ | test-stochastic.R |
+| Stochastic rejected under matching | ✅ | test-stochastic.R |
+| Point gcomp × binary trt × gaussian × ATE (analytical truth) | ✅ | test-stochastic.R |
+| Point gcomp × binary trt × gaussian × ATE (bootstrap) | ✅ | test-stochastic.R |
+| Point gcomp × continuous trt × gaussian × ATE (analytical truth) | ✅ | test-stochastic.R |
+| Point gcomp × continuous trt × gaussian × ATE (txshift oracle) | ✅ | test-stochastic.R |
+| Point gcomp × binary trt × binomial × ATE (analytical truth) | ✅ | test-stochastic.R |
+| Point gcomp × categorical trt × gaussian × ATE (analytical truth) | ✅ | test-stochastic.R |
+| Point gcomp × multivariate trt × gaussian × ATE (analytical truth) | ✅ | test-stochastic.R |
+| Point gcomp × binomial × ratio contrast | ✅ | test-stochastic.R |
+| Point gcomp × binomial × OR contrast | ✅ | test-stochastic.R |
+| Point gcomp × ATT estimand | ✅ | test-stochastic.R |
+| Point gcomp × ATC estimand | ✅ | test-stochastic.R |
+| Point gcomp × by-stratified estimand | ✅ | test-stochastic.R |
+| Point gcomp × subset estimand | ✅ | test-stochastic.R |
+| Point gcomp × GAM model | ✅ | test-stochastic.R |
+| Point gcomp × Poisson × ratio contrast | ✅ | test-stochastic.R |
+| Point gcomp × n_mc = 1 degenerate draw | ✅ | test-stochastic.R |
+| Point gcomp × set.seed() reproducibility | ✅ | test-stochastic.R |
+| Point gcomp × mixed stochastic + static interventions | ✅ | test-stochastic.R |
+| MC-averaged gradient in sandwich variance (point) | ✅ | test-stochastic.R |
+| ICE × binary trt × gaussian × 2 periods (simulation truth) | ✅ | test-stochastic.R |
+| ICE × binary trt × gaussian × 2 periods (bootstrap) | ✅ | test-stochastic.R |
+| ICE × continuous trt × gaussian × 2 periods (simulation truth) | ✅ | test-stochastic.R |
+| ICE × set.seed() reproducibility | ✅ | test-stochastic.R |
+| ICE × mixed stochastic + static interventions | ✅ | test-stochastic.R |
+| MC-averaged gradient in ICE sandwich variance | ✅ | test-stochastic.R |
 
 ### Phase 13 — Outcome types
 Negative binomial tests, beta regression (`resolve_family("beta")`), multinomial/ordinal outcomes. All ❌.
