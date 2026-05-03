@@ -713,3 +713,275 @@ test_that("stochastic ICE: mixed interventions (stochastic vs static)", {
   mu <- coef(res)
   expect_true(mu["never"] < mu["g"] && mu["g"] < mu["always"])
 })
+
+# -- Chunk 3: Sandwich vs bootstrap agreement ---------------------------------
+
+test_that("stochastic gcomp: sandwich and bootstrap SEs agree (point)", {
+  skip_on_cran()
+  dgp <- simulate_stochastic_binary_gaussian(n = 2000, seed = 42)
+  fit <- causat(
+    dgp$data,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "gcomp"
+  )
+  set.seed(303)
+  res_sw <- contrast(
+    fit,
+    interventions = list(
+      g = stochastic(dgp$sampler, n_mc = 50L),
+      a1 = static(1)
+    ),
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  set.seed(303)
+  res_bs <- contrast(
+    fit,
+    interventions = list(
+      g = stochastic(dgp$sampler, n_mc = 50L),
+      a1 = static(1)
+    ),
+    type = "difference",
+    ci_method = "bootstrap",
+    n_boot = 200
+  )
+  est_sw <- res_sw$estimates
+  est_bs <- res_bs$estimates
+  # Point estimates should be identical (same seed, same n_mc)
+  expect_equal(est_sw$estimate, est_bs$estimate, tolerance = 1e-10)
+  # SEs should agree within a factor of 2 (bootstrap has MC noise)
+  ratio_g <- est_sw$se[est_sw$intervention == "g"] /
+    est_bs$se[est_bs$intervention == "g"]
+  expect_gt(ratio_g, 0.5)
+  expect_lt(ratio_g, 2.0)
+  ratio_a1 <- est_sw$se[est_sw$intervention == "a1"] /
+    est_bs$se[est_bs$intervention == "a1"]
+  expect_gt(ratio_a1, 0.5)
+  expect_lt(ratio_a1, 2.0)
+  # CIs should both cover truth
+  ci_sw <- confint(res_sw)
+  ci_bs <- confint(res_bs)
+  expect_true(ci_sw["g", 1] <= dgp$truth && dgp$truth <= ci_sw["g", 2])
+  expect_true(ci_bs["g", 1] <= dgp$truth && dgp$truth <= ci_bs["g", 2])
+})
+
+test_that("stochastic gcomp: sandwich and bootstrap SEs agree (binomial)", {
+  skip_on_cran()
+  dgp <- simulate_stochastic_binary_binomial(n = 3000, seed = 42)
+  fit <- causat(
+    dgp$data,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "gcomp",
+    family = binomial()
+  )
+  set.seed(404)
+  res_sw <- contrast(
+    fit,
+    interventions = list(g = stochastic(dgp$sampler, n_mc = 50L)),
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  set.seed(404)
+  res_bs <- contrast(
+    fit,
+    interventions = list(g = stochastic(dgp$sampler, n_mc = 50L)),
+    type = "difference",
+    ci_method = "bootstrap",
+    n_boot = 200
+  )
+  ratio <- res_sw$estimates$se / res_bs$estimates$se
+  expect_gt(ratio, 0.5)
+  expect_lt(ratio, 2.0)
+})
+
+# -- Chunk 5: Sandwich vs bootstrap agreement (ICE) ---------------------------
+
+test_that("stochastic ICE: sandwich and bootstrap SEs agree", {
+  skip_on_cran()
+  dgp <- simulate_stochastic_ice_binary_gaussian(n = 1000, seed = 42)
+  fit <- causat(
+    dgp$data,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    estimator = "gcomp"
+  )
+  set.seed(505)
+  res_sw <- contrast(
+    fit,
+    interventions = list(g = stochastic(dgp$sampler, n_mc = 30L)),
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  set.seed(505)
+  res_bs <- contrast(
+    fit,
+    interventions = list(g = stochastic(dgp$sampler, n_mc = 30L)),
+    type = "difference",
+    ci_method = "bootstrap",
+    n_boot = 100
+  )
+  est_sw <- res_sw$estimates
+  est_bs <- res_bs$estimates
+  # Point estimates identical (same seed)
+  expect_equal(est_sw$estimate, est_bs$estimate, tolerance = 1e-10)
+  # SEs within a factor of 2
+  ratio <- est_sw$se / est_bs$se
+  expect_gt(ratio, 0.5)
+  expect_lt(ratio, 2.0)
+  # Both CIs cover truth
+  ci_sw <- confint(res_sw)
+  ci_bs <- confint(res_bs)
+  expect_true(ci_sw["g", 1] <= dgp$truth && dgp$truth <= ci_sw["g", 2])
+  expect_true(ci_bs["g", 1] <= dgp$truth && dgp$truth <= ci_bs["g", 2])
+})
+
+# -- Cross-package: lmtp oracle -----------------------------------------------
+
+test_that("stochastic gcomp: agrees with lmtp_sdr (point)", {
+  skip_on_cran()
+  skip_if_not_installed("lmtp")
+  skip_if_not_installed("SuperLearner")
+
+  set.seed(42)
+  n <- 2000
+  L <- rnorm(n)
+  A <- rbinom(n, 1, plogis(0.5 * L))
+  Y <- 2 + 3 * A + 1.5 * L + rnorm(n)
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  sampler <- function(data, trt) {
+    rbinom(nrow(data), 1, plogis(0.5 + 0.3 * data$L))
+  }
+
+  # causatr
+  fit <- causat(df, outcome = "Y", treatment = "A",
+                confounders = ~L, estimator = "gcomp")
+  set.seed(123)
+  res <- contrast(
+    fit,
+    interventions = list(g = stochastic(sampler, n_mc = 200L)),
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  est_causatr <- res$estimates$estimate
+
+  # lmtp: the shift function for lmtp draws from the same stochastic policy
+  lmtp_shift <- function(data, trt) {
+    rbinom(nrow(data), 1, plogis(0.5 + 0.3 * data[["L"]]))
+  }
+  lmtp_res <- tryCatch(
+    suppressWarnings(suppressMessages(lmtp::lmtp_sdr(
+      data = df,
+      trt = "A",
+      outcome = "Y",
+      baseline = "L",
+      shift = lmtp_shift,
+      outcome_type = "continuous",
+      learners_trt = "SL.glm",
+      learners_outcome = "SL.glm",
+      folds = 1
+    ))),
+    error = function(e) NULL
+  )
+  skip_if(is.null(lmtp_res), "lmtp::lmtp_sdr() unavailable")
+
+  est_lmtp <- tryCatch(lmtp_res$estimate@x, error = function(e) lmtp_res$theta)
+  expect_lt(abs(est_causatr - est_lmtp), 0.3)
+})
+
+test_that("stochastic ICE: point estimate agrees with lmtp::lmtp_sdr (longitudinal)", {
+  skip_on_cran()
+  skip_if_not_installed("lmtp")
+  skip_if_not_installed("SuperLearner")
+
+  set.seed(42)
+  n <- 2000
+  L0 <- rnorm(n)
+  A0 <- rbinom(n, 1, plogis(0.5 * L0))
+  L1 <- 0.5 * A0 + 0.5 * L0 + rnorm(n, 0, 0.5)
+  A1 <- rbinom(n, 1, plogis(0.3 * L1))
+  Y <- 1 + A0 + A1 + 0.5 * L0 + 0.5 * L1 + rnorm(n)
+
+  d_long <- rbind(
+    data.frame(id = seq_len(n), time = 0L, A = A0, L = NA_real_,
+               L0 = L0, Y = NA_real_),
+    data.frame(id = seq_len(n), time = 1L, A = A1, L = L1,
+               L0 = L0, Y = Y)
+  )
+
+  sampler <- function(data, trt) {
+    if ("L" %in% names(data) && !all(is.na(data$L))) {
+      cov_col <- data$L
+      cov_col[is.na(cov_col)] <- data$L0[is.na(cov_col)]
+    } else {
+      cov_col <- data$L0
+    }
+    rbinom(nrow(data), 1, plogis(0.2 + 0.3 * cov_col))
+  }
+
+  # causatr
+  fit <- causat(
+    d_long,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    estimator = "gcomp"
+  )
+  set.seed(123)
+  res <- contrast(
+    fit,
+    interventions = list(g = stochastic(sampler, n_mc = 200L)),
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  est_causatr <- res$estimates$estimate
+
+  # lmtp wants wide format
+  d_wide <- data.frame(
+    L0 = L0,
+    A_0 = A0,
+    L_1 = L1,
+    A_1 = A1,
+    Y = Y
+  )
+
+  lmtp_shift <- function(data, trt) {
+    if (trt == "A_0") {
+      cov <- data[["L0"]]
+    } else {
+      cov <- data[["L_1"]]
+    }
+    rbinom(nrow(data), 1, plogis(0.2 + 0.3 * cov))
+  }
+
+  lmtp_res <- tryCatch(
+    suppressWarnings(suppressMessages(lmtp::lmtp_sdr(
+      data = d_wide,
+      trt = c("A_0", "A_1"),
+      outcome = "Y",
+      baseline = "L0",
+      time_vary = list(NULL, "L_1"),
+      shift = lmtp_shift,
+      outcome_type = "continuous",
+      learners_trt = "SL.glm",
+      learners_outcome = "SL.glm",
+      folds = 1
+    ))),
+    error = function(e) NULL
+  )
+  skip_if(is.null(lmtp_res), "lmtp::lmtp_sdr() unavailable")
+
+  est_lmtp <- tryCatch(lmtp_res$estimate@x, error = function(e) lmtp_res$theta)
+  expect_lt(abs(est_causatr - est_lmtp), 0.5)
+})

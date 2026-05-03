@@ -443,6 +443,11 @@ Intervention-aware, treatment-type-aware, estimand-aware, longitudinal-aware dia
 | ICE × set.seed() reproducibility | ✅ | test-stochastic.R |
 | ICE × mixed stochastic + static interventions | ✅ | test-stochastic.R |
 | MC-averaged gradient in ICE sandwich variance | ✅ | test-stochastic.R |
+| Sandwich vs bootstrap SE agreement (point gcomp, gaussian) | ✅ | test-stochastic.R |
+| Sandwich vs bootstrap SE agreement (point gcomp, binomial) | ✅ | test-stochastic.R |
+| Sandwich vs bootstrap SE agreement (ICE) | ✅ | test-stochastic.R |
+| lmtp_sdr cross-check (point treatment) | ✅ | test-stochastic.R |
+| lmtp_sdr cross-check (longitudinal) | ✅ | test-stochastic.R |
 
 ### Phase 13 — Outcome types
 Negative binomial tests, beta regression (`resolve_family("beta")`), multinomial/ordinal outcomes. All ❌.

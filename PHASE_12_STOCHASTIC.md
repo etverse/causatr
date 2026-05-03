@@ -1,6 +1,6 @@
 # Phase 12 — Stochastic Interventions under G-computation
 
-> **Status: PENDING (design doc)**
+> **Status: DONE**
 >
 > **Depends on:** Phases 2 (point gcomp) and 5 (ICE) — both done.
 > Stochastic interventions are gcomp-only and do not touch the IPW engine.
