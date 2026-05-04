@@ -290,8 +290,10 @@ remain in this matrix.
 | MAR longitudinal, manual IPCW | ICE (weighted) | ✅ | test-missing-data.R |
 | Built-in IPCW: censoring model primitive | fit + weights (14a) | ✅ | test-censoring.R |
 | Built-in IPCW: point estimators | gcomp/IPW/matching (14b) | ✅ | test-ipcw.R |
-| Built-in IPCW: lmtp cross-check | point gcomp/IPW (14d) | ✅ | test-ipcw-lmtp-oracle.R |
+| Built-in IPCW: lmtp cross-check | point + longitudinal (14d) | ✅ | test-ipcw-lmtp-oracle.R |
 | Built-in IPCW: ICE longitudinal | ICE + long IPW (14c) | ✅ | test-ipcw.R, test-ipcw-lmtp-oracle.R |
+| Built-in IPCW: variance regression | sandwich + bootstrap (14e) | ✅ | test-ipcw-variance.R |
+| Built-in IPCW: diagnose integration | point + longitudinal (14f) | ✅ | test-diagnose.R |
 
 ---
 

@@ -465,16 +465,16 @@ boot_comp <- data.frame(
 tt(boot_comp, digits = 3)
 ```
 
-## Manual IPCW weights
+## Built-in IPCW (`ipcw = TRUE`)
 
 When outcomes are missing at random (MAR) conditional on treatment and
-covariates, you can supply inverse-probability-of-censoring weights (IPCW)
-via the `weights` argument. Built-in IPCW is planned for Phase 14; for now,
-compute the weights externally.
+covariates, causatr can fit a censoring model $P(C = 0 \mid A, L)$
+internally and compute stabilized IPCW weights. This requires a binary
+censoring indicator column (1 = censored, 0 = observed) and `ipcw = TRUE`.
 
 **Censoring mechanism.** Starting from the baseline DGM above (ATE $= 3$),
 we introduce MAR outcome censoring. The probability of being censored
-(outcome set to NA) depends on both the treatment $A$ and confounder $L_1$:
+depends on both the treatment $A$ and confounder $L_1$:
 
 $$
 \begin{aligned}
@@ -485,24 +485,26 @@ $$
 
 The intercept of $-2$ keeps the censoring rate moderate. Because censoring
 depends on $A$ and $L_1$, a complete-case analysis is biased; IPCW weights
-$w_i = 1 / P(C_i = 0 \mid A_i, L_{1,i}, L_{2,i})$ restore consistency.
-The true ATE remains 3.
+restore consistency. The true ATE remains 3.
 
 ```{r}
 df_mar <- df
 cens_prob <- plogis(-2 + 0.5 * df_mar$A + 0.3 * df_mar$L1)
-df_mar$Y[runif(n) < cens_prob] <- NA
+C <- as.integer(runif(n) < cens_prob)
+df_mar$C <- C
+df_mar$Y[C == 1L] <- NA
+```
 
-observed <- !is.na(df_mar$Y)
-cens_model <- glm(observed ~ A + L1 + L2, data = df_mar, family = binomial)
-ipcw <- ifelse(observed, 1 / predict(cens_model, type = "response"), 0)
+### G-computation with IPCW
 
+```{r}
 fit_ipcw <- causat(
-  df_mar[observed, ],
+  df_mar,
   outcome = "Y",
   treatment = "A",
   confounders = ~ L1 + L2,
-  weights = ipcw[observed]
+  censoring = "C",
+  ipcw = TRUE
 )
 
 res_ipcw <- contrast(
@@ -515,28 +517,139 @@ res_ipcw <- contrast(
 res_ipcw
 ```
 
+### IPW with IPCW
+
+For IPW, IPCW is essential under MAR censoring --- without it, the
+density-ratio weights cannot correct for the selection bias introduced
+by differential censoring.
+
+```{r}
+fit_ipcw_ipw <- causat(
+  df_mar,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L1 + L2,
+  estimator = "ipw",
+  censoring = "C",
+  ipcw = TRUE
+)
+
+res_ipcw_ipw <- contrast(
+  fit_ipcw_ipw,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  reference = "a0",
+  type = "difference",
+  ci_method = "sandwich"
+)
+res_ipcw_ipw
+```
+
+### Comparison: complete-case vs IPCW
+
+```{r}
+fit_naive <- causat(
+  df_mar,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L1 + L2,
+  censoring = "C"
+)
+res_naive <- contrast(
+  fit_naive,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  reference = "a0",
+  type = "difference",
+  ci_method = "sandwich"
+)
+
+comp_ipcw <- data.frame(
+  Analysis = c("Complete-case (naive)", "G-comp + IPCW", "IPW + IPCW"),
+  Estimate = c(
+    res_naive$contrasts$estimate[1],
+    res_ipcw$contrasts$estimate[1],
+    res_ipcw_ipw$contrasts$estimate[1]
+  ),
+  SE = c(
+    res_naive$contrasts$se[1],
+    res_ipcw$contrasts$se[1],
+    res_ipcw_ipw$contrasts$se[1]
+  )
+)
+tt(comp_ipcw, digits = 3)
+```
+
+The IPCW estimates should be closer to the truth (ATE = 3) than naive
+complete-case analysis.
+
+### Diagnostics
+
+```{r}
+diag_ipcw <- diagnose(fit_ipcw)
+diag_ipcw
+```
+
+The censoring panel shows IPCW weight summaries and the censoring model's
+positivity (predicted $P(C = 0 \mid A, L)$ quantiles). Watch for extreme
+weights or near-zero uncensoring probabilities.
+
+## Manual IPCW via `weights =`
+
+For advanced users who want full control over the censoring model, you can
+compute IPCW weights externally and pass them via `weights =`:
+
+```{r}
+observed <- !is.na(df$Y) | (df_mar$C == 0L)
+cens_model <- glm(observed ~ A + L1 + L2, data = df_mar, family = binomial)
+ipcw_manual <- ifelse(observed, 1 / predict(cens_model, type = "response"), 0)
+
+fit_manual_ipcw <- causat(
+  df_mar[observed, ],
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L1 + L2,
+  weights = ipcw_manual[observed]
+)
+
+res_manual_ipcw <- contrast(
+  fit_manual_ipcw,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  reference = "a0",
+  type = "difference",
+  ci_method = "sandwich"
+)
+res_manual_ipcw
+```
+
+Note: with manual IPCW, the sandwich SE does *not* account for censoring-model
+estimation uncertainty (the Channel 2 correction). Use `ipcw = TRUE` for
+correct standard errors, or `ci_method = "bootstrap"` with manual weights.
+
 ## Summary of missingness handling
 
 ```{r}
 #| echo: false
 summary_df <- data.frame(
-  Variable = c("Outcome (Y)", "Outcome (Y)", "Outcome (Y)", "Outcome (Y)",
+  Variable = c("Outcome (Y)", "Outcome (Y)", "Outcome (Y)",
+               "Outcome (Y)", "Outcome (Y)",
                "Treatment (A)", "Covariates (L)", "Covariates (L)", "Y + L"),
-  Mechanism = c("MCAR", "MCAR", "MCAR", "MAR",
+  Mechanism = c("MCAR", "MCAR", "MCAR", "MAR", "MAR",
                 "Any", "MCAR", "MAR", "MCAR"),
-  Method = c("G-comp", "IPW", "Matching", "G-comp + IPCW",
+  Method = c("G-comp", "IPW", "Matching",
+             "Any + ipcw=TRUE", "Any + manual weights",
              "Any", "G-comp", "Any", "G-comp"),
   Handling = c(
     "Complete-case model, predict on all rows",
     "Fit treatment model on observed-Y subset",
     "MatchIt excludes NA-Y rows",
+    "Built-in IPCW via censoring= + ipcw=TRUE",
     "External IPCW weights via weights=",
     "Rejected (abort with error)",
     "na.omit drops rows; predict returns NA",
     "Multiple imputation (causat_mice, planned)",
     "Combines both drop rules"
   ),
-  Status = c("Supported", "Supported", "Supported", "Supported",
+  Status = c("Supported", "Supported", "Supported",
+             "Supported", "Supported",
              "Rejected", "Supported", "Planned", "Supported")
 )
 tt(summary_df)
@@ -554,8 +667,9 @@ tt(summary_df)
 3. **Missing covariates (MCAR)** work out-of-the-box under g-comp via
    `na.omit`. For MAR missingness, multiple imputation is needed.
 
-4. **MAR outcome missingness** requires IPCW weights today (manual via
-   `weights =`). Built-in IPCW is planned for Phase 14.
+4. **MAR outcome missingness** is handled by `ipcw = TRUE`, which fits a
+   censoring model and computes stabilized IPCW weights automatically.
+   Advanced users can also supply manual IPCW weights via `weights =`.
 
 5. **Bootstrap** handles all missingness patterns correctly by resampling
    the full pipeline.

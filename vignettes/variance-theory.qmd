@@ -2307,7 +2307,134 @@ $$
 The full $k \times k$ covariance matrix is then used for contrasts.
 
 
-## 6. Summary
+## 6. IPCW: variance under outcome censoring
+
+When outcome data are missing at random (MAR) and causatr fits a censoring
+model $P(C = 0 \mid A, L)$, the IPCW weights become estimated nuisance
+parameters. The variance of the causal estimand must account for this
+estimation uncertainty — otherwise the sandwich SE is conservative.
+
+### 6.1 The censoring model as a third nuisance block
+
+The censoring model adds a block to the stacked estimating equations.
+For **point-treatment g-computation** with IPCW, the stack becomes:
+
+$$
+\Psi(\theta) =
+\begin{pmatrix}
+\psi_\gamma \\
+\psi_\beta \\
+\psi_\mu
+\end{pmatrix}
+= \begin{pmatrix}
+\text{censoring model score} \\
+\text{outcome model score (IPCW-weighted)} \\
+\text{target estimand}
+\end{pmatrix}
+$$
+
+where $\theta = (\gamma, \beta, \mu)^T$, $\gamma$ are censoring model
+parameters, $\beta$ are outcome model parameters, and $\mu$ is the marginal
+mean.
+
+### 6.2 The block-triangular bread
+
+The bread matrix has the same block-triangular structure as in Section 3.5,
+now with one extra block:
+
+$$
+A =
+\begin{pmatrix}
+A_{\gamma\gamma} & 0 & 0 \\
+A_{\beta\gamma} & A_{\beta\beta} & 0 \\
+0 & A_{\mu\beta} & A_{\mu\mu}
+\end{pmatrix}
+$$
+
+The key new block is $A_{\beta\gamma}$: the cross-derivative of the outcome
+model's score with respect to the censoring parameters. This captures how
+changes in IPCW weights (driven by $\gamma$) affect the outcome model fit.
+
+Concretely:
+
+$$
+A_{\beta\gamma} = -\frac{\partial}{\partial\gamma}
+\left[\frac{1}{n} \sum_i X_i \, w_{\text{ipcw}}(\gamma)_i \,
+\frac{(y_i - \mu_i)\,\mu'(\eta_i)}{V(\mu_i)}\right]
+$$
+
+In causatr, this is computed via `numDeriv::jacobian()` on a closure that
+perturbs the IPCW weights while holding $\hat\beta$ fixed.
+
+### 6.3 The Channel 2 correction for censoring
+
+Back-substitution through the bread yields an additional Channel 2 correction
+term in the IF:
+
+$$
+\text{IF}_i = \underbrace{\text{Ch1}_i}_{\text{covariate sampling}}
++ \underbrace{\text{Ch2}_i^{(\text{outcome})}}_{\text{outcome model}}
+- \underbrace{\text{Ch2}_i^{(\text{censoring})}}_{\text{censoring model}}
+$$
+
+The censoring correction is:
+
+$$
+\text{Ch2}_i^{(\text{censoring})}
+= g_\gamma^T \, A_{\gamma\gamma}^{-1} \, \psi_{\gamma,i}
+$$
+
+where $g_\gamma = A_{\beta\gamma}^T \, h_\beta$ and $h_\beta =
+A_{\beta\beta}^{-1} J_\mu^T$ projects the marginal-mean gradient through
+the outcome model bread.
+
+The minus sign on the censoring correction is deliberate:
+Robins, Rotnitzky & Zhao (1994) showed this correction **reduces** variance
+by accounting for the information in the censoring model. Ignoring it
+(treating IPCW weights as known) is conservative.
+
+### 6.4 Point-treatment IPW with IPCW
+
+For IPW + IPCW, the stack has four blocks: censoring model, propensity model,
+MSM, and target. The bread becomes $4 \times 4$ block-triangular:
+
+$$
+A =
+\begin{pmatrix}
+A_{\gamma\gamma} & 0 & 0 & 0 \\
+0 & A_{\alpha\alpha} & 0 & 0 \\
+A_{\beta\gamma} & A_{\beta\alpha} & A_{\beta\beta} & 0 \\
+0 & 0 & A_{\mu\beta} & A_{\mu\mu}
+\end{pmatrix}
+$$
+
+Two off-diagonal blocks feed into the MSM score: $A_{\beta\gamma}$ (IPCW
+weights) and $A_{\beta\alpha}$ (propensity weights). Each generates an
+independent Channel 2 correction.
+
+### 6.5 Longitudinal IPCW: the conservative approximation
+
+For longitudinal treatments with per-period censoring models $\gamma_1,
+\ldots, \gamma_K$, the full correction requires cross-derivatives
+$A_{\beta_k, \gamma_j}$ for all $k \geq j$, projected through the ICE
+cascade's accumulated sensitivity $d_k$. This is technically supported by
+stacked M-estimation theory (Stefanski & Boos 2002; Tsiatis 2006, Ch. 10),
+but the cascade's $d_k$ vectors are built incrementally during the
+backward loop and cannot be evaluated inside a `numDeriv` closure.
+
+causatr currently **omits** the longitudinal censoring Channel 2 correction.
+This makes the sandwich SE conservative (larger than the true asymptotic SE).
+Empirically the ratio is $\approx 0.94$ (sandwich/bootstrap), confirming the
+omission is small.
+
+**Recommendation:** For longitudinal IPCW, use `ci_method = "bootstrap"` for
+the tightest CIs. The sandwich remains valid for coverage guarantees.
+
+No existing package (`lmtp`, `ltmle`, `gfoRmula`) implements the longitudinal
+censoring Channel 2 correction — all use bootstrap variance in this setting.
+
+
+## 7. Summary
 
 1. **One method**: the influence function. For any causal estimand $\hat\mu$,
    write down the complete estimating equations (nuisance models + target
@@ -2344,10 +2471,15 @@ The full $k \times k$ covariance matrix is then used for contrasts.
 8. **Chained estimators** (ICE): $K\!+\!1$ model corrections computed by
    backward recursion of sensitivities.
 
-9. **The delta method** ($\color{#31A354}{J} V_\beta
-   \color{#31A354}{J^T}$) is a shortcut that captures Channel 2 only. It is
-   exact when Channel 1 = 0 (constant predictions), but underestimates
-   otherwise. The full IF avoids this limitation.
+9. **IPCW** adds a censoring-model block to the stacked equations. The
+   censoring Channel 2 correction **reduces** variance by accounting for
+   weight estimation uncertainty. For longitudinal IPCW, the correction is
+   omitted (conservative); use bootstrap for tighter CIs.
+
+10. **The delta method** ($\color{#31A354}{J} V_\beta
+    \color{#31A354}{J^T}$) is a shortcut that captures Channel 2 only. It is
+    exact when Channel 1 = 0 (constant predictions), but underestimates
+    otherwise. The full IF avoids this limitation.
 
 
 ## References
@@ -2370,6 +2502,9 @@ The full $k \times k$ covariance matrix is then used for contrasts.
   study. *Statistics in Medicine* 23:2937–2960.
 - Robins JM (1986). A new approach to causal inference in mortality studies
   with a sustained exposure period. *Mathematical Modelling* 7:1393–1512.
+- Robins JM, Rotnitzky A, Zhao LP (1994). Estimation of regression
+  coefficients when some regressors are not always observed. *Journal of
+  the American Statistical Association* 89:846–866.
 - Stefanski LA, Boos DD (2002). The calculus of M-estimation.
   *The American Statistician* 56:29–38.
 - Tsiatis AA (2006). *Semiparametric Theory and Missing Data*. Springer.

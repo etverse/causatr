@@ -227,15 +227,15 @@ P(C_k = 0 | A̅_k, L̅_k, C_{k-1} = 0)
 
 ## Implementation chunks
 
-| Chunk | Scope | Depends on |
-|---|---|---|
-| 14a | `fit_censoring_model()`: fit $P(C = 0 \mid A, L)$ (point) and $P(C_k = 0 \mid \bar{A}_k, \bar{L}_k, C_{k-1} = 0)$ (longitudinal) using `censoring_model_fn`; return `causatr_censoring_model` with per-row stabilized weights | — |
-| 14b | **Point scalar outcome + gcomp/IPW/matching:** IPCW-weighted fit, sandwich extension | 14a |
-| 14c | **ICE scalar final outcome:** IPCW in the ICE backward loop; cascade-gradient extension for censoring model blocks | 14a, 14b |
-| 14d | lmtp cross-checks: truth-based tests against `lmtp::lmtp_tmle(cens = "C")` on point and longitudinal DGPs with informative censoring | 14b, 14c |
-| 14e | Sandwich extension: formalise the stacked EE system, document the block structure, regression tests | 14a–14c |
-| 14f | `diagnose()` integration: censoring balance, weight distribution summary, positivity warnings | 14b, Phase 11 |
-| 14g | Vignette: missing-data handling guide with built-in IPCW examples | 14b, 14c |
+| Chunk | Scope | Depends on | Status |
+|---|---|---|---|
+| 14a | `fit_censoring_model()`: fit $P(C = 0 \mid A, L)$ (point) and $P(C_k = 0 \mid \bar{A}_k, \bar{L}_k, C_{k-1} = 0)$ (longitudinal) using `censoring_model_fn`; return `causatr_censoring_model` with per-row stabilized weights | — | ✅ |
+| 14b | **Point scalar outcome + gcomp/IPW/matching:** IPCW-weighted fit, sandwich extension | 14a | ✅ |
+| 14c | **ICE scalar final outcome:** IPCW in the ICE backward loop; cascade-gradient extension for censoring model blocks | 14a, 14b | ✅ |
+| 14d | lmtp cross-checks: truth-based tests against `lmtp::lmtp_sdr(cens = ...)` on point and longitudinal DGPs with informative censoring | 14b, 14c | ✅ |
+| 14e | Sandwich extension: formalise the stacked EE system, document the block structure, regression tests. Longitudinal censoring Ch2 correction deferred (conservative, ratio ≈ 0.94) | 14a–14c | ✅ |
+| 14f | `diagnose()` integration: censoring balance, weight distribution summary, positivity warnings | 14b, Phase 11 | ✅ |
+| 14g | Vignette: missing-data handling guide with built-in IPCW examples | 14b, 14c | ✅ |
 
 ## References
 

@@ -267,6 +267,11 @@ ice_build_formula <- function(
   #     (covered by the rhs_dynamic test below -- these are rare)
   dropped <- rhs_dynamic[!valid]
   user_dropped <- dropped[!grepl("^lag[0-9]+_", dropped)]
+  # TV confounders all-NA at the earliest period is structural (they
+  # only exist from t >= 1); suppress for time_idx == 0.
+  if (time_idx == 0L) {
+    user_dropped <- setdiff(user_dropped, tv_vars)
+  }
   if (length(user_dropped) > 0L) {
     rlang::inform(
       paste0(

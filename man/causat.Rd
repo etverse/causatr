@@ -92,7 +92,14 @@ via \verb{weights =}. For longitudinal data, censoring is time-varying:
 are composed multiplicatively with any external \code{weights}. Requires
 \code{censoring} to be specified. Default \code{FALSE} preserves the legacy
 row-filter-only behaviour. For IPW under MAR censoring this is
-essential; for g-comp it provides doubly-robust protection.}
+essential; for g-comp it provides doubly-robust protection.
+
+\strong{Variance note:} For point treatments the sandwich SE fully accounts
+for censoring-model estimation uncertainty (Channel 2 correction). For
+longitudinal treatments (ICE, longitudinal IPW) the Channel 2 correction
+for per-period censoring models is omitted, making the sandwich SE
+conservative. Use \code{ci_method = "bootstrap"} for tighter CIs in
+longitudinal IPCW settings.}
 
 \item{censoring_model_fn}{Function or \code{NULL}. The fitting function
 for the censoring model when \code{ipcw = TRUE}. Must accept

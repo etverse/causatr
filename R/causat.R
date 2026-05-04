@@ -65,6 +65,13 @@
 #'   `censoring` to be specified. Default `FALSE` preserves the legacy
 #'   row-filter-only behaviour. For IPW under MAR censoring this is
 #'   essential; for g-comp it provides doubly-robust protection.
+#'
+#'   **Variance note:** For point treatments the sandwich SE fully accounts
+#'   for censoring-model estimation uncertainty (Channel 2 correction). For
+#'   longitudinal treatments (ICE, longitudinal IPW) the Channel 2 correction
+#'   for per-period censoring models is omitted, making the sandwich SE
+#'   conservative. Use `ci_method = "bootstrap"` for tighter CIs in
+#'   longitudinal IPCW settings.
 #' @param censoring_model_fn Function or `NULL`. The fitting function
 #'   for the censoring model when `ipcw = TRUE`. Must accept
 #'   `(formula, data, family, weights, ...)`. Default `NULL` uses
@@ -520,7 +527,8 @@ causat <- function(
   ipcw_details <- NULL
   if (ipcw && type == "point") {
     check_ipcw_inputs(
-      ipcw, censoring,
+      ipcw,
+      censoring,
       censoring_col = data[[censoring]],
       call = call
     )
@@ -550,7 +558,8 @@ causat <- function(
     check_weights(weights, nrow(data))
   } else if (ipcw && type == "longitudinal") {
     check_ipcw_inputs(
-      ipcw, censoring,
+      ipcw,
+      censoring,
       censoring_col = data[[censoring]],
       call = call
     )
