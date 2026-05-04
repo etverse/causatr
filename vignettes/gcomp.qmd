@@ -1103,6 +1103,82 @@ tinyplot(
 abline(h = 0, lty = 2, col = "grey40")
 ```
 
+## Stochastic interventions
+
+`stochastic()` defines a randomised intervention where the counterfactual
+treatment for each individual is drawn from a user-supplied distribution. The
+g-formula evaluates $E[Y^g]$ via Monte Carlo integration: for each of `n_mc`
+draws, the sampler assigns counterfactual treatments, the outcome model
+predicts, and the predictions are averaged across draws.
+
+Stochastic interventions are only supported under g-computation (point and
+longitudinal). See `vignette("interventions")` for a full comparison of
+intervention types and estimator compatibility.
+
+### Binary treatment: covariate-dependent randomisation
+
+Assign quitting with a probability that depends on baseline smoking intensity
+(heavier smokers are more likely to be assigned to quit):
+
+```{r}
+set.seed(42)
+res_stoch <- contrast(
+  fit,
+  interventions = list(
+    random_quit = stochastic(
+      \(data, trt) rbinom(nrow(data), 1,
+                          plogis(-1 + 0.05 * data$smokeintensity)),
+      n_mc = 200L
+    ),
+    all_quit = static(1)
+  ),
+  reference = "all_quit",
+  type = "difference"
+)
+res_stoch
+```
+
+The stochastic policy's marginal mean is between the "all quit" and "no one
+quits" extremes: heavier smokers are more likely to quit, but no one is forced.
+
+### Continuous treatment: random shift
+
+Rather than a fixed `shift(-10)`, add a random perturbation to each person's
+smoking intensity:
+
+```{r}
+set.seed(42)
+fit_cont_stoch <- causat(
+  nhefs_complete,
+  outcome = "wt82_71",
+  treatment = "smokeintensity",
+  confounders = ~ sex + age + I(age^2) + race + factor(education) +
+    smokeyrs + I(smokeyrs^2) + factor(exercise) + factor(active) +
+    wt71 + I(wt71^2)
+)
+
+res_stoch_cont <- contrast(
+  fit_cont_stoch,
+  interventions = list(
+    noisy_reduce = stochastic(
+      \(data, trt) pmax(0, trt + rnorm(length(trt), mean = -5, sd = 2)),
+      n_mc = 200L
+    ),
+    observed = NULL
+  ),
+  reference = "observed",
+  type = "difference"
+)
+res_stoch_cont
+```
+
+::: {.callout-tip}
+**Choosing `n_mc`**: 100--500 is typical. The sandwich SE accounts for the MC
+draws used at estimation time, so there is no need to inflate `n_mc` just for
+inference. If point estimates visibly change when you re-run with a different
+seed, increase `n_mc`.
+:::
+
 ## Summary of covered combinations
 
 **Legend.** ✅ covered and truth-pinned in tests · 🟡 smoke test only ·
@@ -1135,6 +1211,10 @@ abline(h = 0, lty = 2, col = "grey40")
 | Continuous | Continuous (gaussian, GLM) | Shift | ATE | Difference | Bootstrap | none | ✅ |
 | Categorical (k>2) | Continuous (gaussian, GLM) | Static | ATE | Difference | Sandwich | none | ✅ |
 | Multivariate | Continuous (gaussian, GLM) | Joint static | ATE | Difference | Sandwich | none | ✅ |
+| Binary | Continuous (gaussian, GLM) | Stochastic | ATE | Difference | Sandwich | none | ✅ |
+| Continuous | Continuous (gaussian, GLM) | Stochastic | ATE | Difference | Sandwich | none | ✅ |
+| Binary | Count (NB, `MASS::glm.nb`) | Static | ATE | Ratio | Sandwich | none | ✅ |
+| Binary | Proportion (beta, `betareg::betareg`) | Static | ATE | Difference | Sandwich | none | ✅ |
 
 See [`FEATURE_COVERAGE_MATRIX.md`](https://github.com/etverse/causatr/blob/main/FEATURE_COVERAGE_MATRIX.md)
 for the authoritative coverage status of every method × treatment × outcome
@@ -1145,3 +1225,6 @@ two-tier variance fallback for custom `model_fn` choices.
 
 Hernán MA, Robins JM (2025). *Causal Inference: What If*. Chapman & Hall/CRC.
 Chapter 13: Standardization and the parametric g-formula.
+
+Díaz I, van der Laan MJ (2012). Population intervention causal effects
+based on stochastic interventions. *Biometrics* 68:541--549.
