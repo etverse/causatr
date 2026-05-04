@@ -2482,6 +2482,53 @@ censoring Channel 2 correction — all use bootstrap variance in this setting.
     otherwise. The full IF avoids this limitation.
 
 
+## 8. Numeric variance tiers (custom `model_fn`)
+
+The analytic IF engine in `variance_if()` requires access to the model's
+score residuals and bread matrix. Standard GLMs (`stats::glm`) and GAMs
+(`mgcv::gam`) expose these via `family$mu.eta` / `family$variance` and
+`$Vp`, respectively. But users can pass any fitting function via
+`model_fn =` (e.g. `MASS::glm.nb`, `betareg::betareg`), and those
+models may not expose the standard GLM internals.
+
+causatr handles this with a two-tier numeric fallback (`variance_if_numeric()`):
+
+### Tier 1: `sandwich::estfun` available
+
+If `sandwich::estfun(model)` returns the per-observation score matrix
+$\psi_i$ and `sandwich::bread(model)` returns the bread, the fallback
+recovers the **full IF** (Channel 1 + Channel 2 + cross-term) exactly,
+matching the analytic main path. The marginal-mean Jacobian $J$ is
+computed via `numDeriv::jacobian()` on `predict()` instead of
+analytically.
+
+This applies to `MASS::glm.nb` (negative binomial) and most model
+classes with a `sandwich` method.
+
+### Tier 2: plain delta shortcut
+
+If no `estfun` method exists (e.g. `betareg::betareg`), the fallback
+computes $V_1 + V_2$ where $V_1 = (1/n^2) \sum_i \text{Ch.1}_i^2$ is
+the Channel 1 variance and $V_2 = J \, V_\beta \, J^T$ is the delta-method
+approximation for Channel 2. This **drops the cross-term**
+$(1/n^2)(\text{Ch.1}^T \text{Ch.2} + \text{Ch.2}^T \text{Ch.1})$ and emits
+a `causatr_tier2_fallback` warning so the user knows the SE is slightly
+miscalibrated.
+
+For Tier 2 models, `ci_method = "bootstrap"` gives exact coverage.
+
+### Which tier does my `model_fn` use?
+
+| `model_fn` | Tier | Exact? |
+|---|---|---|
+| `stats::glm` | Analytic (main path) | Yes |
+| `mgcv::gam` | Analytic (GAM path) | Yes |
+| `MASS::glm.nb` | Tier 1 (numeric + estfun) | Yes |
+| `betareg::betareg` | Tier 2 (delta shortcut) | Approximate (use bootstrap for exact) |
+
+If unsure, run with `ci_method = "sandwich"` first — if you see a
+`causatr_tier2_fallback` warning, the model is on Tier 2.
+
 ## References
 
 - Bang H, Robins JM (2005). Doubly robust estimation in missing data and
