@@ -623,7 +623,13 @@ ipw_longitudinal_variance_bootstrap <- function(
 
   all_ids <- unique(data[[id_col]])
   n_ids <- length(all_ids)
-  orig_weights <- fit$details$weights
+  # When IPCW is active, use pre-IPCW weights and let refit_ipw()
+  # recompute censoring weights on each bootstrap resample.
+  orig_weights <- if (isTRUE(fit$details$ipcw)) {
+    fit$details$weights_pre_ipcw
+  } else {
+    fit$details$weights
+  }
 
   boot_fn <- function(ids, indices) {
     sampled_ids <- ids[indices]
@@ -757,10 +763,16 @@ ice_variance_bootstrap <- function(
   n_ids <- length(all_ids)
 
   # boot_fn: resamples individual IDs (not person-period rows).
-  # For each bootstrap sample, reconstcts the person-period data by
+  # For each bootstrap sample, reconstructs the person-period data by
   # extracting all rows for the sampled IDs, re-runs fit_ice() +
   # ice_iterate(), and returns marginal means under each intervention.
-  orig_weights <- fit$details$weights
+  # When IPCW is active, use pre-IPCW weights and refit censoring
+  # models on each resample to capture estimation uncertainty.
+  orig_weights <- if (isTRUE(fit$details$ipcw)) {
+    fit$details$weights_pre_ipcw
+  } else {
+    fit$details$weights
+  }
 
   boot_fn <- function(ids, indices) {
     sampled_ids <- ids[indices]
@@ -796,6 +808,17 @@ ice_variance_bootstrap <- function(
     }
     d_b <- data.table::rbindlist(d_b_list)
     w_b <- if (!is.null(orig_weights)) unlist(w_b_list)
+
+    # IPCW: refit per-period censoring models on the bootstrap
+    # sample and compose weights before fitting ICE.
+    if (isTRUE(fit$details$ipcw)) {
+      ipcw_w_b <- refit_censoring_weights(fit, d_b)
+      w_b <- if (is.null(w_b)) {
+        ipcw_w_b
+      } else {
+        w_b * ipcw_w_b
+      }
+    }
 
     # Refit the ICE object on the bootstrap sample.
     fit_b <- tryCatch(

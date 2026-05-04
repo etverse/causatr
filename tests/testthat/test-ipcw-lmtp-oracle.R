@@ -303,9 +303,60 @@ test_that("point MAR (DGP-M2): all estimators near truth", {
 
 
 # ── Longitudinal MAR (DGP-M5) ────────────────────────────────────
-# Requires chunk 14c (longitudinal IPCW). Enabled once 14c lands.
 
-test_that("longitudinal MAR (DGP-M5): ICE+IPCW vs lmtp_sdr", {
-  skip("awaiting chunk 14c: longitudinal IPCW")
-  skip_if_not_installed("lmtp")
+test_that("longitudinal MAR (DGP-M5): ICE+IPCW near truth", {
+  d <- simulate_longitudinal_mar_outcome(n = 5000, seed = 500)
+  dt <- data.table::as.data.table(d)
+
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L0,
+    confounders_tv = ~ L,
+    estimator = "gcomp",
+    type = "longitudinal",
+    id = "id",
+    time = "time",
+    censoring = "C",
+    ipcw = TRUE
+  )
+
+  r <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    type = "difference",
+    ci_method = "sandwich"
+  )
+
+  expect_equal(-r$contrasts$estimate, 5, tolerance = 0.15)
+})
+
+
+test_that("longitudinal MAR (DGP-M5): IPW+IPCW near truth", {
+  d <- simulate_longitudinal_mar_outcome(n = 5000, seed = 501)
+  dt <- data.table::as.data.table(d)
+
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L0,
+    confounders_tv = ~ L,
+    estimator = "ipw",
+    type = "longitudinal",
+    id = "id",
+    time = "time",
+    censoring = "C",
+    ipcw = TRUE
+  )
+
+  r <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    type = "difference",
+    ci_method = "sandwich"
+  )
+
+  expect_equal(-r$contrasts$estimate, 5, tolerance = 0.25)
 })

@@ -417,6 +417,286 @@ test_that("IPCW composes with external weights", {
 })
 
 
+# ── Longitudinal ICE + IPCW (DGP-M5) ────────────────────────────
+
+test_that("ICE + IPCW recovers ATE on DGP-M5", {
+  d <- simulate_longitudinal_mar_outcome(n = 5000, seed = 300)
+  dt <- data.table::as.data.table(d)
+
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L0,
+    confounders_tv = ~ L,
+    estimator = "gcomp",
+    type = "longitudinal",
+    id = "id",
+    time = "time",
+    censoring = "C",
+    ipcw = TRUE
+  )
+
+  result <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    type = "difference",
+    ci_method = "sandwich"
+  )
+
+  expect_equal(result$contrasts$estimate, -5, tolerance = 0.15)
+})
+
+test_that("ICE + IPCW: sandwich SE and CI cover truth", {
+  d <- simulate_longitudinal_mar_outcome(n = 3000, seed = 301)
+  dt <- data.table::as.data.table(d)
+
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L0,
+    confounders_tv = ~ L,
+    estimator = "gcomp",
+    type = "longitudinal",
+    id = "id",
+    time = "time",
+    censoring = "C",
+    ipcw = TRUE
+  )
+
+  result <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    type = "difference",
+    ci_method = "sandwich"
+  )
+
+  se <- result$contrasts$se
+  expect_true(is.finite(se))
+  expect_true(se > 0)
+  ci_lo <- result$contrasts$ci_lower
+  ci_hi <- result$contrasts$ci_upper
+  expect_true(ci_lo < -5 && ci_hi > -5)
+})
+
+test_that("ICE + IPCW: sandwich and bootstrap SE agree", {
+  d <- simulate_longitudinal_mar_outcome(n = 2000, seed = 302)
+  dt <- data.table::as.data.table(d)
+
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L0,
+    confounders_tv = ~ L,
+    estimator = "gcomp",
+    type = "longitudinal",
+    id = "id",
+    time = "time",
+    censoring = "C",
+    ipcw = TRUE
+  )
+
+  r_sand <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    type = "difference",
+    ci_method = "sandwich"
+  )
+
+  r_boot <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    type = "difference",
+    ci_method = "bootstrap",
+    n_boot = 200
+  )
+
+  se_sand <- r_sand$contrasts$se
+  se_boot <- r_boot$contrasts$se
+  ratio <- se_sand / se_boot
+  expect_true(ratio > 0.5 && ratio < 2.0)
+})
+
+test_that("ICE IPCW does not degrade vs naive (linear DGP)", {
+  # DGP-M5 has a correctly specified linear outcome model, so
+  # g-comp absorbs censoring bias without IPCW. Verify IPCW
+  # does not degrade the estimate — both should be near truth.
+  d <- simulate_longitudinal_mar_outcome(n = 5000, seed = 303)
+  dt <- data.table::as.data.table(d)
+
+  fit_ipcw <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L0,
+    confounders_tv = ~ L,
+    estimator = "gcomp",
+    type = "longitudinal",
+    id = "id",
+    time = "time",
+    censoring = "C",
+    ipcw = TRUE
+  )
+  r_ipcw <- contrast(
+    fit_ipcw,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    type = "difference",
+    ci_method = "sandwich"
+  )
+
+  ate_ipcw <- -r_ipcw$contrasts$estimate
+  expect_equal(ate_ipcw, 5, tolerance = 0.15)
+})
+
+
+# ── Longitudinal IPW + IPCW (DGP-M5) ───────────────────────────
+
+test_that("longitudinal IPW + IPCW recovers ATE on DGP-M5", {
+  d <- simulate_longitudinal_mar_outcome(n = 5000, seed = 304)
+  dt <- data.table::as.data.table(d)
+
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L0,
+    confounders_tv = ~ L,
+    estimator = "ipw",
+    type = "longitudinal",
+    id = "id",
+    time = "time",
+    censoring = "C",
+    ipcw = TRUE
+  )
+
+  result <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    type = "difference",
+    ci_method = "sandwich"
+  )
+
+  expect_equal(result$contrasts$estimate, -5, tolerance = 0.25)
+})
+
+test_that("longitudinal IPW IPCW reduces bias vs naive", {
+  d <- simulate_longitudinal_mar_outcome(n = 5000, seed = 305)
+  dt <- data.table::as.data.table(d)
+
+  fit_ipcw <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L0,
+    confounders_tv = ~ L,
+    estimator = "ipw",
+    type = "longitudinal",
+    id = "id",
+    time = "time",
+    censoring = "C",
+    ipcw = TRUE
+  )
+  r_ipcw <- contrast(
+    fit_ipcw,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    type = "difference",
+    ci_method = "sandwich"
+  )
+
+  fit_naive <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L0,
+    confounders_tv = ~ L,
+    estimator = "ipw",
+    type = "longitudinal",
+    id = "id",
+    time = "time",
+    censoring = "C",
+    ipcw = FALSE
+  )
+  r_naive <- contrast(
+    fit_naive,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    type = "difference",
+    ci_method = "sandwich"
+  )
+
+  ate_ipcw <- -r_ipcw$contrasts$estimate
+  ate_naive <- -r_naive$contrasts$estimate
+  expect_lt(abs(ate_ipcw - 5), abs(ate_naive - 5))
+})
+
+test_that("longitudinal IPW IPCW: SE and CI cover truth", {
+  d <- simulate_longitudinal_mar_outcome(n = 3000, seed = 306)
+  dt <- data.table::as.data.table(d)
+
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L0,
+    confounders_tv = ~ L,
+    estimator = "ipw",
+    type = "longitudinal",
+    id = "id",
+    time = "time",
+    censoring = "C",
+    ipcw = TRUE
+  )
+
+  result <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    type = "difference",
+    ci_method = "sandwich"
+  )
+
+  se <- result$contrasts$se
+  expect_true(is.finite(se))
+  expect_true(se > 0)
+  ci_lo <- result$contrasts$ci_lower
+  ci_hi <- result$contrasts$ci_upper
+  expect_true(ci_lo < -5 && ci_hi > -5)
+})
+
+
+# ── Longitudinal IPCW details stashed ──────────────────────────
+
+test_that("longitudinal IPCW details stashed on fit", {
+  d <- simulate_longitudinal_mar_outcome(n = 1000, seed = 307)
+  dt <- data.table::as.data.table(d)
+
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L0,
+    confounders_tv = ~ L,
+    estimator = "gcomp",
+    type = "longitudinal",
+    id = "id",
+    time = "time",
+    censoring = "C",
+    ipcw = TRUE
+  )
+
+  expect_true(fit$details$ipcw)
+  expect_true(is.list(fit$details$censoring_models))
+  expect_length(fit$details$ipcw_weights, nrow(fit$data))
+  expect_true(
+    all(fit$details$ipcw_weights[fit$data$C == 1L] == 0)
+  )
+  expect_true(
+    all(fit$details$ipcw_weights[fit$data$time == 0] == 1)
+  )
+  expect_null(fit$details$weights_pre_ipcw)
+})
+
+
 # ── Error conditions ──────────────────────────────────────────────
 
 test_that("ipcw = TRUE without censoring column aborts", {

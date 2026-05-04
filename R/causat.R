@@ -514,11 +514,9 @@ causat <- function(
 
   # Built-in IPCW: fit a censoring model and compose stabilized
   # weights with any external weights BEFORE dispatching to the
-  # estimator-specific fitter. For point treatments the censoring
-  # model is fit here (all three estimators share the same weight
-  # vector). For longitudinal treatments the censoring models are
-  # fit inside fit_ice() / fit_longitudinal_ipw() where the lag
-  # structure and time_points are available (chunk 14c).
+  # estimator-specific fitter. Point treatments use a single
+  # censoring model; longitudinal treatments use per-period
+  # censoring models via fit_censoring_models_longitudinal().
   ipcw_details <- NULL
   if (ipcw && type == "point") {
     check_ipcw_inputs(
@@ -556,11 +554,32 @@ causat <- function(
       censoring_col = data[[censoring]],
       call = call
     )
+    cens_model_fn <- censoring_model_fn %||% stats::glm
+    time_points_ipcw <- sort(unique(data[[time]]))
+    cens_result <- fit_censoring_models_longitudinal(
+      data = data,
+      censoring = censoring,
+      treatment = treatment,
+      confounders = confounders,
+      confounders_tv = confounders_tv,
+      model_fn = cens_model_fn,
+      id = id,
+      time = time,
+      time_points = time_points_ipcw,
+      history = history,
+      weights = weights
+    )
+    ipcw_w <- cens_result$cumulative_weights
     ipcw_details <- list(
       ipcw = TRUE,
-      censoring_model_fn = censoring_model_fn %||% stats::glm,
-      weights_pre_ipcw = weights
+      censoring_models = cens_result$models,
+      ipcw_weights = ipcw_w,
+      censoring_model_fn = cens_model_fn,
+      weights_pre_ipcw = weights,
+      per_period_weights = cens_result$per_period_weights
     )
+    weights <- if (is.null(weights)) ipcw_w else weights * ipcw_w
+    check_weights(weights, nrow(data))
   }
 
   # Dispatch to the estimator-specific fitter. Each returns a
