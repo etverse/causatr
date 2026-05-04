@@ -130,14 +130,15 @@ refitting. For IPW and matching, refit with `causat(estimand = ...)`.
 
 ## Treatment types
 
-causatr supports binary, continuous, categorical, and multivariate treatments:
+causatr supports binary, continuous, categorical, count, and multivariate treatments:
 
 | Treatment type | G-comp | IPW | Matching |
 |---|---|---|---|
 | Binary (0/1) | Yes | Yes | Yes |
 | Continuous | Yes | Yes (GPS) | No (MatchIt binary-only) |
 | Categorical (k > 2) | Yes | Yes | No (MatchIt binary-only) |
-| Multivariate (joint) | Yes | Not yet | Not yet |
+| Count (Poisson / NB) | Yes | Yes (`propensity_family =`) | No |
+| Multivariate (joint) | Yes | Yes (sequential MTP) | No |
 
 For multivariate treatments (e.g. `treatment = c("A1", "A2")`), supply
 interventions as named lists with one element per treatment variable.
