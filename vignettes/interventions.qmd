@@ -32,6 +32,7 @@ support it, and demonstrates the calling pattern on real and simulated data.
 | `threshold(lo, hi)` | Clamp treatment to `[lo, hi]` | Continuous | --- | --- |
 | `dynamic(rule)` | Apply a user-defined deterministic rule | All types | Binary, categorical | --- |
 | `ipsi(d)` | Multiply odds of treatment by `d` | --- | Binary | --- |
+| `stochastic(f)` | Draw treatment from user-supplied distribution | All types | --- | --- |
 | `NULL` | Natural course (observed values) | All types | All types | --- |
 
 ## Data: NHEFS
@@ -478,6 +479,78 @@ At `delta = 1` the intervention is the natural course, so the contrast is
 zero. Larger `delta` makes quitting more likely and the effect on weight
 gain grows.
 
+## `stochastic()` --- user-defined randomised intervention (g-comp only)
+
+A stochastic intervention draws each individual's counterfactual treatment from
+a user-supplied distribution that may depend on covariates. Unlike `dynamic()`,
+which assigns a single deterministic value, `stochastic()` integrates over the
+randomness by Monte Carlo: the g-formula is evaluated `n_mc` times, each with
+an independent draw from the sampler, and the predictions are averaged.
+
+The `sampler` function has the same signature as a `dynamic()` rule ---
+`function(data, treatment)` --- but should return an independent random draw
+each time it is called.
+
+### Binary treatment: covariate-dependent randomisation
+
+Assign quitting with probability that depends on smoking intensity:
+
+```{r}
+set.seed(42)
+res_stoch <- contrast(
+  fit_gc,
+  interventions = list(
+    random_quit = stochastic(
+      \(data, trt) rbinom(nrow(data), 1,
+                          plogis(-1 + 0.05 * data$smokeintensity)),
+      n_mc = 200L
+    ),
+    all_quit = static(1)
+  ),
+  reference = "all_quit",
+  type = "difference"
+)
+res_stoch
+```
+
+The estimate is a population average over both individuals *and* the stochastic
+policy.
+
+### Continuous treatment: random shift
+
+Add a random perturbation (rather than a fixed shift) to each individual's
+smoking intensity:
+
+```{r}
+set.seed(42)
+res_stoch_cont <- contrast(
+  fit_gc_cont,
+  interventions = list(
+    noisy_reduce = stochastic(
+      \(data, trt) trt + rnorm(length(trt), mean = -5, sd = 2),
+      n_mc = 200L
+    ),
+    observed = NULL
+  ),
+  reference = "observed",
+  type = "difference"
+)
+res_stoch_cont
+```
+
+::: {.callout-tip}
+**Choosing `n_mc`**: 100--500 is typical. The sandwich SE accounts for the MC
+draws used at estimation time, so there is no need to inflate `n_mc` just for
+inference. If point estimates visibly change when you re-run with a different
+seed, increase `n_mc`.
+:::
+
+::: {.callout-note}
+`stochastic()` is only supported under `estimator = "gcomp"` (point and
+longitudinal). IPW and matching cannot evaluate it because the density ratio of
+a user-defined stochastic policy is generally intractable.
+:::
+
 ## `NULL` --- the natural course
 
 `NULL` means "do not intervene; use the observed treatment values". It is the
@@ -555,6 +628,7 @@ gaps.
 | `threshold()` | Continuous | Continuous | --- (mixed pushforward) | --- |
 | `dynamic()` | All treatment types | All treatment types | Binary, categorical | --- |
 | `ipsi()` | --- | --- | Binary only | --- |
+| `stochastic()` | All treatment types | All treatment types | --- (intractable density ratio) | --- |
 | `NULL` | All | All | All | --- |
 
 **Why some combinations are rejected:**
@@ -568,6 +642,9 @@ gaps.
   exactly at `v`, so the HT indicator `I(A = v)` is zero almost surely.
 - **`ipsi()` under g-comp/matching:** IPSI shifts the propensity, not the
   treatment value. There is no counterfactual treatment column to predict at.
+- **`stochastic()` under IPW/matching:** The density ratio of an arbitrary
+  user-defined stochastic policy is generally intractable. Only g-computation
+  (Monte Carlo integration) supports it.
 - **`static()` / `dynamic()` / `threshold()` / `ipsi()` on count treatments:**
   Count treatments (enabled via `propensity_family = "poisson"` or `"negbin"`)
   use `dpois()` / `dnbinom()` for the density ratio. `static()` is degenerate
@@ -584,6 +661,9 @@ Hernán MA, Robins JM (2025). *Causal Inference: What If*. Chapman & Hall/CRC.
 Kennedy EH (2019). Nonparametric causal effects based on incremental
 propensity score interventions. *Journal of the American Statistical
 Association* 114:645--656.
+
+Díaz I, van der Laan MJ (2012). Population intervention causal effects
+based on stochastic interventions. *Biometrics* 68:541--549.
 
 Díaz I, Williams N, Hoffman KL, Schenck EJ (2023). Non-parametric causal
 effects based on longitudinal modified treatment policies. *Journal of the
