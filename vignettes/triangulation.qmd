@@ -242,17 +242,30 @@ Agreement across methods within each stratum provides evidence that the
 sex-specific effects are real. Disagreement would point to model
 misspecification in one or more methods.
 
+::: {.callout-important}
+## Effect modifier must be a baseline variable under IPW and matching
+
+Under IPW and matching, the modifier in `A:modifier` must be a **baseline**
+(pre-treatment) variable. A time-varying modifier in a marginal structural model
+conditions on a post-treatment variable, which biases the estimand via mediator
+and collider paths (Robins, Hernán, Brumback 2000). G-computation has no such
+restriction because it models the outcome, not the treatment.
+
+causatr does not enforce baseline-ness at runtime (time-varying status isn't
+inferable from data alone). This is a user responsibility.
+:::
+
 ## When to use which method
 
 | Criterion | G-computation | IPW | Matching |
 |---|---|---|---|
 | Model specification | Outcome model | Treatment model | Treatment model |
 | Non-static interventions (shift / scale / threshold / dynamic) | Yes | Yes (shift, scale\_by, dynamic, IPSI) | No (static only) |
-| Continuous treatment | Yes | Yes (GPS, static only) | No (MatchIt binary-only) |
+| Continuous treatment | Yes | Yes (density-ratio) | No (MatchIt binary-only) |
 | Categorical (k > 2) treatment | Yes | Yes | No (MatchIt binary-only) |
 | Effect modification via `A:modifier` in `confounders` | Yes | Yes (`Y ~ 1 + modifier`) | Yes (`Y ~ A + modifier + A:modifier`) |
-| Longitudinal (time-varying) treatments | Yes (ICE) | No (Phase 10) | No |
-| Variance estimation | Sandwich (IF engine) or bootstrap | M-estimation sandwich via WeightIt's `glm_weightit` | Cluster-robust sandwich on matched subclass |
+| Longitudinal (time-varying) treatments | Yes (ICE) | Yes (longitudinal IPW) | No |
+| Variance estimation | Sandwich (IF engine) or bootstrap | Sandwich (IF engine) or bootstrap | Cluster-robust sandwich on matched subclass |
 | Robustness to | Treatment model misspecification | Outcome model misspecification | Outcome model misspecification |
 
 When the outcome model and treatment model are both correctly specified, all
