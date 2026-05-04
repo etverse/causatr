@@ -220,6 +220,28 @@ glance(result)     # broom-style one-row summary
 plot(result)       # forest plot (requires forrest package)
 ```
 
+## Limitations and known rejections
+
+causatr rejects unsupported combinations with informative errors rather than
+silently producing wrong answers. Key restrictions:
+
+| What | Why |
+|---|---|
+| **Matching requires binary treatment** | MatchIt does not support continuous/categorical treatments |
+| **ATT/ATC only for binary 0/1 treatment** | The estimand is not defined for other treatment types |
+| **`threshold()` under IPW** | The pushforward density has point masses at the bounds (mixed measure) |
+| **`dynamic()` on continuous treatment under IPW** | A deterministic rule on a continuous treatment has no Lebesgue density |
+| **`ipsi()` only under IPW, binary only** | The IPSI weight formula requires binary treatment and a propensity model |
+| **`stochastic()` only under g-comp** | The density ratio of a user-defined stochastic policy is intractable |
+| **Missing treatment values** | Cannot define a counterfactual without observed treatment |
+| **`na.action = na.exclude` rejected** | Causes silent IF corruption via residual padding mismatch |
+| **Effect modifier must be baseline under IPW/matching** | Time-varying modifiers in MSMs bias via collider paths (not enforced at runtime) |
+| **Multivariate longitudinal IPW** | Not yet supported; use ICE g-computation |
+
+For the full matrix of supported estimator × treatment × intervention × outcome
+combinations, see `vignette("interventions")` and
+[`FEATURE_COVERAGE_MATRIX.md`](https://github.com/etverse/causatr/blob/main/FEATURE_COVERAGE_MATRIX.md).
+
 ## Learning more
 
 causatr includes detailed vignettes for each estimation method: g-computation,
