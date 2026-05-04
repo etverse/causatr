@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>threshold – causatr</title>
+<title>stochastic – causatr</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -106,6 +106,35 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   }
 }</script>
 
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
 
 </head>
 
@@ -142,7 +171,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../man/causat.html">Reference</a></li><li class="breadcrumb-item"><a href="../man/threshold.html">threshold</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../man/causat.html">Reference</a></li><li class="breadcrumb-item"><a href="../man/stochastic.html">stochastic</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -400,7 +429,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../man/stochastic.html" class="sidebar-item-text sidebar-link">
+  <a href="../man/stochastic.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text">stochastic</span></a>
   </div>
 </li>
@@ -424,7 +453,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../man/threshold.html" class="sidebar-item-text sidebar-link active">
+  <a href="../man/threshold.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">threshold</span></a>
   </div>
 </li>
@@ -476,12 +505,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#clamp-treatment-within-bounds" id="toc-clamp-treatment-within-bounds" class="nav-link active" data-scroll-target="#clamp-treatment-within-bounds">Clamp treatment within bounds</a>
+  <li><a href="#stochastic-intervention-user-supplied-sampling-function" id="toc-stochastic-intervention-user-supplied-sampling-function" class="nav-link active" data-scroll-target="#stochastic-intervention-user-supplied-sampling-function">Stochastic intervention (user-supplied sampling function)</a>
   <ul class="collapse">
   <li><a href="#description" id="toc-description" class="nav-link" data-scroll-target="#description">Description</a></li>
   <li><a href="#usage" id="toc-usage" class="nav-link" data-scroll-target="#usage">Usage</a></li>
   <li><a href="#arguments" id="toc-arguments" class="nav-link" data-scroll-target="#arguments">Arguments</a></li>
   <li><a href="#value" id="toc-value" class="nav-link" data-scroll-target="#value">Value</a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
   <li><a href="#see-also" id="toc-see-also" class="nav-link" data-scroll-target="#see-also">See Also</a></li>
   <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   </ul></li>
@@ -489,20 +519,21 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="quarto-code-links"><h2>Code Links</h2><ul><li><a href="undefined"><i class="bi bi-link-45deg"></i></a></li></ul></div></nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../man/causat.html">Reference</a></li><li class="breadcrumb-item"><a href="../man/threshold.html">threshold</a></li></ol></nav></header>
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../man/causat.html">Reference</a></li><li class="breadcrumb-item"><a href="../man/stochastic.html">stochastic</a></li></ol></nav></header>
 
 
 
 
-<section id="clamp-treatment-within-bounds" class="level2 unnumbered">
-<h2 class="unnumbered anchored" data-anchor-id="clamp-treatment-within-bounds">Clamp treatment within bounds</h2>
+<section id="stochastic-intervention-user-supplied-sampling-function" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="stochastic-intervention-user-supplied-sampling-function">Stochastic intervention (user-supplied sampling function)</h2>
 <section id="description" class="level3">
 <h3 class="anchored" data-anchor-id="description">Description</h3>
-<p>Creates a modified treatment policy that clamps each individual’s observed treatment to lie within <code style="white-space: pre;">[lower, upper]</code>. Values below <code>lower</code> are set to <code>lower</code>; values above <code>upper</code> are set to <code>upper</code>.</p>
+<p>Creates a stochastic intervention where the counterfactual treatment for each individual is drawn from a user-supplied distribution that may depend on the individual’s covariates. Each call to <code>sampler</code> should return an independent draw.</p>
+<p>Only supported under <code>estimator = “gcomp”</code> (point and longitudinal). The g-formula evaluates <span class="math inline">\(E[Y^g]\)</span> via Monte Carlo integration: for each of <code>n_mc</code> draws, the sampler assigns counterfactual treatments, the outcome model predicts, and the predictions are averaged across draws.</p>
 </section>
 <section id="usage" class="level3">
 <h3 class="anchored" data-anchor-id="usage">Usage</h3>
-<pre><code class="language-R">threshold(lower = -Inf, upper = Inf)
+<pre><code class="language-R">stochastic(sampler, n_mc = 100L)
 </code></pre>
 </section>
 <section id="arguments" class="level3">
@@ -510,18 +541,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <table role="presentation">
 <tbody><tr>
 <td style="white-space: collapse; font-family: monospace; vertical-align: top">
-<code id="lower">lower</code>
+<code id="sampler">sampler</code>
 </td>
 <td>
-Numeric. Lower bound (use <code>-Inf</code> for no lower bound).
+A function with signature <code style="white-space: pre;">function(data, treatment)</code> that returns a vector of treatment values of length <code>nrow(data)</code>. <code>data</code> is the full counterfactual data.table (same as <code>dynamic()</code>); <code>treatment</code> is the observed treatment vector. Each call must return an independent random draw from the stochastic policy.
 </td>
 </tr>
 <tr>
 <td style="white-space: collapse; font-family: monospace; vertical-align: top">
-<code id="upper">upper</code>
+<code id="n_mc">n_mc</code>
 </td>
 <td>
-Numeric. Upper bound (use <code>Inf</code> for no upper bound).
+Positive integer. Number of Monte Carlo draws for the g-formula integration. Default 100. Larger values reduce MC noise at the cost of computation time. For sandwich variance, <code>n_mc</code> should be large enough that MC noise is negligible relative to the estimation error (100–500 is typical).
 </td>
 </tr>
 </tbody></table>
@@ -530,21 +561,33 @@ Numeric. Upper bound (use <code>Inf</code> for no upper bound).
 <h3 class="anchored" data-anchor-id="value">Value</h3>
 <p>A <code>causatr_intervention</code> object.</p>
 </section>
+<section id="references" class="level3">
+<h3 class="anchored" data-anchor-id="references">References</h3>
+<p>Diaz I, van der Laan MJ (2012). Population intervention causal effects based on stochastic interventions. <em>Biometrics</em> 68:541–549.</p>
+</section>
 <section id="see-also" class="level3">
 <h3 class="anchored" data-anchor-id="see-also">See Also</h3>
-<p><code>static()</code>, <code>shift()</code>, <code>scale_by()</code>, <code>dynamic()</code>, <code>ipsi()</code>, <code>stochastic()</code></p>
+<p><code>static()</code>, <code>shift()</code>, <code>scale_by()</code>, <code>threshold()</code>, <code>dynamic()</code>, <code>ipsi()</code>, <code>contrast()</code></p>
 </section>
 <section id="examples" class="level3">
 <h3 class="anchored" data-anchor-id="examples">Examples</h3>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">"causatr"</span>)</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(nhefs, <span class="at">outcome =</span> <span class="st">"wt82_71"</span>, <span class="at">treatment =</span> <span class="st">"smokeintensity"</span>,</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>              <span class="at">confounders =</span> <span class="sc">~</span> sex <span class="sc">+</span> age <span class="sc">+</span> wt71)</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit, <span class="at">interventions =</span> <span class="fu">list</span>(</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">capped20 =</span> <span class="fu">threshold</span>(<span class="dv">0</span>, <span class="dv">20</span>),</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">observed  =</span> <span class="fu">shift</span>(<span class="dv">0</span>)</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Binary treatment: covariate-dependent randomisation</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">stochastic</span>(\(data, trt) <span class="fu">rbinom</span>(<span class="fu">nrow</span>(data), <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="fl">0.5</span> <span class="sc">+</span> <span class="fl">0.3</span> <span class="sc">*</span> data<span class="sc">$</span>L)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>&lt;causatr_intervention: stochastic&gt;
+ sampler: &lt;function&gt;
+ n_mc: 100</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Continuous treatment: additive random shift</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">stochastic</span>(\(data, trt) trt <span class="sc">+</span> <span class="fu">rnorm</span>(<span class="fu">length</span>(trt), <span class="at">mean =</span> <span class="fl">0.5</span>, <span class="at">sd =</span> <span class="fl">0.25</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>&lt;causatr_intervention: stochastic&gt;
+ sampler: &lt;function&gt;
+ n_mc: 100</code></pre>
+</div>
 </div>
 
 

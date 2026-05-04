@@ -400,6 +400,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="../man/stochastic.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">stochastic</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="../man/summary.causatr_diag.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">summary.causatr_diag</span></a>
   </div>
@@ -494,23 +500,37 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="unnumbered anchored" data-anchor-id="diagnostics-for-a-fitted-causal-model">Diagnostics for a fitted causal model</h2>
 <section id="description" class="level3">
 <h3 class="anchored" data-anchor-id="description">Description</h3>
-<p>Computes diagnostics appropriate to the causal estimator:</p>
+<p>Computes diagnostics appropriate to the causal estimator and treatment type:</p>
 <ul>
 <li>
-<p><strong>All estimators</strong>: positivity checks (flags covariate strata where the probability of treatment is near 0 or 1).</p>
+<p><strong>Binary IPW</strong>: propensity-score positivity (tail violations), covariate balance (SMDs via <code>cobalt</code>), weight distribution (treated / control / overall with ESS).</p>
 </li>
 <li>
-<p><code>“ipw”</code> with binary treatment: covariate balance via <code>cobalt</code> on the propensity formula, plus a weight-distribution summary (one panel per intervention, or the observed-treatment Horvitz-Thompson summary when <code>interventions = NULL</code>).</p>
+<p><strong>Continuous IPW</strong>: density-range positivity (low-density tail observations), covariate balance (correlations), weight distribution (overall ESS).</p>
 </li>
 <li>
-<p><code>“matching”</code>: covariate balance before and after matching (via <code>cobalt</code>), match quality summary (% matched, caliper info).</p>
+<p><strong>Categorical IPW</strong>: per-level probability positivity, covariate balance (pairwise SMDs via <code>cobalt</code>), weight distribution.</p>
+</li>
+<li>
+<p><strong>Count IPW</strong> (Poisson / NB): density-range positivity, covariate balance, weight distribution.</p>
+</li>
+<li>
+<p><strong>Multivariate IPW</strong>: per-component positivity, covariate balance on the first component, combined product-weight distribution.</p>
+</li>
+<li>
+<p><strong>Longitudinal IPW</strong>: per-period positivity and weight distribution from <code>treatment_models_by_time</code>, per-period covariate balance.</p>
+</li>
+<li>
+<p><strong>Longitudinal gcomp (ICE)</strong>: per-period covariate balance (no weights or positivity since ICE has no treatment model).</p>
+</li>
+<li>
+<p><code>“matching”</code>: covariate balance before and after matching (via <code>cobalt</code>), match quality summary.</p>
 </li>
 <li>
 <p><code>“gcomp”</code>: unadjusted covariate imbalance between treatment groups.</p>
 </li>
 </ul>
-<p><strong>Per-intervention dispatch.</strong> When <code style="white-space: pre;">interventions =</code> is supplied, each intervention spawns its own diagnostic panel: the propensity-score summary is shared across panels (it depends only on the fitted treatment density model, not the intervention), but the weight-distribution summary is computed via <code>compute_density_ratio_weights()</code> for that specific intervention. The default call <code>diagnose(fit)</code> produces a single <code>obs</code> panel using the standard Horvitz-Thompson observed-treatment view (<code>1/p</code> on treated rows, <code>1/(1-p)</code> on controls) for IPW.</p>
-<p><strong>Point-treatment and binary IPW only in this chunk.</strong> The full rewrite (continuous / categorical / count / multivariate IPW; longitudinal ICE; ATT / ATC balance; effect-modification stratification; per-intervention propensity histograms; weight-distribution plots; <code>vignettes/diagnostics.qmd</code>) lands in subsequent chunks. Each currently-unsupported combination aborts with a <code style="white-space: pre;">causatr_diag_*_pending</code> classed error.</p>
+<p><strong>Per-intervention dispatch.</strong> When <code style="white-space: pre;">interventions =</code> is supplied, each intervention spawns its own diagnostic panel: the positivity summary is shared across panels (it depends only on the fitted treatment density model, not the intervention), but the weight distribution is computed per intervention. The default call <code>diagnose(fit)</code> produces a single <code>obs</code> panel.</p>
 </section>
 <section id="usage" class="level3">
 <h3 class="anchored" data-anchor-id="usage">Usage</h3>
@@ -548,7 +568,7 @@ Named list of <code>causatr_intervention</code> objects (or <code>NULL</code> en
 <code id="by">by</code>
 </td>
 <td>
-Character scalar naming a baseline modifier for stratified balance reporting. Currently rejected with <code>causatr_diag_em_pending</code> – the hook is reserved so future chunks can lift the rejection without a signature break.
+Character scalar naming a baseline variable for stratified balance reporting. When non-<code>NULL</code>, covariate balance is computed within each stratum of <code>by</code> via <code>cobalt::bal.tab(…, cluster = by)</code>. The variable must be present in the data.
 </td>
 </tr>
 <tr>

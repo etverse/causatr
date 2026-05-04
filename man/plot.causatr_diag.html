@@ -365,6 +365,12 @@ ul.task-list li input[type="checkbox"] {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="../man/stochastic.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">stochastic</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="../man/summary.causatr_diag.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">summary.causatr_diag</span></a>
   </div>
@@ -456,13 +462,31 @@ ul.task-list li input[type="checkbox"] {
 <h2 class="unnumbered anchored" data-anchor-id="plot-diagnostics-for-a-causatr-fit">Plot diagnostics for a causatr fit</h2>
 <section id="description" class="level3">
 <h3 class="anchored" data-anchor-id="description">Description</h3>
-<p>Produces a Love plot showing covariate balance before and after adjustment. Uses <code>cobalt::love.plot()</code> if the <code>cobalt</code> package is available.</p>
-<p>For IPW fits, the plot shows balance before and after weighting. For matching fits, it shows balance before and after matching. For g-computation fits, it shows unadjusted balance only.</p>
+<p>Produces diagnostic visualisations from a causatr_diag object. The <code>which</code> argument selects the plot type:</p>
+<ul>
+<li>
+<p><code>“balance”</code> (default): a Love plot showing standardised mean differences via <code>cobalt::love.plot()</code>. Requires <code>cobalt</code>.</p>
+</li>
+<li>
+<p><code>“weights”</code>: weight-distribution histograms (one panel per intervention). Binary treatments are faceted by arm (treated / control); non-binary show the overall distribution. Requires <code>tinyplot</code>.</p>
+</li>
+<li>
+<p><code>“positivity”</code>: propensity-score histogram for binary treatments; conditional density histogram for continuous / count treatments; per-level bar chart for categorical treatments. Requires <code>tinyplot</code>.</p>
+</li>
+</ul>
 </section>
 <section id="usage" class="level3">
 <h3 class="anchored" data-anchor-id="usage">Usage</h3>
 <pre><code class="language-R">## S3 method for class 'causatr_diag'
-plot(x, stats = "m", abs = TRUE, thresholds = c(m = 0.1), ...)
+plot(
+  x,
+  which = c("balance", "weights", "positivity"),
+  log_scale = FALSE,
+  stats = "m",
+  abs = TRUE,
+  thresholds = c(m = 0.1),
+  ...
+)
 </code></pre>
 </section>
 <section id="arguments" class="level3">
@@ -478,10 +502,26 @@ A <code>causatr_diag</code> object returned by <code>diagnose()</code>.
 </tr>
 <tr>
 <td style="white-space: collapse; font-family: monospace; vertical-align: top">
+<code id="which">which</code>
+</td>
+<td>
+Character. Type of diagnostic plot. One of <code>“balance”</code> (default), <code>“weights”</code>, or <code>“positivity”</code>.
+</td>
+</tr>
+<tr>
+<td style="white-space: collapse; font-family: monospace; vertical-align: top">
+<code id="log_scale">log_scale</code>
+</td>
+<td>
+Logical. For <code>which = “weights”</code>, apply log10 to the weight axis. Default <code>FALSE</code>.
+</td>
+</tr>
+<tr>
+<td style="white-space: collapse; font-family: monospace; vertical-align: top">
 <code id="stats">stats</code>
 </td>
 <td>
-Character. Which balance statistic(s) to plot. Default <code>“m”</code> (standardised mean differences). See <code>cobalt::love.plot()</code> for options.
+Character. For <code>which = “balance”</code>, which balance statistic(s) to plot. Default <code>“m”</code> (standardised mean differences). See <code>cobalt::love.plot()</code> for options.
 </td>
 </tr>
 <tr>
@@ -489,7 +529,7 @@ Character. Which balance statistic(s) to plot. Default <code>“m”</code> (sta
 <code id="abs">abs</code>
 </td>
 <td>
-Logical. Whether to plot absolute values. Default <code>TRUE</code>.
+Logical. For <code>which = “balance”</code>, whether to plot absolute values. Default <code>TRUE</code>.
 </td>
 </tr>
 <tr>
@@ -497,7 +537,7 @@ Logical. Whether to plot absolute values. Default <code>TRUE</code>.
 <code id="thresholds">thresholds</code>
 </td>
 <td>
-Named numeric vector. Threshold lines to draw on the plot. Default <code>c(m = 0.1)</code>.
+Named numeric vector. For <code>which = “balance”</code>, threshold lines to draw. Default <code>c(m = 0.1)</code>.
 </td>
 </tr>
 <tr>
@@ -505,14 +545,14 @@ Named numeric vector. Threshold lines to draw on the plot. Default <code>c(m = 0
 <code id="...">…</code>
 </td>
 <td>
-Additional arguments passed to <code>cobalt::love.plot()</code>.
+Additional arguments passed to the plotting backend (<code>cobalt::love.plot()</code> for balance; <code>tinyplot::plt()</code> for weights and positivity).
 </td>
 </tr>
 </tbody></table>
 </section>
 <section id="value" class="level3">
 <h3 class="anchored" data-anchor-id="value">Value</h3>
-<p>A <code>ggplot</code> object (invisibly).</p>
+<p>Invisibly returns <code>x</code>.</p>
 </section>
 <section id="see-also" class="level3">
 <h3 class="anchored" data-anchor-id="see-also">See Also</h3>
