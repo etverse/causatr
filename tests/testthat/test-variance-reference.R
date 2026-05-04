@@ -735,12 +735,12 @@ test_that("ICE sandwich matches single-model sandwich — binary outcome", {
 # Zivich PN et al. (2024). Statistics in Medicine 43:5562-5572.
 
 test_that("ICE sandwich matches delicatessen — linear SCM, 2 timepoints", {
-  ref_mu_always <- 14.9858
-  ref_se_always <- 0.0334
-  ref_mu_never <- 9.9794
-  ref_se_never <- 0.0340
-  ref_ate <- 5.0063
-  ref_se_ate <- 0.0414
+  ref_mu_always <- 14.9523
+  ref_se_always <- 0.0302
+  ref_mu_never <- 10.0430
+  ref_se_never <- 0.0316
+  ref_ate <- 4.9093
+  ref_se_ate <- 0.0417
 
   long <- make_linear_scm(n = 5000, n_times = 2, seed = 42)
   fit <- causat(
@@ -776,12 +776,12 @@ test_that("ICE sandwich matches delicatessen — linear SCM, 2 timepoints", {
 
 
 test_that("ICE sandwich matches delicatessen — linear SCM, 3 timepoints", {
-  ref_mu_always <- 17.9551
-  ref_se_always <- 0.0418
-  ref_mu_never <- 10.0097
-  ref_se_never <- 0.0439
-  ref_ate <- 7.9454
-  ref_se_ate <- 0.0537
+  ref_mu_always <- 18.0083
+  ref_se_always <- 0.0373
+  ref_mu_never <- 9.9856
+  ref_se_never <- 0.0401
+  ref_ate <- 8.0227
+  ref_se_ate <- 0.0527
 
   long <- make_linear_scm(n = 5000, n_times = 3, seed = 42)
   fit <- causat(

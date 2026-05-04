@@ -862,7 +862,7 @@ test_that("ICE EM bootstrap covers sex-specific ATEs (2-period DGP)", {
 # Regression guard: ICE without EM terms produces identical results
 # to the pre-expansion behavior.
 test_that("ICE without EM terms is unaffected by EM lag expansion", {
-  d <- make_linear_scm(n = 5000, n_times = 2, seed = 42)
+  d <- make_linear_scm(n = 8000, n_times = 2, seed = 42)
   fit <- causat(
     d,
     outcome = "Y",
@@ -1055,8 +1055,8 @@ test_that("ICE EM x binary trt x dynamic produces sex-differentiated estimates",
 
 # Truth-based: ICE x binary trt x binomial outcome x EM.
 #
-# DGP-EM-ICE-BINOM: Y ~ Bern(expit(-1 + (1+0.8*sex)*(A0+A1) + 0.5*L0 + 0.3*L1))
-#   MC truth (n = 10^6): RD|sex=0 ~ 0.480, RD|sex=1 ~ 0.651
+# DGP-EM-ICE-BINOM: Y ~ Bern(expit(-1 + (1+0.8*sex)*(A0+A1) + 0.5*Ltv0 + 0.3*L1))
+#   MC truth (n = 10^6): RD|sex=0 ~ 0.495, RD|sex=1 ~ 0.663
 test_that("ICE EM x binomial outcome recovers sex-specific risk differences", {
   d <- make_em_ice_binom_scm(n = 8000, seed = 42)
   fit <- causat(
@@ -1082,18 +1082,18 @@ test_that("ICE EM x binomial outcome recovers sex-specific risk differences", {
   rd_sex0 <- res$contrasts$estimate[res$contrasts$by == 0]
   rd_sex1 <- res$contrasts$estimate[res$contrasts$by == 1]
 
-  # MC truth: RD|sex=0 ~ 0.480, RD|sex=1 ~ 0.651
+  # MC truth: RD|sex=0 ~ 0.495, RD|sex=1 ~ 0.663
   # Tolerate 0.05 on probability scale (binomial is noisier).
-  expect_lt(abs(rd_sex0 - 0.480), 0.05)
-  expect_lt(abs(rd_sex1 - 0.651), 0.05)
+  expect_lt(abs(rd_sex0 - 0.495), 0.05)
+  expect_lt(abs(rd_sex1 - 0.663), 0.05)
 
   # CIs cover the MC truth.
   ci_sex0 <- res$contrasts[res$contrasts$by == 0, ]
   ci_sex1 <- res$contrasts[res$contrasts$by == 1, ]
-  expect_lte(ci_sex0$ci_lower, 0.480)
-  expect_gte(ci_sex0$ci_upper, 0.480)
-  expect_lte(ci_sex1$ci_lower, 0.651)
-  expect_gte(ci_sex1$ci_upper, 0.651)
+  expect_lte(ci_sex0$ci_lower, 0.495)
+  expect_gte(ci_sex0$ci_upper, 0.495)
+  expect_lte(ci_sex1$ci_lower, 0.663)
+  expect_gte(ci_sex1$ci_upper, 0.663)
 
   # SEs are finite and positive.
   expect_true(all(res$contrasts$se > 0))

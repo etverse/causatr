@@ -46,24 +46,26 @@ def ice_gcomp_2t(data, family_t1="gaussian",
     A0 = data["A0"].values
     A1 = data["A1"].values
     L0 = data["L0"].values
+    Ltv0 = data["Ltv0"].values
     L1 = data["L1"].values if "L1" in data.columns else np.zeros(n)
 
-    # Design matrices for model at t=1: Y ~ A1 + A0 + L1 + L0
-    X1 = np.column_stack([np.ones(n), A1, A0, L1, L0])
+    # Design matrices match R's ICE formula order:
+    # t=1: Y ~ A + L0 + L + lag1_A + lag1_L → [1, A1, L0, L1, A0, Ltv0]
+    X1 = np.column_stack([np.ones(n), A1, L0, L1, A0, Ltv0])
     p1 = X1.shape[1]
 
-    # Under intervention: replace A1 and A0
+    # Under intervention: replace A1 and A0 (lag1_A)
     X1_always = np.column_stack([np.ones(n), np.full(n, a1_always),
-                                  np.full(n, a0_always), L1, L0])
+                                  L0, L1, np.full(n, a0_always), Ltv0])
     X1_never = np.column_stack([np.ones(n), np.full(n, a1_never),
-                                 np.full(n, a0_never), L1, L0])
+                                 L0, L1, np.full(n, a0_never), Ltv0])
 
-    # Design matrices for model at t=0: pseudo_Y ~ A0 + L0
-    X0 = np.column_stack([np.ones(n), A0, L0])
+    # t=0: pseudo ~ A + L0 + L → [1, A0, L0, Ltv0]
+    X0 = np.column_stack([np.ones(n), A0, L0, Ltv0])
     p0 = X0.shape[1]
 
-    X0_always = np.column_stack([np.ones(n), np.full(n, a0_always), L0])
-    X0_never = np.column_stack([np.ones(n), np.full(n, a0_never), L0])
+    X0_always = np.column_stack([np.ones(n), np.full(n, a0_always), L0, Ltv0])
+    X0_never = np.column_stack([np.ones(n), np.full(n, a0_never), L0, Ltv0])
 
     link1 = expit if family_t1 == "binomial" else lambda x: x
     link0_family = "binomial" if family_t1 == "binomial" else "gaussian"
@@ -208,35 +210,39 @@ def ice_gcomp_3t(data, family="gaussian"):
     A1 = data["A1"].values
     A2 = data["A2"].values
     L0 = data["L0"].values
+    Ltv0 = data["Ltv0"].values
     L1 = data["L1"].values
     L2 = data["L2"].values
 
     link = expit if family == "binomial" else lambda x: x
     link_family = "binomial" if family == "binomial" else "gaussian"
 
-    # Model at t=2: Y ~ A2 + A1 + A0 + L2 + L1 + L0
-    X2 = np.column_stack([np.ones(n), A2, A1, A0, L2, L1, L0])
+    # Design matrices match R's ICE formula order:
+    # t=2: Y ~ A + L0 + L + lag1_A + lag1_L + lag2_A + lag2_L
+    #    → [1, A2, L0, L2, A1, L1, A0, Ltv0]
+    X2 = np.column_stack([np.ones(n), A2, L0, L2, A1, L1, A0, Ltv0])
     p2 = X2.shape[1]
 
-    # Model at t=1: pseudo ~ A1 + A0 + L1 + L0
-    X1 = np.column_stack([np.ones(n), A1, A0, L1, L0])
+    # t=1: pseudo ~ A + L0 + L + lag1_A + lag1_L
+    #    → [1, A1, L0, L1, A0, Ltv0]
+    X1 = np.column_stack([np.ones(n), A1, L0, L1, A0, Ltv0])
     p1 = X1.shape[1]
 
-    # Model at t=0: pseudo ~ A0 + L0
-    X0 = np.column_stack([np.ones(n), A0, L0])
+    # t=0: pseudo ~ A + L0 + L → [1, A0, L0, Ltv0]
+    X0 = np.column_stack([np.ones(n), A0, L0, Ltv0])
     p0 = X0.shape[1]
 
     def make_X2_iv(a0, a1, a2):
         return np.column_stack([np.ones(n), np.full(n, a2),
-                                 np.full(n, a1), np.full(n, a0),
-                                 L2, L1, L0])
+                                 L0, L2, np.full(n, a1), L1,
+                                 np.full(n, a0), Ltv0])
 
     def make_X1_iv(a0, a1):
         return np.column_stack([np.ones(n), np.full(n, a1),
-                                 np.full(n, a0), L1, L0])
+                                 L0, L1, np.full(n, a0), Ltv0])
 
     def make_X0_iv(a0):
-        return np.column_stack([np.ones(n), np.full(n, a0), L0])
+        return np.column_stack([np.ones(n), np.full(n, a0), L0, Ltv0])
 
     def psi(theta):
         idx = 0
@@ -344,32 +350,33 @@ def ice_gcomp_3t_binary(data):
     A1 = data["A1"].values
     A2 = data["A2"].values
     L0 = data["L0"].values
+    Ltv0 = data["Ltv0"].values
     L1 = data["L1"].values
     L2 = data["L2"].values
 
-    # Model at t=2: Y ~ A2 + A1 + A0 + L2 + L1 + L0 (binomial)
-    X2 = np.column_stack([np.ones(n), A2, A1, A0, L2, L1, L0])
+    # t=2: Y ~ A + L0 + L + lag1_A + lag1_L + lag2_A + lag2_L (binomial)
+    X2 = np.column_stack([np.ones(n), A2, L0, L2, A1, L1, A0, Ltv0])
     p2 = X2.shape[1]
 
-    # Model at t=1: pseudo ~ A1 + A0 + L1 + L0 (quasibinomial ≈ identity for EE)
-    X1 = np.column_stack([np.ones(n), A1, A0, L1, L0])
+    # t=1: pseudo ~ A + L0 + L + lag1_A + lag1_L (quasibinomial)
+    X1 = np.column_stack([np.ones(n), A1, L0, L1, A0, Ltv0])
     p1 = X1.shape[1]
 
-    # Model at t=0: pseudo ~ A0 + L0
-    X0 = np.column_stack([np.ones(n), A0, L0])
+    # t=0: pseudo ~ A + L0 + L
+    X0 = np.column_stack([np.ones(n), A0, L0, Ltv0])
     p0 = X0.shape[1]
 
     def make_X2_iv(a0, a1, a2):
         return np.column_stack([np.ones(n), np.full(n, a2),
-                                 np.full(n, a1), np.full(n, a0),
-                                 L2, L1, L0])
+                                 L0, L2, np.full(n, a1), L1,
+                                 np.full(n, a0), Ltv0])
 
     def make_X1_iv(a0, a1):
         return np.column_stack([np.ones(n), np.full(n, a1),
-                                 np.full(n, a0), L1, L0])
+                                 L0, L1, np.full(n, a0), Ltv0])
 
     def make_X0_iv(a0):
-        return np.column_stack([np.ones(n), np.full(n, a0), L0])
+        return np.column_stack([np.ones(n), np.full(n, a0), L0, Ltv0])
 
     def psi(theta):
         idx = 0
@@ -575,8 +582,9 @@ def long_to_wide(df):
     for i, t in enumerate(times):
         sub = df[df["time"] == t].sort_values("id")
         wide[f"A{i}"] = sub["A"].values
-        if "L" in sub.columns and i > 0:
-            wide[f"L{i}"] = sub["L"].values
+        if "L" in sub.columns:
+            col_name = f"Ltv{i}" if i == 0 else f"L{i}"
+            wide[col_name] = sub["L"].values
         if i == n_times - 1:
             wide["Y"] = sub["Y"].values
 

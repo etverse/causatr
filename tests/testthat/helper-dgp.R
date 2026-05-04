@@ -194,7 +194,7 @@ make_table201 <- function(scale = 1) {
 #
 # DGP:
 #   L0 ~ N(0, 1)                              (time-invariant baseline confounder)
-#   L_0 = L0                                  (TV confounder at baseline = L0)
+#   L_0 = 0.5 * L0 + ε_L                     (TV confounder at baseline)
 #   A_0 ~ Bern(expit(0.5 * L0))               (treatment at t=0)
 #   For t > 0:
 #     L_t = A_{t-1} + 0.5 * L0 + ε_L          (treatment-confounder feedback)
@@ -204,7 +204,7 @@ make_table201 <- function(scale = 1) {
 # True ATE (always vs never) = 3 * n_times - 1
 # Under always: E[Y] = 10 + 2*T + (T-1) = 9 + 3T
 # Under never:  E[Y] = 10
-# (L_0 = L0 does not depend on treatment, so cancels in the contrast.)
+# (L_0 does not depend on treatment, so cancels in the contrast.)
 make_linear_scm <- function(n = 5000, n_times = 2, seed = 42) {
   set.seed(seed)
 
@@ -215,7 +215,7 @@ make_linear_scm <- function(n = 5000, n_times = 2, seed = 42) {
 
   for (t in seq_len(n_times)) {
     if (t == 1) {
-      L[, t] <- L0
+      L[, t] <- 0.5 * L0 + stats::rnorm(n, 0, 0.5)
       A[, t] <- stats::rbinom(n, 1, stats::plogis(0.5 * L0))
     } else {
       L[, t] <- A[, t - 1] + 0.5 * L0 + stats::rnorm(n, 0, 0.5)
@@ -246,8 +246,11 @@ make_linear_scm <- function(n = 5000, n_times = 2, seed = 42) {
 # Continuous-treatment version of the linear SCM.
 #
 # DGP:
+# Continuous-treatment version of the linear SCM.
+#
+# DGP:
 #   L0 ~ N(0, 1)                        (time-invariant baseline confounder)
-#   L_0 = L0                            (TV confounder at baseline = L0)
+#   L_0 = 0.5 * L0 + ε_L               (TV confounder at baseline)
 #   A_0 = 1 + 0.5 * L0 + ε_A           (continuous treatment)
 #   L_1 = A_0 + 0.5 * L0 + ε_L         (treatment-confounder feedback)
 #   A_1 = 1 + 0.3 * L_1 + 0.2 * A_0 + ε_A
@@ -256,17 +259,18 @@ make_continuous_scm <- function(n = 5000, seed = 42) {
   set.seed(seed)
 
   L0 <- stats::rnorm(n)
+  Ltv0 <- 0.5 * L0 + stats::rnorm(n, 0, 0.5)
   A0 <- 1 + 0.5 * L0 + stats::rnorm(n, 0, 0.5)
   L1 <- A0 + 0.5 * L0 + stats::rnorm(n, 0, 0.5)
   A1 <- 1 + 0.3 * L1 + 0.2 * A0 + stats::rnorm(n, 0, 0.5)
-  Y <- 10 + 2 * (A0 + A1) + L0 + L1 + stats::rnorm(n)
+  Y <- 10 + 2 * (A0 + A1) + Ltv0 + L1 + stats::rnorm(n)
 
   rbind(
     data.frame(
       id = seq_len(n),
       time = 0L,
       A = A0,
-      L = L0,
+      L = Ltv0,
       L0 = L0,
       Y = NA_real_
     ),
@@ -445,24 +449,27 @@ simulate_longitudinal_mar_outcome <- function(n = 5000, seed = 42) {
 #
 # DGP:
 #   L0 ~ N(0, 1); sex ~ Bern(0.5)
+#   L_0 = 0.5 * L0 + eps_L             (TV confounder at baseline)
 #   A_0 ~ Bern(expit(0.5 * L0))
 #   For t > 0:
 #     L_t = A_{t-1} + 0.5 * L0 + eps_L  (treatment-confounder feedback)
 #     A_t ~ Bern(expit(0.3 * L_t))
-#   Y = 10 + (2 + 1.5*sex) * sum(A_t) + L0 + sum(L_t) + eps_Y
+#   Y = 10 + (2 + 1.5*sex) * sum(A_t) + sum(L_t) + eps_Y
 #
 # True ATE (always vs never):
 #   2 periods: ATE|sex=0 = 5,  ATE|sex=1 = 8
 #   3 periods: ATE|sex=0 = 8,  ATE|sex=1 = 12.5
 #
 # Derivation (2-period, always vs never):
-#   Under always: E[L_1] = 1, E[Y|sex=s] = 10 + 2*(2+1.5s) + 0 + 1 = 15 + 3s
-#   Under never:  E[L_1] = 0, E[Y|sex=s] = 10
+#   Under always: E[L_0]=0, E[L_1]=1,
+#     E[Y|sex=s] = 10 + 2*(2+1.5s) + 0 + 1 = 15 + 3s
+#   Under never:  E[L_0]=0, E[L_1]=0, E[Y|sex=s] = 10
 #   ATE|sex=s = 5 + 3s => sex=0: 5, sex=1: 8
 #
 # Derivation (3-period, always vs never):
-#   Under always: E[L_1]=1, E[L_2]=1, E[Y|sex=s] = 10+3*(2+1.5s)+0+1+1 = 18+4.5s
-#   Under never:  E[L_1]=0, E[L_2]=0, E[Y|sex=s] = 10
+#   Under always: E[L_0]=0, E[L_1]=1, E[L_2]=1,
+#     E[Y|sex=s] = 10+3*(2+1.5s)+0+1+1 = 18+4.5s
+#   Under never:  E[L_0]=0, E[L_1]=0, E[L_2]=0, E[Y|sex=s] = 10
 #   ATE|sex=s = 8 + 4.5s => sex=0: 8, sex=1: 12.5
 make_em_ice_scm <- function(n = 5000, n_times = 2, seed = 42) {
   set.seed(seed)
@@ -475,6 +482,7 @@ make_em_ice_scm <- function(n = 5000, n_times = 2, seed = 42) {
 
   for (t in seq_len(n_times)) {
     if (t == 1) {
+      L[, t] <- 0.5 * L0 + stats::rnorm(n, 0, 0.5)
       A[, t] <- stats::rbinom(n, 1, stats::plogis(0.5 * L0))
     } else {
       L[, t] <- A[, t - 1] + 0.5 * L0 + stats::rnorm(n, 0, 0.5)
@@ -484,7 +492,7 @@ make_em_ice_scm <- function(n = 5000, n_times = 2, seed = 42) {
 
   # Treatment effect is (2 + 1.5*sex) per period of treatment.
   trt_effect <- (2 + 1.5 * sex) * rowSums(A)
-  Y <- 10 + trt_effect + L0 + rowSums(L, na.rm = TRUE) + stats::rnorm(n)
+  Y <- 10 + trt_effect + rowSums(L) + stats::rnorm(n)
 
   rows <- vector("list", n_times)
   for (t in seq_len(n_times)) {
@@ -512,7 +520,7 @@ make_em_ice_scm <- function(n = 5000, n_times = 2, seed = 42) {
 #   A_0 = 1 + 0.5 * L0 + eps_A
 #   L_1 = A_0 + 0.5 * L0 + eps_L
 #   A_1 = 1 + 0.3 * L_1 + 0.2 * A_0 + eps_A
-#   Y = 10 + (2 + 1.5*sex) * (A_0 + A_1) + L0 + L_1 + eps_Y
+#   Y = 10 + (2 + 1.5*sex) * (A_0 + A_1) + L_0 + L_1 + eps_Y
 #
 # True shift(delta) effect (g-formula, includes indirect path via L_1):
 #   MC truth (n = 5*10^6): shift(1)|sex=0 ~ 6.0, shift(1)|sex=1 ~ 9.76
@@ -523,19 +531,20 @@ make_em_ice_cont_scm <- function(n = 5000, seed = 42) {
   L0 <- stats::rnorm(n)
   sex <- stats::rbinom(n, 1, 0.5)
 
+  Ltv0 <- 0.5 * L0 + stats::rnorm(n, 0, 0.5)
   A0 <- 1 + 0.5 * L0 + stats::rnorm(n, 0, 0.5)
   L1 <- A0 + 0.5 * L0 + stats::rnorm(n, 0, 0.5)
   A1 <- 1 + 0.3 * L1 + 0.2 * A0 + stats::rnorm(n, 0, 0.5)
 
   trt_effect <- (2 + 1.5 * sex) * (A0 + A1)
-  Y <- 10 + trt_effect + L0 + L1 + stats::rnorm(n)
+  Y <- 10 + trt_effect + Ltv0 + L1 + stats::rnorm(n)
 
   rbind(
     data.frame(
       id = seq_len(n),
       time = 0L,
       A = A0,
-      L = NA_real_,
+      L = Ltv0,
       L0 = L0,
       sex = sex,
       Y = NA_real_
@@ -566,19 +575,20 @@ make_em_ice_cont_scm <- function(n = 5000, seed = 42) {
 #
 # No closed-form truth on the probability scale due to nonlinear link,
 # but MC truth (n = 10^6, seed = 1):
-#   P[Y(always)|sex=0] ~ 0.767, P[Y(never)|sex=0] ~ 0.287
-#   P[Y(always)|sex=1] ~ 0.938, P[Y(never)|sex=1] ~ 0.287
-#   RD|sex=0 ~ 0.480, RD|sex=1 ~ 0.651
+#   P[Y(always)|sex=0] ~ 0.775, P[Y(never)|sex=0] ~ 0.279
+#   P[Y(always)|sex=1] ~ 0.942, P[Y(never)|sex=1] ~ 0.279
+#   RD|sex=0 ~ 0.495, RD|sex=1 ~ 0.663
 make_em_ice_binom_scm <- function(n = 5000, seed = 42) {
   set.seed(seed)
 
   L0 <- stats::rnorm(n)
   sex <- stats::rbinom(n, 1, 0.5)
+  Ltv0 <- 0.5 * L0 + stats::rnorm(n, 0, 0.5)
   A0 <- stats::rbinom(n, 1, stats::plogis(0.5 * L0))
   L1 <- A0 + 0.5 * L0 + stats::rnorm(n, 0, 0.5)
   A1 <- stats::rbinom(n, 1, stats::plogis(0.3 * L1))
 
-  eta <- -1 + (1 + 0.8 * sex) * (A0 + A1) + 0.5 * L0 + 0.3 * L1
+  eta <- -1 + (1 + 0.8 * sex) * (A0 + A1) + 0.5 * Ltv0 + 0.3 * L1
   Y <- stats::rbinom(n, 1, stats::plogis(eta))
 
   rbind(
@@ -586,7 +596,7 @@ make_em_ice_binom_scm <- function(n = 5000, seed = 42) {
       id = seq_len(n),
       time = 0L,
       A = A0,
-      L = NA_real_,
+      L = Ltv0,
       L0 = L0,
       sex = sex,
       Y = NA_real_
@@ -777,17 +787,18 @@ simulate_stochastic_ice_binary_gaussian <- function(
 ) {
   set.seed(seed)
   L0 <- rnorm(n)
+  Ltv0 <- 0.5 * L0 + rnorm(n, 0, 0.5)
   A0 <- rbinom(n, 1, plogis(0.5 * L0))
   L1 <- 0.5 * A0 + 0.5 * L0 + rnorm(n, 0, 0.5)
   A1 <- rbinom(n, 1, plogis(0.3 * L1))
-  Y <- 1 + A0 + A1 + 0.5 * L0 + 0.5 * L1 + rnorm(n)
+  Y <- 1 + A0 + A1 + 0.5 * Ltv0 + 0.5 * L1 + rnorm(n)
 
   data <- rbind(
     data.frame(
       id = seq_len(n),
       time = 0L,
       A = A0,
-      L = NA_real_,
+      L = Ltv0,
       L0 = L0,
       Y = NA_real_
     ),
@@ -798,20 +809,15 @@ simulate_stochastic_ice_binary_gaussian <- function(
   set.seed(1)
   n_mc_truth <- 1e6
   L0_mc <- rnorm(n_mc_truth)
-  A0_mc <- rbinom(n_mc_truth, 1, plogis(0.2 + 0.3 * L0_mc))
+  Ltv0_mc <- 0.5 * L0_mc + rnorm(n_mc_truth, 0, 0.5)
+  A0_mc <- rbinom(n_mc_truth, 1, plogis(0.2 + 0.3 * Ltv0_mc))
   L1_mc <- 0.5 * A0_mc + 0.5 * L0_mc + rnorm(n_mc_truth, 0, 0.5)
   A1_mc <- rbinom(n_mc_truth, 1, plogis(0.2 + 0.3 * L1_mc))
-  Y_mc <- 1 + A0_mc + A1_mc + 0.5 * L0_mc + 0.5 * L1_mc
+  Y_mc <- 1 + A0_mc + A1_mc + 0.5 * Ltv0_mc + 0.5 * L1_mc
   truth <- mean(Y_mc)
 
   sampler <- function(data, trt) {
-    if ("L" %in% names(data) && !all(is.na(data$L))) {
-      cov_col <- data$L
-      cov_col[is.na(cov_col)] <- data$L0[is.na(cov_col)]
-    } else {
-      cov_col <- data$L0
-    }
-    rbinom(nrow(data), 1, plogis(0.2 + 0.3 * cov_col))
+    rbinom(nrow(data), 1, plogis(0.2 + 0.3 * data$L))
   }
 
   list(data = data, truth = truth, sampler = sampler)
@@ -831,17 +837,18 @@ simulate_stochastic_ice_continuous_gaussian <- function(
 ) {
   set.seed(seed)
   L0 <- rnorm(n)
+  Ltv0 <- 0.5 * L0 + rnorm(n, 0, 0.5)
   A0 <- L0 + rnorm(n)
   L1 <- 0.5 * A0 + 0.5 * L0 + rnorm(n, 0, 0.5)
   A1 <- L1 + rnorm(n)
-  Y <- 1 + 0.5 * A0 + 0.5 * A1 + 0.5 * L0 + 0.5 * L1 + rnorm(n)
+  Y <- 1 + 0.5 * A0 + 0.5 * A1 + 0.5 * Ltv0 + 0.5 * L1 + rnorm(n)
 
   data <- rbind(
     data.frame(
       id = seq_len(n),
       time = 0L,
       A = A0,
-      L = NA_real_,
+      L = Ltv0,
       L0 = L0,
       Y = NA_real_
     ),
@@ -849,15 +856,15 @@ simulate_stochastic_ice_continuous_gaussian <- function(
   )
 
   # Additive shift of +0.5 at each time point.
-  # Truth: E[Y^g] = 1 + 0.5 * (E[A0] + 0.5) + 0.5 * (E[A1*] + ...)
   # Use simulation oracle.
   set.seed(1)
   n_mc_truth <- 1e6
   L0_mc <- rnorm(n_mc_truth)
+  Ltv0_mc <- 0.5 * L0_mc + rnorm(n_mc_truth, 0, 0.5)
   A0_mc <- L0_mc + rnorm(n_mc_truth) + 0.5
   L1_mc <- 0.5 * A0_mc + 0.5 * L0_mc + rnorm(n_mc_truth, 0, 0.5)
   A1_mc <- L1_mc + rnorm(n_mc_truth) + 0.5
-  Y_mc <- 1 + 0.5 * A0_mc + 0.5 * A1_mc + 0.5 * L0_mc + 0.5 * L1_mc
+  Y_mc <- 1 + 0.5 * A0_mc + 0.5 * A1_mc + 0.5 * Ltv0_mc + 0.5 * L1_mc
   truth <- mean(Y_mc)
 
   sampler <- function(data, trt) {
