@@ -736,6 +736,90 @@ check_dots_na_action <- function(..., call = rlang::caller_env()) {
 }
 
 
+#' Validate `ipcw` and `censoring` parameter consistency
+#'
+#' @description
+#' When `ipcw = TRUE`, the user wants causatr to fit an internal
+#' censoring model. This requires a `censoring` column to be specified
+#' and that column to be binary (0/1 with optional NA). Warns when the
+#' censoring proportion is very high (>80%), signalling that IPCW
+#' weights will be extreme.
+#'
+#' @param ipcw Logical. Whether built-in IPCW is requested.
+#' @param censoring Character or NULL. Name of the censoring column.
+#' @param censoring_col Optional. The actual censoring column values
+#'   (for deeper validation). If NULL, only structural checks are run.
+#' @param call Caller environment for error messages.
+#'
+#' @return `NULL` invisibly; aborts on invalid combinations.
+#'
+#' @noRd
+check_ipcw_inputs <- function(
+  ipcw,
+  censoring,
+  censoring_col = NULL,
+  call = rlang::caller_env()
+) {
+  if (!isTRUE(ipcw)) {
+    return(invisible(NULL))
+  }
+
+  if (is.null(censoring)) {
+    rlang::abort(
+      c(
+        "`ipcw = TRUE` requires `censoring` to be specified.",
+        i = paste0(
+          "Provide the name of a censoring indicator ",
+          "column (1 = censored, 0 = uncensored)."
+        )
+      ),
+      class = "causatr_ipcw_no_censoring",
+      call = call
+    )
+  }
+
+  if (!is.null(censoring_col)) {
+    vals <- stats::na.omit(as.integer(censoring_col))
+    unique_vals <- sort(unique(vals))
+    if (!all(unique_vals %in% c(0L, 1L))) {
+      rlang::abort(
+        c(
+          paste0(
+            "`",
+            censoring,
+            "` must be binary (0 = uncensored, 1 = censored). ",
+            "Found values: ",
+            paste(unique_vals, collapse = ", "),
+            "."
+          ),
+          i = "Recode the censoring column to 0/1 before calling `causat()`."
+        ),
+        class = "causatr_ipcw_non_binary",
+        call = call
+      )
+    }
+    if (length(vals) > 0L) {
+      p_cens <- mean(vals == 1L)
+      if (p_cens > 0.80) {
+        rlang::warn(
+          c(
+            paste0(
+              round(100 * p_cens, 1),
+              "% of observations are censored. ",
+              "IPCW weights will be extreme and estimates may be unstable."
+            ),
+            i = "Consider whether the censoring model is correctly specified."
+          ),
+          class = "causatr_ipcw_high_censoring"
+        )
+      }
+    }
+  }
+
+  invisible(NULL)
+}
+
+
 #' Resolve `cluster` argument to a vector aligned with the sandwich IF rows
 #'
 #' @description
