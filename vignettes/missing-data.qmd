@@ -465,6 +465,33 @@ boot_comp <- data.frame(
 tt(boot_comp, digits = 3)
 ```
 
+## Censoring modes: row filter vs built-in IPCW
+
+causatr offers two ways to handle outcome censoring via the `censoring =`
+argument:
+
+1. **Row filter** (`censoring = "C"`, `ipcw = FALSE` — the default): censored
+   rows are dropped before model fitting. No censoring model is fit. Under
+   g-computation with a correctly specified outcome model this is sufficient
+   for MCAR and MAR censoring (the outcome model adjusts for censoring
+   predictors). Under IPW this is **biased** for MAR because the treatment
+   model cannot correct for differential censoring.
+
+2. **Built-in IPCW** (`censoring = "C"`, `ipcw = TRUE`): causatr fits an
+   internal censoring model $P(C = 0 \mid A, L)$ and computes stabilized IPCW
+   weights. These weights are composed multiplicatively with any external
+   `weights =`. For g-comp this provides doubly-robust protection (correct if
+   *either* the outcome model *or* the censoring model is well-specified). For
+   IPW it is essential under MAR. The sandwich SE fully accounts for
+   censoring-model estimation uncertainty (Channel 2 correction).
+
+::: {.callout-tip}
+**Custom censoring model.** By default the censoring model uses `stats::glm`.
+Pass `censoring_model_fn = mgcv::gam` (or any function with the standard
+`(formula, data, family, weights, ...)` signature) to use a more flexible
+model for the censoring mechanism.
+:::
+
 ## Built-in IPCW (`ipcw = TRUE`)
 
 When outcomes are missing at random (MAR) conditional on treatment and
