@@ -280,6 +280,7 @@ new_causatr_diag <- function(
       positivity = first$positivity,
       balance = first$balance,
       weights = first$weights,
+      censoring = first$censoring,
       match_quality = match_quality,
       estimator = estimator,
       fit_info = fit_info,

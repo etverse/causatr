@@ -304,7 +304,6 @@ print_diag_panel <- function(panel, header = NULL) {
   if (!is.null(panel$weights)) {
     wts <- panel$weights
     if (is.list(wts) && !data.table::is.data.table(wts)) {
-      # Per-period weights (longitudinal).
       for (nm in names(wts)) {
         cat("Weight distribution (", nm, "):\n", sep = "")
         print(wts[[nm]], row.names = FALSE)
@@ -313,6 +312,20 @@ print_diag_panel <- function(panel, header = NULL) {
     } else {
       cat("Weight distribution:\n")
       print(wts, row.names = FALSE)
+      cat("\n")
+    }
+  }
+  if (!is.null(panel$censoring)) {
+    cens <- panel$censoring
+    if (is.list(cens) && !data.table::is.data.table(cens)) {
+      for (nm in names(cens)) {
+        cat("Censoring (", nm, "):\n", sep = "")
+        print(cens[[nm]], row.names = FALSE)
+        cat("\n")
+      }
+    } else {
+      cat("Censoring:\n")
+      print(cens, row.names = FALSE)
       cat("\n")
     }
   }

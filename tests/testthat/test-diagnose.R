@@ -1245,3 +1245,136 @@ test_that("plot.causatr_diag weights warns for gcomp (no weights)", {
     "No weight data"
   )
 })
+
+
+# ── Censoring diagnostics (Phase 14f) ──────────────────────────
+
+test_that("censoring panel present for point IPCW fit", {
+  d <- simulate_mar_outcome_complex(n = 1000, seed = 700)
+  dt <- data.table::as.data.table(d)
+
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L1 + L2,
+    estimator = "gcomp",
+    censoring = "C",
+    ipcw = TRUE
+  )
+
+  diag <- diagnose(fit)
+  expect_false(is.null(diag$censoring))
+  expect_s3_class(diag$censoring, "data.table")
+
+  stats <- diag$censoring$statistic
+  expect_true("n_censored" %in% stats)
+  expect_true("ipcw_mean" %in% stats)
+  expect_true("ipcw_ess" %in% stats)
+  expect_true("p_uncens_min" %in% stats)
+
+  n_cens <- diag$censoring$value[
+    diag$censoring$statistic == "n_censored"
+  ]
+  expect_true(n_cens > 0)
+})
+
+test_that("censoring panel NULL when ipcw = FALSE", {
+  d <- simulate_mar_outcome(n = 500, seed = 701)
+  dt <- data.table::as.data.table(d)
+
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "gcomp",
+    censoring = "C",
+    ipcw = FALSE
+  )
+
+  diag <- diagnose(fit)
+  expect_null(diag$censoring)
+})
+
+test_that("censoring panel for IPW + IPCW", {
+  d <- simulate_mar_outcome_complex(n = 1000, seed = 702)
+  dt <- data.table::as.data.table(d)
+
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L1 + L2,
+    estimator = "ipw",
+    censoring = "C",
+    ipcw = TRUE
+  )
+
+  diag <- diagnose(fit)
+  expect_false(is.null(diag$censoring))
+
+  pct <- diag$censoring$value[
+    diag$censoring$statistic == "pct_censored"
+  ]
+  expect_true(pct > 0 && pct < 100)
+})
+
+test_that("censoring panel for longitudinal IPCW", {
+  d <- simulate_longitudinal_mar_outcome(n = 1000, seed = 703)
+  dt <- data.table::as.data.table(d)
+
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L0,
+    confounders_tv = ~ L,
+    estimator = "gcomp",
+    type = "longitudinal",
+    id = "id",
+    time = "time",
+    censoring = "C",
+    ipcw = TRUE
+  )
+
+  diag <- diagnose(fit)
+  cens <- diag$censoring
+  expect_false(is.null(cens))
+  expect_true(is.list(cens))
+
+  # Per-period + cumulative
+  expect_true("0" %in% names(cens))
+  expect_true("1" %in% names(cens))
+  expect_true("cumulative" %in% names(cens))
+
+  # Period 0 has no censoring
+  expect_equal(
+    cens[["0"]]$value[cens[["0"]]$statistic == "n_censored"],
+    0
+  )
+
+  # Period 1 has censoring
+  n_cens_1 <- cens[["1"]]$value[
+    cens[["1"]]$statistic == "n_censored"
+  ]
+  expect_true(n_cens_1 > 0)
+})
+
+test_that("censoring panel prints correctly", {
+  d <- simulate_mar_outcome_complex(n = 500, seed = 704)
+  dt <- data.table::as.data.table(d)
+
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L1 + L2,
+    estimator = "gcomp",
+    censoring = "C",
+    ipcw = TRUE
+  )
+
+  diag <- diagnose(fit)
+  expect_output(print(diag), "Censoring")
+})
