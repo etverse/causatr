@@ -2611,3 +2611,1586 @@ test_that("to_person_period() aborts on duplicated ids", {
     )
   )
 })
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Phase 13 — Extended Outcome Type Coverage
+# ──────────────────────────────────────────────────────────────────────────────
+
+# --- Poisson outcome (expanding beyond the single existing ratio test) --------
+
+test_that("gcomp x bin trt x poisson x diff x sandwich", {
+  # DGP: Y ~ Pois(exp(0.5 + 0.4*A + 0.2*L)), L ~ N(0,1)
+  # E[Y^a] = exp(0.5 + 0.4*a) * E[exp(0.2*L)] = exp(0.5 + 0.4*a + 0.02)
+  # ATE = exp(0.92) * (exp(0.4) - 1)
+  set.seed(101)
+
+  n <- 3000
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, stats::plogis(0.3 * L))
+  Y <- stats::rpois(n, exp(0.5 + 0.4 * A + 0.2 * L))
+  df <- data.frame(Y = Y, A = A, L = L)
+  truth <- exp(0.52) * (exp(0.4) - 1)
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    family = "poisson"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  expect_lt(abs(res$contrasts$estimate[1] - truth), 0.15)
+  expect_true(all(is.finite(res$contrasts$se) & res$contrasts$se > 0))
+})
+
+test_that("gcomp x bin trt x poisson x OR x sandwich rejects (mu > 1)", {
+  set.seed(102)
+  n <- 500
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, 0.5)
+  Y <- stats::rpois(n, exp(1 + 0.3 * A + 0.2 * L))
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    family = "poisson"
+  )
+  expect_error(
+    contrast(
+      fit,
+      interventions = list(a1 = static(1), a0 = static(0)),
+      reference = "a0",
+      type = "or",
+      ci_method = "sandwich"
+    ),
+    "mean >= 1"
+  )
+})
+
+test_that("gcomp x bin trt x poisson x diff x bootstrap SE agreement", {
+  set.seed(103)
+  n <- 2000
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, stats::plogis(0.3 * L))
+  Y <- stats::rpois(n, exp(0.5 + 0.4 * A + 0.2 * L))
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    family = "poisson"
+  )
+  res_sw <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  res_bt <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "bootstrap",
+    n_boot = 200L
+  )
+  ratio <- res_bt$contrasts$se[1] / res_sw$contrasts$se[1]
+  expect_gt(ratio, 0.7)
+  expect_lt(ratio, 1.3)
+})
+
+test_that("gcomp x bin trt x poisson x static x ATT x sandwich", {
+  # Constant treatment effect -> ATT = ATE
+  set.seed(104)
+  n <- 2000
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, stats::plogis(0.3 * L))
+  Y <- stats::rpois(n, exp(0.5 + 0.4 * A + 0.2 * L))
+  df <- data.frame(Y = Y, A = A, L = L)
+  truth_ate <- exp(0.52) * (exp(0.4) - 1)
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    family = "poisson",
+    estimand = "ATT"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  # ATT != ATE for Poisson (non-collapsible), but should be positive
+  expect_gt(res$contrasts$estimate[1], 0)
+  expect_true(all(is.finite(res$contrasts$se) & res$contrasts$se > 0))
+})
+
+test_that("gcomp x cont trt x poisson x shift x ATE x sandwich", {
+  # DGP: A ~ N(1 + 0.3*L, 1), Y ~ Pois(exp(0.5 + 0.2*A + 0.3*L))
+  # E[Y(A-1)] - E[Y(A)]: shift(-1) on the marginal mean
+  # E[Y(a)] = E_L[exp(0.5 + 0.2*a + 0.3*L)] -> diff involves exp factor
+  set.seed(105)
+  n <- 3000
+  L <- stats::rnorm(n)
+  A <- 1 + 0.3 * L + stats::rnorm(n)
+  Y <- stats::rpois(n, exp(0.5 + 0.2 * A + 0.3 * L))
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    family = "poisson"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(shifted = shift(-1), observed = NULL),
+    reference = "observed",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  # Marginal shift effect: E[Y(A-1)] - E[Y(A)] < 0 (reducing A reduces Y)
+  expect_lt(res$contrasts$estimate[1], 0)
+  expect_true(all(is.finite(res$contrasts$se) & res$contrasts$se > 0))
+})
+
+test_that("gcomp x cont trt x poisson x scale_by x ATE x sandwich (smoke)", {
+  set.seed(106)
+  n <- 2000
+  L <- stats::rnorm(n)
+  A <- 1 + 0.3 * L + stats::rnorm(n)
+  Y <- stats::rpois(n, exp(0.5 + 0.2 * A + 0.3 * L))
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    family = "poisson"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(halved = scale_by(0.5), observed = NULL),
+    reference = "observed",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  expect_lt(res$contrasts$estimate[1], 0)
+  expect_true(all(is.finite(res$contrasts$se) & res$contrasts$se > 0))
+})
+
+test_that("ipw x bin trt x poisson outcome x static x ATE x sandwich", {
+  set.seed(107)
+  n <- 2000
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, stats::plogis(0.3 * L))
+  Y <- stats::rpois(n, exp(0.5 + 0.4 * A + 0.2 * L))
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit_gc <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    family = "poisson"
+  )
+  fit_ipw <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw"
+  )
+  res_gc <- contrast(
+    fit_gc,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  res_ipw <- contrast(
+    fit_ipw,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  # IPW and gcomp should broadly agree
+  expect_lt(
+    abs(res_ipw$contrasts$estimate[1] - res_gc$contrasts$estimate[1]),
+    0.3
+  )
+})
+
+test_that("ipw x bin trt x poisson outcome x static x ATE x ratio", {
+  set.seed(108)
+  n <- 2000
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, stats::plogis(0.3 * L))
+  Y <- stats::rpois(n, exp(0.5 + 0.4 * A + 0.2 * L))
+  df <- data.frame(Y = Y, A = A, L = L)
+  truth_rr <- exp(0.4)
+
+  fit_ipw <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw",
+    family = stats::poisson()
+  )
+  res <- contrast(
+    fit_ipw,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "ratio",
+    ci_method = "sandwich"
+  )
+  expect_lt(abs(res$contrasts$estimate[1] - truth_rr), 0.3)
+})
+
+
+# --- Gamma outcome (expanding beyond the single existing ratio test) ----------
+
+test_that("gcomp x bin trt x gamma(log) x diff x sandwich", {
+  # DGP: Y ~ Gamma(shape=5, rate=5/exp(1 + 0.4*A + 0.3*L))
+  # E[Y^a] = exp(1 + 0.4*a) * E[exp(0.3*L)] = exp(1 + 0.4*a + 0.045)
+  # ATE = exp(1.045) * (exp(0.4) - 1)
+  set.seed(201)
+  n <- 3000
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, 0.5)
+  mu <- exp(1 + 0.4 * A + 0.3 * L)
+  Y <- stats::rgamma(n, shape = 5, rate = 5 / mu)
+  df <- data.frame(Y = Y, A = A, L = L)
+  truth <- exp(1.045) * (exp(0.4) - 1)
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    family = stats::Gamma(link = "log")
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  expect_lt(abs(res$contrasts$estimate[1] - truth), 0.3)
+  expect_true(all(is.finite(res$contrasts$se) & res$contrasts$se > 0))
+})
+
+test_that("gcomp x bin trt x gamma(log) x OR x sandwich rejects (mu > 1)", {
+  set.seed(202)
+  n <- 500
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, 0.5)
+  mu <- exp(1 + 0.4 * A + 0.3 * L)
+  Y <- stats::rgamma(n, shape = 5, rate = 5 / mu)
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    family = stats::Gamma(link = "log")
+  )
+  expect_error(
+    contrast(
+      fit,
+      interventions = list(a1 = static(1), a0 = static(0)),
+      reference = "a0",
+      type = "or",
+      ci_method = "sandwich"
+    ),
+    "mean >= 1"
+  )
+})
+
+test_that("gcomp x bin trt x gamma(log) x diff x bootstrap SE agreement", {
+  set.seed(203)
+  n <- 2000
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, 0.5)
+  mu <- exp(1 + 0.4 * A + 0.3 * L)
+  Y <- stats::rgamma(n, shape = 5, rate = 5 / mu)
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    family = stats::Gamma(link = "log")
+  )
+  res_sw <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  res_bt <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "bootstrap",
+    n_boot = 200L
+  )
+  ratio <- res_bt$contrasts$se[1] / res_sw$contrasts$se[1]
+  expect_gt(ratio, 0.7)
+  expect_lt(ratio, 1.3)
+})
+
+test_that("gcomp x bin trt x gamma(log) x static x ATT x sandwich", {
+  set.seed(204)
+  n <- 2000
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, 0.5)
+  mu <- exp(1 + 0.4 * A + 0.3 * L)
+  Y <- stats::rgamma(n, shape = 5, rate = 5 / mu)
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    family = stats::Gamma(link = "log"),
+    estimand = "ATT"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  expect_gt(res$contrasts$estimate[1], 0)
+  expect_true(all(is.finite(res$contrasts$se) & res$contrasts$se > 0))
+})
+
+test_that("gcomp x cont trt x gamma(log) x shift x ATE x sandwich", {
+  # DGP: A ~ N(1 + 0.3*L, 1), Y ~ Gamma(shape=5, rate=5/exp(0.5+0.2*A+0.2*L))
+  set.seed(205)
+  n <- 3000
+  L <- stats::rnorm(n)
+  A <- 1 + 0.3 * L + stats::rnorm(n)
+  mu <- exp(0.5 + 0.2 * A + 0.2 * L)
+  Y <- stats::rgamma(n, shape = 5, rate = 5 / mu)
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    family = stats::Gamma(link = "log")
+  )
+  res <- contrast(
+    fit,
+    interventions = list(shifted = shift(-1), observed = NULL),
+    reference = "observed",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  # Reducing A reduces Y
+  expect_lt(res$contrasts$estimate[1], 0)
+  expect_true(all(is.finite(res$contrasts$se) & res$contrasts$se > 0))
+})
+
+test_that("gcomp x cont trt x gamma(log) x scale_by x ratio x sandwich (smoke)", {
+  set.seed(206)
+  n <- 2000
+  L <- stats::rnorm(n)
+  A <- 1 + 0.3 * L + stats::rnorm(n)
+  mu <- exp(0.5 + 0.2 * A + 0.2 * L)
+  Y <- stats::rgamma(n, shape = 5, rate = 5 / mu)
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    family = stats::Gamma(link = "log")
+  )
+  res <- contrast(
+    fit,
+    interventions = list(halved = scale_by(0.5), observed = NULL),
+    reference = "observed",
+    type = "ratio",
+    ci_method = "sandwich"
+  )
+  expect_lt(res$contrasts$estimate[1], 1)
+  expect_true(all(is.finite(res$contrasts$se) & res$contrasts$se > 0))
+})
+
+test_that("ipw x bin trt x gamma outcome x static x ATE x sandwich", {
+  set.seed(207)
+  n <- 2000
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, 0.5)
+  mu <- exp(1 + 0.4 * A + 0.3 * L)
+  Y <- stats::rgamma(n, shape = 5, rate = 5 / mu)
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit_gc <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    family = stats::Gamma(link = "log")
+  )
+  fit_ipw <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw"
+  )
+  res_gc <- contrast(
+    fit_gc,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  res_ipw <- contrast(
+    fit_ipw,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  expect_lt(
+    abs(res_ipw$contrasts$estimate[1] - res_gc$contrasts$estimate[1]),
+    0.5
+  )
+})
+
+test_that("ipw x bin trt x gamma outcome x static x ATE x ratio", {
+  set.seed(208)
+  n <- 2000
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, 0.5)
+  mu <- exp(1 + 0.4 * A + 0.3 * L)
+  Y <- stats::rgamma(n, shape = 5, rate = 5 / mu)
+  df <- data.frame(Y = Y, A = A, L = L)
+  truth_rr <- exp(0.4)
+
+  fit_ipw <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw",
+    family = stats::Gamma(link = "log")
+  )
+  res <- contrast(
+    fit_ipw,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "ratio",
+    ci_method = "sandwich"
+  )
+  expect_lt(abs(res$contrasts$estimate[1] - truth_rr), 0.3)
+})
+
+test_that("matching x bin trt x gamma outcome x ATT x sandwich (smoke)", {
+  set.seed(209)
+  n <- 1000
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, stats::plogis(0.5 * L))
+  mu <- exp(1 + 0.4 * A + 0.3 * L)
+  Y <- stats::rgamma(n, shape = 5, rate = 5 / mu)
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "matching"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  expect_gt(res$contrasts$estimate[1], 0)
+  expect_true(all(is.finite(res$contrasts$se) & res$contrasts$se > 0))
+})
+
+
+# --- Quasibinomial outcome (expanding beyond existing diff test) --------------
+
+test_that("gcomp x bin trt x quasibinom x ratio x sandwich", {
+  # DGP: mu = expit(-0.5 + 0.8*A + 0.4*L), Y ~ Binom(10, mu)/10
+  # E[Y^a] = E_L[expit(-0.5 + 0.8*a + 0.4*L)] via integration
+  set.seed(301)
+  n <- 3000
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, stats::plogis(0.3 * L))
+  mu <- stats::plogis(-0.5 + 0.8 * A + 0.4 * L)
+  Y <- stats::rbinom(n, 10, mu) / 10
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  ey1 <- stats::integrate(
+    function(x) stats::plogis(-0.5 + 0.8 + 0.4 * x) * stats::dnorm(x),
+    -Inf,
+    Inf
+  )$value
+  ey0 <- stats::integrate(
+    function(x) stats::plogis(-0.5 + 0.4 * x) * stats::dnorm(x),
+    -Inf,
+    Inf
+  )$value
+  truth_rr <- ey1 / ey0
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    family = "quasibinomial"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "ratio",
+    ci_method = "sandwich"
+  )
+  expect_lt(abs(res$contrasts$estimate[1] - truth_rr), 0.15)
+})
+
+test_that("gcomp x bin trt x quasibinom x OR x sandwich", {
+  set.seed(302)
+  n <- 3000
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, stats::plogis(0.3 * L))
+  mu <- stats::plogis(-0.5 + 0.8 * A + 0.4 * L)
+  Y <- stats::rbinom(n, 10, mu) / 10
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  ey1 <- stats::integrate(
+    function(x) stats::plogis(-0.5 + 0.8 + 0.4 * x) * stats::dnorm(x),
+    -Inf,
+    Inf
+  )$value
+  ey0 <- stats::integrate(
+    function(x) stats::plogis(-0.5 + 0.4 * x) * stats::dnorm(x),
+    -Inf,
+    Inf
+  )$value
+  truth_or <- (ey1 / (1 - ey1)) / (ey0 / (1 - ey0))
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    family = "quasibinomial"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "or",
+    ci_method = "sandwich"
+  )
+  expect_lt(abs(res$contrasts$estimate[1] - truth_or), 0.5)
+})
+
+test_that("gcomp x bin trt x quasibinom x diff x bootstrap SE agreement", {
+  set.seed(303)
+  n <- 2000
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, stats::plogis(0.3 * L))
+  mu <- stats::plogis(-0.5 + 0.8 * A + 0.4 * L)
+  Y <- stats::rbinom(n, 10, mu) / 10
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    family = "quasibinomial"
+  )
+  res_sw <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  res_bt <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "bootstrap",
+    n_boot = 200L
+  )
+  ratio <- res_bt$contrasts$se[1] / res_sw$contrasts$se[1]
+  expect_gt(ratio, 0.7)
+  expect_lt(ratio, 1.3)
+})
+
+test_that("gcomp x bin trt x quasibinom x static x ATT x sandwich", {
+  set.seed(304)
+  n <- 2000
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, stats::plogis(0.3 * L))
+  mu <- stats::plogis(-0.5 + 0.8 * A + 0.4 * L)
+  Y <- stats::rbinom(n, 10, mu) / 10
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    family = "quasibinomial",
+    estimand = "ATT"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  expect_gt(res$contrasts$estimate[1], 0)
+  expect_true(all(is.finite(res$contrasts$se) & res$contrasts$se > 0))
+})
+
+test_that("gcomp x cont trt x quasibinom x shift x ATE x sandwich", {
+  # DGP: A ~ N(0.5*L, 1), mu = expit(-0.3 + 0.4*A + 0.3*L), Y ~ Binom(10, mu)/10
+  set.seed(305)
+  n <- 3000
+  L <- stats::rnorm(n)
+  A <- 0.5 * L + stats::rnorm(n)
+  mu <- stats::plogis(-0.3 + 0.4 * A + 0.3 * L)
+  Y <- stats::rbinom(n, 10, mu) / 10
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    family = "quasibinomial"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(shifted = shift(-0.5), observed = NULL),
+    reference = "observed",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  # Reducing A reduces Y (positive coefficient)
+  expect_lt(res$contrasts$estimate[1], 0)
+  expect_true(all(is.finite(res$contrasts$se) & res$contrasts$se > 0))
+})
+
+test_that("gcomp x cont trt x quasibinom x scale_by x ATE x sandwich (smoke)", {
+  set.seed(306)
+  n <- 2000
+  L <- stats::rnorm(n)
+  A <- 0.5 * L + stats::rnorm(n)
+  mu <- stats::plogis(-0.3 + 0.4 * A + 0.3 * L)
+  Y <- stats::rbinom(n, 10, mu) / 10
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    family = "quasibinomial"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(halved = scale_by(0.5), observed = NULL),
+    reference = "observed",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  expect_true(is.finite(res$contrasts$estimate[1]))
+  expect_true(all(is.finite(res$contrasts$se) & res$contrasts$se > 0))
+})
+
+test_that("ipw x bin trt x quasibinom outcome x static x ATE x sandwich", {
+  set.seed(307)
+  n <- 2000
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, stats::plogis(0.3 * L))
+  mu <- stats::plogis(-0.5 + 0.8 * A + 0.4 * L)
+  Y <- stats::rbinom(n, 10, mu) / 10
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit_gc <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    family = "quasibinomial"
+  )
+  fit_ipw <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw"
+  )
+  res_gc <- contrast(
+    fit_gc,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  res_ipw <- contrast(
+    fit_ipw,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  expect_lt(
+    abs(res_ipw$contrasts$estimate[1] - res_gc$contrasts$estimate[1]),
+    0.1
+  )
+})
+
+test_that("ipw x bin trt x quasibinom outcome x static x ATE x OR", {
+  set.seed(308)
+  n <- 2000
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, stats::plogis(0.3 * L))
+  mu <- stats::plogis(-0.5 + 0.8 * A + 0.4 * L)
+  Y <- stats::rbinom(n, 10, mu) / 10
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit_ipw <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw",
+    family = stats::quasibinomial()
+  )
+  res <- contrast(
+    fit_ipw,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "or",
+    ci_method = "sandwich"
+  )
+  expect_gt(res$contrasts$estimate[1], 1)
+  expect_true(all(is.finite(res$contrasts$se) & res$contrasts$se > 0))
+})
+
+
+# --- Negative binomial outcome (new) ------------------------------------------
+
+test_that("gcomp x bin trt x negbin x diff x sandwich", {
+  skip_if_not_installed("MASS")
+  # DGP: L ~ N(2,1), A ~ Bern(expit(-1 + 0.5*L)),
+  #   Y ~ NB(mu = exp(0.5 + 0.3*A + 0.4*L), size = 2)
+  # E[Y^a] = exp(0.5 + 0.3*a) * E[exp(0.4*L)]
+  #         = exp(0.5 + 0.3*a) * exp(0.4*2 + 0.5*0.4^2)
+  #         = exp(0.5 + 0.3*a + 0.88)
+  # ATE = exp(1.38) * (exp(0.3) - 1)
+  set.seed(401)
+  n <- 3000
+  L <- stats::rnorm(n, 2, 1)
+  A <- stats::rbinom(n, 1, stats::plogis(-1 + 0.5 * L))
+  Y <- stats::rnbinom(n, mu = exp(0.5 + 0.3 * A + 0.4 * L), size = 2)
+  df <- data.frame(Y = Y, A = A, L = L)
+  truth <- exp(1.38) * (exp(0.3) - 1)
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    model_fn = MASS::glm.nb
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  expect_lt(abs(res$contrasts$estimate[1] - truth), 0.5)
+  expect_true(all(is.finite(res$contrasts$se) & res$contrasts$se > 0))
+})
+
+test_that("gcomp x bin trt x negbin x ratio x sandwich", {
+  skip_if_not_installed("MASS")
+  set.seed(402)
+  n <- 3000
+  L <- stats::rnorm(n, 2, 1)
+  A <- stats::rbinom(n, 1, stats::plogis(-1 + 0.5 * L))
+  Y <- stats::rnbinom(n, mu = exp(0.5 + 0.3 * A + 0.4 * L), size = 2)
+  df <- data.frame(Y = Y, A = A, L = L)
+  truth_rr <- exp(0.3)
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    model_fn = MASS::glm.nb
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "ratio",
+    ci_method = "sandwich"
+  )
+  expect_lt(abs(res$contrasts$estimate[1] - truth_rr), 0.15)
+})
+
+test_that("gcomp x bin trt x negbin x OR x sandwich rejects (mu >= 1)", {
+  skip_if_not_installed("MASS")
+  set.seed(403)
+  n <- 500
+  L <- stats::rnorm(n, 2, 1)
+  A <- stats::rbinom(n, 1, stats::plogis(-1 + 0.5 * L))
+  Y <- stats::rnbinom(n, mu = exp(0.5 + 0.3 * A + 0.4 * L), size = 2)
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    model_fn = MASS::glm.nb
+  )
+  expect_error(
+    contrast(
+      fit,
+      interventions = list(a1 = static(1), a0 = static(0)),
+      reference = "a0",
+      type = "or",
+      ci_method = "sandwich"
+    ),
+    "mean >= 1"
+  )
+})
+
+test_that("gcomp x bin trt x negbin x diff x bootstrap SE agreement", {
+  skip_if_not_installed("MASS")
+  set.seed(404)
+  n <- 2000
+  L <- stats::rnorm(n, 2, 1)
+  A <- stats::rbinom(n, 1, stats::plogis(-1 + 0.5 * L))
+  Y <- stats::rnbinom(n, mu = exp(0.5 + 0.3 * A + 0.4 * L), size = 2)
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    model_fn = MASS::glm.nb
+  )
+  res_sw <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  res_bt <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "bootstrap",
+    n_boot = 200L
+  )
+  ratio <- res_bt$contrasts$se[1] / res_sw$contrasts$se[1]
+  expect_gt(ratio, 0.6)
+  expect_lt(ratio, 1.5)
+})
+
+test_that("gcomp x bin trt x negbin x static x ATT x sandwich", {
+  skip_if_not_installed("MASS")
+  set.seed(405)
+  n <- 2000
+  L <- stats::rnorm(n, 2, 1)
+  A <- stats::rbinom(n, 1, stats::plogis(-1 + 0.5 * L))
+  Y <- stats::rnbinom(n, mu = exp(0.5 + 0.3 * A + 0.4 * L), size = 2)
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    model_fn = MASS::glm.nb,
+    estimand = "ATT"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  expect_gt(res$contrasts$estimate[1], 0)
+  expect_true(all(is.finite(res$contrasts$se) & res$contrasts$se > 0))
+})
+
+test_that("gcomp x cont trt x negbin x shift x ATE x sandwich", {
+  skip_if_not_installed("MASS")
+  # DGP: A ~ N(1 + 0.3*L, 1), Y ~ NB(mu = exp(0.5 + 0.2*A + 0.3*L), size=3)
+  set.seed(406)
+  n <- 3000
+  L <- stats::rnorm(n)
+  A <- 1 + 0.3 * L + stats::rnorm(n)
+  Y <- stats::rnbinom(n, mu = exp(0.5 + 0.2 * A + 0.3 * L), size = 3)
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    model_fn = MASS::glm.nb
+  )
+  res <- contrast(
+    fit,
+    interventions = list(shifted = shift(-1), observed = NULL),
+    reference = "observed",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  # Reducing A reduces Y (positive coef)
+  expect_lt(res$contrasts$estimate[1], 0)
+  expect_true(all(is.finite(res$contrasts$se) & res$contrasts$se > 0))
+})
+
+test_that("gcomp x cont trt x negbin x scale_by x ATE x sandwich (smoke)", {
+  skip_if_not_installed("MASS")
+  set.seed(407)
+
+  n <- 2000
+  L <- stats::rnorm(n)
+  A <- 1 + 0.3 * L + stats::rnorm(n)
+  Y <- stats::rnbinom(n, mu = exp(0.5 + 0.2 * A + 0.3 * L), size = 3)
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    model_fn = MASS::glm.nb
+  )
+  res <- contrast(
+    fit,
+    interventions = list(halved = scale_by(0.5), observed = NULL),
+    reference = "observed",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  expect_lt(res$contrasts$estimate[1], 0)
+  expect_true(all(is.finite(res$contrasts$se) & res$contrasts$se > 0))
+})
+
+test_that("ipw x bin trt x negbin outcome x static x ATE x diff", {
+  skip_if_not_installed("MASS")
+  set.seed(408)
+  n <- 2000
+  L <- stats::rnorm(n, 2, 1)
+  A <- stats::rbinom(n, 1, stats::plogis(-1 + 0.5 * L))
+  Y <- stats::rnbinom(n, mu = exp(0.5 + 0.3 * A + 0.4 * L), size = 2)
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit_gc <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    model_fn = MASS::glm.nb
+  )
+  fit_ipw <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw"
+  )
+  res_gc <- contrast(
+    fit_gc,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  res_ipw <- contrast(
+    fit_ipw,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  expect_lt(
+    abs(res_ipw$contrasts$estimate[1] - res_gc$contrasts$estimate[1]),
+    0.8
+  )
+})
+
+test_that("ipw x bin trt x negbin outcome x static x ATE x ratio", {
+  skip_if_not_installed("MASS")
+  set.seed(409)
+  n <- 2000
+  L <- stats::rnorm(n, 2, 1)
+  A <- stats::rbinom(n, 1, stats::plogis(-1 + 0.5 * L))
+  Y <- stats::rnbinom(n, mu = exp(0.5 + 0.3 * A + 0.4 * L), size = 2)
+  df <- data.frame(Y = Y, A = A, L = L)
+  truth_rr <- exp(0.3)
+
+  fit_ipw <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw",
+    family = stats::poisson()
+  )
+  res <- contrast(
+    fit_ipw,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "ratio",
+    ci_method = "sandwich"
+  )
+  expect_lt(abs(res$contrasts$estimate[1] - truth_rr), 0.3)
+})
+
+test_that("ipw x bin trt x negbin outcome x static x ATT x sandwich (smoke)", {
+  skip_if_not_installed("MASS")
+  set.seed(410)
+  n <- 1000
+  L <- stats::rnorm(n, 2, 1)
+  A <- stats::rbinom(n, 1, stats::plogis(-1 + 0.5 * L))
+  Y <- stats::rnbinom(n, mu = exp(0.5 + 0.3 * A + 0.4 * L), size = 2)
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw",
+    estimand = "ATT"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  expect_gt(res$contrasts$estimate[1], 0)
+  expect_true(all(is.finite(res$contrasts$se) & res$contrasts$se > 0))
+})
+
+test_that("matching x bin trt x negbin outcome x ATT x sandwich (smoke)", {
+  skip_if_not_installed("MASS")
+  set.seed(411)
+  n <- 1000
+  L <- stats::rnorm(n, 2, 1)
+  A <- stats::rbinom(n, 1, stats::plogis(-1 + 0.5 * L))
+  Y <- stats::rnbinom(n, mu = exp(0.5 + 0.3 * A + 0.4 * L), size = 2)
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "matching"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  expect_gt(res$contrasts$estimate[1], 0)
+  expect_true(all(is.finite(res$contrasts$se) & res$contrasts$se > 0))
+})
+
+
+# --- Beta regression outcome (new) -------------------------------------------
+
+test_that("gcomp x bin trt x beta x diff x sandwich", {
+  skip_if_not_installed("betareg")
+  # DGP: L ~ N(0,1), A ~ Bern(expit(-0.5 + 0.3*L)),
+  #   mu = expit(0.2 + 0.5*A + 0.3*L), Y ~ Beta(mu*10, (1-mu)*10)
+  # E[Y^a] = integrate(expit(0.2 + 0.5*a + 0.3*x) * dnorm(x), -Inf, Inf)
+  set.seed(501)
+  n <- 3000
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, stats::plogis(-0.5 + 0.3 * L))
+  mu <- stats::plogis(0.2 + 0.5 * A + 0.3 * L)
+  phi <- 10
+  Y <- stats::rbeta(n, mu * phi, (1 - mu) * phi)
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  ey1 <- stats::integrate(
+    function(x) stats::plogis(0.2 + 0.5 + 0.3 * x) * stats::dnorm(x),
+    -Inf,
+    Inf
+  )$value
+  ey0 <- stats::integrate(
+    function(x) stats::plogis(0.2 + 0.3 * x) * stats::dnorm(x),
+    -Inf,
+    Inf
+  )$value
+  truth <- ey1 - ey0
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    model_fn = betareg::betareg,
+    family = "beta"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  expect_lt(abs(res$contrasts$estimate[1] - truth), 0.03)
+  expect_true(all(is.finite(res$contrasts$se) & res$contrasts$se > 0))
+})
+
+test_that("gcomp x bin trt x beta x ratio x sandwich", {
+  skip_if_not_installed("betareg")
+  set.seed(502)
+  n <- 3000
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, stats::plogis(-0.5 + 0.3 * L))
+  mu <- stats::plogis(0.2 + 0.5 * A + 0.3 * L)
+  phi <- 10
+  Y <- stats::rbeta(n, mu * phi, (1 - mu) * phi)
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  ey1 <- stats::integrate(
+    function(x) stats::plogis(0.2 + 0.5 + 0.3 * x) * stats::dnorm(x),
+    -Inf,
+    Inf
+  )$value
+  ey0 <- stats::integrate(
+    function(x) stats::plogis(0.2 + 0.3 * x) * stats::dnorm(x),
+    -Inf,
+    Inf
+  )$value
+  truth_rr <- ey1 / ey0
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    model_fn = betareg::betareg,
+    family = "beta"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "ratio",
+    ci_method = "sandwich"
+  )
+  expect_lt(abs(res$contrasts$estimate[1] - truth_rr), 0.1)
+})
+
+test_that("gcomp x bin trt x beta x OR x sandwich", {
+  skip_if_not_installed("betareg")
+  set.seed(503)
+  n <- 3000
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, stats::plogis(-0.5 + 0.3 * L))
+  mu <- stats::plogis(0.2 + 0.5 * A + 0.3 * L)
+  phi <- 10
+  Y <- stats::rbeta(n, mu * phi, (1 - mu) * phi)
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  ey1 <- stats::integrate(
+    function(x) stats::plogis(0.2 + 0.5 + 0.3 * x) * stats::dnorm(x),
+    -Inf,
+    Inf
+  )$value
+  ey0 <- stats::integrate(
+    function(x) stats::plogis(0.2 + 0.3 * x) * stats::dnorm(x),
+    -Inf,
+    Inf
+  )$value
+  truth_or <- (ey1 / (1 - ey1)) / (ey0 / (1 - ey0))
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    model_fn = betareg::betareg,
+    family = "beta"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "or",
+    ci_method = "sandwich"
+  )
+  expect_lt(abs(res$contrasts$estimate[1] - truth_or), 0.3)
+})
+
+test_that("gcomp x bin trt x beta x diff x bootstrap SE agreement", {
+  skip_if_not_installed("betareg")
+  set.seed(504)
+  n <- 2000
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, stats::plogis(-0.5 + 0.3 * L))
+  mu <- stats::plogis(0.2 + 0.5 * A + 0.3 * L)
+  phi <- 10
+  Y <- stats::rbeta(n, mu * phi, (1 - mu) * phi)
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    model_fn = betareg::betareg,
+    family = "beta"
+  )
+  res_sw <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  res_bt <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "bootstrap",
+    n_boot = 200L
+  )
+  ratio <- res_bt$contrasts$se[1] / res_sw$contrasts$se[1]
+  expect_gt(ratio, 0.6)
+  expect_lt(ratio, 1.5)
+})
+
+test_that("gcomp x bin trt x beta x static x ATT x sandwich", {
+  skip_if_not_installed("betareg")
+  set.seed(505)
+  n <- 2000
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, stats::plogis(-0.5 + 0.3 * L))
+  mu <- stats::plogis(0.2 + 0.5 * A + 0.3 * L)
+  phi <- 10
+  Y <- stats::rbeta(n, mu * phi, (1 - mu) * phi)
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    model_fn = betareg::betareg,
+    family = "beta",
+    estimand = "ATT"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  expect_gt(res$contrasts$estimate[1], 0)
+  expect_true(all(is.finite(res$contrasts$se) & res$contrasts$se > 0))
+})
+
+test_that("gcomp x bin trt x beta x family string path (resolve_family)", {
+  skip_if_not_installed("betareg")
+  # Verify family = "beta" resolves correctly and the full pipeline works
+  set.seed(506)
+  n <- 1000
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, 0.5)
+  mu <- stats::plogis(0.2 + 0.5 * A + 0.3 * L)
+  Y <- stats::rbeta(n, mu * 10, (1 - mu) * 10)
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    model_fn = betareg::betareg,
+    family = "beta"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  expect_gt(res$contrasts$estimate[1], 0)
+  expect_true(all(is.finite(res$contrasts$se) & res$contrasts$se > 0))
+})
+
+test_that("gcomp x cont trt x beta x shift x ATE x sandwich", {
+  skip_if_not_installed("betareg")
+  # DGP: A ~ N(0.5*L, 1), mu = expit(0.1 + 0.3*A + 0.2*L)
+  set.seed(507)
+  n <- 3000
+  L <- stats::rnorm(n)
+  A <- 0.5 * L + stats::rnorm(n)
+  mu <- stats::plogis(0.1 + 0.3 * A + 0.2 * L)
+  phi <- 10
+  Y <- stats::rbeta(n, mu * phi, (1 - mu) * phi)
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    model_fn = betareg::betareg,
+    family = "beta"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(shifted = shift(-0.5), observed = NULL),
+    reference = "observed",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  # Reducing A reduces mu (positive coef)
+  expect_lt(res$contrasts$estimate[1], 0)
+  expect_true(all(is.finite(res$contrasts$se) & res$contrasts$se > 0))
+})
+
+test_that("gcomp x cont trt x beta x scale_by x ATE x sandwich (smoke)", {
+  skip_if_not_installed("betareg")
+  set.seed(508)
+  n <- 2000
+  L <- stats::rnorm(n)
+  A <- 0.5 * L + stats::rnorm(n)
+  mu <- stats::plogis(0.1 + 0.3 * A + 0.2 * L)
+  phi <- 10
+  Y <- stats::rbeta(n, mu * phi, (1 - mu) * phi)
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    model_fn = betareg::betareg,
+    family = "beta"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(halved = scale_by(0.5), observed = NULL),
+    reference = "observed",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  expect_true(is.finite(res$contrasts$estimate[1]))
+  expect_true(all(is.finite(res$contrasts$se) & res$contrasts$se > 0))
+})
+
+test_that("ipw x bin trt x beta outcome x static x ATE x diff", {
+  skip_if_not_installed("betareg")
+  set.seed(509)
+  n <- 2000
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, stats::plogis(-0.5 + 0.3 * L))
+  mu <- stats::plogis(0.2 + 0.5 * A + 0.3 * L)
+  phi <- 10
+  Y <- stats::rbeta(n, mu * phi, (1 - mu) * phi)
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit_gc <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    model_fn = betareg::betareg,
+    family = "beta"
+  )
+  fit_ipw <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw"
+  )
+  res_gc <- contrast(
+    fit_gc,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  res_ipw <- contrast(
+    fit_ipw,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  expect_lt(
+    abs(res_ipw$contrasts$estimate[1] - res_gc$contrasts$estimate[1]),
+    0.05
+  )
+})
+
+test_that("ipw x bin trt x beta outcome x static x ATE x ratio", {
+  skip_if_not_installed("betareg")
+  set.seed(510)
+  n <- 2000
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, stats::plogis(-0.5 + 0.3 * L))
+  mu <- stats::plogis(0.2 + 0.5 * A + 0.3 * L)
+  phi <- 10
+  Y <- stats::rbeta(n, mu * phi, (1 - mu) * phi)
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  ey1 <- stats::integrate(
+    function(x) stats::plogis(0.2 + 0.5 + 0.3 * x) * stats::dnorm(x),
+    -Inf,
+    Inf
+  )$value
+  ey0 <- stats::integrate(
+    function(x) stats::plogis(0.2 + 0.3 * x) * stats::dnorm(x),
+    -Inf,
+    Inf
+  )$value
+  truth_rr <- ey1 / ey0
+
+  fit_ipw <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw",
+    family = stats::quasibinomial()
+  )
+  res <- contrast(
+    fit_ipw,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "ratio",
+    ci_method = "sandwich"
+  )
+  expect_lt(abs(res$contrasts$estimate[1] - truth_rr), 0.15)
+})
+
+test_that("ipw x bin trt x beta outcome x static x ATT x sandwich (smoke)", {
+  skip_if_not_installed("betareg")
+  set.seed(511)
+  n <- 1000
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, stats::plogis(-0.5 + 0.3 * L))
+  mu <- stats::plogis(0.2 + 0.5 * A + 0.3 * L)
+  Y <- stats::rbeta(n, mu * 10, (1 - mu) * 10)
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw",
+    estimand = "ATT"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  expect_gt(res$contrasts$estimate[1], 0)
+  expect_true(all(is.finite(res$contrasts$se) & res$contrasts$se > 0))
+})
+
+test_that("matching x bin trt x beta outcome x ATT x sandwich (smoke)", {
+  skip_if_not_installed("betareg")
+  set.seed(512)
+  n <- 1000
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, stats::plogis(-0.5 + 0.3 * L))
+  mu <- stats::plogis(0.2 + 0.5 * A + 0.3 * L)
+  Y <- stats::rbeta(n, mu * 10, (1 - mu) * 10)
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "matching"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  expect_gt(res$contrasts$estimate[1], 0)
+  expect_true(all(is.finite(res$contrasts$se) & res$contrasts$se > 0))
+})

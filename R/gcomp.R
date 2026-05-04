@@ -153,13 +153,16 @@ fit_gcomp_point <- function(
   dots <- list(...)
 
   # Fit E[Y | A, L] using the caller-supplied fitting function.
-  model <- model_fn(
-    model_formula,
-    data = fit_data,
-    family = resolved_family,
-    weights = model_weights,
-    ...
-  )
+  # Strip `family` for model functions that don't accept it
+  # (e.g. MASS::glm.nb, betareg::betareg).
+  model_args <- list(model_formula, data = fit_data)
+  if (fn_accepts_family(model_fn)) {
+    model_args$family <- resolved_family
+  }
+  if (!is.null(model_weights)) {
+    model_args$weights <- model_weights
+  }
+  model <- replay_fit(model_fn, model_args, dots)
 
   new_causatr_fit(
     model = model,

@@ -7,7 +7,7 @@ Part of the [etverse](https://github.com/etverse) ecosystem.
 ## Guide files
 
 - `FEATURE_COVERAGE_MATRIX.md` — **single source of truth for "what works".** Every PR that changes a feature MUST update this file.
-- `PHASE_*.md` — per-phase implementation guides in the project root. Completed: 2–6, 8–12. Pending: 13–20 (design docs).
+- `PHASE_*.md` — per-phase implementation guides in the project root. Completed: 2–6, 8–13. Pending: 14–20 (design docs).
 
 ## Project structure
 
@@ -94,7 +94,7 @@ causatr owns g-comp (parametric g-formula + ICE), a self-contained IPW density-r
 |---|---|
 | **Treatment timing** | point, longitudinal (ICE + longitudinal IPW) |
 | **Treatment type** | binary, continuous, categorical k>2, count (IPW: Poisson/NB), multivariate (gcomp + IPW) |
-| **Outcome family** | gaussian, binomial, quasibinomial, poisson, Gamma, any GLM family, `MASS::glm.nb` |
+| **Outcome family** | gaussian, binomial, quasibinomial, poisson, Gamma, any GLM family, `MASS::glm.nb`, `betareg::betareg` (beta regression) |
 | **Interventions** | `static`, `shift`, `scale_by`, `threshold` (gcomp only), `dynamic`, `ipsi` (IPW only), `stochastic` (gcomp only) |
 | **Estimand** | ATE, ATT, ATC, `by`-stratified |
 | **Contrast** | difference, ratio, OR |

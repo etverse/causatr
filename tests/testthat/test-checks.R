@@ -255,3 +255,36 @@ test_that("check_causat_inputs() rejects history that isn't a positive integer o
     "must be a positive integer or `Inf`"
   )
 })
+
+
+# --- fn_accepts_family() ------------------------------------------------------
+
+test_that("fn_accepts_family() correctly identifies family acceptance", {
+  expect_true(fn_accepts_family(stats::glm))
+  skip_if_not_installed("MASS")
+  expect_false(fn_accepts_family(MASS::glm.nb))
+})
+
+test_that("fn_accepts_family() returns FALSE for betareg::betareg", {
+  skip_if_not_installed("betareg")
+  expect_false(fn_accepts_family(betareg::betareg))
+})
+
+
+# --- resolve_family() extended ------------------------------------------------
+
+test_that("resolve_family('beta') returns a valid family object", {
+  skip_if_not_installed("betareg")
+  fam <- resolve_family("beta")
+  expect_s3_class(fam, "family")
+  expect_equal(fam$family, "beta")
+  expect_equal(fam$link, "logit")
+  expect_true(is.function(fam$mu.eta))
+  expect_true(is.function(fam$variance))
+  expect_true(is.function(fam$linkinv))
+})
+
+test_that("resolve_family() error message lists supported families", {
+  expect_error(resolve_family("nonsense"), "Supported")
+  expect_error(resolve_family("nonsense"), "beta")
+})

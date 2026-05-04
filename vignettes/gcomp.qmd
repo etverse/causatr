@@ -880,6 +880,109 @@ res_quasi
 tt(tidy(res_quasi), digits = 3)
 ```
 
+## Negative binomial outcome
+
+For count outcomes with overdispersion (variance exceeds the mean),
+a negative binomial model is more appropriate than Poisson. Pass
+`model_fn = MASS::glm.nb` --- note that `family` is not needed
+because `glm.nb` estimates its own dispersion parameter internally.
+
+**DGM.** A confounded binary treatment with a count outcome from a
+negative binomial distribution.
+
+$$
+\begin{aligned}
+  L &\sim N(2,1) \\
+  A &\sim \text{Bernoulli}\!\bigl(\text{logit}^{-1}(-1 + 0.5\,L)\bigr) \\
+  Y &\sim \text{NB}\!\bigl(\mu = \exp(0.5 + 0.3\,A + 0.4\,L),\; \theta = 2\bigr)
+\end{aligned}
+$$
+
+The marginal rate ratio is $\exp(0.3) \approx 1.35$ (the $L$ term
+cancels in the ratio).
+
+```{r}
+set.seed(77)
+n <- 2000
+L <- rnorm(n, 2, 1)
+A <- rbinom(n, 1, plogis(-1 + 0.5 * L))
+Y <- rnbinom(n, mu = exp(0.5 + 0.3 * A + 0.4 * L), size = 2)
+nb_df <- data.frame(Y = Y, A = A, L = L)
+
+fit_nb <- causat(
+  nb_df,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L,
+  model_fn = MASS::glm.nb
+)
+
+res_nb <- contrast(
+  fit_nb,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  reference = "a0",
+  type = "ratio",
+  ci_method = "sandwich"
+)
+res_nb
+```
+
+```{r}
+tt(tidy(res_nb), digits = 3)
+```
+
+## Beta regression outcome
+
+For outcomes bounded in (0, 1) --- proportions, rates, indices ---
+beta regression models the conditional mean on the logit scale with
+a Beta-distributed error. Pass `model_fn = betareg::betareg` and
+`family = "beta"`.
+
+**DGM.** A confounded binary treatment with a beta-distributed outcome.
+
+$$
+\begin{aligned}
+  L &\sim N(0,1) \\
+  A &\sim \text{Bernoulli}\!\bigl(\text{logit}^{-1}(-0.5 + 0.3\,L)\bigr) \\
+  \mu &= \text{logit}^{-1}(0.2 + 0.5\,A + 0.3\,L) \\
+  Y &\sim \text{Beta}(\mu\,\phi,\; (1-\mu)\,\phi), \quad \phi = 10
+\end{aligned}
+$$
+
+```{r}
+set.seed(78)
+n <- 2000
+L <- rnorm(n)
+A <- rbinom(n, 1, plogis(-0.5 + 0.3 * L))
+mu <- plogis(0.2 + 0.5 * A + 0.3 * L)
+Y <- rbeta(n, mu * 10, (1 - mu) * 10)
+beta_df <- data.frame(Y = Y, A = A, L = L)
+
+fit_beta <- causat(
+  beta_df,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L,
+  model_fn = betareg::betareg,
+  family = "beta"
+)
+
+res_beta <- contrast(
+  fit_beta,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  reference = "a0",
+  type = "or",
+  ci_method = "sandwich"
+)
+res_beta
+```
+
+The odds ratio is valid because the outcome is in (0, 1):
+
+```{r}
+tt(tidy(res_beta), digits = 3)
+```
+
 ## GLM with splines
 
 For flexible confounder adjustment without the overhead of a full GAM, use

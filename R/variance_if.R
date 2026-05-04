@@ -659,9 +659,17 @@ variance_if_numeric <- function(
   })
 
   # Marginal-mean Jacobian J (k x p), via numDeriv on predict().
+  is_betareg <- inherits(model, "betareg")
   pred_fun <- function(beta) {
     model_tmp <- model
-    model_tmp$coefficients <- beta
+    if (is_betareg) {
+      # betareg stores coefficients as list($mean, $precision).
+      n_mean <- length(model$coefficients$mean)
+      model_tmp$coefficients$mean <- beta[seq_len(n_mean)]
+      model_tmp$coefficients$precision <- beta[(n_mean + 1L):length(beta)]
+    } else {
+      model_tmp$coefficients <- beta
+    }
     vapply(
       data_a_frames,
       function(df) {

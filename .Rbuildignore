@@ -18,6 +18,7 @@
 ^\.agents$
 ^\.augment$
 ^\.claude$
+^\.claudeignore$
 ^\.codebuddy$
 ^\.commandcode$
 ^\.continue$
@@ -50,3 +51,5 @@
 ^_pkgdown\.yml$
 ^FEATURE_COVERAGE_MATRIX\.md$
 ^vignettes/\.quarto$
+^vignettes/.*\.html$
+^vignettes/.*_files$

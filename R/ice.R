@@ -516,9 +516,11 @@ ice_iterate <- function(fit, intervention) {
   # include the argument conditionally.
   model_args <- list(
     formula = formula_k,
-    data = fit_data,
-    family = family_outcome
+    data = fit_data
   )
+  if (fn_accepts_family(model_fn)) {
+    model_args$family <- family_outcome
+  }
   if (!is.null(external_weights)) {
     model_args$weights <- external_weights[fit_mask]
   }
@@ -637,9 +639,11 @@ ice_iterate <- function(fit, intervention) {
     # so the weight vector aligns with `fit_data` row-for-row.
     model_args_k <- list(
       formula = formula_k,
-      data = fit_data,
-      family = family_pseudo
+      data = fit_data
     )
+    if (fn_accepts_family(model_fn)) {
+      model_args_k$family <- family_pseudo
+    }
     if (!is.null(external_weights)) {
       model_args_k$weights <- external_weights[mask_uncens][has_pseudo]
     }

@@ -430,7 +430,10 @@ refit_gcomp <- function(fit, d_b, weights = NULL) {
 
   fit_rows_b <- get_fit_rows(d_b, outcome, censoring)
 
-  args <- list(model_formula, data = d_b[fit_rows_b], family = family)
+  args <- list(model_formula, data = d_b[fit_rows_b])
+  if (fn_accepts_family(model_fn)) {
+    args$family <- family
+  }
   if (!is.null(weights)) {
     args$weights <- weights[fit_rows_b]
   }

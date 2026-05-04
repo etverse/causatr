@@ -1,5 +1,61 @@
 # causatr (development version)
 
+## 2026-05-04 — Extended outcome type coverage (Phase 13)
+
+`causat(model_fn = MASS::glm.nb)` and `causat(model_fn = betareg::betareg,
+family = "beta")` now work end-to-end with sandwich and bootstrap
+variance. Previously both errored because `fit_gcomp_point()` always
+passed a `family =` argument that neither function accepts.
+
+**Infrastructure changes:**
+
+- New `fn_accepts_family()` helper conditionally strips `family` from
+  model args when the fitting function doesn't accept it.
+- `resolve_family("beta")` returns a sentinel family object after
+  checking that `betareg` is installed.
+- `variance_if_numeric()` Jacobian now handles betareg's list-structured
+  coefficients (`$mean` + `$precision`).
+- `betareg` added to Suggests.
+
+**Expanded test coverage** for all non-standard outcome families
+(Poisson, Gamma, quasibinomial, negative binomial, beta regression):
+binary and continuous treatments, multiple contrast types
+(difference/ratio/OR with rejection tests where invalid), sandwich and
+bootstrap SE agreement, IPW cross-checks against g-computation, and
+matching smoke tests. ~50 new truth-based simulation tests.
+
+## 2026-05-03 — Stochastic interventions under g-computation (Phase 12)
+
+New `stochastic()` intervention constructor accepts a user-supplied
+sampler function and implements Monte Carlo g-formula integration for
+both point and longitudinal (ICE) estimators.
+
+```r
+sampler <- function(a, data) rnorm(length(a), mean = a - 1, sd = 0.5)
+contrast(fit,
+  interventions = list(stoch = stochastic(sampler, n_mc = 100)),
+  reference = "observed")
+```
+
+- Sandwich variance uses MC-averaged influence functions; bootstrap
+  draws fresh MC samples per replicate.
+- Rejection paths for IPW and matching with informative errors
+  (`causatr_stochastic_ipw`, `causatr_stochastic_matching`).
+- Cross-validated against `lmtp::lmtp_sdr()` for point and
+  longitudinal settings.
+- 57 new tests covering binary, continuous, categorical, and
+  multivariate treatments across gaussian, binomial, Poisson, and
+  Gamma outcome families.
+
+## 2026-05-03 — Suppress non-integer binomial and NB iteration warnings
+
+- IPW outcome MSMs fit with non-integer density-ratio weights now use
+  `quasibinomial()` instead of `binomial()` via the new `msm_family()`
+  helper (identical coefficients and SEs, no "non-integer #successes"
+  warning). Applied in both point IPW and longitudinal IPW.
+- Propensity models under external survey weights use `quasibinomial()`
+  for the same reason.
+
 ## 2026-05-03 — Plot overhaul and diagnostics vignette (Phase 11 chunk 11e)
 
 `plot.causatr_diag()` now supports three plot types via
@@ -410,7 +466,7 @@ when the full-$L$ conditional is tighter than the marginal,
 stabilization can inflate SE. This is a known property of MV MTP
 weights (Díaz et al. 2023) and a DGP-dependent tradeoff, not a bug.
 
-## Breaking change: survival analysis removed
+## 2026-04-20 — Breaking change: survival analysis removed
 
 Causal survival analysis has been extracted from causatr into its own
 etverse package. This removes the scaffolded Phase 7 surface — the
@@ -424,7 +480,7 @@ package (`etverse/survatr`). Until then, manual pooled-logistic
 regression on person-period data (via `causat(..., estimator = "gcomp")`
 plus custom intervention + cumulative-product code) remains possible.
 
-## Bug fixes
+## 2026-04-20 — Bug fixes
 
 - `bread_inv()` now aborts with `causatr_gam_missing_vp` when a
   GAM-classed fit object lacks `$Vp`. Previously it fell through to
@@ -978,7 +1034,7 @@ Quarto / knitr documents.
   — or the lack of it — is readable without having to compare 6
   decimal places by eye.
 
-## Breaking: `causat()` / `causat_survival()` argument `method` renamed to `estimator`
+## 2026-04-17 — Breaking: `causat()` / `causat_survival()` argument `method` renamed to `estimator`
 
 `causat(method = ...)` shadowed `WeightIt::weightit(method = ...)` and
 `MatchIt::matchit(method = ...)`, making it impossible to forward those

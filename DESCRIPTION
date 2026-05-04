@@ -30,6 +30,7 @@ Imports:
     sandwich,
     stats
 Suggests:
+    betareg,
     cobalt,
     forrest,
     future,

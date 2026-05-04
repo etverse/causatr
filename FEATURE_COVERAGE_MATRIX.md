@@ -452,8 +452,98 @@ Intervention-aware, treatment-type-aware, estimand-aware, longitudinal-aware dia
 | lmtp_sdr cross-check (point treatment) | ✅ | test-stochastic.R |
 | lmtp_sdr cross-check (longitudinal) | ✅ | test-stochastic.R |
 
-### Phase 13 — Outcome types
-Negative binomial tests, beta regression (`resolve_family("beta")`), multinomial/ordinal outcomes. All ❌.
+### Phase 13 — Extended outcome type coverage
+
+Comprehensive truth-based + cross-estimator tests for Poisson, Gamma, quasibinomial, negative binomial, and beta regression outcomes.
+
+#### Poisson outcome (expanded)
+
+| Estimator | Trt | Intervention | Estimand | Contrast | Variance | Status | Test |
+|---|---|---|---|---|---|---|---|
+| gcomp | bin | static | ATE | diff | sandwich | ✅ | test-simulation.R |
+| gcomp | bin | static | ATE | ratio | sandwich | ✅ | test-gcomp.R (existing) |
+| gcomp | bin | static | ATE | OR | sandwich | ⛔ rejection | test-simulation.R |
+| gcomp | bin | static | ATE | diff | bootstrap | ✅ SE agreement | test-simulation.R |
+| gcomp | bin | static | ATT | diff | sandwich | ✅ | test-simulation.R |
+| gcomp | cont | shift | ATE | diff | sandwich | ✅ | test-simulation.R |
+| gcomp | cont | scale_by | ATE | diff | sandwich | 🟡 | test-simulation.R |
+| ipw | bin | static | ATE | diff | sandwich | ✅ vs gcomp | test-simulation.R |
+| ipw | bin | static | ATE | ratio | sandwich | ✅ vs gcomp | test-simulation.R |
+| matching | bin | — | ATT | diff | sandwich | ✅ | test-simulation.R (existing) |
+
+#### Gamma outcome (expanded)
+
+| Estimator | Trt | Intervention | Estimand | Contrast | Variance | Status | Test |
+|---|---|---|---|---|---|---|---|
+| gcomp | bin | static | ATE | ratio | sandwich | ✅ | test-simulation.R (existing) |
+| gcomp | bin | static | ATE | diff | sandwich | ✅ | test-simulation.R |
+| gcomp | bin | static | ATE | OR | sandwich | ⛔ rejection | test-simulation.R |
+| gcomp | bin | static | ATE | diff | bootstrap | ✅ SE agreement | test-simulation.R |
+| gcomp | bin | static | ATT | diff | sandwich | ✅ | test-simulation.R |
+| gcomp | cont | shift | ATE | diff | sandwich | ✅ | test-simulation.R |
+| gcomp | cont | scale_by | ATE | ratio | sandwich | 🟡 | test-simulation.R |
+| ipw | bin | static | ATE | diff | sandwich | ✅ vs gcomp | test-simulation.R |
+| ipw | bin | static | ATE | ratio | sandwich | ✅ vs gcomp | test-simulation.R |
+| matching | bin | — | ATT | diff | sandwich | 🟡 | test-simulation.R |
+
+#### Quasibinomial outcome (expanded)
+
+| Estimator | Trt | Intervention | Estimand | Contrast | Variance | Status | Test |
+|---|---|---|---|---|---|---|---|
+| gcomp | bin | static | ATE | diff | sandwich | ✅ | test-simulation.R (existing) |
+| gcomp | bin | static | ATE | ratio | sandwich | ✅ | test-simulation.R |
+| gcomp | bin | static | ATE | OR | sandwich | ✅ | test-simulation.R |
+| gcomp | bin | static | ATE | diff | bootstrap | ✅ SE agreement | test-simulation.R |
+| gcomp | bin | static | ATT | diff | sandwich | ✅ | test-simulation.R |
+| gcomp | cont | shift | ATE | diff | sandwich | ✅ | test-simulation.R |
+| gcomp | cont | scale_by | ATE | diff | sandwich | 🟡 | test-simulation.R |
+| ipw | bin | static | ATE | diff | sandwich | ✅ vs gcomp | test-simulation.R |
+| ipw | bin | static | ATE | OR | sandwich | ✅ vs gcomp | test-simulation.R |
+| matching | bin | — | ATT | diff | sandwich | ✅ | test-simulation.R (existing) |
+
+#### Negative binomial outcome (new)
+
+| Estimator | Trt | Intervention | Estimand | Contrast | Variance | Status | Test |
+|---|---|---|---|---|---|---|---|
+| gcomp | bin | static | ATE | diff | sandwich | ✅ truth | test-simulation.R |
+| gcomp | bin | static | ATE | ratio | sandwich | ✅ truth | test-simulation.R |
+| gcomp | bin | static | ATE | OR | sandwich | ⛔ rejection | test-simulation.R |
+| gcomp | bin | static | ATE | diff | bootstrap | ✅ SE agreement | test-simulation.R |
+| gcomp | bin | static | ATT | diff | sandwich | ✅ | test-simulation.R |
+| gcomp | cont | shift | ATE | diff | sandwich | ✅ | test-simulation.R |
+| gcomp | cont | scale_by | ATE | diff | sandwich | 🟡 | test-simulation.R |
+| ipw | bin | static | ATE | diff | sandwich | ✅ vs gcomp | test-simulation.R |
+| ipw | bin | static | ATE | ratio | sandwich | ✅ vs gcomp | test-simulation.R |
+| ipw | bin | static | ATT | diff | sandwich | 🟡 | test-simulation.R |
+| matching | bin | — | ATT | diff | sandwich | 🟡 | test-simulation.R |
+
+#### Beta regression outcome (new)
+
+| Estimator | Trt | Intervention | Estimand | Contrast | Variance | Status | Test |
+|---|---|---|---|---|---|---|---|
+| gcomp | bin | static | ATE | diff | sandwich | ✅ truth | test-simulation.R |
+| gcomp | bin | static | ATE | ratio | sandwich | ✅ truth | test-simulation.R |
+| gcomp | bin | static | ATE | OR | sandwich | ✅ truth | test-simulation.R |
+| gcomp | bin | static | ATE | diff | bootstrap | ✅ SE agreement | test-simulation.R |
+| gcomp | bin | static | ATT | diff | sandwich | ✅ | test-simulation.R |
+| gcomp | bin | static | ATE | diff | sandwich | ✅ family="beta" | test-simulation.R |
+| gcomp | cont | shift | ATE | diff | sandwich | ✅ | test-simulation.R |
+| gcomp | cont | scale_by | ATE | diff | sandwich | 🟡 | test-simulation.R |
+| ipw | bin | static | ATE | diff | sandwich | ✅ vs gcomp | test-simulation.R |
+| ipw | bin | static | ATE | ratio | sandwich | ✅ vs gcomp | test-simulation.R |
+| ipw | bin | static | ATT | diff | sandwich | 🟡 | test-simulation.R |
+| matching | bin | — | ATT | diff | sandwich | 🟡 | test-simulation.R |
+
+#### Infrastructure
+
+| Feature | Status | Test |
+|---|---|---|
+| `fn_accepts_family()` helper | ✅ | test-checks.R |
+| `resolve_family("beta")` extension | ✅ | test-checks.R |
+| betareg Jacobian fix in `variance_if_numeric()` | ✅ | test-simulation.R (beta SE tests) |
+
+#### Not in scope (Phase 13)
+Multinomial/ordinal outcomes — requires structural extensions beyond GLM families.
 
 ### Phase 14 — Built-in IPCW
 Scalar-outcome IPCW for MAR censoring: internal censoring model, stabilized IPCW weights, weighted fit, stacked EE sandwich extension for censoring model blocks. Point + ICE scalar final outcome. Survival-specific IPCW (per-period cumulative weights + hazard MSM) is owned by the separate survival package. All ❌.

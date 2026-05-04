@@ -342,19 +342,68 @@ resolve_family <- function(family) {
   if (is.character(family)) {
     # Look up in stats:: namespace explicitly -- avoids picking up a
     # user-defined function with the same name in the caller's env.
-    fam_fn <- tryCatch(
-      get(family, mode = "function", envir = asNamespace("stats")),
-      error = function(e) {
-        rlang::abort(paste0("Unknown family: '", family, "'."))
-      }
+    # Wrap in tryCatch because some stats:: functions share names with
+    # family constructors (e.g. stats::beta is the beta function, not
+    # a GLM family).
+    fam_obj <- tryCatch(
+      {
+        fam_fn <- get(family, mode = "function", envir = asNamespace("stats"))
+        fam_fn()
+      },
+      error = function(e) NULL
     )
-    return(fam_fn())
+    if (!is.null(fam_obj) && inherits(fam_obj, "family")) {
+      return(fam_obj)
+    }
+
+    # Extended families from optional packages.
+    if (family == "beta") {
+      rlang::check_installed(
+        "betareg",
+        reason = "for beta regression outcomes (family = \"beta\")"
+      )
+      logit <- stats::make.link("logit")
+      return(structure(
+        list(
+          family = "beta",
+          link = "logit",
+          linkfun = logit$linkfun,
+          linkinv = logit$linkinv,
+          mu.eta = logit$mu.eta,
+          variance = function(mu) mu * (1 - mu)
+        ),
+        class = "family"
+      ))
+    }
+
+    rlang::abort(paste0(
+      "Unknown family: '",
+      family,
+      "'. ",
+      "Supported: gaussian, binomial, poisson, quasibinomial, ",
+      "quasipoisson, Gamma, inverse.gaussian, beta. ",
+      "Or pass a family object directly."
+    ))
   }
   if (is.function(family)) {
     return(family())
   }
   # Already a family object (list with $family, $link, etc.).
   family
+}
+
+#' Does a fitting function accept a `family` argument?
+#'
+#' Inspects the formal arguments of `fn` to determine whether it accepts
+#' a named `family` parameter. Used to conditionally strip `family` from
+#' the argument list when calling model functions that handle their own
+#' family internally (e.g. `MASS::glm.nb`, `betareg::betareg`).
+#'
+#' @param fn A function (the user's `model_fn`).
+#' @return Logical scalar.
+#' @noRd
+fn_accepts_family <- function(fn) {
+  "family" %in% names(formals(fn))
 }
 
 #' Check whether a family describes a binary outcome

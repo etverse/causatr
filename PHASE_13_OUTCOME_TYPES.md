@@ -1,6 +1,6 @@
 # Phase 13 — Beta Regression, Negative Binomial, and Extended Outcome Types
 
-> **Status: PENDING (design doc)**
+> **Status: DONE (2026-05-04)**
 >
 > **Depends on:** Phase 2 (point gcomp) is done. Phases 3–5 provide the
 > IPW / matching / ICE engines that also benefit.

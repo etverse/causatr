@@ -375,6 +375,25 @@ fit_multi <- causat(
   treatment = c("A1", "A2"),
   confounders = ~ L1 + L2
 )
+
+# Negative binomial outcome (count data with overdispersion)
+fit_nb <- causat(
+  data,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L1 + L2,
+  model_fn = MASS::glm.nb
+)
+
+# Beta regression outcome (proportions/rates in (0, 1))
+fit_beta <- causat(
+  data,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L1 + L2,
+  model_fn = betareg::betareg,
+  family = "beta"
+)
 }
 
 }
