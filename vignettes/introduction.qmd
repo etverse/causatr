@@ -240,7 +240,7 @@ silently producing wrong answers. Key restrictions:
 
 For the full matrix of supported estimator × treatment × intervention × outcome
 combinations, see `vignette("interventions")` and
-[`FEATURE_COVERAGE_MATRIX.md`](https://github.com/etverse/causatr/blob/main/FEATURE_COVERAGE_MATRIX.md).
+[`FEATURE_COVERAGE_MATRIX.md`](../FEATURE_COVERAGE_MATRIX.md).
 
 ## Learning more
 

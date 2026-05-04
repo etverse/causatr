@@ -1216,7 +1216,7 @@ seed, increase `n_mc`.
 | Binary | Count (NB, `MASS::glm.nb`) | Static | ATE | Ratio | Sandwich | none | ✅ |
 | Binary | Proportion (beta, `betareg::betareg`) | Static | ATE | Difference | Sandwich | none | ✅ |
 
-See [`FEATURE_COVERAGE_MATRIX.md`](https://github.com/etverse/causatr/blob/main/FEATURE_COVERAGE_MATRIX.md)
+See [`FEATURE_COVERAGE_MATRIX.md`](../FEATURE_COVERAGE_MATRIX.md)
 for the authoritative coverage status of every method × treatment × outcome
 × intervention × variance combination, including censoring and the numeric
 two-tier variance fallback for custom `model_fn` choices.

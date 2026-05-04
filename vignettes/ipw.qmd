@@ -1055,7 +1055,7 @@ recovers the marginal `A1` effect (truth = 2).
 | Longitudinal | Any | IPSI | --- | --- | --- | --- | ⛔ (use point IPW) |
 | Multivariate longitudinal | --- | --- | --- | --- | --- | --- | ⛔ (use ICE) |
 
-See [`FEATURE_COVERAGE_MATRIX.md`](https://github.com/etverse/causatr/blob/main/FEATURE_COVERAGE_MATRIX.md)
+See [`FEATURE_COVERAGE_MATRIX.md`](../FEATURE_COVERAGE_MATRIX.md)
 for the authoritative coverage status of every method × treatment × outcome
 × intervention × variance combination.
 
