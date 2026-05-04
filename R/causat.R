@@ -51,16 +51,24 @@
 #' @param time Character or `NULL`. Name of the time variable. Must be
 #'   provided together with `id` for longitudinal data.
 #' @param censoring Character or `NULL`. Name of the censoring indicator
-#'   variable (1 = censored, 0 = uncensored). **This is a row filter, not
-#'   IPCW:** rows where `censoring != 0` are excluded from model fitting,
-#'   but no censoring model is fit and no inverse-probability weights are
-#'   computed. For g-computation with a correctly specified outcome model,
-#'   this is sufficient under MAR censoring (the regression surface is
-#'   unchanged). For IPW under MAR censoring, supply pre-computed IPCW
-#'   weights via `weights =`. For longitudinal data, censoring is
-#'   time-varying: `C_k = 1` means the individual dropped out at time `k`;
-#'   ICE backward iteration restricts each step's model to uncensored
-#'   individuals (Zivich et al., 2024).
+#'   variable (1 = censored, 0 = uncensored). Without `ipcw = TRUE`,
+#'   this is a **row filter only:** rows where `censoring != 0` are
+#'   excluded from model fitting but no censoring model is fit. For
+#'   g-computation with a correctly specified outcome model, row
+#'   filtering is sufficient under MAR censoring. For IPW under MAR
+#'   censoring, set `ipcw = TRUE` or supply pre-computed IPCW weights
+#'   via `weights =`. For longitudinal data, censoring is time-varying:
+#'   `C_k = 1` means the individual dropped out at time `k`.
+#' @param ipcw Logical. If `TRUE`, fit an internal censoring model
+#'   \eqn{P(C = 0 \mid A, L)} and compute stabilized IPCW weights that
+#'   are composed multiplicatively with any external `weights`. Requires
+#'   `censoring` to be specified. Default `FALSE` preserves the legacy
+#'   row-filter-only behaviour. For IPW under MAR censoring this is
+#'   essential; for g-comp it provides doubly-robust protection.
+#' @param censoring_model_fn Function or `NULL`. The fitting function
+#'   for the censoring model when `ipcw = TRUE`. Must accept
+#'   `(formula, data, family, weights, ...)`. Default `NULL` uses
+#'   `stats::glm`. Ignored when `ipcw = FALSE`.
 #' @param history Positive integer or `Inf`. Markov order for longitudinal
 #'   models: how many lagged time points of treatment and time-varying
 #'   confounders to include in each ICE outcome model. Default `1` (one lag).
@@ -357,6 +365,8 @@ causat <- function(
   id = NULL,
   time = NULL,
   censoring = NULL,
+  ipcw = FALSE,
+  censoring_model_fn = NULL,
   history = 1L,
   numerator = NULL,
   weights = NULL,
@@ -502,6 +512,57 @@ causat <- function(
   # See check_dots_na_action() for the full rationale.
   check_dots_na_action(..., call = call)
 
+  # Built-in IPCW: fit a censoring model and compose stabilized
+  # weights with any external weights BEFORE dispatching to the
+  # estimator-specific fitter. For point treatments the censoring
+  # model is fit here (all three estimators share the same weight
+  # vector). For longitudinal treatments the censoring models are
+  # fit inside fit_ice() / fit_longitudinal_ipw() where the lag
+  # structure and time_points are available (chunk 14c).
+  ipcw_details <- NULL
+  if (ipcw && type == "point") {
+    check_ipcw_inputs(
+      ipcw, censoring,
+      censoring_col = data[[censoring]],
+      call = call
+    )
+    cens_model_fn <- censoring_model_fn %||% stats::glm
+    cens_model <- fit_censoring_model(
+      data = data,
+      censoring = censoring,
+      treatment = treatment,
+      confounders = confounders,
+      model_fn = cens_model_fn,
+      weights = weights
+    )
+    ipcw_w <- compute_ipcw_weights(
+      cens_model,
+      n_total = nrow(data),
+      censoring_col = as.integer(data[[censoring]]),
+      stabilize = TRUE
+    )
+    ipcw_details <- list(
+      ipcw = TRUE,
+      censoring_model = cens_model,
+      ipcw_weights = ipcw_w,
+      censoring_model_fn = cens_model_fn,
+      weights_pre_ipcw = weights
+    )
+    weights <- if (is.null(weights)) ipcw_w else weights * ipcw_w
+    check_weights(weights, nrow(data))
+  } else if (ipcw && type == "longitudinal") {
+    check_ipcw_inputs(
+      ipcw, censoring,
+      censoring_col = data[[censoring]],
+      call = call
+    )
+    ipcw_details <- list(
+      ipcw = TRUE,
+      censoring_model_fn = censoring_model_fn %||% stats::glm,
+      weights_pre_ipcw = weights
+    )
+  }
+
   # Dispatch to the estimator-specific fitter. Each returns a
   # `causatr_fit` with the same S3 class and slot structure, which
   # contrast() and diagnose() then consume uniformly.
@@ -574,6 +635,19 @@ causat <- function(
   # touch four files for one assignment; we do it once here instead.
   if (!is.null(cluster)) {
     fit$details$cluster <- cluster
+  }
+
+  if (!is.null(ipcw_details)) {
+    for (nm in names(ipcw_details)) {
+      fit$details[[nm]] <- ipcw_details[[nm]]
+    }
+    # Ensure the censoring column name is on the fit object even for
+    # estimators that don't receive it directly (e.g. fit_ipw sets
+    # censoring = NULL). The variance engine needs it to look up the
+    # censoring column in fit$data.
+    if (is.null(fit$censoring)) {
+      fit$censoring <- censoring
+    }
   }
 
   fit

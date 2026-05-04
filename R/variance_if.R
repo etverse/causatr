@@ -1123,6 +1123,198 @@ prepare_point_variance <- function(
 }
 
 
+#' IPCW Channel 2 correction for the outcome/MSM model
+#'
+#' @description
+#' Computes the censoring model's contribution to the stacked
+#' M-estimation IF via the cross-derivative
+#' \eqn{A_{\beta,\gamma} = -(1/n) \sum_i \partial\psi_\beta/\partial\gamma}.
+#'
+#' The closure \eqn{\bar\Phi(\gamma)} evaluates the outcome/MSM score
+#' with IPCW weights recomputed at candidate \eqn{\gamma}:
+#' \deqn{\bar\Phi_j(\gamma) = \frac{1}{n} \sum_i X_i \, w_{\mathrm{ipcw}}(\gamma)_i
+#'       \, w_{\mathrm{ext},i} \, r_i \, \mu'(\eta_i) / V(\mu_i)}
+#' where \eqn{r_i}, \eqn{\mu'}, \eqn{V} are held fixed at
+#' \eqn{\hat\beta}. Only the IPCW weight factor varies with \eqn{\gamma}.
+#'
+#' The per-individual IF correction is then
+#' \deqn{\mathrm{cens\_correction}_i = g_\gamma^T A_{\gamma\gamma}^{-1}
+#'       \psi_{\gamma,i}}
+#' where \eqn{g_\gamma = A_{\beta,\gamma}^T h} and
+#' \eqn{h = A_{\beta\beta}^{-1} J} from the outcome model.
+#'
+#' @param fit A `causatr_fit` with `details$ipcw == TRUE`.
+#' @param outcome_model The fitted outcome (or MSM) GLM.
+#' @param outcome_prep Output of `prepare_model_if()` for the outcome model.
+#' @param h_outcome Numeric p-vector. The bread-projected gradient
+#'   \eqn{A_{\beta\beta}^{-1} J}. For gcomp, this is
+#'   `apply_model_correction(prep, grad)$h`; for IPW, `n_fit * msm_res$h`.
+#' @param n_fit Integer. Number of rows in the outcome model fit.
+#'
+#' @return A named list:
+#'   \describe{
+#'     \item{`correction`}{Numeric vector of length `n_total`.}
+#'   }
+#'
+#' @noRd
+compute_ipcw_if_correction <- function(
+  fit,
+  outcome_model,
+  outcome_prep,
+  h_outcome,
+  n_fit
+) {
+  cens_model <- fit$details$censoring_model
+  n_total <- outcome_prep$n_total
+
+  # Build the phi_bar_cens(gamma) closure. The outcome model's GLM
+  # score for observation i is
+  #   psi_{beta,i} = X_i * w_total_i * (y_i - mu_i) * mu'(eta_i) / V(mu_i)
+  # where w_total_i = w_ext_i * w_ipcw_i. Varying gamma only changes
+  # w_ipcw_i; everything else is fixed at beta_hat.
+  beta_hat <- stats::coef(outcome_model)
+  X_fit <- outcome_prep$X_fit
+  fam <- outcome_model$family
+  eta_fit <- as.numeric(X_fit %*% beta_hat)
+  mu_fit <- fam$linkinv(eta_fit)
+  mu_eta_fit <- fam$mu.eta(eta_fit)
+  var_mu_fit <- fam$variance(mu_fit)
+  y_fit <- stats::model.response(stats::model.frame(outcome_model))
+  r_fit <- y_fit - mu_fit
+
+  # Pre-IPCW weights: the weight factor that doesn't depend on gamma.
+  # This is the external weights (survey, etc.) that were stashed
+  # before IPCW composition.
+  w_ext <- fit$details$weights_pre_ipcw
+  if (is.null(w_ext)) {
+    w_ext_fit <- rep(1, n_fit)
+  } else {
+    fit_idx <- outcome_prep$fit_idx
+    w_ext_fit <- w_ext[fit_idx]
+  }
+
+  # IPCW weight closure: maps gamma -> IPCW weight vector (full length)
+  ipcw_wfn <- make_ipcw_weight_fn(
+    cens_model,
+    n_total = n_total,
+    censoring_col = as.integer(fit$data[[fit$censoring]]),
+    stabilize = TRUE
+  )
+
+  fit_idx <- outcome_prep$fit_idx
+
+  phi_bar_cens <- function(gamma) {
+    w_ipcw <- ipcw_wfn(gamma)
+    w_ipcw_fit <- w_ipcw[fit_idx]
+    s_per_i <- w_ext_fit * w_ipcw_fit * mu_eta_fit * r_fit / var_mu_fit
+    as.numeric(crossprod(X_fit, s_per_i)) / n_fit
+  }
+
+  gamma_hat <- cens_model$alpha_hat
+  A_beta_gamma <- -numDeriv::jacobian(phi_bar_cens, x = gamma_hat)
+
+  g_cens <- as.numeric(crossprod(A_beta_gamma, h_outcome))
+
+  cens_prep <- prepare_model_if(
+    cens_model$model,
+    which(cens_model$fit_rows),
+    n_total
+  )
+  cens_res <- apply_model_correction(cens_prep, g_cens)
+
+  list(correction = cens_res$correction)
+}
+
+
+#' IPCW Channel 2 correction for the IPW MSM
+#'
+#' @description
+#' IPW-specific IPCW correction. Unlike `compute_ipcw_if_correction()`
+#' (which works on the full data for gcomp), the IPW path operates on a
+#' subset `data[fit_rows]` of length `n_sub`. The censoring model was
+#' fit on the full data, so we need to:
+#' 1. Build the phi_bar closure on the n_sub-sized MSM
+#' 2. Compute the cross-derivative A_{beta,gamma}
+#' 3. Apply the censoring model correction on n_sub rows (subsetting
+#'    the censoring model's score to the fit_rows subset)
+#'
+#' @param fit A `causatr_fit` with `details$ipcw == TRUE`.
+#' @param msm_model The per-intervention MSM model.
+#' @param J Numeric p-vector. Marginal-mean Jacobian.
+#' @param fit_rows Logical vector (length n_total). MSM fit rows.
+#' @param n_sub Integer. Number of MSM fit rows.
+#'
+#' @return Numeric vector of length `n_sub`.
+#'
+#' @noRd
+compute_ipw_ipcw_correction <- function(
+  fit,
+  msm_model,
+  J,
+  fit_rows,
+  n_sub
+) {
+  cens_model <- fit$details$censoring_model
+  n_total <- nrow(fit$data)
+
+  msm_prep <- prepare_model_if(msm_model, seq_len(n_sub), n_sub)
+  msm_res <- apply_model_correction(msm_prep, J)
+  h_msm <- n_sub * msm_res$h
+
+  # MSM score ingredients (fixed at beta_hat)
+  beta_hat <- stats::coef(msm_model)
+  X_msm <- msm_prep$X_fit
+  fam <- msm_model$family
+  eta_msm <- as.numeric(X_msm %*% beta_hat)
+  mu_msm <- fam$linkinv(eta_msm)
+  mu_eta_msm <- fam$mu.eta(eta_msm)
+  var_mu_msm <- fam$variance(mu_msm)
+  y_msm <- stats::model.response(stats::model.frame(msm_model))
+  r_msm <- y_msm - mu_msm
+
+  # The MSM's prior weights = ext_w * DR_w * ipcw_w. When varying gamma,
+  # only ipcw_w changes. The "other weights" factor = ext_w * DR_w =
+  # total_prior_weights / ipcw_w. We extract total prior weights from the
+  # MSM and divide out ipcw_w at the fitted gamma.
+  pw <- msm_model$prior.weights
+  if (is.null(pw)) pw <- rep(1, n_sub)
+
+  ipcw_w_fit <- fit$details$ipcw_weights[fit_rows]
+  # Avoid division by zero on censored rows (ipcw_w = 0 there, but
+  # those rows should also have pw = 0)
+  other_w <- ifelse(ipcw_w_fit > 0, pw / ipcw_w_fit, 0)
+
+  # IPCW weight closure on full data, then subset to fit_rows
+  ipcw_wfn <- make_ipcw_weight_fn(
+    cens_model,
+    n_total = n_total,
+    censoring_col = as.integer(fit$data[[fit$censoring]]),
+    stabilize = TRUE
+  )
+
+  phi_bar_cens <- function(gamma) {
+    w_ipcw_full <- ipcw_wfn(gamma)
+    w_ipcw_sub <- w_ipcw_full[fit_rows]
+    s_per_i <- other_w * w_ipcw_sub * mu_eta_msm * r_msm / var_mu_msm
+    as.numeric(crossprod(X_msm, s_per_i)) / n_sub
+  }
+
+  gamma_hat <- cens_model$alpha_hat
+  A_beta_gamma <- -numDeriv::jacobian(phi_bar_cens, x = gamma_hat)
+  g_cens <- as.numeric(crossprod(A_beta_gamma, h_msm))
+
+  # The censoring model was fit on the full data (n_total). Compute
+  # its correction in n_total space, then subset to the IPW fit_rows.
+  cens_prep <- prepare_model_if(
+    cens_model$model,
+    which(cens_model$fit_rows),
+    n_total
+  )
+  cens_res <- apply_model_correction(cens_prep, g_cens)
+  cens_res$correction[fit_rows]
+}
+
+
 #' G-computation branch of variance_if()
 #'
 #' @noRd
@@ -1167,9 +1359,25 @@ variance_if_gcomp <- function(
   pieces <- bundle$pieces
   prep <- bundle$prep
 
+  has_ipcw <- isTRUE(fit$details$ipcw)
+  n_fit <- nrow(prep$X_fit)
+
   IF_list <- lapply(seq_along(pieces$grad_list), function(j) {
-    pieces$Ch1_list[[j]] +
-      apply_model_correction(prep, pieces$grad_list[[j]])$correction
+    res <- apply_model_correction(prep, pieces$grad_list[[j]])
+    if_j <- pieces$Ch1_list[[j]] + res$correction
+
+    if (has_ipcw) {
+      # h_outcome = A_{bb}^{-1} J. `res$h` is (X'WX)^{-1} J, and the
+      # M-estimation bread A_{bb} = (1/n) X'WX, so h_true = n * res$h.
+      ipcw_corr <- compute_ipcw_if_correction(
+        fit, model, prep,
+        h_outcome = n_fit * res$h,
+        n_fit = n_fit
+      )
+      if_j <- if_j - ipcw_corr$correction
+    }
+
+    if_j
   })
   names(IF_list) <- int_names
 
@@ -1755,7 +1963,7 @@ variance_if_ipw <- function(
       wfn <- function(alpha) base_wfn(alpha) * ext_w_closure
     }
 
-    compute_ipw_if_self_contained_one(
+    if_i <- compute_ipw_if_self_contained_one(
       msm_model = msm_model,
       propensity_model = propensity_model,
       weight_fn = wfn,
@@ -1765,6 +1973,16 @@ variance_if_ipw <- function(
       fit_idx_ps = seq_len(n_sub),
       n_total = n_sub
     )
+
+    if (isTRUE(fit$details$ipcw)) {
+      if_i <- if_i - compute_ipw_ipcw_correction(
+        fit, msm_model, J,
+        fit_rows = fit_rows,
+        n_sub = n_sub
+      )
+    }
+
+    if_i
   })
   names(IF_list) <- int_names
 

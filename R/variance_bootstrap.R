@@ -260,12 +260,15 @@ variance_bootstrap <- function(
     tryCatch(
       {
         d_b <- d[indices]
-        # Resample weights alongside data rows.
-        w_b <- if (!is.null(fit$details$weights)) {
-          fit$details$weights[indices]
+        # Resample weights alongside data rows. When IPCW is active,
+        # use the pre-IPCW weights — each refit_*() function refits
+        # the censoring model and recomposes IPCW weights internally.
+        orig_w <- if (isTRUE(fit$details$ipcw)) {
+          fit$details$weights_pre_ipcw
         } else {
-          NULL
+          fit$details$weights
         }
+        w_b <- if (!is.null(orig_w)) orig_w[indices] else NULL
 
         # IPW replicates refit the density model on `d_b` via
         # `refit_ipw()` and then reuse the analytic
@@ -428,6 +431,12 @@ refit_gcomp <- function(fit, d_b, weights = NULL) {
   censoring <- fit$censoring
   outcome <- fit$outcome
 
+  # IPCW: refit censoring model and compose weights
+  if (isTRUE(fit$details$ipcw)) {
+    ipcw_w_b <- refit_censoring_weights(fit, d_b)
+    weights <- if (is.null(weights)) ipcw_w_b else weights * ipcw_w_b
+  }
+
   fit_rows_b <- get_fit_rows(d_b, outcome, censoring)
 
   args <- list(model_formula, data = d_b[fit_rows_b])
@@ -465,6 +474,13 @@ refit_gcomp <- function(fit, d_b, weights = NULL) {
 #'
 #' @noRd
 refit_ipw <- function(fit, d_b, weights = NULL) {
+  # IPCW: refit censoring model and compose weights before the
+  # full IPW pipeline replay
+  if (isTRUE(fit$details$ipcw)) {
+    ipcw_w_b <- refit_censoring_weights(fit, d_b)
+    weights <- if (is.null(weights)) ipcw_w_b else weights * ipcw_w_b
+  }
+
   # `do.call()` with the stashed `dots` replays the exact propensity
   # fitter configuration (smoother arguments, family overrides, etc.)
   # the user passed to the original `causat()` call. Every non-dots
@@ -513,6 +529,16 @@ refit_ipw <- function(fit, d_b, weights = NULL) {
 #' @return A `glm` model fit on the matched bootstrap data.
 #' @noRd
 refit_matching <- function(fit, d_b, weights = NULL) {
+  # IPCW: refit censoring model and compose weights before matching
+  if (isTRUE(fit$details$ipcw)) {
+    ipcw_w_b <- refit_censoring_weights(fit, d_b)
+    weights <- if (is.null(weights)) {
+      ipcw_w_b
+    } else {
+      weights * ipcw_w_b
+    }
+  }
+
   ps_formula <- build_ps_formula(fit$confounders, fit$treatment)
 
   fit_rows_b <- get_fit_rows(d_b, fit$outcome)

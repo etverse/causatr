@@ -288,7 +288,10 @@ remain in this matrix.
 | MAR, correct outcome model | test-gcomp.R (complete-case) | ✅ | test-missing-data.R |
 | MAR, manual IPCW weights | test-gcomp.R (weighted) | ✅ | test-missing-data.R |
 | MAR longitudinal, manual IPCW | ICE (weighted) | ✅ | test-missing-data.R |
-| Built-in IPCW (Phase 14) | any | ❌ | — |
+| Built-in IPCW: censoring model primitive | fit + weights (14a) | ✅ | test-censoring.R |
+| Built-in IPCW: point estimators | gcomp/IPW/matching (14b) | ✅ | test-ipcw.R |
+| Built-in IPCW: lmtp cross-check | point gcomp/IPW (14d) | ✅ | test-ipcw-lmtp-oracle.R |
+| Built-in IPCW: ICE longitudinal | ICE + long IPW (14c) | ❌ | — |
 
 ---
 

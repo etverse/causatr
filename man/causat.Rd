@@ -16,6 +16,8 @@ causat(
   id = NULL,
   time = NULL,
   censoring = NULL,
+  ipcw = FALSE,
+  censoring_model_fn = NULL,
   history = 1L,
   numerator = NULL,
   weights = NULL,
@@ -76,16 +78,26 @@ provided together with \code{time} for longitudinal data.}
 provided together with \code{id} for longitudinal data.}
 
 \item{censoring}{Character or \code{NULL}. Name of the censoring indicator
-variable (1 = censored, 0 = uncensored). \strong{This is a row filter, not
-IPCW:} rows where \code{censoring != 0} are excluded from model fitting,
-but no censoring model is fit and no inverse-probability weights are
-computed. For g-computation with a correctly specified outcome model,
-this is sufficient under MAR censoring (the regression surface is
-unchanged). For IPW under MAR censoring, supply pre-computed IPCW
-weights via \verb{weights =}. For longitudinal data, censoring is
-time-varying: \code{C_k = 1} means the individual dropped out at time \code{k};
-ICE backward iteration restricts each step's model to uncensored
-individuals (Zivich et al., 2024).}
+variable (1 = censored, 0 = uncensored). Without \code{ipcw = TRUE},
+this is a \strong{row filter only:} rows where \code{censoring != 0} are
+excluded from model fitting but no censoring model is fit. For
+g-computation with a correctly specified outcome model, row
+filtering is sufficient under MAR censoring. For IPW under MAR
+censoring, set \code{ipcw = TRUE} or supply pre-computed IPCW weights
+via \verb{weights =}. For longitudinal data, censoring is time-varying:
+\code{C_k = 1} means the individual dropped out at time \code{k}.}
+
+\item{ipcw}{Logical. If \code{TRUE}, fit an internal censoring model
+\eqn{P(C = 0 \mid A, L)} and compute stabilized IPCW weights that
+are composed multiplicatively with any external \code{weights}. Requires
+\code{censoring} to be specified. Default \code{FALSE} preserves the legacy
+row-filter-only behaviour. For IPW under MAR censoring this is
+essential; for g-comp it provides doubly-robust protection.}
+
+\item{censoring_model_fn}{Function or \code{NULL}. The fitting function
+for the censoring model when \code{ipcw = TRUE}. Must accept
+\verb{(formula, data, family, weights, ...)}. Default \code{NULL} uses
+\code{stats::glm}. Ignored when \code{ipcw = FALSE}.}
 
 \item{history}{Positive integer or \code{Inf}. Markov order for longitudinal
 models: how many lagged time points of treatment and time-varying

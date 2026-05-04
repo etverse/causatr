@@ -345,6 +345,35 @@ simulate_mar_outcome <- function(n = 5000, seed = 42) {
   data.frame(Y = Y, Y_full = Y_full, A = A, L = L, C = C, p_cens = p_cens)
 }
 
+# DGP-M2b: MAR outcome censoring with non-linear outcome model.
+#   Two confounders (L1 continuous, L2 binary), interaction A*L1,
+#   and a quadratic L1^2 term. Censoring depends on A, L1, L2.
+#   A misspecified linear outcome model (Y ~ A + L1 + L2) will be
+#   biased by ~0.25 under complete-case analysis but corrected by IPCW.
+#
+#   True SCM:
+#     L1 ~ N(0,1), L2 ~ Bernoulli(0.4)
+#     A ~ Bernoulli(expit(0.3*L1 - 0.5*L2 + 0.2*L1*L2))
+#     Y = 1 + 3*A + 1.5*L1 + 2*L2 - 0.8*A*L1 + 0.5*L1^2 + eps
+#     C ~ Bernoulli(expit(-0.3 + 1.2*A + 0.8*L1 - 0.5*L2))
+#
+#   True ATE: E[3 - 0.8*L1] = 3 (since E[L1] = 0).
+#   ~50% overall censoring; ~65% among treated.
+simulate_mar_outcome_complex <- function(n = 5000, seed = 42) {
+  set.seed(seed)
+  L1 <- rnorm(n)
+  L2 <- rbinom(n, 1, 0.4)
+  A <- rbinom(n, 1, plogis(0.3 * L1 - 0.5 * L2 + 0.2 * L1 * L2))
+  Y_full <- 1 + 3 * A + 1.5 * L1 + 2 * L2 -
+    0.8 * A * L1 + 0.5 * L1^2 + rnorm(n)
+  C <- rbinom(n, 1, plogis(-0.3 + 1.2 * A + 0.8 * L1 - 0.5 * L2))
+  Y <- ifelse(C == 1, NA_real_, Y_full)
+  data.frame(
+    Y = Y, Y_full = Y_full, A = A,
+    L1 = L1, L2 = L2, C = C
+  )
+}
+
 # DGP-M3: MCAR covariate missingness.
 #   Same SCM as DGP 1.
 #   L_obs = L with some entries set to NA at random.
