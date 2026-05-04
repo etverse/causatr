@@ -1050,7 +1050,10 @@ recovers the marginal `A1` effect (truth = 2).
 | Multi (bin × negbin) | Gaussian | Static + Shift | ATE | Difference | Sandwich | none | ✅ |
 | Multi (any) | --- | Any + `stabilize = "marginal"` | ATE | --- | Sandwich / Bootstrap | none | ✅ |
 | Multi + IPSI component | --- | --- | --- | --- | --- | --- | ⛔ |
-| Longitudinal | --- | --- | --- | --- | --- | --- | ⛔ (use ICE) |
+| Longitudinal | Continuous | Static / Shift / Scale / Dynamic | ATE | Difference | Sandwich / Bootstrap | none | ✅ (see `vignette("longitudinal")`) |
+| Longitudinal | Continuous | Static + stabilize="marginal" | ATE | Difference | Sandwich | none | ✅ |
+| Longitudinal | Any | IPSI | --- | --- | --- | --- | ⛔ (use point IPW) |
+| Multivariate longitudinal | --- | --- | --- | --- | --- | --- | ⛔ (use ICE) |
 
 See [`FEATURE_COVERAGE_MATRIX.md`](https://github.com/etverse/causatr/blob/main/FEATURE_COVERAGE_MATRIX.md)
 for the authoritative coverage status of every method × treatment × outcome
