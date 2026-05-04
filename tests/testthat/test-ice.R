@@ -1,3 +1,94 @@
+# --- Structure-1 DGP: TV confounder only, no baseline-only confounder --------
+#
+#   L_0 ~ N(0, 1)              (TV confounder at t = 0)
+#   A_0 ~ Bernoulli(expit(0.5 * L_0))
+#   L_1 = A_0 + 0.5 * L_0 + e (treatment-confounder feedback)
+#   A_1 ~ Bernoulli(expit(0.3 * L_1 + 0.2 * A_0))
+#   Y   = 10 + 2 * (A_0 + A_1) + L_0 + L_1 + e
+#
+# True ATE (always vs never) = 5
+# E[Y(1,1)] = 15, E[Y(0,0)] = 10
+
+make_tv_only_scm <- function(n = 5000, seed = 42) {
+  set.seed(seed)
+  L0 <- stats::rnorm(n)
+  A0 <- stats::rbinom(n, 1, stats::plogis(0.5 * L0))
+  L1 <- A0 + 0.5 * L0 + stats::rnorm(n, 0, 0.5)
+  A1 <- stats::rbinom(n, 1, stats::plogis(0.3 * L1 + 0.2 * A0))
+  Y <- 10 + 2 * (A0 + A1) + L0 + L1 + stats::rnorm(n)
+
+  rbind(
+    data.frame(id = seq_len(n), time = 0L, A = A0, L = L0, Y = NA_real_),
+    data.frame(id = seq_len(n), time = 1L, A = A1, L = L1, Y = Y)
+  )
+}
+
+
+test_that("ICE recovers ATE with TV confounder only (no baseline confounder)", {
+  long <- make_tv_only_scm(n = 5000, seed = 42)
+
+  fit <- causat(
+    long,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~1,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(always = static(1), never = static(0)),
+    reference = "never",
+    ci_method = "sandwich"
+  )
+
+  ate <- res$contrasts$estimate[1]
+  se <- res$contrasts$se[1]
+  ci_lo <- res$contrasts$ci_lower[1]
+  ci_hi <- res$contrasts$ci_upper[1]
+
+  expect_equal(ate, 5, tolerance = 0.3)
+  expect_true(ci_lo < 5 && ci_hi > 5)
+  expect_true(se > 0 && se < 0.5)
+})
+
+
+test_that("ICE sandwich SE is valid with TV confounder only", {
+  long <- make_tv_only_scm(n = 5000, seed = 42)
+
+  fit <- causat(
+    long,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~1,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time"
+  )
+
+  res_sand <- contrast(
+    fit,
+    interventions = list(always = static(1), never = static(0)),
+    reference = "never",
+    ci_method = "sandwich"
+  )
+  res_boot <- contrast(
+    fit,
+    interventions = list(always = static(1), never = static(0)),
+    reference = "never",
+    ci_method = "bootstrap",
+    n_boot = 200L
+  )
+
+  se_sand <- res_sand$contrasts$se[1]
+  se_boot <- res_boot$contrasts$se[1]
+  ratio <- se_sand / se_boot
+
+  expect_true(ratio > 0.5 && ratio < 2.0)
+})
+
+
 test_that("causat() returns a causatr_fit for longitudinal data", {
   long <- make_table201(scale = 1 / 100)
   fit <- causat(
