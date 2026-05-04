@@ -1277,7 +1277,9 @@ compute_ipw_ipcw_correction <- function(
   # total_prior_weights / ipcw_w. We extract total prior weights from the
   # MSM and divide out ipcw_w at the fitted gamma.
   pw <- msm_model$prior.weights
-  if (is.null(pw)) pw <- rep(1, n_sub)
+  if (is.null(pw)) {
+    pw <- rep(1, n_sub)
+  }
 
   ipcw_w_fit <- fit$details$ipcw_weights[fit_rows]
   # Avoid division by zero on censored rows (ipcw_w = 0 there, but
@@ -1370,7 +1372,9 @@ variance_if_gcomp <- function(
       # h_outcome = A_{bb}^{-1} J. `res$h` is (X'WX)^{-1} J, and the
       # M-estimation bread A_{bb} = (1/n) X'WX, so h_true = n * res$h.
       ipcw_corr <- compute_ipcw_if_correction(
-        fit, model, prep,
+        fit,
+        model,
+        prep,
         h_outcome = n_fit * res$h,
         n_fit = n_fit
       )
@@ -1975,11 +1979,14 @@ variance_if_ipw <- function(
     )
 
     if (isTRUE(fit$details$ipcw)) {
-      if_i <- if_i - compute_ipw_ipcw_correction(
-        fit, msm_model, J,
-        fit_rows = fit_rows,
-        n_sub = n_sub
-      )
+      if_i <- if_i -
+        compute_ipw_ipcw_correction(
+          fit,
+          msm_model,
+          J,
+          fit_rows = fit_rows,
+          n_sub = n_sub
+        )
     }
 
     if_i

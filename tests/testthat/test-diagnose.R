@@ -1183,8 +1183,13 @@ test_that("diagnose() continuous IPW weight reconstruction matches manual densit
 test_that("plot.causatr_diag with which='balance' produces a plot", {
   skip_if_not_installed("cobalt")
   d <- simulate_binary_continuous(n = 200)
-  fit <- causat(d, outcome = "Y", treatment = "A",
-                confounders = ~ L, estimator = "ipw")
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw"
+  )
   diag <- diagnose(fit)
   expect_invisible(plot(diag, which = "balance"))
 })
@@ -1192,8 +1197,13 @@ test_that("plot.causatr_diag with which='balance' produces a plot", {
 test_that("plot.causatr_diag with which='weights' produces a plot", {
   skip_if_not_installed("tinyplot")
   d <- simulate_binary_continuous(n = 200)
-  fit <- causat(d, outcome = "Y", treatment = "A",
-                confounders = ~ L, estimator = "ipw")
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw"
+  )
   diag <- diagnose(fit)
   expect_invisible(plot(diag, which = "weights"))
 })
@@ -1201,8 +1211,13 @@ test_that("plot.causatr_diag with which='weights' produces a plot", {
 test_that("plot.causatr_diag with which='weights' and log_scale", {
   skip_if_not_installed("tinyplot")
   d <- simulate_binary_continuous(n = 200)
-  fit <- causat(d, outcome = "Y", treatment = "A",
-                confounders = ~ L, estimator = "ipw")
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw"
+  )
   diag <- diagnose(fit)
   expect_invisible(plot(diag, which = "weights", log_scale = TRUE))
 })
@@ -1210,8 +1225,13 @@ test_that("plot.causatr_diag with which='weights' and log_scale", {
 test_that("plot.causatr_diag with which='positivity' works for binary", {
   skip_if_not_installed("tinyplot")
   d <- simulate_binary_continuous(n = 200)
-  fit <- causat(d, outcome = "Y", treatment = "A",
-                confounders = ~ L, estimator = "ipw")
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw"
+  )
   diag <- diagnose(fit)
   expect_invisible(plot(diag, which = "positivity"))
 })
@@ -1220,16 +1240,26 @@ test_that("plot.causatr_diag with which='positivity' works for continuous", {
   skip_if_not_installed("tinyplot")
   d <- simulate_binary_continuous(n = 200)
   d$A_cont <- rnorm(nrow(d), mean = d$L)
-  fit <- causat(d, outcome = "Y", treatment = "A_cont",
-                confounders = ~ L, estimator = "ipw")
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A_cont",
+    confounders = ~L,
+    estimator = "ipw"
+  )
   diag <- diagnose(fit)
   expect_invisible(plot(diag, which = "positivity"))
 })
 
 test_that("plot.causatr_diag rejects invalid which argument", {
   d <- simulate_binary_continuous(n = 200)
-  fit <- causat(d, outcome = "Y", treatment = "A",
-                confounders = ~ L, estimator = "ipw")
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw"
+  )
   diag <- diagnose(fit)
   expect_error(plot(diag, which = "invalid"))
 })
@@ -1237,8 +1267,13 @@ test_that("plot.causatr_diag rejects invalid which argument", {
 test_that("plot.causatr_diag weights warns for gcomp (no weights)", {
   skip_if_not_installed("tinyplot")
   d <- simulate_binary_continuous(n = 200)
-  fit <- causat(d, outcome = "Y", treatment = "A",
-                confounders = ~ L, estimator = "gcomp")
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "gcomp"
+  )
   diag <- diagnose(fit)
   expect_warning(
     plot(diag, which = "weights"),
@@ -1328,8 +1363,8 @@ test_that("censoring panel for longitudinal IPCW", {
     dt,
     outcome = "Y",
     treatment = "A",
-    confounders = ~ L0,
-    confounders_tv = ~ L,
+    confounders = ~L0,
+    confounders_tv = ~L,
     estimator = "gcomp",
     type = "longitudinal",
     id = "id",

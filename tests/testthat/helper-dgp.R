@@ -193,16 +193,18 @@ make_table201 <- function(scale = 1) {
 # Linear SCM with treatment-confounder feedback and known analytical ATE.
 #
 # DGP:
-#   L0 ~ N(0, 1)                              (baseline confounder)
+#   L0 ~ N(0, 1)                              (time-invariant baseline confounder)
+#   L_0 = L0                                  (TV confounder at baseline = L0)
 #   A_0 ~ Bern(expit(0.5 * L0))               (treatment at t=0)
 #   For t > 0:
 #     L_t = A_{t-1} + 0.5 * L0 + ε_L          (treatment-confounder feedback)
 #     A_t ~ Bern(expit(0.3 * L_t + 0.2 * A_{t-1}))
-#   Y = 10 + 2 * sum(A_t) + L0 + sum(L_t) + ε_Y
+#   Y = 10 + 2 * sum(A_t) + sum(L_t) + ε_Y
 #
 # True ATE (always vs never) = 3 * n_times - 1
 # Under always: E[Y] = 10 + 2*T + (T-1) = 9 + 3T
 # Under never:  E[Y] = 10
+# (L_0 = L0 does not depend on treatment, so cancels in the contrast.)
 make_linear_scm <- function(n = 5000, n_times = 2, seed = 42) {
   set.seed(seed)
 
@@ -213,6 +215,7 @@ make_linear_scm <- function(n = 5000, n_times = 2, seed = 42) {
 
   for (t in seq_len(n_times)) {
     if (t == 1) {
+      L[, t] <- L0
       A[, t] <- stats::rbinom(n, 1, stats::plogis(0.5 * L0))
     } else {
       L[, t] <- A[, t - 1] + 0.5 * L0 + stats::rnorm(n, 0, 0.5)
@@ -224,7 +227,7 @@ make_linear_scm <- function(n = 5000, n_times = 2, seed = 42) {
     }
   }
 
-  Y <- 10 + 2 * rowSums(A) + L0 + rowSums(L, na.rm = TRUE) + stats::rnorm(n)
+  Y <- 10 + 2 * rowSums(A) + rowSums(L) + stats::rnorm(n)
 
   rows <- vector("list", n_times)
   for (t in seq_len(n_times)) {
@@ -243,11 +246,12 @@ make_linear_scm <- function(n = 5000, n_times = 2, seed = 42) {
 # Continuous-treatment version of the linear SCM.
 #
 # DGP:
-#   L0 ~ N(0, 1)
+#   L0 ~ N(0, 1)                        (time-invariant baseline confounder)
+#   L_0 = L0                            (TV confounder at baseline = L0)
 #   A_0 = 1 + 0.5 * L0 + ε_A           (continuous treatment)
 #   L_1 = A_0 + 0.5 * L0 + ε_L         (treatment-confounder feedback)
 #   A_1 = 1 + 0.3 * L_1 + 0.2 * A_0 + ε_A
-#   Y = 10 + 2 * (A_0 + A_1) + L0 + L_1 + ε_Y
+#   Y = 10 + 2 * (A_0 + A_1) + L_0 + L_1 + ε_Y
 make_continuous_scm <- function(n = 5000, seed = 42) {
   set.seed(seed)
 
@@ -262,7 +266,7 @@ make_continuous_scm <- function(n = 5000, seed = 42) {
       id = seq_len(n),
       time = 0L,
       A = A0,
-      L = NA_real_,
+      L = L0,
       L0 = L0,
       Y = NA_real_
     ),
@@ -364,13 +368,16 @@ simulate_mar_outcome_complex <- function(n = 5000, seed = 42) {
   L1 <- rnorm(n)
   L2 <- rbinom(n, 1, 0.4)
   A <- rbinom(n, 1, plogis(0.3 * L1 - 0.5 * L2 + 0.2 * L1 * L2))
-  Y_full <- 1 + 3 * A + 1.5 * L1 + 2 * L2 -
-    0.8 * A * L1 + 0.5 * L1^2 + rnorm(n)
+  Y_full <- 1 + 3 * A + 1.5 * L1 + 2 * L2 - 0.8 * A * L1 + 0.5 * L1^2 + rnorm(n)
   C <- rbinom(n, 1, plogis(-0.3 + 1.2 * A + 0.8 * L1 - 0.5 * L2))
   Y <- ifelse(C == 1, NA_real_, Y_full)
   data.frame(
-    Y = Y, Y_full = Y_full, A = A,
-    L1 = L1, L2 = L2, C = C
+    Y = Y,
+    Y_full = Y_full,
+    A = A,
+    L1 = L1,
+    L2 = L2,
+    C = C
   )
 }
 
@@ -776,10 +783,15 @@ simulate_stochastic_ice_binary_gaussian <- function(
   Y <- 1 + A0 + A1 + 0.5 * L0 + 0.5 * L1 + rnorm(n)
 
   data <- rbind(
-    data.frame(id = seq_len(n), time = 0L, A = A0, L = NA_real_,
-               L0 = L0, Y = NA_real_),
-    data.frame(id = seq_len(n), time = 1L, A = A1, L = L1,
-               L0 = L0, Y = Y)
+    data.frame(
+      id = seq_len(n),
+      time = 0L,
+      A = A0,
+      L = NA_real_,
+      L0 = L0,
+      Y = NA_real_
+    ),
+    data.frame(id = seq_len(n), time = 1L, A = A1, L = L1, L0 = L0, Y = Y)
   )
 
   # Monte Carlo truth via large-n simulation (n = 10^6)
@@ -825,10 +837,15 @@ simulate_stochastic_ice_continuous_gaussian <- function(
   Y <- 1 + 0.5 * A0 + 0.5 * A1 + 0.5 * L0 + 0.5 * L1 + rnorm(n)
 
   data <- rbind(
-    data.frame(id = seq_len(n), time = 0L, A = A0, L = NA_real_,
-               L0 = L0, Y = NA_real_),
-    data.frame(id = seq_len(n), time = 1L, A = A1, L = L1,
-               L0 = L0, Y = Y)
+    data.frame(
+      id = seq_len(n),
+      time = 0L,
+      A = A0,
+      L = NA_real_,
+      L0 = L0,
+      Y = NA_real_
+    ),
+    data.frame(id = seq_len(n), time = 1L, A = A1, L = L1, L0 = L0, Y = Y)
   )
 
   # Additive shift of +0.5 at each time point.

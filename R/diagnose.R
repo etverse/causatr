@@ -1086,27 +1086,38 @@ compute_censoring_diagnostics <- function(fit) {
 
   data.table::data.table(
     statistic = c(
-      "n_total", "n_censored", "pct_censored",
-      "ipcw_mean", "ipcw_sd", "ipcw_min", "ipcw_max",
+      "n_total",
+      "n_censored",
+      "pct_censored",
+      "ipcw_mean",
+      "ipcw_sd",
+      "ipcw_min",
+      "ipcw_max",
       "ipcw_ess",
-      "p_uncens_min", "p_uncens_q05",
-      "p_uncens_median", "p_uncens_q95", "p_uncens_max"
+      "p_uncens_min",
+      "p_uncens_q05",
+      "p_uncens_median",
+      "p_uncens_q95",
+      "p_uncens_max"
     ),
-    value = round(c(
-      n_total,
-      n_cens,
-      100 * n_cens / n_total,
-      mean(w_uncens),
-      stats::sd(w_uncens),
-      min(w_uncens),
-      max(w_uncens),
-      ess,
-      min(p_uncens),
-      stats::quantile(p_uncens, 0.05),
-      stats::median(p_uncens),
-      stats::quantile(p_uncens, 0.95),
-      max(p_uncens)
-    ), 4)
+    value = round(
+      c(
+        n_total,
+        n_cens,
+        100 * n_cens / n_total,
+        mean(w_uncens),
+        stats::sd(w_uncens),
+        min(w_uncens),
+        max(w_uncens),
+        ess,
+        min(p_uncens),
+        stats::quantile(p_uncens, 0.05),
+        stats::median(p_uncens),
+        stats::quantile(p_uncens, 0.95),
+        max(p_uncens)
+      ),
+      4
+    )
   )
 }
 
@@ -1144,7 +1155,9 @@ compute_censoring_diagnostics_long <- function(fit) {
       result[[as.character(time_points[k])]] <-
         data.table::data.table(
           statistic = c(
-            "n_total", "n_censored", "pct_censored"
+            "n_total",
+            "n_censored",
+            "pct_censored"
           ),
           value = c(n_k, 0, 0)
         )
@@ -1157,28 +1170,38 @@ compute_censoring_diagnostics_long <- function(fit) {
     result[[as.character(time_points[k])]] <-
       data.table::data.table(
         statistic = c(
-          "n_total", "n_censored", "pct_censored",
-          "ipcw_mean", "ipcw_sd", "ipcw_min", "ipcw_max",
+          "n_total",
+          "n_censored",
+          "pct_censored",
+          "ipcw_mean",
+          "ipcw_sd",
+          "ipcw_min",
+          "ipcw_max",
           "ipcw_ess",
-          "p_uncens_min", "p_uncens_q05",
-          "p_uncens_median", "p_uncens_q95",
+          "p_uncens_min",
+          "p_uncens_q05",
+          "p_uncens_median",
+          "p_uncens_q95",
           "p_uncens_max"
         ),
-        value = round(c(
-          n_k,
-          n_cens_k,
-          100 * n_cens_k / n_k,
-          mean(w_unc_k),
-          stats::sd(w_unc_k),
-          min(w_unc_k),
-          max(w_unc_k),
-          ess_k,
-          min(p_unc_k),
-          stats::quantile(p_unc_k, 0.05),
-          stats::median(p_unc_k),
-          stats::quantile(p_unc_k, 0.95),
-          max(p_unc_k)
-        ), 4)
+        value = round(
+          c(
+            n_k,
+            n_cens_k,
+            100 * n_cens_k / n_k,
+            mean(w_unc_k),
+            stats::sd(w_unc_k),
+            min(w_unc_k),
+            max(w_unc_k),
+            ess_k,
+            min(p_unc_k),
+            stats::quantile(p_unc_k, 0.05),
+            stats::median(p_unc_k),
+            stats::quantile(p_unc_k, 0.95),
+            max(p_unc_k)
+          ),
+          4
+        )
       )
   }
 
@@ -1190,20 +1213,28 @@ compute_censoring_diagnostics_long <- function(fit) {
 
   result[["cumulative"]] <- data.table::data.table(
     statistic = c(
-      "n_total", "n_censored", "pct_censored",
-      "ipcw_mean", "ipcw_sd", "ipcw_min", "ipcw_max",
+      "n_total",
+      "n_censored",
+      "pct_censored",
+      "ipcw_mean",
+      "ipcw_sd",
+      "ipcw_min",
+      "ipcw_max",
       "ipcw_ess"
     ),
-    value = round(c(
-      nrow(data),
-      n_cens_all,
-      100 * n_cens_all / nrow(data),
-      mean(w_all),
-      stats::sd(w_all),
-      min(w_all),
-      max(w_all),
-      ess_cum
-    ), 4)
+    value = round(
+      c(
+        nrow(data),
+        n_cens_all,
+        100 * n_cens_all / nrow(data),
+        mean(w_all),
+        stats::sd(w_all),
+        min(w_all),
+        max(w_all),
+        ess_cum
+      ),
+      4
+    )
   )
 
   result
@@ -1371,6 +1402,9 @@ compute_balance_longitudinal <- function(fit, stats, thresholds) {
     tv_vars <- if (!is.null(conf_tv)) all.vars(conf_tv) else character(0)
     all_vars <- unique(c(baseline_vars, tv_vars))
     available <- intersect(all_vars, names(d_k))
+    available <- available[
+      vapply(available, function(v) !all(is.na(d_k[[v]])), logical(1))
+    ]
 
     if (length(available) == 0L) {
       return(NULL)

@@ -160,12 +160,14 @@ test_that("stochastic gcomp: binary/gaussian, bootstrap CI covers truth", {
     estimator = "gcomp"
   )
   set.seed(456)
-  res <- contrast(
-    fit,
-    interventions = list(g = stochastic(dgp$sampler, n_mc = 5L)),
-    type = "difference",
-    ci_method = "bootstrap",
-    n_boot = 20
+  suppressWarnings(
+    res <- contrast(
+      fit,
+      interventions = list(g = stochastic(dgp$sampler, n_mc = 5L)),
+      type = "difference",
+      ci_method = "bootstrap",
+      n_boot = 20
+    )
   )
   ci <- confint(res)
   expect_true(ci["g", 1] <= dgp$truth && dgp$truth <= ci["g", 2])
@@ -621,12 +623,14 @@ test_that("stochastic ICE: binary/gaussian, bootstrap CI covers truth", {
     estimator = "gcomp"
   )
   set.seed(456)
-  res <- contrast(
-    fit,
-    interventions = list(g = stochastic(dgp$sampler, n_mc = 5L)),
-    type = "difference",
-    ci_method = "bootstrap",
-    n_boot = 20
+  suppressWarnings(
+    res <- contrast(
+      fit,
+      interventions = list(g = stochastic(dgp$sampler, n_mc = 5L)),
+      type = "difference",
+      ci_method = "bootstrap",
+      n_boot = 20
+    )
   )
   ci <- confint(res)
   expect_true(ci["g", 1] <= dgp$truth && dgp$truth <= ci["g", 2])
@@ -836,7 +840,8 @@ test_that("stochastic gcomp: sandwich and bootstrap SEs agree (continuous)", {
 test_that("stochastic gcomp: sandwich and bootstrap SEs agree (categorical)", {
   skip_on_cran()
   dgp <- simulate_stochastic_categorical_gaussian(
-    n = 2000, seed = 42
+    n = 2000,
+    seed = 42
   )
   fit <- causat(
     dgp$data,
@@ -873,7 +878,8 @@ test_that("stochastic gcomp: sandwich and bootstrap SEs agree (categorical)", {
 test_that("stochastic gcomp: sandwich and bootstrap SEs agree (multivariate)", {
   skip_on_cran()
   dgp <- simulate_stochastic_multivariate_gaussian(
-    n = 2000, seed = 42
+    n = 2000,
+    seed = 42
   )
   fit <- causat(
     dgp$data,
@@ -981,8 +987,13 @@ test_that("stochastic gcomp: agrees with lmtp_sdr (point)", {
   }
 
   # causatr
-  fit <- causat(df, outcome = "Y", treatment = "A",
-                confounders = ~L, estimator = "gcomp")
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "gcomp"
+  )
   set.seed(123)
   res <- contrast(
     fit,
@@ -1030,10 +1041,15 @@ test_that("stochastic ICE: agrees with lmtp_sdr (longitudinal)", {
   Y <- 1 + A0 + A1 + 0.5 * L0 + 0.5 * L1 + rnorm(n)
 
   d_long <- rbind(
-    data.frame(id = seq_len(n), time = 0L, A = A0, L = NA_real_,
-               L0 = L0, Y = NA_real_),
-    data.frame(id = seq_len(n), time = 1L, A = A1, L = L1,
-               L0 = L0, Y = Y)
+    data.frame(
+      id = seq_len(n),
+      time = 0L,
+      A = A0,
+      L = NA_real_,
+      L0 = L0,
+      Y = NA_real_
+    ),
+    data.frame(id = seq_len(n), time = 1L, A = A1, L = L1, L0 = L0, Y = Y)
   )
 
   sampler <- function(data, trt) {

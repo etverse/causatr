@@ -8,7 +8,6 @@
 #   - make_ipcw_weight_fn() closure correctness
 #   - refit_censoring_weights() bootstrap replay
 
-
 # ── check_ipcw_inputs() ────────────────────────────────────────────
 
 test_that("ipcw=TRUE without censoring aborts", {
