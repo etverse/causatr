@@ -614,6 +614,8 @@ Composes Phase 2 gcomp + Phase 4 IPW into the classical analytical doubly-robust
 | — | — | longitudinal sandwich vs bootstrap SE agreement | ATE | — | — | ✅ ratio ∈ (0.5, 2) | test-aipw.R |
 | binary | gaussian | longitudinal lmtp cross-check (binary static) | ATE | diff | — | ✅ vs lmtp_sdr | test-aipw.R |
 | continuous | gaussian | longitudinal lmtp cross-check (continuous shift) | ATE | diff | — | ✅ vs lmtp_sdr | test-aipw.R |
+| binary | binomial | longitudinal static (always vs never) | ATE | diff | sandwich | ✅ | test-aipw.R |
+| binary | binomial | longitudinal lmtp cross-check (binary outcome) | ATE | diff | — | ✅ vs lmtp_sdr | test-aipw.R |
 
 **Rejections (point, same as IPW):** static/threshold/dynamic on continuous → Dirac rejection ✅; stochastic → rejected ✅; multivariate → deferred ✅.
 
