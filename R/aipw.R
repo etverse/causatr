@@ -432,14 +432,15 @@ fit_aipw_longitudinal <- function(
   } else {
     family
   }
-  # For AIPW, pseudo-outcomes at non-terminal steps can exceed [0,1]
-  # due to augmentation. Use gaussian for the backward pseudo-regression
-  # (same approach as lmtp::lmtp_sdr). ICE uses quasibinomial because
-  # its pseudo-outcomes are bounded predictions; AIPW's are not.
-  family_pseudo <- if (family_obj$family == "binomial") {
-    stats::gaussian()
-  } else {
+  # AIPW pseudo-outcomes can exceed the original family's support
+  # (e.g. negative for Poisson, outside [0,1] for binomial) because
+  # pseudo = m(d,L) + W*(Y - m(A,L)).  Use gaussian for the backward
+  # pseudo-regression regardless of the original family.  Same
+  # approach as lmtp::lmtp_sdr.
+  family_pseudo <- if (family_obj$family == "gaussian") {
     family_obj
+  } else {
+    stats::gaussian()
   }
 
   dots <- list(...)
@@ -614,6 +615,11 @@ ice_aipw_iterate <- function(fit, intervention) {
   id_chr <- as.character(all_ids)
   n_id <- length(all_ids)
   pseudo <- stats::setNames(rep(NA_real_, n_id), id_chr)
+  # For non-gaussian outcomes: separate clipped vector used only as
+  # the response in the gaussian backward pseudo-regression.  The
+  # unclipped `pseudo` is used for residuals, the final mean, and
+  # the sandwich.  Clipping EIF pseudos destroys variance.
+  pseudo_reg <- pseudo
 
   models <- vector("list", n_times)
   names(models) <- as.character(time_points)
@@ -718,7 +724,11 @@ ice_aipw_iterate <- function(fit, intervention) {
   # AIPW pseudo = intervention prediction + per-period weight * residual
   pseudo[pred_ids] <- preds_iv + W_period[pred_idx, n_times] * resid_k
   if (binary_outcome) {
-    pseudo[pred_ids] <- pmax(pmin(pseudo[pred_ids], 1 - 1e-5), 1e-5)
+    pseudo_reg[pred_ids] <- pmax(
+      pmin(pseudo[pred_ids], 1 - 1e-5), 1e-5
+    )
+  } else {
+    pseudo_reg[pred_ids] <- pseudo[pred_ids]
   }
 
   if (n_times > 1L && binary_outcome) {
@@ -734,7 +744,7 @@ ice_aipw_iterate <- function(fit, intervention) {
     mask_uncens <- mask_current & uncens
 
     current_ids <- as.character(data[mask_uncens][[id_col]])
-    pseudo_y <- pseudo[current_ids]
+    pseudo_y <- pseudo_reg[current_ids]
 
     has_pseudo <- !is.na(pseudo_y)
     if (sum(has_pseudo) == 0L) {
@@ -796,10 +806,10 @@ ice_aipw_iterate <- function(fit, intervention) {
       type = "response"
     )
 
-    # Residual: pseudo from previous backward step minus observed pred
+    # Residual uses unclipped pseudo from the previous backward step
     resid_k <- pseudo[pred_ids_all] - preds_obs
 
-    # AIPW pseudo: augmented with cumulative weight * residual.
+    # AIPW pseudo: augmented with per-period weight * residual.
     # Where pseudo from the previous step is NA (censored at a later
     # time), fall back to the vanilla ICE prediction (resid = NA
     # would propagate). This mirrors ICE's has_pseudo filtering.
@@ -808,10 +818,14 @@ ice_aipw_iterate <- function(fit, intervention) {
     aipw_pseudo[has_prev_pseudo] <- preds_iv[has_prev_pseudo] +
       W_period[pred_idx_all[has_prev_pseudo], step_i] *
         resid_k[has_prev_pseudo]
-    if (binary_outcome) {
-      aipw_pseudo <- pmax(pmin(aipw_pseudo, 1 - 1e-5), 1e-5)
-    }
     pseudo[pred_ids_all] <- aipw_pseudo
+    if (binary_outcome) {
+      pseudo_reg[pred_ids_all] <- pmax(
+        pmin(aipw_pseudo, 1 - 1e-5), 1e-5
+      )
+    } else {
+      pseudo_reg[pred_ids_all] <- aipw_pseudo
+    }
 
     if (step_i > 1L && binary_outcome) {
       warn_ice_boundary_saturation(preds_iv, current_time)
