@@ -1,13 +1,13 @@
 # causatr
 
 Unified causal effect estimation for methodological triangulation: g-computation
-(parametric g-formula + ICE), IPW (self-contained density-ratio engine), and matching (via MatchIt).
+(parametric g-formula + ICE), IPW (self-contained density-ratio engine), AIPW (doubly-robust), and matching (via MatchIt).
 Part of the [etverse](https://github.com/etverse) ecosystem.
 
 ## Guide files
 
 - `FEATURE_COVERAGE_MATRIX.md` — **single source of truth for "what works".** Every PR that changes a feature MUST update this file.
-- `PHASE_*.md` — per-phase implementation guides in the project root. Completed: 2–6, 8–14. Pending: 15–23 (design docs).
+- `PHASE_*.md` — per-phase implementation guides in the project root. Completed: 2–6, 8–15. In progress: 16 (point AIPW shipped, longitudinal pending). Pending: 17–23 (design docs).
 
 ## Project structure
 
@@ -17,7 +17,7 @@ This is an R package: `R/` (source), `tests/testthat/` (tests, `test-foo.R` mirr
 
 **Core API:** `causat.R` (main fitting), `contrast.R` (causal contrasts), `diagnose.R` (diagnostics).
 **Interventions:** `interventions.R` — `static()`, `shift()`, `scale_by()`, `threshold()`, `dynamic()`, `ipsi()`, `stochastic()`.
-**Estimation:** `gcomp.R`, `ice.R`, `ipw.R`, `longitudinal_ipw.R`, `matching.R`.
+**Estimation:** `gcomp.R`, `ice.R`, `ipw.R`, `aipw.R`, `longitudinal_ipw.R`, `matching.R`.
 **Inference:** `variance_if.R` (IF sandwich engine), `variance_bootstrap.R`.
 **Data:** `to_person_period.R`, `prepare_data.R`.
 **S3:** `print.R`, `summary.R`, `plot.R`, `coef.R`, `confint.R`, `tidy.R`, `knit_print.R`.

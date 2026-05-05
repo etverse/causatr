@@ -1,6 +1,6 @@
 # Phase 16 — Augmented IPW (AIPW, doubly-robust estimator)
 
-> **Status: PENDING** (design doc)
+> **Status: IN PROGRESS** — point AIPW shipped (chunks 16a–16j); longitudinal AIPW (16i), delicatessen cross-check (16k), and docs (16l) pending.
 >
 > **Depends on:** Phase 2 (point gcomp), Phase 4 (self-contained IPW), Phase 5 (ICE, for longitudinal), Phase 10 (longitudinal IPW, for longitudinal), Phase 14 (for IPCW composition)
 >
@@ -147,20 +147,20 @@ where $\tilde Y_{k+1}$ is the pseudo-outcome from the $(k+1)$-th AIPW step and $
 
 ## Chunks
 
-| Chunk | Scope | Depends on |
-|---|---|---|
-| 16a | `fit_aipw()`: validate that both `model_fn` and `propensity_model_fn` are supplied; fit outcome model via gcomp internals; fit propensity model via Phase 4 `fit_treatment_model()`; store both in `fit$details` | Phases 2, 4 |
-| 16b | `compute_aipw_contrast_point()`: AIPW functional for static binary ATE with sandwich variance; reuse `compute_ipw_if_self_contained_one()` extended to absorb outcome-model Channel 2 block | 16a |
-| 16c | Bootstrap variance for AIPW (refit both nuisances per replicate) | 16a |
-| 16d | DR test: deliberately misspecified outcome model, correct propensity — verify consistency to analytical truth on linear-Gaussian DGP | 16b |
-| 16e | DR test: correct outcome model, deliberately misspecified propensity — verify consistency | 16b |
-| 16f | Efficiency test: AIPW SE ≤ gcomp SE and AIPW SE ≤ IPW SE (both correct, large $n$) | 16b |
-| 16g | Extend AIPW to the full intervention set: continuous shift / scale_by, binary dynamic, IPSI; reject continuous static / threshold / continuous dynamic (same as IPW) | 16b |
-| 16h | Extend to ATT / ATC for static binary; verify against `WeightIt` + gcomp combination oracle | 16b |
-| 16i | Longitudinal AIPW (ICE-AIPW): sequential nuisance fits through the ICE backward loop, stacked sandwich with $K$ outcome blocks + $K$ propensity blocks + plug-in | Phase 5, Phase 10, 16b |
-| 16j | Categorical + count treatment extensions (compose with Phase 4's propensity-family dispatch) | 16b |
-| 16k | `delicatessen` external cross-check on a shared DGP | 16b, 16d, 16e |
-| 16l | Documentation, vignette, `CLAUDE.md` phase update, `FEATURE_COVERAGE_MATRIX.md` rows | 16a–16j |
+| Chunk | Scope | Depends on | Status |
+|---|---|---|---|
+| 16a | `fit_aipw()`: fit outcome model + propensity model, store both in `fit$details` | Phases 2, 4 | ✅ done |
+| 16b | `compute_aipw_contrast_point()`: AIPW functional for static binary ATE with sandwich variance | 16a | ✅ done |
+| 16c | Bootstrap variance for AIPW (refit both nuisances per replicate) | 16a | ✅ done |
+| 16d | DR test: misspecified outcome, correct propensity — verify consistency | 16b | ✅ done |
+| 16e | DR test: correct outcome, misspecified propensity — verify consistency | 16b | ✅ done |
+| 16f | Efficiency test: AIPW SE ≤ gcomp SE and AIPW SE ≤ IPW SE | 16b | ✅ done |
+| 16g | Full intervention set: shift / scale_by / dynamic / IPSI; rejections for static-on-continuous / threshold / stochastic | 16b | ✅ done |
+| 16h | ATT / ATC for static binary; effect modification (`by = "sex"`) | 16b | ✅ done |
+| 16i | Longitudinal AIPW (ICE-AIPW): sequential nuisance fits through the ICE backward loop | Phase 5, Phase 10, 16b | pending |
+| 16j | Categorical + count treatment extensions | 16b | ✅ done |
+| 16k | `delicatessen` external cross-check on a shared DGP | 16b, 16d, 16e | pending |
+| 16l | Documentation, vignette, `CLAUDE.md` phase update, `FEATURE_COVERAGE_MATRIX.md` rows | 16a–16j | pending |
 
 ## Invariants
 

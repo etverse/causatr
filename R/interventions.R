@@ -178,6 +178,7 @@ threshold <- function(lower = -Inf, upper = Inf) {
 #' Hall/CRC. Chapter 19 (dynamic treatment strategies).
 #'
 #' @examples
+#' \dontrun{
 #' # Point treatment: treat if CD4 count is below 200
 #' cd4_rule <- dynamic(\(data, trt) ifelse(data$cd4 < 200, 1, 0))
 #'
@@ -185,6 +186,7 @@ threshold <- function(lower = -Inf, upper = Inf) {
 #' # at time k (the whole panel is passed in one call; the time column
 #' # lets the rule dispatch per-row).
 #' adaptive <- dynamic(\(data, trt) as.integer(!is.na(data$L) & data$L > 0))
+#' }
 #'
 #' @seealso [static()], [shift()], [scale_by()], [threshold()], [ipsi()],
 #'   [stochastic()]
@@ -302,11 +304,13 @@ ipsi <- function(delta) {
 #' effects based on stochastic interventions. *Biometrics* 68:541--549.
 #'
 #' @examples
+#' \dontrun{
 #' # Binary treatment: covariate-dependent randomisation
 #' stochastic(\(data, trt) rbinom(nrow(data), 1, plogis(0.5 + 0.3 * data$L)))
 #'
 #' # Continuous treatment: additive random shift
 #' stochastic(\(data, trt) trt + rnorm(length(trt), mean = 0.5, sd = 0.25))
+#' }
 #'
 #' @seealso [static()], [shift()], [scale_by()], [threshold()], [dynamic()],
 #'   [ipsi()], [contrast()]

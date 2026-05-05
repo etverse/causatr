@@ -322,6 +322,43 @@ variance_bootstrap <- function(
           return(repl)
         }
 
+        if (estimator == "aipw") {
+          repl <- withCallingHandlers(
+            {
+              fit_b <- refit_aipw(fit, d_b, weights = w_b)
+              target_idx_b <- get_target_idx(
+                d_b,
+                treatment,
+                est,
+                subset,
+                subset_env = subset_env
+              )
+              aipw_point_b <- compute_aipw_contrast_point(
+                fit_b,
+                interventions,
+                target_idx_b
+              )
+              aipw_point_b$mu_hat
+            },
+            warning = function(w) {
+              if (inherits(w, "causatr_singular_bread")) {
+                invokeRestart("muffleWarning")
+              }
+              msg <- conditionMessage(w)
+              if (
+                grepl(
+                  "non-integer #successes in a binomial glm",
+                  msg,
+                  fixed = TRUE
+                )
+              ) {
+                invokeRestart("muffleWarning")
+              }
+            }
+          )
+          return(repl)
+        }
+
         # Demote only the specific warnings we expect to emit on
         # nearly every replicate and that would otherwise flood the
         # console: GLM "fitted probabilities numerically 0 or 1",
@@ -404,6 +441,8 @@ refit_model <- function(fit, d_b, weights = NULL) {
     refit_gcomp(fit, d_b, weights = weights)
   } else if (fit$estimator == "ipw") {
     refit_ipw(fit, d_b, weights = weights)
+  } else if (fit$estimator == "aipw") {
+    refit_aipw(fit, d_b, weights = weights)
   } else if (fit$estimator == "matching") {
     refit_matching(fit, d_b, weights = weights)
   } else {
@@ -518,6 +557,46 @@ refit_ipw <- function(fit, d_b, weights = NULL) {
     args$time <- fit$time
   }
   fit_b <- do.call(fit_ipw, c(args, fit$details$dots))
+  fit_b$call <- fit$call
+  fit_b
+}
+
+#' Refit both AIPW nuisance models on a bootstrap sample
+#'
+#' @description
+#' Replays `fit_aipw()` on the resampled data, refitting both the
+#' outcome model \eqn{E[Y \mid A, L]} and the treatment density
+#' \eqn{f(A \mid L)}. Returns a fresh `causatr_fit` that
+#' `compute_aipw_contrast_point()` consumes.
+#'
+#' @param fit The original `causatr_fit` from `fit_aipw()`.
+#' @param d_b Resampled `data.table`.
+#' @param weights Resampled external weight vector, or `NULL`.
+#'
+#' @return A fresh `causatr_fit` object for the bootstrap replicate.
+#'
+#' @noRd
+refit_aipw <- function(fit, d_b, weights = NULL) {
+  if (isTRUE(fit$details$ipcw)) {
+    ipcw_w_b <- refit_censoring_weights(fit, d_b)
+    weights <- if (is.null(weights)) ipcw_w_b else weights * ipcw_w_b
+  }
+
+  args <- list(
+    data = d_b,
+    outcome = fit$outcome,
+    treatment = fit$treatment,
+    confounders = fit$confounders,
+    family = fit$family,
+    estimand = fit$estimand,
+    censoring = fit$censoring,
+    weights = weights,
+    model_fn = fit$details$model_fn,
+    propensity_model_fn = fit$details$propensity_model_fn,
+    propensity_family = fit$details$propensity_family,
+    call = NULL
+  )
+  fit_b <- do.call(fit_aipw_point, c(args, fit$details$dots))
   fit_b$call <- fit$call
   fit_b
 }

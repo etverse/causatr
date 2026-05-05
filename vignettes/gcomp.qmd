@@ -1145,7 +1145,7 @@ Assign quitting with a probability that depends on baseline smoking intensity
 ```{r}
 set.seed(42)
 res_stoch <- contrast(
-  fit,
+  fit_gc,
   interventions = list(
     random_quit = stochastic(
       \(data, trt) rbinom(nrow(data), 1,

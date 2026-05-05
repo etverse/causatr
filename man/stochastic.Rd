@@ -34,11 +34,13 @@ of \code{n_mc} draws, the sampler assigns counterfactual treatments, the
 outcome model predicts, and the predictions are averaged across draws.
 }
 \examples{
+\dontrun{
 # Binary treatment: covariate-dependent randomisation
 stochastic(\(data, trt) rbinom(nrow(data), 1, plogis(0.5 + 0.3 * data$L)))
 
 # Continuous treatment: additive random shift
 stochastic(\(data, trt) trt + rnorm(length(trt), mean = 0.5, sd = 0.25))
+}
 
 }
 \references{

@@ -10,7 +10,7 @@ causat(
   treatment,
   confounders,
   confounders_tv = NULL,
-  estimator = c("gcomp", "ipw", "matching"),
+  estimator = c("gcomp", "ipw", "aipw", "matching"),
   family = "gaussian",
   estimand = c("ATE", "ATT", "ATC"),
   id = NULL,

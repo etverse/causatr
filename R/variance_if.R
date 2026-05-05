@@ -851,6 +851,9 @@ variance_if <- function(
   ipw_bundles = NULL,
   ipw_fit_idx = NULL,
   ipw_n_total = NULL,
+  aipw_bundles = NULL,
+  aipw_fit_idx = NULL,
+  aipw_n_total = NULL,
   cluster_vec = NULL
 ) {
   if (fit$type == "longitudinal") {
@@ -905,6 +908,18 @@ variance_if <- function(
       mu_hat,
       ipw_fit_idx,
       ipw_n_total,
+      cluster_vec = cluster_vec
+    ))
+  }
+
+  if (estimator == "aipw") {
+    return(variance_if_aipw(
+      fit,
+      aipw_bundles,
+      target_idx,
+      mu_hat,
+      aipw_fit_idx,
+      aipw_n_total,
       cluster_vec = cluster_vec
     ))
   }
@@ -2753,4 +2768,172 @@ compute_ipw_if_self_contained_long_one <- function(
   # i.e. the propensity correction is SUBTRACTED. Same sign convention
   # as the univariate / multivariate IPW primitives.
   Ch1_i + msm_correction_id - total_prop_correction_id
+}
+
+
+#' AIPW branch of variance_if()
+#'
+#' @description
+#' Computes the sandwich variance for the AIPW estimator via a
+#' three-block stacked estimating-equation system:
+#' 1. Outcome model score equations (defines \eqn{\beta})
+#' 2. Propensity model score equations (defines \eqn{\alpha})
+#' 3. AIPW plug-in equation (defines \eqn{\mu})
+#'
+#' The per-individual IF for \eqn{\hat\mu(g)} is:
+#' \deqn{\mathrm{IF}_i = \mathrm{Ch1}_i +
+#'   \mathrm{outcome\_correction}_i -
+#'   \mathrm{propensity\_correction}_i}
+#'
+#' where Ch1 is the direct AIPW functional evaluated at individual i
+#' minus the estimate, and the corrections propagate nuisance-model
+#' parameter uncertainty through the plug-in functional.
+#'
+#' @noRd
+variance_if_aipw <- function(
+  fit,
+  aipw_bundles,
+  target_idx,
+  mu_hat,
+  aipw_fit_idx,
+  aipw_n_total,
+  cluster_vec = NULL
+) {
+  data <- fit$data
+  outcome_model <- fit$model
+  tm <- fit$details$treatment_model
+  propensity_model <- tm$model
+  fit_rows <- fit$details$fit_rows
+  fit_data <- data[fit_rows]
+  ext_w <- fit$details$weights
+  estimand <- fit$estimand
+  int_names <- names(aipw_bundles)
+  n_sub <- sum(fit_rows)
+  n_total <- aipw_n_total
+
+  # Target population within fit rows
+
+  target_fit <- target_idx[fit_rows]
+  n_target <- sum(target_fit)
+
+  # External weights on fit rows
+  ext_w_fit <- if (!is.null(ext_w)) ext_w[fit_rows] else NULL
+  if (!is.null(ext_w_fit)) {
+    w_target_vec <- ext_w_fit * as.numeric(target_fit)
+    sum_w_target <- sum(w_target_vec[target_fit])
+  } else {
+    w_target_vec <- as.numeric(target_fit)
+    sum_w_target <- n_target
+  }
+
+  # Observed-treatment predictions and residuals (shared)
+  preds_obs <- stats::predict(
+    outcome_model,
+    newdata = fit_data,
+    type = "response"
+  )
+  y_obs <- fit_data[[fit$outcome]]
+  resid_obs <- y_obs - preds_obs
+
+  # Outcome model prep (shared across interventions)
+  outcome_prep <- prepare_model_if(outcome_model, aipw_fit_idx, n_total)
+
+  # Propensity model prep
+  fit_idx_ps <- which(tm$fit_rows)
+  if (inherits(propensity_model, "multinom")) {
+    prop_prep <- prepare_model_if_multinom(
+      propensity_model,
+      fit_idx_ps,
+      n_total
+    )
+  } else {
+    prop_prep <- prepare_model_if(propensity_model, fit_idx_ps, n_total)
+  }
+
+  # Outcome model family objects for Jacobian computation
+  fam <- outcome_model$family
+  beta_hat <- stats::coef(outcome_model)
+  X_fit <- outcome_prep$X_fit
+
+  IF_list <- lapply(int_names, function(nm) {
+    b <- aipw_bundles[[nm]]
+    preds_g <- b$preds_g
+    w_iv <- b$w_iv
+    mu_hat_j <- mu_hat[[nm]]
+
+    # --- Channel 1: direct contribution ------------------------------------
+    # AIPW functional at individual i minus the estimate, scaled for
+    # Hajek-style aggregation over the target population.
+    aipw_contrib <- preds_g + w_iv * resid_obs
+    Ch1_i <- n_sub * (w_target_vec / sum_w_target) * (aipw_contrib - mu_hat_j)
+    Ch1_i[!target_fit] <- 0
+
+    # --- Channel 2a: outcome model correction ------------------------------
+    # J_beta = d mu_hat / d beta. Two terms:
+    #   (a) d/d_beta mean_target(preds_g) = (1/sum_w) sum_target w_i X*_i mu'*_i
+    #   (b) d/d_beta mean_target(W_i * (Y_i - preds_obs_i))
+    #       = -(1/sum_w) sum_target w_i W_i X_obs_i mu'_obs_i
+    # J_beta = (a) + (b)
+
+    # Counterfactual design matrix and link derivatives
+    data_a <- b$data_a
+    X_star <- iv_design_matrix(outcome_model, data_a)
+    eta_star <- as.numeric(X_star %*% beta_hat)
+    mu_eta_star <- fam$mu.eta(eta_star)
+
+    # Observed design matrix and link derivatives
+    eta_obs <- as.numeric(X_fit %*% beta_hat)
+    mu_eta_obs <- fam$mu.eta(eta_obs)
+
+    # Term (a): gradient from counterfactual predictions
+    grad_a <- as.numeric(
+      crossprod(X_star, w_target_vec * mu_eta_star)
+    ) /
+      sum_w_target
+
+    # Term (b): gradient from augmentation residual term
+    grad_b <- -as.numeric(
+      crossprod(X_fit, w_target_vec * w_iv * mu_eta_obs)
+    ) /
+      sum_w_target
+
+    J_beta <- grad_a + grad_b
+    outcome_res <- apply_model_correction(outcome_prep, J_beta)
+
+    # --- Channel 2b: propensity model correction ---------------------------
+    # J_alpha = d mu_hat / d alpha. Only the augmentation term
+    # (1/sum_w_target) * sum_target w_i * W_i(alpha) * resid_i
+    # depends on alpha (through W_i). Use numDeriv::jacobian.
+    weight_fn <- make_weight_fn(
+      tm,
+      fit_data,
+      b$intervention,
+      estimand = estimand
+    )
+
+    aug_mean <- function(alpha) {
+      w_alpha <- weight_fn(alpha)
+      sum(w_target_vec * w_alpha * resid_obs) / sum_w_target
+    }
+
+    alpha_hat_raw <- stats::coef(propensity_model)
+    if (!is.null(dim(alpha_hat_raw))) {
+      alpha_hat <- as.vector(t(alpha_hat_raw))
+    } else {
+      alpha_hat <- alpha_hat_raw
+    }
+
+    # d aug_mean / d alpha (row vector, length p_alpha)
+    J_alpha <- as.numeric(numDeriv::jacobian(aug_mean, x = alpha_hat))
+
+    prop_res <- apply_model_correction(prop_prep, J_alpha)
+
+    # --- Assembly ----------------------------------------------------------
+    # Block-lower-triangular M-estimation:
+    #   IF_i = Ch1_i + outcome_correction_i - propensity_correction_i
+    Ch1_i + outcome_res$correction - prop_res$correction
+  })
+  names(IF_list) <- int_names
+
+  vcov_from_if(IF_list, n_sub, int_names, cluster = cluster_vec)
 }

@@ -50,6 +50,7 @@ It helps you reason through the components of the target trial
 (Hernán & Robins 2025, Ch. 22) before writing the analysis code.
 }
 \examples{
+\dontrun{
 target_trial(
   eligibility = "Adults aged 25-74 who smoke >= 5 cig/day",
   treatment_strategy = "Quit smoking vs. continue smoking",
@@ -57,6 +58,7 @@ target_trial(
   outcome = "Weight change in kg at end of follow-up",
   causal_contrast = "ATE: E[Y(quit)] - E[Y(continue)]"
 )
+}
 
 }
 \seealso{

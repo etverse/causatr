@@ -181,7 +181,9 @@ check_estimand_compat <- function(
   # weights doesn't give you E[Y^a]. G-comp doesn't have this
   # problem: the outcome model is estimand-agnostic, and the estimand
   # only affects which rows we average predictions over.
-  if (fit_estimator %in% c("ipw", "matching") && estimand != fit_estimand) {
+  if (
+    fit_estimator %in% c("ipw", "aipw", "matching") && estimand != fit_estimand
+  ) {
     rlang::abort(
       paste0(
         "For estimator = '",
@@ -478,12 +480,23 @@ check_causat_inputs <- function(
     )
   }
 
+  if (type == "longitudinal" && estimator == "aipw") {
+    rlang::abort(
+      c(
+        "Longitudinal AIPW (ICE-AIPW) is not yet implemented.",
+        i = "Use `estimator = 'gcomp'` (ICE) or `estimator = 'ipw'` (longitudinal IPW) for now."
+      ),
+      class = "causatr_aipw_longitudinal_pending",
+      call = call
+    )
+  }
+
   # Matching is binary-only and has no joint analogue; multivariate
   # matching stays rejected. IPW handles multivariate via sequential
   # factorisation (`fit_treatment_models()` + product density-ratio
   # weights); per-component family / intervention compatibility is
   # checked downstream by the multivariate weight engine.
-  if (length(treatment) > 1L && estimator == "matching") {
+  if (length(treatment) > 1L && estimator %in% c("matching", "aipw")) {
     rlang::abort(
       paste0(
         "Multivariate treatments are not supported for estimator = '",

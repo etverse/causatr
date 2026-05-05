@@ -581,7 +581,28 @@ Scalar-outcome IPCW for MAR censoring: internal censoring model, stabilized IPCW
 | Ordinal outcomes | → Phase 23 | — |
 
 ### Phase 16 — AIPW / doubly-robust estimator
-Composes Phase 2 gcomp + Phase 4 IPW into the classical analytical doubly-robust estimator: $\hat\psi_{\mathrm{AIPW}}(a) = E[\hat{m}(a, L)] + E[W \cdot (Y - \hat{m}(A, L))]$. Stacked EE sandwich (outcome block + propensity block + plug-in); distinct from `lmtp` (TMLE/SDR with ML + cross-fitting). Double-robustness + efficiency tests; ICE-AIPW longitudinal extension (Bang & Robins 2005). All ❌.
+Composes Phase 2 gcomp + Phase 4 IPW into the classical analytical doubly-robust estimator: $\hat\psi_{\mathrm{AIPW}}(a) = E[\hat{m}(a, L)] + E[W \cdot (Y - \hat{m}(A, L))]$. Stacked EE sandwich (outcome block + propensity block + plug-in); distinct from `lmtp` (TMLE/SDR with ML + cross-fitting). Double-robustness + efficiency tests; ICE-AIPW longitudinal extension (Bang & Robins 2005).
+
+| Treatment | Outcome | Intervention | Estimand | Contrast | Variance | Status | Test file |
+|---|---|---|---|---|---|---|---|
+| binary | gaussian | static | ATE | diff | sandwich | ✅ | test-aipw.R |
+| binary | gaussian | static | ATE | diff | bootstrap | ✅ | test-aipw.R |
+| binary | gaussian | static | ATT | diff | sandwich | ✅ | test-aipw.R |
+| binary | gaussian | static | ATC | diff | sandwich | ✅ | test-aipw.R |
+| binary | gaussian | static | ATE + EM (by=sex) | diff | sandwich | ✅ | test-aipw.R |
+| binary | binomial | static | ATE | diff/ratio/OR | sandwich | ✅ | test-aipw.R |
+| binary | gaussian | dynamic | ATE | diff | sandwich | ✅ | test-aipw.R |
+| binary | gaussian | ipsi(δ) | ATE | diff | sandwich | ✅ | test-aipw.R |
+| continuous | gaussian | shift | ATE | diff | sandwich | ✅ | test-aipw.R |
+| continuous | gaussian | scale_by | ATE | diff | sandwich | ✅ | test-aipw.R |
+| categorical | gaussian | static | ATE | diff | sandwich | ✅ | test-aipw.R |
+| count (pois) | gaussian | shift | ATE | diff | sandwich | ✅ | test-aipw.R |
+| binary | gaussian | DR: wrong outcome | ATE | diff | sandwich | ✅ | test-aipw.R |
+| binary | gaussian | DR: wrong propensity | ATE | diff | sandwich | ✅ | test-aipw.R |
+| binary | gaussian | efficiency: SE ≤ gcomp & IPW | ATE | diff | sandwich | ✅ | test-aipw.R |
+| any | any | longitudinal (ICE-AIPW) | ATE | diff | sandwich | ❌ (chunk 16i) | — |
+
+**Rejections (same as IPW):** static/threshold/dynamic on continuous → Dirac rejection ✅; stochastic → rejected ✅; multivariate → deferred ✅.
 
 ### Phase 17 — Transportability / Generalizability
 Sampling model `P(S=1 | L)` + sampling-odds weights multiply into IPW Hájek MSM; gcomp / IPW / AIPW transport paths; stacked EE extends with sampling-model block. References: Dahabreh et al. 2020; Westreich et al. 2017. Cross-check against `transport` / `transported` R packages. Survival + transport composition subsection. All ❌.

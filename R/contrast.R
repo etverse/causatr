@@ -903,6 +903,51 @@ compute_contrast <- function(
       boot_t <- boot_res$boot_t
       boot_info <- boot_res$boot_info
     }
+  } else if (fit$estimator == "aipw") {
+    # Point-treatment AIPW. Combines the outcome-model predictions
+    # (g-comp piece) with density-ratio weighted residuals (IPW
+    # augmentation). Both nuisance models were fit at causat() time;
+    # the contrast assembles the doubly-robust functional per
+    # intervention.
+    target_idx <- get_target_idx(data, fit$treatment, est, subset, subset_env)
+    n_target <- sum(target_idx)
+    if (n_target == 0L) {
+      rlang::abort(
+        "compute_contrast(): target population is empty.",
+        class = "causatr_empty_target"
+      )
+    }
+
+    aipw_point <- compute_aipw_contrast_point(fit, interventions, target_idx)
+    mu_hat <- aipw_point$mu_hat
+
+    boot_t <- NULL
+    boot_info <- NULL
+    if (ci_method == "sandwich") {
+      vcov_mat <- variance_if(
+        fit,
+        target_idx = target_idx,
+        mu_hat = mu_hat,
+        aipw_bundles = aipw_point$bundles,
+        aipw_fit_idx = aipw_point$fit_idx,
+        aipw_n_total = aipw_point$n_total
+      )
+    } else {
+      boot_res <- variance_bootstrap(
+        fit,
+        interventions,
+        n_boot,
+        target_idx,
+        est,
+        subset,
+        parallel,
+        ncpus,
+        subset_env = subset_env
+      )
+      vcov_mat <- boot_res$vcov
+      boot_t <- boot_res$boot_t
+      boot_info <- boot_res$boot_info
+    }
   } else {
     # -- Point-treatment g-computation / matching.
     # Single outcome model, predict once per intervention, average

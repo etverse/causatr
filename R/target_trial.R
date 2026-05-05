@@ -26,6 +26,7 @@
 #' @return A `causatr_target_trial` object (S3 list with a print method).
 #'
 #' @examples
+#' \dontrun{
 #' target_trial(
 #'   eligibility = "Adults aged 25-74 who smoke >= 5 cig/day",
 #'   treatment_strategy = "Quit smoking vs. continue smoking",
@@ -33,6 +34,7 @@
 #'   outcome = "Weight change in kg at end of follow-up",
 #'   causal_contrast = "ATE: E[Y(quit)] - E[Y(continue)]"
 #' )
+#' }
 #'
 #' @seealso [causat()], [contrast()]
 #' @export

@@ -34,6 +34,7 @@ use the materialised lag columns (\code{data$lag1_A}, \code{data$lag1_L}, ...)
 that \code{prepare_data()} built from \code{history}.
 }
 \examples{
+\dontrun{
 # Point treatment: treat if CD4 count is below 200
 cd4_rule <- dynamic(\(data, trt) ifelse(data$cd4 < 200, 1, 0))
 
@@ -41,6 +42,7 @@ cd4_rule <- dynamic(\(data, trt) ifelse(data$cd4 < 200, 1, 0))
 # at time k (the whole panel is passed in one call; the time column
 # lets the rule dispatch per-row).
 adaptive <- dynamic(\(data, trt) as.integer(!is.na(data$L) & data$L > 0))
+}
 
 }
 \references{
