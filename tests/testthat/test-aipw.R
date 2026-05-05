@@ -1387,3 +1387,200 @@ test_that("longitudinal AIPW: lmtp cross-check (binary outcome)", {
   expect_gt(se_ratio, 0.15)
   expect_lt(se_ratio, 5.0)
 })
+
+
+# --- Plan gap tests (added post-16i) -----------------------------------
+
+test_that("longitudinal AIPW DR caveat: sandwich SE under misspecified outcome", {
+  d <- make_linear_scm(n = 3000, n_times = 2, seed = 70)
+  # Misspecify outcome by dropping TV confounders
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    estimator = "aipw",
+    family = "gaussian",
+    id = "id",
+    time = "time"
+  )
+  res_sw <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    ci_method = "sandwich"
+  )
+  res_bs <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    ci_method = "bootstrap",
+    n_boot = 50
+  )
+  se_sw <- res_sw$contrasts$se[1]
+  se_bs <- res_bs$contrasts$se[1]
+  # Both SEs must be finite and positive. Under misspecification the
+  # sandwich SE is NOT DR-consistent (Rotnitzky et al. 2017), so it may
+  # diverge from bootstrap — we only check finiteness here.
+  expect_true(is.finite(se_sw) && se_sw > 0)
+  expect_true(is.finite(se_bs) && se_bs > 0)
+  # Point estimate should still recover truth (DR property)
+  expect_equal(res_sw$contrasts$estimate[1], 5, tolerance = 0.6)
+})
+
+test_that("longitudinal AIPW: EM agreement with long-IPW", {
+  d <- make_em_ice_scm(n = 2500, seed = 71)
+  ivs <- list(a1 = static(1), a0 = static(0))
+  by_var <- "sex"
+
+  fit_aipw <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L0 + sex,
+    confounders_tv = ~L,
+    estimator = "aipw",
+    family = "gaussian",
+    id = "id",
+    time = "time"
+  )
+  fit_ipw <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L0 + sex,
+    confounders_tv = ~L,
+    estimator = "ipw",
+    family = "gaussian",
+    id = "id",
+    time = "time"
+  )
+
+  res_aipw <- contrast(
+    fit_aipw,
+    interventions = ivs,
+    reference = "a0",
+    by = by_var,
+    ci_method = "sandwich"
+  )
+  res_ipw <- contrast(
+    fit_ipw,
+    interventions = ivs,
+    reference = "a0",
+    by = by_var,
+    ci_method = "sandwich"
+  )
+
+  for (sx in c("0", "1")) {
+    aipw_est <- res_aipw$contrasts$estimate[
+      res_aipw$contrasts$by == sx
+    ]
+    ipw_est <- res_ipw$contrasts$estimate[
+      res_ipw$contrasts$by == sx
+    ]
+    expect_lt(abs(aipw_est - ipw_est), 2.0)
+  }
+})
+
+test_that("longitudinal AIPW: 3-period sandwich vs bootstrap SE agreement", {
+  d <- make_linear_scm(n = 5000, n_times = 3, seed = 72)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    estimator = "aipw",
+    family = "gaussian",
+    id = "id",
+    time = "time"
+  )
+  ivs <- list(a1 = static(1), a0 = static(0))
+  res_sw <- contrast(
+    fit,
+    interventions = ivs,
+    reference = "a0",
+    ci_method = "sandwich"
+  )
+  res_bs <- contrast(
+    fit,
+    interventions = ivs,
+    reference = "a0",
+    ci_method = "bootstrap",
+    n_boot = 100
+  )
+  se_sw <- res_sw$contrasts$se[1]
+  se_bs <- res_bs$contrasts$se[1]
+  expect_true(is.finite(se_sw) && se_sw > 0)
+  expect_true(is.finite(se_bs) && se_bs > 0)
+  se_ratio <- se_sw / se_bs
+  expect_gt(se_ratio, 0.5)
+  expect_lt(se_ratio, 2.0)
+})
+
+test_that("longitudinal AIPW: near-positivity stress test", {
+  set.seed(73)
+  n <- 2000
+  id <- rep(1:n, each = 2)
+  time <- rep(0:1, times = n)
+  L0 <- rnorm(n)[id]
+  # Heavy confounding: propensity near 0 or 1 for most units
+  A <- rbinom(2 * n, 1, plogis(2.0 + 2.5 * L0))
+  L <- rnorm(2 * n, mean = 0.5 * A)
+  Y <- rep(NA_real_, 2 * n)
+  Y[time == 1] <- 2 + 3 * A[time == 1] + 1.5 * L0[time == 1] + rnorm(n)
+  d <- data.table::data.table(
+    Y = Y,
+    A = A,
+    L0 = L0,
+    L = L,
+    id = id,
+    time = time
+  )
+
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    estimator = "aipw",
+    family = "gaussian",
+    id = "id",
+    time = "time"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    ci_method = "sandwich"
+  )
+  ate <- res$contrasts$estimate[1]
+  se <- res$contrasts$se[1]
+  expect_true(is.finite(ate))
+  expect_true(is.finite(se) && se > 0)
+  expect_equal(ate, 5, tolerance = 2.0)
+})
+
+test_that("longitudinal AIPW: IPSI rejection", {
+  d <- make_linear_scm(n = 300, n_times = 2, seed = 74)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    estimator = "aipw",
+    family = "gaussian",
+    id = "id",
+    time = "time"
+  )
+  expect_error(
+    contrast(
+      fit,
+      interventions = list(shifted = ipsi(0.5)),
+      ci_method = "sandwich"
+    ),
+    class = "causatr_longitudinal_ipsi_pending"
+  )
+})
