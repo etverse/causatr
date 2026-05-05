@@ -725,7 +725,8 @@ ice_aipw_iterate <- function(fit, intervention) {
   pseudo[pred_ids] <- preds_iv + W_period[pred_idx, n_times] * resid_k
   if (binary_outcome) {
     pseudo_reg[pred_ids] <- pmax(
-      pmin(pseudo[pred_ids], 1 - 1e-5), 1e-5
+      pmin(pseudo[pred_ids], 1 - 1e-5),
+      1e-5
     )
   } else {
     pseudo_reg[pred_ids] <- pseudo[pred_ids]
@@ -821,7 +822,8 @@ ice_aipw_iterate <- function(fit, intervention) {
     pseudo[pred_ids_all] <- aipw_pseudo
     if (binary_outcome) {
       pseudo_reg[pred_ids_all] <- pmax(
-        pmin(aipw_pseudo, 1 - 1e-5), 1e-5
+        pmin(aipw_pseudo, 1 - 1e-5),
+        1e-5
       )
     } else {
       pseudo_reg[pred_ids_all] <- aipw_pseudo
