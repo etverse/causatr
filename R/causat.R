@@ -78,8 +78,9 @@
 #'   `stats::glm`. Ignored when `ipcw = FALSE`.
 #' @param history Positive integer or `Inf`. Markov order for longitudinal
 #'   models: how many lagged time points of treatment and time-varying
-#'   confounders to include in each ICE outcome model. Default `1` (one lag).
-#'   `Inf` includes the full history. Ignored for point treatments.
+#'   confounders to include in each ICE outcome model. Default `Inf`
+#'   (full history). Set to a finite integer for a Markov restriction
+#'   (e.g. `1` for first-order). Ignored for point treatments.
 #' @param numerator A one-sided formula or `NULL`. Numerator formula for
 #'   stabilized IPW weights in longitudinal models. Defaults to baseline
 #'   confounders only (no time-varying confounders), which gives the standard
@@ -327,7 +328,7 @@
 #'   confounders_tv = ~ CD4 + viral_load,
 #'   id = "id",
 #'   time = "time",
-#'   history = 1L
+#'   history = Inf
 #' )
 #'
 #' # Multivariate treatment
@@ -374,7 +375,7 @@ causat <- function(
   censoring = NULL,
   ipcw = FALSE,
   censoring_model_fn = NULL,
-  history = 1L,
+  history = Inf,
   numerator = NULL,
   weights = NULL,
   cluster = NULL,
