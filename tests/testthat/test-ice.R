@@ -685,3 +685,347 @@ test_that("ICE predictions saturated at {0,1} fire a classed warning", {
   expect_true(saw)
   expect_match(msg, "saturated at \\{0, 1\\}")
 })
+
+
+# --- Formula builder: transformed TV confounders ----------------------------
+
+test_that("substitute_vars_in_term() handles function calls", {
+  expect_equal(
+    substitute_vars_in_term("ns(L, 3)", list(L = "lag1_L")),
+    "ns(lag1_L, 3)"
+  )
+  expect_equal(
+    substitute_vars_in_term("log(L + 1)", list(L = "lag2_L")),
+    "log(lag2_L + 1)"
+  )
+})
+
+test_that("substitute_vars_in_term() passes through bare names", {
+  expect_equal(
+    substitute_vars_in_term("L", list(L = "lag1_L")),
+    "lag1_L"
+  )
+})
+
+test_that("is_bare_term() distinguishes bare vs transformed", {
+  expect_true(is_bare_term("L"))
+  expect_true(is_bare_term("my_var"))
+  expect_false(is_bare_term("ns(L, 3)"))
+  expect_false(is_bare_term("log(L + 1)"))
+})
+
+test_that("term_vars() extracts variable names from terms", {
+  expect_equal(term_vars("L"), "L")
+  expect_equal(term_vars("ns(L, 3)"), "L")
+  expect_setequal(term_vars("log(L + 1)"), "L")
+})
+
+# --- Self-consistency: transformed TV confounders on a linear DGP -----------
+#
+# On the linear DGP (make_tv_only_scm, true ATE = 5), all TV confounder
+# specs should recover the same ATE because the true model is linear.
+# Any correctly-expanding spec (bare, poly, ns, log) that nests the
+# truth should agree within Monte Carlo noise.
+
+test_that("ICE self-consistency: bare vs poly() vs ns() vs I()", {
+  long <- make_tv_only_scm(n = 5000, seed = 200)
+
+  run_ice <- function(tv_formula) {
+    fit <- causat(
+      long,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~1,
+      confounders_tv = tv_formula,
+      id = "id",
+      time = "time"
+    )
+    res <- contrast(
+      fit,
+      interventions = list(always = static(1), never = static(0)),
+      reference = "never",
+      ci_method = "sandwich"
+    )
+    res$contrasts$estimate[1]
+  }
+
+  ate_bare <- run_ice(~L)
+  ate_poly <- run_ice(~ poly(L, 2))
+  ate_ns <- run_ice(~ splines::ns(L, df = 3))
+  ate_sq <- run_ice(~ L + I(L^2))
+
+  # All should recover ATE ≈ 5 (SE ≈ 0.05 at n=5000)
+  expect_equal(ate_bare, 5, tolerance = 0.15)
+  expect_equal(ate_poly, 5, tolerance = 0.15)
+  expect_equal(ate_ns, 5, tolerance = 0.15)
+  expect_equal(ate_sq, 5, tolerance = 0.15)
+
+  # Same data + all specs nest the linear truth → near-identical
+  expect_lt(abs(ate_bare - ate_poly), 0.1)
+  expect_lt(abs(ate_bare - ate_ns), 0.1)
+  expect_lt(abs(ate_bare - ate_sq), 0.1)
+})
+
+
+test_that("ICE self-consistency: log transform on linear DGP", {
+  # L is centered around 0, so shift it positive for log()
+  set.seed(201)
+  n <- 4000
+  L0 <- stats::rnorm(n, mean = 5, sd = 1)
+  A0 <- stats::rbinom(n, 1, stats::plogis(0.5 * (L0 - 5)))
+  L1 <- A0 + 0.5 * L0 + stats::rnorm(n, 0, 0.5)
+  A1 <- stats::rbinom(n, 1, stats::plogis(0.3 * (L1 - 5) + 0.2 * A0))
+  Y <- 10 + 2 * (A0 + A1) + L0 + L1 + stats::rnorm(n)
+  long <- rbind(
+    data.frame(id = seq_len(n), time = 0L, A = A0, L = L0, Y = NA_real_),
+    data.frame(id = seq_len(n), time = 1L, A = A1, L = L1, Y = Y)
+  )
+
+  run_ice <- function(tv_formula) {
+    fit <- causat(
+      long,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~1,
+      confounders_tv = tv_formula,
+      id = "id",
+      time = "time"
+    )
+    contrast(
+      fit,
+      interventions = list(always = static(1), never = static(0)),
+      reference = "never",
+      ci_method = "sandwich"
+    )$contrasts$estimate[1]
+  }
+
+  ate_bare <- run_ice(~L)
+  ate_log <- run_ice(~ log(L))
+
+  # Both recover ATE ≈ 5 (DGP is linear in L; log(L) approximates
+  # linearity well when L is far from 0)
+  expect_equal(ate_bare, 5, tolerance = 0.15)
+  expect_equal(ate_log, 5, tolerance = 0.2)
+  expect_lt(abs(ate_bare - ate_log), 0.15)
+})
+
+
+# --- Nonlinear DGP for spline superiority -----------------------------------
+#
+# DGP where the outcome depends on L through a nonlinear function.
+# A correctly-specified spline should do better than bare L.
+#
+#   L_0 ~ N(0, 1)
+#   A_0 ~ Bernoulli(expit(0.3 * L_0))
+#   L_1 = 0.5 * A_0 + 0.3 * L_0 + e
+#   A_1 ~ Bernoulli(expit(0.3 * L_1 + 0.2 * A_0))
+#   Y   = 10 + 2 * (A_0 + A_1) + sin(2 * L_0) + sin(2 * L_1) + e
+#
+# True ATE (always vs never) ≈ 5 (since E[sin(2*L)] doesn't change
+# under treatment, the nonlinearity is purely in the confounders, but
+# correct adjustment still requires capturing the nonlinear L→Y path).
+
+make_nonlinear_scm <- function(n = 5000, seed = 42) {
+  set.seed(seed)
+  L0 <- stats::rnorm(n)
+  A0 <- stats::rbinom(n, 1, stats::plogis(0.3 * L0))
+  L1 <- 0.5 * A0 + 0.3 * L0 + stats::rnorm(n, 0, 0.5)
+  A1 <- stats::rbinom(n, 1, stats::plogis(0.3 * L1 + 0.2 * A0))
+  Y <- 10 + 2 * (A0 + A1) + sin(2 * L0) + sin(2 * L1) + stats::rnorm(n)
+
+  rbind(
+    data.frame(id = seq_len(n), time = 0L, A = A0, L = L0, Y = NA_real_),
+    data.frame(id = seq_len(n), time = 1L, A = A1, L = L1, Y = Y)
+  )
+}
+
+
+test_that("ICE with ns() handles nonlinear DGP better than bare L", {
+  long <- make_nonlinear_scm(n = 5000, seed = 300)
+
+  run_ice <- function(tv_formula) {
+    fit <- causat(
+      long,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~1,
+      confounders_tv = tv_formula,
+      id = "id",
+      time = "time"
+    )
+    contrast(
+      fit,
+      interventions = list(always = static(1), never = static(0)),
+      reference = "never",
+      ci_method = "sandwich"
+    )$contrasts$estimate[1]
+  }
+
+  ate_bare <- run_ice(~L)
+  ate_ns <- run_ice(~ splines::ns(L, df = 5))
+
+  # ns() captures the sin() nonlinearity → near truth
+  expect_equal(ate_ns, 5, tolerance = 0.15)
+  # Bare L is misspecified (omits sin() curvature) but residual
+  # confounding bias is modest since treatment effect is additive
+  expect_equal(ate_bare, 5, tolerance = 0.3)
+})
+
+
+# --- lmtp cross-check: ICE with ns() vs lmtp_sdr ---------------------------
+#
+# On the nonlinear DGP, compare causatr ICE with splines against
+# lmtp::lmtp_sdr() with SL.glm. Both should be close to truth and
+# to each other.
+
+test_that("ICE with ns() agrees with lmtp_sdr on nonlinear DGP", {
+  skip_if_not_installed("lmtp")
+
+  long <- make_nonlinear_scm(n = 5000, seed = 400)
+
+  # --- causatr: ICE with natural splines ---
+  fit <- causat(
+    long,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~1,
+    confounders_tv = ~ splines::ns(L, df = 4),
+    id = "id",
+    time = "time"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(always = static(1), never = static(0)),
+    reference = "never",
+    ci_method = "sandwich"
+  )
+  ate_causatr <- res$contrasts$estimate[1]
+
+  # --- lmtp: reshape to wide ---
+  d_wide <- reshape(
+    long,
+    idvar = "id",
+    timevar = "time",
+    direction = "wide",
+    v.names = c("A", "L", "Y"),
+    sep = "_"
+  )
+  d_clean <- d_wide[, c("id", "A_0", "A_1", "L_0", "L_1", "Y_1")]
+
+  run_lmtp <- function(shift_fn) {
+    tryCatch(
+      suppressWarnings(suppressMessages(lmtp::lmtp_sdr(
+        data = d_clean,
+        trt = c("A_0", "A_1"),
+        outcome = "Y_1",
+        baseline = NULL,
+        time_vary = list(c("L_0"), c("L_1")),
+        shift = shift_fn,
+        outcome_type = "continuous",
+        learners_trt = "SL.glm",
+        learners_outcome = "SL.glm",
+        folds = 1
+      ))),
+      error = function(e) NULL
+    )
+  }
+  theta_of <- function(r) {
+    tryCatch(r$estimate@x, error = function(e) r$theta)
+  }
+
+  r_always <- run_lmtp(function(data, trt) rep(1, nrow(data)))
+  r_never <- run_lmtp(function(data, trt) rep(0, nrow(data)))
+
+  skip_if(
+    is.null(r_always) || is.null(r_never),
+    "lmtp::lmtp_sdr() failed"
+  )
+
+  ate_lmtp <- theta_of(r_always) - theta_of(r_never)
+
+  # Both near truth (ATE ≈ 5)
+  expect_equal(ate_causatr, 5, tolerance = 0.15)
+  expect_equal(ate_lmtp, 5, tolerance = 0.2)
+  # Cross-method agreement (plug-in g-formula vs SDR)
+  expect_lt(
+    abs(ate_causatr - ate_lmtp),
+    0.2,
+    label = "causatr ICE(ns) vs lmtp_sdr ATE"
+  )
+})
+
+
+test_that("ICE with poly() agrees with lmtp_sdr on linear DGP", {
+  skip_if_not_installed("lmtp")
+
+  long <- make_tv_only_scm(n = 5000, seed = 401)
+
+  # --- causatr: ICE with poly ---
+  fit <- causat(
+    long,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~1,
+    confounders_tv = ~ poly(L, 3),
+    id = "id",
+    time = "time"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(always = static(1), never = static(0)),
+    reference = "never",
+    ci_method = "sandwich"
+  )
+  ate_causatr <- res$contrasts$estimate[1]
+
+  # --- lmtp ---
+  d_wide <- reshape(
+    long,
+    idvar = "id",
+    timevar = "time",
+    direction = "wide",
+    v.names = c("A", "L", "Y"),
+    sep = "_"
+  )
+  d_clean <- d_wide[, c("id", "A_0", "A_1", "L_0", "L_1", "Y_1")]
+
+  run_lmtp <- function(shift_fn) {
+    tryCatch(
+      suppressWarnings(suppressMessages(lmtp::lmtp_sdr(
+        data = d_clean,
+        trt = c("A_0", "A_1"),
+        outcome = "Y_1",
+        baseline = NULL,
+        time_vary = list(c("L_0"), c("L_1")),
+        shift = shift_fn,
+        outcome_type = "continuous",
+        learners_trt = "SL.glm",
+        learners_outcome = "SL.glm",
+        folds = 1
+      ))),
+      error = function(e) NULL
+    )
+  }
+  theta_of <- function(r) {
+    tryCatch(r$estimate@x, error = function(e) r$theta)
+  }
+
+  r_always <- run_lmtp(function(data, trt) rep(1, nrow(data)))
+  r_never <- run_lmtp(function(data, trt) rep(0, nrow(data)))
+
+  skip_if(
+    is.null(r_always) || is.null(r_never),
+    "lmtp::lmtp_sdr() failed"
+  )
+
+  ate_lmtp <- theta_of(r_always) - theta_of(r_never)
+
+  # Both near truth (ATE = 5, linear DGP so both are correctly specified)
+  expect_equal(ate_causatr, 5, tolerance = 0.15)
+  expect_equal(ate_lmtp, 5, tolerance = 0.15)
+  expect_lt(
+    abs(ate_causatr - ate_lmtp),
+    0.15,
+    label = "causatr ICE(poly) vs lmtp_sdr ATE"
+  )
+})

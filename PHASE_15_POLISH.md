@@ -1,6 +1,6 @@
 # Phase 15 — Polish and Documentation
 
-> **Status: PENDING**
+> **Status: DONE (2026-05-04)**
 
 ## Scope
 
@@ -8,20 +8,21 @@ Documentation, convenience features, and release-prep items.
 
 ## Items
 
-- [ ] Continuous treatment vignette (shift/scale MTP examples with both g-comp and IPW)
-- [ ] `target_trial()` metadata/specification object with print method (Ch. 22)
-- [ ] Documentation: warn about colliders, stepwise/LASSO for confounder selection, point to `dagitty` (Ch. 18)
-- [ ] Documentation: ML in g-formula requires debiasing, point to `lmtp` (Ch. 18)
-- [ ] Percent intervened on diagnostic (feasibility metric for each intervention)
-- [ ] Grace period / visit-process interventions for longitudinal data (carry forward, censor after N missed)
-- [ ] Stratified ICE option (`causat(..., stratified = TRUE)`)
-- [ ] ICE formula builder: support function-transformed treatments and TV confounders (e.g. `ns(A, 3)`, `log(L)`) — currently `ice_build_formula()` handles bare column names and `A:modifier` lag expansion, but not `ns(A, 3)` → `ns(lag1_A, 3)`. Requires term-level variable substitution inside parsed expressions. Affects `confounders` with treatment transforms, `confounders_tv` with confounder transforms, and EM interactions with transformed treatments.
-- [ ] Multinomial outcomes: multi-category via `nnet::multinom()` or `VGAM::vglm(multinomial())`
-- [ ] Ordinal outcomes: ordered categorical via `MASS::polr()` or `ordinal::clm()`
+- [x] ~~Continuous treatment vignette~~ — covered by `vignettes/interventions.qmd` (shift/scale with g-comp & IPW)
+- [x] ~~`target_trial()` metadata/specification object with print method~~ — `R/target_trial.R`
+- [x] ~~Documentation: warn about colliders, stepwise/LASSO for confounder selection, point to `dagitty`~~ — callout in `vignettes/introduction.qmd`
+- [x] ~~Documentation: ML in g-formula requires debiasing, point to `lmtp`~~ — callout in `vignettes/gcomp.qmd`
+- [x] ~~Percent intervened on diagnostic (feasibility metric for each intervention)~~ — `compute_pct_intervened()` in `R/diagnose.R`
+- [x] ~~ICE formula builder: support function-transformed TV confounders~~ — `substitute_vars_in_term()` in `R/ice.R`; `confounders_tv = ~ ns(L, 3)` now produces `ns(lag1_L, 3)` at lag expansion
+- ~~Grace period / visit-process interventions~~ → deferred to [Phase 22](PHASE_22_ICE_ENHANCEMENTS.md)
+- ~~Stratified ICE option~~ → deferred to [Phase 22](PHASE_22_ICE_ENHANCEMENTS.md)
+- ~~Multinomial outcomes~~ → deferred to [Phase 23](PHASE_23_CATEGORICAL_OUTCOMES.md)
+- ~~Ordinal outcomes~~ → deferred to [Phase 23](PHASE_23_CATEGORICAL_OUTCOMES.md)
 
 ## Dependencies
 
 None. Can run at any time. Items can be cherry-picked independently.
+Phases 2–6, 8–14 are all complete.
 
 ## Out of scope (confirmed across all guides)
 

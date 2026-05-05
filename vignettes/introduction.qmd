@@ -242,6 +242,29 @@ For the full matrix of supported estimator × treatment × intervention × outco
 combinations, see `vignette("interventions")` and
 [`FEATURE_COVERAGE_MATRIX.md`](../FEATURE_COVERAGE_MATRIX.md).
 
+::: {.callout-warning}
+## Confounder selection: use a DAG, not data-driven methods
+
+The `confounders =` formula in `causat()` should reflect a pre-specified
+**causal DAG** (directed acyclic graph) encoding your assumptions about the
+data-generating process. Do **not** select confounders via stepwise regression,
+LASSO, or other data-driven variable selection. These methods optimise
+predictive fit, not causal identification, and can:
+- **Include colliders** — conditioning on a common effect of treatment and outcome
+  opens a non-causal path, biasing the estimate toward zero or even flipping
+  its sign.
+- **Include instruments** — variables that affect treatment but not outcome
+  inflate variance without reducing confounding bias (a pure efficiency loss
+  under correct specification, but can amplify bias from unmeasured confounders).
+- **Include mediators** — variables on the causal path from treatment to outcome
+  block part of the effect you are trying to estimate, attenuating it toward the
+  null.
+
+Use [`dagitty`](https://cran.r-project.org/package=dagitty) to encode your DAG
+and query it for the minimal sufficient adjustment set
+(`dagitty::adjustmentSets()`). See Hernán & Robins (2025), Ch. 18.
+:::
+
 ## Learning more
 
 causatr includes detailed vignettes for each estimation method: g-computation,

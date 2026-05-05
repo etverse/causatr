@@ -351,6 +351,11 @@ remain in this matrix.
 | Weight validation (NA/Inf/neg/mis-sized) | ✅ | test-causat.R |
 | Intervention constructors | ✅ | test-interventions.R |
 | External reference cross-checks (stdReg2, delicatessen) | ✅ | test-variance-reference.R |
+| `target_trial()` constructor + S3 print | ✅ | test-target-trial.R |
+| `diagnose()` feasibility (pct_intervened) — static/shift/threshold/ipsi/NULL | ✅ | test-diagnose.R |
+| `diagnose()` feasibility — longitudinal per-period + overall | ✅ | test-diagnose.R |
+| `ice_build_formula()` transformed `confounders_tv` (`poly()`, `log()`) | ✅ | test-ice.R |
+| `substitute_vars_in_term()` + `is_bare_term()` + `term_vars()` helpers | ✅ | test-ice.R |
 | Coverage matrix ↔ tests audit | ✅ | test-coverage-matrix.R |
 | Numeric variance Tier 1 / Tier 2 | ✅ | test-variance-if.R |
 | Cluster-robust test-matching.R variance | ✅ | test-variance-if.R, test-simulation.R |
@@ -554,7 +559,26 @@ Multinomial/ordinal outcomes — requires structural extensions beyond GLM famil
 Scalar-outcome IPCW for MAR censoring: internal censoring model, stabilized IPCW weights, weighted fit, stacked EE sandwich extension for censoring model blocks. Point + ICE scalar final outcome. Survival-specific IPCW (per-period cumulative weights + hazard MSM) is owned by the separate survival package. All ❌.
 
 ### Phase 15 — Polish and documentation
-Continuous treatment vignette, `target_trial()` helper, misc release-prep. All ❌.
+
+| Feature | Status | Test |
+|---|---|---|
+| `target_trial()` constructor + print method | ✅ | test-target-trial.R |
+| Confounder selection warning (colliders/LASSO/dagitty) | ✅ | vignettes/introduction.qmd (callout) |
+| ML g-formula debiasing warning | ✅ | vignettes/gcomp.qmd (callout) |
+| Feasibility diagnostic (`compute_pct_intervened()`) — point | ✅ | test-diagnose.R |
+| Feasibility diagnostic — longitudinal | ✅ | test-diagnose.R |
+| Feasibility diagnostic — ipsi/NULL returns NULL | ✅ | test-diagnose.R |
+| ICE formula builder: transformed `confounders_tv` (e.g. `poly(L, 2)`) | ✅ | test-ice.R |
+| ICE formula builder: `substitute_vars_in_term()` helper | ✅ | test-ice.R |
+| ICE self-consistency: bare vs poly() vs ns() vs I() on linear DGP | ✅ | test-ice.R |
+| ICE self-consistency: log() transform on linear DGP | ✅ | test-ice.R |
+| ICE nonlinear DGP: ns() handles sin() confounding | ✅ | test-ice.R |
+| ICE lmtp cross-check: ns() on nonlinear DGP vs lmtp_sdr | ✅ | test-ice.R |
+| ICE lmtp cross-check: poly() on linear DGP vs lmtp_sdr | ✅ | test-ice.R |
+| Grace period / visit-process interventions | → Phase 22 | — |
+| Stratified ICE | → Phase 22 | — |
+| Multinomial outcomes | → Phase 23 | — |
+| Ordinal outcomes | → Phase 23 | — |
 
 ### Phase 16 — AIPW / doubly-robust estimator
 Composes Phase 2 gcomp + Phase 4 IPW into the classical analytical doubly-robust estimator: $\hat\psi_{\mathrm{AIPW}}(a) = E[\hat{m}(a, L)] + E[W \cdot (Y - \hat{m}(A, L))]$. Stacked EE sandwich (outcome block + propensity block + plug-in); distinct from `lmtp` (TMLE/SDR with ML + cross-fitting). Double-robustness + efficiency tests; ICE-AIPW longitudinal extension (Bang & Robins 2005). All ❌.

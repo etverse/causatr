@@ -7,7 +7,7 @@ Part of the [etverse](https://github.com/etverse) ecosystem.
 ## Guide files
 
 - `FEATURE_COVERAGE_MATRIX.md` — **single source of truth for "what works".** Every PR that changes a feature MUST update this file.
-- `PHASE_*.md` — per-phase implementation guides in the project root. Completed: 2–6, 8–13. Pending: 14–20 (design docs).
+- `PHASE_*.md` — per-phase implementation guides in the project root. Completed: 2–6, 8–14. Pending: 15–23 (design docs).
 
 ## Project structure
 

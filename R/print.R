@@ -329,5 +329,19 @@ print_diag_panel <- function(panel, header = NULL) {
       cat("\n")
     }
   }
+  if (!is.null(panel$pct_intervened)) {
+    pct <- panel$pct_intervened
+    if (is.list(pct) && !data.table::is.data.table(pct)) {
+      for (nm in names(pct)) {
+        cat("Feasibility (", nm, "):\n", sep = "")
+        print(pct[[nm]], row.names = FALSE)
+        cat("\n")
+      }
+    } else {
+      cat("Feasibility:\n")
+      print(pct, row.names = FALSE)
+      cat("\n")
+    }
+  }
   invisible(NULL)
 }

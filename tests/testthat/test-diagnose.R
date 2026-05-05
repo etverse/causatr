@@ -1413,3 +1413,146 @@ test_that("censoring panel prints correctly", {
   diag <- diagnose(fit)
   expect_output(print(diag), "Censoring")
 })
+
+
+# --- Feasibility (pct_intervened) -------------------------------------------
+
+test_that("pct_intervened for static() on binary treatment", {
+  set.seed(42)
+  n <- 200
+  d <- data.frame(
+    Y = rnorm(n),
+    A = rbinom(n, 1, 0.5),
+    L = rnorm(n)
+  )
+  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L)
+  diag <- diagnose(
+    fit,
+    interventions = list(treat_all = static(1))
+  )
+
+  pct <- diag$per_intervention$treat_all$pct_intervened
+  expect_s3_class(pct, "data.table")
+  expect_named(pct, c("n_total", "n_changed", "pct_changed"))
+  expect_equal(pct$n_total, n)
+  # ~50% should have A=0 and thus be "changed"
+  expect_true(pct$pct_changed > 30 && pct$pct_changed < 70)
+})
+
+test_that("pct_intervened for shift(0) is 0%", {
+  set.seed(42)
+  n <- 100
+  d <- data.frame(
+    Y = rnorm(n),
+    A = rnorm(n),
+    L = rnorm(n)
+  )
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw"
+  )
+  diag <- diagnose(
+    fit,
+    interventions = list(no_shift = shift(0))
+  )
+
+  pct <- diag$per_intervention$no_shift$pct_intervened
+  expect_equal(pct$n_changed, 0L)
+  expect_equal(pct$pct_changed, 0)
+})
+
+test_that("pct_intervened is NULL for default obs panel", {
+  set.seed(42)
+  d <- data.frame(Y = rnorm(50), A = rbinom(50, 1, 0.5), L = rnorm(50))
+  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L)
+  diag <- diagnose(fit)
+
+  expect_null(diag$per_intervention$obs$pct_intervened)
+})
+
+test_that("pct_intervened is NULL for ipsi()", {
+  set.seed(42)
+  d <- data.frame(Y = rnorm(100), A = rbinom(100, 1, 0.5), L = rnorm(100))
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw"
+  )
+  diag <- diagnose(
+    fit,
+    interventions = list(ipsi_d = ipsi(2))
+  )
+
+  expect_null(diag$per_intervention$ipsi_d$pct_intervened)
+})
+
+test_that("pct_intervened for threshold() counts out-of-range", {
+  set.seed(42)
+  n <- 200
+  d <- data.frame(
+    Y = rnorm(n),
+    A = runif(n, 0, 10),
+    L = rnorm(n)
+  )
+  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L)
+
+  diag <- diagnose(
+    fit,
+    interventions = list(clamp = threshold(2, 8))
+  )
+
+  pct <- diag$per_intervention$clamp$pct_intervened
+  # Count how many are actually outside [2, 8]
+  expected_changed <- sum(d$A < 2 | d$A > 8)
+  expect_equal(pct$n_changed, expected_changed)
+})
+
+test_that("pct_intervened appears in print output", {
+  set.seed(42)
+  d <- data.frame(Y = rnorm(100), A = rbinom(100, 1, 0.5), L = rnorm(100))
+  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L)
+  diag <- diagnose(
+    fit,
+    interventions = list(treat_all = static(1))
+  )
+  expect_output(print(diag), "Feasibility")
+})
+
+test_that("pct_intervened works for longitudinal ICE", {
+  set.seed(42)
+  n <- 200
+  L0 <- rnorm(n)
+  A0 <- rbinom(n, 1, plogis(0.5 * L0))
+  L1 <- A0 + 0.5 * L0 + rnorm(n, 0, 0.5)
+  A1 <- rbinom(n, 1, plogis(0.3 * L1 + 0.2 * A0))
+  Y <- 10 + 2 * (A0 + A1) + L0 + L1 + rnorm(n)
+  long <- rbind(
+    data.frame(id = seq_len(n), time = 0L, A = A0, L = L0, Y = NA_real_),
+    data.frame(id = seq_len(n), time = 1L, A = A1, L = L1, Y = Y)
+  )
+
+  fit <- causat(
+    long,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~1,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time"
+  )
+  diag <- diagnose(
+    fit,
+    interventions = list(always = static(1))
+  )
+
+  pct <- diag$per_intervention$always$pct_intervened
+  expect_true(is.list(pct))
+  expect_true("0" %in% names(pct))
+  expect_true("1" %in% names(pct))
+  expect_true("overall" %in% names(pct))
+})

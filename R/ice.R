@@ -82,12 +82,20 @@ fit_ice <- function(
   # earlier treatment effects.
   em_info <- parse_effect_mod(confounders, treatment)
 
-  # Time-varying confounders, in contrast, are tracked as plain variable
-  # names. `ice_build_formula()` uses these to build lag column names
-  # (`lag1_L`, `lag2_L`, ...) and to reference the current-time columns;
-  # both require the bare identifier.
+  # Time-varying confounders are tracked in two forms:
+  #  - `tv_vars`: plain column names (via `all.vars()`), used for lag
+  #    column creation in `prepare_data()` and for column-existence checks.
+  #  - `tv_terms`: term labels (via `attr(terms(), "term.labels")`),
+  #    preserving user transformations like `ns(L, 3)` or `log(L + 1)`.
+  #    Used for formula construction so lag expansion produces
+  #    `ns(lag1_L, 3)` rather than bare `lag1_L`.
   tv_vars <- if (!is.null(confounders_tv)) {
     all.vars(confounders_tv)
+  } else {
+    character(0)
+  }
+  tv_terms <- if (!is.null(confounders_tv)) {
+    attr(stats::terms(confounders_tv), "term.labels")
   } else {
     character(0)
   }
@@ -160,6 +168,7 @@ fit_ice <- function(
       n_times = n_times,
       baseline_terms = baseline_terms,
       tv_vars = tv_vars,
+      tv_terms = tv_terms,
       max_lag = max_lag,
       em_info = em_info,
       model_fn = model_fn,
@@ -169,6 +178,54 @@ fit_ice <- function(
       dots = dots
     )
   )
+}
+
+
+#' Substitute variable names inside a formula term string
+#'
+#' Walks the parse tree of `term_string` and replaces each symbol that
+#' matches a key in `var_map` with the corresponding value.
+#' E.g. `substitute_vars_in_term("ns(L, 3)", list(L = "lag1_L"))` returns
+#' `"ns(lag1_L, 3)"`.
+#'
+#' @param term_string A single character string representing a formula term.
+#' @param var_map Named character vector mapping old names to new names.
+#' @return Character string with variables substituted.
+#' @noRd
+substitute_vars_in_term <- function(term_string, var_map) {
+  expr <- parse(text = term_string)[[1L]]
+  env <- lapply(var_map, as.symbol)
+  substituted <- do.call(substitute, list(expr, env))
+  deparse(substituted, width.cutoff = 500L)
+}
+
+
+#' Check whether a formula term is a bare column name
+#'
+#' Returns `TRUE` if `term` is a syntactically valid name that appears
+#' as-is in the data (e.g. `"L"`), `FALSE` if it contains function calls
+#' or operators (e.g. `"ns(L, 3)"`, `"log(L + 1)"`).
+#'
+#' @param term Character string.
+#' @return Logical scalar.
+#' @noRd
+is_bare_term <- function(term) {
+  expr <- tryCatch(parse(text = term)[[1L]], error = function(e) NULL)
+  is.symbol(expr)
+}
+
+
+#' Extract the column names that a term references
+#'
+#' For a bare name like `"L"`, returns `"L"`. For a transformed term
+#' like `"ns(L, 3)"` or `"log(L + 1)"`, returns the variable names
+#' (`"L"` in both cases).
+#'
+#' @param term Character string.
+#' @return Character vector of variable names.
+#' @noRd
+term_vars <- function(term) {
+  all.vars(parse(text = term))
 }
 
 
@@ -184,6 +241,11 @@ fit_ice <- function(
 #' Baseline confounders are always included (they are time-invariant and
 #' should never be `NA`).
 #'
+#' Time-varying confounders are accepted both as bare names (e.g. `~ L`)
+#' and as transformed terms (e.g. `~ ns(L, 3)`, `~ log(L + 1)`). For
+#' lag expansion, transformed terms undergo parse-tree substitution so
+#' `ns(L, 3)` becomes `ns(lag1_L, 3)`, `ns(lag2_L, 3)`, etc.
+#'
 #' When effect-modification terms are present (e.g. `A:sex` in the
 #' confounders formula), the function auto-expands them across available
 #' treatment lags: at time_idx = 2 with max_lag = 2, `A:sex` produces
@@ -198,7 +260,11 @@ fit_ice <- function(
 #' @param baseline_terms Character vector. RHS formula terms for baseline
 #'   confounders (from `attr(terms(), "term.labels")`).
 #' @param tv_vars Character vector. Plain column names of time-varying
-#'   confounders.
+#'   confounders (used for column-existence checks and structural drop
+#'   suppression).
+#' @param tv_terms Character vector. Term labels for time-varying
+#'   confounders (from `attr(terms(), "term.labels")`), preserving
+#'   transformations like `ns(L, 3)`.
 #' @param time_idx Integer, 0-based. The current time index in the
 #'   backward iteration (0 = first time, K = last time).
 #' @param max_lag Integer. Maximum lag order (from `history`).
@@ -215,6 +281,7 @@ ice_build_formula <- function(
   treatment,
   baseline_terms,
   tv_vars,
+  tv_terms,
   time_idx,
   max_lag,
   data_at_time,
@@ -224,36 +291,56 @@ ice_build_formula <- function(
   # at t = 0 there are zero lags regardless of max_lag; at t = 1 there
   # is one lag; and so on, capped by the user's Markov-order choice.
   available_lags <- min(time_idx, max_lag)
-  lag_vars <- c(treatment, tv_vars)
 
   # RHS starts with the *current* time values of treatment and TV
-  # confounders. These are always included (they are the "now" variables
-  # the ICE model conditions on at this step).
-  rhs_dynamic <- c(treatment, tv_vars)
+  # confounders. Treatment enters as bare column name (main effect);
+  # TV confounders enter as term labels to preserve transforms like
+  # `ns(L, 3)`.
+  rhs_dynamic <- c(treatment, tv_terms)
 
-  # Append lag columns in order: lag1_A, lag1_L, lag2_A, lag2_L, ...
-  # The `prepare_data()` step materializes these as actual columns, so
-  # we only need to reference them by name here.
+  # Append lag terms. For bare names, lag expansion is simple string
+  # concatenation: `L` -> `lag1_L`. For transformed terms, we walk
+  # the parse tree and substitute each variable:
+  # `ns(L, 3)` -> `ns(lag1_L, 3)`.
+  lag_vars <- c(treatment, tv_vars)
   if (available_lags > 0L) {
     for (lag_k in seq_len(available_lags)) {
-      for (v in lag_vars) {
-        rhs_dynamic <- c(rhs_dynamic, paste0("lag", lag_k, "_", v))
+      prefix <- paste0("lag", lag_k, "_")
+      # Treatment lags are always bare column names
+      for (trt in treatment) {
+        rhs_dynamic <- c(rhs_dynamic, paste0(prefix, trt))
+      }
+      # TV confounder lags: substitute variables in term labels
+      if (length(tv_terms) > 0L) {
+        var_map <- stats::setNames(
+          paste0(prefix, tv_vars),
+          tv_vars
+        )
+        for (tt in tv_terms) {
+          rhs_dynamic <- c(
+            rhs_dynamic,
+            substitute_vars_in_term(tt, var_map)
+          )
+        }
       }
     }
   }
 
   # Guard against including columns that don't exist or are entirely
-  # NA at this time step. Two cases this protects against:
-  #   (a) A time-varying confounder first measured at t = 1 (not t = 0)
-  #       -- at t = 0 the column is all NA, so we drop it from the formula.
-  #   (b) `lag1_A` at t = 0 -- no past exists, column is all NA by
-  #       construction, same drop.
-  # Without this guard the glm would fail with a cryptic "contrasts can
-  # be applied only to factors with 2 or more levels" or similar.
+  # NA at this time step. For transformed terms like `ns(lag1_L, 3)`,
+  # we check the underlying column (`lag1_L`), not the full term.
   valid <- vapply(
     rhs_dynamic,
-    function(col) {
-      col %in% names(data_at_time) && !all(is.na(data_at_time[[col]]))
+    function(term) {
+      cols <- term_vars(term)
+      # All referenced columns must exist and be non-NA
+      all(vapply(
+        cols,
+        function(col) {
+          col %in% names(data_at_time) && !all(is.na(data_at_time[[col]]))
+        },
+        logical(1L)
+      ))
     },
     logical(1)
   )
@@ -261,30 +348,28 @@ ice_build_formula <- function(
   # dropped. `lag*_` columns are expected to drop at t = 0, so we
   # filter them from the notification -- they are auto-generated by
   # prepare_data() and their drop is structural, not a user concern.
-  # The expected (structural) drops we suppress:
-  #   - lag columns at t = 0 (no prior period)
-  #   - the current-time treatment when it's literally never measured
-  #     (covered by the rhs_dynamic test below -- these are rare)
   dropped <- rhs_dynamic[!valid]
-  user_dropped <- dropped[!grepl("^lag[0-9]+_", dropped)]
+  # Extract the underlying variable names to classify drops
+  dropped_vars <- unique(unlist(lapply(dropped, term_vars)))
+  user_dropped_vars <- dropped_vars[!grepl("^lag[0-9]+_", dropped_vars)]
   # TV confounders all-NA at the earliest period is structural (they
   # only exist from t >= 1); suppress for time_idx == 0.
   if (time_idx == 0L) {
-    user_dropped <- setdiff(user_dropped, tv_vars)
+    user_dropped_vars <- setdiff(user_dropped_vars, tv_vars)
   }
-  if (length(user_dropped) > 0L) {
+  if (length(user_dropped_vars) > 0L) {
     rlang::inform(
       paste0(
         "ICE step (time_idx = ",
         time_idx,
         "): dropping all-NA column(s) from the outcome model formula: ",
-        paste0("'", user_dropped, "'", collapse = ", "),
+        paste0("'", user_dropped_vars, "'", collapse = ", "),
         ". Check your `confounders_tv` spec if this is unexpected."
       ),
       .frequency = "regularly",
       .frequency_id = paste0(
         "causatr_ice_dropped_",
-        paste(user_dropped, collapse = "_")
+        paste(user_dropped_vars, collapse = "_")
       )
     )
   }
@@ -439,6 +524,7 @@ ice_iterate <- function(fit, intervention) {
   n_times <- details$n_times
   baseline_terms <- details$baseline_terms
   tv_vars <- details$tv_vars
+  tv_terms <- details$tv_terms
   max_lag <- details$max_lag
   model_fn <- details$model_fn
   family_outcome <- details$family_outcome
@@ -508,6 +594,7 @@ ice_iterate <- function(fit, intervention) {
     treatment,
     baseline_terms,
     tv_vars,
+    tv_terms,
     final_idx,
     max_lag,
     fit_data,
@@ -628,6 +715,7 @@ ice_iterate <- function(fit, intervention) {
       treatment,
       baseline_terms,
       tv_vars,
+      tv_terms,
       time_idx,
       max_lag,
       fit_data,

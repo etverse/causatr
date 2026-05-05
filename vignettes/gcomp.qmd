@@ -1049,6 +1049,28 @@ switching to a GLM with `splines::ns()` terms, which stays on the standard
 (unpenalised) analytic sandwich path.
 :::
 
+::: {.callout-warning}
+## Machine learning outcome models require debiased estimation
+
+causatr's `model_fn` argument accepts any GLM or GAM, but **not** machine
+learning models (random forests, gradient boosting, neural networks). Two
+reasons:
+
+1. **Bias.** Plug-in ML predictions for the g-formula are biased at
+   $\sqrt{n}$ rate due to overfitting (regularisation bias / Dorn bias).
+   Consistent estimation requires cross-fitting + a bias-correction step
+   (one-step estimator, TMLE, or SDR), which causatr does not implement.
+2. **Variance.** The sandwich variance estimator requires the parametric
+   likelihood score of the outcome model. ML models do not have one, so
+   causatr cannot compute standard errors.
+
+If you need flexible (nonparametric) outcome models, use the
+[`lmtp`](https://cran.r-project.org/package=lmtp) package, which
+implements TMLE and SDR with Super Learner stacks and supports the same
+intervention types (`shift`, `ipsi`, etc.). See Hernán & Robins (2025),
+Ch. 18 and van der Laan & Rose (2011) for the theory behind debiased ML.
+:::
+
 ### Comparing model specifications
 
 All three approaches --- standard GLM with polynomial terms, GLM with natural
