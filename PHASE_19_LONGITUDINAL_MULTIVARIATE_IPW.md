@@ -118,6 +118,15 @@ via the chunk 10c wiring. MSM expands to `Y ~ 1 + modifier` via
 - Time-varying effect modification: deferred to Phase 18 (SNMs).
 - IPSI per period (separate Phase 20).
 
+## Downstream: longitudinal AIPW composition
+
+When Phase 19 ships, longitudinal AIPW (Phase 16i, `fit_aipw_longitudinal()`)
+will need a corresponding multivariate composition update:
+`fit_aipw_longitudinal()` must dispatch to the multivariate per-period
+density chain, and `ice_aipw_iterate()` must use multivariate cumulative
+weights. The `causatr_longitudinal_multivariate_pending` rejection in
+`R/aipw.R` gates this.
+
 ## References
 
 Díaz I, Williams N, Hoffman KL, Schenck EJ (2023). Non-parametric

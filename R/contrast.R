@@ -803,6 +803,41 @@ compute_contrast <- function(
         boot_t <- boot_res$boot_t
         boot_info <- boot_res$boot_info
       }
+    } else if (fit$estimator == "aipw") {
+      # Longitudinal AIPW (ICE-AIPW, Bang & Robins 2005). Composes
+      # ICE g-computation with density-ratio weighting, augmenting
+      # inside the backward loop at each time step.
+      aipw_long <- compute_aipw_contrast_longitudinal(
+        fit,
+        interventions,
+        target_within_first
+      )
+      ice_aipw_results <- aipw_long$ice_aipw_results
+      mu_hat <- aipw_long$mu_hat
+
+      if (ci_method == "sandwich") {
+        vcov_mat <- variance_if(
+          fit,
+          ice_aipw_results = ice_aipw_results,
+          target_within_first = target_within_first,
+          cluster_vec = cluster_vec
+        )
+      } else {
+        boot_res <- aipw_longitudinal_variance_bootstrap(
+          fit,
+          interventions,
+          n_boot,
+          target_within_first,
+          est,
+          subset,
+          parallel,
+          ncpus,
+          subset_env = subset_env
+        )
+        vcov_mat <- boot_res$vcov
+        boot_t <- boot_res$boot_t
+        boot_info <- boot_res$boot_info
+      }
     } else {
       # ICE g-computation (default longitudinal path). Each call
       # returns per-individual pseudo-outcomes at baseline along with

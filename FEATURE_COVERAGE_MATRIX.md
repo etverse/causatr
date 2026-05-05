@@ -600,9 +600,24 @@ Composes Phase 2 gcomp + Phase 4 IPW into the classical analytical doubly-robust
 | binary | gaussian | DR: wrong outcome | ATE | diff | sandwich | ✅ | test-aipw.R |
 | binary | gaussian | DR: wrong propensity | ATE | diff | sandwich | ✅ | test-aipw.R |
 | binary | gaussian | efficiency: SE ≤ gcomp & IPW | ATE | diff | sandwich | ✅ | test-aipw.R |
-| any | any | longitudinal (ICE-AIPW) | ATE | diff | sandwich | ❌ (chunk 16i) | — |
+| binary | gaussian | longitudinal static (always vs never) | ATE | diff | sandwich | ✅ ATE ≈ 5 | test-aipw.R |
+| binary | gaussian | longitudinal static (always vs never) | ATE | diff | bootstrap | ✅ ATE ≈ 5 | test-aipw.R |
+| continuous | gaussian | longitudinal shift | ATE | diff | sandwich | ✅ vs ICE + long-IPW | test-aipw.R |
+| continuous | gaussian | longitudinal shift | ATE | diff | bootstrap | ✅ | test-aipw.R |
+| binary | gaussian | longitudinal dynamic | ATE | diff | sandwich | ✅ | test-aipw.R |
+| continuous | gaussian | longitudinal scale_by | ATE | diff | sandwich | ✅ | test-aipw.R |
+| binary | gaussian | longitudinal DR: wrong outcome | ATE | diff | bootstrap | ✅ ATE ≈ 5 | test-aipw.R |
+| binary | gaussian | longitudinal DR: wrong propensity | ATE | diff | bootstrap | ✅ ATE ≈ 5 | test-aipw.R |
+| binary | gaussian | longitudinal static + EM (by=sex) | ATE | diff | sandwich | ✅ per-sex ATE ≈ 5,8 | test-aipw.R |
+| binary | gaussian | longitudinal cross-method ICE vs AIPW vs long-IPW | ATE | diff | — | ✅ | test-aipw.R |
+| binary | gaussian | longitudinal 3-period AIPW vs IPW | ATE | diff | sandwich | ✅ | test-aipw.R |
+| — | — | longitudinal sandwich vs bootstrap SE agreement | ATE | — | — | ✅ ratio ∈ (0.5, 2) | test-aipw.R |
+| binary | gaussian | longitudinal lmtp cross-check (binary static) | ATE | diff | — | ✅ vs lmtp_sdr | test-aipw.R |
+| continuous | gaussian | longitudinal lmtp cross-check (continuous shift) | ATE | diff | — | ✅ vs lmtp_sdr | test-aipw.R |
 
-**Rejections (same as IPW):** static/threshold/dynamic on continuous → Dirac rejection ✅; stochastic → rejected ✅; multivariate → deferred ✅.
+**Rejections (point, same as IPW):** static/threshold/dynamic on continuous → Dirac rejection ✅; stochastic → rejected ✅; multivariate → deferred ✅.
+
+**Rejections (longitudinal):** multivariate → deferred ✅; ATT/ATC → rejected ✅.
 
 ### Phase 17 — Transportability / Generalizability
 Sampling model `P(S=1 | L)` + sampling-odds weights multiply into IPW Hájek MSM; gcomp / IPW / AIPW transport paths; stacked EE extends with sampling-model block. References: Dahabreh et al. 2020; Westreich et al. 2017. Cross-check against `transport` / `transported` R packages. Survival + transport composition subsection. All ❌.

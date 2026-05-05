@@ -480,17 +480,6 @@ check_causat_inputs <- function(
     )
   }
 
-  if (type == "longitudinal" && estimator == "aipw") {
-    rlang::abort(
-      c(
-        "Longitudinal AIPW (ICE-AIPW) is not yet implemented.",
-        i = "Use `estimator = 'gcomp'` (ICE) or `estimator = 'ipw'` (longitudinal IPW) for now."
-      ),
-      class = "causatr_aipw_longitudinal_pending",
-      call = call
-    )
-  }
-
   # Matching is binary-only and has no joint analogue; multivariate
   # matching stays rejected. IPW handles multivariate via sequential
   # factorisation (`fit_treatment_models()` + product density-ratio

@@ -582,6 +582,33 @@ refit_aipw <- function(fit, d_b, weights = NULL) {
     weights <- if (is.null(weights)) ipcw_w_b else weights * ipcw_w_b
   }
 
+  if (fit$type == "longitudinal") {
+    args <- list(
+      data = d_b,
+      outcome = fit$outcome,
+      treatment = fit$treatment,
+      confounders = fit$confounders,
+      confounders_tv = fit$confounders_tv,
+      family = fit$family,
+      estimand = fit$estimand,
+      history = fit$history,
+      censoring = fit$censoring,
+      weights = weights,
+      model_fn = fit$details$model_fn,
+      propensity_model_fn = fit$details$propensity_model_fn,
+      propensity_family = fit$details$propensity_family,
+      id = fit$id,
+      time = fit$time,
+      call = NULL
+    )
+    fit_b <- do.call(
+      fit_aipw_longitudinal,
+      c(args, fit$details$dots)
+    )
+    fit_b$call <- fit$call
+    return(fit_b)
+  }
+
   args <- list(
     data = d_b,
     outcome = fit$outcome,
@@ -963,6 +990,180 @@ ice_variance_bootstrap <- function(
 
   # Run bootstrap: pass individual IDs as data, the dispatcher
   # resamples them via `boot::boot()` or `future.apply` as configured.
+  boot_res <- dispatch_boot(
+    data = all_ids,
+    statistic = boot_fn,
+    R = n_boot,
+    parallel = parallel,
+    ncpus = ncpus
+  )
+
+  process_boot_results(boot_res, int_names, n_boot)
+}
+
+
+#' Bootstrap variance for longitudinal AIPW (ICE-AIPW)
+#'
+#' @description
+#' ID-clustered nonparametric bootstrap for the longitudinal AIPW
+#' estimator. Resamples individuals (complete trajectories), refits
+#' both propensity and outcome models on each replicate, and runs
+#' the augmented backward iteration via `ice_aipw_iterate()`.
+#'
+#' Same resampling logic as `ice_variance_bootstrap()`: clone rows
+#' with fresh integer IDs so multiply-sampled individuals are treated
+#' as distinct people in the ICE recursion.
+#'
+#' @param fit A `causatr_fit` with `estimator = "aipw"`,
+#'   `type = "longitudinal"`.
+#' @param interventions Named list of interventions.
+#' @param n_boot Positive integer. Number of replicates.
+#' @param target_within_first Logical vector over first-time-point
+#'   rows flagging the target population.
+#' @param est Character estimand label.
+#' @param subset Quoted subset expression or `NULL`.
+#' @param parallel Bootstrap parallelisation backend.
+#' @param ncpus Number of cores.
+#' @param subset_env Environment for evaluating `subset`.
+#'
+#' @return A list with `vcov`, `boot_t`, `boot_info` (same contract
+#'   as other `*_variance_bootstrap()` functions).
+#'
+#' @noRd
+aipw_longitudinal_variance_bootstrap <- function(
+  fit,
+  interventions,
+  n_boot,
+  target_within_first,
+  est,
+  subset,
+  parallel = "no",
+  ncpus = 1L,
+  subset_env = parent.frame()
+) {
+  data <- fit$data
+  int_names <- names(interventions)
+  id_col <- fit$id
+  time_col <- fit$time
+  treatment <- fit$treatment
+  first_time <- fit$details$time_points[1]
+
+  all_ids <- unique(data[[id_col]])
+
+  orig_weights <- if (isTRUE(fit$details$ipcw)) {
+    fit$details$weights_pre_ipcw
+  } else {
+    fit$details$weights
+  }
+
+  boot_fn <- function(ids, indices) {
+    sampled_ids <- ids[indices]
+
+    # Clone individuals with fresh IDs (same as ICE bootstrap)
+    id_counts <- table(sampled_ids)
+    d_b_list <- vector("list", length(sampled_ids))
+    w_b_list <- if (!is.null(orig_weights)) {
+      vector("list", length(sampled_ids))
+    }
+    new_id <- 0L
+    for (orig_id in names(id_counts)) {
+      n_copies <- as.integer(id_counts[[orig_id]])
+      orig_rows <- which(data[[id_col]] == orig_id)
+      sub <- data[orig_rows]
+      sub_w <- if (!is.null(orig_weights)) {
+        orig_weights[orig_rows]
+      }
+      for (cc in seq_len(n_copies)) {
+        new_id <- new_id + 1L
+        sub_copy <- data.table::copy(sub)
+        sub_copy[, (id_col) := new_id]
+        d_b_list[[new_id]] <- sub_copy
+        if (!is.null(orig_weights)) {
+          w_b_list[[new_id]] <- sub_w
+        }
+      }
+    }
+    d_b <- data.table::rbindlist(d_b_list)
+    w_b <- if (!is.null(orig_weights)) unlist(w_b_list)
+
+    # IPCW: refit censoring models on bootstrap sample
+    if (isTRUE(fit$details$ipcw)) {
+      ipcw_w_b <- refit_censoring_weights(fit, d_b)
+      w_b <- if (is.null(w_b)) {
+        ipcw_w_b
+      } else {
+        w_b * ipcw_w_b
+      }
+    }
+
+    # Refit the longitudinal AIPW object
+    fit_b <- tryCatch(
+      suppressWarnings(
+        fit_aipw_longitudinal(
+          data = d_b,
+          outcome = fit$outcome,
+          treatment = treatment,
+          confounders = fit$confounders,
+          confounders_tv = fit$confounders_tv,
+          family = fit$family,
+          estimand = fit$estimand,
+          history = fit$history,
+          censoring = fit$censoring,
+          weights = w_b,
+          model_fn = fit$details$model_fn,
+          propensity_model_fn = fit$details$propensity_model_fn,
+          propensity_family = fit$details$propensity_family,
+          id = id_col,
+          time = time_col,
+          call = fit$call
+        )
+      ),
+      error = function(e) NULL
+    )
+    if (is.null(fit_b)) {
+      return(rep(NA_real_, length(int_names)))
+    }
+
+    # Determine target in bootstrap sample
+    rows_b_first <- d_b[[time_col]] == first_time
+    if (!is.null(subset)) {
+      target_b <- rows_b_first &
+        as.logical(
+          eval(
+            subset,
+            envir = d_b,
+            enclos = subset_env
+          )
+        )
+    } else {
+      target_b <- rows_b_first
+    }
+    target_b_within <- target_b[rows_b_first]
+
+    w_b_target <- if (!is.null(w_b)) {
+      w_b[rows_b_first][target_b_within]
+    }
+
+    # Run ICE-AIPW for each intervention
+    vapply(
+      interventions,
+      function(iv) {
+        res_b <- tryCatch(
+          ice_aipw_iterate(fit_b, iv),
+          error = function(e) NULL
+        )
+        if (is.null(res_b)) {
+          return(NA_real_)
+        }
+        maybe_weighted_mean(
+          res_b$pseudo_final[target_b_within],
+          w_b_target
+        )
+      },
+      numeric(1)
+    )
+  }
+
   boot_res <- dispatch_boot(
     data = all_ids,
     statistic = boot_fn,

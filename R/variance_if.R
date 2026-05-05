@@ -833,6 +833,8 @@ variance_if_numeric <- function(
 #' @param target_idx Logical vector (length `n_total`) flagging target rows
 #'   (g-comp).
 #' @param ice_results Named list of `ice_iterate()` results (ICE only).
+#' @param ice_aipw_results Named list of `ice_aipw_iterate()` results
+#'   (longitudinal AIPW only).
 #' @param target_within_first Logical vector over first-time individuals
 #'   (ICE only).
 #'
@@ -847,6 +849,7 @@ variance_if <- function(
   mu_hat = NULL,
   target_idx = NULL,
   ice_results = NULL,
+  ice_aipw_results = NULL,
   target_within_first = NULL,
   ipw_bundles = NULL,
   ipw_fit_idx = NULL,
@@ -866,6 +869,14 @@ variance_if <- function(
       return(variance_if_ipw_longitudinal(
         fit,
         ipw_bundles,
+        target_within_first,
+        cluster_vec = cluster_vec
+      ))
+    }
+    if (fit$estimator == "aipw") {
+      return(variance_if_aipw_longitudinal(
+        fit,
+        ice_aipw_results,
         target_within_first,
         cluster_vec = cluster_vec
       ))
@@ -2936,4 +2947,469 @@ variance_if_aipw <- function(
   names(IF_list) <- int_names
 
   vcov_from_if(IF_list, n_sub, int_names, cluster = cluster_vec)
+}
+
+
+#' Longitudinal AIPW sandwich variance (ICE-AIPW)
+#'
+#' @description
+#' Analytic sandwich for the ICE-AIPW estimator (Bang & Robins 2005).
+#' Derives from composition of Zivich et al. (2024, *Stat in Med*,
+#' arXiv:2306.10976) for the ICE outcome model chain and Zivich et al.
+#' (2024, *Biometrics* 81(2), arXiv:2404.16166) for the point-treatment
+#' AIPW propensity correction.
+#'
+#' **DR caveat:** This sandwich SE is consistent only when **both**
+#' nuisance models (outcome + propensity) are correctly specified.
+#' Under one-model misspecification the AIPW point estimate remains
+#' consistent (DR property), but the sandwich SE is not. For DR-valid
+#' variance under misspecification, use `ci_method = "bootstrap"`
+#' (Rotnitzky et al. 2012, *Biometrika*).
+#'
+#' @param fit `causatr_fit` with `estimator = "aipw"`,
+#'   `type = "longitudinal"`.
+#' @param ice_aipw_results Named list of `ice_aipw_iterate()` outputs.
+#' @param target_within_first Logical vector over first-time-point
+#'   individuals flagging the target population.
+#' @param cluster_vec Optional cluster vector for clustered SE.
+#'
+#' @return A named `k x k` variance-covariance matrix.
+#'
+#' @noRd
+variance_if_aipw_longitudinal <- function(
+  fit,
+  ice_aipw_results,
+  target_within_first,
+  cluster_vec = NULL
+) {
+  data <- fit$data
+  details <- fit$details
+  int_names <- names(ice_aipw_results)
+  time_points <- details$time_points
+  n_times <- details$n_times
+  id_col <- fit$id
+  time_col <- fit$time
+  ext_w <- details$weights
+  treatment_models_by_time <- details$treatment_models_by_time
+  fit_data_by_time <- details$fit_data_by_time
+
+  first_time <- time_points[1]
+  rows_first <- data[[time_col]] == first_time
+  all_ids <- as.character(data[rows_first][[id_col]])
+  n <- length(all_ids)
+  id_to_idx <- stats::setNames(seq_len(n), all_ids)
+
+  cluster_first <- if (is.null(cluster_vec)) {
+    NULL
+  } else {
+    cluster_vec[rows_first]
+  }
+
+  IF_list <- lapply(int_names, function(nm) {
+    res <- ice_aipw_results[[nm]]
+    variance_if_aipw_long_one(
+      fit,
+      res,
+      target_within_first,
+      all_ids,
+      n,
+      id_to_idx,
+      rows_first
+    )
+  })
+  names(IF_list) <- int_names
+
+  vcov_from_if(IF_list, n, int_names, cluster = cluster_first)
+}
+
+
+#' Per-intervention IF for longitudinal AIPW
+#'
+#' @description
+#' Assembles the influence function for one intervention under the
+#' ICE-AIPW estimator. Three channels:
+#' \enumerate{
+#'   \item Direct: Hajek-scaled deviation of individual pseudo-outcomes.
+#'   \item Outcome model corrections: forward sensitivity cascade
+#'     (same structure as ICE) with augmented gradient accounting for
+#'     the \eqn{-W_k X_{obs} \mu'_{obs}} term from the residual.
+#'   \item Propensity model corrections: per-period numerical Jacobian
+#'     of the augmented mean w.r.t. stacked propensity parameters.
+#' }
+#'
+#' @param fit `causatr_fit`.
+#' @param aipw_result Output from `ice_aipw_iterate()`.
+#' @param target Logical vector for target population.
+#' @param all_ids Character vector of all individual IDs.
+#' @param n Integer. Number of individuals.
+#' @param id_to_idx Named integer mapping IDs to indices.
+#' @param rows_first Logical vector for first-time-point rows.
+#'
+#' @return Numeric vector of length `n`.
+#'
+#' @noRd
+variance_if_aipw_long_one <- function(
+  fit,
+  aipw_result,
+  target,
+  all_ids,
+  n,
+  id_to_idx,
+  rows_first
+) {
+  data <- fit$data
+  details <- fit$details
+  models <- aipw_result$models
+  data_iv <- aipw_result$data_iv
+  fit_ids_list <- aipw_result$fit_ids
+  pseudo_final <- aipw_result$pseudo_final
+  W_period <- aipw_result$period_weights
+  W_cumul <- aipw_result$cumulative_weights
+  intervention <- aipw_result$intervention
+
+  time_points <- details$time_points
+  n_times <- details$n_times
+  id_col <- fit$id
+  time_col <- fit$time
+  model_fn <- details$model_fn
+  treatment_models_by_time <- details$treatment_models_by_time
+  fit_data_by_time <- details$fit_data_by_time
+  ext_w <- details$weights
+  binary_outcome <- is_binary_family(details$family_outcome)
+
+  # ---- Weights and mu_hat -----------------------------------------
+  has_weights <- !is.null(ext_w)
+  if (has_weights) {
+    w_first <- ext_w[rows_first]
+    w_t <- w_first[target]
+  } else {
+    w_t <- rep(1, sum(target))
+  }
+  sum_w_target <- sum(w_t)
+  mu_hat <- sum(w_t * pseudo_final[target]) / sum_w_target
+
+  # ---- Channel 1: direct contribution ----------------------------
+  IF_vec <- numeric(n)
+  IF_vec[target] <- n *
+    (w_t / sum_w_target) *
+    (pseudo_final[target] - mu_hat)
+
+  # Per-time-step external weight lookup (same as ICE sandwich)
+  w_at_step <- if (has_weights) {
+    lapply(seq_len(n_times), function(k) {
+      rows_k <- data[[time_col]] == time_points[k]
+      ids_k <- as.character(data[rows_k][[id_col]])
+      stats::setNames(ext_w[rows_k], ids_k)
+    })
+  } else {
+    NULL
+  }
+
+  # ---- Channel 2a: outcome model corrections ---------------------
+  # Forward sensitivity cascade (ICE-style) with augmented gradient.
+  # At each step k the gradient gains an additional term from the
+  # AIPW residual: -W_cumul[i,k] * X_obs_i * mu_eta_obs_i.
+  d_vec <- rep(0, n)
+
+  for (step_i in seq_len(n_times)) {
+    model_k <- models[[step_i]]
+    if (is.null(model_k)) {
+      next
+    }
+
+    current_time <- time_points[step_i]
+    fit_ids_k <- fit_ids_list[[step_i]]
+    if (length(fit_ids_k) == 0L) {
+      next
+    }
+
+    rows_iv_current <- data_iv[[time_col]] == current_time
+    iv_data_current <- data_iv[rows_iv_current]
+    iv_ids_current <- as.character(iv_data_current[[id_col]])
+
+    # Observed data at this time step
+    rows_obs_current <- data[[time_col]] == current_time
+    obs_data_current <- data[rows_obs_current]
+    obs_ids_current <- as.character(obs_data_current[[id_col]])
+
+    fam_k <- model_k$family
+    beta_k <- stats::coef(model_k)
+
+    if (step_i == 1L) {
+      # First time step: gradient from target population
+      target_in_iv <- match(all_ids[target], iv_ids_current)
+      valid_target <- !is.na(target_in_iv)
+      target_in_iv <- target_in_iv[valid_target]
+      target_w <- w_t[valid_target]
+
+      # Term (a): intervention predictions d/dbeta m_k(d_k, L)
+      X_star_k <- iv_design_matrix(model_k, iv_data_current)
+      eta_star <- as.numeric(X_star_k %*% beta_k)
+      mu_eta_star <- fam_k$mu.eta(eta_star)
+
+      grad_a <- as.numeric(
+        crossprod(
+          X_star_k[target_in_iv, , drop = FALSE],
+          target_w * mu_eta_star[target_in_iv]
+        )
+      ) /
+        sum_w_target
+
+      # Term (b): -w_k * d/dbeta m_k(A_obs, L)
+      # Per-period weight, not cumulative (matches the recursion)
+      target_in_obs <- match(
+        all_ids[target],
+        obs_ids_current
+      )
+      valid_obs <- !is.na(target_in_obs)
+      target_in_obs <- target_in_obs[valid_obs]
+      target_w_obs <- w_t[valid_obs]
+
+      X_obs_k <- iv_design_matrix(model_k, obs_data_current)
+      eta_obs <- as.numeric(X_obs_k %*% beta_k)
+      mu_eta_obs <- fam_k$mu.eta(eta_obs)
+
+      target_ids_obs <- all_ids[target][valid_obs]
+      w_period_target <- W_period[
+        id_to_idx[target_ids_obs],
+        step_i
+      ]
+
+      grad_b <- -as.numeric(
+        crossprod(
+          X_obs_k[target_in_obs, , drop = FALSE],
+          target_w_obs * w_period_target * mu_eta_obs[target_in_obs]
+        )
+      ) /
+        sum_w_target
+
+      g_k <- grad_a + grad_b
+    } else {
+      # Later steps: cascade from previous step's d_vec
+      prev_fit_ids <- fit_ids_list[[step_i - 1L]]
+      idx_in_all <- id_to_idx[prev_fit_ids]
+      rows_in_iv <- match(prev_fit_ids, iv_ids_current)
+      rows_in_obs <- match(prev_fit_ids, obs_ids_current)
+      keep <- !is.na(idx_in_all) &
+        !is.na(rows_in_iv) &
+        !is.na(rows_in_obs)
+
+      if (any(keep)) {
+        d_prev <- d_vec[idx_in_all[keep]]
+        w_prev <- if (has_weights) {
+          unname(
+            w_at_step[[step_i - 1L]][prev_fit_ids[keep]]
+          )
+        } else {
+          rep(1, sum(keep))
+        }
+
+        # Intervention gradient (same as ICE cascade)
+        X_star_k <- iv_design_matrix(
+          model_k,
+          iv_data_current
+        )
+        eta_star <- as.numeric(X_star_k %*% beta_k)
+        mu_eta_star <- fam_k$mu.eta(eta_star)
+
+        weights_g_iv <- w_prev * d_prev * mu_eta_star[rows_in_iv[keep]]
+        grad_a <- as.numeric(
+          crossprod(
+            X_star_k[rows_in_iv[keep], , drop = FALSE],
+            weights_g_iv
+          )
+        )
+
+        # Observed gradient with cumulative weights
+        X_obs_k <- iv_design_matrix(
+          model_k,
+          obs_data_current
+        )
+        eta_obs <- as.numeric(X_obs_k %*% beta_k)
+        mu_eta_obs <- fam_k$mu.eta(eta_obs)
+
+        prev_ids_keep <- prev_fit_ids[keep]
+        w_period_prev <- W_period[
+          id_to_idx[prev_ids_keep],
+          step_i
+        ]
+
+        weights_g_obs <- w_prev *
+          d_prev *
+          w_period_prev *
+          mu_eta_obs[rows_in_obs[keep]]
+        grad_b <- -as.numeric(
+          crossprod(
+            X_obs_k[rows_in_obs[keep], , drop = FALSE],
+            weights_g_obs
+          )
+        )
+
+        g_k <- grad_a + grad_b
+      } else {
+        p_coef <- length(beta_k)
+        g_k <- rep(0, p_coef)
+      }
+    }
+
+    fit_id_idx <- id_to_idx[fit_ids_k]
+    res <- correct_model(model_k, g_k, fit_id_idx, n)
+    IF_vec <- IF_vec + res$correction
+    d_vec <- res$d
+  }
+
+  # ---- Channel 2b: propensity model corrections ------------------
+  # Per-period density-ratio corrections via numerical Jacobian on
+  # the AIPW augmented mean as a function of the stacked propensity
+  # parameters alpha. Same block-diagonal structure as longitudinal
+  # IPW: K disjoint per-period propensity models.
+  #
+  # We build per-period weight sub-closures (same way
+  # make_weight_fn_longitudinal does internally) so we can
+  # reconstruct per-period cumulative products under perturbed alpha.
+  ids_first <- all_ids
+
+  K <- length(treatment_models_by_time)
+  sub_fns <- vector("list", K)
+  block_lens <- integer(K)
+  alpha_blocks <- vector("list", K)
+  align_idx_list <- vector("list", K)
+
+  for (k in seq_len(K)) {
+    tm_k <- treatment_models_by_time[[k]]
+    data_k <- fit_data_by_time[[k]]
+    ids_k <- as.character(data_k[[id_col]])
+
+    sub_fns[[k]] <- make_weight_fn(
+      treatment_model = tm_k,
+      data = data_k,
+      intervention = intervention,
+      estimand = "ATE"
+    )
+
+    period_ids <- ids_k[tm_k$fit_rows]
+    align_idx_list[[k]] <- match(period_ids, ids_first)
+    alpha_k <- tm_k$alpha_hat
+    alpha_blocks[[k]] <- alpha_k
+    block_lens[k] <- length(alpha_k)
+  }
+
+  alpha_offsets <- c(1L, cumsum(block_lens) + 1L)
+  alpha_hat_stacked <- unlist(alpha_blocks, use.names = FALSE)
+
+  # Skip propensity correction for natural course
+  if (length(alpha_hat_stacked) > 0L) {
+    # Build the augmented-mean closure for numDeriv. Recomputes the
+    # AIPW pseudo-outcomes using perturbed cumulative weights while
+    # holding outcome models fixed. numDeriv::jacobian handles the
+    # chain rule through the backward recursion.
+    models_fixed <- models
+    data_iv_fixed <- data_iv
+
+    aug_mean <- function(alpha) {
+      # Reconstruct per-period weights from perturbed alpha
+      W_new <- matrix(1, nrow = n, ncol = K)
+      for (kk in seq_len(K)) {
+        idx <- alpha_offsets[kk]:(alpha_offsets[kk + 1L] - 1L)
+        w_k_raw <- sub_fns[[kk]](alpha[idx])
+
+        w_k <- rep(1, n)
+        w_k[align_idx_list[[kk]]] <- w_k_raw
+        W_new[, kk] <- w_k
+      }
+
+      # Backward AIPW pseudo-outcome recursion with fixed models
+      pseudo_a <- rep(NA_real_, n)
+
+      for (step_i in rev(seq_len(n_times))) {
+        model_k <- models_fixed[[step_i]]
+        if (is.null(model_k)) {
+          next
+        }
+
+        current_time <- time_points[step_i]
+        rows_iv <- data_iv_fixed[[time_col]] == current_time
+        rows_obs <- data[[time_col]] == current_time
+        obs_ids <- as.character(data[rows_obs][[id_col]])
+        obs_idx <- id_to_idx[obs_ids]
+
+        preds_iv_k <- stats::predict(
+          model_k,
+          newdata = data_iv_fixed[rows_iv],
+          type = "response"
+        )
+        preds_obs_k <- stats::predict(
+          model_k,
+          newdata = data[rows_obs],
+          type = "response"
+        )
+
+        if (step_i == n_times) {
+          y_k <- data[rows_obs][[fit$outcome]]
+          resid_k <- y_k - preds_obs_k
+        } else {
+          resid_k <- pseudo_a[obs_idx] - preds_obs_k
+        }
+
+        has_prev <- !is.na(resid_k)
+        pseudo_k <- preds_iv_k
+        pseudo_k[has_prev] <- preds_iv_k[has_prev] +
+          W_new[obs_idx[has_prev], step_i] *
+            resid_k[has_prev]
+        if (binary_outcome) {
+          pseudo_k <- pmax(pmin(pseudo_k, 1 - 1e-5), 1e-5)
+        }
+        pseudo_a[obs_idx] <- pseudo_k
+      }
+
+      sum(w_t * pseudo_a[which(target)]) / sum_w_target
+    }
+
+    # Numerical Jacobian of augmented mean w.r.t. stacked alpha
+    J_alpha <- as.numeric(
+      numDeriv::jacobian(aug_mean, x = alpha_hat_stacked)
+    )
+
+    # Per-period propensity corrections (block-diagonal bread)
+    for (k in seq_len(K)) {
+      idx <- alpha_offsets[k]:(alpha_offsets[k + 1L] - 1L)
+      J_alpha_k <- J_alpha[idx]
+
+      tm_k <- treatment_models_by_time[[k]]
+      data_k <- fit_data_by_time[[k]]
+      ids_k <- as.character(data_k[[id_col]])
+      period_ids <- ids_k[tm_k$fit_rows]
+      pos_k <- match(period_ids, ids_first)
+      n_period_k <- length(period_ids)
+
+      prop_model_k <- tm_k$model
+      prop_prep_k <- if (inherits(prop_model_k, "multinom")) {
+        prepare_model_if_multinom(
+          prop_model_k,
+          seq_len(n_period_k),
+          n_period_k
+        )
+      } else {
+        prepare_model_if(
+          prop_model_k,
+          seq_len(n_period_k),
+          n_period_k
+        )
+      }
+      prop_res_k <- apply_model_correction(
+        prop_prep_k,
+        J_alpha_k
+      )
+
+      correction_id <- numeric(n)
+      correction_id[pos_k] <- prop_res_k$correction
+      if (n_period_k != n) {
+        correction_id <- correction_id * (n / n_period_k)
+      }
+      # Propensity correction subtracted (M-estimation sign)
+      IF_vec <- IF_vec - correction_id
+    }
+  }
+
+  IF_vec
 }
