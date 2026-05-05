@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>scale_by – causatr</title>
+<title>target_trial – causatr</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -142,7 +142,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../man/causat.html">Reference</a></li><li class="breadcrumb-item"><a href="../man/scale_by.html">scale_by</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../man/causat.html">Reference</a></li><li class="breadcrumb-item"><a href="../man/target_trial.html">target_trial</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -382,7 +382,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../man/scale_by.html" class="sidebar-item-text sidebar-link active">
+  <a href="../man/scale_by.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">scale_by</span></a>
   </div>
 </li>
@@ -424,7 +424,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../man/target_trial.html" class="sidebar-item-text sidebar-link">
+  <a href="../man/target_trial.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text">target_trial</span></a>
   </div>
 </li>
@@ -482,7 +482,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#multiply-treatment-by-a-fixed-factor" id="toc-multiply-treatment-by-a-fixed-factor" class="nav-link active" data-scroll-target="#multiply-treatment-by-a-fixed-factor">Multiply treatment by a fixed factor</a>
+  <li><a href="#specify-a-target-trial-protocol" id="toc-specify-a-target-trial-protocol" class="nav-link active" data-scroll-target="#specify-a-target-trial-protocol">Specify a target trial protocol</a>
   <ul class="collapse">
   <li><a href="#description" id="toc-description" class="nav-link" data-scroll-target="#description">Description</a></li>
   <li><a href="#usage" id="toc-usage" class="nav-link" data-scroll-target="#usage">Usage</a></li>
@@ -495,20 +495,29 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="quarto-code-links"><h2>Code Links</h2><ul><li><a href="undefined"><i class="bi bi-link-45deg"></i></a></li></ul></div></nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../man/causat.html">Reference</a></li><li class="breadcrumb-item"><a href="../man/scale_by.html">scale_by</a></li></ol></nav></header>
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../man/causat.html">Reference</a></li><li class="breadcrumb-item"><a href="../man/target_trial.html">target_trial</a></li></ol></nav></header>
 
 
 
 
-<section id="multiply-treatment-by-a-fixed-factor" class="level2 unnumbered">
-<h2 class="unnumbered anchored" data-anchor-id="multiply-treatment-by-a-fixed-factor">Multiply treatment by a fixed factor</h2>
+<section id="specify-a-target-trial-protocol" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="specify-a-target-trial-protocol">Specify a target trial protocol</h2>
 <section id="description" class="level3">
 <h3 class="anchored" data-anchor-id="description">Description</h3>
-<p>Creates a modified treatment policy that multiplies each individual’s observed treatment by <code>factor</code>. Useful for proportional reductions or increases in continuous treatments.</p>
+<p>Creates a structured description of the target trial that your causal analysis emulates. This is a documentation aid — the object is not passed to <code>causat()</code> or <code>contrast()</code>. It helps you reason through the components of the target trial (Hernán &amp; Robins 2025, Ch. 22) before writing the analysis code.</p>
 </section>
 <section id="usage" class="level3">
 <h3 class="anchored" data-anchor-id="usage">Usage</h3>
-<pre><code class="language-R">scale_by(factor)
+<pre><code class="language-R">target_trial(
+  eligibility = NULL,
+  treatment_strategy = NULL,
+  assignment = NULL,
+  follow_up = NULL,
+  outcome = NULL,
+  causal_contrast = NULL,
+  model = NULL,
+  censoring = NULL
+)
 </code></pre>
 </section>
 <section id="arguments" class="level3">
@@ -516,33 +525,90 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <table role="presentation">
 <tbody><tr>
 <td style="white-space: collapse; font-family: monospace; vertical-align: top">
-<code id="factor">factor</code>
+<code id="eligibility">eligibility</code>
 </td>
 <td>
-Numeric. The multiplicative factor.
+Character. Who is eligible for the trial at time zero?
+</td>
+</tr>
+<tr>
+<td style="white-space: collapse; font-family: monospace; vertical-align: top">
+<code id="treatment_strategy">treatment_strategy</code>
+</td>
+<td>
+Character. What treatment strategies are compared? (e.g.&nbsp;"initiate treatment A vs.&nbsp;remain untreated")
+</td>
+</tr>
+<tr>
+<td style="white-space: collapse; font-family: monospace; vertical-align: top">
+<code id="assignment">assignment</code>
+</td>
+<td>
+Character. How are individuals assigned to strategies? (e.g.&nbsp;"random assignment at baseline")
+</td>
+</tr>
+<tr>
+<td style="white-space: collapse; font-family: monospace; vertical-align: top">
+<code id="follow_up">follow_up</code>
+</td>
+<td>
+Character. When does follow-up start and end?
+</td>
+</tr>
+<tr>
+<td style="white-space: collapse; font-family: monospace; vertical-align: top">
+<code id="outcome">outcome</code>
+</td>
+<td>
+Character. What outcome is measured, and when?
+</td>
+</tr>
+<tr>
+<td style="white-space: collapse; font-family: monospace; vertical-align: top">
+<code id="causal_contrast">causal_contrast</code>
+</td>
+<td>
+Character. What causal contrast is estimated? (e.g.&nbsp;"intention-to-treat effect", "per-protocol effect")
+</td>
+</tr>
+<tr>
+<td style="white-space: collapse; font-family: monospace; vertical-align: top">
+<code id="model">model</code>
+</td>
+<td>
+Character. What statistical model links the data to the causal parameter? (e.g.&nbsp;"parametric g-formula with logistic outcome model")
+</td>
+</tr>
+<tr>
+<td style="white-space: collapse; font-family: monospace; vertical-align: top">
+<code id="censoring">censoring</code>
+</td>
+<td>
+Character. How is loss to follow-up or non-adherence handled? (e.g.&nbsp;"IPCW for dropout", "grace period of 2 visits")
 </td>
 </tr>
 </tbody></table>
 </section>
 <section id="value" class="level3">
 <h3 class="anchored" data-anchor-id="value">Value</h3>
-<p>A <code>causatr_intervention</code> object.</p>
+<p>A <code>causatr_target_trial</code> object (S3 list with a print method).</p>
 </section>
 <section id="see-also" class="level3">
 <h3 class="anchored" data-anchor-id="see-also">See Also</h3>
-<p><code>static()</code>, <code>shift()</code>, <code>threshold()</code>, <code>dynamic()</code>, <code>ipsi()</code>, <code>stochastic()</code></p>
+<p><code>causat()</code>, <code>contrast()</code></p>
 </section>
 <section id="examples" class="level3">
 <h3 class="anchored" data-anchor-id="examples">Examples</h3>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">"causatr"</span>)</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(nhefs, <span class="at">outcome =</span> <span class="st">"wt82_71"</span>, <span class="at">treatment =</span> <span class="st">"smokeintensity"</span>,</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>              <span class="at">confounders =</span> <span class="sc">~</span> sex <span class="sc">+</span> age <span class="sc">+</span> wt71)</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit, <span class="at">interventions =</span> <span class="fu">list</span>(</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">halved =</span> <span class="fu">scale_by</span>(<span class="fl">0.5</span>),</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">observed =</span> <span class="fu">scale_by</span>(<span class="dv">1</span>)</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">target_trial</span>(</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">eligibility =</span> <span class="st">"Adults aged 25-74 who smoke &gt;= 5 cig/day"</span>,</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment_strategy =</span> <span class="st">"Quit smoking vs. continue smoking"</span>,</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">follow_up =</span> <span class="st">"Baseline (1971) to end of follow-up (1982)"</span>,</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"Weight change in kg at end of follow-up"</span>,</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">causal_contrast =</span> <span class="st">"ATE: E[Y(quit)] - E[Y(continue)]"</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 
 

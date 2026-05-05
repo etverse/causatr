@@ -453,6 +453,12 @@ window.Quarto = {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="../man/target_trial.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">target_trial</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="../man/threshold.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">threshold</span></a>
   </div>
@@ -826,6 +832,20 @@ window.Quarto = {
 </div>
 </div>
 <p>Agreement across methods within each stratum provides evidence that the sex-specific effects are real. Disagreement would point to model misspecification in one or more methods.</p>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Important</span>Effect modifier must be a baseline variable under IPW and matching
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Under IPW and matching, the modifier in <code>A:modifier</code> must be a <strong>baseline</strong> (pre-treatment) variable. A time-varying modifier in a marginal structural model conditions on a post-treatment variable, which biases the estimand via mediator and collider paths (Robins, Hernán, Brumback 2000). G-computation has no such restriction because it models the outcome, not the treatment.</p>
+<p>causatr does not enforce baseline-ness at runtime (time-varying status isn’t inferable from data alone). This is a user responsibility.</p>
+</div>
+</div>
 </section>
 <section id="when-to-use-which-method" class="level2">
 <h2 class="anchored" data-anchor-id="when-to-use-which-method">When to use which method</h2>
@@ -860,7 +880,7 @@ window.Quarto = {
 <tr class="odd">
 <td>Continuous treatment</td>
 <td>Yes</td>
-<td>Yes (GPS, static only)</td>
+<td>Yes (density-ratio)</td>
 <td>No (MatchIt binary-only)</td>
 </tr>
 <tr class="even">
@@ -878,13 +898,13 @@ window.Quarto = {
 <tr class="even">
 <td>Longitudinal (time-varying) treatments</td>
 <td>Yes (ICE)</td>
-<td>No (Phase 10)</td>
+<td>Yes (longitudinal IPW)</td>
 <td>No</td>
 </tr>
 <tr class="odd">
 <td>Variance estimation</td>
 <td>Sandwich (IF engine) or bootstrap</td>
-<td>M-estimation sandwich via WeightIt’s <code>glm_weightit</code></td>
+<td>Sandwich (IF engine) or bootstrap</td>
 <td>Cluster-robust sandwich on matched subclass</td>
 </tr>
 <tr class="even">
@@ -1603,31 +1623,44 @@ window.Quarto = {
 <span id="cb12-266"><a href="#cb12-266" aria-hidden="true" tabindex="-1"></a>sex-specific effects are real. Disagreement would point to model</span>
 <span id="cb12-267"><a href="#cb12-267" aria-hidden="true" tabindex="-1"></a>misspecification in one or more methods.</span>
 <span id="cb12-268"><a href="#cb12-268" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-269"><a href="#cb12-269" aria-hidden="true" tabindex="-1"></a><span class="fu">## When to use which method</span></span>
-<span id="cb12-270"><a href="#cb12-270" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-271"><a href="#cb12-271" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Criterion <span class="pp">|</span> G-computation <span class="pp">|</span> IPW <span class="pp">|</span> Matching <span class="pp">|</span></span>
-<span id="cb12-272"><a href="#cb12-272" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|---|</span></span>
-<span id="cb12-273"><a href="#cb12-273" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Model specification <span class="pp">|</span> Outcome model <span class="pp">|</span> Treatment model <span class="pp">|</span> Treatment model <span class="pp">|</span></span>
-<span id="cb12-274"><a href="#cb12-274" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Non-static interventions (shift / scale / threshold / dynamic) <span class="pp">|</span> Yes <span class="pp">|</span> Yes (shift, scale<span class="sc">\_</span>by, dynamic, IPSI) <span class="pp">|</span> No (static only) <span class="pp">|</span></span>
-<span id="cb12-275"><a href="#cb12-275" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Continuous treatment <span class="pp">|</span> Yes <span class="pp">|</span> Yes (GPS, static only) <span class="pp">|</span> No (MatchIt binary-only) <span class="pp">|</span></span>
-<span id="cb12-276"><a href="#cb12-276" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Categorical (k &gt; 2) treatment <span class="pp">|</span> Yes <span class="pp">|</span> Yes <span class="pp">|</span> No (MatchIt binary-only) <span class="pp">|</span></span>
-<span id="cb12-277"><a href="#cb12-277" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Effect modification via <span class="in">`A:modifier`</span> in <span class="in">`confounders`</span> <span class="pp">|</span> Yes <span class="pp">|</span> Yes (<span class="in">`Y ~ 1 + modifier`</span>) <span class="pp">|</span> Yes (<span class="in">`Y ~ A + modifier + A:modifier`</span>) <span class="pp">|</span></span>
-<span id="cb12-278"><a href="#cb12-278" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Longitudinal (time-varying) treatments <span class="pp">|</span> Yes (ICE) <span class="pp">|</span> No (Phase 10) <span class="pp">|</span> No <span class="pp">|</span></span>
-<span id="cb12-279"><a href="#cb12-279" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Variance estimation <span class="pp">|</span> Sandwich (IF engine) or bootstrap <span class="pp">|</span> M-estimation sandwich via WeightIt's <span class="in">`glm_weightit`</span> <span class="pp">|</span> Cluster-robust sandwich on matched subclass <span class="pp">|</span></span>
-<span id="cb12-280"><a href="#cb12-280" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Robustness to <span class="pp">|</span> Treatment model misspecification <span class="pp">|</span> Outcome model misspecification <span class="pp">|</span> Outcome model misspecification <span class="pp">|</span></span>
+<span id="cb12-269"><a href="#cb12-269" aria-hidden="true" tabindex="-1"></a>::: {.callout-important}</span>
+<span id="cb12-270"><a href="#cb12-270" aria-hidden="true" tabindex="-1"></a><span class="fu">## Effect modifier must be a baseline variable under IPW and matching</span></span>
+<span id="cb12-271"><a href="#cb12-271" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-272"><a href="#cb12-272" aria-hidden="true" tabindex="-1"></a>Under IPW and matching, the modifier in <span class="in">`A:modifier`</span> must be a **baseline**</span>
+<span id="cb12-273"><a href="#cb12-273" aria-hidden="true" tabindex="-1"></a>(pre-treatment) variable. A time-varying modifier in a marginal structural model</span>
+<span id="cb12-274"><a href="#cb12-274" aria-hidden="true" tabindex="-1"></a>conditions on a post-treatment variable, which biases the estimand via mediator</span>
+<span id="cb12-275"><a href="#cb12-275" aria-hidden="true" tabindex="-1"></a>and collider paths (Robins, Hernán, Brumback 2000). G-computation has no such</span>
+<span id="cb12-276"><a href="#cb12-276" aria-hidden="true" tabindex="-1"></a>restriction because it models the outcome, not the treatment.</span>
+<span id="cb12-277"><a href="#cb12-277" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-278"><a href="#cb12-278" aria-hidden="true" tabindex="-1"></a>causatr does not enforce baseline-ness at runtime (time-varying status isn't</span>
+<span id="cb12-279"><a href="#cb12-279" aria-hidden="true" tabindex="-1"></a>inferable from data alone). This is a user responsibility.</span>
+<span id="cb12-280"><a href="#cb12-280" aria-hidden="true" tabindex="-1"></a>:::</span>
 <span id="cb12-281"><a href="#cb12-281" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-282"><a href="#cb12-282" aria-hidden="true" tabindex="-1"></a>When the outcome model and treatment model are both correctly specified, all</span>
-<span id="cb12-283"><a href="#cb12-283" aria-hidden="true" tabindex="-1"></a>three methods should produce similar estimates. Disagreement suggests model</span>
-<span id="cb12-284"><a href="#cb12-284" aria-hidden="true" tabindex="-1"></a>misspecification — investigate further.</span>
-<span id="cb12-285"><a href="#cb12-285" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-286"><a href="#cb12-286" aria-hidden="true" tabindex="-1"></a>For features marked "No (Phase X)", causatr aborts at fit or contrast time</span>
-<span id="cb12-287"><a href="#cb12-287" aria-hidden="true" tabindex="-1"></a>with a pointer to the planning doc rather than silently returning a wrong</span>
-<span id="cb12-288"><a href="#cb12-288" aria-hidden="true" tabindex="-1"></a>answer — see <span class="in">`FEATURE_COVERAGE_MATRIX.md`</span> for the full rejection-path</span>
-<span id="cb12-289"><a href="#cb12-289" aria-hidden="true" tabindex="-1"></a>inventory.</span>
-<span id="cb12-290"><a href="#cb12-290" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-291"><a href="#cb12-291" aria-hidden="true" tabindex="-1"></a><span class="fu">## References</span></span>
-<span id="cb12-292"><a href="#cb12-292" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-293"><a href="#cb12-293" aria-hidden="true" tabindex="-1"></a>Hernán MA, Robins JM (2025). *Causal Inference: What If*. Chapman &amp; Hall/CRC.</span>
+<span id="cb12-282"><a href="#cb12-282" aria-hidden="true" tabindex="-1"></a><span class="fu">## When to use which method</span></span>
+<span id="cb12-283"><a href="#cb12-283" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-284"><a href="#cb12-284" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Criterion <span class="pp">|</span> G-computation <span class="pp">|</span> IPW <span class="pp">|</span> Matching <span class="pp">|</span></span>
+<span id="cb12-285"><a href="#cb12-285" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|---|</span></span>
+<span id="cb12-286"><a href="#cb12-286" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Model specification <span class="pp">|</span> Outcome model <span class="pp">|</span> Treatment model <span class="pp">|</span> Treatment model <span class="pp">|</span></span>
+<span id="cb12-287"><a href="#cb12-287" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Non-static interventions (shift / scale / threshold / dynamic) <span class="pp">|</span> Yes <span class="pp">|</span> Yes (shift, scale<span class="sc">\_</span>by, dynamic, IPSI) <span class="pp">|</span> No (static only) <span class="pp">|</span></span>
+<span id="cb12-288"><a href="#cb12-288" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Continuous treatment <span class="pp">|</span> Yes <span class="pp">|</span> Yes (density-ratio) <span class="pp">|</span> No (MatchIt binary-only) <span class="pp">|</span></span>
+<span id="cb12-289"><a href="#cb12-289" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Categorical (k &gt; 2) treatment <span class="pp">|</span> Yes <span class="pp">|</span> Yes <span class="pp">|</span> No (MatchIt binary-only) <span class="pp">|</span></span>
+<span id="cb12-290"><a href="#cb12-290" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Effect modification via <span class="in">`A:modifier`</span> in <span class="in">`confounders`</span> <span class="pp">|</span> Yes <span class="pp">|</span> Yes (<span class="in">`Y ~ 1 + modifier`</span>) <span class="pp">|</span> Yes (<span class="in">`Y ~ A + modifier + A:modifier`</span>) <span class="pp">|</span></span>
+<span id="cb12-291"><a href="#cb12-291" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Longitudinal (time-varying) treatments <span class="pp">|</span> Yes (ICE) <span class="pp">|</span> Yes (longitudinal IPW) <span class="pp">|</span> No <span class="pp">|</span></span>
+<span id="cb12-292"><a href="#cb12-292" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Variance estimation <span class="pp">|</span> Sandwich (IF engine) or bootstrap <span class="pp">|</span> Sandwich (IF engine) or bootstrap <span class="pp">|</span> Cluster-robust sandwich on matched subclass <span class="pp">|</span></span>
+<span id="cb12-293"><a href="#cb12-293" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Robustness to <span class="pp">|</span> Treatment model misspecification <span class="pp">|</span> Outcome model misspecification <span class="pp">|</span> Outcome model misspecification <span class="pp">|</span></span>
+<span id="cb12-294"><a href="#cb12-294" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-295"><a href="#cb12-295" aria-hidden="true" tabindex="-1"></a>When the outcome model and treatment model are both correctly specified, all</span>
+<span id="cb12-296"><a href="#cb12-296" aria-hidden="true" tabindex="-1"></a>three methods should produce similar estimates. Disagreement suggests model</span>
+<span id="cb12-297"><a href="#cb12-297" aria-hidden="true" tabindex="-1"></a>misspecification — investigate further.</span>
+<span id="cb12-298"><a href="#cb12-298" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-299"><a href="#cb12-299" aria-hidden="true" tabindex="-1"></a>For features marked "No (Phase X)", causatr aborts at fit or contrast time</span>
+<span id="cb12-300"><a href="#cb12-300" aria-hidden="true" tabindex="-1"></a>with a pointer to the planning doc rather than silently returning a wrong</span>
+<span id="cb12-301"><a href="#cb12-301" aria-hidden="true" tabindex="-1"></a>answer — see <span class="in">`FEATURE_COVERAGE_MATRIX.md`</span> for the full rejection-path</span>
+<span id="cb12-302"><a href="#cb12-302" aria-hidden="true" tabindex="-1"></a>inventory.</span>
+<span id="cb12-303"><a href="#cb12-303" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-304"><a href="#cb12-304" aria-hidden="true" tabindex="-1"></a><span class="fu">## References</span></span>
+<span id="cb12-305"><a href="#cb12-305" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-306"><a href="#cb12-306" aria-hidden="true" tabindex="-1"></a>Hernán MA, Robins JM (2025). *Causal Inference: What If*. Chapman &amp; Hall/CRC.</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

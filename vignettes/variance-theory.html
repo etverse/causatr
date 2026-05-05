@@ -456,6 +456,12 @@ window.Quarto = {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="../man/target_trial.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">target_trial</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="../man/threshold.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">threshold</span></a>
   </div>
@@ -591,7 +597,21 @@ window.Quarto = {
   <li><a href="#pseudo-code-if-for-a-chained-estimator" id="toc-pseudo-code-if-for-a-chained-estimator" class="nav-link" data-scroll-target="#pseudo-code-if-for-a-chained-estimator">5.6 Pseudo-code: IF for a chained estimator</a></li>
   <li><a href="#from-individual-ifs-to-the-variance" id="toc-from-individual-ifs-to-the-variance" class="nav-link" data-scroll-target="#from-individual-ifs-to-the-variance">5.7 From individual IFs to the variance</a></li>
   </ul></li>
-  <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary">6. Summary</a></li>
+  <li><a href="#ipcw-variance-under-outcome-censoring" id="toc-ipcw-variance-under-outcome-censoring" class="nav-link" data-scroll-target="#ipcw-variance-under-outcome-censoring">6. IPCW: variance under outcome censoring</a>
+  <ul>
+  <li><a href="#the-censoring-model-as-a-third-nuisance-block" id="toc-the-censoring-model-as-a-third-nuisance-block" class="nav-link" data-scroll-target="#the-censoring-model-as-a-third-nuisance-block">6.1 The censoring model as a third nuisance block</a></li>
+  <li><a href="#the-block-triangular-bread-1" id="toc-the-block-triangular-bread-1" class="nav-link" data-scroll-target="#the-block-triangular-bread-1">6.2 The block-triangular bread</a></li>
+  <li><a href="#the-channel-2-correction-for-censoring" id="toc-the-channel-2-correction-for-censoring" class="nav-link" data-scroll-target="#the-channel-2-correction-for-censoring">6.3 The Channel 2 correction for censoring</a></li>
+  <li><a href="#point-treatment-ipw-with-ipcw" id="toc-point-treatment-ipw-with-ipcw" class="nav-link" data-scroll-target="#point-treatment-ipw-with-ipcw">6.4 Point-treatment IPW with IPCW</a></li>
+  <li><a href="#longitudinal-ipcw-the-conservative-approximation" id="toc-longitudinal-ipcw-the-conservative-approximation" class="nav-link" data-scroll-target="#longitudinal-ipcw-the-conservative-approximation">6.5 Longitudinal IPCW: the conservative approximation</a></li>
+  </ul></li>
+  <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary">7. Summary</a></li>
+  <li><a href="#numeric-variance-tiers-custom-model_fn" id="toc-numeric-variance-tiers-custom-model_fn" class="nav-link" data-scroll-target="#numeric-variance-tiers-custom-model_fn">8. Numeric variance tiers (custom <code>model_fn</code>)</a>
+  <ul>
+  <li><a href="#tier-1-sandwichestfun-available" id="toc-tier-1-sandwichestfun-available" class="nav-link" data-scroll-target="#tier-1-sandwichestfun-available">Tier 1: <code>sandwich::estfun</code> available</a></li>
+  <li><a href="#tier-2-plain-delta-shortcut" id="toc-tier-2-plain-delta-shortcut" class="nav-link" data-scroll-target="#tier-2-plain-delta-shortcut">Tier 2: plain delta shortcut</a></li>
+  <li><a href="#which-tier-does-my-model_fn-use" id="toc-which-tier-does-my-model_fn-use" class="nav-link" data-scroll-target="#which-tier-does-my-model_fn-use">Which tier does my <code>model_fn</code> use?</a></li>
+  </ul></li>
   <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
   </ul>
 <div class="quarto-code-links"><h2>Code Links</h2><ul><li><a href="undefined"><i class="bi bi-link-45deg"></i></a></li></ul></div></nav>
@@ -3243,8 +3263,89 @@ n_k \cdot \color{#E6550D}{d_{k,i}} \cdot r^{\text{score}}_{k,i}
 <p>The full <span class="math inline">\(k \times k\)</span> covariance matrix is then used for contrasts.</p>
 </section>
 </section>
+<section id="ipcw-variance-under-outcome-censoring" class="level2">
+<h2 class="anchored" data-anchor-id="ipcw-variance-under-outcome-censoring">6. IPCW: variance under outcome censoring</h2>
+<p>When outcome data are missing at random (MAR) and causatr fits a censoring model <span class="math inline">\(P(C = 0 \mid A, L)\)</span>, the IPCW weights become estimated nuisance parameters. The variance of the causal estimand must account for this estimation uncertainty — otherwise the sandwich SE is conservative.</p>
+<section id="the-censoring-model-as-a-third-nuisance-block" class="level3">
+<h3 class="anchored" data-anchor-id="the-censoring-model-as-a-third-nuisance-block">6.1 The censoring model as a third nuisance block</h3>
+<p>The censoring model adds a block to the stacked estimating equations. For <strong>point-treatment g-computation</strong> with IPCW, the stack becomes:</p>
+<p><span class="math display">\[
+\Psi(\theta) =
+\begin{pmatrix}
+\psi_\gamma \\
+\psi_\beta \\
+\psi_\mu
+\end{pmatrix}
+= \begin{pmatrix}
+\text{censoring model score} \\
+\text{outcome model score (IPCW-weighted)} \\
+\text{target estimand}
+\end{pmatrix}
+\]</span></p>
+<p>where <span class="math inline">\(\theta = (\gamma, \beta, \mu)^T\)</span>, <span class="math inline">\(\gamma\)</span> are censoring model parameters, <span class="math inline">\(\beta\)</span> are outcome model parameters, and <span class="math inline">\(\mu\)</span> is the marginal mean.</p>
+</section>
+<section id="the-block-triangular-bread-1" class="level3">
+<h3 class="anchored" data-anchor-id="the-block-triangular-bread-1">6.2 The block-triangular bread</h3>
+<p>The bread matrix has the same block-triangular structure as in Section 3.5, now with one extra block:</p>
+<p><span class="math display">\[
+A =
+\begin{pmatrix}
+A_{\gamma\gamma} &amp; 0 &amp; 0 \\
+A_{\beta\gamma} &amp; A_{\beta\beta} &amp; 0 \\
+0 &amp; A_{\mu\beta} &amp; A_{\mu\mu}
+\end{pmatrix}
+\]</span></p>
+<p>The key new block is <span class="math inline">\(A_{\beta\gamma}\)</span>: the cross-derivative of the outcome model’s score with respect to the censoring parameters. This captures how changes in IPCW weights (driven by <span class="math inline">\(\gamma\)</span>) affect the outcome model fit.</p>
+<p>Concretely:</p>
+<p><span class="math display">\[
+A_{\beta\gamma} = -\frac{\partial}{\partial\gamma}
+\left[\frac{1}{n} \sum_i X_i \, w_{\text{ipcw}}(\gamma)_i \,
+\frac{(y_i - \mu_i)\,\mu'(\eta_i)}{V(\mu_i)}\right]
+\]</span></p>
+<p>In causatr, this is computed via <code>numDeriv::jacobian()</code> on a closure that perturbs the IPCW weights while holding <span class="math inline">\(\hat\beta\)</span> fixed.</p>
+</section>
+<section id="the-channel-2-correction-for-censoring" class="level3">
+<h3 class="anchored" data-anchor-id="the-channel-2-correction-for-censoring">6.3 The Channel 2 correction for censoring</h3>
+<p>Back-substitution through the bread yields an additional Channel 2 correction term in the IF:</p>
+<p><span class="math display">\[
+\text{IF}_i = \underbrace{\text{Ch1}_i}_{\text{covariate sampling}}
++ \underbrace{\text{Ch2}_i^{(\text{outcome})}}_{\text{outcome model}}
+- \underbrace{\text{Ch2}_i^{(\text{censoring})}}_{\text{censoring model}}
+\]</span></p>
+<p>The censoring correction is:</p>
+<p><span class="math display">\[
+\text{Ch2}_i^{(\text{censoring})}
+= g_\gamma^T \, A_{\gamma\gamma}^{-1} \, \psi_{\gamma,i}
+\]</span></p>
+<p>where <span class="math inline">\(g_\gamma = A_{\beta\gamma}^T \, h_\beta\)</span> and <span class="math inline">\(h_\beta =
+A_{\beta\beta}^{-1} J_\mu^T\)</span> projects the marginal-mean gradient through the outcome model bread.</p>
+<p>The minus sign on the censoring correction is deliberate: Robins, Rotnitzky &amp; Zhao (1994) showed this correction <strong>reduces</strong> variance by accounting for the information in the censoring model. Ignoring it (treating IPCW weights as known) is conservative.</p>
+</section>
+<section id="point-treatment-ipw-with-ipcw" class="level3">
+<h3 class="anchored" data-anchor-id="point-treatment-ipw-with-ipcw">6.4 Point-treatment IPW with IPCW</h3>
+<p>For IPW + IPCW, the stack has four blocks: censoring model, propensity model, MSM, and target. The bread becomes <span class="math inline">\(4 \times 4\)</span> block-triangular:</p>
+<p><span class="math display">\[
+A =
+\begin{pmatrix}
+A_{\gamma\gamma} &amp; 0 &amp; 0 &amp; 0 \\
+0 &amp; A_{\alpha\alpha} &amp; 0 &amp; 0 \\
+A_{\beta\gamma} &amp; A_{\beta\alpha} &amp; A_{\beta\beta} &amp; 0 \\
+0 &amp; 0 &amp; A_{\mu\beta} &amp; A_{\mu\mu}
+\end{pmatrix}
+\]</span></p>
+<p>Two off-diagonal blocks feed into the MSM score: <span class="math inline">\(A_{\beta\gamma}\)</span> (IPCW weights) and <span class="math inline">\(A_{\beta\alpha}\)</span> (propensity weights). Each generates an independent Channel 2 correction.</p>
+</section>
+<section id="longitudinal-ipcw-the-conservative-approximation" class="level3">
+<h3 class="anchored" data-anchor-id="longitudinal-ipcw-the-conservative-approximation">6.5 Longitudinal IPCW: the conservative approximation</h3>
+<p>For longitudinal treatments with per-period censoring models <span class="math inline">\(\gamma_1,
+\ldots, \gamma_K\)</span>, the full correction requires cross-derivatives <span class="math inline">\(A_{\beta_k, \gamma_j}\)</span> for all <span class="math inline">\(k \geq j\)</span>, projected through the ICE cascade’s accumulated sensitivity <span class="math inline">\(d_k\)</span>. This is technically supported by stacked M-estimation theory (Stefanski &amp; Boos 2002; Tsiatis 2006, Ch. 10), but the cascade’s <span class="math inline">\(d_k\)</span> vectors are built incrementally during the backward loop and cannot be evaluated inside a <code>numDeriv</code> closure.</p>
+<p>causatr currently <strong>omits</strong> the longitudinal censoring Channel 2 correction. This makes the sandwich SE conservative (larger than the true asymptotic SE). Empirically the ratio is <span class="math inline">\(\approx 0.94\)</span> (sandwich/bootstrap), confirming the omission is small.</p>
+<p><strong>Recommendation:</strong> For longitudinal IPCW, use <code>ci_method = "bootstrap"</code> for the tightest CIs. The sandwich remains valid for coverage guarantees.</p>
+<p>No existing package (<code>lmtp</code>, <code>ltmle</code>, <code>gfoRmula</code>) implements the longitudinal censoring Channel 2 correction — all use bootstrap variance in this setting.</p>
+</section>
+</section>
 <section id="summary" class="level2">
-<h2 class="anchored" data-anchor-id="summary">6. Summary</h2>
+<h2 class="anchored" data-anchor-id="summary">7. Summary</h2>
 <ol type="1">
 <li><p><strong>One method</strong>: the influence function. For any causal estimand <span class="math inline">\(\hat\mu\)</span>, write down the complete estimating equations (nuisance models + target estimand), compute each individual’s <span class="math inline">\(\text{IF}_i\)</span>, and take <span class="math inline">\(\widehat{\text{Var}}(\hat\mu) = \frac{1}{n^2}\sum_i \text{IF}_i^2\)</span>.</p></li>
 <li><p><strong>The IF is the sandwich</strong>: the IF formula is the sandwich <span class="math inline">\(\color{#3182BD}{A^{-1}} \color{#E6550D}{B} \color{#3182BD}{(A^{-1})^T}\)</span> applied to the stacked estimating equations, with the block-triangular bread inverted by back-substitution. The bread, meat, and scores are all present — the IF just computes <span class="math inline">\(A^{-1}\psi_i\)</span> per individual instead of forming the full matrices.</p></li>
@@ -3254,9 +3355,65 @@ n_k \cdot \color{#E6550D}{d_{k,i}} \cdot r^{\text{score}}_{k,i}
 <li><p><strong>Matching</strong>: one model correction (outcome model), same as g-comp. Aggregation is cluster-robust (sum IFs within matched subclasses).</p></li>
 <li><p><strong>User-supplied cluster</strong> (<code>contrast(cluster = ...)</code>): the same sum-within-cluster-then-square aggregation matching uses internally is exposed directly on gcomp, IPW, and ICE. Numerically equivalent to <code>sandwich::vcovCL(type = "HC0")</code> on the final predict-then-average step; rejected on matching because subclass clustering is already structural.</p></li>
 <li><p><strong>Chained estimators</strong> (ICE): <span class="math inline">\(K\!+\!1\)</span> model corrections computed by backward recursion of sensitivities.</p></li>
+<li><p><strong>IPCW</strong> adds a censoring-model block to the stacked equations. The censoring Channel 2 correction <strong>reduces</strong> variance by accounting for weight estimation uncertainty. For longitudinal IPCW, the correction is omitted (conservative); use bootstrap for tighter CIs.</p></li>
 <li><p><strong>The delta method</strong> (<span class="math inline">\(\color{#31A354}{J} V_\beta
 \color{#31A354}{J^T}\)</span>) is a shortcut that captures Channel 2 only. It is exact when Channel 1 = 0 (constant predictions), but underestimates otherwise. The full IF avoids this limitation.</p></li>
 </ol>
+</section>
+<section id="numeric-variance-tiers-custom-model_fn" class="level2">
+<h2 class="anchored" data-anchor-id="numeric-variance-tiers-custom-model_fn">8. Numeric variance tiers (custom <code>model_fn</code>)</h2>
+<p>The analytic IF engine in <code>variance_if()</code> requires access to the model’s score residuals and bread matrix. Standard GLMs (<code>stats::glm</code>) and GAMs (<code>mgcv::gam</code>) expose these via <code>family$mu.eta</code> / <code>family$variance</code> and <code>$Vp</code>, respectively. But users can pass any fitting function via <code>model_fn =</code> (e.g.&nbsp;<code>MASS::glm.nb</code>, <code>betareg::betareg</code>), and those models may not expose the standard GLM internals.</p>
+<p>causatr handles this with a two-tier numeric fallback (<code>variance_if_numeric()</code>):</p>
+<section id="tier-1-sandwichestfun-available" class="level3">
+<h3 class="anchored" data-anchor-id="tier-1-sandwichestfun-available">Tier 1: <code>sandwich::estfun</code> available</h3>
+<p>If <code>sandwich::estfun(model)</code> returns the per-observation score matrix <span class="math inline">\(\psi_i\)</span> and <code>sandwich::bread(model)</code> returns the bread, the fallback recovers the <strong>full IF</strong> (Channel 1 + Channel 2 + cross-term) exactly, matching the analytic main path. The marginal-mean Jacobian <span class="math inline">\(J\)</span> is computed via <code>numDeriv::jacobian()</code> on <code>predict()</code> instead of analytically.</p>
+<p>This applies to <code>MASS::glm.nb</code> (negative binomial) and most model classes with a <code>sandwich</code> method.</p>
+</section>
+<section id="tier-2-plain-delta-shortcut" class="level3">
+<h3 class="anchored" data-anchor-id="tier-2-plain-delta-shortcut">Tier 2: plain delta shortcut</h3>
+<p>If no <code>estfun</code> method exists (e.g.&nbsp;<code>betareg::betareg</code>), the fallback computes <span class="math inline">\(V_1 + V_2\)</span> where <span class="math inline">\(V_1 = (1/n^2) \sum_i \text{Ch.1}_i^2\)</span> is the Channel 1 variance and <span class="math inline">\(V_2 = J \, V_\beta \, J^T\)</span> is the delta-method approximation for Channel 2. This <strong>drops the cross-term</strong> <span class="math inline">\((1/n^2)(\text{Ch.1}^T \text{Ch.2} + \text{Ch.2}^T \text{Ch.1})\)</span> and emits a <code>causatr_tier2_fallback</code> warning so the user knows the SE is slightly miscalibrated.</p>
+<p>For Tier 2 models, <code>ci_method = "bootstrap"</code> gives exact coverage.</p>
+</section>
+<section id="which-tier-does-my-model_fn-use" class="level3">
+<h3 class="anchored" data-anchor-id="which-tier-does-my-model_fn-use">Which tier does my <code>model_fn</code> use?</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th><code>model_fn</code></th>
+<th>Tier</th>
+<th>Exact?</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>stats::glm</code></td>
+<td>Analytic (main path)</td>
+<td>Yes</td>
+</tr>
+<tr class="even">
+<td><code>mgcv::gam</code></td>
+<td>Analytic (GAM path)</td>
+<td>Yes</td>
+</tr>
+<tr class="odd">
+<td><code>MASS::glm.nb</code></td>
+<td>Tier 1 (numeric + estfun)</td>
+<td>Yes</td>
+</tr>
+<tr class="even">
+<td><code>betareg::betareg</code></td>
+<td>Tier 2 (delta shortcut)</td>
+<td>Approximate (use bootstrap for exact)</td>
+</tr>
+</tbody>
+</table>
+<p>If unsure, run with <code>ci_method = "sandwich"</code> first — if you see a <code>causatr_tier2_fallback</code> warning, the model is on Tier 2.</p>
+</section>
 </section>
 <section id="references" class="level2">
 <h2 class="anchored" data-anchor-id="references">References</h2>
@@ -3269,6 +3426,7 @@ n_k \cdot \color{#E6550D}{d_{k,i}} \cdot r^{\text{score}}_{k,i}
 <li>Huber PJ (1981). <em>Robust Statistics</em>. Wiley.</li>
 <li>Lunceford JK, Davidian M (2004). Stratification and weighting via the propensity score in estimation of causal treatment effects: a comparative study. <em>Statistics in Medicine</em> 23:2937–2960.</li>
 <li>Robins JM (1986). A new approach to causal inference in mortality studies with a sustained exposure period. <em>Mathematical Modelling</em> 7:1393–1512.</li>
+<li>Robins JM, Rotnitzky A, Zhao LP (1994). Estimation of regression coefficients when some regressors are not always observed. <em>Journal of the American Statistical Association</em> 89:846–866.</li>
 <li>Stefanski LA, Boos DD (2002). The calculus of M-estimation. <em>The American Statistician</em> 56:29–38.</li>
 <li>Tsiatis AA (2006). <em>Semiparametric Theory and Missing Data</em>. Springer.</li>
 <li>van der Laan MJ, Robins JM (2003). <em>Unified Methods for Censored Longitudinal Data and Causality</em>. Springer.</li>
@@ -6046,88 +6204,270 @@ n_k \cdot \color{#E6550D}{d_{k,i}} \cdot r^{\text{score}}_{k,i}
 <span id="cb14-2355"><a href="#cb14-2355" aria-hidden="true" tabindex="-1"></a>The full $k \times k$ covariance matrix is then used for contrasts.</span>
 <span id="cb14-2356"><a href="#cb14-2356" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb14-2357"><a href="#cb14-2357" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2358"><a href="#cb14-2358" aria-hidden="true" tabindex="-1"></a><span class="fu">## 6. Summary</span></span>
+<span id="cb14-2358"><a href="#cb14-2358" aria-hidden="true" tabindex="-1"></a><span class="fu">## 6. IPCW: variance under outcome censoring</span></span>
 <span id="cb14-2359"><a href="#cb14-2359" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2360"><a href="#cb14-2360" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**One method**: the influence function. For any causal estimand $\hat\mu$,</span>
-<span id="cb14-2361"><a href="#cb14-2361" aria-hidden="true" tabindex="-1"></a>   write down the complete estimating equations (nuisance models + target</span>
-<span id="cb14-2362"><a href="#cb14-2362" aria-hidden="true" tabindex="-1"></a>   estimand), compute each individual's $\text{IF}_i$, and take</span>
-<span id="cb14-2363"><a href="#cb14-2363" aria-hidden="true" tabindex="-1"></a>   $\widehat{\text{Var}}(\hat\mu) = \frac{1}{n^2}\sum_i \text{IF}_i^2$.</span>
+<span id="cb14-2360"><a href="#cb14-2360" aria-hidden="true" tabindex="-1"></a>When outcome data are missing at random (MAR) and causatr fits a censoring</span>
+<span id="cb14-2361"><a href="#cb14-2361" aria-hidden="true" tabindex="-1"></a>model $P(C = 0 \mid A, L)$, the IPCW weights become estimated nuisance</span>
+<span id="cb14-2362"><a href="#cb14-2362" aria-hidden="true" tabindex="-1"></a>parameters. The variance of the causal estimand must account for this</span>
+<span id="cb14-2363"><a href="#cb14-2363" aria-hidden="true" tabindex="-1"></a>estimation uncertainty — otherwise the sandwich SE is conservative.</span>
 <span id="cb14-2364"><a href="#cb14-2364" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2365"><a href="#cb14-2365" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**The IF is the sandwich**: the IF formula is the sandwich</span>
-<span id="cb14-2366"><a href="#cb14-2366" aria-hidden="true" tabindex="-1"></a>   $\color{#3182BD}{A^{-1}} \color{#E6550D}{B} \color{#3182BD}{(A^{-1})^T}$</span>
-<span id="cb14-2367"><a href="#cb14-2367" aria-hidden="true" tabindex="-1"></a>   applied to the stacked estimating equations, with the block-triangular</span>
-<span id="cb14-2368"><a href="#cb14-2368" aria-hidden="true" tabindex="-1"></a>   bread inverted by back-substitution. The bread, meat, and scores are all</span>
-<span id="cb14-2369"><a href="#cb14-2369" aria-hidden="true" tabindex="-1"></a>   present — the IF just computes $A^{-1}\psi_i$ per individual instead of</span>
-<span id="cb14-2370"><a href="#cb14-2370" aria-hidden="true" tabindex="-1"></a>   forming the full matrices.</span>
-<span id="cb14-2371"><a href="#cb14-2371" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2372"><a href="#cb14-2372" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**Two channels**: the IF always decomposes into a **direct term**</span>
-<span id="cb14-2373"><a href="#cb14-2373" aria-hidden="true" tabindex="-1"></a>   (Channel 1: covariate sampling) and **model corrections** (Channel 2:</span>
-<span id="cb14-2374"><a href="#cb14-2374" aria-hidden="true" tabindex="-1"></a>   one per nuisance model). What varies across methods is only which models</span>
-<span id="cb14-2375"><a href="#cb14-2375" aria-hidden="true" tabindex="-1"></a>   contribute to Channel 2.</span>
-<span id="cb14-2376"><a href="#cb14-2376" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2377"><a href="#cb14-2377" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>**G-computation**: one model correction (outcome model). Channel 1 nonzero.</span>
-<span id="cb14-2378"><a href="#cb14-2378" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2379"><a href="#cb14-2379" aria-hidden="true" tabindex="-1"></a><span class="ss">5. </span>**IPW**: two model corrections (MSM + propensity). The propensity</span>
-<span id="cb14-2380"><a href="#cb14-2380" aria-hidden="true" tabindex="-1"></a>   correction captures weight estimation uncertainty via the cross-derivative</span>
-<span id="cb14-2381"><a href="#cb14-2381" aria-hidden="true" tabindex="-1"></a>   $A_{\beta\alpha}$.</span>
-<span id="cb14-2382"><a href="#cb14-2382" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2383"><a href="#cb14-2383" aria-hidden="true" tabindex="-1"></a><span class="ss">6. </span>**Matching**: one model correction (outcome model), same as g-comp.</span>
-<span id="cb14-2384"><a href="#cb14-2384" aria-hidden="true" tabindex="-1"></a>   Aggregation is cluster-robust (sum IFs within matched subclasses).</span>
-<span id="cb14-2385"><a href="#cb14-2385" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2386"><a href="#cb14-2386" aria-hidden="true" tabindex="-1"></a><span class="ss">7. </span>**User-supplied cluster** (<span class="in">`contrast(cluster = ...)`</span>): the same</span>
-<span id="cb14-2387"><a href="#cb14-2387" aria-hidden="true" tabindex="-1"></a>   sum-within-cluster-then-square aggregation matching uses internally is</span>
-<span id="cb14-2388"><a href="#cb14-2388" aria-hidden="true" tabindex="-1"></a>   exposed directly on gcomp, IPW, and ICE. Numerically equivalent to</span>
-<span id="cb14-2389"><a href="#cb14-2389" aria-hidden="true" tabindex="-1"></a>   <span class="in">`sandwich::vcovCL(type = "HC0")`</span> on the final predict-then-average step;</span>
-<span id="cb14-2390"><a href="#cb14-2390" aria-hidden="true" tabindex="-1"></a>   rejected on matching because subclass clustering is already structural.</span>
-<span id="cb14-2391"><a href="#cb14-2391" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2392"><a href="#cb14-2392" aria-hidden="true" tabindex="-1"></a><span class="ss">8. </span>**Chained estimators** (ICE): $K<span class="sc">\!</span>+<span class="sc">\!</span>1$ model corrections computed by</span>
-<span id="cb14-2393"><a href="#cb14-2393" aria-hidden="true" tabindex="-1"></a>   backward recursion of sensitivities.</span>
-<span id="cb14-2394"><a href="#cb14-2394" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2395"><a href="#cb14-2395" aria-hidden="true" tabindex="-1"></a><span class="ss">9. </span>**The delta method** ($\color{#31A354}{J} V_\beta</span>
-<span id="cb14-2396"><a href="#cb14-2396" aria-hidden="true" tabindex="-1"></a>   \color{#31A354}{J^T}$) is a shortcut that captures Channel 2 only. It is</span>
-<span id="cb14-2397"><a href="#cb14-2397" aria-hidden="true" tabindex="-1"></a>   exact when Channel 1 = 0 (constant predictions), but underestimates</span>
-<span id="cb14-2398"><a href="#cb14-2398" aria-hidden="true" tabindex="-1"></a>   otherwise. The full IF avoids this limitation.</span>
-<span id="cb14-2399"><a href="#cb14-2399" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2400"><a href="#cb14-2400" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2401"><a href="#cb14-2401" aria-hidden="true" tabindex="-1"></a><span class="fu">## References</span></span>
-<span id="cb14-2402"><a href="#cb14-2402" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-2403"><a href="#cb14-2403" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Bang H, Robins JM (2005). Doubly robust estimation in missing data and</span>
-<span id="cb14-2404"><a href="#cb14-2404" aria-hidden="true" tabindex="-1"></a>  causal inference models. *Biometrics* 61:962–973.</span>
-<span id="cb14-2405"><a href="#cb14-2405" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Hampel FR, Ronchetti EM, Rousseeuw PJ, Stahel WA (1986). *Robust</span>
-<span id="cb14-2406"><a href="#cb14-2406" aria-hidden="true" tabindex="-1"></a>  Statistics: The Approach Based on Influence Functions*. Wiley.</span>
-<span id="cb14-2407"><a href="#cb14-2407" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Hirano K, Imbens GW, Ridder G (2003). Efficient estimation of average</span>
-<span id="cb14-2408"><a href="#cb14-2408" aria-hidden="true" tabindex="-1"></a>  treatment effects using the estimated propensity score.</span>
-<span id="cb14-2409"><a href="#cb14-2409" aria-hidden="true" tabindex="-1"></a>  *Econometrica* 71:1161–1189.</span>
-<span id="cb14-2410"><a href="#cb14-2410" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Hernán MA, Robins JM (2025). *Causal Inference: What If*.</span>
-<span id="cb14-2411"><a href="#cb14-2411" aria-hidden="true" tabindex="-1"></a>  Chapman &amp; Hall/CRC.</span>
-<span id="cb14-2412"><a href="#cb14-2412" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Huber PJ (1967). The behavior of maximum likelihood estimates under</span>
-<span id="cb14-2413"><a href="#cb14-2413" aria-hidden="true" tabindex="-1"></a>  nonstandard conditions. *Proceedings of the Fifth Berkeley Symposium*</span>
-<span id="cb14-2414"><a href="#cb14-2414" aria-hidden="true" tabindex="-1"></a>  1:221–233.</span>
-<span id="cb14-2415"><a href="#cb14-2415" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Huber PJ (1981). *Robust Statistics*. Wiley.</span>
-<span id="cb14-2416"><a href="#cb14-2416" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Lunceford JK, Davidian M (2004). Stratification and weighting via the</span>
-<span id="cb14-2417"><a href="#cb14-2417" aria-hidden="true" tabindex="-1"></a>  propensity score in estimation of causal treatment effects: a comparative</span>
-<span id="cb14-2418"><a href="#cb14-2418" aria-hidden="true" tabindex="-1"></a>  study. *Statistics in Medicine* 23:2937–2960.</span>
-<span id="cb14-2419"><a href="#cb14-2419" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Robins JM (1986). A new approach to causal inference in mortality studies</span>
-<span id="cb14-2420"><a href="#cb14-2420" aria-hidden="true" tabindex="-1"></a>  with a sustained exposure period. *Mathematical Modelling* 7:1393–1512.</span>
-<span id="cb14-2421"><a href="#cb14-2421" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Stefanski LA, Boos DD (2002). The calculus of M-estimation.</span>
-<span id="cb14-2422"><a href="#cb14-2422" aria-hidden="true" tabindex="-1"></a>  *The American Statistician* 56:29–38.</span>
-<span id="cb14-2423"><a href="#cb14-2423" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Tsiatis AA (2006). *Semiparametric Theory and Missing Data*. Springer.</span>
-<span id="cb14-2424"><a href="#cb14-2424" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>van der Laan MJ, Robins JM (2003). *Unified Methods for Censored</span>
-<span id="cb14-2425"><a href="#cb14-2425" aria-hidden="true" tabindex="-1"></a>  Longitudinal Data and Causality*. Springer.</span>
-<span id="cb14-2426"><a href="#cb14-2426" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>White H (1980). A heteroskedasticity-consistent covariance matrix estimator</span>
-<span id="cb14-2427"><a href="#cb14-2427" aria-hidden="true" tabindex="-1"></a>  and a direct test for heteroskedasticity. *Econometrica* 48:817–838.</span>
-<span id="cb14-2428"><a href="#cb14-2428" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>White H (1982). Maximum likelihood estimation of misspecified models.</span>
-<span id="cb14-2429"><a href="#cb14-2429" aria-hidden="true" tabindex="-1"></a>  *Econometrica* 50:1–25.</span>
-<span id="cb14-2430"><a href="#cb14-2430" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Zeileis A (2004). Econometric computing with HC and HAC covariance matrix</span>
-<span id="cb14-2431"><a href="#cb14-2431" aria-hidden="true" tabindex="-1"></a>  estimators. *Journal of Statistical Software* 11(10):1–17.</span>
-<span id="cb14-2432"><a href="#cb14-2432" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Zeileis A (2006). Object-oriented computation of sandwich estimators.</span>
-<span id="cb14-2433"><a href="#cb14-2433" aria-hidden="true" tabindex="-1"></a>  *Journal of Statistical Software* 16(9):1–16.</span>
-<span id="cb14-2434"><a href="#cb14-2434" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Zivich PN, Klose M, Cole SR, Edwards JK, Shook-Sa BE (2022).</span>
-<span id="cb14-2435"><a href="#cb14-2435" aria-hidden="true" tabindex="-1"></a>  Delicatessen: a Python package for the generalized computation of the</span>
-<span id="cb14-2436"><a href="#cb14-2436" aria-hidden="true" tabindex="-1"></a>  sandwich estimator. *arXiv preprint* arXiv:2203.11300.</span>
-<span id="cb14-2437"><a href="#cb14-2437" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Zivich PN, Ross RK, Shook-Sa BE, Cole SR, Edwards JK (2024). Empirical</span>
-<span id="cb14-2438"><a href="#cb14-2438" aria-hidden="true" tabindex="-1"></a>  sandwich variance estimator for iterated conditional expectation</span>
-<span id="cb14-2439"><a href="#cb14-2439" aria-hidden="true" tabindex="-1"></a>  g-computation. *Statistics in Medicine* 43:5562–5572.</span>
+<span id="cb14-2365"><a href="#cb14-2365" aria-hidden="true" tabindex="-1"></a><span class="fu">### 6.1 The censoring model as a third nuisance block</span></span>
+<span id="cb14-2366"><a href="#cb14-2366" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2367"><a href="#cb14-2367" aria-hidden="true" tabindex="-1"></a>The censoring model adds a block to the stacked estimating equations.</span>
+<span id="cb14-2368"><a href="#cb14-2368" aria-hidden="true" tabindex="-1"></a>For **point-treatment g-computation** with IPCW, the stack becomes:</span>
+<span id="cb14-2369"><a href="#cb14-2369" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2370"><a href="#cb14-2370" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb14-2371"><a href="#cb14-2371" aria-hidden="true" tabindex="-1"></a>\Psi(\theta) =</span>
+<span id="cb14-2372"><a href="#cb14-2372" aria-hidden="true" tabindex="-1"></a>\begin{pmatrix}</span>
+<span id="cb14-2373"><a href="#cb14-2373" aria-hidden="true" tabindex="-1"></a>\psi_\gamma <span class="sc">\\</span></span>
+<span id="cb14-2374"><a href="#cb14-2374" aria-hidden="true" tabindex="-1"></a>\psi_\beta <span class="sc">\\</span></span>
+<span id="cb14-2375"><a href="#cb14-2375" aria-hidden="true" tabindex="-1"></a>\psi_\mu</span>
+<span id="cb14-2376"><a href="#cb14-2376" aria-hidden="true" tabindex="-1"></a>\end{pmatrix}</span>
+<span id="cb14-2377"><a href="#cb14-2377" aria-hidden="true" tabindex="-1"></a>= \begin{pmatrix}</span>
+<span id="cb14-2378"><a href="#cb14-2378" aria-hidden="true" tabindex="-1"></a>\text{censoring model score} <span class="sc">\\</span></span>
+<span id="cb14-2379"><a href="#cb14-2379" aria-hidden="true" tabindex="-1"></a>\text{outcome model score (IPCW-weighted)} <span class="sc">\\</span></span>
+<span id="cb14-2380"><a href="#cb14-2380" aria-hidden="true" tabindex="-1"></a>\text{target estimand}</span>
+<span id="cb14-2381"><a href="#cb14-2381" aria-hidden="true" tabindex="-1"></a>\end{pmatrix}</span>
+<span id="cb14-2382"><a href="#cb14-2382" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb14-2383"><a href="#cb14-2383" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2384"><a href="#cb14-2384" aria-hidden="true" tabindex="-1"></a>where $\theta = (\gamma, \beta, \mu)^T$, $\gamma$ are censoring model</span>
+<span id="cb14-2385"><a href="#cb14-2385" aria-hidden="true" tabindex="-1"></a>parameters, $\beta$ are outcome model parameters, and $\mu$ is the marginal</span>
+<span id="cb14-2386"><a href="#cb14-2386" aria-hidden="true" tabindex="-1"></a>mean.</span>
+<span id="cb14-2387"><a href="#cb14-2387" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2388"><a href="#cb14-2388" aria-hidden="true" tabindex="-1"></a><span class="fu">### 6.2 The block-triangular bread</span></span>
+<span id="cb14-2389"><a href="#cb14-2389" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2390"><a href="#cb14-2390" aria-hidden="true" tabindex="-1"></a>The bread matrix has the same block-triangular structure as in Section 3.5,</span>
+<span id="cb14-2391"><a href="#cb14-2391" aria-hidden="true" tabindex="-1"></a>now with one extra block:</span>
+<span id="cb14-2392"><a href="#cb14-2392" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2393"><a href="#cb14-2393" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb14-2394"><a href="#cb14-2394" aria-hidden="true" tabindex="-1"></a>A =</span>
+<span id="cb14-2395"><a href="#cb14-2395" aria-hidden="true" tabindex="-1"></a>\begin{pmatrix}</span>
+<span id="cb14-2396"><a href="#cb14-2396" aria-hidden="true" tabindex="-1"></a>A_{\gamma\gamma} &amp; 0 &amp; 0 <span class="sc">\\</span></span>
+<span id="cb14-2397"><a href="#cb14-2397" aria-hidden="true" tabindex="-1"></a>A_{\beta\gamma} &amp; A_{\beta\beta} &amp; 0 <span class="sc">\\</span></span>
+<span id="cb14-2398"><a href="#cb14-2398" aria-hidden="true" tabindex="-1"></a>0 &amp; A_{\mu\beta} &amp; A_{\mu\mu}</span>
+<span id="cb14-2399"><a href="#cb14-2399" aria-hidden="true" tabindex="-1"></a>\end{pmatrix}</span>
+<span id="cb14-2400"><a href="#cb14-2400" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb14-2401"><a href="#cb14-2401" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2402"><a href="#cb14-2402" aria-hidden="true" tabindex="-1"></a>The key new block is $A_{\beta\gamma}$: the cross-derivative of the outcome</span>
+<span id="cb14-2403"><a href="#cb14-2403" aria-hidden="true" tabindex="-1"></a>model's score with respect to the censoring parameters. This captures how</span>
+<span id="cb14-2404"><a href="#cb14-2404" aria-hidden="true" tabindex="-1"></a>changes in IPCW weights (driven by $\gamma$) affect the outcome model fit.</span>
+<span id="cb14-2405"><a href="#cb14-2405" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2406"><a href="#cb14-2406" aria-hidden="true" tabindex="-1"></a>Concretely:</span>
+<span id="cb14-2407"><a href="#cb14-2407" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2408"><a href="#cb14-2408" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb14-2409"><a href="#cb14-2409" aria-hidden="true" tabindex="-1"></a>A_{\beta\gamma} = -\frac{\partial}{\partial\gamma}</span>
+<span id="cb14-2410"><a href="#cb14-2410" aria-hidden="true" tabindex="-1"></a>\left[\frac{1}{n} \sum_i X_i \, w_{\text{ipcw}}(\gamma)_i \,</span>
+<span id="cb14-2411"><a href="#cb14-2411" aria-hidden="true" tabindex="-1"></a>\frac{(y_i - \mu_i)\,\mu'(\eta_i)}{V(\mu_i)}\right]</span>
+<span id="cb14-2412"><a href="#cb14-2412" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb14-2413"><a href="#cb14-2413" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2414"><a href="#cb14-2414" aria-hidden="true" tabindex="-1"></a>In causatr, this is computed via <span class="in">`numDeriv::jacobian()`</span> on a closure that</span>
+<span id="cb14-2415"><a href="#cb14-2415" aria-hidden="true" tabindex="-1"></a>perturbs the IPCW weights while holding $\hat\beta$ fixed.</span>
+<span id="cb14-2416"><a href="#cb14-2416" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2417"><a href="#cb14-2417" aria-hidden="true" tabindex="-1"></a><span class="fu">### 6.3 The Channel 2 correction for censoring</span></span>
+<span id="cb14-2418"><a href="#cb14-2418" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2419"><a href="#cb14-2419" aria-hidden="true" tabindex="-1"></a>Back-substitution through the bread yields an additional Channel 2 correction</span>
+<span id="cb14-2420"><a href="#cb14-2420" aria-hidden="true" tabindex="-1"></a>term in the IF:</span>
+<span id="cb14-2421"><a href="#cb14-2421" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2422"><a href="#cb14-2422" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb14-2423"><a href="#cb14-2423" aria-hidden="true" tabindex="-1"></a>\text{IF}_i = \underbrace{\text{Ch1}_i}_{\text{covariate sampling}}</span>
+<span id="cb14-2424"><a href="#cb14-2424" aria-hidden="true" tabindex="-1"></a><span class="ss">+ </span>\underbrace{\text{Ch2}_i^{(\text{outcome})}}_{\text{outcome model}}</span>
+<span id="cb14-2425"><a href="#cb14-2425" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>\underbrace{\text{Ch2}_i^{(\text{censoring})}}_{\text{censoring model}}</span>
+<span id="cb14-2426"><a href="#cb14-2426" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb14-2427"><a href="#cb14-2427" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2428"><a href="#cb14-2428" aria-hidden="true" tabindex="-1"></a>The censoring correction is:</span>
+<span id="cb14-2429"><a href="#cb14-2429" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2430"><a href="#cb14-2430" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb14-2431"><a href="#cb14-2431" aria-hidden="true" tabindex="-1"></a>\text{Ch2}_i^{(\text{censoring})}</span>
+<span id="cb14-2432"><a href="#cb14-2432" aria-hidden="true" tabindex="-1"></a>= g_\gamma^T \, A_{\gamma\gamma}^{-1} \, \psi_{\gamma,i}</span>
+<span id="cb14-2433"><a href="#cb14-2433" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb14-2434"><a href="#cb14-2434" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2435"><a href="#cb14-2435" aria-hidden="true" tabindex="-1"></a>where $g_\gamma = A_{\beta\gamma}^T \, h_\beta$ and $h_\beta =</span>
+<span id="cb14-2436"><a href="#cb14-2436" aria-hidden="true" tabindex="-1"></a>A_{\beta\beta}^{-1} J_\mu^T$ projects the marginal-mean gradient through</span>
+<span id="cb14-2437"><a href="#cb14-2437" aria-hidden="true" tabindex="-1"></a>the outcome model bread.</span>
+<span id="cb14-2438"><a href="#cb14-2438" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2439"><a href="#cb14-2439" aria-hidden="true" tabindex="-1"></a>The minus sign on the censoring correction is deliberate:</span>
+<span id="cb14-2440"><a href="#cb14-2440" aria-hidden="true" tabindex="-1"></a>Robins, Rotnitzky &amp; Zhao (1994) showed this correction **reduces** variance</span>
+<span id="cb14-2441"><a href="#cb14-2441" aria-hidden="true" tabindex="-1"></a>by accounting for the information in the censoring model. Ignoring it</span>
+<span id="cb14-2442"><a href="#cb14-2442" aria-hidden="true" tabindex="-1"></a>(treating IPCW weights as known) is conservative.</span>
+<span id="cb14-2443"><a href="#cb14-2443" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2444"><a href="#cb14-2444" aria-hidden="true" tabindex="-1"></a><span class="fu">### 6.4 Point-treatment IPW with IPCW</span></span>
+<span id="cb14-2445"><a href="#cb14-2445" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2446"><a href="#cb14-2446" aria-hidden="true" tabindex="-1"></a>For IPW + IPCW, the stack has four blocks: censoring model, propensity model,</span>
+<span id="cb14-2447"><a href="#cb14-2447" aria-hidden="true" tabindex="-1"></a>MSM, and target. The bread becomes $4 \times 4$ block-triangular:</span>
+<span id="cb14-2448"><a href="#cb14-2448" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2449"><a href="#cb14-2449" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb14-2450"><a href="#cb14-2450" aria-hidden="true" tabindex="-1"></a>A =</span>
+<span id="cb14-2451"><a href="#cb14-2451" aria-hidden="true" tabindex="-1"></a>\begin{pmatrix}</span>
+<span id="cb14-2452"><a href="#cb14-2452" aria-hidden="true" tabindex="-1"></a>A_{\gamma\gamma} &amp; 0 &amp; 0 &amp; 0 <span class="sc">\\</span></span>
+<span id="cb14-2453"><a href="#cb14-2453" aria-hidden="true" tabindex="-1"></a>0 &amp; A_{\alpha\alpha} &amp; 0 &amp; 0 <span class="sc">\\</span></span>
+<span id="cb14-2454"><a href="#cb14-2454" aria-hidden="true" tabindex="-1"></a>A_{\beta\gamma} &amp; A_{\beta\alpha} &amp; A_{\beta\beta} &amp; 0 <span class="sc">\\</span></span>
+<span id="cb14-2455"><a href="#cb14-2455" aria-hidden="true" tabindex="-1"></a>0 &amp; 0 &amp; A_{\mu\beta} &amp; A_{\mu\mu}</span>
+<span id="cb14-2456"><a href="#cb14-2456" aria-hidden="true" tabindex="-1"></a>\end{pmatrix}</span>
+<span id="cb14-2457"><a href="#cb14-2457" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb14-2458"><a href="#cb14-2458" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2459"><a href="#cb14-2459" aria-hidden="true" tabindex="-1"></a>Two off-diagonal blocks feed into the MSM score: $A_{\beta\gamma}$ (IPCW</span>
+<span id="cb14-2460"><a href="#cb14-2460" aria-hidden="true" tabindex="-1"></a>weights) and $A_{\beta\alpha}$ (propensity weights). Each generates an</span>
+<span id="cb14-2461"><a href="#cb14-2461" aria-hidden="true" tabindex="-1"></a>independent Channel 2 correction.</span>
+<span id="cb14-2462"><a href="#cb14-2462" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2463"><a href="#cb14-2463" aria-hidden="true" tabindex="-1"></a><span class="fu">### 6.5 Longitudinal IPCW: the conservative approximation</span></span>
+<span id="cb14-2464"><a href="#cb14-2464" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2465"><a href="#cb14-2465" aria-hidden="true" tabindex="-1"></a>For longitudinal treatments with per-period censoring models $\gamma_1,</span>
+<span id="cb14-2466"><a href="#cb14-2466" aria-hidden="true" tabindex="-1"></a>\ldots, \gamma_K$, the full correction requires cross-derivatives</span>
+<span id="cb14-2467"><a href="#cb14-2467" aria-hidden="true" tabindex="-1"></a>$A_{\beta_k, \gamma_j}$ for all $k \geq j$, projected through the ICE</span>
+<span id="cb14-2468"><a href="#cb14-2468" aria-hidden="true" tabindex="-1"></a>cascade's accumulated sensitivity $d_k$. This is technically supported by</span>
+<span id="cb14-2469"><a href="#cb14-2469" aria-hidden="true" tabindex="-1"></a>stacked M-estimation theory (Stefanski &amp; Boos 2002; Tsiatis 2006, Ch. 10),</span>
+<span id="cb14-2470"><a href="#cb14-2470" aria-hidden="true" tabindex="-1"></a>but the cascade's $d_k$ vectors are built incrementally during the</span>
+<span id="cb14-2471"><a href="#cb14-2471" aria-hidden="true" tabindex="-1"></a>backward loop and cannot be evaluated inside a <span class="in">`numDeriv`</span> closure.</span>
+<span id="cb14-2472"><a href="#cb14-2472" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2473"><a href="#cb14-2473" aria-hidden="true" tabindex="-1"></a>causatr currently **omits** the longitudinal censoring Channel 2 correction.</span>
+<span id="cb14-2474"><a href="#cb14-2474" aria-hidden="true" tabindex="-1"></a>This makes the sandwich SE conservative (larger than the true asymptotic SE).</span>
+<span id="cb14-2475"><a href="#cb14-2475" aria-hidden="true" tabindex="-1"></a>Empirically the ratio is $\approx 0.94$ (sandwich/bootstrap), confirming the</span>
+<span id="cb14-2476"><a href="#cb14-2476" aria-hidden="true" tabindex="-1"></a>omission is small.</span>
+<span id="cb14-2477"><a href="#cb14-2477" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2478"><a href="#cb14-2478" aria-hidden="true" tabindex="-1"></a>**Recommendation:** For longitudinal IPCW, use <span class="in">`ci_method = "bootstrap"`</span> for</span>
+<span id="cb14-2479"><a href="#cb14-2479" aria-hidden="true" tabindex="-1"></a>the tightest CIs. The sandwich remains valid for coverage guarantees.</span>
+<span id="cb14-2480"><a href="#cb14-2480" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2481"><a href="#cb14-2481" aria-hidden="true" tabindex="-1"></a>No existing package (<span class="in">`lmtp`</span>, <span class="in">`ltmle`</span>, <span class="in">`gfoRmula`</span>) implements the longitudinal</span>
+<span id="cb14-2482"><a href="#cb14-2482" aria-hidden="true" tabindex="-1"></a>censoring Channel 2 correction — all use bootstrap variance in this setting.</span>
+<span id="cb14-2483"><a href="#cb14-2483" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2484"><a href="#cb14-2484" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2485"><a href="#cb14-2485" aria-hidden="true" tabindex="-1"></a><span class="fu">## 7. Summary</span></span>
+<span id="cb14-2486"><a href="#cb14-2486" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2487"><a href="#cb14-2487" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**One method**: the influence function. For any causal estimand $\hat\mu$,</span>
+<span id="cb14-2488"><a href="#cb14-2488" aria-hidden="true" tabindex="-1"></a>   write down the complete estimating equations (nuisance models + target</span>
+<span id="cb14-2489"><a href="#cb14-2489" aria-hidden="true" tabindex="-1"></a>   estimand), compute each individual's $\text{IF}_i$, and take</span>
+<span id="cb14-2490"><a href="#cb14-2490" aria-hidden="true" tabindex="-1"></a>   $\widehat{\text{Var}}(\hat\mu) = \frac{1}{n^2}\sum_i \text{IF}_i^2$.</span>
+<span id="cb14-2491"><a href="#cb14-2491" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2492"><a href="#cb14-2492" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**The IF is the sandwich**: the IF formula is the sandwich</span>
+<span id="cb14-2493"><a href="#cb14-2493" aria-hidden="true" tabindex="-1"></a>   $\color{#3182BD}{A^{-1}} \color{#E6550D}{B} \color{#3182BD}{(A^{-1})^T}$</span>
+<span id="cb14-2494"><a href="#cb14-2494" aria-hidden="true" tabindex="-1"></a>   applied to the stacked estimating equations, with the block-triangular</span>
+<span id="cb14-2495"><a href="#cb14-2495" aria-hidden="true" tabindex="-1"></a>   bread inverted by back-substitution. The bread, meat, and scores are all</span>
+<span id="cb14-2496"><a href="#cb14-2496" aria-hidden="true" tabindex="-1"></a>   present — the IF just computes $A^{-1}\psi_i$ per individual instead of</span>
+<span id="cb14-2497"><a href="#cb14-2497" aria-hidden="true" tabindex="-1"></a>   forming the full matrices.</span>
+<span id="cb14-2498"><a href="#cb14-2498" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2499"><a href="#cb14-2499" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**Two channels**: the IF always decomposes into a **direct term**</span>
+<span id="cb14-2500"><a href="#cb14-2500" aria-hidden="true" tabindex="-1"></a>   (Channel 1: covariate sampling) and **model corrections** (Channel 2:</span>
+<span id="cb14-2501"><a href="#cb14-2501" aria-hidden="true" tabindex="-1"></a>   one per nuisance model). What varies across methods is only which models</span>
+<span id="cb14-2502"><a href="#cb14-2502" aria-hidden="true" tabindex="-1"></a>   contribute to Channel 2.</span>
+<span id="cb14-2503"><a href="#cb14-2503" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2504"><a href="#cb14-2504" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>**G-computation**: one model correction (outcome model). Channel 1 nonzero.</span>
+<span id="cb14-2505"><a href="#cb14-2505" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2506"><a href="#cb14-2506" aria-hidden="true" tabindex="-1"></a><span class="ss">5. </span>**IPW**: two model corrections (MSM + propensity). The propensity</span>
+<span id="cb14-2507"><a href="#cb14-2507" aria-hidden="true" tabindex="-1"></a>   correction captures weight estimation uncertainty via the cross-derivative</span>
+<span id="cb14-2508"><a href="#cb14-2508" aria-hidden="true" tabindex="-1"></a>   $A_{\beta\alpha}$.</span>
+<span id="cb14-2509"><a href="#cb14-2509" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2510"><a href="#cb14-2510" aria-hidden="true" tabindex="-1"></a><span class="ss">6. </span>**Matching**: one model correction (outcome model), same as g-comp.</span>
+<span id="cb14-2511"><a href="#cb14-2511" aria-hidden="true" tabindex="-1"></a>   Aggregation is cluster-robust (sum IFs within matched subclasses).</span>
+<span id="cb14-2512"><a href="#cb14-2512" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2513"><a href="#cb14-2513" aria-hidden="true" tabindex="-1"></a><span class="ss">7. </span>**User-supplied cluster** (<span class="in">`contrast(cluster = ...)`</span>): the same</span>
+<span id="cb14-2514"><a href="#cb14-2514" aria-hidden="true" tabindex="-1"></a>   sum-within-cluster-then-square aggregation matching uses internally is</span>
+<span id="cb14-2515"><a href="#cb14-2515" aria-hidden="true" tabindex="-1"></a>   exposed directly on gcomp, IPW, and ICE. Numerically equivalent to</span>
+<span id="cb14-2516"><a href="#cb14-2516" aria-hidden="true" tabindex="-1"></a>   <span class="in">`sandwich::vcovCL(type = "HC0")`</span> on the final predict-then-average step;</span>
+<span id="cb14-2517"><a href="#cb14-2517" aria-hidden="true" tabindex="-1"></a>   rejected on matching because subclass clustering is already structural.</span>
+<span id="cb14-2518"><a href="#cb14-2518" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2519"><a href="#cb14-2519" aria-hidden="true" tabindex="-1"></a><span class="ss">8. </span>**Chained estimators** (ICE): $K<span class="sc">\!</span>+<span class="sc">\!</span>1$ model corrections computed by</span>
+<span id="cb14-2520"><a href="#cb14-2520" aria-hidden="true" tabindex="-1"></a>   backward recursion of sensitivities.</span>
+<span id="cb14-2521"><a href="#cb14-2521" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2522"><a href="#cb14-2522" aria-hidden="true" tabindex="-1"></a><span class="ss">9. </span>**IPCW** adds a censoring-model block to the stacked equations. The</span>
+<span id="cb14-2523"><a href="#cb14-2523" aria-hidden="true" tabindex="-1"></a>   censoring Channel 2 correction **reduces** variance by accounting for</span>
+<span id="cb14-2524"><a href="#cb14-2524" aria-hidden="true" tabindex="-1"></a>   weight estimation uncertainty. For longitudinal IPCW, the correction is</span>
+<span id="cb14-2525"><a href="#cb14-2525" aria-hidden="true" tabindex="-1"></a>   omitted (conservative); use bootstrap for tighter CIs.</span>
+<span id="cb14-2526"><a href="#cb14-2526" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2527"><a href="#cb14-2527" aria-hidden="true" tabindex="-1"></a><span class="ss">10. </span>**The delta method** ($\color{#31A354}{J} V_\beta</span>
+<span id="cb14-2528"><a href="#cb14-2528" aria-hidden="true" tabindex="-1"></a>    \color{#31A354}{J^T}$) is a shortcut that captures Channel 2 only. It is</span>
+<span id="cb14-2529"><a href="#cb14-2529" aria-hidden="true" tabindex="-1"></a>    exact when Channel 1 = 0 (constant predictions), but underestimates</span>
+<span id="cb14-2530"><a href="#cb14-2530" aria-hidden="true" tabindex="-1"></a>    otherwise. The full IF avoids this limitation.</span>
+<span id="cb14-2531"><a href="#cb14-2531" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2532"><a href="#cb14-2532" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2533"><a href="#cb14-2533" aria-hidden="true" tabindex="-1"></a><span class="fu">## 8. Numeric variance tiers (custom `model_fn`)</span></span>
+<span id="cb14-2534"><a href="#cb14-2534" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2535"><a href="#cb14-2535" aria-hidden="true" tabindex="-1"></a>The analytic IF engine in <span class="in">`variance_if()`</span> requires access to the model's</span>
+<span id="cb14-2536"><a href="#cb14-2536" aria-hidden="true" tabindex="-1"></a>score residuals and bread matrix. Standard GLMs (<span class="in">`stats::glm`</span>) and GAMs</span>
+<span id="cb14-2537"><a href="#cb14-2537" aria-hidden="true" tabindex="-1"></a>(<span class="in">`mgcv::gam`</span>) expose these via <span class="in">`family$mu.eta`</span> / <span class="in">`family$variance`</span> and</span>
+<span id="cb14-2538"><a href="#cb14-2538" aria-hidden="true" tabindex="-1"></a><span class="in">`$Vp`</span>, respectively. But users can pass any fitting function via</span>
+<span id="cb14-2539"><a href="#cb14-2539" aria-hidden="true" tabindex="-1"></a><span class="in">`model_fn =`</span> (e.g. <span class="in">`MASS::glm.nb`</span>, <span class="in">`betareg::betareg`</span>), and those</span>
+<span id="cb14-2540"><a href="#cb14-2540" aria-hidden="true" tabindex="-1"></a>models may not expose the standard GLM internals.</span>
+<span id="cb14-2541"><a href="#cb14-2541" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2542"><a href="#cb14-2542" aria-hidden="true" tabindex="-1"></a>causatr handles this with a two-tier numeric fallback (<span class="in">`variance_if_numeric()`</span>):</span>
+<span id="cb14-2543"><a href="#cb14-2543" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2544"><a href="#cb14-2544" aria-hidden="true" tabindex="-1"></a><span class="fu">### Tier 1: `sandwich::estfun` available</span></span>
+<span id="cb14-2545"><a href="#cb14-2545" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2546"><a href="#cb14-2546" aria-hidden="true" tabindex="-1"></a>If <span class="in">`sandwich::estfun(model)`</span> returns the per-observation score matrix</span>
+<span id="cb14-2547"><a href="#cb14-2547" aria-hidden="true" tabindex="-1"></a>$\psi_i$ and <span class="in">`sandwich::bread(model)`</span> returns the bread, the fallback</span>
+<span id="cb14-2548"><a href="#cb14-2548" aria-hidden="true" tabindex="-1"></a>recovers the **full IF** (Channel 1 + Channel 2 + cross-term) exactly,</span>
+<span id="cb14-2549"><a href="#cb14-2549" aria-hidden="true" tabindex="-1"></a>matching the analytic main path. The marginal-mean Jacobian $J$ is</span>
+<span id="cb14-2550"><a href="#cb14-2550" aria-hidden="true" tabindex="-1"></a>computed via <span class="in">`numDeriv::jacobian()`</span> on <span class="in">`predict()`</span> instead of</span>
+<span id="cb14-2551"><a href="#cb14-2551" aria-hidden="true" tabindex="-1"></a>analytically.</span>
+<span id="cb14-2552"><a href="#cb14-2552" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2553"><a href="#cb14-2553" aria-hidden="true" tabindex="-1"></a>This applies to <span class="in">`MASS::glm.nb`</span> (negative binomial) and most model</span>
+<span id="cb14-2554"><a href="#cb14-2554" aria-hidden="true" tabindex="-1"></a>classes with a <span class="in">`sandwich`</span> method.</span>
+<span id="cb14-2555"><a href="#cb14-2555" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2556"><a href="#cb14-2556" aria-hidden="true" tabindex="-1"></a><span class="fu">### Tier 2: plain delta shortcut</span></span>
+<span id="cb14-2557"><a href="#cb14-2557" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2558"><a href="#cb14-2558" aria-hidden="true" tabindex="-1"></a>If no <span class="in">`estfun`</span> method exists (e.g. <span class="in">`betareg::betareg`</span>), the fallback</span>
+<span id="cb14-2559"><a href="#cb14-2559" aria-hidden="true" tabindex="-1"></a>computes $V_1 + V_2$ where $V_1 = (1/n^2) \sum_i \text{Ch.1}_i^2$ is</span>
+<span id="cb14-2560"><a href="#cb14-2560" aria-hidden="true" tabindex="-1"></a>the Channel 1 variance and $V_2 = J \, V_\beta \, J^T$ is the delta-method</span>
+<span id="cb14-2561"><a href="#cb14-2561" aria-hidden="true" tabindex="-1"></a>approximation for Channel 2. This **drops the cross-term**</span>
+<span id="cb14-2562"><a href="#cb14-2562" aria-hidden="true" tabindex="-1"></a>$(1/n^2)(\text{Ch.1}^T \text{Ch.2} + \text{Ch.2}^T \text{Ch.1})$ and emits</span>
+<span id="cb14-2563"><a href="#cb14-2563" aria-hidden="true" tabindex="-1"></a>a <span class="in">`causatr_tier2_fallback`</span> warning so the user knows the SE is slightly</span>
+<span id="cb14-2564"><a href="#cb14-2564" aria-hidden="true" tabindex="-1"></a>miscalibrated.</span>
+<span id="cb14-2565"><a href="#cb14-2565" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2566"><a href="#cb14-2566" aria-hidden="true" tabindex="-1"></a>For Tier 2 models, <span class="in">`ci_method = "bootstrap"`</span> gives exact coverage.</span>
+<span id="cb14-2567"><a href="#cb14-2567" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2568"><a href="#cb14-2568" aria-hidden="true" tabindex="-1"></a><span class="fu">### Which tier does my `model_fn` use?</span></span>
+<span id="cb14-2569"><a href="#cb14-2569" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2570"><a href="#cb14-2570" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`model_fn`</span> <span class="pp">|</span> Tier <span class="pp">|</span> Exact? <span class="pp">|</span></span>
+<span id="cb14-2571"><a href="#cb14-2571" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|</span></span>
+<span id="cb14-2572"><a href="#cb14-2572" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`stats::glm`</span> <span class="pp">|</span> Analytic (main path) <span class="pp">|</span> Yes <span class="pp">|</span></span>
+<span id="cb14-2573"><a href="#cb14-2573" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`mgcv::gam`</span> <span class="pp">|</span> Analytic (GAM path) <span class="pp">|</span> Yes <span class="pp">|</span></span>
+<span id="cb14-2574"><a href="#cb14-2574" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`MASS::glm.nb`</span> <span class="pp">|</span> Tier 1 (numeric + estfun) <span class="pp">|</span> Yes <span class="pp">|</span></span>
+<span id="cb14-2575"><a href="#cb14-2575" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`betareg::betareg`</span> <span class="pp">|</span> Tier 2 (delta shortcut) <span class="pp">|</span> Approximate (use bootstrap for exact) <span class="pp">|</span></span>
+<span id="cb14-2576"><a href="#cb14-2576" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2577"><a href="#cb14-2577" aria-hidden="true" tabindex="-1"></a>If unsure, run with <span class="in">`ci_method = "sandwich"`</span> first — if you see a</span>
+<span id="cb14-2578"><a href="#cb14-2578" aria-hidden="true" tabindex="-1"></a><span class="in">`causatr_tier2_fallback`</span> warning, the model is on Tier 2.</span>
+<span id="cb14-2579"><a href="#cb14-2579" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2580"><a href="#cb14-2580" aria-hidden="true" tabindex="-1"></a><span class="fu">## References</span></span>
+<span id="cb14-2581"><a href="#cb14-2581" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2582"><a href="#cb14-2582" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Bang H, Robins JM (2005). Doubly robust estimation in missing data and</span>
+<span id="cb14-2583"><a href="#cb14-2583" aria-hidden="true" tabindex="-1"></a>  causal inference models. *Biometrics* 61:962–973.</span>
+<span id="cb14-2584"><a href="#cb14-2584" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Hampel FR, Ronchetti EM, Rousseeuw PJ, Stahel WA (1986). *Robust</span>
+<span id="cb14-2585"><a href="#cb14-2585" aria-hidden="true" tabindex="-1"></a>  Statistics: The Approach Based on Influence Functions*. Wiley.</span>
+<span id="cb14-2586"><a href="#cb14-2586" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Hirano K, Imbens GW, Ridder G (2003). Efficient estimation of average</span>
+<span id="cb14-2587"><a href="#cb14-2587" aria-hidden="true" tabindex="-1"></a>  treatment effects using the estimated propensity score.</span>
+<span id="cb14-2588"><a href="#cb14-2588" aria-hidden="true" tabindex="-1"></a>  *Econometrica* 71:1161–1189.</span>
+<span id="cb14-2589"><a href="#cb14-2589" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Hernán MA, Robins JM (2025). *Causal Inference: What If*.</span>
+<span id="cb14-2590"><a href="#cb14-2590" aria-hidden="true" tabindex="-1"></a>  Chapman &amp; Hall/CRC.</span>
+<span id="cb14-2591"><a href="#cb14-2591" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Huber PJ (1967). The behavior of maximum likelihood estimates under</span>
+<span id="cb14-2592"><a href="#cb14-2592" aria-hidden="true" tabindex="-1"></a>  nonstandard conditions. *Proceedings of the Fifth Berkeley Symposium*</span>
+<span id="cb14-2593"><a href="#cb14-2593" aria-hidden="true" tabindex="-1"></a>  1:221–233.</span>
+<span id="cb14-2594"><a href="#cb14-2594" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Huber PJ (1981). *Robust Statistics*. Wiley.</span>
+<span id="cb14-2595"><a href="#cb14-2595" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Lunceford JK, Davidian M (2004). Stratification and weighting via the</span>
+<span id="cb14-2596"><a href="#cb14-2596" aria-hidden="true" tabindex="-1"></a>  propensity score in estimation of causal treatment effects: a comparative</span>
+<span id="cb14-2597"><a href="#cb14-2597" aria-hidden="true" tabindex="-1"></a>  study. *Statistics in Medicine* 23:2937–2960.</span>
+<span id="cb14-2598"><a href="#cb14-2598" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Robins JM (1986). A new approach to causal inference in mortality studies</span>
+<span id="cb14-2599"><a href="#cb14-2599" aria-hidden="true" tabindex="-1"></a>  with a sustained exposure period. *Mathematical Modelling* 7:1393–1512.</span>
+<span id="cb14-2600"><a href="#cb14-2600" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Robins JM, Rotnitzky A, Zhao LP (1994). Estimation of regression</span>
+<span id="cb14-2601"><a href="#cb14-2601" aria-hidden="true" tabindex="-1"></a>  coefficients when some regressors are not always observed. *Journal of</span>
+<span id="cb14-2602"><a href="#cb14-2602" aria-hidden="true" tabindex="-1"></a>  the American Statistical Association* 89:846–866.</span>
+<span id="cb14-2603"><a href="#cb14-2603" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Stefanski LA, Boos DD (2002). The calculus of M-estimation.</span>
+<span id="cb14-2604"><a href="#cb14-2604" aria-hidden="true" tabindex="-1"></a>  *The American Statistician* 56:29–38.</span>
+<span id="cb14-2605"><a href="#cb14-2605" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Tsiatis AA (2006). *Semiparametric Theory and Missing Data*. Springer.</span>
+<span id="cb14-2606"><a href="#cb14-2606" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>van der Laan MJ, Robins JM (2003). *Unified Methods for Censored</span>
+<span id="cb14-2607"><a href="#cb14-2607" aria-hidden="true" tabindex="-1"></a>  Longitudinal Data and Causality*. Springer.</span>
+<span id="cb14-2608"><a href="#cb14-2608" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>White H (1980). A heteroskedasticity-consistent covariance matrix estimator</span>
+<span id="cb14-2609"><a href="#cb14-2609" aria-hidden="true" tabindex="-1"></a>  and a direct test for heteroskedasticity. *Econometrica* 48:817–838.</span>
+<span id="cb14-2610"><a href="#cb14-2610" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>White H (1982). Maximum likelihood estimation of misspecified models.</span>
+<span id="cb14-2611"><a href="#cb14-2611" aria-hidden="true" tabindex="-1"></a>  *Econometrica* 50:1–25.</span>
+<span id="cb14-2612"><a href="#cb14-2612" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Zeileis A (2004). Econometric computing with HC and HAC covariance matrix</span>
+<span id="cb14-2613"><a href="#cb14-2613" aria-hidden="true" tabindex="-1"></a>  estimators. *Journal of Statistical Software* 11(10):1–17.</span>
+<span id="cb14-2614"><a href="#cb14-2614" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Zeileis A (2006). Object-oriented computation of sandwich estimators.</span>
+<span id="cb14-2615"><a href="#cb14-2615" aria-hidden="true" tabindex="-1"></a>  *Journal of Statistical Software* 16(9):1–16.</span>
+<span id="cb14-2616"><a href="#cb14-2616" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Zivich PN, Klose M, Cole SR, Edwards JK, Shook-Sa BE (2022).</span>
+<span id="cb14-2617"><a href="#cb14-2617" aria-hidden="true" tabindex="-1"></a>  Delicatessen: a Python package for the generalized computation of the</span>
+<span id="cb14-2618"><a href="#cb14-2618" aria-hidden="true" tabindex="-1"></a>  sandwich estimator. *arXiv preprint* arXiv:2203.11300.</span>
+<span id="cb14-2619"><a href="#cb14-2619" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Zivich PN, Ross RK, Shook-Sa BE, Cole SR, Edwards JK (2024). Empirical</span>
+<span id="cb14-2620"><a href="#cb14-2620" aria-hidden="true" tabindex="-1"></a>  sandwich variance estimator for iterated conditional expectation</span>
+<span id="cb14-2621"><a href="#cb14-2621" aria-hidden="true" tabindex="-1"></a>  g-computation. *Statistics in Medicine* 43:5562–5572.</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

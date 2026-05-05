@@ -453,6 +453,12 @@ window.Quarto = {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="../man/target_trial.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">target_trial</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="../man/threshold.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">threshold</span></a>
   </div>
@@ -540,12 +546,14 @@ window.Quarto = {
   treatment,
   confounders,
   confounders_tv = NULL,
-  estimator = c("gcomp", "ipw", "matching"),
+  estimator = c("gcomp", "ipw", "aipw", "matching"),
   family = "gaussian",
   estimand = c("ATE", "ATT", "ATC"),
   id = NULL,
   time = NULL,
   censoring = NULL,
+  ipcw = FALSE,
+  censoring_model_fn = NULL,
   history = 1L,
   numerator = NULL,
   weights = NULL,
@@ -647,7 +655,24 @@ Character or <code>NULL</code>. Name of the time variable. Must be provided toge
 <code id="censoring">censoring</code>
 </td>
 <td>
-Character or <code>NULL</code>. Name of the censoring indicator variable (1 = censored, 0 = uncensored). <strong>This is a row filter, not IPCW:</strong> rows where <code>censoring != 0</code> are excluded from model fitting, but no censoring model is fit and no inverse-probability weights are computed. For g-computation with a correctly specified outcome model, this is sufficient under MAR censoring (the regression surface is unchanged). For IPW under MAR censoring, supply pre-computed IPCW weights via <code style="white-space: pre;">weights =</code>. For longitudinal data, censoring is time-varying: <code>C_k = 1</code> means the individual dropped out at time <code>k</code>; ICE backward iteration restricts each step’s model to uncensored individuals (Zivich et al., 2024).
+Character or <code>NULL</code>. Name of the censoring indicator variable (1 = censored, 0 = uncensored). Without <code>ipcw = TRUE</code>, this is a <strong>row filter only:</strong> rows where <code>censoring != 0</code> are excluded from model fitting but no censoring model is fit. For g-computation with a correctly specified outcome model, row filtering is sufficient under MAR censoring. For IPW under MAR censoring, set <code>ipcw = TRUE</code> or supply pre-computed IPCW weights via <code style="white-space: pre;">weights =</code>. For longitudinal data, censoring is time-varying: <code>C_k = 1</code> means the individual dropped out at time <code>k</code>.
+</td>
+</tr>
+<tr>
+<td style="white-space: collapse; font-family: monospace; vertical-align: top">
+<code id="ipcw">ipcw</code>
+</td>
+<td>
+<p>Logical. If <code>TRUE</code>, fit an internal censoring model <span class="math inline">\(P(C = 0 \mid A, L)\)</span> and compute stabilized IPCW weights that are composed multiplicatively with any external <code>weights</code>. Requires <code>censoring</code> to be specified. Default <code>FALSE</code> preserves the legacy row-filter-only behaviour. For IPW under MAR censoring this is essential; for g-comp it provides doubly-robust protection.</p>
+<strong>Variance note:</strong> For point treatments the sandwich SE fully accounts for censoring-model estimation uncertainty (Channel 2 correction). For longitudinal treatments (ICE, longitudinal IPW) the Channel 2 correction for per-period censoring models is omitted, making the sandwich SE conservative. Use <code>ci_method = “bootstrap”</code> for tighter CIs in longitudinal IPCW settings.
+</td>
+</tr>
+<tr>
+<td style="white-space: collapse; font-family: monospace; vertical-align: top">
+<code id="censoring_model_fn">censoring_model_fn</code>
+</td>
+<td>
+Function or <code>NULL</code>. The fitting function for the censoring model when <code>ipcw = TRUE</code>. Must accept <code style="white-space: pre;">(formula, data, family, weights, …)</code>. Default <code>NULL</code> uses <code>stats::glm</code>. Ignored when <code>ipcw = FALSE</code>.
 </td>
 </tr>
 <tr>

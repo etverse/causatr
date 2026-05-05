@@ -453,6 +453,12 @@ window.Quarto = {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="../man/target_trial.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">target_trial</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="../man/threshold.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">threshold</span></a>
   </div>
@@ -719,9 +725,7 @@ Y &amp;= 84 - 8 \cdot A_0 - 32 \cdot L_1.
 <span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">"difference"</span>,</span>
 <span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">ci_method =</span> <span class="st">"sandwich"</span></span>
 <span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ICE step (time_idx = 0): dropping all-NA column(s) from the outcome model formula: 'L'. Check your `confounders_tv` spec if this is unexpected.</span></span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; This message is displayed once every 8 hours.</span></span>
-<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>result</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>result</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
 <p><strong>Estimator:</strong> gcomp &nbsp;·&nbsp; <strong>Estimand:</strong> ATE &nbsp;·&nbsp; <strong>Contrast:</strong> difference &nbsp;·&nbsp; <strong>CI method:</strong> sandwich &nbsp;·&nbsp; <strong>N:</strong> 3200</p>
@@ -731,19 +735,19 @@ Y &amp;= 84 - 8 \cdot A_0 - 32 \cdot L_1.
 
     <script>
       // Create table-specific functions using external factory
-      const tableFns_nqlhs1f7uefkvqcoaw9i = TinyTable.createTableFunctions("tinytable_nqlhs1f7uefkvqcoaw9i");
+      const tableFns_u0wg1nup9b26iux8vgks = TinyTable.createTableFunctions("tinytable_u0wg1nup9b26iux8vgks");
       // tinytable span after
       window.addEventListener('load', function () {
           var cellsToStyle = [
             // tinytable style arrays after
-          { positions: [ { i: '2', j: 1 }, { i: '2', j: 2 }, { i: '2', j: 3 }, { i: '2', j: 4 }, { i: '2', j: 5 } ], css_id: 'tinytable_css_7455n5acamyl71jheiw6',}, 
-          { positions: [ { i: '0', j: 1 }, { i: '0', j: 2 }, { i: '0', j: 3 }, { i: '0', j: 4 }, { i: '0', j: 5 } ], css_id: 'tinytable_css_bqfivzi09hiy7pezrwv2',}, 
+          { positions: [ { i: '2', j: 1 }, { i: '2', j: 2 }, { i: '2', j: 3 }, { i: '2', j: 4 }, { i: '2', j: 5 } ], css_id: 'tinytable_css_wzz8lzadcgtraj3bmi9g',}, 
+          { positions: [ { i: '0', j: 1 }, { i: '0', j: 2 }, { i: '0', j: 3 }, { i: '0', j: 4 }, { i: '0', j: 5 } ], css_id: 'tinytable_css_fe03l2r3rpt57kjgag8v',}, 
           ];
 
           // Loop over the arrays to style the cells
           cellsToStyle.forEach(function (group) {
               group.positions.forEach(function (cell) {
-                  tableFns_nqlhs1f7uefkvqcoaw9i.styleCell(cell.i, cell.j, group.css_id);
+                  tableFns_u0wg1nup9b26iux8vgks.styleCell(cell.i, cell.j, group.css_id);
               });
           });
       });
@@ -752,11 +756,11 @@ Y &amp;= 84 - 8 \cdot A_0 - 32 \cdot L_1.
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.css">
     <style>
     /* tinytable css entries after */
-    #tinytable_nqlhs1f7uefkvqcoaw9i td.tinytable_css_7455n5acamyl71jheiw6, #tinytable_nqlhs1f7uefkvqcoaw9i th.tinytable_css_7455n5acamyl71jheiw6 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
-    #tinytable_nqlhs1f7uefkvqcoaw9i td.tinytable_css_bqfivzi09hiy7pezrwv2, #tinytable_nqlhs1f7uefkvqcoaw9i th.tinytable_css_bqfivzi09hiy7pezrwv2 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
+    #tinytable_u0wg1nup9b26iux8vgks td.tinytable_css_wzz8lzadcgtraj3bmi9g, #tinytable_u0wg1nup9b26iux8vgks th.tinytable_css_wzz8lzadcgtraj3bmi9g {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
+    #tinytable_u0wg1nup9b26iux8vgks td.tinytable_css_fe03l2r3rpt57kjgag8v, #tinytable_u0wg1nup9b26iux8vgks th.tinytable_css_fe03l2r3rpt57kjgag8v {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
     </style>
     <div class="container">
-      <table class="tinytable" id="tinytable_nqlhs1f7uefkvqcoaw9i" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
+      <table class="tinytable" id="tinytable_u0wg1nup9b26iux8vgks" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
         <caption>Intervention means</caption>
         <thead>
               <tr>
@@ -793,19 +797,19 @@ Y &amp;= 84 - 8 \cdot A_0 - 32 \cdot L_1.
 
     <script>
       // Create table-specific functions using external factory
-      const tableFns_8yxtc0eczuyd1hsp255p = TinyTable.createTableFunctions("tinytable_8yxtc0eczuyd1hsp255p");
+      const tableFns_c6jtntde3dcg3sxiqbxf = TinyTable.createTableFunctions("tinytable_c6jtntde3dcg3sxiqbxf");
       // tinytable span after
       window.addEventListener('load', function () {
           var cellsToStyle = [
             // tinytable style arrays after
-          { positions: [ { i: '1', j: 1 }, { i: '1', j: 2 }, { i: '1', j: 3 }, { i: '1', j: 4 }, { i: '1', j: 5 } ], css_id: 'tinytable_css_m8fof7rxurof1s67ng5c',}, 
-          { positions: [ { i: '0', j: 1 }, { i: '0', j: 2 }, { i: '0', j: 3 }, { i: '0', j: 4 }, { i: '0', j: 5 } ], css_id: 'tinytable_css_5hqafsycegdsxe7s2h41',}, 
+          { positions: [ { i: '1', j: 1 }, { i: '1', j: 2 }, { i: '1', j: 3 }, { i: '1', j: 4 }, { i: '1', j: 5 } ], css_id: 'tinytable_css_xzziswna17qylraqgdxa',}, 
+          { positions: [ { i: '0', j: 1 }, { i: '0', j: 2 }, { i: '0', j: 3 }, { i: '0', j: 4 }, { i: '0', j: 5 } ], css_id: 'tinytable_css_nbharyawtitz0ds8s067',}, 
           ];
 
           // Loop over the arrays to style the cells
           cellsToStyle.forEach(function (group) {
               group.positions.forEach(function (cell) {
-                  tableFns_8yxtc0eczuyd1hsp255p.styleCell(cell.i, cell.j, group.css_id);
+                  tableFns_c6jtntde3dcg3sxiqbxf.styleCell(cell.i, cell.j, group.css_id);
               });
           });
       });
@@ -814,11 +818,11 @@ Y &amp;= 84 - 8 \cdot A_0 - 32 \cdot L_1.
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.css">
     <style>
     /* tinytable css entries after */
-    #tinytable_8yxtc0eczuyd1hsp255p td.tinytable_css_m8fof7rxurof1s67ng5c, #tinytable_8yxtc0eczuyd1hsp255p th.tinytable_css_m8fof7rxurof1s67ng5c {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
-    #tinytable_8yxtc0eczuyd1hsp255p td.tinytable_css_5hqafsycegdsxe7s2h41, #tinytable_8yxtc0eczuyd1hsp255p th.tinytable_css_5hqafsycegdsxe7s2h41 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
+    #tinytable_c6jtntde3dcg3sxiqbxf td.tinytable_css_xzziswna17qylraqgdxa, #tinytable_c6jtntde3dcg3sxiqbxf th.tinytable_css_xzziswna17qylraqgdxa {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
+    #tinytable_c6jtntde3dcg3sxiqbxf td.tinytable_css_nbharyawtitz0ds8s067, #tinytable_c6jtntde3dcg3sxiqbxf th.tinytable_css_nbharyawtitz0ds8s067 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
     </style>
     <div class="container">
-      <table class="tinytable" id="tinytable_8yxtc0eczuyd1hsp255p" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
+      <table class="tinytable" id="tinytable_c6jtntde3dcg3sxiqbxf" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
         <caption>Contrasts</caption>
         <thead>
               <tr>
@@ -918,19 +922,19 @@ Y &amp;= 84 - 8 \cdot A_0 - 32 \cdot L_1.
 
     <script>
       // Create table-specific functions using external factory
-      const tableFns_w7zq0mc87y1xq3lb5o36 = TinyTable.createTableFunctions("tinytable_w7zq0mc87y1xq3lb5o36");
+      const tableFns_6vg8sxn2jipghcmhfgn0 = TinyTable.createTableFunctions("tinytable_6vg8sxn2jipghcmhfgn0");
       // tinytable span after
       window.addEventListener('load', function () {
           var cellsToStyle = [
             // tinytable style arrays after
-          { positions: [ { i: '2', j: 1 }, { i: '2', j: 2 }, { i: '2', j: 3 }, { i: '2', j: 4 }, { i: '2', j: 5 } ], css_id: 'tinytable_css_8z5cbr29m4o7swawi3b0',}, 
-          { positions: [ { i: '0', j: 1 }, { i: '0', j: 2 }, { i: '0', j: 3 }, { i: '0', j: 4 }, { i: '0', j: 5 } ], css_id: 'tinytable_css_uvqnpk6e2wvt5yxgv175',}, 
+          { positions: [ { i: '2', j: 1 }, { i: '2', j: 2 }, { i: '2', j: 3 }, { i: '2', j: 4 }, { i: '2', j: 5 } ], css_id: 'tinytable_css_kvl8miv31kzjfjz0uggb',}, 
+          { positions: [ { i: '0', j: 1 }, { i: '0', j: 2 }, { i: '0', j: 3 }, { i: '0', j: 4 }, { i: '0', j: 5 } ], css_id: 'tinytable_css_211cq1flnis69reyyhb9',}, 
           ];
 
           // Loop over the arrays to style the cells
           cellsToStyle.forEach(function (group) {
               group.positions.forEach(function (cell) {
-                  tableFns_w7zq0mc87y1xq3lb5o36.styleCell(cell.i, cell.j, group.css_id);
+                  tableFns_6vg8sxn2jipghcmhfgn0.styleCell(cell.i, cell.j, group.css_id);
               });
           });
       });
@@ -939,11 +943,11 @@ Y &amp;= 84 - 8 \cdot A_0 - 32 \cdot L_1.
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.css">
     <style>
     /* tinytable css entries after */
-    #tinytable_w7zq0mc87y1xq3lb5o36 td.tinytable_css_8z5cbr29m4o7swawi3b0, #tinytable_w7zq0mc87y1xq3lb5o36 th.tinytable_css_8z5cbr29m4o7swawi3b0 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
-    #tinytable_w7zq0mc87y1xq3lb5o36 td.tinytable_css_uvqnpk6e2wvt5yxgv175, #tinytable_w7zq0mc87y1xq3lb5o36 th.tinytable_css_uvqnpk6e2wvt5yxgv175 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
+    #tinytable_6vg8sxn2jipghcmhfgn0 td.tinytable_css_kvl8miv31kzjfjz0uggb, #tinytable_6vg8sxn2jipghcmhfgn0 th.tinytable_css_kvl8miv31kzjfjz0uggb {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
+    #tinytable_6vg8sxn2jipghcmhfgn0 td.tinytable_css_211cq1flnis69reyyhb9, #tinytable_6vg8sxn2jipghcmhfgn0 th.tinytable_css_211cq1flnis69reyyhb9 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
     </style>
     <div class="container">
-      <table class="tinytable" id="tinytable_w7zq0mc87y1xq3lb5o36" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
+      <table class="tinytable" id="tinytable_6vg8sxn2jipghcmhfgn0" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
         <caption>Intervention means</caption>
         <thead>
               <tr>
@@ -959,16 +963,16 @@ Y &amp;= 84 - 8 \cdot A_0 - 32 \cdot L_1.
                 <tr>
                   <td data-row="1" data-col="1">always</td>
                   <td data-row="1" data-col="2">60</td>
-                  <td data-row="1" data-col="3">0.239</td>
-                  <td data-row="1" data-col="4">59.532</td>
-                  <td data-row="1" data-col="5">60.468</td>
+                  <td data-row="1" data-col="3">0.37</td>
+                  <td data-row="1" data-col="4">59.276</td>
+                  <td data-row="1" data-col="5">60.724</td>
                 </tr>
                 <tr>
                   <td data-row="2" data-col="1">never</td>
                   <td data-row="2" data-col="2">60</td>
-                  <td data-row="2" data-col="3">0.357</td>
-                  <td data-row="2" data-col="4">59.3</td>
-                  <td data-row="2" data-col="5">60.7</td>
+                  <td data-row="2" data-col="3">0.243</td>
+                  <td data-row="2" data-col="4">59.524</td>
+                  <td data-row="2" data-col="5">60.476</td>
                 </tr>
         </tbody>
       </table>
@@ -980,19 +984,19 @@ Y &amp;= 84 - 8 \cdot A_0 - 32 \cdot L_1.
 
     <script>
       // Create table-specific functions using external factory
-      const tableFns_quhbqg7ywculg9da86sc = TinyTable.createTableFunctions("tinytable_quhbqg7ywculg9da86sc");
+      const tableFns_ud7glqe1fdj5vnf9viyw = TinyTable.createTableFunctions("tinytable_ud7glqe1fdj5vnf9viyw");
       // tinytable span after
       window.addEventListener('load', function () {
           var cellsToStyle = [
             // tinytable style arrays after
-          { positions: [ { i: '1', j: 1 }, { i: '1', j: 2 }, { i: '1', j: 3 }, { i: '1', j: 4 }, { i: '1', j: 5 } ], css_id: 'tinytable_css_ddnfd8c1tix8baoxqi3b',}, 
-          { positions: [ { i: '0', j: 1 }, { i: '0', j: 2 }, { i: '0', j: 3 }, { i: '0', j: 4 }, { i: '0', j: 5 } ], css_id: 'tinytable_css_r08kxqhow4jsvb6b5qwz',}, 
+          { positions: [ { i: '1', j: 1 }, { i: '1', j: 2 }, { i: '1', j: 3 }, { i: '1', j: 4 }, { i: '1', j: 5 } ], css_id: 'tinytable_css_220letnc8yro8pj039k6',}, 
+          { positions: [ { i: '0', j: 1 }, { i: '0', j: 2 }, { i: '0', j: 3 }, { i: '0', j: 4 }, { i: '0', j: 5 } ], css_id: 'tinytable_css_9dhhvanby05l4p49aem2',}, 
           ];
 
           // Loop over the arrays to style the cells
           cellsToStyle.forEach(function (group) {
               group.positions.forEach(function (cell) {
-                  tableFns_quhbqg7ywculg9da86sc.styleCell(cell.i, cell.j, group.css_id);
+                  tableFns_ud7glqe1fdj5vnf9viyw.styleCell(cell.i, cell.j, group.css_id);
               });
           });
       });
@@ -1001,11 +1005,11 @@ Y &amp;= 84 - 8 \cdot A_0 - 32 \cdot L_1.
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.css">
     <style>
     /* tinytable css entries after */
-    #tinytable_quhbqg7ywculg9da86sc td.tinytable_css_ddnfd8c1tix8baoxqi3b, #tinytable_quhbqg7ywculg9da86sc th.tinytable_css_ddnfd8c1tix8baoxqi3b {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
-    #tinytable_quhbqg7ywculg9da86sc td.tinytable_css_r08kxqhow4jsvb6b5qwz, #tinytable_quhbqg7ywculg9da86sc th.tinytable_css_r08kxqhow4jsvb6b5qwz {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
+    #tinytable_ud7glqe1fdj5vnf9viyw td.tinytable_css_220letnc8yro8pj039k6, #tinytable_ud7glqe1fdj5vnf9viyw th.tinytable_css_220letnc8yro8pj039k6 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
+    #tinytable_ud7glqe1fdj5vnf9viyw td.tinytable_css_9dhhvanby05l4p49aem2, #tinytable_ud7glqe1fdj5vnf9viyw th.tinytable_css_9dhhvanby05l4p49aem2 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
     </style>
     <div class="container">
-      <table class="tinytable" id="tinytable_quhbqg7ywculg9da86sc" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
+      <table class="tinytable" id="tinytable_ud7glqe1fdj5vnf9viyw" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
         <caption>Contrasts</caption>
         <thead>
               <tr>
@@ -1021,9 +1025,9 @@ Y &amp;= 84 - 8 \cdot A_0 - 32 \cdot L_1.
                 <tr>
                   <td data-row="1" data-col="1">always vs never</td>
                   <td data-row="1" data-col="2">-0.00000000000009947598</td>
-                  <td data-row="1" data-col="3">0.376</td>
-                  <td data-row="1" data-col="4">-0.737</td>
-                  <td data-row="1" data-col="5">0.737</td>
+                  <td data-row="1" data-col="3">0.454</td>
+                  <td data-row="1" data-col="4">-0.89</td>
+                  <td data-row="1" data-col="5">0.89</td>
                 </tr>
         </tbody>
       </table>
@@ -1118,19 +1122,19 @@ Y &amp;= 84 - 8 \cdot A_0 - 32 \cdot L_1.
 
     <script>
       // Create table-specific functions using external factory
-      const tableFns_7atcex8go9yzpri24q34 = TinyTable.createTableFunctions("tinytable_7atcex8go9yzpri24q34");
+      const tableFns_wy8140bku2a2b6ba50zh = TinyTable.createTableFunctions("tinytable_wy8140bku2a2b6ba50zh");
       // tinytable span after
       window.addEventListener('load', function () {
           var cellsToStyle = [
             // tinytable style arrays after
-          { positions: [ { i: '3', j: 1 }, { i: '3', j: 2 }, { i: '3', j: 3 }, { i: '3', j: 4 }, { i: '3', j: 5 } ], css_id: 'tinytable_css_2g35q2de2v38jon6dvkn',}, 
-          { positions: [ { i: '0', j: 1 }, { i: '0', j: 2 }, { i: '0', j: 3 }, { i: '0', j: 4 }, { i: '0', j: 5 } ], css_id: 'tinytable_css_4bzhe7rzyyvjefo8032a',}, 
+          { positions: [ { i: '3', j: 1 }, { i: '3', j: 2 }, { i: '3', j: 3 }, { i: '3', j: 4 }, { i: '3', j: 5 } ], css_id: 'tinytable_css_acp6g4qeby60un3htnkt',}, 
+          { positions: [ { i: '0', j: 1 }, { i: '0', j: 2 }, { i: '0', j: 3 }, { i: '0', j: 4 }, { i: '0', j: 5 } ], css_id: 'tinytable_css_xvab356n2ii88zrnp4n1',}, 
           ];
 
           // Loop over the arrays to style the cells
           cellsToStyle.forEach(function (group) {
               group.positions.forEach(function (cell) {
-                  tableFns_7atcex8go9yzpri24q34.styleCell(cell.i, cell.j, group.css_id);
+                  tableFns_wy8140bku2a2b6ba50zh.styleCell(cell.i, cell.j, group.css_id);
               });
           });
       });
@@ -1139,11 +1143,11 @@ Y &amp;= 84 - 8 \cdot A_0 - 32 \cdot L_1.
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.css">
     <style>
     /* tinytable css entries after */
-    #tinytable_7atcex8go9yzpri24q34 td.tinytable_css_2g35q2de2v38jon6dvkn, #tinytable_7atcex8go9yzpri24q34 th.tinytable_css_2g35q2de2v38jon6dvkn {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
-    #tinytable_7atcex8go9yzpri24q34 td.tinytable_css_4bzhe7rzyyvjefo8032a, #tinytable_7atcex8go9yzpri24q34 th.tinytable_css_4bzhe7rzyyvjefo8032a {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
+    #tinytable_wy8140bku2a2b6ba50zh td.tinytable_css_acp6g4qeby60un3htnkt, #tinytable_wy8140bku2a2b6ba50zh th.tinytable_css_acp6g4qeby60un3htnkt {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
+    #tinytable_wy8140bku2a2b6ba50zh td.tinytable_css_xvab356n2ii88zrnp4n1, #tinytable_wy8140bku2a2b6ba50zh th.tinytable_css_xvab356n2ii88zrnp4n1 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
     </style>
     <div class="container">
-      <table class="tinytable" id="tinytable_7atcex8go9yzpri24q34" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
+      <table class="tinytable" id="tinytable_wy8140bku2a2b6ba50zh" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
         <caption>Intervention means</caption>
         <thead>
               <tr>
@@ -1187,19 +1191,19 @@ Y &amp;= 84 - 8 \cdot A_0 - 32 \cdot L_1.
 
     <script>
       // Create table-specific functions using external factory
-      const tableFns_qqx2sof7cqcenay61yz7 = TinyTable.createTableFunctions("tinytable_qqx2sof7cqcenay61yz7");
+      const tableFns_5f12qaga667gql8n2fc2 = TinyTable.createTableFunctions("tinytable_5f12qaga667gql8n2fc2");
       // tinytable span after
       window.addEventListener('load', function () {
           var cellsToStyle = [
             // tinytable style arrays after
-          { positions: [ { i: '2', j: 1 }, { i: '2', j: 2 }, { i: '2', j: 3 }, { i: '2', j: 4 }, { i: '2', j: 5 } ], css_id: 'tinytable_css_4mm1efqmb8fzdhnh03xj',}, 
-          { positions: [ { i: '0', j: 1 }, { i: '0', j: 2 }, { i: '0', j: 3 }, { i: '0', j: 4 }, { i: '0', j: 5 } ], css_id: 'tinytable_css_79la2u2dvl531mth2pi5',}, 
+          { positions: [ { i: '2', j: 1 }, { i: '2', j: 2 }, { i: '2', j: 3 }, { i: '2', j: 4 }, { i: '2', j: 5 } ], css_id: 'tinytable_css_jw2emvyjmwvf8thqxfyw',}, 
+          { positions: [ { i: '0', j: 1 }, { i: '0', j: 2 }, { i: '0', j: 3 }, { i: '0', j: 4 }, { i: '0', j: 5 } ], css_id: 'tinytable_css_0b2leiap5h8qyuymo90y',}, 
           ];
 
           // Loop over the arrays to style the cells
           cellsToStyle.forEach(function (group) {
               group.positions.forEach(function (cell) {
-                  tableFns_qqx2sof7cqcenay61yz7.styleCell(cell.i, cell.j, group.css_id);
+                  tableFns_5f12qaga667gql8n2fc2.styleCell(cell.i, cell.j, group.css_id);
               });
           });
       });
@@ -1208,11 +1212,11 @@ Y &amp;= 84 - 8 \cdot A_0 - 32 \cdot L_1.
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.css">
     <style>
     /* tinytable css entries after */
-    #tinytable_qqx2sof7cqcenay61yz7 td.tinytable_css_4mm1efqmb8fzdhnh03xj, #tinytable_qqx2sof7cqcenay61yz7 th.tinytable_css_4mm1efqmb8fzdhnh03xj {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
-    #tinytable_qqx2sof7cqcenay61yz7 td.tinytable_css_79la2u2dvl531mth2pi5, #tinytable_qqx2sof7cqcenay61yz7 th.tinytable_css_79la2u2dvl531mth2pi5 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
+    #tinytable_5f12qaga667gql8n2fc2 td.tinytable_css_jw2emvyjmwvf8thqxfyw, #tinytable_5f12qaga667gql8n2fc2 th.tinytable_css_jw2emvyjmwvf8thqxfyw {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
+    #tinytable_5f12qaga667gql8n2fc2 td.tinytable_css_0b2leiap5h8qyuymo90y, #tinytable_5f12qaga667gql8n2fc2 th.tinytable_css_0b2leiap5h8qyuymo90y {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
     </style>
     <div class="container">
-      <table class="tinytable" id="tinytable_qqx2sof7cqcenay61yz7" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
+      <table class="tinytable" id="tinytable_5f12qaga667gql8n2fc2" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
         <caption>Contrasts</caption>
         <thead>
               <tr>
@@ -1313,19 +1317,19 @@ Y &amp;= 84 - 8 \cdot A_0 - 32 \cdot L_1.
 
     <script>
       // Create table-specific functions using external factory
-      const tableFns_g05ja8l75i27e2xzfika = TinyTable.createTableFunctions("tinytable_g05ja8l75i27e2xzfika");
+      const tableFns_w9p0v65jx94hy4nuptt6 = TinyTable.createTableFunctions("tinytable_w9p0v65jx94hy4nuptt6");
       // tinytable span after
       window.addEventListener('load', function () {
           var cellsToStyle = [
             // tinytable style arrays after
-          { positions: [ { i: '2', j: 1 }, { i: '2', j: 2 }, { i: '2', j: 3 }, { i: '2', j: 4 }, { i: '2', j: 5 } ], css_id: 'tinytable_css_366m01lirvdpbyrttfm3',}, 
-          { positions: [ { i: '0', j: 1 }, { i: '0', j: 2 }, { i: '0', j: 3 }, { i: '0', j: 4 }, { i: '0', j: 5 } ], css_id: 'tinytable_css_ujykzr8vykp0mg71qaoy',}, 
+          { positions: [ { i: '2', j: 1 }, { i: '2', j: 2 }, { i: '2', j: 3 }, { i: '2', j: 4 }, { i: '2', j: 5 } ], css_id: 'tinytable_css_rtjvo8xnbhxttc0usgw8',}, 
+          { positions: [ { i: '0', j: 1 }, { i: '0', j: 2 }, { i: '0', j: 3 }, { i: '0', j: 4 }, { i: '0', j: 5 } ], css_id: 'tinytable_css_7gjjgavn8s3zw84ppbvj',}, 
           ];
 
           // Loop over the arrays to style the cells
           cellsToStyle.forEach(function (group) {
               group.positions.forEach(function (cell) {
-                  tableFns_g05ja8l75i27e2xzfika.styleCell(cell.i, cell.j, group.css_id);
+                  tableFns_w9p0v65jx94hy4nuptt6.styleCell(cell.i, cell.j, group.css_id);
               });
           });
       });
@@ -1334,11 +1338,11 @@ Y &amp;= 84 - 8 \cdot A_0 - 32 \cdot L_1.
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.css">
     <style>
     /* tinytable css entries after */
-    #tinytable_g05ja8l75i27e2xzfika td.tinytable_css_366m01lirvdpbyrttfm3, #tinytable_g05ja8l75i27e2xzfika th.tinytable_css_366m01lirvdpbyrttfm3 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
-    #tinytable_g05ja8l75i27e2xzfika td.tinytable_css_ujykzr8vykp0mg71qaoy, #tinytable_g05ja8l75i27e2xzfika th.tinytable_css_ujykzr8vykp0mg71qaoy {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
+    #tinytable_w9p0v65jx94hy4nuptt6 td.tinytable_css_rtjvo8xnbhxttc0usgw8, #tinytable_w9p0v65jx94hy4nuptt6 th.tinytable_css_rtjvo8xnbhxttc0usgw8 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
+    #tinytable_w9p0v65jx94hy4nuptt6 td.tinytable_css_7gjjgavn8s3zw84ppbvj, #tinytable_w9p0v65jx94hy4nuptt6 th.tinytable_css_7gjjgavn8s3zw84ppbvj {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
     </style>
     <div class="container">
-      <table class="tinytable" id="tinytable_g05ja8l75i27e2xzfika" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
+      <table class="tinytable" id="tinytable_w9p0v65jx94hy4nuptt6" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
         <caption>Intervention means</caption>
         <thead>
               <tr>
@@ -1375,19 +1379,19 @@ Y &amp;= 84 - 8 \cdot A_0 - 32 \cdot L_1.
 
     <script>
       // Create table-specific functions using external factory
-      const tableFns_0aw2yd9o0sfk99rdfa14 = TinyTable.createTableFunctions("tinytable_0aw2yd9o0sfk99rdfa14");
+      const tableFns_w04x7i36p6hq41d9dj2e = TinyTable.createTableFunctions("tinytable_w04x7i36p6hq41d9dj2e");
       // tinytable span after
       window.addEventListener('load', function () {
           var cellsToStyle = [
             // tinytable style arrays after
-          { positions: [ { i: '1', j: 1 }, { i: '1', j: 2 }, { i: '1', j: 3 }, { i: '1', j: 4 }, { i: '1', j: 5 } ], css_id: 'tinytable_css_zpns2gz33jixevb9z1wp',}, 
-          { positions: [ { i: '0', j: 1 }, { i: '0', j: 2 }, { i: '0', j: 3 }, { i: '0', j: 4 }, { i: '0', j: 5 } ], css_id: 'tinytable_css_s10cqmqell5esvw2et7c',}, 
+          { positions: [ { i: '1', j: 1 }, { i: '1', j: 2 }, { i: '1', j: 3 }, { i: '1', j: 4 }, { i: '1', j: 5 } ], css_id: 'tinytable_css_1mewbnsgcjyw95coywkp',}, 
+          { positions: [ { i: '0', j: 1 }, { i: '0', j: 2 }, { i: '0', j: 3 }, { i: '0', j: 4 }, { i: '0', j: 5 } ], css_id: 'tinytable_css_i34h9fr4rmvxirtvz6fb',}, 
           ];
 
           // Loop over the arrays to style the cells
           cellsToStyle.forEach(function (group) {
               group.positions.forEach(function (cell) {
-                  tableFns_0aw2yd9o0sfk99rdfa14.styleCell(cell.i, cell.j, group.css_id);
+                  tableFns_w04x7i36p6hq41d9dj2e.styleCell(cell.i, cell.j, group.css_id);
               });
           });
       });
@@ -1396,11 +1400,11 @@ Y &amp;= 84 - 8 \cdot A_0 - 32 \cdot L_1.
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.css">
     <style>
     /* tinytable css entries after */
-    #tinytable_0aw2yd9o0sfk99rdfa14 td.tinytable_css_zpns2gz33jixevb9z1wp, #tinytable_0aw2yd9o0sfk99rdfa14 th.tinytable_css_zpns2gz33jixevb9z1wp {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
-    #tinytable_0aw2yd9o0sfk99rdfa14 td.tinytable_css_s10cqmqell5esvw2et7c, #tinytable_0aw2yd9o0sfk99rdfa14 th.tinytable_css_s10cqmqell5esvw2et7c {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
+    #tinytable_w04x7i36p6hq41d9dj2e td.tinytable_css_1mewbnsgcjyw95coywkp, #tinytable_w04x7i36p6hq41d9dj2e th.tinytable_css_1mewbnsgcjyw95coywkp {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
+    #tinytable_w04x7i36p6hq41d9dj2e td.tinytable_css_i34h9fr4rmvxirtvz6fb, #tinytable_w04x7i36p6hq41d9dj2e th.tinytable_css_i34h9fr4rmvxirtvz6fb {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
     </style>
     <div class="container">
-      <table class="tinytable" id="tinytable_0aw2yd9o0sfk99rdfa14" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
+      <table class="tinytable" id="tinytable_w04x7i36p6hq41d9dj2e" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
         <caption>Contrasts</caption>
         <thead>
               <tr>
@@ -2024,17 +2028,17 @@ Y \mid A_1, \dots, A_4, L_0 &amp;\sim \text{Bernoulli}\bigl(\text{logit}^{-1}(-1
         <tbody>
                 <tr>
                   <td data-row="1" data-col="1">always</td>
-                  <td data-row="1" data-col="2">0.414</td>
-                  <td data-row="1" data-col="3">0.037</td>
-                  <td data-row="1" data-col="4">0.343</td>
-                  <td data-row="1" data-col="5">0.486</td>
+                  <td data-row="1" data-col="2">0.528</td>
+                  <td data-row="1" data-col="3">0.052</td>
+                  <td data-row="1" data-col="4">0.426</td>
+                  <td data-row="1" data-col="5">0.63</td>
                 </tr>
                 <tr>
                   <td data-row="2" data-col="1">never</td>
-                  <td data-row="2" data-col="2">0.228</td>
-                  <td data-row="2" data-col="3">0.028</td>
-                  <td data-row="2" data-col="4">0.173</td>
-                  <td data-row="2" data-col="5">0.283</td>
+                  <td data-row="2" data-col="2">0.166</td>
+                  <td data-row="2" data-col="3">0.029</td>
+                  <td data-row="2" data-col="4">0.109</td>
+                  <td data-row="2" data-col="5">0.222</td>
                 </tr>
         </tbody>
       </table>
@@ -2086,10 +2090,10 @@ Y \mid A_1, \dots, A_4, L_0 &amp;\sim \text{Bernoulli}\bigl(\text{logit}^{-1}(-1
         <tbody>
                 <tr>
                   <td data-row="1" data-col="1">always vs never</td>
-                  <td data-row="1" data-col="2">0.186</td>
-                  <td data-row="1" data-col="3">0.053</td>
-                  <td data-row="1" data-col="4">0.083</td>
-                  <td data-row="1" data-col="5">0.29</td>
+                  <td data-row="1" data-col="2">0.362</td>
+                  <td data-row="1" data-col="3">0.073</td>
+                  <td data-row="1" data-col="4">0.219</td>
+                  <td data-row="1" data-col="5">0.506</td>
                 </tr>
         </tbody>
       </table>
@@ -2163,11 +2167,11 @@ Y \mid A_1, \dots, A_4, L_0 &amp;\sim \text{Bernoulli}\bigl(\text{logit}^{-1}(-1
         <tbody>
                 <tr>
                   <td data-row="1" data-col="1">always vs never</td>
-                  <td data-row="1" data-col="2">0.186</td>
-                  <td data-row="1" data-col="3">0.0528</td>
+                  <td data-row="1" data-col="2">0.362</td>
+                  <td data-row="1" data-col="3">0.0733</td>
                   <td data-row="1" data-col="4">contrast</td>
-                  <td data-row="1" data-col="5">0.0828</td>
-                  <td data-row="1" data-col="6">0.29</td>
+                  <td data-row="1" data-col="5">0.219</td>
+                  <td data-row="1" data-col="6">0.506</td>
                 </tr>
         </tbody>
       </table>
@@ -3397,37 +3401,38 @@ Y &amp;= \begin{cases} Y^* &amp; \text{if } C_1 = 0, \\ \text{NA} &amp; \text{if
 <span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">5000</span></span>
 <span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a>L0 <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
 <span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a>sex <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, <span class="fl">0.5</span>)</span>
-<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a>A0 <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="fl">0.3</span> <span class="sc">*</span> L0))</span>
-<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a>L1 <span class="ot">&lt;-</span> A0 <span class="sc">+</span> <span class="fl">0.5</span> <span class="sc">*</span> L0 <span class="sc">+</span> <span class="fu">rnorm</span>(n, <span class="dv">0</span>, <span class="fl">0.5</span>)</span>
-<span id="cb30-7"><a href="#cb30-7" aria-hidden="true" tabindex="-1"></a>A1 <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="fl">0.3</span> <span class="sc">*</span> L1))</span>
-<span id="cb30-8"><a href="#cb30-8" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> <span class="dv">10</span> <span class="sc">+</span> (<span class="dv">2</span> <span class="sc">+</span> <span class="fl">1.5</span> <span class="sc">*</span> sex) <span class="sc">*</span> (A0 <span class="sc">+</span> A1) <span class="sc">+</span> L0 <span class="sc">+</span> L1 <span class="sc">+</span> <span class="fu">rnorm</span>(n)</span>
-<span id="cb30-9"><a href="#cb30-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb30-10"><a href="#cb30-10" aria-hidden="true" tabindex="-1"></a>d_em <span class="ot">&lt;-</span> <span class="fu">rbind</span>(</span>
-<span id="cb30-11"><a href="#cb30-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">id =</span> <span class="dv">1</span><span class="sc">:</span>n, <span class="at">time =</span> <span class="dv">0</span>L, <span class="at">A =</span> A0, <span class="at">L =</span> <span class="cn">NA_real_</span>,</span>
-<span id="cb30-12"><a href="#cb30-12" aria-hidden="true" tabindex="-1"></a>             <span class="at">L0 =</span> L0, <span class="at">sex =</span> sex, <span class="at">Y =</span> <span class="cn">NA_real_</span>),</span>
-<span id="cb30-13"><a href="#cb30-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">id =</span> <span class="dv">1</span><span class="sc">:</span>n, <span class="at">time =</span> <span class="dv">1</span>L, <span class="at">A =</span> A1, <span class="at">L =</span> L1,</span>
-<span id="cb30-14"><a href="#cb30-14" aria-hidden="true" tabindex="-1"></a>             <span class="at">L0 =</span> L0, <span class="at">sex =</span> sex, <span class="at">Y =</span> Y)</span>
-<span id="cb30-15"><a href="#cb30-15" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb30-16"><a href="#cb30-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb30-17"><a href="#cb30-17" aria-hidden="true" tabindex="-1"></a>fit_ice_em <span class="ot">&lt;-</span> <span class="fu">causat</span>(</span>
-<span id="cb30-18"><a href="#cb30-18" aria-hidden="true" tabindex="-1"></a>  d_em,</span>
-<span id="cb30-19"><a href="#cb30-19" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
-<span id="cb30-20"><a href="#cb30-20" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
-<span id="cb30-21"><a href="#cb30-21" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> <span class="sc">~</span> L0 <span class="sc">+</span> sex <span class="sc">+</span> A<span class="sc">:</span>sex,</span>
-<span id="cb30-22"><a href="#cb30-22" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders_tv =</span> <span class="sc">~</span> L,</span>
-<span id="cb30-23"><a href="#cb30-23" aria-hidden="true" tabindex="-1"></a>  <span class="at">id =</span> <span class="st">"id"</span>,</span>
-<span id="cb30-24"><a href="#cb30-24" aria-hidden="true" tabindex="-1"></a>  <span class="at">time =</span> <span class="st">"time"</span></span>
-<span id="cb30-25"><a href="#cb30-25" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb30-26"><a href="#cb30-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb30-27"><a href="#cb30-27" aria-hidden="true" tabindex="-1"></a>res_ice_em <span class="ot">&lt;-</span> <span class="fu">contrast</span>(</span>
-<span id="cb30-28"><a href="#cb30-28" aria-hidden="true" tabindex="-1"></a>  fit_ice_em,</span>
-<span id="cb30-29"><a href="#cb30-29" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">always =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">never =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
-<span id="cb30-30"><a href="#cb30-30" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="st">"never"</span>,</span>
-<span id="cb30-31"><a href="#cb30-31" aria-hidden="true" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">"difference"</span>,</span>
-<span id="cb30-32"><a href="#cb30-32" aria-hidden="true" tabindex="-1"></a>  <span class="at">ci_method =</span> <span class="st">"sandwich"</span>,</span>
-<span id="cb30-33"><a href="#cb30-33" aria-hidden="true" tabindex="-1"></a>  <span class="at">by =</span> <span class="st">"sex"</span></span>
-<span id="cb30-34"><a href="#cb30-34" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb30-35"><a href="#cb30-35" aria-hidden="true" tabindex="-1"></a>res_ice_em</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a>Ltv0 <span class="ot">&lt;-</span> <span class="fl">0.5</span> <span class="sc">*</span> L0 <span class="sc">+</span> <span class="fu">rnorm</span>(n, <span class="dv">0</span>, <span class="fl">0.5</span>)</span>
+<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a>A0 <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="fl">0.3</span> <span class="sc">*</span> L0))</span>
+<span id="cb30-7"><a href="#cb30-7" aria-hidden="true" tabindex="-1"></a>L1 <span class="ot">&lt;-</span> A0 <span class="sc">+</span> <span class="fl">0.5</span> <span class="sc">*</span> L0 <span class="sc">+</span> <span class="fu">rnorm</span>(n, <span class="dv">0</span>, <span class="fl">0.5</span>)</span>
+<span id="cb30-8"><a href="#cb30-8" aria-hidden="true" tabindex="-1"></a>A1 <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="fl">0.3</span> <span class="sc">*</span> L1))</span>
+<span id="cb30-9"><a href="#cb30-9" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> <span class="dv">10</span> <span class="sc">+</span> (<span class="dv">2</span> <span class="sc">+</span> <span class="fl">1.5</span> <span class="sc">*</span> sex) <span class="sc">*</span> (A0 <span class="sc">+</span> A1) <span class="sc">+</span> Ltv0 <span class="sc">+</span> L1 <span class="sc">+</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb30-10"><a href="#cb30-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-11"><a href="#cb30-11" aria-hidden="true" tabindex="-1"></a>d_em <span class="ot">&lt;-</span> <span class="fu">rbind</span>(</span>
+<span id="cb30-12"><a href="#cb30-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">id =</span> <span class="dv">1</span><span class="sc">:</span>n, <span class="at">time =</span> <span class="dv">0</span>L, <span class="at">A =</span> A0, <span class="at">L =</span> Ltv0,</span>
+<span id="cb30-13"><a href="#cb30-13" aria-hidden="true" tabindex="-1"></a>             <span class="at">L0 =</span> L0, <span class="at">sex =</span> sex, <span class="at">Y =</span> <span class="cn">NA_real_</span>),</span>
+<span id="cb30-14"><a href="#cb30-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">id =</span> <span class="dv">1</span><span class="sc">:</span>n, <span class="at">time =</span> <span class="dv">1</span>L, <span class="at">A =</span> A1, <span class="at">L =</span> L1,</span>
+<span id="cb30-15"><a href="#cb30-15" aria-hidden="true" tabindex="-1"></a>             <span class="at">L0 =</span> L0, <span class="at">sex =</span> sex, <span class="at">Y =</span> Y)</span>
+<span id="cb30-16"><a href="#cb30-16" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb30-17"><a href="#cb30-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-18"><a href="#cb30-18" aria-hidden="true" tabindex="-1"></a>fit_ice_em <span class="ot">&lt;-</span> <span class="fu">causat</span>(</span>
+<span id="cb30-19"><a href="#cb30-19" aria-hidden="true" tabindex="-1"></a>  d_em,</span>
+<span id="cb30-20"><a href="#cb30-20" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
+<span id="cb30-21"><a href="#cb30-21" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
+<span id="cb30-22"><a href="#cb30-22" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> <span class="sc">~</span> L0 <span class="sc">+</span> sex <span class="sc">+</span> A<span class="sc">:</span>sex,</span>
+<span id="cb30-23"><a href="#cb30-23" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders_tv =</span> <span class="sc">~</span> L,</span>
+<span id="cb30-24"><a href="#cb30-24" aria-hidden="true" tabindex="-1"></a>  <span class="at">id =</span> <span class="st">"id"</span>,</span>
+<span id="cb30-25"><a href="#cb30-25" aria-hidden="true" tabindex="-1"></a>  <span class="at">time =</span> <span class="st">"time"</span></span>
+<span id="cb30-26"><a href="#cb30-26" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb30-27"><a href="#cb30-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-28"><a href="#cb30-28" aria-hidden="true" tabindex="-1"></a>res_ice_em <span class="ot">&lt;-</span> <span class="fu">contrast</span>(</span>
+<span id="cb30-29"><a href="#cb30-29" aria-hidden="true" tabindex="-1"></a>  fit_ice_em,</span>
+<span id="cb30-30"><a href="#cb30-30" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">always =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">never =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
+<span id="cb30-31"><a href="#cb30-31" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="st">"never"</span>,</span>
+<span id="cb30-32"><a href="#cb30-32" aria-hidden="true" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">"difference"</span>,</span>
+<span id="cb30-33"><a href="#cb30-33" aria-hidden="true" tabindex="-1"></a>  <span class="at">ci_method =</span> <span class="st">"sandwich"</span>,</span>
+<span id="cb30-34"><a href="#cb30-34" aria-hidden="true" tabindex="-1"></a>  <span class="at">by =</span> <span class="st">"sex"</span></span>
+<span id="cb30-35"><a href="#cb30-35" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb30-36"><a href="#cb30-36" aria-hidden="true" tabindex="-1"></a>res_ice_em</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
 <p><strong>Estimator:</strong> gcomp &nbsp;·&nbsp; <strong>Estimand:</strong> ATE &nbsp;·&nbsp; <strong>Contrast:</strong> difference &nbsp;·&nbsp; <strong>CI method:</strong> sandwich &nbsp;·&nbsp; <strong>N:</strong> 5000</p>
@@ -3437,19 +3442,19 @@ Y &amp;= \begin{cases} Y^* &amp; \text{if } C_1 = 0, \\ \text{NA} &amp; \text{if
 
     <script>
       // Create table-specific functions using external factory
-      const tableFns_7zx7kwdo497z1eqkk61z = TinyTable.createTableFunctions("tinytable_7zx7kwdo497z1eqkk61z");
+      const tableFns_50p2y21y36291ze5taex = TinyTable.createTableFunctions("tinytable_50p2y21y36291ze5taex");
       // tinytable span after
       window.addEventListener('load', function () {
           var cellsToStyle = [
             // tinytable style arrays after
-          { positions: [ { i: '4', j: 1 }, { i: '4', j: 2 }, { i: '4', j: 3 }, { i: '4', j: 4 }, { i: '4', j: 5 }, { i: '4', j: 6 }, { i: '4', j: 7 } ], css_id: 'tinytable_css_z8rm1icwg3ijfwwb12ab',}, 
-          { positions: [ { i: '0', j: 1 }, { i: '0', j: 2 }, { i: '0', j: 3 }, { i: '0', j: 4 }, { i: '0', j: 5 }, { i: '0', j: 6 }, { i: '0', j: 7 } ], css_id: 'tinytable_css_fv60aaiik0ks72ghyhwa',}, 
+          { positions: [ { i: '4', j: 1 }, { i: '4', j: 2 }, { i: '4', j: 3 }, { i: '4', j: 4 }, { i: '4', j: 5 }, { i: '4', j: 6 }, { i: '4', j: 7 } ], css_id: 'tinytable_css_dqtg3gkonho6tqlibjpu',}, 
+          { positions: [ { i: '0', j: 1 }, { i: '0', j: 2 }, { i: '0', j: 3 }, { i: '0', j: 4 }, { i: '0', j: 5 }, { i: '0', j: 6 }, { i: '0', j: 7 } ], css_id: 'tinytable_css_11323yixgk244aqlqdfh',}, 
           ];
 
           // Loop over the arrays to style the cells
           cellsToStyle.forEach(function (group) {
               group.positions.forEach(function (cell) {
-                  tableFns_7zx7kwdo497z1eqkk61z.styleCell(cell.i, cell.j, group.css_id);
+                  tableFns_50p2y21y36291ze5taex.styleCell(cell.i, cell.j, group.css_id);
               });
           });
       });
@@ -3458,11 +3463,11 @@ Y &amp;= \begin{cases} Y^* &amp; \text{if } C_1 = 0, \\ \text{NA} &amp; \text{if
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.css">
     <style>
     /* tinytable css entries after */
-    #tinytable_7zx7kwdo497z1eqkk61z td.tinytable_css_z8rm1icwg3ijfwwb12ab, #tinytable_7zx7kwdo497z1eqkk61z th.tinytable_css_z8rm1icwg3ijfwwb12ab {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
-    #tinytable_7zx7kwdo497z1eqkk61z td.tinytable_css_fv60aaiik0ks72ghyhwa, #tinytable_7zx7kwdo497z1eqkk61z th.tinytable_css_fv60aaiik0ks72ghyhwa {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
+    #tinytable_50p2y21y36291ze5taex td.tinytable_css_dqtg3gkonho6tqlibjpu, #tinytable_50p2y21y36291ze5taex th.tinytable_css_dqtg3gkonho6tqlibjpu {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
+    #tinytable_50p2y21y36291ze5taex td.tinytable_css_11323yixgk244aqlqdfh, #tinytable_50p2y21y36291ze5taex th.tinytable_css_11323yixgk244aqlqdfh {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
     </style>
     <div class="container">
-      <table class="tinytable" id="tinytable_7zx7kwdo497z1eqkk61z" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
+      <table class="tinytable" id="tinytable_50p2y21y36291ze5taex" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
         <caption>Intervention means</caption>
         <thead>
               <tr>
@@ -3479,37 +3484,37 @@ Y &amp;= \begin{cases} Y^* &amp; \text{if } C_1 = 0, \\ \text{NA} &amp; \text{if
         <tbody>
                 <tr>
                   <td data-row="1" data-col="1">always</td>
-                  <td data-row="1" data-col="2">14.978</td>
-                  <td data-row="1" data-col="3">0.047</td>
-                  <td data-row="1" data-col="4">14.886</td>
-                  <td data-row="1" data-col="5">15.069</td>
+                  <td data-row="1" data-col="2">15.052</td>
+                  <td data-row="1" data-col="3">0.044</td>
+                  <td data-row="1" data-col="4">14.966</td>
+                  <td data-row="1" data-col="5">15.138</td>
                   <td data-row="1" data-col="6">0</td>
                   <td data-row="1" data-col="7">2466</td>
                 </tr>
                 <tr>
                   <td data-row="2" data-col="1">never</td>
-                  <td data-row="2" data-col="2">9.992</td>
-                  <td data-row="2" data-col="3">0.048</td>
-                  <td data-row="2" data-col="4">9.897</td>
-                  <td data-row="2" data-col="5">10.087</td>
+                  <td data-row="2" data-col="2">10.01</td>
+                  <td data-row="2" data-col="3">0.044</td>
+                  <td data-row="2" data-col="4">9.924</td>
+                  <td data-row="2" data-col="5">10.097</td>
                   <td data-row="2" data-col="6">0</td>
                   <td data-row="2" data-col="7">2466</td>
                 </tr>
                 <tr>
                   <td data-row="3" data-col="1">always</td>
-                  <td data-row="3" data-col="2">18.017</td>
-                  <td data-row="3" data-col="3">0.046</td>
-                  <td data-row="3" data-col="4">17.927</td>
-                  <td data-row="3" data-col="5">18.108</td>
+                  <td data-row="3" data-col="2">17.974</td>
+                  <td data-row="3" data-col="3">0.042</td>
+                  <td data-row="3" data-col="4">17.892</td>
+                  <td data-row="3" data-col="5">18.057</td>
                   <td data-row="3" data-col="6">1</td>
                   <td data-row="3" data-col="7">2534</td>
                 </tr>
                 <tr>
                   <td data-row="4" data-col="1">never</td>
-                  <td data-row="4" data-col="2">9.93</td>
-                  <td data-row="4" data-col="3">0.047</td>
-                  <td data-row="4" data-col="4">9.838</td>
-                  <td data-row="4" data-col="5">10.023</td>
+                  <td data-row="4" data-col="2">9.943</td>
+                  <td data-row="4" data-col="3">0.044</td>
+                  <td data-row="4" data-col="4">9.856</td>
+                  <td data-row="4" data-col="5">10.029</td>
                   <td data-row="4" data-col="6">1</td>
                   <td data-row="4" data-col="7">2534</td>
                 </tr>
@@ -3523,19 +3528,19 @@ Y &amp;= \begin{cases} Y^* &amp; \text{if } C_1 = 0, \\ \text{NA} &amp; \text{if
 
     <script>
       // Create table-specific functions using external factory
-      const tableFns_g2u5ll5p26j7b2zms8oa = TinyTable.createTableFunctions("tinytable_g2u5ll5p26j7b2zms8oa");
+      const tableFns_p41i8mmvoeex007szrlc = TinyTable.createTableFunctions("tinytable_p41i8mmvoeex007szrlc");
       // tinytable span after
       window.addEventListener('load', function () {
           var cellsToStyle = [
             // tinytable style arrays after
-          { positions: [ { i: '2', j: 1 }, { i: '2', j: 2 }, { i: '2', j: 3 }, { i: '2', j: 4 }, { i: '2', j: 5 }, { i: '2', j: 6 }, { i: '2', j: 7 } ], css_id: 'tinytable_css_k6rqt2xyuclowom0u8k7',}, 
-          { positions: [ { i: '0', j: 1 }, { i: '0', j: 2 }, { i: '0', j: 3 }, { i: '0', j: 4 }, { i: '0', j: 5 }, { i: '0', j: 6 }, { i: '0', j: 7 } ], css_id: 'tinytable_css_xwidl9ghu7fnsx78bdmn',}, 
+          { positions: [ { i: '2', j: 1 }, { i: '2', j: 2 }, { i: '2', j: 3 }, { i: '2', j: 4 }, { i: '2', j: 5 }, { i: '2', j: 6 }, { i: '2', j: 7 } ], css_id: 'tinytable_css_6itx3rx28ftk7trh8ntu',}, 
+          { positions: [ { i: '0', j: 1 }, { i: '0', j: 2 }, { i: '0', j: 3 }, { i: '0', j: 4 }, { i: '0', j: 5 }, { i: '0', j: 6 }, { i: '0', j: 7 } ], css_id: 'tinytable_css_vbatrv2asr08f2k2gvtd',}, 
           ];
 
           // Loop over the arrays to style the cells
           cellsToStyle.forEach(function (group) {
               group.positions.forEach(function (cell) {
-                  tableFns_g2u5ll5p26j7b2zms8oa.styleCell(cell.i, cell.j, group.css_id);
+                  tableFns_p41i8mmvoeex007szrlc.styleCell(cell.i, cell.j, group.css_id);
               });
           });
       });
@@ -3544,11 +3549,11 @@ Y &amp;= \begin{cases} Y^* &amp; \text{if } C_1 = 0, \\ \text{NA} &amp; \text{if
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.css">
     <style>
     /* tinytable css entries after */
-    #tinytable_g2u5ll5p26j7b2zms8oa td.tinytable_css_k6rqt2xyuclowom0u8k7, #tinytable_g2u5ll5p26j7b2zms8oa th.tinytable_css_k6rqt2xyuclowom0u8k7 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
-    #tinytable_g2u5ll5p26j7b2zms8oa td.tinytable_css_xwidl9ghu7fnsx78bdmn, #tinytable_g2u5ll5p26j7b2zms8oa th.tinytable_css_xwidl9ghu7fnsx78bdmn {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
+    #tinytable_p41i8mmvoeex007szrlc td.tinytable_css_6itx3rx28ftk7trh8ntu, #tinytable_p41i8mmvoeex007szrlc th.tinytable_css_6itx3rx28ftk7trh8ntu {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
+    #tinytable_p41i8mmvoeex007szrlc td.tinytable_css_vbatrv2asr08f2k2gvtd, #tinytable_p41i8mmvoeex007szrlc th.tinytable_css_vbatrv2asr08f2k2gvtd {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%;  }
     </style>
     <div class="container">
-      <table class="tinytable" id="tinytable_g2u5ll5p26j7b2zms8oa" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
+      <table class="tinytable" id="tinytable_p41i8mmvoeex007szrlc" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
         <caption>Contrasts</caption>
         <thead>
               <tr>
@@ -3565,19 +3570,19 @@ Y &amp;= \begin{cases} Y^* &amp; \text{if } C_1 = 0, \\ \text{NA} &amp; \text{if
         <tbody>
                 <tr>
                   <td data-row="1" data-col="1">always vs never</td>
-                  <td data-row="1" data-col="2">4.986</td>
-                  <td data-row="1" data-col="3">0.058</td>
-                  <td data-row="1" data-col="4">4.871</td>
-                  <td data-row="1" data-col="5">5.1</td>
+                  <td data-row="1" data-col="2">5.042</td>
+                  <td data-row="1" data-col="3">0.062</td>
+                  <td data-row="1" data-col="4">4.921</td>
+                  <td data-row="1" data-col="5">5.163</td>
                   <td data-row="1" data-col="6">0</td>
                   <td data-row="1" data-col="7">2466</td>
                 </tr>
                 <tr>
                   <td data-row="2" data-col="1">always vs never</td>
-                  <td data-row="2" data-col="2">8.087</td>
-                  <td data-row="2" data-col="3">0.057</td>
-                  <td data-row="2" data-col="4">7.975</td>
-                  <td data-row="2" data-col="5">8.199</td>
+                  <td data-row="2" data-col="2">8.032</td>
+                  <td data-row="2" data-col="3">0.058</td>
+                  <td data-row="2" data-col="4">7.918</td>
+                  <td data-row="2" data-col="5">8.146</td>
                   <td data-row="2" data-col="6">1</td>
                   <td data-row="2" data-col="7">2534</td>
                 </tr>
@@ -3788,7 +3793,7 @@ Y &amp;= \begin{cases} Y^* &amp; \text{if } C_1 = 0, \\ \text{NA} &amp; \text{if
 </tr>
 </tbody>
 </table>
-<p>See <a href="https://github.com/etverse/causatr/blob/main/FEATURE_COVERAGE_MATRIX.md"><code>FEATURE_COVERAGE_MATRIX.md</code></a> for the authoritative coverage status of every method × treatment × outcome × intervention × variance combination.</p>
+<p>See <a href="../FEATURE_COVERAGE_MATRIX.md"><code>FEATURE_COVERAGE_MATRIX.md</code></a> for the authoritative coverage status of every method × treatment × outcome × intervention × variance combination.</p>
 </section>
 <section id="references" class="level2">
 <h2 class="anchored" data-anchor-id="references">References</h2>
@@ -5477,83 +5482,84 @@ Y &amp;= \begin{cases} Y^* &amp; \text{if } C_1 = 0, \\ \text{NA} &amp; \text{if
 <span id="cb31-1285"><a href="#cb31-1285" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">5000</span></span>
 <span id="cb31-1286"><a href="#cb31-1286" aria-hidden="true" tabindex="-1"></a>L0 <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
 <span id="cb31-1287"><a href="#cb31-1287" aria-hidden="true" tabindex="-1"></a>sex <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, <span class="fl">0.5</span>)</span>
-<span id="cb31-1288"><a href="#cb31-1288" aria-hidden="true" tabindex="-1"></a>A0 <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="fl">0.3</span> <span class="sc">*</span> L0))</span>
-<span id="cb31-1289"><a href="#cb31-1289" aria-hidden="true" tabindex="-1"></a>L1 <span class="ot">&lt;-</span> A0 <span class="sc">+</span> <span class="fl">0.5</span> <span class="sc">*</span> L0 <span class="sc">+</span> <span class="fu">rnorm</span>(n, <span class="dv">0</span>, <span class="fl">0.5</span>)</span>
-<span id="cb31-1290"><a href="#cb31-1290" aria-hidden="true" tabindex="-1"></a>A1 <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="fl">0.3</span> <span class="sc">*</span> L1))</span>
-<span id="cb31-1291"><a href="#cb31-1291" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> <span class="dv">10</span> <span class="sc">+</span> (<span class="dv">2</span> <span class="sc">+</span> <span class="fl">1.5</span> <span class="sc">*</span> sex) <span class="sc">*</span> (A0 <span class="sc">+</span> A1) <span class="sc">+</span> L0 <span class="sc">+</span> L1 <span class="sc">+</span> <span class="fu">rnorm</span>(n)</span>
-<span id="cb31-1292"><a href="#cb31-1292" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb31-1293"><a href="#cb31-1293" aria-hidden="true" tabindex="-1"></a>d_em <span class="ot">&lt;-</span> <span class="fu">rbind</span>(</span>
-<span id="cb31-1294"><a href="#cb31-1294" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">id =</span> <span class="dv">1</span><span class="sc">:</span>n, <span class="at">time =</span> <span class="dv">0</span>L, <span class="at">A =</span> A0, <span class="at">L =</span> <span class="cn">NA_real_</span>,</span>
-<span id="cb31-1295"><a href="#cb31-1295" aria-hidden="true" tabindex="-1"></a>             <span class="at">L0 =</span> L0, <span class="at">sex =</span> sex, <span class="at">Y =</span> <span class="cn">NA_real_</span>),</span>
-<span id="cb31-1296"><a href="#cb31-1296" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">id =</span> <span class="dv">1</span><span class="sc">:</span>n, <span class="at">time =</span> <span class="dv">1</span>L, <span class="at">A =</span> A1, <span class="at">L =</span> L1,</span>
-<span id="cb31-1297"><a href="#cb31-1297" aria-hidden="true" tabindex="-1"></a>             <span class="at">L0 =</span> L0, <span class="at">sex =</span> sex, <span class="at">Y =</span> Y)</span>
-<span id="cb31-1298"><a href="#cb31-1298" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb31-1299"><a href="#cb31-1299" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb31-1300"><a href="#cb31-1300" aria-hidden="true" tabindex="-1"></a>fit_ice_em <span class="ot">&lt;-</span> <span class="fu">causat</span>(</span>
-<span id="cb31-1301"><a href="#cb31-1301" aria-hidden="true" tabindex="-1"></a>  d_em,</span>
-<span id="cb31-1302"><a href="#cb31-1302" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
-<span id="cb31-1303"><a href="#cb31-1303" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
-<span id="cb31-1304"><a href="#cb31-1304" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> <span class="sc">~</span> L0 <span class="sc">+</span> sex <span class="sc">+</span> A<span class="sc">:</span>sex,</span>
-<span id="cb31-1305"><a href="#cb31-1305" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders_tv =</span> <span class="sc">~</span> L,</span>
-<span id="cb31-1306"><a href="#cb31-1306" aria-hidden="true" tabindex="-1"></a>  <span class="at">id =</span> <span class="st">"id"</span>,</span>
-<span id="cb31-1307"><a href="#cb31-1307" aria-hidden="true" tabindex="-1"></a>  <span class="at">time =</span> <span class="st">"time"</span></span>
-<span id="cb31-1308"><a href="#cb31-1308" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb31-1309"><a href="#cb31-1309" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb31-1310"><a href="#cb31-1310" aria-hidden="true" tabindex="-1"></a>res_ice_em <span class="ot">&lt;-</span> <span class="fu">contrast</span>(</span>
-<span id="cb31-1311"><a href="#cb31-1311" aria-hidden="true" tabindex="-1"></a>  fit_ice_em,</span>
-<span id="cb31-1312"><a href="#cb31-1312" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">always =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">never =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
-<span id="cb31-1313"><a href="#cb31-1313" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="st">"never"</span>,</span>
-<span id="cb31-1314"><a href="#cb31-1314" aria-hidden="true" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">"difference"</span>,</span>
-<span id="cb31-1315"><a href="#cb31-1315" aria-hidden="true" tabindex="-1"></a>  <span class="at">ci_method =</span> <span class="st">"sandwich"</span>,</span>
-<span id="cb31-1316"><a href="#cb31-1316" aria-hidden="true" tabindex="-1"></a>  <span class="at">by =</span> <span class="st">"sex"</span></span>
-<span id="cb31-1317"><a href="#cb31-1317" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb31-1318"><a href="#cb31-1318" aria-hidden="true" tabindex="-1"></a>res_ice_em</span>
-<span id="cb31-1319"><a href="#cb31-1319" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb31-1320"><a href="#cb31-1320" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb31-1321"><a href="#cb31-1321" aria-hidden="true" tabindex="-1"></a>The <span class="in">`A:sex`</span> interaction is auto-expanded at the final backward step to</span>
-<span id="cb31-1322"><a href="#cb31-1322" aria-hidden="true" tabindex="-1"></a>include <span class="in">`lag1_A:sex`</span>, so both treatment periods contribute sex-specific</span>
-<span id="cb31-1323"><a href="#cb31-1323" aria-hidden="true" tabindex="-1"></a>effects. The sandwich variance engine requires no special handling --- the</span>
-<span id="cb31-1324"><a href="#cb31-1324" aria-hidden="true" tabindex="-1"></a>model matrices simply grow to accommodate the additional interaction columns,</span>
-<span id="cb31-1325"><a href="#cb31-1325" aria-hidden="true" tabindex="-1"></a>and the ICE cascade gradient propagates through them.</span>
-<span id="cb31-1326"><a href="#cb31-1326" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb31-1327"><a href="#cb31-1327" aria-hidden="true" tabindex="-1"></a><span class="fu">## Summary of covered combinations</span></span>
-<span id="cb31-1328"><a href="#cb31-1328" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb31-1329"><a href="#cb31-1329" aria-hidden="true" tabindex="-1"></a>**Legend.** ✅ covered and truth-pinned in tests (either against Table 20.1</span>
-<span id="cb31-1330"><a href="#cb31-1330" aria-hidden="true" tabindex="-1"></a>or against <span class="in">`lmtp::lmtp_tmle()`</span>) · 🟡 smoke test only · ⛔ rejected with an</span>
-<span id="cb31-1331"><a href="#cb31-1331" aria-hidden="true" tabindex="-1"></a>informative error.</span>
-<span id="cb31-1332"><a href="#cb31-1332" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb31-1333"><a href="#cb31-1333" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Treatment <span class="pp">|</span> Outcome <span class="pp">|</span> Intervention <span class="pp">|</span> Estimand <span class="pp">|</span> Contrast <span class="pp">|</span> Inference <span class="pp">|</span> Weights <span class="pp">|</span> Status <span class="pp">|</span></span>
-<span id="cb31-1334"><a href="#cb31-1334" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|---|---|---|---|---|</span></span>
-<span id="cb31-1335"><a href="#cb31-1335" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Binary <span class="pp">|</span> Continuous <span class="pp">|</span> Static (always vs never) <span class="pp">|</span> ATE <span class="pp">|</span> Difference <span class="pp">|</span> Sandwich <span class="pp">|</span> none <span class="pp">|</span> ✅ Table 20.1 <span class="pp">|</span></span>
-<span id="cb31-1336"><a href="#cb31-1336" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Binary <span class="pp">|</span> Continuous <span class="pp">|</span> Static <span class="pp">|</span> ATE <span class="pp">|</span> Difference <span class="pp">|</span> Bootstrap <span class="pp">|</span> none <span class="pp">|</span> ✅ Table 20.1 <span class="pp">|</span></span>
-<span id="cb31-1337"><a href="#cb31-1337" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Binary <span class="pp">|</span> Continuous <span class="pp">|</span> Dynamic (rule on L) <span class="pp">|</span> ATE <span class="pp">|</span> Difference <span class="pp">|</span> Sandwich <span class="pp">|</span> none <span class="pp">|</span> ✅ <span class="pp">|</span></span>
-<span id="cb31-1338"><a href="#cb31-1338" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Binary <span class="pp">|</span> Continuous <span class="pp">|</span> Static <span class="pp">|</span> ATE <span class="pp">|</span> Difference <span class="pp">|</span> Sandwich + bootstrap <span class="pp">|</span> survey <span class="pp">|</span> ✅ <span class="pp">|</span></span>
-<span id="cb31-1339"><a href="#cb31-1339" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Continuous <span class="pp">|</span> Continuous <span class="pp">|</span> Shift / Scale / Threshold <span class="pp">|</span> ATE <span class="pp">|</span> Difference <span class="pp">|</span> Sandwich <span class="pp">|</span> none <span class="pp">|</span> ✅ (vs lmtp) <span class="pp">|</span></span>
-<span id="cb31-1340"><a href="#cb31-1340" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Continuous <span class="pp">|</span> Continuous <span class="pp">|</span> Shift <span class="pp">|</span> ATE <span class="pp">|</span> Difference <span class="pp">|</span> Bootstrap <span class="pp">|</span> none <span class="pp">|</span> ✅ (vs lmtp) <span class="pp">|</span></span>
-<span id="cb31-1341"><a href="#cb31-1341" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Multivariate <span class="pp">|</span> Continuous <span class="pp">|</span> Static / Shift <span class="pp">|</span> ATE <span class="pp">|</span> Difference <span class="pp">|</span> Sandwich <span class="pp">|</span> none <span class="pp">|</span> ✅ <span class="pp">|</span></span>
-<span id="cb31-1342"><a href="#cb31-1342" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Binary <span class="pp">|</span> Binary <span class="pp">|</span> Static / Dynamic <span class="pp">|</span> ATE <span class="pp">|</span> Difference <span class="pp">|</span> Sandwich / bootstrap <span class="pp">|</span> none <span class="pp">|</span> ✅ (2 periods) <span class="pp">|</span></span>
-<span id="cb31-1343"><a href="#cb31-1343" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Binary <span class="pp">|</span> Binary <span class="pp">|</span> Static <span class="pp">|</span> ATE <span class="pp">|</span> Difference <span class="pp">|</span> Sandwich <span class="pp">|</span> none <span class="pp">|</span> ✅ (4 periods) <span class="pp">|</span></span>
-<span id="cb31-1344"><a href="#cb31-1344" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Binary <span class="pp">|</span> Binary <span class="pp">|</span> Static <span class="pp">|</span> ATE <span class="pp">|</span> Difference <span class="pp">|</span> Bootstrap (parallel) <span class="pp">|</span> none <span class="pp">|</span> ✅ <span class="pp">|</span></span>
-<span id="cb31-1345"><a href="#cb31-1345" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Binary <span class="pp">|</span> Binary <span class="pp">|</span> Static <span class="pp">|</span> ATE <span class="pp">|</span> Difference <span class="pp">|</span> Bootstrap (future backend) <span class="pp">|</span> none <span class="pp">|</span> ✅ <span class="pp">|</span></span>
-<span id="cb31-1346"><a href="#cb31-1346" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Binary <span class="pp">|</span> Continuous <span class="pp">|</span> Static <span class="pp">|</span> ATE <span class="pp">|</span> Difference <span class="pp">|</span> Sandwich (cluster-robust) <span class="pp">|</span> none <span class="pp">|</span> ✅ <span class="pp">|</span></span>
-<span id="cb31-1347"><a href="#cb31-1347" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Binary <span class="pp">|</span> Continuous <span class="pp">|</span> Static <span class="pp">|</span> ATE <span class="pp">|</span> Difference <span class="pp">|</span> Sandwich <span class="pp">|</span> censoring <span class="pp">|</span> ✅ <span class="pp">|</span></span>
-<span id="cb31-1348"><a href="#cb31-1348" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Binary <span class="pp">|</span> Continuous <span class="pp">|</span> Static + EM <span class="pp">|</span> ATE <span class="pp">|</span> Difference <span class="pp">|</span> Sandwich / bootstrap <span class="pp">|</span> none <span class="pp">|</span> ✅ <span class="pp">|</span></span>
-<span id="cb31-1349"><a href="#cb31-1349" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Continuous <span class="pp">|</span> Continuous <span class="pp">|</span> Shift + EM <span class="pp">|</span> ATE <span class="pp">|</span> Difference <span class="pp">|</span> Sandwich <span class="pp">|</span> none <span class="pp">|</span> ✅ <span class="pp">|</span></span>
-<span id="cb31-1350"><a href="#cb31-1350" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Binary <span class="pp">|</span> Any <span class="pp">|</span> IPSI($\delta$) <span class="pp">|</span> — <span class="pp">|</span> — <span class="pp">|</span> — <span class="pp">|</span> — <span class="pp">|</span> ⛔ Phase 4 <span class="pp">|</span></span>
-<span id="cb31-1351"><a href="#cb31-1351" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Binary <span class="pp">|</span> Any <span class="pp">|</span> Static / ATT <span class="pp">|</span> ATT <span class="pp">|</span> — <span class="pp">|</span> — <span class="pp">|</span> — <span class="pp">|</span> ⛔ ICE is ATE-only <span class="pp">|</span></span>
-<span id="cb31-1352"><a href="#cb31-1352" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb31-1353"><a href="#cb31-1353" aria-hidden="true" tabindex="-1"></a>See <span class="co">[</span><span class="ot">`FEATURE_COVERAGE_MATRIX.md`</span><span class="co">](https://github.com/etverse/causatr/blob/main/FEATURE_COVERAGE_MATRIX.md)</span></span>
-<span id="cb31-1354"><a href="#cb31-1354" aria-hidden="true" tabindex="-1"></a>for the authoritative coverage status of every method × treatment × outcome</span>
-<span id="cb31-1355"><a href="#cb31-1355" aria-hidden="true" tabindex="-1"></a>× intervention × variance combination.</span>
-<span id="cb31-1356"><a href="#cb31-1356" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb31-1357"><a href="#cb31-1357" aria-hidden="true" tabindex="-1"></a><span class="fu">## References</span></span>
-<span id="cb31-1358"><a href="#cb31-1358" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb31-1359"><a href="#cb31-1359" aria-hidden="true" tabindex="-1"></a>Hernan MA, Robins JM (2025). *Causal Inference: What If*. Chapman &amp; Hall/CRC.</span>
-<span id="cb31-1360"><a href="#cb31-1360" aria-hidden="true" tabindex="-1"></a>Chapters 19--21: Time-varying treatments.</span>
-<span id="cb31-1361"><a href="#cb31-1361" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb31-1362"><a href="#cb31-1362" aria-hidden="true" tabindex="-1"></a>Zivich PN, Ross RK, Shook-Sa BE, Cole SR, Edwards JK (2024). Empirical</span>
-<span id="cb31-1363"><a href="#cb31-1363" aria-hidden="true" tabindex="-1"></a>sandwich variance estimator for iterated conditional expectation</span>
-<span id="cb31-1364"><a href="#cb31-1364" aria-hidden="true" tabindex="-1"></a>g-computation. *Statistics in Medicine* 43:5562--5572.</span>
+<span id="cb31-1288"><a href="#cb31-1288" aria-hidden="true" tabindex="-1"></a>Ltv0 <span class="ot">&lt;-</span> <span class="fl">0.5</span> <span class="sc">*</span> L0 <span class="sc">+</span> <span class="fu">rnorm</span>(n, <span class="dv">0</span>, <span class="fl">0.5</span>)</span>
+<span id="cb31-1289"><a href="#cb31-1289" aria-hidden="true" tabindex="-1"></a>A0 <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="fl">0.3</span> <span class="sc">*</span> L0))</span>
+<span id="cb31-1290"><a href="#cb31-1290" aria-hidden="true" tabindex="-1"></a>L1 <span class="ot">&lt;-</span> A0 <span class="sc">+</span> <span class="fl">0.5</span> <span class="sc">*</span> L0 <span class="sc">+</span> <span class="fu">rnorm</span>(n, <span class="dv">0</span>, <span class="fl">0.5</span>)</span>
+<span id="cb31-1291"><a href="#cb31-1291" aria-hidden="true" tabindex="-1"></a>A1 <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="fl">0.3</span> <span class="sc">*</span> L1))</span>
+<span id="cb31-1292"><a href="#cb31-1292" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> <span class="dv">10</span> <span class="sc">+</span> (<span class="dv">2</span> <span class="sc">+</span> <span class="fl">1.5</span> <span class="sc">*</span> sex) <span class="sc">*</span> (A0 <span class="sc">+</span> A1) <span class="sc">+</span> Ltv0 <span class="sc">+</span> L1 <span class="sc">+</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb31-1293"><a href="#cb31-1293" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-1294"><a href="#cb31-1294" aria-hidden="true" tabindex="-1"></a>d_em <span class="ot">&lt;-</span> <span class="fu">rbind</span>(</span>
+<span id="cb31-1295"><a href="#cb31-1295" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">id =</span> <span class="dv">1</span><span class="sc">:</span>n, <span class="at">time =</span> <span class="dv">0</span>L, <span class="at">A =</span> A0, <span class="at">L =</span> Ltv0,</span>
+<span id="cb31-1296"><a href="#cb31-1296" aria-hidden="true" tabindex="-1"></a>             <span class="at">L0 =</span> L0, <span class="at">sex =</span> sex, <span class="at">Y =</span> <span class="cn">NA_real_</span>),</span>
+<span id="cb31-1297"><a href="#cb31-1297" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">id =</span> <span class="dv">1</span><span class="sc">:</span>n, <span class="at">time =</span> <span class="dv">1</span>L, <span class="at">A =</span> A1, <span class="at">L =</span> L1,</span>
+<span id="cb31-1298"><a href="#cb31-1298" aria-hidden="true" tabindex="-1"></a>             <span class="at">L0 =</span> L0, <span class="at">sex =</span> sex, <span class="at">Y =</span> Y)</span>
+<span id="cb31-1299"><a href="#cb31-1299" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb31-1300"><a href="#cb31-1300" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-1301"><a href="#cb31-1301" aria-hidden="true" tabindex="-1"></a>fit_ice_em <span class="ot">&lt;-</span> <span class="fu">causat</span>(</span>
+<span id="cb31-1302"><a href="#cb31-1302" aria-hidden="true" tabindex="-1"></a>  d_em,</span>
+<span id="cb31-1303"><a href="#cb31-1303" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
+<span id="cb31-1304"><a href="#cb31-1304" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
+<span id="cb31-1305"><a href="#cb31-1305" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> <span class="sc">~</span> L0 <span class="sc">+</span> sex <span class="sc">+</span> A<span class="sc">:</span>sex,</span>
+<span id="cb31-1306"><a href="#cb31-1306" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders_tv =</span> <span class="sc">~</span> L,</span>
+<span id="cb31-1307"><a href="#cb31-1307" aria-hidden="true" tabindex="-1"></a>  <span class="at">id =</span> <span class="st">"id"</span>,</span>
+<span id="cb31-1308"><a href="#cb31-1308" aria-hidden="true" tabindex="-1"></a>  <span class="at">time =</span> <span class="st">"time"</span></span>
+<span id="cb31-1309"><a href="#cb31-1309" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb31-1310"><a href="#cb31-1310" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-1311"><a href="#cb31-1311" aria-hidden="true" tabindex="-1"></a>res_ice_em <span class="ot">&lt;-</span> <span class="fu">contrast</span>(</span>
+<span id="cb31-1312"><a href="#cb31-1312" aria-hidden="true" tabindex="-1"></a>  fit_ice_em,</span>
+<span id="cb31-1313"><a href="#cb31-1313" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">always =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">never =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
+<span id="cb31-1314"><a href="#cb31-1314" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="st">"never"</span>,</span>
+<span id="cb31-1315"><a href="#cb31-1315" aria-hidden="true" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">"difference"</span>,</span>
+<span id="cb31-1316"><a href="#cb31-1316" aria-hidden="true" tabindex="-1"></a>  <span class="at">ci_method =</span> <span class="st">"sandwich"</span>,</span>
+<span id="cb31-1317"><a href="#cb31-1317" aria-hidden="true" tabindex="-1"></a>  <span class="at">by =</span> <span class="st">"sex"</span></span>
+<span id="cb31-1318"><a href="#cb31-1318" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb31-1319"><a href="#cb31-1319" aria-hidden="true" tabindex="-1"></a>res_ice_em</span>
+<span id="cb31-1320"><a href="#cb31-1320" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb31-1321"><a href="#cb31-1321" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-1322"><a href="#cb31-1322" aria-hidden="true" tabindex="-1"></a>The <span class="in">`A:sex`</span> interaction is auto-expanded at the final backward step to</span>
+<span id="cb31-1323"><a href="#cb31-1323" aria-hidden="true" tabindex="-1"></a>include <span class="in">`lag1_A:sex`</span>, so both treatment periods contribute sex-specific</span>
+<span id="cb31-1324"><a href="#cb31-1324" aria-hidden="true" tabindex="-1"></a>effects. The sandwich variance engine requires no special handling --- the</span>
+<span id="cb31-1325"><a href="#cb31-1325" aria-hidden="true" tabindex="-1"></a>model matrices simply grow to accommodate the additional interaction columns,</span>
+<span id="cb31-1326"><a href="#cb31-1326" aria-hidden="true" tabindex="-1"></a>and the ICE cascade gradient propagates through them.</span>
+<span id="cb31-1327"><a href="#cb31-1327" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-1328"><a href="#cb31-1328" aria-hidden="true" tabindex="-1"></a><span class="fu">## Summary of covered combinations</span></span>
+<span id="cb31-1329"><a href="#cb31-1329" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-1330"><a href="#cb31-1330" aria-hidden="true" tabindex="-1"></a>**Legend.** ✅ covered and truth-pinned in tests (either against Table 20.1</span>
+<span id="cb31-1331"><a href="#cb31-1331" aria-hidden="true" tabindex="-1"></a>or against <span class="in">`lmtp::lmtp_tmle()`</span>) · 🟡 smoke test only · ⛔ rejected with an</span>
+<span id="cb31-1332"><a href="#cb31-1332" aria-hidden="true" tabindex="-1"></a>informative error.</span>
+<span id="cb31-1333"><a href="#cb31-1333" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-1334"><a href="#cb31-1334" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Treatment <span class="pp">|</span> Outcome <span class="pp">|</span> Intervention <span class="pp">|</span> Estimand <span class="pp">|</span> Contrast <span class="pp">|</span> Inference <span class="pp">|</span> Weights <span class="pp">|</span> Status <span class="pp">|</span></span>
+<span id="cb31-1335"><a href="#cb31-1335" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|---|---|---|---|---|</span></span>
+<span id="cb31-1336"><a href="#cb31-1336" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Binary <span class="pp">|</span> Continuous <span class="pp">|</span> Static (always vs never) <span class="pp">|</span> ATE <span class="pp">|</span> Difference <span class="pp">|</span> Sandwich <span class="pp">|</span> none <span class="pp">|</span> ✅ Table 20.1 <span class="pp">|</span></span>
+<span id="cb31-1337"><a href="#cb31-1337" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Binary <span class="pp">|</span> Continuous <span class="pp">|</span> Static <span class="pp">|</span> ATE <span class="pp">|</span> Difference <span class="pp">|</span> Bootstrap <span class="pp">|</span> none <span class="pp">|</span> ✅ Table 20.1 <span class="pp">|</span></span>
+<span id="cb31-1338"><a href="#cb31-1338" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Binary <span class="pp">|</span> Continuous <span class="pp">|</span> Dynamic (rule on L) <span class="pp">|</span> ATE <span class="pp">|</span> Difference <span class="pp">|</span> Sandwich <span class="pp">|</span> none <span class="pp">|</span> ✅ <span class="pp">|</span></span>
+<span id="cb31-1339"><a href="#cb31-1339" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Binary <span class="pp">|</span> Continuous <span class="pp">|</span> Static <span class="pp">|</span> ATE <span class="pp">|</span> Difference <span class="pp">|</span> Sandwich + bootstrap <span class="pp">|</span> survey <span class="pp">|</span> ✅ <span class="pp">|</span></span>
+<span id="cb31-1340"><a href="#cb31-1340" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Continuous <span class="pp">|</span> Continuous <span class="pp">|</span> Shift / Scale / Threshold <span class="pp">|</span> ATE <span class="pp">|</span> Difference <span class="pp">|</span> Sandwich <span class="pp">|</span> none <span class="pp">|</span> ✅ (vs lmtp) <span class="pp">|</span></span>
+<span id="cb31-1341"><a href="#cb31-1341" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Continuous <span class="pp">|</span> Continuous <span class="pp">|</span> Shift <span class="pp">|</span> ATE <span class="pp">|</span> Difference <span class="pp">|</span> Bootstrap <span class="pp">|</span> none <span class="pp">|</span> ✅ (vs lmtp) <span class="pp">|</span></span>
+<span id="cb31-1342"><a href="#cb31-1342" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Multivariate <span class="pp">|</span> Continuous <span class="pp">|</span> Static / Shift <span class="pp">|</span> ATE <span class="pp">|</span> Difference <span class="pp">|</span> Sandwich <span class="pp">|</span> none <span class="pp">|</span> ✅ <span class="pp">|</span></span>
+<span id="cb31-1343"><a href="#cb31-1343" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Binary <span class="pp">|</span> Binary <span class="pp">|</span> Static / Dynamic <span class="pp">|</span> ATE <span class="pp">|</span> Difference <span class="pp">|</span> Sandwich / bootstrap <span class="pp">|</span> none <span class="pp">|</span> ✅ (2 periods) <span class="pp">|</span></span>
+<span id="cb31-1344"><a href="#cb31-1344" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Binary <span class="pp">|</span> Binary <span class="pp">|</span> Static <span class="pp">|</span> ATE <span class="pp">|</span> Difference <span class="pp">|</span> Sandwich <span class="pp">|</span> none <span class="pp">|</span> ✅ (4 periods) <span class="pp">|</span></span>
+<span id="cb31-1345"><a href="#cb31-1345" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Binary <span class="pp">|</span> Binary <span class="pp">|</span> Static <span class="pp">|</span> ATE <span class="pp">|</span> Difference <span class="pp">|</span> Bootstrap (parallel) <span class="pp">|</span> none <span class="pp">|</span> ✅ <span class="pp">|</span></span>
+<span id="cb31-1346"><a href="#cb31-1346" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Binary <span class="pp">|</span> Binary <span class="pp">|</span> Static <span class="pp">|</span> ATE <span class="pp">|</span> Difference <span class="pp">|</span> Bootstrap (future backend) <span class="pp">|</span> none <span class="pp">|</span> ✅ <span class="pp">|</span></span>
+<span id="cb31-1347"><a href="#cb31-1347" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Binary <span class="pp">|</span> Continuous <span class="pp">|</span> Static <span class="pp">|</span> ATE <span class="pp">|</span> Difference <span class="pp">|</span> Sandwich (cluster-robust) <span class="pp">|</span> none <span class="pp">|</span> ✅ <span class="pp">|</span></span>
+<span id="cb31-1348"><a href="#cb31-1348" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Binary <span class="pp">|</span> Continuous <span class="pp">|</span> Static <span class="pp">|</span> ATE <span class="pp">|</span> Difference <span class="pp">|</span> Sandwich <span class="pp">|</span> censoring <span class="pp">|</span> ✅ <span class="pp">|</span></span>
+<span id="cb31-1349"><a href="#cb31-1349" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Binary <span class="pp">|</span> Continuous <span class="pp">|</span> Static + EM <span class="pp">|</span> ATE <span class="pp">|</span> Difference <span class="pp">|</span> Sandwich / bootstrap <span class="pp">|</span> none <span class="pp">|</span> ✅ <span class="pp">|</span></span>
+<span id="cb31-1350"><a href="#cb31-1350" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Continuous <span class="pp">|</span> Continuous <span class="pp">|</span> Shift + EM <span class="pp">|</span> ATE <span class="pp">|</span> Difference <span class="pp">|</span> Sandwich <span class="pp">|</span> none <span class="pp">|</span> ✅ <span class="pp">|</span></span>
+<span id="cb31-1351"><a href="#cb31-1351" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Binary <span class="pp">|</span> Any <span class="pp">|</span> IPSI($\delta$) <span class="pp">|</span> — <span class="pp">|</span> — <span class="pp">|</span> — <span class="pp">|</span> — <span class="pp">|</span> ⛔ Phase 4 <span class="pp">|</span></span>
+<span id="cb31-1352"><a href="#cb31-1352" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Binary <span class="pp">|</span> Any <span class="pp">|</span> Static / ATT <span class="pp">|</span> ATT <span class="pp">|</span> — <span class="pp">|</span> — <span class="pp">|</span> — <span class="pp">|</span> ⛔ ICE is ATE-only <span class="pp">|</span></span>
+<span id="cb31-1353"><a href="#cb31-1353" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-1354"><a href="#cb31-1354" aria-hidden="true" tabindex="-1"></a>See <span class="co">[</span><span class="ot">`FEATURE_COVERAGE_MATRIX.md`</span><span class="co">](../FEATURE_COVERAGE_MATRIX.md)</span></span>
+<span id="cb31-1355"><a href="#cb31-1355" aria-hidden="true" tabindex="-1"></a>for the authoritative coverage status of every method × treatment × outcome</span>
+<span id="cb31-1356"><a href="#cb31-1356" aria-hidden="true" tabindex="-1"></a>× intervention × variance combination.</span>
+<span id="cb31-1357"><a href="#cb31-1357" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-1358"><a href="#cb31-1358" aria-hidden="true" tabindex="-1"></a><span class="fu">## References</span></span>
+<span id="cb31-1359"><a href="#cb31-1359" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-1360"><a href="#cb31-1360" aria-hidden="true" tabindex="-1"></a>Hernan MA, Robins JM (2025). *Causal Inference: What If*. Chapman &amp; Hall/CRC.</span>
+<span id="cb31-1361"><a href="#cb31-1361" aria-hidden="true" tabindex="-1"></a>Chapters 19--21: Time-varying treatments.</span>
+<span id="cb31-1362"><a href="#cb31-1362" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-1363"><a href="#cb31-1363" aria-hidden="true" tabindex="-1"></a>Zivich PN, Ross RK, Shook-Sa BE, Cole SR, Edwards JK (2024). Empirical</span>
+<span id="cb31-1364"><a href="#cb31-1364" aria-hidden="true" tabindex="-1"></a>sandwich variance estimator for iterated conditional expectation</span>
+<span id="cb31-1365"><a href="#cb31-1365" aria-hidden="true" tabindex="-1"></a>g-computation. *Statistics in Medicine* 43:5562--5572.</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->
