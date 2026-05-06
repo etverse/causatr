@@ -1,6 +1,6 @@
 # Phase 16 — Augmented IPW (AIPW, doubly-robust estimator)
 
-> **Status: IN PROGRESS** — point AIPW (16a–16j) and longitudinal AIPW (16i) shipped; delicatessen cross-check (16k) and docs (16l) pending.
+> **Status: COMPLETE** — all chunks 16a–16l shipped.
 >
 > **Depends on:** Phase 2 (point gcomp), Phase 4 (self-contained IPW), Phase 5 (ICE, for longitudinal), Phase 10 (longitudinal IPW, for longitudinal), Phase 14 (for IPCW composition)
 >
@@ -159,8 +159,8 @@ where $\tilde Y_{k+1}$ is the pseudo-outcome from the $(k+1)$-th AIPW step and $
 | 16h | ATT / ATC for static binary; effect modification (`by = "sex"`) | 16b | ✅ done |
 | 16i | Longitudinal AIPW (ICE-AIPW): sequential nuisance fits through the ICE backward loop | Phase 5, Phase 10, 16b | ✅ done |
 | 16j | Categorical + count treatment extensions | 16b | ✅ done |
-| 16k | `delicatessen` external cross-check on a shared DGP | 16b, 16d, 16e | pending |
-| 16l | Documentation, vignette, `CLAUDE.md` phase update, `FEATURE_COVERAGE_MATRIX.md` rows | 16a–16j | pending |
+| 16k | `delicatessen` external cross-check on a shared DGP | 16b, 16d, 16e | ✅ done |
+| 16l | Documentation, vignette, `CLAUDE.md` phase update, `FEATURE_COVERAGE_MATRIX.md` rows | 16a–16j | ✅ done |
 
 ## Invariants
 

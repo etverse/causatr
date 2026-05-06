@@ -13,17 +13,20 @@ vignette: >
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 ```
 
-causatr provides a unified interface for causal effect estimation via three
+causatr provides a unified interface for causal effect estimation via four
 complementary methods:
 
 - **G-computation** (parametric g-formula) — fits an outcome model
   $E[Y | A, L]$ and standardises predictions over the target population.
 - **Inverse probability weighting (IPW)** — reweights the data using
   propensity scores so that confounders are balanced across treatment groups.
+- **Augmented IPW (AIPW)** — combines the outcome model and propensity score
+  into a doubly-robust estimator: consistent if *either* model is correctly
+  specified, and semiparametrically efficient when both are correct.
 - **Propensity score matching** — pairs treated and control units with similar
   propensity scores.
 
-When all three methods agree, you can be more confident in your findings.
+When multiple methods agree, you can be more confident in your findings.
 This is called **methodological triangulation**.
 
 ## Two-step API
@@ -99,6 +102,7 @@ causatr supports several intervention types for g-computation:
 | `NULL` | Natural course (observed values) | — |
 
 IPW supports `static()`, `shift()`, `scale_by()`, `dynamic()`, and `ipsi()`.
+AIPW supports the same set as IPW (all except `threshold()` and `stochastic()`).
 Matching supports only `static()` interventions.
 
 ## Contrast types
@@ -132,20 +136,20 @@ refitting. For IPW and matching, refit with `causat(estimand = ...)`.
 
 causatr supports binary, continuous, categorical, count, and multivariate treatments:
 
-| Treatment type | G-comp | IPW | Matching |
-|---|---|---|---|
-| Binary (0/1) | Yes | Yes | Yes |
-| Continuous | Yes | Yes (GPS) | No (MatchIt binary-only) |
-| Categorical (k > 2) | Yes | Yes | No (MatchIt binary-only) |
-| Count (Poisson / NB) | Yes | Yes (`propensity_family =`) | No |
-| Multivariate (joint) | Yes | Yes (sequential MTP) | No |
+| Treatment type | G-comp | IPW | AIPW | Matching |
+|---|---|---|---|---|
+| Binary (0/1) | Yes | Yes | Yes | Yes |
+| Continuous | Yes | Yes (GPS) | Yes (shift, scale\_by) | No (MatchIt binary-only) |
+| Categorical (k > 2) | Yes | Yes | Yes | No (MatchIt binary-only) |
+| Count (Poisson / NB) | Yes | Yes (`propensity_family =`) | Yes | No |
+| Multivariate (joint) | Yes | Yes (sequential MTP) | No (Phase 8 pending) | No |
 
 For multivariate treatments (e.g. `treatment = c("A1", "A2")`), supply
 interventions as named lists with one element per treatment variable.
 
 Effect modification via `A:modifier` interaction terms in `confounders` is
-supported across all four estimation methods. G-comp feeds the interaction to
-the outcome model directly; IPW expands the per-intervention MSM to
+supported across all estimation methods. G-comp and AIPW feed the interaction
+to the outcome model directly; IPW expands the per-intervention MSM to
 `Y ~ 1 + modifier`; matching expands to `Y ~ A + modifier + A:modifier`;
 and ICE auto-expands the interaction across treatment lags. Use
 `by = "modifier"` in `contrast()` to obtain stratum-specific estimates.

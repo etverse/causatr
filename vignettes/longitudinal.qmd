@@ -19,6 +19,17 @@ causatr implements ICE (iterated conditional expectation) g-computation (Zivich
 et al., 2024), which requires models for the outcome only --- no models for
 time-varying confounders are needed.
 
+::: {.callout-tip}
+## Doubly-robust longitudinal estimation
+
+For doubly-robust protection, use `estimator = "aipw"`. ICE-AIPW (Bang &
+Robins 2005) augments each backward regression step with a propensity-weighted
+residual correction, giving a consistent estimator if *either* the outcome
+regression *or* the propensity model at each time point is correctly specified.
+The same `causat()` + `contrast()` API applies; sandwich and bootstrap
+variance are both supported.
+:::
+
 This vignette demonstrates ICE g-computation in causatr, covering:
 
 - The treatment-confounder feedback problem
@@ -1301,3 +1312,6 @@ Chapters 19--21: Time-varying treatments.
 Zivich PN, Ross RK, Shook-Sa BE, Cole SR, Edwards JK (2024). Empirical
 sandwich variance estimator for iterated conditional expectation
 g-computation. *Statistics in Medicine* 43:5562--5572.
+
+Bang H, Robins JM (2005). Doubly robust estimation in missing data and causal
+inference models. *Biometrics* 61:962--973.

@@ -600,6 +600,8 @@ Composes Phase 2 gcomp + Phase 4 IPW into the classical analytical doubly-robust
 | binary | gaussian | DR: wrong outcome | ATE | diff | sandwich | ✅ | test-aipw.R |
 | binary | gaussian | DR: wrong propensity | ATE | diff | sandwich | ✅ | test-aipw.R |
 | binary | gaussian | efficiency: SE ≤ gcomp & IPW | ATE | diff | sandwich | ✅ | test-aipw.R |
+| binary | gaussian | delicatessen cross-check (stacked EE) | ATE | diff | sandwich | ✅ point + SE match | test-aipw.R |
+| continuous | gaussian | delicatessen cross-check (shift δ=1) | ATE | diff | sandwich | ✅ point + SE match | test-aipw.R |
 | binary | gaussian | longitudinal static (always vs never) | ATE | diff | sandwich | ✅ ATE ≈ 5 | test-aipw.R |
 | binary | gaussian | longitudinal static (always vs never) | ATE | diff | bootstrap | ✅ ATE ≈ 5 | test-aipw.R |
 | continuous | gaussian | longitudinal shift | ATE | diff | sandwich | ✅ vs ICE + long-IPW | test-aipw.R |
