@@ -1,6 +1,6 @@
 # Phase 17 — Transportability and Generalizability
 
-> **Status: PENDING** (design doc)
+> **Status: IN PROGRESS** — 17a shipped; 17b–17i pending.
 >
 > **Depends on:** Phase 2 (point gcomp), Phase 4 (self-contained IPW)
 >
@@ -134,17 +134,17 @@ Phase 11 (diagnose rewrite) will fold this in; Phase 17 ships a minimal shim ana
 
 ## Chunks
 
-| Chunk | Scope | Depends on |
-|---|---|---|
-| 17a | `fit_sampling_model()`: fit $P(S = 1 \mid L)$ via `sampling_model_fn`; validate S is binary and present in data; reject if S has NAs; store in `fit$details$sampling_model` | — |
-| 17b | Gcomp transport: target-subset filter in `compute_contrast()`; outcome model fit on S = 1, standardization over target rows; sandwich with sampling-model cross-derivative | 17a, Phase 2 |
-| 17c | IPW transport: sampling × treatment weight product in `compute_density_ratio_weights()`; weighted MSM on study rows; stacked sandwich | 17a, Phase 4 |
-| 17d | Bootstrap (refit sampling + propensity + outcome per replicate) | 17a–17c |
-| 17e | AIPW transport: compose Phase 16 + Phase 17; 2-out-of-3 DR test (deliberately misspecify any one of outcome / treatment / sampling — verify consistency) | 17a–17c, Phase 16 |
-| 17f | `diagnose()` shim: sampling-score panel + extreme-sampling-weight flags | 17a |
-| 17g | External cross-check against `transport` / `transported` R packages on shared DGPs | 17b, 17c |
-| 17h | Longitudinal transport (Phase 10 × Phase 17): broadcast sampling weight onto person-period rows; multiply into per-period treatment weight; weighted longitudinal MSM | Phase 10, 17c |
-| 17i | Documentation, vignette (`transportability.qmd`), `FEATURE_COVERAGE_MATRIX.md` rows, `CLAUDE.md` update | 17a–17h |
+| Chunk | Scope | Depends on | Status |
+|---|---|---|---|
+| 17a | `fit_sampling_model()`: fit $P(S = 1 \mid L)$ via `sampling_model_fn`; validate S is binary and present in data; reject if S has NAs; store in `fit$details$sampling_model` | — | ✅ done |
+| 17b | Gcomp transport: target-subset filter in `compute_contrast()`; outcome model fit on S = 1, standardization over target rows; sandwich with sampling-model cross-derivative | 17a, Phase 2 | pending |
+| 17c | IPW transport: sampling × treatment weight product in `compute_density_ratio_weights()`; weighted MSM on study rows; stacked sandwich | 17a, Phase 4 | pending |
+| 17d | Bootstrap (refit sampling + propensity + outcome per replicate) | 17a–17c | pending |
+| 17e | AIPW transport: compose Phase 16 + Phase 17; 2-out-of-3 DR test (deliberately misspecify any one of outcome / treatment / sampling — verify consistency) | 17a–17c, Phase 16 | pending |
+| 17f | `diagnose()` shim: sampling-score panel + extreme-sampling-weight flags | 17a | pending |
+| 17g | External cross-check against `transport` / `transported` R packages on shared DGPs | 17b, 17c | pending |
+| 17h | Longitudinal transport (Phase 10 × Phase 17): broadcast sampling weight onto person-period rows; multiply into per-period treatment weight; weighted longitudinal MSM | Phase 10, 17c | pending |
+| 17i | Documentation, vignette (`transportability.qmd`), `FEATURE_COVERAGE_MATRIX.md` rows, `CLAUDE.md` update | 17a–17h | pending |
 
 ## Invariants
 
