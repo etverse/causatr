@@ -93,7 +93,6 @@ fit_matching <- function(
   fit_rows <- get_fit_rows(data, outcome)
   fit_data <- as.data.frame(data[fit_rows])
 
-  # Step 1: Create matched sets via MatchIt.
   # For ATE, MatchIt::matchit() requires method = "full" (full matching) since
   # nearest-neighbour only supports ATT/ATC.  Allow user override via `...`.
   dots <- list(...)
@@ -120,10 +119,8 @@ fit_matching <- function(
     }
   )
 
-  # Step 2: Extract matched data with match weights and subclass membership.
   matched_data <- MatchIt::match.data(m)
 
-  # Step 3: Fit the outcome model on the matched sample.
   # Without EM: `Y ~ A` — the matched design handles confounding.
   # With EM (e.g. `A:sex` in confounders): `Y ~ A + sex + A:sex` —
   # the saturated MSM recovers stratum-specific treatment effects.

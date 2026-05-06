@@ -1964,7 +1964,7 @@ compute_longitudinal_weights <- function(
 
     # Align per-period weight to the canonical id ordering. Some ids
     # may have been dropped at period k by `fit_treatment_model()`'s
-    # NA mask; for chunk 10a we expect a complete-case design so this
+    # NA mask; we expect a complete-case design so this
     # is identity. Defensive: rows that weren't fit at period k get
     # weight 0 (absorbed into the cumulative product, drops them
     # from the Hajek mean).
@@ -2285,7 +2285,7 @@ make_weight_fn_longitudinal <- function(
     if (stabilize) {
       # Stabilized closure: numerator density g_k is precomputed once
       # at closure-creation time (gamma fixed under numDeriv
-      # perturbation; same nuisance-fixed convention as Phase 8e).
+      # perturbation; same nuisance-fixed convention as multivariate IPW).
       # Only the denominator f_k(A | ..., L; alpha) varies with alpha.
       tm_num_k <- numerator_models_by_time[[k]]
       sub_fn_k <- make_long_stabilized_period_closure(
@@ -2327,7 +2327,7 @@ make_weight_fn_longitudinal <- function(
       # Project per-period weight (length n_period_k) onto the
       # canonical id ordering. Periods missing an id contribute
       # weight 0 (drops the id from the Hajek mean). Under the
-      # complete-case assumption of chunk 10a, alignment is the
+      # complete-case assumption, alignment is the
       # identity.
       w_aligned <- rep(0, n_id)
       w_aligned[align_idx[[k]]] <- w_period

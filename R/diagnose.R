@@ -61,7 +61,7 @@
 #'       order they appear in `per_intervention`.}
 #'     \item{`positivity`, `balance`, `weights`}{Top-level shortcuts that
 #'       point to the corresponding slots of the first panel; preserved for
-#'       backward compatibility with the flat shape used pre-chunk 11a.}
+#'       backward compatibility with the pre-restructure flat shape.}
 #'     \item{`match_quality`}{data.table or `NULL`: match quality summary
 #'       (matching only). Lives at the top level because matching is done
 #'       once at fit time and is intervention-agnostic.}
@@ -85,9 +85,9 @@
 #' `cobalt::bal.tab()` on the propensity formula or matchit object. This
 #' provides standardised mean differences (SMD), variance ratios, and KS
 #' statistics. If `cobalt` is not installed, a simpler data.table-based SMD
-#' comparison is returned. The chunk 11a balance view is the unadjusted
-#' SMD across treatment groups -- post-weighting balance under specific
-#' interventions / estimands lands in a later chunk.
+#' comparison is returned. Balance is the unadjusted SMD across treatment
+#' groups; post-weighting balance under specific interventions or estimands
+#' is not computed.
 #'
 #' ## Weight distribution (IPW only)
 #' For the default `obs` panel: summarises the observed-treatment
@@ -177,7 +177,7 @@ diagnose <- function(
   # Cache the propensity-score positivity table once: it depends only
   # on the fitted treatment density model, not on the intervention, so
   # recomputing it per panel would be wasteful. Same logic applies to
-  # the unadjusted balance view (chunk 11a). Both are shared across
+  # the unadjusted balance view. Both are shared across
   # every panel below.
   positivity_shared <- compute_positivity(fit, ps_bounds)
   balance_shared <- compute_balance(fit, stats, thresholds, by = by)
@@ -257,7 +257,7 @@ check_diag_by_arg <- function(fit, by, call) {
 #'
 #' @description
 #' Three dispatch axes:
-#'  1. Estimator: only `"ipw"` produces a non-NULL panel under chunk 11a;
+#'  1. Estimator: only `"ipw"` produces a non-NULL panel;
 #'     gcomp and matching panels return NULL (matching exposes its own
 #'     metrics via the top-level `match_quality` slot, gcomp has no
 #'     weight-distribution concept).

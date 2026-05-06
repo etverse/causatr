@@ -85,7 +85,7 @@ fit_aipw <- function(
   if (length(treatment) > 1L) {
     rlang::abort(
       c(
-        "Multivariate treatment is not yet supported under AIPW.",
+        "Multivariate treatment is not supported under AIPW.",
         i = "Use `estimator = 'gcomp'` or `estimator = 'ipw'` for multivariate treatments."
       ),
       class = "causatr_aipw_multivariate_pending"
@@ -354,8 +354,8 @@ compute_aipw_contrast_point <- function(fit, interventions, target_idx) {
 #' Fit both nuisance models for longitudinal AIPW (ICE-AIPW)
 #'
 #' @description
-#' Composes the ICE outcome-model metadata (Phase 5) with the
-#' longitudinal IPW per-period propensity models (Phase 10) into a
+#' Composes the ICE outcome-model metadata with the
+#' longitudinal IPW per-period propensity models into a
 #' single `causatr_fit` that carries both for downstream use in
 #' `ice_aipw_iterate()`.
 #'
@@ -388,9 +388,8 @@ fit_aipw_longitudinal <- function(
   if (length(treatment) > 1L) {
     rlang::abort(
       c(
-        "Multivariate longitudinal AIPW is not yet supported.",
-        i = "Use `estimator = 'gcomp'` (ICE) for joint interventions.",
-        i = "Multivariate longitudinal support ships in Phase 19."
+        "Multivariate longitudinal AIPW is not supported.",
+        i = "Use `estimator = 'gcomp'` (ICE) for joint interventions."
       ),
       class = "causatr_longitudinal_multivariate_pending"
     )
@@ -605,14 +604,13 @@ ice_aipw_iterate <- function(fit, intervention) {
   # IPSI shifts the propensity score, not the treatment value — longitudinal
   # AIPW needs a counterfactual treatment stream to iterate the sequential
   # outcome regressions.  Point AIPW handles IPSI as a special case, but the
-
-  # longitudinal path does not yet support it.
+  # longitudinal path does not support it.
   is_ipsi <- inherits(intervention, "causatr_intervention") &&
     intervention$type == "ipsi"
   if (is_ipsi) {
     rlang::abort(
       paste0(
-        "`ipsi()` interventions are not yet supported under longitudinal AIPW. ",
+        "`ipsi()` interventions are not supported under longitudinal AIPW. ",
         "Use `estimator = 'ipw'` for longitudinal IPSI, or rewrite the ",
         "intervention as `shift()` / `scale_by()` for AIPW."
       ),
@@ -686,7 +684,6 @@ ice_aipw_iterate <- function(fit, intervention) {
 
   uncens <- is_uncensored(data, censoring)
 
-  # -- Step 1: final time point (real outcome Y) ------------------
   final_time <- time_points[n_times]
   final_idx <- n_times - 1L
 

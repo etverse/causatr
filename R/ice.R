@@ -565,7 +565,7 @@ ice_iterate <- function(fit, intervention) {
   fit_ids <- vector("list", n_times)
   names(fit_ids) <- as.character(time_points)
 
-  # -- Step 1: fit the outcome model at the FINAL time point.
+  # Fit the outcome model at the FINAL time point.
   # This is the only step that uses the real observed outcome Y; every
   # earlier step uses a pseudo-outcome constructed by prior predictions.
 

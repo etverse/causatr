@@ -56,10 +56,8 @@
 #' \dontrun{
 #' library(mice)
 #'
-#' # Step 1: impute
 #' imp <- mice(data, m = 20, method = "pmm")
 #'
-#' # Step 2: fit + contrast across imputations
 #' result <- causat_mice(
 #'   imp,
 #'   outcome = "Y",

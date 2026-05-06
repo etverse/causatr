@@ -318,11 +318,8 @@ fit_treatment_model <- function(
 #' continuous and the engine fits a logistic GLM for `A1` and a
 #' Gaussian linear model for `A2 \mid A1, L`.
 #'
-#' Categorical, Poisson, and negative-binomial components are rejected
-#' for now -- their dispatch needs the per-component
-#' `propensity_model_fn` / `propensity_family` plumbing the v1
-#' multivariate path does not yet expose. Single-component categorical
-#' / count IPW continues to work via `fit_treatment_model()`.
+#' Categorical, Poisson, and negative-binomial components are not supported;
+#' use `fit_treatment_model()` for single-component categorical or count IPW.
 #'
 #' @param data data.table (already prepared by `prepare_data()`).
 #' @param treatment Character vector of treatment column names, in the

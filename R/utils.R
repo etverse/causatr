@@ -269,7 +269,7 @@ new_causatr_diag <- function(
   }
   # First panel feeds the backward-compat top-level slots. The flat
   # access pattern (`diag$positivity`, `diag$balance`, `diag$weights`)
-  # was the public API before chunk 11a; preserving it lets every
+  # was the public API before the per-intervention redesign; preserving it lets every
   # existing test, print-tests, and downstream user expression keep
   # working unchanged when no `interventions =` argument was passed.
   first <- per_intervention[[1L]]

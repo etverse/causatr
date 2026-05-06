@@ -396,7 +396,6 @@ refit_censoring_weights <- function(fit, d_b) {
     )
   } else {
     # Longitudinal: refit per-period models
-    # This path is used by chunk 14c; implemented here for completeness
     cens_result <- fit_censoring_models_longitudinal(
       data = d_b,
       censoring = censoring,

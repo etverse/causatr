@@ -767,7 +767,7 @@ compute_contrast <- function(
     boot_info <- NULL
 
     if (fit$estimator == "ipw") {
-      # Longitudinal IPW (chunk 10a). Per-intervention bundles refit
+      # Longitudinal IPW. Per-intervention bundles refit
       # the final-period weighted Hajek MSM under the cumulative
       # density-ratio weight. Variance dispatches through
       # `variance_if_ipw_longitudinal()` (sandwich) or

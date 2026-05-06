@@ -142,7 +142,7 @@ build_matching_msm_formula <- function(outcome, treatment, em_info) {
 #'
 #' True EM interactions (`A:modifier`) are accepted for all estimators
 #' and treatment types. Non-binary treatment + EM under IPW works via
-#' the density-ratio engine (Phase 4); matching gates non-binary
+#' the density-ratio engine; matching gates non-binary
 #' treatment upstream in `fit_matching()`.
 #'
 #' Terms that are pure confounder interactions (e.g. `L1:L2`) pass

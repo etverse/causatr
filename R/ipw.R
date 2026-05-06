@@ -89,7 +89,7 @@ fit_ipw <- function(
   call,
   ...
 ) {
-  # Longitudinal IPW dispatch (chunk 10a). The full point-treatment
+  # Longitudinal IPW dispatch. The full point-treatment
   # body below is preserved unchanged; longitudinal data takes a
   # dedicated path through `fit_longitudinal_ipw()` that builds the
   # per-period density chain. Effect modification, multivariate
@@ -150,8 +150,8 @@ fit_ipw <- function(
   # MSM expands to `Y ~ 1 + modifier_main_effects` via the existing
   # `build_ipw_msm_formula()`. Treatment-treatment interactions like
   # `A1:A2` are handled implicitly via the per-intervention refit, so
-  # they don't enter the MSM. The Phase 6 baseline-modifier
-  # constraint (Robins 2000; modifier must be baseline, not
+  # they don't enter the MSM. The baseline-modifier constraint
+  # (Robins 2000; modifier must be baseline, not
   # post-treatment) carries over and is doc-level.
 
   # EM terms are stored in `fit$details$em_info` for downstream use by
@@ -432,8 +432,8 @@ compute_ipw_contrast_point <- function(
   model_fn <- fit$details$model_fn
   em_info <- fit$details$em_info
   # Fit-time estimand threads into the density-ratio weight branch via
-  # the HT Bayes-numerator `f*_i`. For ATE this is 1 (unchanged from
-  # Phase 4's original flow); for ATT / ATC on static binary it
+  # the HT Bayes-numerator `f*_i`. For ATE this is 1; for ATT / ATC
+  # on static binary it
   # becomes `p(L_i)` / `1 - p(L_i)`, implementing the per-arm weight
   # tables derived in `compute_density_ratio_weights()`'s roxygen.
   # `check_estimand_intervention_compat()` has already rejected

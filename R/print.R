@@ -201,9 +201,9 @@ print.causatr_result <- function(x, ...) {
 print.causatr_diag <- function(x, ...) {
   cat("<causatr_diag>\n", " Estimator:", x$estimator, "\n", sep = "")
   fit_info <- x$fit_info
-  # `fit_info` was added in chunk 11a; legacy `causatr_diag` objects
-  # (e.g. those constructed by hand in older user scripts) won't carry
-  # it, so guard each accessor before printing.
+  # `fit_info` is absent in legacy `causatr_diag` objects (e.g. those
+  # constructed by hand in older user scripts), so guard each accessor
+  # before printing.
   if (!is.null(fit_info$treatment_type)) {
     cat(" Treatment: ", fit_info$treatment_type, "\n", sep = "")
   }

@@ -860,7 +860,7 @@ variance_if <- function(
   cluster_vec = NULL
 ) {
   if (fit$type == "longitudinal") {
-    # Longitudinal IPW dispatch (chunk 10a). The IPW path needs the
+    # Longitudinal IPW dispatch. The IPW path needs the
     # per-intervention bundles + the `ids_first` mapping (carried in
     # `ipw_bundles` / `ipw_long`) that `compute_ipw_contrast_longitudinal()`
     # built; ICE keeps its own `ice_results` route. Both go through
@@ -2486,9 +2486,8 @@ variance_if_ipw_longitudinal <- function(
   cluster_first <- if (is.null(cluster_vec)) NULL else cluster_vec[rows_first]
 
   # Final-period rows + ids: where the MSM is fit and where the IF
-  # lives. For chunk 10a we assume one row per id at the final period
-  # (no MAR dropout); under that, n_final == n_id and the id_to_first
-  # mapping is invertible.
+  # lives. We assume one row per id at the final period (no MAR dropout);
+  # under that, n_final == n_id and the id_to_first mapping is invertible.
   fit_rows_final <- details$fit_rows_final
   data_final <- data[fit_rows_final]
   ids_final <- as.character(data_final[[id_col]])
@@ -2537,10 +2536,10 @@ variance_if_ipw_longitudinal <- function(
     Ch1_final[!valid_final] <- 0
 
     # Map final-period contributions to id-level (length n_id).
-    # Under chunk 10a's complete-case assumption `final_to_first` is
-    # a bijection, so this is a permutation; the explicit projection
-    # makes the loss-of-final-period-rows behavior explicit if a future
-    # chunk relaxes the assumption.
+    # Under the complete-case assumption `final_to_first` is a bijection,
+    # so this is a permutation; the explicit projection makes
+    # loss-of-final-period-rows behavior visible if the assumption is
+    # ever relaxed.
     Ch1_i <- numeric(n_id)
     Ch1_i[final_to_first] <- Ch1_final
 
@@ -2727,7 +2726,7 @@ compute_ipw_if_self_contained_long_one <- function(
   # `n_final * d_fit * r_score` for the MSM piece, but we want
   # `n_id * d_id * r_score`. Multiplying by `n_id / n_final` (= 1
   # under the bijection assumption) keeps the convention exact even
-  # if the bijection breaks in a future chunk.
+  # if the bijection ever breaks.
   if (n_final != n_id) {
     msm_correction_id <- msm_correction_id * (n_id / n_final)
   }
@@ -2763,9 +2762,9 @@ compute_ipw_if_self_contained_long_one <- function(
     prop_res_k <- apply_model_correction(prop_prep_k, g_prop_k)
 
     # Project per-period correction (length n_period_k) onto id-space.
-    # Under chunk 10a's complete-case assumption, every period has all
-    # n_id rows, so this is a permutation; defensively, dropped ids
-    # contribute zero (match() returned NA, so we skip them).
+    # Under the complete-case assumption, every period has all n_id rows,
+    # so this is a permutation; defensively, dropped ids contribute zero
+    # (match() returned NA, so we skip them).
     correction_id <- numeric(n_id)
     correction_id[pos_k] <- prop_res_k$correction
     if (n_period_k != n_id) {

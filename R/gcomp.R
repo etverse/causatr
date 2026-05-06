@@ -76,11 +76,11 @@ fit_gcomp <- function(
 #' Fit the outcome model for g-computation with a point treatment
 #'
 #' @description
-#' Implements Step 1 of the parametric g-formula (Hernan & Robins Ch. 13):
-#' fit \eqn{E[Y | A, L]} on the uncensored, outcome-observed rows using the
-#' user-supplied `model_fn` (default `stats::glm`). The fitted model is
-#' stored in the returned `causatr_fit` and used by `contrast()` to predict
-#' outcomes under counterfactual interventions.
+#' Fits \eqn{E[Y | A, L]} per the parametric g-formula (Hernán & Robins
+#' Ch. 13) on the uncensored, outcome-observed rows using the user-supplied
+#' `model_fn` (default `stats::glm`). The fitted model is stored in the
+#' returned `causatr_fit` and used by `contrast()` to predict outcomes
+#' under counterfactual interventions.
 #'
 #' @param data data.table (all rows, including censored / missing outcome).
 #' @param outcome Character. Outcome column name.

@@ -20,7 +20,7 @@
 #' single-model `apply_model_correction()` calls (same shape as the
 #' multivariate IPW propensity correction).
 #'
-#' ## What is rejected at this fit boundary (chunk 10a)
+#' ## What is rejected at this fit boundary
 #'
 #' Longitudinal IPW currently supports:
 #'
@@ -99,17 +99,12 @@ fit_longitudinal_ipw <- function(
   call,
   ...
 ) {
-  # Reject combinations that chunk 10a does not yet support. Each abort
-  # is a classed error so downstream callers (tests, future chunks) can
-  # detect on `class` rather than by parsing English. The "_pending"
-  # suffix matches the multivariate / count rejection naming in
-  # `R/ipw_weights.R` and signals "deferred to a follow-up chunk", not
-  # "wrong by design".
+  # Each abort is a classed error so callers can detect on `class`
+  # rather than parsing error text.
   if (length(treatment) > 1L) {
     rlang::abort(
       c(
-        "Multivariate longitudinal IPW is not yet supported.",
-        i = "Combine with `treatment = c('A1','A2')` is deferred to a follow-up chunk.",
+        "Multivariate longitudinal IPW is not supported.",
         i = "Use a single-treatment longitudinal IPW or `estimator = 'gcomp'` for joint interventions."
       ),
       class = "causatr_longitudinal_multivariate_pending"
@@ -141,7 +136,7 @@ fit_longitudinal_ipw <- function(
   # interactions), and the final-period MSM expands from `Y ~ 1` to
   # `Y ~ 1 + modifier` via `build_ipw_msm_formula()`.
   #
-  # Known limitation (Phase 6 / Robins 2000): the modifier MUST be a
+  # Known limitation (Robins 2000): the modifier MUST be a
   # **baseline** covariate. A time-varying modifier in an MSM
   # conditions on a post-treatment variable, biasing the estimand
   # via mediator + collider paths. We don't enforce baseline-ness at
@@ -286,7 +281,7 @@ fit_longitudinal_ipw <- function(
   #         / f_k(A_k | A_{1..k-1}^obs, L_{1..k}^obs).
   # Numerator parameters gamma are held fixed under the variance
   # engine's `numDeriv` perturbation of the denominator alpha (same
-  # nuisance-fixed convention as Phase 8e for multivariate IPW and
+  # nuisance-fixed convention as multivariate IPW and
   # sigma / theta for Gaussian / negbin densities). Bootstrap refits
   # both gamma and alpha, capturing full variance.
   #
@@ -423,8 +418,8 @@ fit_longitudinal_ipw <- function(
 #' that are entirely NA at the current period (which is what happens
 #' at the first time step) are silently dropped.
 #'
-#' Effect-modification expansion is **not** applied here -- chunk 10a
-#' rejects EM upstream in `fit_longitudinal_ipw()`.
+#' Effect-modification expansion is **not** applied here -- EM is rejected
+#' upstream in `fit_longitudinal_ipw()`.
 #'
 #' @param treatment Character scalar. Treatment column name.
 #' @param baseline_terms Character vector of baseline confounder term
@@ -656,11 +651,8 @@ compute_ipw_contrast_longitudinal <- function(
 
   int_names <- names(interventions)
 
-  # Reject `ipsi()` under longitudinal IPW for chunk 10a. Kennedy's
-  # closed-form weight extends to a per-period product naturally
-  # (each period contributes `(delta * A_k + (1 - A_k)) / (delta * p_k +
-  # (1 - p_k))`), but that's a deferred follow-up. Surface a clear
-  # error rather than silently producing an under-tested result.
+  # `ipsi()` is not supported under longitudinal IPW. Surface a clear
+  # error rather than silently producing an untested result.
   for (nm in int_names) {
     iv <- interventions[[nm]]
     if (
@@ -668,9 +660,9 @@ compute_ipw_contrast_longitudinal <- function(
     ) {
       rlang::abort(
         c(
-          "`ipsi()` is not yet supported under longitudinal IPW.",
+          "`ipsi()` is not supported under longitudinal IPW.",
           i = paste0("Intervention `", nm, "` is `ipsi()`."),
-          i = "Per-period IPSI under longitudinal IPW ships in a follow-up chunk; use `static()`, `shift()`, `scale_by()`, or `dynamic()` for now, or switch to point IPW."
+          i = "Use `static()`, `shift()`, `scale_by()`, or `dynamic()` instead, or switch to point IPW."
         ),
         class = "causatr_longitudinal_ipsi_pending"
       )

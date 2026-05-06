@@ -107,16 +107,6 @@ to_person_period <- function(
   # clearer than `data.table::melt()` when every variable has its
   # own column-name pattern (the `time_varying` list specifies
   # exactly which original column maps to which time point).
-  #
-  # For each time point k (0-indexed):
-  #   1. Start from a slice containing id + baseline columns.
-  #   2. Tag the slice with the time column.
-  #   3. Pull each time-varying variable's k-th column into a
-  #      canonical name (e.g. "A0" -> "A", "A1" -> "A" at t=1).
-  #
-  # The result is one row per (id, time) with a consistent column
-  # schema -- exactly the shape that prepare_data() and fit_ice()
-  # expect.
   long_list <- lapply(seq_len(n_times), function(k) {
     row_dt <- data[, c(id, time_invariant), with = FALSE]
     row_dt[, (time_name) := k - 1L] # 0-indexed time
