@@ -58,6 +58,7 @@ fit_aipw <- function(
   id = NULL,
   time = NULL,
   call,
+  target = NULL,
   ...
 ) {
   if (type == "longitudinal") {
@@ -105,6 +106,7 @@ fit_aipw <- function(
     propensity_model_fn = propensity_model_fn,
     propensity_family = propensity_family,
     call = call,
+    target = target,
     ...
   )
 }
@@ -132,6 +134,7 @@ fit_aipw_point <- function(
   propensity_model_fn,
   propensity_family,
   call,
+  target = NULL,
   ...
 ) {
   # --- Effect modification parsing -----------------------------------------
@@ -141,8 +144,8 @@ fit_aipw_point <- function(
     estimator = "ipw"
   )
 
-  # --- Shared fit rows (outcome-clean + uncensored) ------------------------
-  fit_rows <- get_fit_rows(data, outcome, censoring)
+  # --- Shared fit rows (outcome-clean + uncensored + S=1 if transport) -----
+  fit_rows <- get_fit_rows(data, outcome, censoring, target = target)
   fit_data <- data[fit_rows]
 
   # --- Outcome model E[Y | A, L] ------------------------------------------
@@ -284,9 +287,41 @@ compute_aipw_contrast_point <- function(fit, interventions, target_idx) {
   y_obs <- fit_data[[outcome]]
   resid_obs <- y_obs - preds_obs
 
-  # Target population within fit rows
+  # Transport: compute sampling weights for the augmentation term.
+  # Under transport the AIPW functional splits into two sums over
+  # different populations (Dahabreh et al. 2020, Section 4.2):
+  #   Term 1: (1/n_target) sum_{target} m(d(A,L), L)
+  #   Term 2: (1/n_target) sum_{S=1} w_S * W_A * (Y - m(A,L))
+  # The sampling weights w_S reweight study rows to the target.
+  is_transport <- isTRUE(fit$details$transport)
+  w_S_fit <- NULL
+  if (is_transport) {
+    w_S <- compute_sampling_weights(
+      fit$details$sampling_model,
+      data,
+      fit$target,
+      fit$target_subset
+    )
+    w_S_fit <- w_S[fit_rows]
+  }
+
+  # Target population within fit rows (for non-transport) or across
+  # all rows (for transport Term 1, which sums over target rows that
+  # may be outside fit_rows since target rows have no Y).
   target_fit <- target_idx[fit_rows]
   ext_w_fit <- if (!is.null(ext_w)) ext_w[fit_rows] else NULL
+
+  # Transport Term 1: predictions on target rows (may include S=0
+  # rows not in fit_data). Predict on all target rows using the
+  # outcome model trained on S=1.
+  if (is_transport) {
+    target_data <- data[target_idx]
+    n_target <- if (!is.null(ext_w)) {
+      sum(ext_w[target_idx])
+    } else {
+      sum(target_idx)
+    }
+  }
 
   bundles <- lapply(int_names, function(nm) {
     iv <- interventions[[nm]]
@@ -308,9 +343,6 @@ compute_aipw_contrast_point <- function(fit, interventions, target_idx) {
       data_a <- fit_data
       preds_g <- preds_obs
     } else {
-      # Set A_i = d(A_i, L_i) in the prediction frame -- the
-      # intervention is applied only here, not in the fitting frame.
-      # preds_g = m(d(A,L), L) = E_hat[Y | A=d(A,L), L].
       data_a <- apply_intervention(fit_data, treatment, iv)
       preds_g <- stats::predict(
         outcome_model,
@@ -319,19 +351,56 @@ compute_aipw_contrast_point <- function(fit, interventions, target_idx) {
       )
     }
 
-    # AIPW individual-level contributions: mu_hat(d) = (1/n) sum_i phi_i
-    #   phi_i = m(d(A_i,L_i), L_i) + W_i(d) * (Y_i - m(A_i, L_i))
-    # The second term is the augmentation: it is zero in expectation
-    # when the outcome model is correct (residuals are mean-zero), and
-    # corrects for outcome-model bias when the propensity is correct.
-    aipw_contrib <- preds_g + w_iv * resid_obs
+    if (is_transport) {
+      # AIPW transport (Dahabreh et al. 2020, Section 4.2):
+      #   mu(d) = (1/n_T) sum_{target} m(d,L) + (1/n_T) sum_{S=1} w_S * W_A * resid
+      # Term 1 sums over target rows; Term 2 sums over study (fit) rows.
 
-    # Marginal mean over target population (with optional external weights)
-    if (!is.null(ext_w_fit)) {
-      w_target <- ext_w_fit * target_fit
-      mu_j <- sum(w_target * aipw_contrib) / sum(w_target)
+      # Term 1: outcome-model predictions on target rows
+      if (is_ipsi) {
+        preds_target <- stats::predict(
+          outcome_model,
+          newdata = target_data,
+          type = "response"
+        )
+      } else {
+        target_data_a <- apply_intervention(target_data, treatment, iv)
+        preds_target <- stats::predict(
+          outcome_model,
+          newdata = target_data_a,
+          type = "response"
+        )
+      }
+      if (!is.null(ext_w)) {
+        term1 <- sum(ext_w[target_idx] * preds_target) / n_target
+      } else {
+        term1 <- mean(preds_target)
+      }
+
+      # Term 2: sampling-weighted augmentation on study rows
+      aug_contrib <- w_S_fit * w_iv * resid_obs
+      if (!is.null(ext_w_fit)) {
+        term2 <- sum(ext_w_fit * aug_contrib) / n_target
+      } else {
+        term2 <- sum(aug_contrib) / n_target
+      }
+
+      mu_j <- term1 + term2
+
+      # Per-row AIPW contributions on fit_rows (for variance engine).
+      # The sandwich needs individual phi_i values on the study rows.
+      aipw_contrib <- preds_g + w_S_fit * w_iv * resid_obs
     } else {
-      mu_j <- mean(aipw_contrib[target_fit])
+      # Standard AIPW (no transport):
+      #   phi_i = m(d(A_i,L_i), L_i) + W_i(d) * (Y_i - m(A_i, L_i))
+      aipw_contrib <- preds_g + w_iv * resid_obs
+
+      if (!is.null(ext_w_fit)) {
+        w_target <- ext_w_fit * target_fit
+        mu_j <- sum(w_target * aipw_contrib) / sum(w_target)
+      } else {
+        mu_j <- mean(aipw_contrib[target_fit])
+      }
     }
 
     list(
@@ -339,7 +408,9 @@ compute_aipw_contrast_point <- function(fit, interventions, target_idx) {
       preds_g = preds_g,
       w_iv = w_iv,
       mu_hat = mu_j,
-      data_a = data_a
+      data_a = data_a,
+      w_S_fit = w_S_fit,
+      preds_target = if (is_transport) preds_target else NULL
     )
   })
   names(bundles) <- int_names
@@ -353,7 +424,9 @@ compute_aipw_contrast_point <- function(fit, interventions, target_idx) {
     fit_idx = fit_idx,
     n_total = n_total,
     preds_obs = preds_obs,
-    resid_obs = resid_obs
+    resid_obs = resid_obs,
+    is_transport = is_transport,
+    target_idx = target_idx
   )
 }
 

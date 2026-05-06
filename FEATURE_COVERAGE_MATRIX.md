@@ -686,7 +686,34 @@ Sampling model `P(S=1 | L)` + sampling-odds weights multiply into IPW Hájek MSM
 | IPW bootstrap: sampling model refitted per replicate (`gamma_hat` differs) | ✅ | test-transport-bootstrap.R |
 | Cross-estimator: gcomp vs IPW bootstrap transport estimates agree | ✅ | test-transport-bootstrap.R |
 
-Remaining chunks (17e–17i): AIPW transport, diagnostics, external cross-check, longitudinal transport, documentation. All ❌.
+**Chunk 17e — AIPW transport**
+
+| Feature | Status | Test |
+|---|---|---|
+| AIPW transport: fit_rows restricted to study (S=1) rows | ✅ | test-aipw-transport.R |
+| AIPW transport: target_subset stored on fit | ✅ | test-aipw-transport.R |
+| AIPW transport (transportability): recovers target ATE | ✅ | test-aipw-transport.R |
+| AIPW transport (generalizability): recovers marginal ATE | ✅ | test-aipw-transport.R |
+| AIPW transport corrects study bias vs naive | ✅ | test-aipw-transport.R |
+| AIPW transport 2-of-3 DR: wrong outcome model | ✅ | test-aipw-transport.R |
+| AIPW transport 2-of-3 DR: wrong propensity model | ✅ | test-aipw-transport.R |
+| AIPW transport 2-of-3 DR: wrong sampling model | ✅ | test-aipw-transport.R |
+| AIPW transport: sandwich SE plausible (ratio to bootstrap) | ✅ | test-aipw-transport.R |
+| AIPW transport: bootstrap point estimate near truth | ✅ | test-aipw-transport.R |
+| AIPW transport: continuous treatment (binary, static) | ✅ | test-aipw-transport.R |
+| AIPW transport: dynamic intervention | ✅ | test-aipw-transport.R |
+| AIPW transport: ipsi intervention (static fallback) | ✅ | test-aipw-transport.R |
+| AIPW transport: binary treatment stability (different seeds) | ✅ | test-aipw-transport.R |
+| AIPW transport: binomial outcome (diff/ratio/OR) | ✅ | test-aipw-transport.R |
+| AIPW transport: categorical treatment | ✅ | test-aipw-transport.R |
+| AIPW transport: count (Poisson) treatment (fit only) | ✅ | test-aipw-transport.R |
+| AIPW transport: effect modification (by=sex) | ✅ | test-aipw-transport.R |
+| AIPW transport: cross-estimator agreement (gcomp, IPW, AIPW) | ✅ | test-aipw-transport.R |
+| AIPW transport: efficiency (SE_AIPW ≤ SE_gcomp ∧ SE_IPW) | ✅ | test-aipw-transport.R |
+| AIPW transport: target rows with NA outcome/treatment handled | ✅ | test-aipw-transport.R |
+| AIPW without transport unaffected (target=NULL) | ✅ | test-aipw-transport.R |
+
+Remaining chunks (17f–17i): diagnostics, external cross-check, longitudinal transport, documentation. All ❌.
 
 ### Phase 18 — G-estimation of Structural Nested Mean Models
 Third leg of the Robins triangle. Motivating use case: **correct handling of time-varying effect modification** — SNMs parameterise the per-stage blip $\gamma_k(a_k, \bar{l}_k, \bar{a}_{k-1}; \psi)$ directly and identify it via a moment condition that uses the treatment model as instrument, so time-varying modifiers are supported by design (closes the Phase 6 limitation under MSM-based estimators). Scope: linear-blip additive SNMMs for point + longitudinal, stacked EE sandwich ($K$ treatment blocks + blip block), bootstrap, `gesttools` cross-check. Survival SNMs (SNFTMs/SNCFTMs) out of scope. All ❌.

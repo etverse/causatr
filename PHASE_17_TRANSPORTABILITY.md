@@ -1,10 +1,10 @@
 # Phase 17 — Transportability and Generalizability
 
-> **Status: IN PROGRESS** — 17a–17d shipped; 17e–17i pending.
+> **Status: IN PROGRESS** — 17a–17e shipped; 17f–17m pending.
 >
 > **Depends on:** Phase 2 (point gcomp), Phase 4 (self-contained IPW)
 >
-> **Composes with (planned):** Phases 10 (longitudinal), 14 (IPCW), 16 (AIPW) via dedicated subsections.
+> **Composes with:** Phase 10 (longitudinal, chunk 17h), Phase 14 (IPCW, chunk 17k), Phase 16 (AIPW, chunk 17e ✅).
 
 ## Motivation
 
@@ -23,7 +23,7 @@ The distinction is a matter of data structure and interpretation, not a matter o
 3. **Three estimators** with the same two-step API as today: gcomp transport (standardize on target covariates), IPW transport (sampling × treatment density-ratio weights), AIPW transport (compose Phase 16 + Phase 17 for double robustness across both the confounding model and the selection model).
 4. **Sandwich variance** via a stacked estimating-equation system that extends the existing engines with the sampling-model block.
 5. **Bootstrap variance** (natural — resample individuals, refit everything per replicate).
-6. **Static binary interventions** are the primary target; shift / scale_by / dynamic / ipsi inherit where they inherit for plain IPW.
+6. **Static binary interventions** are the primary target. MTP interventions (shift / scale\_by / ipsi) require observed A on target rows; for transportability (S = 0 has A = NA) these need MC marginalization (chunk 17l). MTP + generalizability works where all target rows have observed A.
 7. **External cross-check** against `transport` / `transported` R packages (Dahabreh group) on shared DGPs where feasible.
 
 ## Non-scope
@@ -123,14 +123,17 @@ The sandwich primitives (`prepare_model_if`, `compute_ipw_if_self_contained_one`
 
 Phase 11 (diagnose rewrite) will fold this in; Phase 17 ships a minimal shim analogous to the Phase 4 `diagnose()` shim for IPW.
 
-## Composition with pending phases
+## Composition with other phases
 
-- **Phase 8 (multivariate IPW) × Phase 17.** Joint treatment density × sampling density, product weight into the Hájek numerator/denominator. Stacked EE gains two propensity blocks + sampling block + plug-in. Deferred to after both phases ship.
-- **Phase 10 (longitudinal IPW) × Phase 17.** Sampling model stays **baseline** (S is a baseline property); treatment side becomes the cumulative longitudinal weight from Phase 10. Sampling weight broadcast onto person-period rows and multiplied into the per-period treatment weight. Subsection in Phase 10's doc to be added once Phase 17 lands.
-- **Phase 12 (stochastic) × Phase 17.** MC integration applies to the outcome-model augmentation (average $\hat{m}$ across stochastic draws); sampling weight is deterministic in L and unaffected. Clean composition.
-- **Phase 14 (IPCW) × Phase 17.** Four-way stack: outcome/propensity + censoring + sampling + plug-in. This is the most elaborate stacked EE in the package but composes mechanically.
-- **Phase 16 (AIPW) × Phase 17.** Already covered above as the "triple-robust" AIPW transport. Subsection in both Phase 16 and Phase 17 should point to the joint implementation.
-- **Survival composition.** Transporting a survival curve from study to target population is owned by the separate survival package (`etverse/survatr`); it imports Phase 17 for the scalar sampling-weight primitive and layers the cross-time delta chain on top.
+Each composition is tracked as a concrete chunk below (17f–17m). Summary:
+
+- **Phase 8 (multivariate IPW) × Phase 17** → chunk 17j.
+- **Phase 10 (longitudinal IPW) × Phase 17** → chunk 17i.
+- **Phase 12 (stochastic) × Phase 17.** MC integration on the outcome-model augmentation term; sampling weight is deterministic in L. This is tracked as chunk 16n in PHASE_16_AIPW.md. It also subsumes MTP + transportability (see 17l).
+- **Phase 14 (IPCW) × Phase 17** → chunk 17k.
+- **Phase 16 (AIPW) × Phase 17** → chunk 17e (✅ done).
+- **MTP (shift/scale_by/ipsi) × transportability** → chunk 17l. For static interventions, $\hat{m}(a, L)$ on target rows (S=0) is well-defined. For MTPs where $d(A, L)$ depends on observed $A$, target rows have $A = \mathrm{NA}$. The solution (Díaz & Hejazi 2020; Hejazi et al. 2024) is to marginalize $E_{A|L,S=1}[\hat{m}(d(A,L), L) \mid L]$ over the study treatment distribution via MC integration or sequential regression. Until then, MTP + transportability is unsupported; MTP + generalizability works where all target rows have observed $A$.
+- **Survival composition.** Owned by `etverse/survatr`; imports Phase 17 for the scalar sampling-weight primitive. Not a causatr chunk.
 
 ## Chunks
 
@@ -140,18 +143,22 @@ Phase 11 (diagnose rewrite) will fold this in; Phase 17 ships a minimal shim ana
 | 17b | Gcomp transport: target-subset filter in `compute_contrast()`; outcome model fit on S = 1, standardization over target rows; sandwich with sampling-model cross-derivative | 17a, Phase 2 | ✅ done |
 | 17c | IPW transport: sampling × treatment weight product in the IPW weight pipeline (`ipw_weights.R` / `make_weight_fn()`); weighted MSM on study rows; stacked sandwich | 17a, Phase 4 | ✅ done |
 | 17d | Bootstrap (refit sampling + propensity + outcome per replicate) | 17a–17c | ✅ done |
-| 17e | AIPW transport: compose Phase 16 + Phase 17; 2-out-of-3 DR test (deliberately misspecify any one of outcome / treatment / sampling — verify consistency) | 17a–17c, Phase 16 | pending |
+| 17e | AIPW transport: compose Phase 16 + Phase 17; 2-out-of-3 DR test (deliberately misspecify any one of outcome / treatment / sampling — verify consistency) | 17a–17c, Phase 16 | ✅ done |
 | 17f | `diagnose()` shim: sampling-score panel + extreme-sampling-weight flags | 17a | pending |
-| 17g | External cross-check against `transport` / `transported` R packages on shared DGPs | 17b, 17c | pending |
-| 17h | Longitudinal transport (Phase 10 × Phase 17): broadcast sampling weight onto person-period rows; multiply into per-period treatment weight; weighted longitudinal MSM | Phase 10, 17c | pending |
-| 17i | Documentation, vignette (`transportability.qmd`), `FEATURE_COVERAGE_MATRIX.md` rows, `CLAUDE.md` update | 17a–17h | pending |
+| 17g | Sampling model predictor-set validation: emit `rlang::warn()` when confounders formula RHS is a strict subset of outcome/treatment model predictors | 17a | pending |
+| 17h | External cross-check against `transport` / `transported` R packages on shared DGPs | 17b, 17c | pending |
+| 17i | Longitudinal transport (Phase 10 × Phase 17): broadcast sampling weight onto person-period rows; multiply into per-period treatment weight; weighted longitudinal MSM | Phase 10, 17c | pending |
+| 17j | Multivariate IPW × transport (Phase 8 composition): joint treatment density × sampling density; stacked sandwich with multivariate propensity + sampling blocks | Phase 8, 17c | pending |
+| 17k | IPCW × transport (Phase 14 composition): four-way stacked EE (outcome/propensity + censoring + sampling + plug-in); triply-weighted estimator | Phase 14, 17c | pending |
+| 17l | MTP + transportability: MC marginalization $E_{A|L,S=1}[\hat{m}(d(A,L), L) \mid L]$ for shift/scale\_by/ipsi on target rows where $A = \mathrm{NA}$; sequential regression or Monte Carlo integration (Díaz & Hejazi 2020; Hejazi et al. 2024) | 17e | pending |
+| 17m | Documentation, vignette (`transportability.qmd`), `FEATURE_COVERAGE_MATRIX.md` rows, `CLAUDE.md` update | 17a–17l | pending |
 
 ## Invariants
 
 - `target = "S"` requires S to be a binary 0/1 column with no NAs. The sampling model is fit on **all rows**, not just study rows.
 - When `target = NULL` (default), Phase 17's pathway is inactive and `causat()` behaves exactly as pre-Phase-17 — the study estimand is returned as today. Non-breaking change.
 - Under `target_subset = "target"`, target-ATE rows MUST have no treatment (A) or outcome (Y) dependency — the estimator only uses target-row L. If A or Y are present on target rows, they are ignored with a silent `rlang::inform()` note (not an error — users sometimes leave observed A in target rows for convenience).
-- The sampling model's predictor set should be a superset of the outcome model's and treatment model's predictor sets — otherwise the transportability assumption may fail silently. Planned: `fit_sampling_model()` should emit a `rlang::warn()` when the confounders formula's RHS is a strict subset of what the outcome/treatment models use. (Deferred to chunk 17b or later — not yet implemented.)
+- The sampling model's predictor set should be a superset of the outcome model's and treatment model's predictor sets — otherwise the transportability assumption may fail silently. Tracked as chunk 17g.
 - Bootstrap MUST refit the sampling model per replicate (it has estimated parameters); a replicate that fails (degenerate S distribution in the bootstrap sample) returns NA and is excluded, same convention as Phase 2 bootstrap.
 
 ## DGP for truth-based tests

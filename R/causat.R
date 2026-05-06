@@ -729,6 +729,7 @@ causat <- function(
       id = id,
       time = time,
       call = call,
+      target = target,
       ...
     ),
     matching = fit_matching(

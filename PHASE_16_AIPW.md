@@ -161,6 +161,10 @@ where $\tilde Y_{k+1}$ is the pseudo-outcome from the $(k+1)$-th AIPW step and $
 | 16j | Categorical + count treatment extensions | 16b | ✅ done |
 | 16k | `delicatessen` external cross-check on a shared DGP | 16b, 16d, 16e | ✅ done |
 | 16l | Documentation, vignette, `CLAUDE.md` phase update, `FEATURE_COVERAGE_MATRIX.md` rows | 16a–16j | ✅ done |
+| 16m | Multivariate point AIPW: joint outcome model `Y ~ A1 + A2 + L` + multivariate density-ratio weights in augmentation term. Composes Phase 8 joint density with Phase 16 AIPW functional. Lifts `causatr_aipw_multivariate_pending` rejection for point treatment. | Phase 8, 16b | pending |
+| 16n | Stochastic + AIPW: MC integration on outcome-model augmentation term (average $\hat{m}(A_{i,m}, L_i)$ across $M$ draws); MC-averaged residual correction; MC-averaged IF sandwich. Composes Phase 12 stochastic gcomp with Phase 16 AIPW augmentation. Lifts stochastic rejection for AIPW. | Phase 12, 16b | pending |
+| 16o | IPCW + AIPW: triply-weighted estimator $\hat\psi_{\text{AIPW,IPCW}} = \text{standardization} + (\text{treatment weight} \times \text{censoring weight}) \times \text{outcome residual}$; stacked EE with outcome + propensity + censoring model blocks + plug-in. | Phase 14, 16b | pending |
+| 16p | AIPW test coverage parity: outcome types (gamma, quasibinomial, negbin, beta), survey weights, cluster-robust sandwich, missing data, subset estimand, GAM outcome/propensity models. Infrastructure should already work — these are test gaps, not implementation gaps. | 16b | pending |
 
 ## Invariants
 

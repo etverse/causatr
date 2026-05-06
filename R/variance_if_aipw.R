@@ -37,23 +37,35 @@ variance_if_aipw <- function(
   int_names <- names(aipw_bundles)
   n_sub <- sum(fit_rows)
   n_total <- aipw_n_total
+  is_transport <- isTRUE(fit$details$transport)
 
-  # Target population within fit rows
+  # For transport the IF spans all n_total rows (target + study contribute
+  # to different terms). For non-transport all work is on fit_rows = n_sub.
+  n_if <- if (is_transport) n_total else n_sub
 
-  target_fit <- target_idx[fit_rows]
-  n_target <- sum(target_fit)
-
-  # External weights on fit rows
-  ext_w_fit <- if (!is.null(ext_w)) ext_w[fit_rows] else NULL
-  if (!is.null(ext_w_fit)) {
-    w_target_vec <- ext_w_fit * as.numeric(target_fit)
-    sum_w_target <- sum(w_target_vec[target_fit])
+  # Target population indexing depends on transport mode:
+  # - Non-transport: target_fit within fit_rows (ATE: all TRUE; ATT/ATC: subset)
+  # - Transport: target_idx spans full data; fit_rows are the study (S=1) rows
+  if (is_transport) {
+    n_target_raw <- sum(target_idx)
+    if (!is.null(ext_w)) {
+      sum_w_target <- sum(ext_w[target_idx])
+    } else {
+      sum_w_target <- n_target_raw
+    }
   } else {
-    w_target_vec <- as.numeric(target_fit)
-    sum_w_target <- n_target
+    target_fit <- target_idx[fit_rows]
+    ext_w_fit <- if (!is.null(ext_w)) ext_w[fit_rows] else NULL
+    if (!is.null(ext_w_fit)) {
+      w_target_vec <- ext_w_fit * as.numeric(target_fit)
+      sum_w_target <- sum(w_target_vec[target_fit])
+    } else {
+      w_target_vec <- as.numeric(target_fit)
+      sum_w_target <- sum(target_fit)
+    }
   }
 
-  # Observed-treatment predictions and residuals (shared)
+  # Observed-treatment predictions and residuals on study (fit) rows
   preds_obs <- stats::predict(
     outcome_model,
     newdata = fit_data,
@@ -82,56 +94,162 @@ variance_if_aipw <- function(
   beta_hat <- stats::coef(outcome_model)
   X_fit <- outcome_prep$X_fit
 
+  # Transport: sampling weights and model prep
+  w_S_fit <- NULL
+  samp_prep <- NULL
+  samp_wfn <- NULL
+  gamma_hat <- NULL
+  if (is_transport) {
+    w_S <- compute_sampling_weights(
+      fit$details$sampling_model,
+      data,
+      fit$target,
+      fit$target_subset
+    )
+    w_S_fit <- w_S[fit_rows]
+
+    samp_model <- fit$details$sampling_model
+    samp_prep <- prepare_model_if(
+      samp_model$model,
+      which(samp_model$fit_rows),
+      n_total
+    )
+    samp_wfn <- make_sampling_weight_fn(
+      samp_model,
+      data,
+      fit$target,
+      fit$target_subset
+    )
+    gamma_hat <- samp_model$gamma_hat
+  }
+
   IF_list <- lapply(int_names, function(nm) {
     b <- aipw_bundles[[nm]]
     preds_g <- b$preds_g
     w_iv <- b$w_iv
     mu_hat_j <- mu_hat[[nm]]
 
+    # Effective augmentation weight on study rows
+    w_aug <- if (is_transport) w_S_fit * w_iv else w_iv
+
     # --- Channel 1: direct contribution ------------------------------------
-    # AIPW functional: phi_i = Q_i(g) + W_i(g) * (Y_i - Q_i(obs)).
-    # Ch1_i = n * (w_i / sum_w) * (phi_i - \hat{mu}), the Hajek-scaled
-    # deviation of the individual AIPW pseudo-outcome from the marginal mean.
-    aipw_contrib <- preds_g + w_iv * resid_obs
-    Ch1_i <- n_sub * (w_target_vec / sum_w_target) * (aipw_contrib - mu_hat_j)
-    Ch1_i[!target_fit] <- 0
+    if (is_transport) {
+      # Transport AIPW: IF contributions from two disjoint populations.
+      # mu = (1/n_T) sum_{target} m(d,L) + (1/n_T) sum_{study} w_S * W_A * resid
+      # Ch1_i = (n/n_T) * xi_i - mu_hat, where:
+      #   xi_i = m(d,L_i) for target rows
+      #   xi_i = w_S * W_A * resid for study rows
+      #   xi_i = 0 otherwise
+      Ch1_i <- rep(-mu_hat_j, n_total)
+
+      # Target rows: prediction contribution
+      target_which <- which(target_idx)
+      preds_target <- b$preds_target
+      if (!is.null(ext_w)) {
+        Ch1_i[target_which] <- Ch1_i[target_which] +
+          (n_total / sum_w_target) * ext_w[target_idx] * preds_target
+      } else {
+        Ch1_i[target_which] <- Ch1_i[target_which] +
+          (n_total / sum_w_target) * preds_target
+      }
+
+      # Study rows: augmentation contribution
+      study_which <- which(fit_rows)
+      aug_study <- w_S_fit * w_iv * resid_obs
+      if (!is.null(ext_w)) {
+        Ch1_i[study_which] <- Ch1_i[study_which] +
+          (n_total / sum_w_target) * ext_w[fit_rows] * aug_study
+      } else {
+        Ch1_i[study_which] <- Ch1_i[study_which] +
+          (n_total / sum_w_target) * aug_study
+      }
+
+      # Rows in neither target nor study contribute only -mu_hat
+      # (they are not in any estimating equation, so their net
+      # contribution is zero after the corrections cancel).
+      neither <- !target_idx & !fit_rows
+      Ch1_i[neither] <- 0
+    } else {
+      # Non-transport: standard Hajek-scaled AIPW.
+      # phi_i = Q_i(g) + W_i * (Y_i - Q_i(obs))
+      # Ch1_i = n * (w_i / sum_w) * (phi_i - mu_hat)
+      aipw_contrib <- preds_g + w_aug * resid_obs
+      Ch1_i <- n_sub * (w_target_vec / sum_w_target) * (aipw_contrib - mu_hat_j)
+      Ch1_i[!target_fit] <- 0
+    }
 
     # --- Channel 2a: outcome model correction ------------------------------
-    # J_beta = \partial \hat{mu} / \partial \beta. Two additive terms:
-    #   (a) from E[Y(g)]: (1/sum_w) sum_{target} w_i X*_i \mu'(\eta*_i)
-    #   (b) from augmentation W_i(Y_i - Q_obs_i): -(1/sum_w) sum_{target} w_i W_i X_obs_i \mu'(\eta_obs_i)
-    # The minus sign in (b) comes from differentiating -Q_obs_i w.r.t. \beta.
-
-    # Counterfactual design matrix and link derivatives
+    # J_beta = d mu_hat / d beta.
     data_a <- b$data_a
     X_star <- iv_design_matrix(outcome_model, data_a)
     eta_star <- as.numeric(X_star %*% beta_hat)
     mu_eta_star <- fam$mu.eta(eta_star)
 
-    # Observed design matrix and link derivatives
     eta_obs <- as.numeric(X_fit %*% beta_hat)
     mu_eta_obs <- fam$mu.eta(eta_obs)
 
-    # Term (a): gradient from counterfactual predictions
-    grad_a <- as.numeric(
-      crossprod(X_star, w_target_vec * mu_eta_star)
-    ) /
-      sum_w_target
+    if (is_transport) {
+      # Term (a): d/dbeta of (1/n_T) sum_{target} m(d,L). The outcome
+      # model was fit on study rows but we predict on target rows.
+      # Use target predictions' design matrix.
+      target_data <- data[target_idx]
+      if (
+        inherits(b$intervention, "causatr_intervention") &&
+          b$intervention$type == "ipsi"
+      ) {
+        data_a_target <- target_data
+      } else {
+        data_a_target <- apply_intervention(
+          target_data,
+          fit$treatment,
+          b$intervention
+        )
+      }
+      X_star_target <- iv_design_matrix(outcome_model, data_a_target)
+      eta_star_target <- as.numeric(X_star_target %*% beta_hat)
+      mu_eta_star_target <- fam$mu.eta(eta_star_target)
 
-    # Term (b): gradient from augmentation residual term
-    grad_b <- -as.numeric(
-      crossprod(X_fit, w_target_vec * w_iv * mu_eta_obs)
-    ) /
-      sum_w_target
+      if (!is.null(ext_w)) {
+        grad_a <- as.numeric(
+          crossprod(X_star_target, ext_w[target_idx] * mu_eta_star_target)
+        ) /
+          sum_w_target
+      } else {
+        grad_a <- as.numeric(
+          crossprod(X_star_target, mu_eta_star_target)
+        ) /
+          sum_w_target
+      }
+
+      # Term (b): d/dbeta of -(1/n_T) sum_{study} w_S * W_A * m(A,L)
+      if (!is.null(ext_w)) {
+        grad_b <- -as.numeric(
+          crossprod(X_fit, ext_w[fit_rows] * w_aug * mu_eta_obs)
+        ) /
+          sum_w_target
+      } else {
+        grad_b <- -as.numeric(
+          crossprod(X_fit, w_aug * mu_eta_obs)
+        ) /
+          sum_w_target
+      }
+    } else {
+      # Non-transport: grad over target within fit_rows
+      grad_a <- as.numeric(
+        crossprod(X_star, w_target_vec * mu_eta_star)
+      ) /
+        sum_w_target
+
+      grad_b <- -as.numeric(
+        crossprod(X_fit, w_target_vec * w_aug * mu_eta_obs)
+      ) /
+        sum_w_target
+    }
 
     J_beta <- grad_a + grad_b
     outcome_res <- apply_model_correction(outcome_prep, J_beta)
 
     # --- Channel 2b: propensity model correction ---------------------------
-    # J_alpha = \partial \hat{mu} / \partial \alpha. Only the augmentation
-    # term (1/sum_w) sum_{target} w_i W_i(\alpha) (Y_i - Q_i) depends on
-    # \alpha through W_i = g(A_i|L_i;\alpha) / f(A_i|L_i;\alpha).
-    # Q_i(obs) is held fixed at its fitted value; numDeriv perturbs alpha.
     weight_fn <- make_weight_fn(
       tm,
       fit_data,
@@ -139,11 +257,21 @@ variance_if_aipw <- function(
       estimand = estimand
     )
 
-    aug_mean <- function(alpha) {
-      # Augmentation term of \hat{mu} as a scalar function of alpha alone.
-      # The Q_i(g) term does not involve alpha, so its gradient is zero here.
-      w_alpha <- weight_fn(alpha)
-      sum(w_target_vec * w_alpha * resid_obs) / sum_w_target
+    if (is_transport) {
+      aug_mean_alpha <- function(alpha) {
+        w_alpha <- weight_fn(alpha)
+        w_aug_alpha <- w_S_fit * w_alpha
+        if (!is.null(ext_w)) {
+          sum(ext_w[fit_rows] * w_aug_alpha * resid_obs) / sum_w_target
+        } else {
+          sum(w_aug_alpha * resid_obs) / sum_w_target
+        }
+      }
+    } else {
+      aug_mean_alpha <- function(alpha) {
+        w_alpha <- weight_fn(alpha)
+        sum(w_target_vec * w_alpha * resid_obs) / sum_w_target
+      }
     }
 
     alpha_hat_raw <- stats::coef(propensity_model)
@@ -153,23 +281,35 @@ variance_if_aipw <- function(
       alpha_hat <- alpha_hat_raw
     }
 
-    # d aug_mean / d alpha. Unlike the IPW case, this is a direct Jacobian of
-    # a scalar (not phi_bar), so no sign flip needed -- J_alpha is already
-    # \partial \hat{mu} / \partial \alpha, passed straight to apply_model_correction.
-    J_alpha <- as.numeric(numDeriv::jacobian(aug_mean, x = alpha_hat))
-
+    J_alpha <- as.numeric(numDeriv::jacobian(aug_mean_alpha, x = alpha_hat))
     prop_res <- apply_model_correction(prop_prep, J_alpha)
 
+    # --- Channel 2c: sampling model correction (transport only) ------------
+    samp_correction <- rep(0, n_total)
+    if (is_transport) {
+      aug_mean_gamma <- function(gamma) {
+        w_S_gamma <- samp_wfn(gamma)[fit_rows]
+        w_aug_gamma <- w_S_gamma * w_iv
+        if (!is.null(ext_w)) {
+          sum(ext_w[fit_rows] * w_aug_gamma * resid_obs) / sum_w_target
+        } else {
+          sum(w_aug_gamma * resid_obs) / sum_w_target
+        }
+      }
+
+      J_gamma <- as.numeric(numDeriv::jacobian(aug_mean_gamma, x = gamma_hat))
+      samp_res <- apply_model_correction(samp_prep, J_gamma)
+      samp_correction <- samp_res$correction
+    }
+
     # --- Assembly ----------------------------------------------------------
-    # IF_i = Ch1_i + outcome_correction_i - propensity_correction_i.
-    # Both corrections follow the block-lower-triangular M-estimation sign;
-    # the outcome correction adds because beta is upper-block; the propensity
-    # subtracts because alpha feeds into the beta block (Wooldridge Sec. 12.4).
-    Ch1_i + outcome_res$correction - prop_res$correction
+    # All corrections are n_total-length vectors from apply_model_correction.
+    # For non-transport, Ch1 is n_sub-length (== n_total when no transport).
+    Ch1_i + outcome_res$correction - prop_res$correction - samp_correction
   })
   names(IF_list) <- int_names
 
-  vcov_from_if(IF_list, n_sub, int_names, cluster = cluster_vec)
+  vcov_from_if(IF_list, n_if, int_names, cluster = cluster_vec)
 }
 
 

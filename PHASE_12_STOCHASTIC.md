@@ -65,6 +65,10 @@ are already in place.
   The variance engine would need the score of the intervention density
   (or a numeric derivative). Out of scope for Phase 12.
 - Stochastic interventions under matching — architecturally incompatible.
+- Stochastic interventions under AIPW — planned as chunk 16n in
+  `PHASE_16_AIPW.md`. MC integration applies to both the outcome-model
+  augmentation term and the residual correction; the IF averages over MC
+  draws. Depends on Phase 12 (this phase) and Phase 16 (AIPW).
 - Optimal treatment regime estimation (DTR) — different problem class.
 - TMLE/SDR for stochastic interventions — `lmtp` covers this.
 

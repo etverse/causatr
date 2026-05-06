@@ -675,10 +675,30 @@ refit_aipw <- function(fit, d_b, weights = NULL) {
     model_fn = fit$details$model_fn,
     propensity_model_fn = fit$details$propensity_model_fn,
     propensity_family = fit$details$propensity_family,
-    call = NULL
+    call = NULL,
+    target = fit$target
   )
   fit_b <- do.call(fit_aipw_point, c(args, fit$details$dots))
   fit_b$call <- fit$call
+
+  # Transport: refit sampling model on bootstrap replicate
+  if (!is.null(fit$target)) {
+    samp_model_b <- fit_sampling_model(
+      d_b,
+      fit$target,
+      fit$confounders,
+      fit$treatment,
+      model_fn = fit$details$sampling_model_fn,
+      weights = weights
+    )
+    fit_b$details$transport <- TRUE
+    fit_b$details$sampling_model <- samp_model_b
+    fit_b$details$sampling_model_fn <- fit$details$sampling_model_fn
+    fit_b$details$target_subset <- fit$target_subset
+    fit_b$target <- fit$target
+    fit_b$target_subset <- fit$target_subset
+  }
+
   fit_b
 }
 
