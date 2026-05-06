@@ -7,7 +7,7 @@
 #' `check_reserved_cols()`.
 #'
 #' @noRd
-CAUSATR_RESERVED_COLS <- c(".pseudo_y")
+CAUSATR_RESERVED_COLS <- c(".pseudo_y", ".sampling_s")
 
 #' Safely replay a fit function with stashed `...` arguments
 #'
@@ -116,6 +116,10 @@ check_reserved_cols <- function(data, which = CAUSATR_RESERVED_COLS) {
 #' @param match_obj A `matchit` object (matching) or `NULL`.
 #' @param call The original `causat()` call environment.
 #' @param details Named list of estimator-specific metadata.
+#' @param target Character column name of the sampling indicator (S = 1 study,
+#'   S = 0 target) or `NULL` when transportability is inactive.
+#' @param target_subset `"target"` or `"all"` — which rows form the target
+#'   population. `NULL` when `target` is `NULL`.
 #' @return A list with class `"causatr_fit"`.
 #' @noRd
 new_causatr_fit <- function(
@@ -137,7 +141,9 @@ new_causatr_fit <- function(
   weights_obj,
   match_obj,
   call,
-  details
+  details,
+  target = NULL,
+  target_subset = NULL
 ) {
   structure(
     list(
@@ -159,7 +165,9 @@ new_causatr_fit <- function(
       weights_obj = weights_obj,
       match_obj = match_obj,
       call = call,
-      details = details
+      details = details,
+      target = target,
+      target_subset = target_subset
     ),
     class = "causatr_fit"
   )

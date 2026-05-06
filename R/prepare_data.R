@@ -12,6 +12,7 @@
 #' @param time Character time column name or `NULL`.
 #' @param censoring Character censoring column name or `NULL`.
 #' @param history Positive integer Markov order or `Inf`.
+#' @param target Character sampling indicator column name or `NULL`.
 #' @param call Caller environment for error messages.
 #' @return A data.table with only the needed columns (and lag columns for
 #'   longitudinal data).
@@ -27,6 +28,7 @@ prepare_data <- function(
   censoring = NULL,
   history = 1L,
   cluster = NULL,
+  target = NULL,
   call = rlang::caller_env()
 ) {
   # Coerce to data.table once, up front. Everything downstream
@@ -62,7 +64,8 @@ prepare_data <- function(
     id,
     time,
     censoring,
-    cluster
+    cluster,
+    target
   ))
   keep_cols <- intersect(keep_cols, names(data))
 

@@ -873,3 +873,34 @@ simulate_stochastic_ice_continuous_gaussian <- function(
 
   list(data = data, truth = truth, sampler = sampler)
 }
+
+
+# DGP-T1: Binary treatment, interaction outcome, transportability
+#   L ~ N(0, 1)
+#   P(S = 1 | L) = expit(-0.5 + 1.0 * L)   [study under-represents L < 0]
+#   A | L, S = 1 ~ Bernoulli(expit(0.2 + 0.3 * L))
+#   Y | A, L ~ N(2 + 3 * A + 1.5 * L + 1.0 * A * L, 1)
+#
+# Target ATE (over L ~ N(0,1)): E[Y^1 - Y^0] = 3 + 1.0 * E[L] = 3
+# Study ATE (over L | S = 1):  3 + 1.0 * E[L | S = 1] != 3
+#   (S = 1 oversamples high-L individuals via the selection mechanism)
+#
+# The A*L interaction makes the study and target ATEs diverge, which is
+# necessary for truth-based tests in chunks 17b/17c.
+simulate_transport <- function(n = 3000, seed = 42) {
+  set.seed(seed)
+  L <- rnorm(n)
+  ps_sampling <- plogis(-0.5 + 1.0 * L)
+  S <- rbinom(n, 1, ps_sampling)
+
+  ps_treat <- plogis(0.2 + 0.3 * L)
+  A <- ifelse(S == 1L, rbinom(n, 1, ps_treat), NA_integer_)
+
+  Y <- ifelse(
+    S == 1L,
+    2 + 3 * A + 1.5 * L + 1.0 * A * L + rnorm(n),
+    NA_real_
+  )
+
+  data.frame(Y = Y, A = A, L = L, S = S)
+}

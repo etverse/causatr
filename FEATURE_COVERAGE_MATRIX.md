@@ -624,7 +624,23 @@ Composes Phase 2 gcomp + Phase 4 IPW into the classical analytical doubly-robust
 **Rejections (longitudinal):** multivariate → deferred ✅; ATT/ATC → rejected ✅.
 
 ### Phase 17 — Transportability / Generalizability
-Sampling model `P(S=1 | L)` + sampling-odds weights multiply into IPW Hájek MSM; gcomp / IPW / AIPW transport paths; stacked EE extends with sampling-model block. References: Dahabreh et al. 2020; Westreich et al. 2017. Cross-check against `transport` / `transported` R packages. Survival + transport composition subsection. All ❌.
+Sampling model `P(S=1 | L)` + sampling-odds weights multiply into IPW Hájek MSM; gcomp / IPW / AIPW transport paths; stacked EE extends with sampling-model block. References: Dahabreh et al. 2020; Westreich et al. 2017. Cross-check against `transport` / `transported` R packages.
+
+**Chunk 17a — sampling model primitive**
+
+| Feature | Status | Test |
+|---|---|---|
+| `fit_sampling_model()`: fit P(S=1\|L) via logistic GLM | ✅ | test-sampling-model.R |
+| `causat(target = "S")`: stores sampling model in `fit$details` | ✅ | test-sampling-model.R |
+| `causat(target_subset = "all")`: generalizability mode | ✅ | test-sampling-model.R |
+| Validation: NA in S → error | ✅ | test-sampling-model.R |
+| Validation: non-binary S → error | ✅ | test-sampling-model.R |
+| Validation: degenerate S (all 0 or all 1) → error | ✅ | test-sampling-model.R |
+| Validation: matching + target → error | ✅ | test-sampling-model.R |
+| Validation: extreme selection rate → warning | ✅ | test-sampling-model.R |
+| Target column preserved in `fit$data` | ✅ | test-sampling-model.R |
+
+Remaining chunks (17b–17i): gcomp transport, IPW transport, bootstrap, AIPW transport, diagnostics, external cross-check, longitudinal transport, documentation. All ❌.
 
 ### Phase 18 — G-estimation of Structural Nested Mean Models
 Third leg of the Robins triangle. Motivating use case: **correct handling of time-varying effect modification** — SNMs parameterise the per-stage blip $\gamma_k(a_k, \bar{l}_k, \bar{a}_{k-1}; \psi)$ directly and identify it via a moment condition that uses the treatment model as instrument, so time-varying modifiers are supported by design (closes the Phase 6 limitation under MSM-based estimators). Scope: linear-blip additive SNMMs for point + longitudinal, stacked EE sandwich ($K$ treatment blocks + blip block), bootstrap, `gesttools` cross-check. Survival SNMs (SNFTMs/SNCFTMs) out of scope. All ❌.

@@ -146,6 +146,24 @@
 #'       well-predicted propensities.
 #'   }
 #'   Ignored for univariate IPW, `"gcomp"`, and `"matching"`.
+#' @param target Character or `NULL`. Column name of a binary 0/1 sampling
+#'   indicator S, where S = 1 identifies study-population rows (observed A
+#'   and Y) and S = 0 identifies target-population rows (only L observed).
+#'   When non-`NULL`, enables transportability/generalizability estimation:
+#'   the sampling model \eqn{P(S = 1 \mid L)} is fit on all rows and stored
+#'   on the fit object for use in [contrast()]. Default `NULL` produces a
+#'   study-population estimand with no transportability adjustment.
+#'   **Not supported with `estimator = "matching"`**.
+#' @param sampling_model_fn Function or `NULL`. Fitting function for the
+#'   sampling model \eqn{P(S = 1 \mid L)} when `target` is non-`NULL`.
+#'   Must accept `(formula, data, family, ...)`. Default `NULL` uses
+#'   `stats::glm` with `family = binomial()`. Ignored when `target = NULL`.
+#' @param target_subset Character. Which rows define the target population
+#'   for transportability/generalizability. `"target"` (default) restricts
+#'   the target to S = 0 rows only (transportability: the study is external
+#'   to the target population). `"all"` uses all rows S = 0 and S = 1
+#'   (generalizability: the study is a biased subsample of the target).
+#'   Ignored when `target = NULL`.
 #' @param ... Additional arguments passed to the underlying estimation
 #'   function. For `estimator = "ipw"`, dots are forwarded into the
 #'   user's `propensity_model_fn` via `fit_treatment_model()` (e.g.
@@ -384,9 +402,13 @@ causat <- function(
   propensity_model_fn = NULL,
   propensity_family = NULL,
   stabilize = c("none", "marginal"),
+  target = NULL,
+  sampling_model_fn = NULL,
+  target_subset = c("target", "all"),
   ...
 ) {
   stabilize <- rlang::arg_match(stabilize)
+  target_subset <- rlang::arg_match(target_subset)
   # Capture the call for later display in print/summary of the result.
   call <- match.call()
   # `estimator`, not `method`: avoids shadowing `MatchIt::matchit(method = ...)`,
@@ -506,14 +528,15 @@ causat <- function(
     time = time,
     censoring = censoring,
     history = history,
-    cluster = cluster
+    cluster = cluster,
+    target = target
   )
 
   # NA check on treatment values: if any are missing, user must either
   # provide a censoring column (IPCW), use mice imputation, or remove
   # incomplete cases manually. We do this AFTER prepare_data() because
   # lag materialization is what actually exposes the NAs at baseline.
-  check_treatment_nas(data, treatment, censoring)
+  check_treatment_nas(data, treatment, censoring, target = target)
 
   # Validate external weights up front. Earlier versions silently
   # passed non-finite / negative weights through to the fit step,
@@ -529,6 +552,35 @@ causat <- function(
   # NAs -- recycling then silently corrupts the IF and sandwich SEs.
   # See check_dots_na_action() for the full rationale.
   check_dots_na_action(..., call = call)
+
+  # Transportability: validate S column and fit P(S=1|L) before dispatch.
+  # The sampling model is stored on the fit object but not composed into
+  # `weights` -- the sampling-weight role differs by estimator (gcomp:
+  # standardize over target rows; IPW: multiply with treatment weights).
+  sampling_details <- NULL
+  if (!is.null(target)) {
+    check_transport_inputs(
+      target = target,
+      target_col = data[[target]],
+      target_subset = target_subset,
+      estimator = estimator,
+      call = call
+    )
+    samp_fn <- sampling_model_fn %||% stats::glm
+    samp_model <- fit_sampling_model(
+      data = data,
+      target = target,
+      confounders = confounders,
+      model_fn = samp_fn,
+      weights = weights
+    )
+    sampling_details <- list(
+      transport = TRUE,
+      sampling_model = samp_model,
+      sampling_model_fn = samp_fn,
+      target_subset = target_subset
+    )
+  }
 
   # Built-in IPCW: fit a censoring model and compose stabilized
   # weights with any external weights BEFORE dispatching to the
@@ -718,6 +770,14 @@ causat <- function(
     if (is.null(fit$censoring)) {
       fit$censoring <- censoring
     }
+  }
+
+  if (!is.null(sampling_details)) {
+    for (nm in names(sampling_details)) {
+      fit$details[[nm]] <- sampling_details[[nm]]
+    }
+    fit$target <- target
+    fit$target_subset <- target_subset
   }
 
   fit

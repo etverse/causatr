@@ -48,7 +48,7 @@ slots (any of which may be \code{NULL}).}
 order they appear in \code{per_intervention}.}
 \item{\code{positivity}, \code{balance}, \code{weights}}{Top-level shortcuts that
 point to the corresponding slots of the first panel; preserved for
-backward compatibility with the flat shape used pre-chunk 11a.}
+backward compatibility with the pre-restructure flat shape.}
 \item{\code{match_quality}}{data.table or \code{NULL}: match quality summary
 (matching only). Lives at the top level because matching is done
 once at fit time and is intervention-agnostic.}
@@ -110,9 +110,9 @@ If the \code{cobalt} package is installed, balance is computed via
 \code{cobalt::bal.tab()} on the propensity formula or matchit object. This
 provides standardised mean differences (SMD), variance ratios, and KS
 statistics. If \code{cobalt} is not installed, a simpler data.table-based SMD
-comparison is returned. The chunk 11a balance view is the unadjusted
-SMD across treatment groups -- post-weighting balance under specific
-interventions / estimands lands in a later chunk.
+comparison is returned. Balance is the unadjusted SMD across treatment
+groups; post-weighting balance under specific interventions or estimands
+is not computed.
 }
 
 \subsection{Weight distribution (IPW only)}{

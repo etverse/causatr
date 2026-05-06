@@ -395,6 +395,7 @@ check_treatment_nas <- function(
   data,
   treatment,
   censoring,
+  target = NULL,
   call = rlang::caller_env()
 ) {
   # Missing treatment values must be handled explicitly -- silently
@@ -405,9 +406,19 @@ check_treatment_nas <- function(
   #   2. Manual complete-case subset -> user removes rows before calling
   # (Multiple imputation via `causat_mice()` is not implemented; the
   # stub is unexported so it is not advertised in the abort hint.)
+  #
+  # When transportability is active (`target` non-NULL), target rows
+  # (S=0) have NA treatment by design -- they are not in the study and
+  # have no observed A. Restrict the NA check to study rows (S=1).
+  check_rows <- if (!is.null(target)) {
+    data[[target]] == 1L
+  } else {
+    rep(TRUE, nrow(data))
+  }
+
   trt_cols <- treatment
   for (col in trt_cols) {
-    n_na <- sum(is.na(data[[col]]))
+    n_na <- sum(is.na(data[[col]][check_rows]))
     if (n_na > 0 && is.null(censoring)) {
       rlang::abort(
         c(
@@ -823,6 +834,107 @@ check_ipcw_inputs <- function(
         )
       }
     }
+  }
+
+  invisible(NULL)
+}
+
+
+#' Validate transportability inputs
+#'
+#' @description
+#' Checks that the `target` sampling indicator column is suitable for
+#' fitting a sampling model \eqn{P(S = 1 \mid L)}.
+#'
+#' @param target Character. Column name of the sampling indicator.
+#' @param target_col Numeric or integer vector. The sampling indicator values.
+#' @param target_subset Character. `"target"` or `"all"`.
+#' @param estimator Character. The estimator chosen in `causat()`.
+#' @param call Caller environment for error messages.
+#'
+#' @noRd
+check_transport_inputs <- function(
+  target,
+  target_col,
+  target_subset = "target",
+  estimator = "gcomp",
+  call = rlang::caller_env()
+) {
+  if (estimator == "matching") {
+    rlang::abort(
+      c(
+        "`target` is not supported with `estimator = \"matching\"`.",
+        i = paste0(
+          "Transportability does not compose cleanly with matching. ",
+          "Use `estimator = \"gcomp\"` or `\"ipw\"` instead."
+        )
+      ),
+      class = "causatr_transport_matching",
+      call = call
+    )
+  }
+
+  if (anyNA(target_col)) {
+    rlang::abort(
+      c(
+        paste0("Column `", target, "` contains NA values."),
+        i = "The sampling indicator S must be complete (no NAs) for transportability."
+      ),
+      class = "causatr_transport_na_target",
+      call = call
+    )
+  }
+
+  vals <- sort(unique(as.integer(target_col)))
+  if (!all(vals %in% c(0L, 1L))) {
+    rlang::abort(
+      c(
+        paste0(
+          "`",
+          target,
+          "` must be binary (0 = target, 1 = study). ",
+          "Found values: ",
+          paste(vals, collapse = ", "),
+          "."
+        ),
+        i = "Recode the sampling indicator to 0/1 before calling `causat()`."
+      ),
+      class = "causatr_transport_non_binary",
+      call = call
+    )
+  }
+
+  if (!all(c(0L, 1L) %in% vals)) {
+    rlang::abort(
+      c(
+        paste0(
+          "`",
+          target,
+          "` must have both study (S = 1) and target (S = 0) rows. ",
+          "Found only: ",
+          paste(vals, collapse = ", "),
+          "."
+        ),
+        i = "The sampling model requires rows from both populations."
+      ),
+      class = "causatr_transport_degenerate",
+      call = call
+    )
+  }
+
+  p_study <- mean(as.integer(target_col) == 1L)
+  if (p_study > 0.95 || p_study < 0.05) {
+    rlang::warn(
+      c(
+        paste0(
+          round(100 * p_study, 1),
+          "% of observations are study rows (S = 1). ",
+          "Sampling weights may be extreme and estimates may be unstable."
+        ),
+        i = "Consider whether the sampling model is correctly specified."
+      ),
+      class = "causatr_transport_extreme_selection"
+    )
   }
 
   invisible(NULL)

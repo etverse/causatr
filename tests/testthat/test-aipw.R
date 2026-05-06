@@ -1569,11 +1569,11 @@ test_that("longitudinal AIPW: near-positivity stress test", {
 # Zivich PN et al. (2024). Statistics in Medicine 43:5562-5572.
 
 test_that("AIPW sandwich matches delicatessen — binary treatment, ATE", {
-  ref_mu_1   <- 4.9715
-  ref_se_1   <- 0.0289
-  ref_mu_0   <- 1.9730
-  ref_se_0   <- 0.0314
-  ref_ate    <- 2.9985
+  ref_mu_1 <- 4.9715
+  ref_se_1 <- 0.0289
+  ref_mu_0 <- 1.9730
+  ref_se_0 <- 0.0314
+  ref_ate <- 2.9985
   ref_se_ate <- 0.0299
 
   set.seed(42)
@@ -1611,11 +1611,11 @@ test_that("AIPW sandwich matches delicatessen — binary treatment, ATE", {
 })
 
 test_that("AIPW sandwich matches delicatessen — continuous treatment, shift(1)", {
-  ref_mu_shift  <- 6.0079
-  ref_se_shift  <- 0.0613
-  ref_mu_nat    <- 4.0149
-  ref_se_nat    <- 0.0586
-  ref_effect    <- 1.9930
+  ref_mu_shift <- 6.0079
+  ref_se_shift <- 0.0613
+  ref_mu_nat <- 4.0149
+  ref_se_nat <- 0.0586
+  ref_effect <- 1.9930
   ref_se_effect <- 0.0171
 
   set.seed(99)
@@ -1640,9 +1640,9 @@ test_that("AIPW sandwich matches delicatessen — continuous treatment, shift(1)
   )
 
   mu_shift <- res$estimates$estimate[res$estimates$intervention == "shifted"]
-  mu_nat   <- res$estimates$estimate[res$estimates$intervention == "nat"]
+  mu_nat <- res$estimates$estimate[res$estimates$intervention == "nat"]
   se_shift <- res$estimates$se[res$estimates$intervention == "shifted"]
-  se_nat   <- res$estimates$se[res$estimates$intervention == "nat"]
+  se_nat <- res$estimates$se[res$estimates$intervention == "nat"]
 
   expect_equal(mu_shift, ref_mu_shift, tolerance = 0.005)
   expect_equal(mu_nat, ref_mu_nat, tolerance = 0.005)

@@ -27,6 +27,9 @@ causat(
   propensity_model_fn = NULL,
   propensity_family = NULL,
   stabilize = c("none", "marginal"),
+  target = NULL,
+  sampling_model_fn = NULL,
+  target_subset = c("target", "all"),
   ...
 )
 }
@@ -184,6 +187,27 @@ substantially on datasets where multiple components have
 well-predicted propensities.
 }
 Ignored for univariate IPW, \code{"gcomp"}, and \code{"matching"}.}
+
+\item{target}{Character or \code{NULL}. Column name of a binary 0/1 sampling
+indicator S, where S = 1 identifies study-population rows (observed A
+and Y) and S = 0 identifies target-population rows (only L observed).
+When non-\code{NULL}, enables transportability/generalizability estimation:
+the sampling model \eqn{P(S = 1 \mid L)} is fit on all rows and stored
+on the fit object for use in \code{\link[=contrast]{contrast()}}. Default \code{NULL} produces a
+study-population estimand with no transportability adjustment.
+\strong{Not supported with \code{estimator = "matching"}}.}
+
+\item{sampling_model_fn}{Function or \code{NULL}. Fitting function for the
+sampling model \eqn{P(S = 1 \mid L)} when \code{target} is non-\code{NULL}.
+Must accept \verb{(formula, data, family, ...)}. Default \code{NULL} uses
+\code{stats::glm} with \code{family = binomial()}. Ignored when \code{target = NULL}.}
+
+\item{target_subset}{Character. Which rows define the target population
+for transportability/generalizability. \code{"target"} (default) restricts
+the target to S = 0 rows only (transportability: the study is external
+to the target population). \code{"all"} uses all rows S = 0 and S = 1
+(generalizability: the study is a biased subsample of the target).
+Ignored when \code{target = NULL}.}
 
 \item{...}{Additional arguments passed to the underlying estimation
 function. For \code{estimator = "ipw"}, dots are forwarded into the
