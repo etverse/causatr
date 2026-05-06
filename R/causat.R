@@ -708,6 +708,7 @@ causat <- function(
       id = id,
       time = time,
       call = call,
+      target = target,
       ...
     ),
     aipw = fit_aipw(

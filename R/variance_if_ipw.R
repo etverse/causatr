@@ -61,6 +61,12 @@ variance_if_ipw <- function(
   fit_rows <- fit$details$fit_rows
   n_sub <- length(fit_idx_full)
   target_sub <- target_idx[fit_rows]
+  # For transport, the MSM with sampling weights already targets the
+  # target population. All study rows contribute to Ch1 / Jacobian;
+  # target_idx selects S=0 rows which aren't in fit_rows.
+  if (isTRUE(fit$details$transport)) {
+    target_sub <- rep(TRUE, n_sub)
+  }
   ext_w_sub <- if (is.null(ext_w)) NULL else ext_w[fit_rows]
   # Align the cluster vector to the MSM fit-row subset. `cluster_vec`
   # comes from `resolve_cluster()` at length `n_total = nrow(fit$data)`,
@@ -221,6 +227,17 @@ variance_if_ipw <- function(
     if (isTRUE(fit$details$ipcw)) {
       if_i <- if_i -
         compute_ipw_ipcw_correction(
+          fit,
+          msm_model,
+          J,
+          fit_rows = fit_rows,
+          n_sub = n_sub
+        )
+    }
+
+    if (isTRUE(fit$details$transport)) {
+      if_i <- if_i -
+        compute_ipw_sampling_correction(
           fit,
           msm_model,
           J,
@@ -992,4 +1009,98 @@ compute_ipw_if_self_contained_long_one <- function(
   # i.e. the propensity correction is SUBTRACTED. Same sign convention
   # as the univariate / multivariate IPW primitives.
   Ch1_i + msm_correction_id - total_prop_correction_id
+}
+
+
+#' Sampling-model correction for IPW transport sandwich
+#'
+#' @description
+#' Adds the sampling-model block to the stacked sandwich for
+#' IPW transport. The sampling model \eqn{P(S = 1 \mid L; \gamma)}
+#' produces weights \eqn{w_S(\gamma)} that enter the MSM score. The
+#' cross-derivative \eqn{A_{\beta\gamma}} captures how the MSM score
+#' depends on \eqn{\gamma}; the sampling-model's own score
+#' \eqn{\psi_{\gamma,i}} propagates uncertainty in \eqn{\hat\gamma}
+#' into the sandwich.
+#'
+#' Same pattern as `compute_ipw_ipcw_correction()`:
+#' 1. Decompose MSM prior weights: `other_w = pw / w_S_hat`
+#' 2. Build `phi_bar_samp(gamma)` closure
+#' 3. Cross-derivative via `numDeriv::jacobian`
+#' 4. Sampling model correction via `apply_model_correction`
+#' 5. Subset to `fit_rows`
+#'
+#' @param fit A `causatr_fit` with `details$transport == TRUE`.
+#' @param msm_model Fitted weighted MSM for one intervention.
+#' @param J Marginal-mean Jacobian.
+#' @param fit_rows Logical vector (length `nrow(fit$data)`).
+#' @param n_sub Integer. Number of MSM fit rows.
+#'
+#' @return Numeric vector of length `n_sub`.
+#' @noRd
+compute_ipw_sampling_correction <- function(
+  fit,
+  msm_model,
+  J,
+  fit_rows,
+  n_sub
+) {
+  samp_model <- fit$details$sampling_model
+  data <- fit$data
+  n_total <- nrow(data)
+
+  msm_prep <- prepare_model_if(msm_model, seq_len(n_sub), n_sub)
+  msm_res <- apply_model_correction(msm_prep, J)
+  h_msm <- n_sub * msm_res$h
+
+  beta_hat <- stats::coef(msm_model)
+  X_msm <- msm_prep$X_fit
+  fam <- msm_model$family
+  eta_msm <- as.numeric(X_msm %*% beta_hat)
+  mu_msm <- fam$linkinv(eta_msm)
+  mu_eta_msm <- fam$mu.eta(eta_msm)
+  var_mu_msm <- fam$variance(mu_msm)
+  y_msm <- stats::model.response(stats::model.frame(msm_model))
+  r_msm <- y_msm - mu_msm
+
+  # Decompose MSM prior weights: total_w = ext_w * DR_w * w_S.
+  # Hold everything except w_S fixed for the gamma-varying closure.
+  pw <- msm_model$prior.weights
+  if (is.null(pw)) {
+    pw <- rep(1, n_sub)
+  }
+
+  w_S_fit <- compute_sampling_weights(
+    samp_model,
+    data,
+    fit$target,
+    fit$target_subset
+  )[fit_rows]
+  other_w <- ifelse(w_S_fit > 0, pw / w_S_fit, 0)
+
+  samp_wfn <- make_sampling_weight_fn(
+    samp_model,
+    data,
+    fit$target,
+    fit$target_subset
+  )
+
+  phi_bar_samp <- function(gamma) {
+    w_S_full <- samp_wfn(gamma)
+    w_S_sub <- w_S_full[fit_rows]
+    s_per_i <- other_w * w_S_sub * mu_eta_msm * r_msm / var_mu_msm
+    as.numeric(crossprod(X_msm, s_per_i)) / n_sub
+  }
+
+  gamma_hat <- samp_model$gamma_hat
+  A_beta_gamma <- -numDeriv::jacobian(phi_bar_samp, x = gamma_hat)
+  g_samp <- as.numeric(crossprod(A_beta_gamma, h_msm))
+
+  samp_prep <- prepare_model_if(
+    samp_model$model,
+    which(samp_model$fit_rows),
+    n_total
+  )
+  samp_res <- apply_model_correction(samp_prep, g_samp)
+  samp_res$correction[fit_rows]
 }

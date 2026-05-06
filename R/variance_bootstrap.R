@@ -285,8 +285,12 @@ variance_bootstrap <- function(
         # Returns the transport/generalizability override for target_idx, or
         # NULL when no transport is active (NULL-safe for %||% chaining).
         transport_override <- function(data) {
-          if (is.null(fit$target)) return(NULL)
-          if (identical(fit$target_subset, "target")) return(data[[fit$target]] == 0L)
+          if (is.null(fit$target)) {
+            return(NULL)
+          }
+          if (identical(fit$target_subset, "target")) {
+            return(data[[fit$target]] == 0L)
+          }
           rep(TRUE, nrow(data))
         }
 
@@ -310,7 +314,11 @@ variance_bootstrap <- function(
             {
               fit_b <- refit_ipw(fit, d_b, weights = w_b)
               target_idx_b <- get_target_idx(
-                d_b, treatment, est, subset, subset_env = subset_env
+                d_b,
+                treatment,
+                est,
+                subset,
+                subset_env = subset_env
               )
               target_idx_b <- transport_override(d_b) %||% target_idx_b
               ipw_point_b <- compute_ipw_contrast_point(
@@ -344,7 +352,11 @@ variance_bootstrap <- function(
             {
               fit_b <- refit_aipw(fit, d_b, weights = w_b)
               target_idx_b <- get_target_idx(
-                d_b, treatment, est, subset, subset_env = subset_env
+                d_b,
+                treatment,
+                est,
+                subset,
+                subset_env = subset_env
               )
               target_idx_b <- transport_override(d_b) %||% target_idx_b
               aipw_point_b <- compute_aipw_contrast_point(
@@ -404,8 +416,13 @@ variance_bootstrap <- function(
           }
         )
 
-        target_idx_b <- get_target_idx(d_b, treatment, est, subset,
-                                       subset_env = subset_env)
+        target_idx_b <- get_target_idx(
+          d_b,
+          treatment,
+          est,
+          subset,
+          subset_env = subset_env
+        )
         target_idx_b <- transport_override(d_b) %||% target_idx_b
 
         vapply(
@@ -565,7 +582,8 @@ refit_ipw <- function(fit, d_b, weights = NULL) {
     propensity_model_fn = fit$details$propensity_model_fn,
     propensity_family = fit$details$propensity_family,
     stabilize = fit$details$stabilize %||% "none",
-    call = NULL
+    call = NULL,
+    target = fit$target
   )
   # Longitudinal IPW needs the id / time slots threaded through to
   # `fit_longitudinal_ipw()`; point IPW ignores them.
@@ -575,6 +593,25 @@ refit_ipw <- function(fit, d_b, weights = NULL) {
   }
   fit_b <- do.call(fit_ipw, c(args, fit$details$dots))
   fit_b$call <- fit$call
+
+  # Transport: refit sampling model on bootstrap replicate
+  if (!is.null(fit$target)) {
+    samp_model_b <- fit_sampling_model(
+      d_b,
+      fit$target,
+      fit$confounders,
+      fit$treatment,
+      model_fn = fit$details$sampling_model_fn,
+      weights = weights
+    )
+    fit_b$details$transport <- TRUE
+    fit_b$details$sampling_model <- samp_model_b
+    fit_b$details$sampling_model_fn <- fit$details$sampling_model_fn
+    fit_b$details$target_subset <- fit$target_subset
+    fit_b$target <- fit$target
+    fit_b$target_subset <- fit$target_subset
+  }
+
   fit_b
 }
 

@@ -88,10 +88,14 @@ fit_sampling_model <- function(
   all_terms <- attr(stats::terms(confounders), "term.labels")
   if (!is.null(treatment)) {
     trt_set <- unique(unlist(lapply(treatment, function(a) a)))
-    keep <- vapply(all_terms, function(tm) {
-      term_vars <- all.vars(stats::reformulate(tm))
-      !any(term_vars %in% trt_set)
-    }, logical(1))
+    keep <- vapply(
+      all_terms,
+      function(tm) {
+        term_vars <- all.vars(stats::reformulate(tm))
+        !any(term_vars %in% trt_set)
+      },
+      logical(1)
+    )
     sampling_terms <- all_terms[keep]
   } else {
     sampling_terms <- all_terms
@@ -114,7 +118,10 @@ fit_sampling_model <- function(
   fit_data <- data[fit_rows]
 
   # Build formula: .sampling_s ~ baseline_confounders (no treatment on RHS)
-  sampling_formula <- stats::reformulate(sampling_terms, response = ".sampling_s")
+  sampling_formula <- stats::reformulate(
+    sampling_terms,
+    response = ".sampling_s"
+  )
 
   fit_data$.sampling_s <- as.integer(fit_data[[target]])
 
@@ -150,6 +157,104 @@ fit_sampling_model <- function(
     ),
     class = "causatr_sampling_model"
   )
+}
+
+
+#' Compute sampling weights for transportability/generalizability
+#'
+#' @description
+#' Evaluates the fitted sampling model at all rows of `data` and returns
+#' a weight vector \eqn{w_S} that reweights study rows to the target
+#' population. Target rows (S = 0) receive \eqn{w_S = 1} because they
+#' do not enter the weighted MSM.
+#'
+#' For `target_subset = "target"` (transportability):
+#' \eqn{w_S = [1 - \hat P(S=1 \mid L)] / \hat P(S=1 \mid L)}
+#' (odds weight).
+#'
+#' For `target_subset = "all"` (generalizability):
+#' \eqn{w_S = 1 / \hat P(S=1 \mid L)}
+#' (inverse probability weight).
+#'
+#' @param sampling_model A `causatr_sampling_model` from
+#'   `fit_sampling_model()`.
+#' @param data A data.table with the same rows used at fit time.
+#' @param target Character. Column name of the sampling indicator.
+#' @param target_subset `"target"` or `"all"`.
+#'
+#' @return Numeric vector of length `nrow(data)`.
+#' @noRd
+compute_sampling_weights <- function(
+  sampling_model,
+  data,
+  target,
+  target_subset
+) {
+  n <- nrow(data)
+  study_rows <- which(data[[target]] == 1L)
+
+  # Predict P(S=1|L) on all rows using the design matrix from the
+  # fitted model's terms. `xlev` ensures factor levels match the fit.
+  pred_terms <- stats::delete.response(stats::terms(sampling_model$model))
+  X_all <- stats::model.matrix(
+    pred_terms,
+    data = data,
+    xlev = sampling_model$model$xlevels
+  )
+  p_study <- stats::plogis(as.numeric(X_all %*% sampling_model$gamma_hat))
+
+  w <- rep(1, n)
+  if (identical(target_subset, "target")) {
+    w[study_rows] <- (1 - p_study[study_rows]) / p_study[study_rows]
+  } else {
+    w[study_rows] <- 1 / p_study[study_rows]
+  }
+  w
+}
+
+
+#' Closure for sampling weights as a function of gamma
+#'
+#' @description
+#' Returns a function `gamma -> w_S(gamma)` for use in
+#' `numDeriv::jacobian()` when computing the cross-derivative
+#' \eqn{A_{\beta\gamma}} for the sampling-model correction in the
+#' stacked sandwich. Same pattern as `make_ipcw_weight_fn()`.
+#'
+#' @param sampling_model A `causatr_sampling_model`.
+#' @param data A data.table (all rows).
+#' @param target Character. Column name of the sampling indicator.
+#' @param target_subset `"target"` or `"all"`.
+#'
+#' @return A function `function(gamma)` returning a numeric vector of
+#'   length `nrow(data)`.
+#' @noRd
+make_sampling_weight_fn <- function(
+  sampling_model,
+  data,
+  target,
+  target_subset
+) {
+  n <- nrow(data)
+  study_rows <- which(data[[target]] == 1L)
+  pred_terms <- stats::delete.response(stats::terms(sampling_model$model))
+  X_all <- stats::model.matrix(
+    pred_terms,
+    data = data,
+    xlev = sampling_model$model$xlevels
+  )
+
+  function(gamma) {
+    eta <- as.numeric(X_all %*% gamma)
+    p <- stats::plogis(eta)
+    w <- rep(1, n)
+    if (identical(target_subset, "target")) {
+      w[study_rows] <- (1 - p[study_rows]) / p[study_rows]
+    } else {
+      w[study_rows] <- 1 / p[study_rows]
+    }
+    w
+  }
 }
 
 

@@ -657,7 +657,22 @@ Sampling model `P(S=1 | L)` + sampling-odds weights multiply into IPW Hájek MSM
 | `target = NULL` (non-transport): behaviour unchanged | ✅ | test-gcomp-transport.R |
 | Treatment-covariate interactions stripped from sampling model formula | ✅ | test-gcomp-transport.R |
 
-Remaining chunks (17c–17i): IPW transport, bootstrap (standalone), AIPW transport, diagnostics, external cross-check, longitudinal transport, documentation. All ❌.
+**Chunk 17c — IPW transport**
+
+| Feature | Status | Test file |
+|---|---|---|
+| `causat(target = "S", estimator = "ipw")` restricts `fit_rows` to S=1 | ✅ | test-ipw-transport.R |
+| `target_subset` stored on fit | ✅ | test-ipw-transport.R |
+| Sampling × treatment weight product in MSM refit | ✅ | test-ipw-transport.R |
+| Truth-based test (transportability): ATE ≈ 3 + E[L\|S=0] | ✅ | test-ipw-transport.R |
+| Truth-based test (generalizability): ATE ≈ 3 + E[L] | ✅ | test-ipw-transport.R |
+| Transport corrects study-population bias vs. naive IPW | ✅ | test-ipw-transport.R |
+| Sandwich SE plausible (ratio to bootstrap in (0.6, 1.8)) | ✅ | test-ipw-transport.R |
+| Target rows with NA outcome/treatment handled | ✅ | test-ipw-transport.R |
+| Bootstrap refits sampling + propensity models per replicate | ✅ | test-ipw-transport.R |
+| `target = NULL` (non-transport): behaviour unchanged | ✅ | test-ipw-transport.R |
+
+Remaining chunks (17d–17i): bootstrap (standalone), AIPW transport, diagnostics, external cross-check, longitudinal transport, documentation. All ❌.
 
 ### Phase 18 — G-estimation of Structural Nested Mean Models
 Third leg of the Robins triangle. Motivating use case: **correct handling of time-varying effect modification** — SNMs parameterise the per-stage blip $\gamma_k(a_k, \bar{l}_k, \bar{a}_{k-1}; \psi)$ directly and identify it via a moment condition that uses the treatment model as instrument, so time-varying modifiers are supported by design (closes the Phase 6 limitation under MSM-based estimators). Scope: linear-blip additive SNMMs for point + longitudinal, stacked EE sandwich ($K$ treatment blocks + blip block), bootstrap, `gesttools` cross-check. Survival SNMs (SNFTMs/SNCFTMs) out of scope. All ❌.

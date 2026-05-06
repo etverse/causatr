@@ -1,6 +1,6 @@
 # Phase 17 — Transportability and Generalizability
 
-> **Status: IN PROGRESS** — 17a–17b shipped; 17c–17i pending.
+> **Status: IN PROGRESS** — 17a–17c shipped; 17d–17i pending.
 >
 > **Depends on:** Phase 2 (point gcomp), Phase 4 (self-contained IPW)
 >
@@ -138,7 +138,7 @@ Phase 11 (diagnose rewrite) will fold this in; Phase 17 ships a minimal shim ana
 |---|---|---|---|
 | 17a | `fit_sampling_model()`: fit $P(S = 1 \mid L)$ via `sampling_model_fn`; validate S is binary and present in data; reject if S has NAs; store in `fit$details$sampling_model` | — | ✅ done |
 | 17b | Gcomp transport: target-subset filter in `compute_contrast()`; outcome model fit on S = 1, standardization over target rows; sandwich with sampling-model cross-derivative | 17a, Phase 2 | ✅ done |
-| 17c | IPW transport: sampling × treatment weight product in the IPW weight pipeline (`ipw_weights.R` / `make_weight_fn()`); weighted MSM on study rows; stacked sandwich | 17a, Phase 4 | pending |
+| 17c | IPW transport: sampling × treatment weight product in the IPW weight pipeline (`ipw_weights.R` / `make_weight_fn()`); weighted MSM on study rows; stacked sandwich | 17a, Phase 4 | ✅ done |
 | 17d | Bootstrap (refit sampling + propensity + outcome per replicate) | 17a–17c | pending |
 | 17e | AIPW transport: compose Phase 16 + Phase 17; 2-out-of-3 DR test (deliberately misspecify any one of outcome / treatment / sampling — verify consistency) | 17a–17c, Phase 16 | pending |
 | 17f | `diagnose()` shim: sampling-score panel + extreme-sampling-weight flags | 17a | pending |

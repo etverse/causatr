@@ -87,6 +87,7 @@ fit_ipw <- function(
   id = NULL,
   time = NULL,
   call,
+  target = NULL,
   ...
 ) {
   # Longitudinal IPW dispatch. The full point-treatment
@@ -163,7 +164,7 @@ fit_ipw <- function(
   # applies its own propensity-side row mask (missing treatment /
   # confounders) inside; if that differs from the outcome-row mask we
   # abort below so downstream row-alignment invariants hold.
-  fit_rows <- get_fit_rows(data, outcome)
+  fit_rows <- get_fit_rows(data, outcome, target = target)
   fit_data <- data[fit_rows]
 
   # Resolve the propensity fitter. For binary / continuous treatments
@@ -454,6 +455,21 @@ compute_ipw_contrast_point <- function(
   int_names <- names(interventions)
   k <- length(int_names)
 
+  # Transport: compute sampling weights w_S once (shared across
+  # all interventions). Study rows get w_S = odds or 1/p; target
+  # rows get w_S = 1 (they don't enter the MSM).
+  is_transport <- isTRUE(fit$details$transport)
+  w_S_fit <- NULL
+  if (is_transport) {
+    w_S <- compute_sampling_weights(
+      fit$details$sampling_model,
+      data,
+      fit$target,
+      fit$target_subset
+    )
+    w_S_fit <- w_S[fit_rows]
+  }
+
   # Pre-compute the intervention-specific MSM + weight vector +
   # marginal mean. Stored in a per-intervention list used both by
   # the sandwich and bootstrap paths.
@@ -491,11 +507,18 @@ compute_ipw_contrast_point <- function(
       compute_density_ratio_weights(tm, fit_data, iv, estimand = estimand)
     }
 
-    # Compose with external weights. The density-ratio weights enter
-    # multiplicatively because survey / IPCW weights represent an
-    # independent reweighting of the target population (sampling
-    # design) from the density ratio (causal reweighting).
-    w_final <- if (is.null(ext_w_fit)) w_iv else w_iv * ext_w_fit
+    # Compose with sampling weights (transport) and external weights.
+    # All weight sources enter multiplicatively:
+    # - w_iv: density-ratio (causal reweighting per intervention)
+    # - w_S_fit: sampling odds/IP weight (reweighting to target pop)
+    # - ext_w_fit: survey / IPCW weights (sampling design)
+    w_final <- w_iv
+    if (!is.null(w_S_fit)) {
+      w_final <- w_final * w_S_fit
+    }
+    if (!is.null(ext_w_fit)) {
+      w_final <- w_final * ext_w_fit
+    }
 
     # The unified density-ratio engine always produces an
     # intervention-specific weight vector: HT indicators for static
@@ -553,7 +576,14 @@ compute_ipw_contrast_point <- function(
       newdata = data_a_fit,
       type = "response"
     )
-    target_fit <- target_idx[fit_rows]
+    # For transport, the sampling weights in the MSM already handle
+    # reweighting to the target population. All study rows contribute
+    # (target_idx selects S=0 rows which aren't in fit_data).
+    target_fit <- if (is_transport) {
+      rep(TRUE, nrow(fit_data))
+    } else {
+      target_idx[fit_rows]
+    }
     valid_fit <- target_fit & !is.na(preds_fit)
     w_target <- if (!is.null(ext_w_fit)) ext_w_fit[valid_fit] else NULL
     mu_hat_iv <- maybe_weighted_mean(preds_fit[valid_fit], w_target)
