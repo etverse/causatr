@@ -858,6 +858,7 @@ check_transport_inputs <- function(
   target_col,
   target_subset = "target",
   estimator = "gcomp",
+  estimand = "ATE",
   call = rlang::caller_env()
 ) {
   if (estimator == "matching") {
@@ -870,6 +871,24 @@ check_transport_inputs <- function(
         )
       ),
       class = "causatr_transport_matching",
+      call = call
+    )
+  }
+
+  if (estimand %in% c("ATT", "ATC")) {
+    rlang::abort(
+      c(
+        paste0(
+          "`estimand = \"",
+          estimand,
+          "\"` is not supported with `target` (transportability)."
+        ),
+        i = paste0(
+          "Transport estimands are defined over the target population, ",
+          "not the treated or control subgroup. Use `estimand = \"ATE\"`."
+        )
+      ),
+      class = "causatr_transport_estimand",
       call = call
     )
   }

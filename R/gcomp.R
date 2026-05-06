@@ -36,6 +36,7 @@ fit_gcomp <- function(
   id,
   time,
   call,
+  target = NULL,
   ...
 ) {
   if (type == "longitudinal") {
@@ -68,6 +69,7 @@ fit_gcomp <- function(
       weights,
       model_fn,
       call,
+      target = target,
       ...
     )
   }
@@ -118,6 +120,7 @@ fit_gcomp_point <- function(
   weights,
   model_fn,
   call,
+  target = NULL,
   ...
 ) {
   # Build outcome model formula: Y ~ A [+ A2 ...] + confounder_terms.
@@ -132,7 +135,7 @@ fit_gcomp_point <- function(
   # the full target population regardless of censoring status. The model is
   # fit once here on observed (A, L, Y) and re-used at prediction time for
   # each intervention d: mu_hat(d) = (1/n) sum_i m(d(A_i, L_i), L_i).
-  fit_rows <- get_fit_rows(data, outcome, censoring)
+  fit_rows <- get_fit_rows(data, outcome, censoring, target = target)
   fit_data <- data[fit_rows]
 
   # Subset the user-supplied observation weights to match the fitting rows.
@@ -193,7 +196,8 @@ fit_gcomp_point <- function(
       n_total = nrow(data),
       model_fn = model_fn,
       weights = weights,
-      dots = dots
+      dots = dots,
+      target = target
     )
   )
 }

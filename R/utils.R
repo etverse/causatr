@@ -511,8 +511,8 @@ check_confounders_treatment <- function(
 #' @param censoring Character censoring column name, or `NULL`.
 #' @return Logical vector of length `nrow(data)`.
 #' @noRd
-get_fit_rows <- function(data, outcome, censoring = NULL) {
-  # Both conditions must hold for a row to enter the model fit:
+get_fit_rows <- function(data, outcome, censoring = NULL, target = NULL) {
+  # Three conditions must hold for a row to enter the model fit:
   #
   # 1. Uncensored: a censored row carries an observed outcome that
   #    reflects censoring rather than the natural disease process;
@@ -523,7 +523,15 @@ get_fit_rows <- function(data, outcome, censoring = NULL) {
   #    the fitted-value vector and misaligns `fit_rows`-indexed score
   #    matrices in the sandwich engine. Excluding them here keeps the
   #    bookkeeping correct and makes the exclusion explicit.
-  is_uncensored(data, censoring) & !is.na(data[[outcome]])
+  #
+  # 3. Study population (transport only): when `target` is non-NULL,
+  #    restrict to S = 1 rows. Target rows (S = 0) have no observed Y
+  #    or A and must not enter the outcome model fit.
+  rows <- is_uncensored(data, censoring) & !is.na(data[[outcome]])
+  if (!is.null(target)) {
+    rows <- rows & (data[[target]] == 1L)
+  }
+  rows
 }
 
 #' Weighted or unweighted mean

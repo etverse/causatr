@@ -640,7 +640,24 @@ Sampling model `P(S=1 | L)` + sampling-odds weights multiply into IPW Hájek MSM
 | Validation: extreme selection rate → warning | ✅ | test-sampling-model.R |
 | Target column preserved in `fit$data` | ✅ | test-sampling-model.R |
 
-Remaining chunks (17b–17i): gcomp transport, IPW transport, bootstrap, AIPW transport, diagnostics, external cross-check, longitudinal transport, documentation. All ❌.
+**Chunk 17b — gcomp transport**
+
+| Feature | Status | Test |
+|---|---|---|
+| `causat(target = "S")` with gcomp restricts `fit_rows` to S=1 | ✅ | test-gcomp-transport.R |
+| `target_subset = "target"`: standardize over S=0 rows (transportability) | ✅ | test-gcomp-transport.R |
+| `target_subset = "all"`: standardize over all rows (generalizability) | ✅ | test-gcomp-transport.R |
+| Truth-based test (transportability): ATE ≈ 3 + E[L\|S=0] | ✅ | test-gcomp-transport.R |
+| Truth-based test (generalizability): ATE ≈ 3 + E[L] ≈ 3 | ✅ | test-gcomp-transport.R |
+| Transport corrects study-population bias | ✅ | test-gcomp-transport.R |
+| Sandwich SE plausible (ratio to bootstrap in (0.5, 2)) | ✅ | test-gcomp-transport.R |
+| Target rows with NA outcome/treatment handled | ✅ | test-gcomp-transport.R |
+| Validation: ATT/ATC with `target` → error | ✅ | test-gcomp-transport.R |
+| Bootstrap refits outcome model on S=1 rows per replicate | ✅ | test-gcomp-transport.R |
+| `target = NULL` (non-transport): behaviour unchanged | ✅ | test-gcomp-transport.R |
+| Treatment-covariate interactions stripped from sampling model formula | ✅ | test-gcomp-transport.R |
+
+Remaining chunks (17c–17i): IPW transport, bootstrap (standalone), AIPW transport, diagnostics, external cross-check, longitudinal transport, documentation. All ❌.
 
 ### Phase 18 — G-estimation of Structural Nested Mean Models
 Third leg of the Robins triangle. Motivating use case: **correct handling of time-varying effect modification** — SNMs parameterise the per-stage blip $\gamma_k(a_k, \bar{l}_k, \bar{a}_{k-1}; \psi)$ directly and identify it via a moment condition that uses the treatment model as instrument, so time-varying modifiers are supported by design (closes the Phase 6 limitation under MSM-based estimators). Scope: linear-blip additive SNMMs for point + longitudinal, stacked EE sandwich ($K$ treatment blocks + blip block), bootstrap, `gesttools` cross-check. Survival SNMs (SNFTMs/SNCFTMs) out of scope. All ❌.

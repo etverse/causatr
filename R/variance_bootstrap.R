@@ -282,6 +282,14 @@ variance_bootstrap <- function(
         }
         w_b <- if (!is.null(orig_w)) orig_w[indices] else NULL
 
+        # Returns the transport/generalizability override for target_idx, or
+        # NULL when no transport is active (NULL-safe for %||% chaining).
+        transport_override <- function(data) {
+          if (is.null(fit$target)) return(NULL)
+          if (identical(fit$target_subset, "target")) return(data[[fit$target]] == 0L)
+          rep(TRUE, nrow(data))
+        }
+
         # IPW replicates refit the density model on `d_b` via
         # `refit_ipw()` and then reuse the analytic
         # `compute_ipw_contrast_point()` path: one weighted MSM per
@@ -302,12 +310,9 @@ variance_bootstrap <- function(
             {
               fit_b <- refit_ipw(fit, d_b, weights = w_b)
               target_idx_b <- get_target_idx(
-                d_b,
-                treatment,
-                est,
-                subset,
-                subset_env = subset_env
+                d_b, treatment, est, subset, subset_env = subset_env
               )
+              target_idx_b <- transport_override(d_b) %||% target_idx_b
               ipw_point_b <- compute_ipw_contrast_point(
                 fit_b,
                 interventions,
@@ -339,12 +344,9 @@ variance_bootstrap <- function(
             {
               fit_b <- refit_aipw(fit, d_b, weights = w_b)
               target_idx_b <- get_target_idx(
-                d_b,
-                treatment,
-                est,
-                subset,
-                subset_env = subset_env
+                d_b, treatment, est, subset, subset_env = subset_env
               )
+              target_idx_b <- transport_override(d_b) %||% target_idx_b
               aipw_point_b <- compute_aipw_contrast_point(
                 fit_b,
                 interventions,
@@ -402,13 +404,9 @@ variance_bootstrap <- function(
           }
         )
 
-        target_idx_b <- get_target_idx(
-          d_b,
-          treatment,
-          est,
-          subset,
-          subset_env = subset_env
-        )
+        target_idx_b <- get_target_idx(d_b, treatment, est, subset,
+                                       subset_env = subset_env)
+        target_idx_b <- transport_override(d_b) %||% target_idx_b
 
         vapply(
           interventions,
@@ -495,7 +493,7 @@ refit_gcomp <- function(fit, d_b, weights = NULL) {
     weights <- if (is.null(weights)) ipcw_w_b else weights * ipcw_w_b
   }
 
-  fit_rows_b <- get_fit_rows(d_b, outcome, censoring)
+  fit_rows_b <- get_fit_rows(d_b, outcome, censoring, target = fit$target)
 
   args <- list(model_formula, data = d_b[fit_rows_b])
   if (fn_accepts_family(model_fn)) {

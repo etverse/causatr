@@ -1,6 +1,6 @@
 # Phase 17 — Transportability and Generalizability
 
-> **Status: IN PROGRESS** — 17a shipped; 17b–17i pending.
+> **Status: IN PROGRESS** — 17a–17b shipped; 17c–17i pending.
 >
 > **Depends on:** Phase 2 (point gcomp), Phase 4 (self-contained IPW)
 >
@@ -83,9 +83,9 @@ where $w_i^A(a) = \mathbb{1}\{A_i = a\} / \hat P(A = a \mid L_i, S = 1)$ is the 
 
 **AIPW transport.** Post-Phase-16 composition:
 $$
-\hat\psi_{\text{target}}(a) = \frac{1}{n_{\text{target}}} \sum_{i: \, \text{target}} \hat{m}(a, L_i) + \frac{1}{n_{\text{study}}} \sum_{i: S = 1} w_i^S \cdot w_i^A(a) \cdot (Y_i - \hat{m}(a, L_i)),
+\hat\psi_{\text{target}}(a) = \frac{1}{n_{\text{target}}} \sum_{i: \, \text{target}} \hat{m}(a, L_i) + \frac{1}{n_{\text{target}}} \sum_{i: S = 1} w_i^S \cdot w_i^A(a) \cdot (Y_i - \hat{m}(a, L_i)),
 $$
-consistent if **any two** of (outcome model, treatment model, sampling model) are correctly specified (triple robustness under some conventions; this is the "2-out-of-3 DR" structure of Dahabreh et al. 2020 Section 4.2).
+where both terms use $1/n_{\text{target}}$ as denominator (Dahabreh et al. 2020, Section 4.2). The augmentation term sums over study rows only but is normalized by the target population size, matching the Hájek form used elsewhere. Consistent if **any two** of (outcome model, treatment model, sampling model) are correctly specified (triple robustness under some conventions; this is the "2-out-of-3 DR" structure of Dahabreh et al. 2020 Section 4.2).
 
 ### Sampling model
 
@@ -137,8 +137,8 @@ Phase 11 (diagnose rewrite) will fold this in; Phase 17 ships a minimal shim ana
 | Chunk | Scope | Depends on | Status |
 |---|---|---|---|
 | 17a | `fit_sampling_model()`: fit $P(S = 1 \mid L)$ via `sampling_model_fn`; validate S is binary and present in data; reject if S has NAs; store in `fit$details$sampling_model` | — | ✅ done |
-| 17b | Gcomp transport: target-subset filter in `compute_contrast()`; outcome model fit on S = 1, standardization over target rows; sandwich with sampling-model cross-derivative | 17a, Phase 2 | pending |
-| 17c | IPW transport: sampling × treatment weight product in `compute_density_ratio_weights()`; weighted MSM on study rows; stacked sandwich | 17a, Phase 4 | pending |
+| 17b | Gcomp transport: target-subset filter in `compute_contrast()`; outcome model fit on S = 1, standardization over target rows; sandwich with sampling-model cross-derivative | 17a, Phase 2 | ✅ done |
+| 17c | IPW transport: sampling × treatment weight product in the IPW weight pipeline (`ipw_weights.R` / `make_weight_fn()`); weighted MSM on study rows; stacked sandwich | 17a, Phase 4 | pending |
 | 17d | Bootstrap (refit sampling + propensity + outcome per replicate) | 17a–17c | pending |
 | 17e | AIPW transport: compose Phase 16 + Phase 17; 2-out-of-3 DR test (deliberately misspecify any one of outcome / treatment / sampling — verify consistency) | 17a–17c, Phase 16 | pending |
 | 17f | `diagnose()` shim: sampling-score panel + extreme-sampling-weight flags | 17a | pending |
@@ -151,13 +151,14 @@ Phase 11 (diagnose rewrite) will fold this in; Phase 17 ships a minimal shim ana
 - `target = "S"` requires S to be a binary 0/1 column with no NAs. The sampling model is fit on **all rows**, not just study rows.
 - When `target = NULL` (default), Phase 17's pathway is inactive and `causat()` behaves exactly as pre-Phase-17 — the study estimand is returned as today. Non-breaking change.
 - Under `target_subset = "target"`, target-ATE rows MUST have no treatment (A) or outcome (Y) dependency — the estimator only uses target-row L. If A or Y are present on target rows, they are ignored with a silent `rlang::inform()` note (not an error — users sometimes leave observed A in target rows for convenience).
-- The sampling model's predictor set should be a superset of the outcome model's and treatment model's predictor sets — otherwise the transportability assumption may fail silently. `fit_transport()` emits a `rlang::warn()` when the sampling formula's RHS is a strict subset.
+- The sampling model's predictor set should be a superset of the outcome model's and treatment model's predictor sets — otherwise the transportability assumption may fail silently. Planned: `fit_sampling_model()` should emit a `rlang::warn()` when the confounders formula's RHS is a strict subset of what the outcome/treatment models use. (Deferred to chunk 17b or later — not yet implemented.)
 - Bootstrap MUST refit the sampling model per replicate (it has estimated parameters); a replicate that fails (degenerate S distribution in the bootstrap sample) returns NA and is excluded, same convention as Phase 2 bootstrap.
 
 ## DGP for truth-based tests
 
 ### Generalizability (chunk 17b–17c)
 
+Simplified example (constant treatment effect — study and target ATEs coincide, so not useful for truth-based tests but illustrates the data structure):
 ```
 L ~ N(0, 1)                                (population)
 P(S = 1 | L) = expit(-0.5 + 1.0 · L)      (sampling: under-represents L < 0)
@@ -168,7 +169,7 @@ Target ATE = E[Y^1 - Y^0] = 3              (over full population N(0,1))
 Study ATE = E[Y^1 - Y^0 | S = 1] = 3       (coincidentally 3 here because
                                             treatment effect is constant in L)
 ```
-To make study-target divergence visible, add an interaction:
+To make study-target divergence visible (this is the DGP used in `simulate_transport()` and truth-based tests), add an interaction:
 ```
 Y | A, L ~ N(2 + 3 · A + 1.5 · L + 1.0 · A · L, 1)
 Target ATE = 3 + 1.0 · E[L] = 3

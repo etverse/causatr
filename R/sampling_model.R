@@ -56,6 +56,7 @@ fit_sampling_model <- function(
   data,
   target,
   confounders,
+  treatment = NULL,
   model_fn = stats::glm,
   weights = NULL,
   ...
@@ -79,21 +80,41 @@ fit_sampling_model <- function(
     )
   }
 
-  # Fit on all rows (S = 1 and S = 0). Exclude rows with NA confounders,
-  # which cannot contribute to likelihood anyway and would cause GLM to
-  # drop them silently via na.action = na.omit.
+  # Strip any confounder terms involving the treatment variable(s) before
+  # building the sampling formula. S is a baseline property that precedes
+  # treatment assignment, so treatment and treatment-covariate interactions
+  # (e.g. A:L) are not valid predictors of S. They would also cause NA-row
+  # exclusion for target-population rows where A is unobserved.
+  all_terms <- attr(stats::terms(confounders), "term.labels")
+  if (!is.null(treatment)) {
+    trt_set <- unique(unlist(lapply(treatment, function(a) a)))
+    keep <- vapply(all_terms, function(tm) {
+      term_vars <- all.vars(stats::reformulate(tm))
+      !any(term_vars %in% trt_set)
+    }, logical(1))
+    sampling_terms <- all_terms[keep]
+  } else {
+    sampling_terms <- all_terms
+  }
+  if (length(sampling_terms) == 0L) {
+    sampling_terms <- "1"
+  }
+
+  # Fit on all rows (S = 1 and S = 0). Exclude rows with NA in the
+  # sampling-model predictors (not treatment, which is NA on target rows
+  # by design and has already been stripped above).
+  sampling_vars <- unique(unlist(lapply(
+    sampling_terms[sampling_terms != "1"],
+    function(tm) all.vars(stats::reformulate(tm))
+  )))
   fit_rows <- rep(TRUE, nrow(data))
-  for (v in all.vars(confounders)) {
+  for (v in sampling_vars) {
     fit_rows <- fit_rows & !is.na(data[[v]])
   }
   fit_data <- data[fit_rows]
 
-  # Build formula: .sampling_s ~ confounders (no treatment on RHS)
-  confounder_terms <- attr(stats::terms(confounders), "term.labels")
-  sampling_formula <- stats::reformulate(
-    confounder_terms,
-    response = ".sampling_s"
-  )
+  # Build formula: .sampling_s ~ baseline_confounders (no treatment on RHS)
+  sampling_formula <- stats::reformulate(sampling_terms, response = ".sampling_s")
 
   fit_data$.sampling_s <- as.integer(fit_data[[target]])
 

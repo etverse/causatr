@@ -913,6 +913,8 @@ compute_contrast <- function(
     # (sum_i w_i) (Hajek 1971). Using Y ~ A instead would double-count
     # the treatment by conditioning on both the weight and the A column.
     target_idx <- get_target_idx(data, fit$treatment, est, subset, subset_env)
+    target_idx <- transport_target_idx(data, fit$target, fit$target_subset) %||%
+      target_idx
     n_target <- sum(target_idx)
     if (n_target == 0L) {
       rlang::abort(
@@ -959,6 +961,8 @@ compute_contrast <- function(
     # the contrast assembles the doubly-robust functional per
     # intervention.
     target_idx <- get_target_idx(data, fit$treatment, est, subset, subset_env)
+    target_idx <- transport_target_idx(data, fit$target, fit$target_subset) %||%
+      target_idx
     n_target <- sum(target_idx)
     if (n_target == 0L) {
       rlang::abort(
@@ -1014,6 +1018,8 @@ compute_contrast <- function(
     # This vector is passed to the variance engine so the IF aggregation
     # averages over the same n_target rows that mu_hat was computed on.
     target_idx <- get_target_idx(data, fit$treatment, est, subset, subset_env)
+    target_idx <- transport_target_idx(data, fit$target, fit$target_subset) %||%
+      target_idx
 
     # Predict E[Y | A = a(L_i), L_i] under each intervention. For
     # deterministic interventions this is a single apply + predict; for
@@ -1372,4 +1378,34 @@ get_target_idx <- function(
     return(!is.na(trt_vals) & trt_vals == 1)
   }
   !is.na(trt_vals) & trt_vals == 0
+}
+
+
+#' Apply transport target override to a target_idx logical vector
+#'
+#' @description
+#' For transportability/generalizability, the target population is defined
+#' by the sampling indicator S (not by estimand or treatment status).
+#' Call this after `get_target_idx()` to override when `target` is non-NULL.
+#'
+#' This is a separate function (not folded into `get_target_idx()`) so that
+#' `get_target_idx()` keeps its original signature — future-backend workers
+#' load the installed package and would fail if signature changes.
+#'
+#' @param data A data.table.
+#' @param target Column name of the sampling indicator, or `NULL`.
+#' @param target_subset `"target"` (standardize over S=0) or `"all"` (all rows).
+#'
+#' @return A logical vector of length `nrow(data)`, or `NULL` if `target` is
+#'   `NULL` (signals no transport override — caller keeps existing `target_idx`).
+#' @noRd
+transport_target_idx <- function(data, target, target_subset) {
+  if (is.null(target)) {
+    return(NULL)
+  }
+  if (identical(target_subset, "target")) {
+    return(data[[target]] == 0L)
+  }
+  # target_subset == "all": generalizability — all rows are the target
+  rep(TRUE, nrow(data))
 }

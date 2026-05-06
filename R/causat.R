@@ -564,6 +564,7 @@ causat <- function(
       target_col = data[[target]],
       target_subset = target_subset,
       estimator = estimator,
+      estimand = estimand,
       call = call
     )
     samp_fn <- sampling_model_fn %||% stats::glm
@@ -571,6 +572,7 @@ causat <- function(
       data = data,
       target = target,
       confounders = confounders,
+      treatment = treatment,
       model_fn = samp_fn,
       weights = weights
     )
@@ -684,6 +686,7 @@ causat <- function(
       id,
       time,
       call,
+      target = target,
       ...
     ),
     ipw = fit_ipw(
