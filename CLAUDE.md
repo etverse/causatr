@@ -66,6 +66,12 @@ Shell: `air format .` (format all R files).
 - External reference cross-checks against `lmtp::lmtp_tmle()` or `delicatessen` when analytical truth is hard to derive
 - Update `FEATURE_COVERAGE_MATRIX.md` in the same PR as test changes
 
+## Cost discipline
+
+- **Targeted tests**: Use `devtools::test(filter = "foo")` during development. Only run the full `devtools::test()` suite before committing. A hook blocks unfiltered test runs.
+- **Batch R scripts**: Combine multiple diagnostic/validation checks into a single `Rscript -e '...'` call instead of running them one at a time. Each R process startup costs 10-30 seconds of idle context.
+- **Model awareness**: For routine work (formatting, simple edits, running tests, git operations), Sonnet is 5x cheaper than Opus. Suggest `/model sonnet` to the user when entering a routine-work phase, and `/model opus` when hard reasoning is needed (debugging subtle bugs, designing new features, variance derivations).
+
 ## Constraints
 
 - Run `devtools::test()` before committing

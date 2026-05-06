@@ -602,6 +602,24 @@ ice_aipw_iterate <- function(fit, intervention) {
 
   binary_outcome <- is_binary_family(family_outcome)
 
+  # IPSI shifts the propensity score, not the treatment value — longitudinal
+  # AIPW needs a counterfactual treatment stream to iterate the sequential
+  # outcome regressions.  Point AIPW handles IPSI as a special case, but the
+
+  # longitudinal path does not yet support it.
+  is_ipsi <- inherits(intervention, "causatr_intervention") &&
+    intervention$type == "ipsi"
+  if (is_ipsi) {
+    rlang::abort(
+      paste0(
+        "`ipsi()` interventions are not yet supported under longitudinal AIPW. ",
+        "Use `estimator = 'ipw'` for longitudinal IPSI, or rewrite the ",
+        "intervention as `shift()` / `scale_by()` for AIPW."
+      ),
+      class = "causatr_longitudinal_ipsi_pending"
+    )
+  }
+
   # Build intervention-modified person-period frame (same as ICE).
   data_iv <- ice_apply_intervention_long(
     data,
