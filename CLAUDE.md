@@ -15,13 +15,14 @@ This is an R package: `R/` (source), `tests/testthat/` (tests, `test-foo.R` mirr
 
 ### R/ file layout
 
-**Core API:** `causat.R` (main fitting), `contrast.R` (causal contrasts), `diagnose.R` (diagnostics).
+**Core API:** `causat.R` (main fitting), `contrast.R` (causal contrasts), `diagnose.R` + `diagnose_longitudinal.R` (diagnostics).
 **Interventions:** `interventions.R` — `static()`, `shift()`, `scale_by()`, `threshold()`, `dynamic()`, `ipsi()`, `stochastic()`.
 **Estimation:** `gcomp.R`, `ice.R`, `ipw.R`, `aipw.R`, `longitudinal_ipw.R`, `matching.R`.
-**Inference:** `variance_if.R` (IF sandwich engine), `variance_bootstrap.R`.
+**Inference (IF sandwich):** `variance_if_core.R` (model-correction primitives + vcov aggregation), `variance_if.R` (main dispatcher + numeric fallback + point channel + gcomp/matching IF), `variance_if_ice.R`, `variance_if_ipw.R` (point + mv + longitudinal IPW IF), `variance_if_aipw.R` (point + longitudinal AIPW IF).
+**Inference (bootstrap):** `variance_bootstrap.R` (core + refitters), `variance_bootstrap_longitudinal.R` (longitudinal IPW/ICE/AIPW bootstrap).
 **Data:** `to_person_period.R`, `prepare_data.R`.
 **S3:** `print.R`, `summary.R`, `plot.R`, `coef.R`, `confint.R`, `tidy.R`, `knit_print.R`.
-**Support:** `effect_modification.R`, `ipw_weights.R`, `treatment_model.R`, `utils.R`, `checks.R`, `zzz.R`.
+**Support:** `effect_modification.R`, `ipw_weights.R` (point weights), `ipw_weights_mv.R` (mv weights + shared helpers), `ipw_weights_longitudinal.R`, `treatment_model.R`, `utils.R`, `checks.R`, `zzz.R`.
 
 ### S3 classes
 
