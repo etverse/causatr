@@ -235,7 +235,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../vignettes/triangulation.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Methodological triangulation: g-computation, IPW, and matching</span></a>
+ <span class="menu-text">Methodological triangulation: g-computation, IPW, AIPW, and matching</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -612,7 +612,7 @@ Positivity
 <h4 class="anchored">
 Balance (IPW and matching)
 </h4>
-<p>If the <code>cobalt</code> package is installed, balance is computed via <code>cobalt::bal.tab()</code> on the propensity formula or matchit object. This provides standardised mean differences (SMD), variance ratios, and KS statistics. If <code>cobalt</code> is not installed, a simpler data.table-based SMD comparison is returned. The chunk 11a balance view is the unadjusted SMD across treatment groups – post-weighting balance under specific interventions / estimands lands in a later chunk.</p>
+<p>If the <code>cobalt</code> package is installed, balance is computed via <code>cobalt::bal.tab()</code> on the propensity formula or matchit object. This provides standardised mean differences (SMD), variance ratios, and KS statistics. If <code>cobalt</code> is not installed, a simpler data.table-based SMD comparison is returned. Balance is the unadjusted SMD across treatment groups; post-weighting balance under specific interventions or estimands is not computed.</p>
 <h4 class="anchored">
 Weight distribution (IPW only)
 </h4>
@@ -642,7 +642,7 @@ Character vector of intervention keys, in the order they appear in <code>per_int
 <code>positivity</code>, <code>balance</code>, <code>weights</code>
 </dt>
 <dd>
-Top-level shortcuts that point to the corresponding slots of the first panel; preserved for backward compatibility with the flat shape used pre-chunk 11a.
+Top-level shortcuts that point to the corresponding slots of the first panel; preserved for backward compatibility with the pre-restructure flat shape.
 </dd>
 <dt>
 <code>match_quality</code>

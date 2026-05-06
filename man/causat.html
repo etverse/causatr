@@ -264,7 +264,7 @@ window.Quarto = {
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../vignettes/triangulation.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Methodological triangulation: g-computation, IPW, and matching</span></a>
+ <span class="menu-text">Methodological triangulation: g-computation, IPW, AIPW, and matching</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -554,7 +554,7 @@ window.Quarto = {
   censoring = NULL,
   ipcw = FALSE,
   censoring_model_fn = NULL,
-  history = 1L,
+  history = Inf,
   numerator = NULL,
   weights = NULL,
   cluster = NULL,
@@ -563,6 +563,9 @@ window.Quarto = {
   propensity_model_fn = NULL,
   propensity_family = NULL,
   stabilize = c("none", "marginal"),
+  target = NULL,
+  sampling_model_fn = NULL,
+  target_subset = c("target", "all"),
   ...
 )
 </code></pre>
@@ -680,7 +683,7 @@ Function or <code>NULL</code>. The fitting function for the censoring model when
 <code id="history">history</code>
 </td>
 <td>
-Positive integer or <code>Inf</code>. Markov order for longitudinal models: how many lagged time points of treatment and time-varying confounders to include in each ICE outcome model. Default <code>1</code> (one lag). <code>Inf</code> includes the full history. Ignored for point treatments.
+Positive integer or <code>Inf</code>. Markov order for longitudinal models: how many lagged time points of treatment and time-varying confounders to include in each ICE outcome model. Default <code>Inf</code> (full history). Set to a finite integer for a Markov restriction (e.g.&nbsp;<code>1</code> for first-order). Ignored for point treatments.
 </td>
 </tr>
 <tr>
@@ -754,6 +757,30 @@ Character or <code>NULL</code>. IPW only. Explicit treatment density family: <co
 </li>
 </ul>
 Ignored for univariate IPW, <code>“gcomp”</code>, and <code>“matching”</code>.
+</td>
+</tr>
+<tr>
+<td style="white-space: collapse; font-family: monospace; vertical-align: top">
+<code id="target">target</code>
+</td>
+<td>
+Character or <code>NULL</code>. Column name of a binary 0/1 sampling indicator S, where S = 1 identifies study-population rows (observed A and Y) and S = 0 identifies target-population rows (only L observed). When non-<code>NULL</code>, enables transportability/generalizability estimation: the sampling model <span class="math inline">\(P(S = 1 \mid L)\)</span> is fit on all rows and stored on the fit object for use in <code>contrast()</code>. Default <code>NULL</code> produces a study-population estimand with no transportability adjustment. <strong>Not supported with <code>estimator = “matching”</code></strong>.
+</td>
+</tr>
+<tr>
+<td style="white-space: collapse; font-family: monospace; vertical-align: top">
+<code id="sampling_model_fn">sampling_model_fn</code>
+</td>
+<td>
+Function or <code>NULL</code>. Fitting function for the sampling model <span class="math inline">\(P(S = 1 \mid L)\)</span> when <code>target</code> is non-<code>NULL</code>. Must accept <code style="white-space: pre;">(formula, data, family, …)</code>. Default <code>NULL</code> uses <code>stats::glm</code> with <code>family = binomial()</code>. Ignored when <code>target = NULL</code>.
+</td>
+</tr>
+<tr>
+<td style="white-space: collapse; font-family: monospace; vertical-align: top">
+<code id="target_subset">target_subset</code>
+</td>
+<td>
+Character. Which rows define the target population for transportability/generalizability. <code>“target”</code> (default) restricts the target to S = 0 rows only (transportability: the study is external to the target population). <code>“all”</code> uses all rows S = 0 and S = 1 (generalizability: the study is a biased subsample of the target). Ignored when <code>target = NULL</code>.
 </td>
 </tr>
 <tr>
@@ -997,7 +1024,7 @@ Internal diagnostics list.
 <span id="cb1-56"><a href="#cb1-56" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders_tv =</span> <span class="sc">~</span> CD4 <span class="sc">+</span> viral_load,</span>
 <span id="cb1-57"><a href="#cb1-57" aria-hidden="true" tabindex="-1"></a>  <span class="at">id =</span> <span class="st">"id"</span>,</span>
 <span id="cb1-58"><a href="#cb1-58" aria-hidden="true" tabindex="-1"></a>  <span class="at">time =</span> <span class="st">"time"</span>,</span>
-<span id="cb1-59"><a href="#cb1-59" aria-hidden="true" tabindex="-1"></a>  <span class="at">history =</span> <span class="dv">1</span>L</span>
+<span id="cb1-59"><a href="#cb1-59" aria-hidden="true" tabindex="-1"></a>  <span class="at">history =</span> <span class="cn">Inf</span></span>
 <span id="cb1-60"><a href="#cb1-60" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb1-61"><a href="#cb1-61" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-62"><a href="#cb1-62" aria-hidden="true" tabindex="-1"></a><span class="co"># Multivariate treatment</span></span>
