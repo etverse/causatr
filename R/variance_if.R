@@ -65,6 +65,7 @@ variance_if_numeric <- function(
     function(da) da[target_idx, , drop = FALSE]
   )
 
+  # Normalise weights to sum to 1 on target rows; non-target rows stay 0.
   target_w <- numeric(n_total)
   if (!is.null(weights)) {
     sum_w <- sum(weights)
@@ -74,8 +75,8 @@ variance_if_numeric <- function(
     target_w[target_idx] <- 1 / n_t
   }
 
-  # Channel 1 vectors per intervention (length n_total). The
-  # (n_total / n_t) scaling is folded into target_w * n_total below.
+  # Ch1_i = n * w_i * (pred_i - mu_hat). The n_total prefactor converts
+  # the normalised weight into the IF scale: Var = (1/n^2) sum Ch1_i^2.
   Ch1_list <- lapply(seq_len(k), function(j) {
     p <- preds_list[[j]]
     n_total * target_w * (p - mu_hat[j])
@@ -106,12 +107,21 @@ variance_if_numeric <- function(
       numeric(1)
     )
   }
+  # J[j, l] = d mu_hat_j / d beta_l, the (k x p) Jacobian of the k
+  # counterfactual means w.r.t. the outcome model parameters.
+  # numDeriv::jacobian() returns a (k x p) matrix when pred_fun maps
+  # R^p -> R^k; coerce in case k=1 collapses it to a vector.
   J <- numDeriv::jacobian(pred_fun, x = beta_hat)
   if (!is.matrix(J)) {
     J <- matrix(J, nrow = k)
   }
 
-  # Tier 1: sandwich::estfun() available -> recover full IF.
+  # Tier 1: IF_beta = psi_i A^{-1} (row i of score times bread inverse).
+  # `sandwich::bread(model)` returns n * (X'WX)^{-1}, so dividing by nobs
+  # gives (X'WX)^{-1} = A^{-1} on the per-observation scale. The product
+  # psi %*% A_inv then yields a (n_fit x k) matrix of per-obs IF
+  # contributions to the k counterfactual means, recovering Channel 2
+  # exactly for any model class that has an estfun() method.
   estfun_ok <- tryCatch(
     {
       ef <- sandwich::estfun(model)
@@ -122,7 +132,9 @@ variance_if_numeric <- function(
 
   if (estfun_ok) {
     psi <- sandwich::estfun(model)
+    # sandwich::bread() = n * (X'WX)^{-1}; dividing by nobs normalises to A^{-1}.
     A_inv <- sandwich::bread(model) / stats::nobs(model)
+    # IF_beta[i, ] = psi_i A^{-1}: the per-obs nuisance IF, an (n_fit x p) matrix.
     IF_beta <- psi %*% A_inv
     fit_idx <- resolve_fit_idx(fit, model)
     if (length(fit_idx) != nrow(IF_beta)) {
@@ -136,8 +148,11 @@ variance_if_numeric <- function(
         )
       )
     } else {
-      # Batched Channel-2: one matrix multiply gives the (n_fit x k)
-      # per-observation Ch2 contributions across all interventions.
+      # Ch2_fit[i, j] = n * IF_beta[i, ] %*% J[j, ]: the Channel-2 contribution
+      # of obs i to intervention j. The n_total factor converts the score-scale
+      # IF_beta (which uses the normalised A^{-1}) back to the IF scale where
+      # Var = (1/n^2) sum IF_i^2. Transposing J gives a (n_fit x k) result
+      # in one BLAS call rather than k separate matrix-vector products.
       Ch2_fit <- (IF_beta %*% t(J)) * n_total
       IF_list <- lapply(seq_len(k), function(j) {
         IF <- Ch1_list[[j]]
@@ -457,19 +472,27 @@ build_point_channel_pieces <- function(
     p <- preds_list[[j]]
     ch1 <- numeric(n)
     if (has_weights) {
+      # Weighted Ch1_i = n * (w_i / sum_w) * (pred_i - mu_hat_j).
+      # The (w_i / sum_w) ratio normalises so the weighted average of
+      # weights equals 1/n_target; multiplying by n puts the result on
+      # the IF scale where Var = (1/n^2) sum Ch1_i^2.
       ch1[target_idx] <- n *
         (ext_w[target_idx] / sum_w_target) *
         (p[target_idx] - mu_hat[j])
     } else {
+      # Unweighted: n / n_target accounts for the fact that the target
+      # subpopulation (e.g. ATT treated rows) may be smaller than n.
       ch1[target_idx] <- (n / n_target) * (p[target_idx] - mu_hat[j])
     }
     Ch1_list[[j]] <- ch1
 
     iv_j <- if (!is.null(interventions)) interventions[[j]] else NULL
     if (has_stochastic_component(iv_j)) {
-      # MC-average the gradient over n_mc draws. Each draw produces a
-      # different counterfactual dataset, so the design matrix and
-      # $\mu'(\eta^*)$ change per draw.
+      # For stochastic interventions, E[mu'(eta^*)] must be estimated by
+      # MC since the counterfactual distribution has no closed form. Each
+      # draw samples a new A* ~ g(A | L), producing a different X^* and
+      # hence a different mu'(eta^*). Averaging over n_mc draws approximates
+      # the analytic gradient g_j = E_{g}[X^{*T} mu'(eta^*)] / n_target.
       n_mc <- get_stochastic_n_mc(iv_j)
       p_coef <- length(beta_hat)
       grad_sum <- numeric(p_coef)
@@ -493,6 +516,10 @@ build_point_channel_pieces <- function(
       denom <- if (has_weights) sum_w_target * n_mc else n_target * n_mc
       grad_list[[j]] <- grad_sum / denom
     } else {
+      # Analytic gradient: g_j = (X^{*T} diag(mu'(eta^*)) 1) / n_target.
+      # This is d mu_hat_j / d beta via the chain rule:
+      #   d/d beta E[mu(X^* beta)] = E[mu'(X^* beta) X^{*T}]
+      # evaluated at beta_hat over the target population.
       X_star <- iv_design_matrix(model, data_a_frames[[j]])
       eta_star <- as.numeric(X_star %*% beta_hat)
       mu_eta_star <- model$family$mu.eta(eta_star)
@@ -652,6 +679,10 @@ compute_ipcw_if_correction <- function(
 
   fit_idx <- outcome_prep$fit_idx
 
+  # phi_bar(gamma) = (1/n) sum_i X_i * w_ext_i * w_ipcw_i(gamma) * r_i * mu'(eta_i) / V(mu_i)
+  # This is the outcome/MSM score as a function of the censoring parameter gamma,
+  # holding beta fixed at beta_hat. Its negative Jacobian is the cross-block
+  # A_{beta,gamma} of the stacked M-estimation bread.
   phi_bar_cens <- function(gamma) {
     w_ipcw <- ipcw_wfn(gamma)
     w_ipcw_fit <- w_ipcw[fit_idx]
@@ -660,8 +691,14 @@ compute_ipcw_if_correction <- function(
   }
 
   gamma_hat <- cens_model$alpha_hat
+  # A_{beta,gamma} = -d phi_bar / d gamma evaluated at (beta_hat, gamma_hat).
+  # The minus sign comes from the convention A = -E[d psi / d theta] for the
+  # M-estimation bread (Stefanski & Boos 2002, eq. 8).
   A_beta_gamma <- -numDeriv::jacobian(phi_bar_cens, x = gamma_hat)
 
+  # g_cens = A_{beta,gamma}^T h: projects the outcome-model sensitivity h
+  # onto the censoring-parameter space, giving the gradient of mu_hat
+  # w.r.t. gamma via the chain rule through the stacked system.
   g_cens <- as.numeric(crossprod(A_beta_gamma, h_outcome))
 
   cens_prep <- prepare_model_if(
@@ -706,8 +743,12 @@ compute_ipw_ipcw_correction <- function(
   cens_model <- fit$details$censoring_model
   n_total <- nrow(fit$data)
 
+  # fit_idx for the MSM is 1..n_sub because the MSM was fit on the
+  # already-subsetted n_sub rows, not on the full n_total dataset.
   msm_prep <- prepare_model_if(msm_model, seq_len(n_sub), n_sub)
   msm_res <- apply_model_correction(msm_prep, J)
+  # h_msm = A_{bb}^{-1} J in M-estimation scaling (same n-rescaling as
+  # the gcomp IPCW path in compute_ipcw_if_correction).
   h_msm <- n_sub * msm_res$h
 
   # MSM score ingredients (fixed at beta_hat)
@@ -721,18 +762,17 @@ compute_ipw_ipcw_correction <- function(
   y_msm <- stats::model.response(stats::model.frame(msm_model))
   r_msm <- y_msm - mu_msm
 
-  # The MSM's prior weights = ext_w * DR_w * ipcw_w. When varying gamma,
-  # only ipcw_w changes. The "other weights" factor = ext_w * DR_w =
-  # total_prior_weights / ipcw_w. We extract total prior weights from the
-  # MSM and divide out ipcw_w at the fitted gamma.
+  # Decompose the MSM prior weights: total_w = ext_w * DR_w * ipcw_w.
+  # The phi_bar_cens closure must vary only ipcw_w as gamma changes while
+  # holding DR_w and ext_w fixed. So other_w = total_w / ipcw_w_hat.
   pw <- msm_model$prior.weights
   if (is.null(pw)) {
     pw <- rep(1, n_sub)
   }
 
   ipcw_w_fit <- fit$details$ipcw_weights[fit_rows]
-  # Avoid division by zero on censored rows (ipcw_w = 0 there, but
-  # those rows should also have pw = 0)
+  # Censored rows have ipcw_w = 0 and pw = 0; the ratio is 0/0, so
+  # use ifelse to avoid NaN propagation (the contribution is 0 either way).
   other_w <- ifelse(ipcw_w_fit > 0, pw / ipcw_w_fit, 0)
 
   # IPCW weight closure on full data, then subset to fit_rows
@@ -751,11 +791,13 @@ compute_ipw_ipcw_correction <- function(
   }
 
   gamma_hat <- cens_model$alpha_hat
+  # A_{beta,gamma} = -d phi_bar / d gamma, the cross-block of the stacked bread.
   A_beta_gamma <- -numDeriv::jacobian(phi_bar_cens, x = gamma_hat)
   g_cens <- as.numeric(crossprod(A_beta_gamma, h_msm))
 
-  # The censoring model was fit on the full data (n_total). Compute
-  # its correction in n_total space, then subset to the IPW fit_rows.
+  # The censoring model was fit on the full data (n_total), so its prep
+  # uses n_total as the denominator; we then extract only the fit_rows
+  # slice to stay aligned with the IPW MSM's n_sub-length IF vectors.
   cens_prep <- prepare_model_if(
     cens_model$model,
     which(cens_model$fit_rows),
@@ -818,8 +860,10 @@ variance_if_gcomp <- function(
     if_j <- pieces$Ch1_list[[j]] + res$correction
 
     if (has_ipcw) {
-      # h_outcome = A_{bb}^{-1} J. `res$h` is (X'WX)^{-1} J, and the
-      # M-estimation bread A_{bb} = (1/n) X'WX, so h_true = n * res$h.
+      # The IPCW cross-term needs h = A_{bb}^{-1} J in M-estimation
+      # scaling. `res$h` = (X'WX)^{-1} J is the bread-projected gradient
+      # in GLM scaling; A_{bb} = (1/n) X'WX so A_{bb}^{-1} = n (X'WX)^{-1},
+      # hence h_outcome = n_fit * res$h.
       ipcw_corr <- compute_ipcw_if_correction(
         fit,
         model,
@@ -904,13 +948,18 @@ variance_if_matching <- function(fit, interventions) {
     p <- as.numeric(stats::predict(model, newdata = da, type = "response"))
     mu_hat_j <- sum(match_w * p) / sum_w
 
+    # Channel 1 on the matched sample: Ch1_i = n_m * (w_i / sum_w) * (pred_i - mu_hat_j).
     IF_vec <- n_m * (match_w / sum_w) * (p - mu_hat_j)
 
     X_star <- iv_design_matrix(model, da)
     eta_star <- as.numeric(X_star %*% beta_hat)
     mu_eta_star <- model$family$mu.eta(eta_star)
+    # Gradient g_j = (X^{*T} diag(w_i * mu'(eta^*_i)) 1) / sum_w, the
+    # match-weight-adjusted marginal-mean Jacobian for intervention j.
     g <- as.numeric(crossprod(X_star, match_w * mu_eta_star)) / sum_w
 
+    # Total IF_i = Ch1_i + Ch2_i; cluster-robust aggregation done by
+    # vcov_from_if() on subclass, not here.
     IF_vec + apply_model_correction(prep, g)$correction
   })
   names(IF_list) <- int_names

@@ -536,8 +536,11 @@ ice_iterate <- function(fit, intervention) {
   model_fn_dots <- details$dots
 
   # Build the intervention-modified person-period frame once. `data_iv`
-  # has the counterfactual treatment column and matching lags, but the
-  # original covariate trajectory -- this is what we condition on below.
+  # holds A_k = d_k(A_k, H_k) at every period but leaves lag columns
+  # (lag1_A, lag2_A, ...) and all covariate columns at their OBSERVED
+  # values. This is intentional: the ICE recursion conditions on the
+  # observed history H_k = (A_{k-1}, L_k, ...) -- only current-period
+  # treatment is set to the counterfactual at each backward step.
   data_iv <- ice_apply_intervention_long(
     data,
     treatment,
@@ -565,9 +568,10 @@ ice_iterate <- function(fit, intervention) {
   fit_ids <- vector("list", n_times)
   names(fit_ids) <- as.character(time_points)
 
-  # Fit the outcome model at the FINAL time point.
-  # This is the only step that uses the real observed outcome Y; every
-  # earlier step uses a pseudo-outcome constructed by prior predictions.
+  # Fit the outcome model Q_K at the FINAL time point.
+  # Q_K(H_K) = E[Y | A_{K-1}, H_{K-1}] -- fitted on observed Y. This
+  # is the only step in the backward recursion that touches real outcomes;
+  # every earlier step regresses on the predicted Q_{k+1} values instead.
 
   final_time <- time_points[n_times]
   final_idx <- n_times - 1L # 0-based time index for formula construction
@@ -618,10 +622,11 @@ ice_iterate <- function(fit, intervention) {
   }
   models[[n_times]] <- replay_fit(model_fn, model_args, model_fn_dots)
 
-  # Predict under the intervention for ALL uncensored individuals at
-  # the final time (not just those in the fitting set). This is the
-  # g-formula pattern: fit on a subset with observed outcomes, predict
-  # for the whole target population under the counterfactual.
+  # Predict Q_K under the intervention for ALL uncensored individuals
+  # at the final time (not just those in the fitting set). The g-formula
+  # standardises over the full target population: fit on {observed Y},
+  # predict for everyone under A_K = d_K(A_K, H_K). These predictions
+  # become the pseudo-outcomes passed to the next backward step.
   pred_mask <- mask_final & uncens
   pred_ids <- as.character(data[pred_mask][[id_col]])
 
@@ -665,11 +670,15 @@ ice_iterate <- function(fit, intervention) {
   }
 
   # -- Steps 2+: backward iteration (time K-1 down to time 0).
-  # At each step we fit a "pseudo-outcome" model regressing the
-  # already-filled `pseudo[i]` on the current time's treatment,
-  # covariates, and lags, then overwrite `pseudo[i]` with predictions
-  # under the intervention. This is the ICE algorithm -- the
-  # conditional-mean integration collapses into a chain of regressions.
+  # The tower property of conditional expectation gives:
+  #   Q_k(H_k) = E[Q_{k+1}(H_{k+1}) | A_k, H_k]
+  # so fitting a regression of Q_{k+1} predictions on (A_k, H_k)
+  # recovers Q_k without simulation. Each backward step:
+  #   1. Uses pseudo[i] from the PREVIOUS (later) step as the response.
+  #   2. Fits Q_k = E[pseudo | A_k, H_k] on uncensored rows with valid pseudo.
+  #   3. Predicts Q_k under the intervention and overwrites pseudo[i].
+  # After K steps backward, pseudo[i] at the first time point equals
+  # the individual counterfactual expectation Q_1(H_{i,1}) under d.
 
   for (step_i in seq(n_times - 1L, 1L, by = -1L)) {
     current_time <- time_points[step_i]
@@ -703,13 +712,16 @@ ice_iterate <- function(fit, intervention) {
     # Materialize a copy of the fitting rows and attach the pseudo
     # response as `.pseudo_y`. `data.table::copy` + in-place `:=` is
     # necessary: without `copy` the mutation would leak into `data`.
+    # The pseudo values from the NEXT (later) time step become the
+    # response here, implementing Q_k = E[Q_{k+1} | A_k, H_k].
     fit_data <- data.table::copy(data[mask_uncens][has_pseudo])
     fit_data[, .pseudo_y := pseudo_y[has_pseudo]]
     fit_ids[[step_i]] <- as.character(fit_data[[id_col]])
 
-    # Build and fit the pseudo-outcome model. The `family_pseudo`
-    # resolution in `fit_ice()` swapped binomial -> quasibinomial so
-    # this call is happy with fractional responses.
+    # Fit Q_k on the pseudo response. `family_pseudo` was resolved in
+    # `fit_ice()` to quasibinomial for binary outcomes: pseudo values
+    # are predicted probabilities in (0,1), not Bernoulli draws, so
+    # binomial's integer check would fire spuriously.
     formula_k <- ice_build_formula(
       ".pseudo_y",
       treatment,
@@ -742,10 +754,12 @@ ice_iterate <- function(fit, intervention) {
     }
     models[[step_i]] <- replay_fit(model_fn, model_args_k, model_fn_dots)
 
-    # Predict under intervention for ALL individuals at the current
-    # time point (not just the fitting subset). This keeps the
-    # population covariate trajectory intact as the recursion walks
-    # backward toward baseline.
+    # Predict Q_k under the intervention for ALL individuals at the
+    # current time point (not just the fitting subset). We condition on
+    # the observed covariate trajectory L for everyone -- this is the
+    # g-formula standardisation step. The intervention enters only by
+    # setting A_k = d_k(A_k, H_k) in `data_iv`; lag columns hold
+    # observed values so the conditioning history is intact.
     pred_ids_all <- as.character(data[mask_current][[id_col]])
 
     if (has_stochastic_component(intervention)) {
@@ -784,10 +798,11 @@ ice_iterate <- function(fit, intervention) {
     pseudo[pred_ids_all] <- preds
   }
 
-  # After the loop, `pseudo` at the first time point holds the
-  # individual-level counterfactual expectations \hat Y^*_{0,i}. The
-  # marginal mean \hat\mu is just mean(pseudo_final) over the target
-  # population -- computed in compute_contrast_ice(), not here.
+  # After the full backward pass, pseudo[i] at the first time point is
+  # \hat Q_1(H_{i,1}), the individual-level counterfactual expectation
+  # E[Y(d) | H_{i,1}] integrated over all later time points by the
+  # tower-property chain. The marginal mean mu_hat(d) = mean over the
+  # target population is computed by compute_contrast_ice(), not here.
   first_time <- time_points[1]
   rows_first <- data[[time_col]] == first_time
   first_ids <- as.character(data[rows_first][[id_col]])

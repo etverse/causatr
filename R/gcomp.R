@@ -129,7 +129,9 @@ fit_gcomp_point <- function(
 
   # Identify fitting rows: uncensored (C == 0) AND non-missing outcome.
   # contrast() will predict for ALL rows -- the g-formula standardises over
-  # the full target population regardless of censoring status.
+  # the full target population regardless of censoring status. The model is
+  # fit once here on observed (A, L, Y) and re-used at prediction time for
+  # each intervention d: mu_hat(d) = (1/n) sum_i m(d(A_i, L_i), L_i).
   fit_rows <- get_fit_rows(data, outcome, censoring)
   fit_data <- data[fit_rows]
 
@@ -152,7 +154,9 @@ fit_gcomp_point <- function(
   # bootstrap time. See B2 in the 2026-04-15 critical review.
   dots <- list(...)
 
-  # Fit E[Y | A, L] using the caller-supplied fitting function.
+  # Fit E[Y | A, L] -- the single outcome model shared across all
+  # interventions. Interventions are not applied here; contrast() sets
+  # A_i = d(A_i, L_i) in the prediction frame, not the fitting frame.
   # Strip `family` for model functions that don't accept it
   # (e.g. MASS::glm.nb, betareg::betareg).
   model_args <- list(model_formula, data = fit_data)

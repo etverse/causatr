@@ -89,18 +89,18 @@ variance_if_aipw <- function(
     mu_hat_j <- mu_hat[[nm]]
 
     # --- Channel 1: direct contribution ------------------------------------
-    # AIPW functional at individual i minus the estimate, scaled for
-    # Hajek-style aggregation over the target population.
+    # AIPW functional: phi_i = Q_i(g) + W_i(g) * (Y_i - Q_i(obs)).
+    # Ch1_i = n * (w_i / sum_w) * (phi_i - \hat{mu}), the Hajek-scaled
+    # deviation of the individual AIPW pseudo-outcome from the marginal mean.
     aipw_contrib <- preds_g + w_iv * resid_obs
     Ch1_i <- n_sub * (w_target_vec / sum_w_target) * (aipw_contrib - mu_hat_j)
     Ch1_i[!target_fit] <- 0
 
     # --- Channel 2a: outcome model correction ------------------------------
-    # J_beta = d mu_hat / d beta. Two terms:
-    #   (a) d/d_beta mean_target(preds_g) = (1/sum_w) sum_target w_i X*_i mu'*_i
-    #   (b) d/d_beta mean_target(W_i * (Y_i - preds_obs_i))
-    #       = -(1/sum_w) sum_target w_i W_i X_obs_i mu'_obs_i
-    # J_beta = (a) + (b)
+    # J_beta = \partial \hat{mu} / \partial \beta. Two additive terms:
+    #   (a) from E[Y(g)]: (1/sum_w) sum_{target} w_i X*_i \mu'(\eta*_i)
+    #   (b) from augmentation W_i(Y_i - Q_obs_i): -(1/sum_w) sum_{target} w_i W_i X_obs_i \mu'(\eta_obs_i)
+    # The minus sign in (b) comes from differentiating -Q_obs_i w.r.t. \beta.
 
     # Counterfactual design matrix and link derivatives
     data_a <- b$data_a
@@ -128,9 +128,10 @@ variance_if_aipw <- function(
     outcome_res <- apply_model_correction(outcome_prep, J_beta)
 
     # --- Channel 2b: propensity model correction ---------------------------
-    # J_alpha = d mu_hat / d alpha. Only the augmentation term
-    # (1/sum_w_target) * sum_target w_i * W_i(alpha) * resid_i
-    # depends on alpha (through W_i). Use numDeriv::jacobian.
+    # J_alpha = \partial \hat{mu} / \partial \alpha. Only the augmentation
+    # term (1/sum_w) sum_{target} w_i W_i(\alpha) (Y_i - Q_i) depends on
+    # \alpha through W_i = g(A_i|L_i;\alpha) / f(A_i|L_i;\alpha).
+    # Q_i(obs) is held fixed at its fitted value; numDeriv perturbs alpha.
     weight_fn <- make_weight_fn(
       tm,
       fit_data,
@@ -139,6 +140,8 @@ variance_if_aipw <- function(
     )
 
     aug_mean <- function(alpha) {
+      # Augmentation term of \hat{mu} as a scalar function of alpha alone.
+      # The Q_i(g) term does not involve alpha, so its gradient is zero here.
       w_alpha <- weight_fn(alpha)
       sum(w_target_vec * w_alpha * resid_obs) / sum_w_target
     }
@@ -150,14 +153,18 @@ variance_if_aipw <- function(
       alpha_hat <- alpha_hat_raw
     }
 
-    # d aug_mean / d alpha (row vector, length p_alpha)
+    # d aug_mean / d alpha. Unlike the IPW case, this is a direct Jacobian of
+    # a scalar (not phi_bar), so no sign flip needed -- J_alpha is already
+    # \partial \hat{mu} / \partial \alpha, passed straight to apply_model_correction.
     J_alpha <- as.numeric(numDeriv::jacobian(aug_mean, x = alpha_hat))
 
     prop_res <- apply_model_correction(prop_prep, J_alpha)
 
     # --- Assembly ----------------------------------------------------------
-    # Block-lower-triangular M-estimation:
-    #   IF_i = Ch1_i + outcome_correction_i - propensity_correction_i
+    # IF_i = Ch1_i + outcome_correction_i - propensity_correction_i.
+    # Both corrections follow the block-lower-triangular M-estimation sign;
+    # the outcome correction adds because beta is upper-block; the propensity
+    # subtracts because alpha feeds into the beta block (Wooldridge Sec. 12.4).
     Ch1_i + outcome_res$correction - prop_res$correction
   })
   names(IF_list) <- int_names
@@ -305,6 +312,9 @@ variance_if_aipw_long_one <- function(
   mu_hat <- sum(w_t * pseudo_final[target]) / sum_w_target
 
   # ---- Channel 1: direct contribution ----------------------------
+  # Ch1_i = n * (w_i / sum_w) * (\tilde{Y}_{0,i} - \hat{mu}) for target ids,
+  # where \tilde{Y}_{0,i} is the ICE-AIPW pseudo-outcome propagated backward
+  # to time 0 (pseudo_final). Zero for non-target ids.
   IF_vec <- numeric(n)
   IF_vec[target] <- n *
     (w_t / sum_w_target) *
@@ -371,8 +381,10 @@ variance_if_aipw_long_one <- function(
       ) /
         sum_w_target
 
-      # Term (b): -w_k * d/dbeta m_k(A_obs, L)
-      # Per-period weight, not cumulative (matches the recursion)
+      # Term (b): gradient from the augmentation residual at step 1.
+      # -W_{1,i} * X_obs_i * \mu'(\eta_obs_i) averaged over target.
+      # W_period[i, 1] is the per-period (not cumulative) weight,
+      # matching the backward recursion's residual structure.
       target_in_obs <- match(
         all_ids[target],
         obs_ids_current
@@ -401,7 +413,10 @@ variance_if_aipw_long_one <- function(
 
       g_k <- grad_a + grad_b
     } else {
-      # Later steps: cascade from previous step's d_vec
+      # Later steps (k > 1): sensitivity d_vec cascades forward from the
+      # previous model -- same chain-rule mechanism as variance_if_ice_one().
+      # grad_a uses intervention predictions; grad_b uses observed predictions
+      # weighted by W_period[i, k] (per-period, not cumulative density ratio).
       prev_fit_ids <- fit_ids_list[[step_i - 1L]]
       idx_in_all <- id_to_idx[prev_fit_ids]
       rows_in_iv <- match(prev_fit_ids, iv_ids_current)
@@ -515,10 +530,10 @@ variance_if_aipw_long_one <- function(
 
   # Skip propensity correction for natural course
   if (length(alpha_hat_stacked) > 0L) {
-    # Build the augmented-mean closure for numDeriv. Recomputes the
-    # AIPW pseudo-outcomes using perturbed cumulative weights while
-    # holding outcome models fixed. numDeriv::jacobian handles the
-    # chain rule through the backward recursion.
+    # Build the augmented-mean closure for numDeriv. Perturbing alpha changes
+    # only the period weights W_new; outcome models are held at their fitted
+    # values. The backward recursion re-runs under the perturbed weights so
+    # numDeriv captures d(aug_mean)/d(alpha) through the full weight product.
     models_fixed <- models
     data_iv_fixed <- data_iv
 
@@ -529,6 +544,9 @@ variance_if_aipw_long_one <- function(
         idx <- alpha_offsets[kk]:(alpha_offsets[kk + 1L] - 1L)
         w_k_raw <- sub_fns[[kk]](alpha[idx])
 
+        # Broadcast period-k weights from the subset of fitted ids to all n ids.
+        # Unobserved ids (not in align_idx_list[[kk]]) retain w_k = 1 (no
+        # augmentation contribution for missing periods).
         w_k <- rep(1, n)
         w_k[align_idx_list[[kk]]] <- w_k_raw
         W_new[, kk] <- w_k
@@ -561,9 +579,12 @@ variance_if_aipw_long_one <- function(
         )
 
         if (step_i == n_times) {
+          # At the final period the residual is Y_i - Q_K(A_obs, H_K).
           y_k <- data[rows_obs][[fit$outcome]]
           resid_k <- y_k - preds_obs_k
         } else {
+          # At earlier periods the residual is \tilde{Y}_{k+1,i} - Q_k(A_obs, H_k),
+          # i.e. the backward pseudo-outcome minus the observed-treatment prediction.
           resid_k <- pseudo_a[obs_idx] - preds_obs_k
         }
 
@@ -581,12 +602,15 @@ variance_if_aipw_long_one <- function(
       sum(w_t * pseudo_a[which(target)]) / sum_w_target
     }
 
-    # Numerical Jacobian of augmented mean w.r.t. stacked alpha
+    # J_alpha = \partial aug_mean / \partial \alpha (stacked over K periods).
+    # Block-diagonal bread means each period's slice J_alpha_k is independent.
     J_alpha <- as.numeric(
       numDeriv::jacobian(aug_mean, x = alpha_hat_stacked)
     )
 
-    # Per-period propensity corrections (block-diagonal bread)
+    # Per-period propensity corrections (block-diagonal bread).
+    # Slice the k-th alpha block and pass it as the sensitivity gradient
+    # to apply_model_correction, which computes sum_i J_alpha_k^T A_{kk}^{-1} psi_{k,i}.
     for (k in seq_len(K)) {
       idx <- alpha_offsets[k]:(alpha_offsets[k + 1L] - 1L)
       J_alpha_k <- J_alpha[idx]
@@ -617,12 +641,14 @@ variance_if_aipw_long_one <- function(
         J_alpha_k
       )
 
+      # Project period-k correction (n_period_k-scaled) to id-space (n-scaled).
+      # n/n_period_k = 1 under the complete-case bijection; kept for robustness.
       correction_id <- numeric(n)
       correction_id[pos_k] <- prop_res_k$correction
       if (n_period_k != n) {
         correction_id <- correction_id * (n / n_period_k)
       }
-      # Propensity correction subtracted (M-estimation sign)
+      # Propensity correction subtracted: block-lower-triangular M-estimation sign.
       IF_vec <- IF_vec - correction_id
     }
   }

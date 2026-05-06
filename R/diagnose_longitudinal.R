@@ -33,6 +33,10 @@ diagnose_longitudinal <- function(
   tp_labels <- as.character(time_points)
 
   # Positivity: per-period treatment density diagnostics (IPW only).
+  # Each period's positivity is computed independently from its own
+  # treatment model so that a single problematic period (e.g. near-
+  # deterministic treatment at time 2) is identified precisely rather
+  # than masked by the cumulative product weight.
   positivity_shared <- if (is_ipw) {
     compute_positivity_longitudinal(fit, ps_bounds)
   }
@@ -103,7 +107,9 @@ compute_positivity_longitudinal <- function(fit, ps_bounds) {
   result <- lapply(names(tms_by_time), function(tp) {
     tm_k <- tms_by_time[[tp]]
     data_k <- fit_data_by_time[[tp]]
-    # Build a fake single-period fit to reuse existing helpers.
+    # Build a fake single-period fit to reuse the point-IPW positivity
+    # helpers without duplicating the dispatch logic. The fake fit only
+    # needs the slots that `compute_positivity_*` actually reads.
     fake_fit <- list(
       treatment = fit$treatment,
       estimator = "ipw",
@@ -241,14 +247,19 @@ compute_weights_longitudinal <- function(
   id_col <- fit$id
   stabilize <- !is.null(fit$details$numerator_models_by_time)
 
-  # First-period ids define the canonical ordering.
+  # First-period ids define the canonical ordering. All per-period
+  # weight vectors are then aligned to this ordering so the cumulative
+  # product (row-wise product of W_per_period) is well-defined.
   first_tp <- tp_labels[1]
   ids_first <- as.character(
     fit_data_by_time[[first_tp]][[id_col]]
   )
   n_id <- length(ids_first)
 
-  # Per-period weight matrix (n_id x K).
+  # Per-period weight matrix (n_id x K). Each column k holds w_{ik}
+  # (the period-k density-ratio weight for individual i) aligned to
+  # `ids_first` order. Cumulative weight W_i = prod_k w_{ik} is the
+  # row product used in the longitudinal Hajek estimator.
   W_per_period <- matrix(1, nrow = n_id, ncol = length(tp_labels))
   period_summaries <- vector("list", length(tp_labels))
   names(period_summaries) <- tp_labels
@@ -293,7 +304,11 @@ compute_weights_longitudinal <- function(
       }
     }
 
-    # Align to canonical id ordering.
+    # Align to canonical id ordering. `tm_k$fit_rows` is logical and
+    # relative to `data_k`; applying it here gives the ids of individuals
+    # for whom the period-k model was actually fit (non-missing treatment
+    # and confounders). Individuals absent from `period_ids` retain the
+    # default weight of 1 (neutral for the product).
     period_ids <- ids_k[tm_k$fit_rows]
     w_aligned <- rep(1, n_id)
     pos <- match(period_ids, ids_first)
@@ -315,7 +330,10 @@ compute_weights_longitudinal <- function(
     }
   }
 
-  # Cumulative (product) weight across all periods.
+  # Cumulative (product) weight W_i = prod_{k=0}^{K-1} w_{ik}.
+  # Row-wise product of the period weight matrix. Extreme cumulative
+  # weights signal compounding instability across periods -- the
+  # per-period summaries above help diagnose which period is the source.
   w_cumulative <- apply(W_per_period, 1, prod)
   period_summaries[["cumulative"]] <- summarise_weights_overall(
     w_cumulative

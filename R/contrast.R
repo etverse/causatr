@@ -741,6 +741,13 @@ compute_contrast <- function(
   #
   # Everything downstream (SEs, estimates table, pairwise contrasts, result
   # assembly) is shared between point and longitudinal g-computation.
+  #
+  # Bundles are computed per intervention and then diffed (rather than
+  # predicting a single contrast directly) because each intervention induces
+  # its own density-ratio weights (IPW), pseudo-outcome sequence (ICE), or
+  # augmentation term (AIPW). The variance engine must see the full k-vector
+  # of mu_hats to compute the joint vcov -- which is required for correct
+  # contrast SEs that account for the covariance between mu_a1 and mu_a0.
 
   if (fit$type == "longitudinal") {
     # -- Longitudinal data: dispatch on estimator.
@@ -898,6 +905,13 @@ compute_contrast <- function(
     # Variance dispatch then goes through `variance_if()` (sandwich)
     # or `variance_bootstrap()` (bootstrap), uniformly with the other
     # estimators.
+    #
+    # Hajek estimand: the MSM is Y ~ 1 (intercept-only), not Y ~ A.
+    # The treatment effect is fully absorbed into the density-ratio weight
+    # w_i = f(d(A_i) | L_i) / f(A_i | L_i). The intercept of the weighted
+    # regression then directly estimates E[Y^a] = (sum_i w_i Y_i) /
+    # (sum_i w_i) (Hajek 1971). Using Y ~ A instead would double-count
+    # the treatment by conditioning on both the weight and the A column.
     target_idx <- get_target_idx(data, fit$treatment, est, subset, subset_env)
     n_target <- sum(target_idx)
     if (n_target == 0L) {
@@ -993,8 +1007,12 @@ compute_contrast <- function(
     model <- fit$model
 
     # Logical vector (length n) flagging the target population.
-    # Determined by `est` (ATE -> everyone; ATT -> treated at baseline;
-    # ATC -> controls at baseline) and the optional `subset`.
+    # ATE: all n rows (rep(TRUE, n)).
+    # ATT: rows where A == 1 at baseline (standardise over the treated).
+    # ATC: rows where A == 0 at baseline (standardise over the controls).
+    # subset: eval(subset_expr, data) -- overrides the estimand keyword.
+    # This vector is passed to the variance engine so the IF aggregation
+    # averages over the same n_target rows that mu_hat was computed on.
     target_idx <- get_target_idx(data, fit$treatment, est, subset, subset_env)
 
     # Predict E[Y | A = a(L_i), L_i] under each intervention. For
@@ -1191,7 +1209,8 @@ compute_contrast <- function(
     idx_a <- which(int_names == nm)
 
     if (type == "difference") {
-      # Var(mu_a - mu_ref) = Var(mu_a) + Var(mu_ref) - 2 Cov(mu_a, mu_ref).
+      # Difference: delta = mu_a - mu_ref.
+      # Var(delta) = Var(mu_a) + Var(mu_ref) - 2 Cov(mu_a, mu_ref).
       # The cross term is the one dropped when people incorrectly add
       # per-intervention SEs in quadrature -- our IF engine keeps the
       # full covariance so we use the proper formula here.

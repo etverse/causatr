@@ -456,7 +456,11 @@ compute_positivity_binary <- function(fit, ps_bounds) {
     ps <- stats::fitted(ps_model)
   }
 
-  # Crump et al. (2009) tail thresholds.
+  # Crump et al. (2009) tail thresholds. Values near 0 or near 1 mean
+  # the treatment is nearly deterministic given covariates, so the
+  # corresponding density-ratio weight 1/p or 1/(1-p) diverges.
+  # `ps_bounds[1]` flags the lower tail (near-certain control);
+  # `ps_bounds[2]` flags the upper tail (near-certain treatment).
   n_low <- sum(ps < ps_bounds[1], na.rm = TRUE)
   n_high <- sum(ps > ps_bounds[2], na.rm = TRUE)
   n_total <- length(ps)
@@ -513,9 +517,11 @@ compute_positivity_density <- function(fit, ps_bounds) {
 
   f_obs <- evaluate_density(tm, a_obs, fit_data)
 
-  # Low-density threshold: observations below the 1st percentile of
-  # the density distribution. These are the analogues of extreme PS
-  # tails for binary treatment.
+  # Low-density threshold: observations below the 1st percentile of the
+  # density distribution. A low f(A_i|L_i) means the observed treatment
+  # value is improbable given covariates, producing a large density-ratio
+  # weight g/f. Using a data-adaptive quantile rather than a fixed cutoff
+  # keeps the flag interpretable across different treatment scales.
   low_thresh <- stats::quantile(f_obs, 0.01, na.rm = TRUE)
   n_low <- sum(f_obs < low_thresh, na.rm = TRUE)
   n_total <- length(f_obs)
@@ -790,7 +796,10 @@ compute_balance_simple_binary <- function(d, treatment, confounder_vars) {
     }
     m1 <- mean(x[rows_1], na.rm = TRUE)
     m0 <- mean(x[rows_0], na.rm = TRUE)
-    # Rosenbaum & Rubin (1985) pooled SD.
+    # Rosenbaum & Rubin (1985) pooled SD: average of treated and control
+    # variances (not the overall SD), so the denominator is unaffected
+    # by imbalance in group sizes. SMD > 0.1 is the Austin (2009)
+    # convention for flagging meaningful imbalance.
     s_pooled <- sqrt(
       (stats::var(x[rows_1], na.rm = TRUE) +
         stats::var(x[rows_0], na.rm = TRUE)) /
@@ -857,10 +866,11 @@ compute_weight_summary_observed <- function(fit) {
   fit_data <- fit$data[fit_rows]
 
   # Binary: Horvitz-Thompson observed-arm view. The weight formula
-  # depends on the estimand:
-  #   ATE: w = A/p + (1-A)/(1-p)
-  #   ATT: w = A + (1-A) * p/(1-p)
-  #   ATC: w = A * (1-p)/p + (1-A)
+  # depends on the estimand; each form is the Bayes numerator f*(A|L)
+  # divided by the propensity f(A|L):
+  #   ATE: w_i = 1 / p(A_i|L_i)   (f* = 1, a constant marginal)
+  #   ATT: numerator is p(A=1|L), so treated get 1 and controls get p/(1-p)
+  #   ATC: numerator is p(A=0|L), so controls get 1 and treated get (1-p)/p
   if (tm$family == "bernoulli") {
     a_obs <- fit_data[[fit$treatment[1]]]
     p <- as.numeric(stats::predict(
@@ -955,13 +965,14 @@ compute_weight_summary_intervention <- function(fit, intervention) {
 #'   `max`, `ess`.
 #' @noRd
 summarise_weights_by_arm <- function(w, a_obs) {
-  # Effective sample size (Kish 1965): a weighted sample with highly
-  # variable weights has fewer "effective" observations than its
-  # nominal n. The formula below is the ratio (sum w)^2 / sum w^2 --
-  # equals n when all weights are equal, less otherwise. The 0/0
-  # guard handles the all-zero off-arm case under static-arm
-  # density-ratio weights (e.g. controls under `static(1)`); ESS = 0
-  # is the right reading there because no row contributes.
+  # Effective sample size (Kish 1965): ESS = (sum w)^2 / sum(w^2).
+  # Equals n when all weights are 1, and decreases as weight variance
+  # grows. Intuition: a weight w_i > 1 effectively "replicates" that
+  # observation, inflating precision estimates if uncorrected. ESS
+  # represents the nominal sample size of an unweighted study with
+  # equivalent precision. The 0/0 guard handles the all-zero off-arm
+  # case under static-arm density-ratio weights (e.g. controls under
+  # `static(1)`); ESS = 0 is correct because no row contributes.
   ess <- function(wts) {
     s2 <- sum(wts^2)
     if (s2 == 0) {

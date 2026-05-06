@@ -131,6 +131,10 @@ plot.causatr_result <- function(x, which = c("contrasts", "means"), ...) {
 #' @return Character vector.
 #' @noRd
 format_ci <- function(est, lo, hi, digits = 3L) {
+  # `formatC(..., format = "f")` produces fixed-width decimal strings.
+  # This matters for the forest plot label column: all rows in the
+  # `ci_label` column must have the same character width so the decimal
+  # points align visually when displayed in a monospace table cell.
   paste0(
     formatC(est, format = "f", digits = digits),
     " (",
@@ -404,7 +408,11 @@ reconstruct_weights <- function(fit, panel_name, is_default_obs) {
     return(rep(1, sum(fit_rows)))
   }
 
-  # Per-intervention density-ratio weights.
+  # Per-intervention density-ratio weights cannot be reconstructed from
+  # the stored fit: they require evaluating the counterfactual target
+  # density p^*(a) under the specific intervention, which is only
+  # available during `contrast()`. A future extension could cache
+  # them in `fit$details$intervention_weights`.
   NULL
 }
 

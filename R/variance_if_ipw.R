@@ -124,18 +124,15 @@ variance_if_ipw <- function(
     mu_eta_star <- msm_model$family$mu.eta(eta_star)
     preds_sub <- msm_model$family$linkinv(eta_star)
 
-    # Channel 1: n_sub * (w_i / sum_w_target) * (pred_i - mu_hat_j),
-    # zero off target. `target_sub` masks the contribution; the
-    # unweighted branch uses `w_target_vec = 1{target}`, and the
-    # weighted branch uses `ext_w_i * 1{target}`. Scaled by
-    # `n_sub` (the `n` passed to `vcov_from_if`).
+    # Channel 1: Ch1_i = n * (w_i / sum_w) * (\hat{mu}^g_i - \hat{mu}^g),
+    # i.e. the Hajek residual scaled so vcov_from_if(n_sub) gives 1/n^2 * sum IF^2.
+    # Off-target rows contribute zero; preds_sub is \hat{mu}^g_i from the MSM.
     Ch1_i <- n_sub * (w_target_vec / sum_w_target) * (preds_sub - mu_hat_j)
     Ch1_i[!target_sub] <- 0
 
-    # Marginal-mean Jacobian J = d mu_hat_j / d beta.
-    # For a weighted Hajek marginal mean over the target population,
-    # J = (1/sum_w_target) * sum_target (X_star_i * mu_eta_i * w_i).
-    # This matches `build_point_channel_pieces()`'s gradient.
+    # Marginal-mean Jacobian J = \partial \hat{mu} / \partial \beta.
+    # Hajek mean over target: J = (1/sum_w) sum_{i: target} w_i X*_i mu'(\eta*_i).
+    # Chain rule on g(\hat\beta) = (1/sum_w) sum w_i g(X*_i \hat\beta).
     w_vec_j <- w_target_vec # zero off target already
     J <- as.numeric(crossprod(X_star, w_vec_j * mu_eta_star)) /
       sum_w_target
@@ -401,12 +398,10 @@ compute_ipw_if_self_contained_one <- function(
   n_fit <- nrow(msm_prep$X_fit)
 
   # ---- Cross-derivative A_{beta, alpha} via numDeriv -------------
-  # Phi_bar(alpha) = (1/n_fit) sum_i psi_beta_i(alpha, beta_hat).
-  # For a GLM with canonical / non-canonical link,
-  #   psi_beta_i = X_i * w_i(alpha) * (Y_i - mu_i) * mu_eta_i / var_mu_i
-  # where mu, mu_eta, var_mu, Y - mu are all functions of beta_hat
-  # (fixed inside the closure). Only `w_i(alpha)` varies with alpha,
-  # so numDeriv only has to re-run the weight formula per perturbation.
+  # A_{\beta\alpha} = -(1/n) sum_i \partial\psi_\beta_i / \partial\alpha.
+  # psi_\beta_i = X_i w_i(\alpha) (Y_i - \mu_i) mu'_i / V(\mu_i);
+  # \mu_i, mu'_i, V(\mu_i), Y_i - \mu_i all fixed at \hat\beta.
+  # Only w_i(\alpha) varies, so numDeriv re-evaluates only the weight formula.
   beta_hat <- stats::coef(msm_model)
   X_msm <- msm_prep$X_fit
   y_fit <- stats::model.response(stats::model.frame(msm_model))
@@ -418,6 +413,8 @@ compute_ipw_if_self_contained_one <- function(
   r_fit <- y_fit - mu
 
   phi_bar <- function(alpha) {
+    # \bar\psi_\beta(\alpha) = (1/n) X' diag(w(alpha) * mu'(eta) * r / V(\mu)) 1
+    # Only w(alpha) changes with alpha; beta-dependent terms are pre-computed.
     w_alpha <- weight_fn(alpha)
     s_per_i <- w_alpha * mu_eta * r_fit / var_mu
     as.numeric(crossprod(X_msm, s_per_i)) / n_fit
@@ -436,15 +433,14 @@ compute_ipw_if_self_contained_one <- function(
   A_beta_alpha <- -numDeriv::jacobian(phi_bar, x = alpha_hat)
 
   # ---- Propensity correction via causatr's primitive --------------
-  # h_msm_true = A_{beta, beta}^{-1} J. msm_res$h holds
-  # (X'WX)^{-1} J = A_bb^{-1} J / n_fit, so multiply by n_fit to
-  # recover the "true" h.
+  # h_msm_true = A_{\beta\beta}^{-1} J. msm_res$h = (X'WX)^{-1} J,
+  # which equals A_{\beta\beta}^{-1} J / n_fit under the M-estimation
+  # definition A_{\beta\beta} = (1/n) X'WX. Multiply by n_fit to recover.
   h_msm_true <- n_fit * msm_res$h
-  # g_prop = A_{beta, alpha}^T h_msm_true is a p_alpha-vector. Feeding
-  # it as the "sensitivity gradient" to `apply_model_correction()` on
-  # the propensity model returns
-  #   prop_res$correction_i = g_prop^T A_{alpha, alpha}^{-1} psi_{alpha, i}
-  # which is exactly the quantity we need (up to sign; see below).
+  # g_prop = A_{\beta\alpha}^T h_msm_true (p_alpha-vector). Passed as
+  # the sensitivity gradient to apply_model_correction on the propensity
+  # model, which returns sum_i g_prop^T A_{\alpha\alpha}^{-1} \psi_{\alpha,i}
+  # -- the per-individual propensity correction.
   g_prop <- as.numeric(crossprod(A_beta_alpha, h_msm_true))
 
   # Route to the multinomial-specific prep when the propensity model
@@ -749,6 +745,8 @@ variance_if_ipw_longitudinal <- function(
       )
     }
 
+    # Ch1_i = n_id * (w_i / sum_w) * (\hat{mu}^g_i - \hat{mu}^g),
+    # same Hajek scaling as the point-IPW branch but denominator is n_id.
     Ch1_final <- n_id * (w_target_vec / sum_w_target) * (preds_final - mu_hat_j)
     Ch1_final[!valid_final] <- 0
 
@@ -785,11 +783,11 @@ variance_if_ipw_longitudinal <- function(
       numerator_models_by_time = numerator_models_by_time
     )
 
-    # The closure returns a length-n_id vector; the MSM bread, however,
-    # operates at the final-period MSM row scale (n_final rows). Wrap
-    # the closure to project from id-space back to final-period-row
-    # order so `numDeriv::jacobian(phi_bar)` evaluates the right
-    # weight per row of the MSM design matrix.
+    # The longitudinal weight closure operates at id-level (length n_id),
+    # but phi_bar() inside compute_ipw_if_self_contained_long_one() needs
+    # weights aligned to final-period MSM rows (length n_final).
+    # `[final_to_first]` re-indexes from id-space to final-period-row order
+    # without re-sorting: row j of the MSM corresponds to id final_to_first[j].
     base_wfn <- mv_closure$weight_fn
     if (is.null(ext_w_final)) {
       wfn_final <- function(alpha) base_wfn(alpha)[final_to_first]
@@ -891,13 +889,10 @@ compute_ipw_if_self_contained_long_one <- function(
   msm_res <- apply_model_correction(msm_prep, J)
   n_fit <- nrow(msm_prep$X_fit)
 
-  # Natural-course short-circuit. When the intervention is NULL the
-  # cumulative weight is identically 1 regardless of alpha, so there
-  # is no propensity-uncertainty term to add and `alpha_hat_stacked`
-  # is length 0. `numDeriv::jacobian` errors on an empty argument
-  # vector, so we skip the cross-derivative and the per-period
-  # corrections entirely; the IF reduces to Channel 1 + MSM
-  # correction.
+  # Natural-course short-circuit: W_i = \prod_k g_k/f_k = 1 identically,
+  # so d(W_i)/d(alpha_k) = 0 and the propensity correction vanishes.
+  # `alpha_hat_stacked` is length 0; numDeriv errors on empty alpha,
+  # so skip to Channel 1 + MSM correction.
   if (length(alpha_hat_stacked) == 0L) {
     msm_correction_id <- numeric(n_id)
     msm_correction_id[final_to_first] <- msm_res$correction
@@ -967,6 +962,8 @@ compute_ipw_if_self_contained_long_one <- function(
     data_k <- fit_data_by_time[[k]]
     ids_k <- as.character(data_k[[id_col]])
     period_ids <- ids_k[tm_k$fit_rows]
+    # `pos_k` maps each period-k fitted individual to its canonical id index.
+    # Needed because period-k rows may be in a different id order than ids_first.
     pos_k <- match(period_ids, ids_first)
     n_period_k <- length(period_ids)
 
@@ -974,14 +971,14 @@ compute_ipw_if_self_contained_long_one <- function(
     prop_prep_k <- if (inherits(prop_model_k, "multinom")) {
       prepare_model_if_multinom(prop_model_k, seq_len(n_period_k), n_period_k)
     } else {
+      # prepare_model_if expects fit_idx relative to the model's own row set;
+      # period-k rows are already aligned to the model's frame so seq_len suffices.
       prepare_model_if(prop_model_k, seq_len(n_period_k), n_period_k)
     }
     prop_res_k <- apply_model_correction(prop_prep_k, g_prop_k)
 
-    # Project per-period correction (length n_period_k) onto id-space.
-    # Under the complete-case assumption, every period has all n_id rows,
-    # so this is a permutation; defensively, dropped ids contribute zero
-    # (match() returned NA, so we skip them).
+    # Project period-k correction (n_period_k-scaled) onto id-space (n_id-scaled).
+    # n_id/n_period_k = 1 under the complete-case bijection; kept for robustness.
     correction_id <- numeric(n_id)
     correction_id[pos_k] <- prop_res_k$correction
     if (n_period_k != n_id) {

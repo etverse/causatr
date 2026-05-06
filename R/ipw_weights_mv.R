@@ -137,6 +137,10 @@ compute_density_ratio_weights_mv <- function(
   num_models <- attr(treatment_models, "numerator_models")
   stabilize <- attr(treatment_models, "stabilize") %||% "none"
 
+  # Running product across k. Each factor is the per-component ratio
+  # w_k = f^num_k(A_k | ...) / f_k(A_k | A_{1..k-1}_obs, L).
+  # Multiplying sequentially is equivalent to the joint density ratio
+  # prod_k w_k = g(d(A) | L) / f(A | L) by the chain-rule factorisation.
   joint_w <- rep(1, nrow(data))
   for (k in seq_len(K)) {
     iv_k <- interventions[[k]]
@@ -175,6 +179,7 @@ compute_density_ratio_weights_mv <- function(
         # HT branch on discrete treatment. Numerator density at the
         # target value (evaluated under the numerator model when
         # stabilized).
+        # w_k = I(A_k = target) * f^num_k(A_k | ...) / f_k(A_k | ..., L)
         target <- apply_intervention_to_values(iv_k, data, a_obs_k)
         ind <- as.numeric(a_obs_k == target)
         if (stabilize == "none") {
@@ -189,6 +194,7 @@ compute_density_ratio_weights_mv <- function(
         }
       } else if (iv_type == "shift") {
         delta <- iv_k$delta
+        # a_eval = d^{-1}(A_k) = A_k - delta; no Jacobian for shift.
         a_eval <- a_obs_k - delta
         f_num <- evaluate_density(tm_num_k, a_eval, data)
         warn_intervened_density_near_zero(
@@ -203,6 +209,8 @@ compute_density_ratio_weights_mv <- function(
             "`scale_by(0)` collapses the treatment support; not a valid MTP."
           )
         }
+        # a_eval = A_k / c; |Jac d^{-1}| = 1/|c|.
+        # w_k = f^num_k(A_k / c | ...) / (|c| * f_k(A_k | ..., L))
         a_eval <- a_obs_k / fct
         f_num <- evaluate_density(tm_num_k, a_eval, data)
         warn_intervened_density_near_zero(
@@ -495,10 +503,15 @@ make_weight_fn_mv <- function(
     block_lens[k] <- length(alpha_k)
   }
 
+  # offsets[k]:offsets[k+1]-1 slices the stacked alpha for component k.
+  # e.g. three components with p=3,2,4 coefficients -> offsets = c(1,4,6,10).
   offsets <- c(1L, cumsum(block_lens) + 1L)
   alpha_hat <- unlist(alpha_blocks, use.names = FALSE)
 
   weight_fn <- function(alpha) {
+    # Joint weight = prod_k w_k(alpha_k). Each sub-closure captures its own
+    # X_prop and data, so they evaluate independently and the joint weight
+    # is correct even though alpha is perturbed as a whole by numDeriv.
     w <- 1
     for (k in seq_len(K)) {
       idx <- offsets[k]:(offsets[k + 1L] - 1L)
@@ -540,6 +553,8 @@ mv_ht_closure <- function(
   ind,
   trt_levels = NULL
 ) {
+  # `force()` ensures each captured variable is evaluated at closure-creation
+  # time, preventing lazy-evaluation bugs when called inside a loop over k.
   force(X_prop_obs)
   force(a_obs_k)
   force(ind)
@@ -547,6 +562,7 @@ mv_ht_closure <- function(
   if (fam_tag == "bernoulli") {
     return(function(alpha) {
       p_obs <- stats::plogis(as.numeric(X_prop_obs %*% alpha))
+      # f_obs = P(A_k = a_obs_k | cond_obs, L; alpha) for a Bernoulli(p_obs).
       f_obs <- ifelse(a_obs_k == 1, p_obs, 1 - p_obs)
       ind / f_obs
     })
@@ -568,13 +584,18 @@ mv_ht_closure <- function(
     p_cols <- ncol(X_prop_obs)
     n_obs <- length(a_obs_k)
     a_obs_char <- as.character(a_obs_k)
+    # col_idx[i] is the column of prob_mat that holds P(A = a_obs[i] | L).
+    # Precomputed at closure-creation time; invariant under alpha perturbation.
     col_idx <- match(a_obs_char, trt_levels)
     return(function(alpha) {
       alpha_mat <- matrix(alpha, nrow = Km1, ncol = p_cols, byrow = TRUE)
+      # eta: n x (K-1) log-odds vs the reference level.
       eta <- X_prop_obs %*% t(alpha_mat)
       exp_eta <- exp(eta)
       denom <- 1 + rowSums(exp_eta)
+      # prob_mat: n x K; column 1 = reference level P = 1/denom.
       prob_mat <- cbind(1 / denom, exp_eta / denom)
+      # Two-column matrix index selects prob_mat[i, col_idx[i]] per row.
       f_obs <- prob_mat[cbind(seq_len(n_obs), col_idx)]
       ind / f_obs
     })
@@ -617,6 +638,7 @@ mv_pushforward_closure <- function(
   sigma = NULL,
   theta = NULL
 ) {
+  # `force()` prevents late-binding bugs inside the k-loop.
   force(X_prop)
   force(a_obs_k)
   force(a_eval)
@@ -625,7 +647,8 @@ mv_pushforward_closure <- function(
   force(theta)
   # Sequential MTP semantics: both numerator f_k(d^{-1}(A_k) | obs_hist, L)
   # and denominator f_k(A_k | obs_hist, L) evaluate at the SAME
-  # conditioning linear predictor.
+  # conditioning linear predictor (X_prop %*% alpha). `a_eval` = d^{-1}(A_k)
+  # is fixed at closure-creation time; only the mean parameter mu varies.
   if (fam_tag == "gaussian") {
     return(function(alpha) {
       mu <- as.numeric(X_prop %*% alpha)
@@ -713,6 +736,7 @@ mv_stabilized_closure <- function(
   theta = NULL,
   trt_levels = NULL
 ) {
+  # `force()` prevents late-binding bugs inside the k-loop.
   force(X_prop)
   force(a_obs_k)
   force(f_num_fixed)
@@ -720,6 +744,10 @@ mv_stabilized_closure <- function(
   force(sigma)
   force(theta)
   force(trt_levels)
+  # `f_num_fixed` is precomputed from the numerator model at closure-creation
+  # time and held constant under numDeriv perturbation of alpha. Only the
+  # denominator f_obs(alpha) varies; the formula is:
+  #   w_k = ind_or_jac * f_num_fixed / f_k(A_k | ..., L; alpha)
   if (fam_tag == "bernoulli") {
     return(function(alpha) {
       p <- stats::plogis(as.numeric(X_prop %*% alpha))

@@ -308,6 +308,9 @@ compute_aipw_contrast_point <- function(fit, interventions, target_idx) {
       data_a <- fit_data
       preds_g <- preds_obs
     } else {
+      # Set A_i = d(A_i, L_i) in the prediction frame -- the
+      # intervention is applied only here, not in the fitting frame.
+      # preds_g = m(d(A,L), L) = E_hat[Y | A=d(A,L), L].
       data_a <- apply_intervention(fit_data, treatment, iv)
       preds_g <- stats::predict(
         outcome_model,
@@ -316,7 +319,11 @@ compute_aipw_contrast_point <- function(fit, interventions, target_idx) {
       )
     }
 
-    # AIPW individual-level contributions on fit rows
+    # AIPW individual-level contributions: mu_hat(d) = (1/n) sum_i phi_i
+    #   phi_i = m(d(A_i,L_i), L_i) + W_i(d) * (Y_i - m(A_i, L_i))
+    # The second term is the augmentation: it is zero in expectation
+    # when the outcome model is correct (residuals are mean-zero), and
+    # corrects for outcome-model bias when the propensity is correct.
     aipw_contrib <- preds_g + w_iv * resid_obs
 
     # Marginal mean over target population (with optional external weights)
@@ -431,10 +438,13 @@ fit_aipw_longitudinal <- function(
   } else {
     family
   }
-  # AIPW pseudo-outcomes can exceed the original family's support
+  # AIPW pseudo-outcomes can fall outside the original family's support
   # (e.g. negative for Poisson, outside [0,1] for binomial) because
-  # pseudo = m(d,L) + W*(Y - m(A,L)).  Use gaussian for the backward
-  # pseudo-regression regardless of the original family.  Same
+  # the augmented value phi = m(d,L) + W*(Y - m(A,L)) is not a raw
+  # outcome but an EIF contribution. Fitting the backward pseudo-
+  # regression with the original family (e.g. binomial) on such
+  # fractional / out-of-range values is incoherent; gaussian identity
+  # regression is consistent regardless of the outcome family. Same
   # approach as lmtp::lmtp_sdr.
   family_pseudo <- if (family_obj$family == "gaussian") {
     family_obj
@@ -643,15 +653,17 @@ ice_aipw_iterate <- function(fit, intervention) {
   names(fit_ids) <- as.character(time_points)
 
   # -- Precompute per-period density-ratio weights (forward) ------
-  # W_period[i, k] = w_k(i), the single-period density ratio at time
-  # k. The Bang & Robins (2005) sequential DR recursion uses
-  # single-period weights at each backward step:
-  #   pseudo_k = m_k(d_k, L) + w_k * (pseudo_{k+1} - m_k(A_obs, L))
-  # NOT cumulative products. The cumulative product arises from
-  # expanding the recursion but must not be used inside it.
+  # W_period[i, k] = g_k(d_k | H_k) / f_k(A_k | H_k), the single-
+  # period density ratio at time k. The Bang & Robins (2005) sequential
+  # DR recursion augments with single-period weights at each backward
+  # step:
+  #   pseudo_k(i) = m_k(d_k, H_k) + w_k(i) * (pseudo_{k+1}(i) - m_k(A_k, H_k))
+  # Using the CUMULATIVE product prod_{j<=k} w_j inside the recursion
+  # would over-weight; the product emerges only when the full recursion
+  # is expanded algebraically (Robins et al. 2004).
   #
-  # We also store cumulative weights (for the sandwich variance
-  # engine, which needs them for the propensity Jacobian).
+  # Cumulative weights W_cumul are stored for the sandwich variance
+  # engine, which needs them for the propensity score Jacobian.
   id_to_idx <- stats::setNames(seq_len(n_id), id_chr)
   W_period <- matrix(1, nrow = n_id, ncol = n_times)
   W_cumul <- matrix(1, nrow = n_id, ncol = n_times)
@@ -736,9 +748,13 @@ ice_aipw_iterate <- function(fit, intervention) {
   )
   resid_k <- data[pred_mask][[outcome]] - preds_obs
 
-  # AIPW pseudo = intervention prediction + per-period weight * residual
+  # Initialize pseudo at the final time: phi_K(i) = m_K(d_K, H_K) + w_K * (Y - m_K(A_K, H_K))
+  # This is the first step of the ICE-AIPW backward recursion (k = K).
   pseudo[pred_ids] <- preds_iv + W_period[pred_idx, n_times] * resid_k
   if (binary_outcome) {
+    # `pseudo_reg` is the clipped version fed as the response to the
+    # next backward pseudo-regression. The unclipped `pseudo` is used
+    # for residuals and the final mean -- clipping it would bias the EIF.
     pseudo_reg[pred_ids] <- pmax(
       pmin(pseudo[pred_ids], 1 - 1e-5),
       1e-5
@@ -752,6 +768,10 @@ ice_aipw_iterate <- function(fit, intervention) {
   }
 
   # -- Steps 2+: backward iteration (time K-1 down to 0) ---------
+  # At each step k, augment the pseudo from the previous (later) step:
+  #   pseudo_k(i) = m_k(d_k, H_k) + w_k(i) * (pseudo_{k+1}(i) - m_k(A_k, H_k))
+  # This is the sequential DR condition: consistent if EITHER the k-th
+  # outcome regression m_k OR the k-th propensity f_k is correct.
   for (step_i in seq(n_times - 1L, 1L, by = -1L)) {
     current_time <- time_points[step_i]
     time_idx <- step_i - 1L
@@ -822,13 +842,17 @@ ice_aipw_iterate <- function(fit, intervention) {
       type = "response"
     )
 
-    # Residual uses unclipped pseudo from the previous backward step
+    # Residual = pseudo_{k+1}(i) - m_k(A_k, H_k): uses the UNCLIPPED
+    # pseudo from the previous (later) step as the "outcome" and
+    # subtracts the observed-treatment prediction. Using `pseudo_reg`
+    # (clipped) here would bias the residual and break double robustness.
     resid_k <- pseudo[pred_ids_all] - preds_obs
 
-    # AIPW pseudo: augmented with per-period weight * residual.
-    # Where pseudo from the previous step is NA (censored at a later
-    # time), fall back to the vanilla ICE prediction (resid = NA
-    # would propagate). This mirrors ICE's has_pseudo filtering.
+    # AIPW augmentation at step k:
+    #   pseudo_k(i) = m_k(d_k, H_k) + w_k(i) * resid_k(i)
+    # Where pseudo_{k+1} is NA (individual was censored at a later time
+    # and never received a forward prediction), fall back to the vanilla
+    # ICE prediction m_k(d_k, H_k) -- resid would be NA and propagate.
     has_prev_pseudo <- !is.na(pseudo[pred_ids_all])
     aipw_pseudo <- preds_iv
     aipw_pseudo[has_prev_pseudo] <- preds_iv[has_prev_pseudo] +
@@ -836,6 +860,8 @@ ice_aipw_iterate <- function(fit, intervention) {
         resid_k[has_prev_pseudo]
     pseudo[pred_ids_all] <- aipw_pseudo
     if (binary_outcome) {
+      # Clip only the version used as a regression response (pseudo_reg);
+      # keep `pseudo` unclipped for use in the next step's residual.
       pseudo_reg[pred_ids_all] <- pmax(
         pmin(aipw_pseudo, 1 - 1e-5),
         1e-5
@@ -849,7 +875,9 @@ ice_aipw_iterate <- function(fit, intervention) {
     }
   }
 
-  # Return baseline pseudo-outcomes
+  # After the full backward pass, pseudo[i] at the first time point is
+  # the individual-level ICE-AIPW EIF value phi_1(H_{i,1}). Its mean
+  # over the target population is the doubly-robust estimate mu_hat(d).
   first_time <- time_points[1]
   rows_first <- data[[time_col]] == first_time
   first_ids <- as.character(data[rows_first][[id_col]])

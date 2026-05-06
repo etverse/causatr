@@ -338,14 +338,17 @@ is_uncensored <- function(data, censoring) {
 #' @noRd
 resolve_family <- function(family) {
   # Three-way dispatch to canonicalize every input to a family object.
-  # This matches what glm/gam do internally so downstream code can
-  # assume `family$family` and `family$link` are strings.
+  # Downstream code universally relies on `family$family` (character)
+  # and `family$link` (character) being present -- normalizing here
+  # means each call site doesn't need its own isinstance check.
   if (is.character(family)) {
     # Look up in stats:: namespace explicitly -- avoids picking up a
     # user-defined function with the same name in the caller's env.
     # Wrap in tryCatch because some stats:: functions share names with
-    # family constructors (e.g. stats::beta is the beta function, not
-    # a GLM family).
+    # family constructors (e.g. `stats::beta` is the beta distribution
+    # function, not a GLM family; calling it returns a numeric value,
+    # not a family object, and the `inherits(., "family")` guard below
+    # catches that).
     fam_obj <- tryCatch(
       {
         fam_fn <- get(family, mode = "function", envir = asNamespace("stats"))
@@ -363,6 +366,11 @@ resolve_family <- function(family) {
         "betareg",
         reason = "for beta regression outcomes (family = \"beta\")"
       )
+      # `betareg::betareg()` doesn't accept a `family` argument; the beta
+      # family object built here is used only by `is_binary_family()` (returns
+      # FALSE so the non-binary estimation path is taken) and by variance
+      # tier selection. The link slots are populated so downstream code that
+      # calls `family$linkinv()` on predictions doesn't error.
       logit <- stats::make.link("logit")
       return(structure(
         list(
@@ -404,6 +412,12 @@ resolve_family <- function(family) {
 #' @return Logical scalar.
 #' @noRd
 fn_accepts_family <- function(fn) {
+  # `formals()` returns the declared parameter list without executing the
+  # function; it's the correct way to inspect the signature of an arbitrary
+  # function object. `MASS::glm.nb` and `betareg::betareg` do not declare
+  # `family` in their formals, so this returns FALSE for both, causing the
+  # fitter to omit the `family` argument rather than passing one those
+  # functions would reject with a cryptic error.
   "family" %in% names(formals(fn))
 }
 
@@ -437,10 +451,11 @@ is_binary_family <- function(family) {
 #' @noRd
 build_ps_formula <- function(confounders, treatment) {
   em_info <- parse_effect_mod(confounders, treatment)
-  # Use only the non-EM terms for the propensity model RHS. Modifier
-  # main effects that appear as standalone terms (e.g. `sex` in
-  # `~ L + sex + A:sex`) are already in `confounder_terms` because
-  # `parse_effect_mod` only classifies the interaction itself as EM.
+  # Use only the non-EM terms for the propensity model RHS. Including
+  # `A:sex` on the RHS of a model for A would be circular (A appears on
+  # both sides). Modifier main effects that appear as standalone terms
+  # (e.g. `sex` in `~ L + sex + A:sex`) are already in `confounder_terms`
+  # because `parse_effect_mod` only classifies the interaction itself as EM.
   ps_terms <- em_info$confounder_terms
   if (length(ps_terms) == 0L) {
     # Edge case: confounders formula had only EM terms (e.g. `~ A:sex`).
@@ -489,6 +504,17 @@ check_confounders_treatment <- function(
 #' @return Logical vector of length `nrow(data)`.
 #' @noRd
 get_fit_rows <- function(data, outcome, censoring = NULL) {
+  # Both conditions must hold for a row to enter the model fit:
+  #
+  # 1. Uncensored: a censored row carries an observed outcome that
+  #    reflects censoring rather than the natural disease process;
+  #    including it without IPCW weighting biases E[Y^a].
+  #
+  # 2. Non-missing outcome: rows with NA outcome would be silently
+  #    dropped by glm's default `na.action = na.omit`, which shortens
+  #    the fitted-value vector and misaligns `fit_rows`-indexed score
+  #    matrices in the sandwich engine. Excluding them here keeps the
+  #    bookkeeping correct and makes the exclusion explicit.
   is_uncensored(data, censoring) & !is.na(data[[outcome]])
 }
 
@@ -541,6 +567,13 @@ check_pkg <- function(pkg) {
 #'   `binomial`.
 #' @noRd
 msm_family <- function(fam) {
+  # IPW MSMs are fit with density-ratio weights, which are non-integer
+  # fractions. `stats::glm` emits "non-integer #successes in a binomial
+  # glm!" for every row when `family = binomial`. `quasibinomial` produces
+  # identical coefficients, SEs, and predictions because it uses the same
+  # IRLS update but skips the Pearson chi-squared check that triggers the
+  # warning. The link is forwarded to preserve user-specified link choices
+  # (e.g. `binomial("log")` -> `quasibinomial("log")`).
   if (is.list(fam) && identical(fam$family, "binomial")) {
     return(stats::quasibinomial(link = fam$link))
   }

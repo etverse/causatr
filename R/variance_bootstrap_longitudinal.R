@@ -273,6 +273,10 @@ ice_variance_bootstrap <- function(
     target_b_within <- target_b[rows_b_first]
 
     # Run ICE for each intervention and compute marginal means.
+    # Each call to `ice_iterate()` refits all K period outcome models
+    # for that intervention: Q_k(\bar{a}) depends on the specific
+    # intervention value applied at period k, so the K models cannot be
+    # shared across interventions or pre-computed outside the bootstrap.
     w_b_target <- if (!is.null(w_b)) w_b[rows_b_first][target_b_within]
     vapply(
       interventions,
@@ -401,7 +405,12 @@ aipw_longitudinal_variance_bootstrap <- function(
       }
     }
 
-    # Refit the longitudinal AIPW object
+    # Refit the full longitudinal AIPW object on the bootstrap sample.
+    # Both the K propensity models and the K outcome models must be
+    # refit here: the augmentation term in ICE-AIPW couples the two
+    # (each Q_k update uses g-weights from the propensity models), so
+    # fixing either set at the original estimates would understate
+    # variance by ignoring nuisance-estimation uncertainty.
     fit_b <- tryCatch(
       suppressWarnings(
         fit_aipw_longitudinal(

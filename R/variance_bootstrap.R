@@ -251,9 +251,18 @@ variance_bootstrap <- function(
   censoring <- fit$censoring
 
   # boot_fn: called by boot::boot() for each replicate.
+  # The bootstrap is correct here -- not just a computational convenience --
+  # because it resamples individuals and refits the ENTIRE pipeline
+  # (treatment model + outcome model + standardisation) on each resample.
+  # This reproduces the full sampling distribution including the
+  # uncertainty from nuisance estimation, which a naive vcov of predictions
+  # under a single fit would miss. The IF sandwich is an analytic
+  # approximation to the same quantity; bootstrap is the non-parametric
+  # alternative that avoids assuming parametric models for the IF terms.
+  #
   # The entire body is wrapped in tryCatch because bootstrap samples may
   # cause downstream failures (e.g. factor levels absent from uncensored
-  # rows but present in prediction data).  Failed replicates return NA and
+  # rows but present in prediction data). Failed replicates return NA and
   # are excluded from the variance calculation -- this is the standard
   # bootstrap approach (Davison & Hinkley, 1997, Sec.2.5.3).
   boot_fn <- function(d, indices) {
@@ -263,6 +272,9 @@ variance_bootstrap <- function(
         # Resample weights alongside data rows. When IPCW is active,
         # use the pre-IPCW weights — each refit_*() function refits
         # the censoring model and recomposes IPCW weights internally.
+        # Resampling the pre-IPCW weights rather than the final composed
+        # weights ensures the censoring model is re-estimated on the
+        # bootstrap sample's censoring pattern, not the original's.
         orig_w <- if (isTRUE(fit$details$ipcw)) {
           fit$details$weights_pre_ipcw
         } else {
@@ -413,6 +425,13 @@ variance_bootstrap <- function(
     )
   }
 
+  # Point-treatment bootstrap resamples rows (individuals) with replacement.
+  # For longitudinal data, the equivalent functions in
+  # variance_bootstrap_longitudinal.R resample ENTIRE individual trajectories
+  # (all person-period rows for a given id move together). This "cluster
+  # bootstrap" preserves within-individual correlation across time -- sampling
+  # rows independently would break the temporal dependence structure and
+  # underestimate uncertainty by treating repeated observations as independent.
   boot_res <- dispatch_boot(
     data = data,
     statistic = boot_fn,
@@ -629,6 +648,13 @@ refit_aipw <- function(fit, d_b, weights = NULL) {
 }
 
 #' Re-match and refit outcome model on a bootstrap sample
+#'
+#' Re-matching on each bootstrap sample is essential: the matched pairs are
+#' determined by the propensity scores estimated on the original data. If we
+#' kept the original matched set and only refit the outcome model, the bootstrap
+#' distribution would not capture uncertainty from the matching step itself,
+#' producing anti-conservative SEs. Full re-matching is computationally heavier
+#' but the only valid approach.
 #'
 #' @param fit A `causatr_fit` object.
 #' @param d_b A data.table bootstrap sample.

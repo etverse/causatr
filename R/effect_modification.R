@@ -37,7 +37,14 @@ parse_effect_mod <- function(confounders, treatment) {
     trt_hit <- intersect(vars, treatment)
 
     if (length(trt_hit) > 0L) {
-      # At least one treatment variable appears in this term.
+      # At least one treatment variable appears in this term. The modifier
+      # is the non-treatment part of the interaction. The package requires
+      # the modifier to be a baseline (pre-treatment) variable: a
+      # post-treatment or time-varying modifier in the MSM conditions on a
+      # descendant of A, which either opens a collider path (collider bias)
+      # or conditions on a mediator (mediation, not effect modification).
+      # This constraint is documented but not enforced at runtime; callers
+      # are responsible for supplying baseline modifiers.
       modifier_vars <- setdiff(vars, treatment)
       em_terms <- c(
         em_terms,
@@ -91,10 +98,15 @@ build_ipw_msm_formula <- function(outcome, em_info) {
   if (!em_info$has_em) {
     return(stats::as.formula(paste0(outcome, " ~ 1")))
   }
-  # Include modifier main effects only. The treatment is absorbed by
-  # the density-ratio weights, so `A:modifier` becomes just `modifier`
-  # in the MSM. For multiple modifiers (e.g. `A:sex + A:race`), all
-  # modifier main effects enter: `Y ~ 1 + sex + race`.
+  # Under IPW the treatment effect is fully absorbed by the density-ratio
+  # weights: the Hajek intercept of `Y ~ 1` fit under arm-specific weights
+  # estimates E[Y^a] for each arm. With effect modification we want
+  # stratum-specific means E[Y^a | V=v], which requires the modifier to
+  # enter the MSM as a main effect so `predict()` can return per-stratum
+  # fitted values. No treatment term enters because the weight already
+  # indexes the arm -- adding A would conflate the weighting and the
+  # regression adjustment, biasing the stratum-specific estimate.
+  # For multiple modifiers (e.g. `A:sex + A:race`): `Y ~ 1 + sex + race`.
   stats::reformulate(c("1", em_info$modifier_vars), response = outcome)
 }
 
@@ -118,9 +130,15 @@ build_matching_msm_formula <- function(outcome, treatment, em_info) {
   if (!em_info$has_em) {
     return(stats::reformulate(treatment, response = outcome))
   }
-  # Reconstruct the EM interaction terms with the treatment. The user
-  # wrote `A:sex` in confounders; we emit `A + sex + A:sex` on the
-  # MSM RHS. For multiple modifiers: `A + sex + race + A:sex + A:race`.
+  # Matching handles confounding via the matched design rather than
+  # weights, so the treatment term A must appear explicitly in the MSM
+  # to estimate the treatment effect. The saturated specification
+  # `Y ~ A + V + A:V` is the standard approach: A estimates the main
+  # effect in the reference stratum, A:V estimates the heterogeneity.
+  # Omitting the modifier main effect V would force a common intercept
+  # across strata and confound the interaction estimate.
+  # The user wrote `A:sex` in confounders; we emit `A + sex + A:sex`.
+  # For multiple modifiers: `A + sex + race + A:sex + A:race`.
   em_interaction_terms <- vapply(
     em_info$em_terms,
     function(x) x$term,
@@ -206,6 +224,12 @@ expand_em_lag_terms <- function(em_term, available_lags) {
   if (available_lags == 0L) {
     return(character(0L))
   }
+  # Produces lag-prefixed interaction terms for ICE outcome models. The
+  # current-time term ("A:sex") is excluded from the return value because
+  # the ICE formula builder adds it separately via `baseline_terms`; this
+  # function's sole job is the lag expansion. Mixing them here would
+  # duplicate the current-time interaction when the caller concatenates.
+  #
   # Split the interaction term into its `:`-separated components, find
   # which component is the treatment variable, and substitute the lag
   # prefix for each lag order. E.g. "A:sex" -> components = c("A","sex"),

@@ -84,6 +84,7 @@ compute_longitudinal_weights <- function(
   # the per-id cumulative weight. Each column is built by reusing the
   # univariate `compute_density_ratio_weights()` engine against the
   # period-k model and subset.
+  # W[i, k] = w_{ik}; cumulative weight W_i = prod_k W[i, k] (row-product).
   W_per_period <- matrix(NA_real_, nrow = n_id, ncol = n_times)
 
   stabilize <- !is.null(numerator_models_by_time)
@@ -121,6 +122,9 @@ compute_longitudinal_weights <- function(
     # is identity. Defensive: rows that weren't fit at period k get
     # weight 0 (absorbed into the cumulative product, drops them
     # from the Hajek mean).
+    # `match()` returns NA for ids absent from ids_first; the
+    # assignment `w_aligned[NA] <- ...` is silently ignored, so
+    # unmatched ids stay 0 -- correct.
     period_ids <- ids_k[tm_k$fit_rows]
     w_aligned <- rep(0, n_id)
     pos <- match(period_ids, ids_first)
@@ -218,6 +222,7 @@ compute_stabilized_period_weight <- function(
   # numerator density at those rows equals `g_k(A_obs | ...)` -- no
   # need to substitute the target into newdata. Multivariate IPW's
   # `mv_stabilized_closure()` HT branch uses the same shortcut.
+  # w_k = I(A_k = target) * g_k(A_k | ...) / f_k(A_k | ..., L)
   is_ht <- iv_type %in%
     c("static", "dynamic") &&
     family_tag %in% c("bernoulli", "categorical")
@@ -231,6 +236,7 @@ compute_stabilized_period_weight <- function(
   # Smooth pushforward branch (shift / scale_by on Gaussian / count).
   if (iv_type == "shift") {
     delta <- intervention$delta
+    # a_eval = d^{-1}(A_obs) = A_obs - delta; numerator evaluated there.
     a_eval <- a_obs - delta
     f_num <- evaluate_density(tm_num, a_eval, fit_data)
     warn_intervened_density_near_zero(
@@ -246,6 +252,7 @@ compute_stabilized_period_weight <- function(
         "`scale_by(0)` collapses the treatment support; not a valid MTP."
       )
     }
+    # a_eval = A_obs / c; divide by |c| for the inverse-map Jacobian.
     a_eval <- a_obs / fct
     f_num <- evaluate_density(tm_num, a_eval, fit_data)
     warn_intervened_density_near_zero(
@@ -467,10 +474,14 @@ make_weight_fn_longitudinal <- function(
     block_lens[k] <- length(alpha_k)
   }
 
+  # offsets[k]:offsets[k+1]-1 slices the stacked alpha for period k.
   offsets <- c(1L, cumsum(block_lens) + 1L)
   alpha_hat <- unlist(alpha_blocks, use.names = FALSE)
 
   weight_fn <- function(alpha) {
+    # Cumulative product W_i = prod_k w_{ik}(alpha_k). Each sub-closure
+    # evaluates independently (period-k data is disjoint from period-k' data),
+    # so numDeriv can perturb the full stacked alpha safely.
     W <- rep(1, n_id)
     for (k in seq_len(K)) {
       idx <- offsets[k]:(offsets[k + 1L] - 1L)
@@ -480,8 +491,9 @@ make_weight_fn_longitudinal <- function(
       # Project per-period weight (length n_period_k) onto the
       # canonical id ordering. Periods missing an id contribute
       # weight 0 (drops the id from the Hajek mean). Under the
-      # complete-case assumption, alignment is the
-      # identity.
+      # complete-case assumption, alignment is the identity.
+      # `align_idx[[k]]` was precomputed at closure-creation time to
+      # avoid re-calling `match()` on every numDeriv perturbation.
       w_aligned <- rep(0, n_id)
       w_aligned[align_idx[[k]]] <- w_period
       W <- W * w_aligned
@@ -541,7 +553,10 @@ make_long_stabilized_period_closure <- function(
   # numerator density vector) and `ind_or_jac` (the
   # indicator-or-Jacobian multiplier). Mirrors the construction in
   # `make_weight_fn_mv()`'s stabilized branch.
+  # `f_num_fixed` is fixed at closure-creation time; it never varies
+  # with alpha during the numDeriv perturbation loop.
   if (is.null(intervention)) {
+    # Natural course stabilized: numerator is g_k(A_obs | ..., V), no Jac.
     f_num_fixed <- evaluate_density(tm_num, a_obs, fit_data)
     ind_or_jac <- rep(1, n_rows)
   } else {
@@ -561,6 +576,7 @@ make_long_stabilized_period_closure <- function(
       f_num_fixed <- evaluate_density(tm_num, a_obs, fit_data)
     } else if (iv_type == "shift") {
       delta <- intervention$delta
+      # a_eval = d^{-1}(A_obs) = A_obs - delta; |Jac| = 1.
       a_eval <- a_obs - delta
       f_num_fixed <- evaluate_density(tm_num, a_eval, fit_data)
       ind_or_jac <- rep(1, n_rows)
@@ -571,6 +587,7 @@ make_long_stabilized_period_closure <- function(
           "`scale_by(0)` collapses the treatment support; not a valid MTP."
         )
       }
+      # a_eval = A_obs / c; |Jac d^{-1}| = 1/|c| baked into ind_or_jac.
       a_eval <- a_obs / fct
       f_num_fixed <- evaluate_density(tm_num, a_eval, fit_data)
       ind_or_jac <- rep(abs(1 / fct), n_rows)

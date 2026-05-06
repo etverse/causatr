@@ -152,6 +152,8 @@ fit_longitudinal_ipw <- function(
   # `time_points[k]`; lag columns (`lag1_A`, ...) created by
   # `prepare_data()` are aligned to this ordering because
   # `create_lag_vars()` keys on `(id, time)` before shifting.
+  # Sorting here guarantees `treatment_models_by_time` is keyed in
+  # chronological order even when the data arrives unsorted.
   time_points <- sort(unique(data[[time]]))
   n_times <- length(time_points)
 
@@ -227,6 +229,10 @@ fit_longitudinal_ipw <- function(
   # the period subset, not the full person-period data. Downstream we
   # carry the per-period subsets explicitly so the variance engine can
   # rebuild propensity-side design matrices.
+  #
+  # `treatment_models_by_time` is named by the string representation
+  # of each time point (e.g. "0", "1", "2") so callers can retrieve
+  # the k-th period model by name without positional indexing.
   treatment_models_by_time <- vector("list", n_times)
   fit_data_by_time <- vector("list", n_times)
   per_period_formula <- vector("list", n_times)
@@ -251,6 +257,10 @@ fit_longitudinal_ipw <- function(
     # `fit_treatment_model()` handles its own NA dropping and
     # `propensity_family` dispatch. The returned object exposes
     # `fit_rows` relative to `data_k`, `alpha_hat`, `X_prop`, etc.
+    # Lag columns used here (e.g. `lag1_A`, `lag1_L`) are pre-computed
+    # by `prepare_data()` / `create_lag_vars()`; referencing them by
+    # name in the formula is safe because `build_longitudinal_ps_formula()`
+    # drops any columns that are all-NA at this period.
     tm_args <- list(
       data = data_k,
       treatment = treatment,
@@ -329,6 +339,8 @@ fit_longitudinal_ipw <- function(
   # Final-period rows define the MSM scope and the marginal-mean
   # average. The Hajek intercept of `Y ~ 1` weighted by the cumulative
   # product weight reads `E[Y^d]` directly off the (sole) coefficient.
+  # Only the final period carries a non-missing outcome in a typical
+  # longitudinal study; earlier periods have `NA` in the outcome column.
   last_time <- time_points[n_times]
   rows_final <- data[[time]] == last_time
   fit_rows_final <- rows_final & !is.na(data[[outcome]])
@@ -351,6 +363,8 @@ fit_longitudinal_ipw <- function(
   # `Y ~ A` -- gives `print()` / `summary()` something to display
   # before any contrast is requested. The real per-intervention MSM
   # is refit inside `compute_ipw_contrast_longitudinal()`.
+  # `Y ~ 1` (unweighted) rather than `Y ~ A` because in longitudinal
+  # data the treatment varies by period, so `Y ~ A` would be ambiguous.
   fam_obj <- resolve_family(family)
   placeholder_args <- list(
     formula = stats::reformulate("1", response = outcome),
@@ -447,6 +461,9 @@ build_longitudinal_ps_formula <- function(
   rhs_dynamic <- tv_vars
 
   # Lag columns: `lag1_A`, `lag1_L`, ..., `lagm_A`, `lagm_L`.
+  # The naming convention `lag{j}_{col}` matches what `create_lag_vars()`
+  # in `prepare_data()` materialises; any mismatch here silently drops
+  # the column in the all-NA guard below rather than causing an error.
   if (available_lags > 0L) {
     for (lag_k in seq_len(available_lags)) {
       rhs_dynamic <- c(rhs_dynamic, paste0("lag", lag_k, "_", treatment))
@@ -636,7 +653,9 @@ compute_ipw_contrast_longitudinal <- function(
 
   # Map id -> position in the first-time ordering. Used to project the
   # cumulative weight (length n_id, in first-time order) onto the
-  # final-period rows.
+  # final-period rows. Reverse lookup: given an id from `ids_final`,
+  # `id_to_first_idx[id]` gives its row in `w_id` from
+  # `compute_longitudinal_weights()`.
   id_to_first_idx <- stats::setNames(seq_len(n_id), ids_first)
 
   ext_w_final <- if (is.null(ext_w)) NULL else ext_w[fit_rows_final]

@@ -163,9 +163,10 @@ print.causatr_result <- function(x, ...) {
     )
   }
 
-  # When `by = ...` was used, the estimates / contrasts tables have
-  # an extra `by` column. Section headers acknowledge this so the
-  # reader knows to interpret each row as a per-stratum estimate.
+  # When `by = ...` was used, `contrast()` adds a `by` column to both
+  # `x$estimates` and `x$contrasts`. Detecting it via column presence
+  # (rather than a separate slot) lets `print()` adapt without requiring
+  # callers to pass any extra flag.
   has_by <- "by" %in% names(x$estimates)
 
   if (has_by) {

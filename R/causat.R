@@ -389,8 +389,18 @@ causat <- function(
   stabilize <- rlang::arg_match(stabilize)
   # Capture the call for later display in print/summary of the result.
   call <- match.call()
+  # `estimator`, not `method`: avoids shadowing `MatchIt::matchit(method = ...)`,
+  # which is forwarded verbatim through `...` to MatchIt. Using the same
+  # argument name would create an ambiguous named match in do.call().
   estimator <- rlang::arg_match(estimator)
   estimand <- rlang::arg_match(estimand)
+
+  # Separate fit (causat) from inference (contrast): the fit object carries
+  # the nuisance models and data, but not the estimand-specific marginal
+  # means. This lets one g-comp fit produce ATE, ATT, ATC, and subgroup
+  # effects in subsequent contrast() calls without refitting the outcome model.
+  # IPW and matching bake the estimand into the weights/matching at fit time,
+  # so their fit is single-estimand -- contrast() enforces this.
 
   # Auto-detect point vs longitudinal from the presence of id/time.
   # `type` lets the user force one or the other -- useful for tests
@@ -595,6 +605,15 @@ causat <- function(
   # Dispatch to the estimator-specific fitter. Each returns a
   # `causatr_fit` with the same S3 class and slot structure, which
   # contrast() and diagnose() then consume uniformly.
+  #
+  # ICE (gcomp longitudinal) defers fitting the K period outcome models to
+  # contrast() rather than doing it here: the pseudo-outcome sequence at each
+  # time step depends on the intervention being applied (which regime to set at
+  # period k determines the backward-recursion starting values). Because two
+  # different interventions yield two different sets of period models, there is
+  # no single "the outcome model" to store on the fit; contrast() runs
+  # ice_iterate() per intervention instead. The fit$model slot holds NULL for
+  # ICE; fit$data and fit$details carry everything ice_iterate() needs.
   fit <- switch(
     estimator,
     gcomp = fit_gcomp(
@@ -680,8 +699,10 @@ causat <- function(
 
   # Stash the cluster column name on the fit so `contrast()` can
   # default its own `cluster =` argument without the user having to
-  # repeat it. Threading this through every `fit_*()` signature would
-  # touch four files for one assignment; we do it once here instead.
+  # repeat it. The cluster is not used during fitting -- it only enters
+  # the sandwich variance aggregation in contrast(). Threading it through
+  # every `fit_*()` signature would touch four files for one assignment;
+  # we do it once here instead.
   if (!is.null(cluster)) {
     fit$details$cluster <- cluster
   }

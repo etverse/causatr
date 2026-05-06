@@ -93,6 +93,11 @@ fit_censoring_model <- function(
 
   fit_data$.uncens <- uncens_response
 
+  # The censoring model is always logistic regardless of the treatment
+  # family. Censoring C is binary (0/1) by definition, so its natural
+  # model is Bernoulli/logistic. The treatment family (Gaussian, Poisson,
+  # etc.) describes a completely different variable and has no bearing
+  # on how the 0/1 censoring indicator is modeled.
   model_args <- list(
     formula = cens_formula,
     data = fit_data,
@@ -152,9 +157,14 @@ compute_ipcw_weights <- function(
   p_uncens <- censoring_model$p_uncensored
   p_marg <- censoring_model$p_marginal
 
+  # Initialize to 1 so rows outside the fit set (NA censoring)
+  # contribute with weight 1 -- they are treated as uncensored.
   w <- rep(1, n_total)
 
-  # For rows that were fit: assign IPCW weights
+  # IPCW weight for uncensored rows: w_i = P(C=0) / P(C=0|A_i,L_i).
+  # The numerator P(C=0) centers weights near 1 (stabilization),
+  # reducing finite-sample variability without changing the target
+  # estimand. Without stabilization the numerator is 1.
   fit_idx <- which(fit_rows)
   if (stabilize) {
     w[fit_idx] <- p_marg / p_uncens
@@ -162,7 +172,9 @@ compute_ipcw_weights <- function(
     w[fit_idx] <- 1 / p_uncens
   }
 
-  # Zero out censored rows (C != 0)
+  # Censored rows get weight 0 so they are excluded from all weighted
+  # sums. Setting to 0 (rather than NA) allows vectorized dot products
+  # downstream without requiring explicit subsetting.
   censored <- !is.na(censoring_col) & censoring_col != 0L
   w[censored] <- 0
 
@@ -291,7 +303,11 @@ fit_censoring_models_longitudinal <- function(
     )
     per_period_weights[[k]] <- w_k
 
-    # Accumulate into cumulative weights
+    # Accumulate into cumulative IPCW weights: W_{C,i}(k) = prod_{j<=k} w_{i,j}.
+    # The product represents the probability of remaining uncensored
+    # through period k, and the inverse of this product reweights the
+    # observed completers to represent individuals who would remain
+    # uncensored under the target regime (MAR assumption).
     cum_w[rows_k] <- cum_w[rows_k] * w_k
   }
 

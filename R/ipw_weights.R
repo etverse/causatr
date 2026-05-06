@@ -237,6 +237,7 @@ compute_density_ratio_weights <- function(
     delta <- intervention$delta
     # shift: d(a) = a + delta, d^{-1}(y) = y - delta, |Jac| = 1.
     # f_d(A_obs | l) = f(A_obs - delta | l).
+    # We evaluate f at the *pre-image* of A_obs, not at d(A_obs) = A_obs + delta.
     a_eval <- a_obs - delta
     f_obs <- evaluate_density(treatment_model, a_obs, fit_data)
     f_int <- evaluate_density(treatment_model, a_eval, fit_data)
@@ -254,6 +255,8 @@ compute_density_ratio_weights <- function(
     }
     # scale_by(c): d(a) = c * a, d^{-1}(y) = y / c, |Jac| = 1 / |c|.
     # f_d(A_obs | l) = f(A_obs / c | l) / |c|.
+    # The 1/|c| Jacobian factor is essential: without it the weight
+    # integrates to |c| instead of 1 under the marginal, biasing E[Y^d].
     a_eval <- a_obs / fct
     f_obs <- evaluate_density(treatment_model, a_obs, fit_data)
     f_int <- evaluate_density(treatment_model, a_eval, fit_data)
@@ -562,10 +565,14 @@ make_weight_fn <- function(
     # parameters as the propensity nuisance -- sigma as an additional
     # nuisance would require a joint M-estimation setup for (mu,
     # sigma), which is deferred.
+    # `a_eval` and `jac_abs` are captured at closure-creation time (they
+    # depend only on data and the intervention, not on alpha) so the
+    # numDeriv loop pays no re-computation cost for them.
     return(function(alpha) {
       mu <- as.numeric(X_prop %*% alpha)
       f_obs <- stats::dnorm(a_obs, mean = mu, sd = sigma)
       f_eval <- stats::dnorm(a_eval, mean = mu, sd = sigma)
+      # w_i = f(d^{-1}(A_obs_i) | L_i) * |Jac d^{-1}| / f(A_obs_i | L_i)
       (f_eval / f_obs) * jac_abs
     })
   }
@@ -604,13 +611,17 @@ make_weight_fn <- function(
 
     if (family_tag == "poisson") {
       return(function(alpha) {
+        # Log link: lambda = exp(X %*% alpha). `a_eval` and `jac_abs`
+        # are fixed (captured at closure-creation); `theta` is not used here.
         lambda <- as.numeric(exp(X_prop %*% alpha))
         f_obs <- stats::dpois(a_obs, lambda)
         f_eval <- stats::dpois(a_eval, lambda)
         (f_eval / f_obs) * jac_abs
       })
     }
-    # negbin
+    # negbin: same log-link structure; `theta` (NB dispersion) is held
+    # fixed under alpha perturbation, consistent with the Gaussian sigma
+    # convention above.
     return(function(alpha) {
       lambda <- as.numeric(exp(X_prop %*% alpha))
       f_obs <- stats::dnbinom(a_obs, mu = lambda, size = theta)

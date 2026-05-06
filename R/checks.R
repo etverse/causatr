@@ -222,11 +222,12 @@ check_estimand_trt_compat <- function(
     return(invisible(NULL))
   }
 
-  # ATT/ATC are defined as "average effect among the treated/controls",
-  # which requires a natural binary 0/1 split of the population. For
-  # continuous treatment there is no "treated group"; for longitudinal
-  # there is no single baseline treatment to condition on. Multivariate
-  # falls in the same bucket -- there's no unique "treated" level.
+  # ATT = E[Y^1 - Y^0 | A=1] and ATC = E[Y^1 - Y^0 | A=0] condition on
+  # membership in a "treated" or "control" group, which presupposes a
+  # binary 0/1 treatment. For continuous treatments there is no discrete
+  # "treated group" to condition on; for longitudinal there is no single
+  # baseline exposure defining membership; for multivariate there is no
+  # unique "treated" level across the joint distribution.
   # Factor or character-coded binary treatments are also rejected: the
   # downstream `contrast()` filter is `trt_sym == 1L`, so even a
   # two-level factor with levels `c("control", "treated")` silently
@@ -465,10 +466,10 @@ check_causat_inputs <- function(
   # catches the "only one present" mistake.
   type <- if (!is.null(id) && !is.null(time)) "longitudinal" else "point"
 
-  # Estimator x type compatibility: longitudinal data is supported by
-  # gcomp (ICE) and ipw (per-period density chain). Matching has no
-  # longitudinal analogue (MatchIt assumes a single matching period),
-  # so it stays rejected.
+  # MatchIt operates on a single cross-section: it finds matched units
+  # for each treated observation but has no notion of sequential treatment
+  # periods or time-varying confounding. There is no `matchit` analogue
+  # for the g-formula or product-of-ratios longitudinal weight chain.
   if (type == "longitudinal" && estimator == "matching") {
     rlang::abort(
       paste0(
@@ -480,11 +481,14 @@ check_causat_inputs <- function(
     )
   }
 
-  # Matching is binary-only and has no joint analogue; multivariate
-  # matching stays rejected. IPW handles multivariate via sequential
-  # factorisation (`fit_treatment_models()` + product density-ratio
-  # weights); per-component family / intervention compatibility is
-  # checked downstream by the multivariate weight engine.
+  # MatchIt expects a single binary or categorical treatment column with
+  # no joint-treatment matching algorithm. AIPW is excluded because the
+  # doubly-robust correction term requires a single outcome model whose
+  # score aligns with the IPW weight chain -- the multivariate extension
+  # is a different estimator not implemented here. IPW handles multivariate
+  # via sequential factorisation (`fit_treatment_models()` + product
+  # density-ratio weights); per-component family / intervention
+  # compatibility is checked downstream by the multivariate weight engine.
   if (length(treatment) > 1L && estimator %in% c("matching", "aipw")) {
     rlang::abort(
       paste0(
@@ -575,11 +579,14 @@ check_causat_inputs <- function(
     )
   }
 
-  # `history` must be a positive integer or Inf. The two-step check
-  # is ugly but necessary: `is_scalar_integer` rejects `5` (which R
-  # treats as double literal), so we also accept scalar double that
-  # equals its floor. `identical(., Inf)` is the clean way to test
-  # for the special-case "all history".
+  # `history` controls the Markov order of the longitudinal weight chain:
+  # history = 1 uses only the current period's covariates in each
+  # per-period propensity model, history = k uses the last k periods,
+  # Inf uses the full observed history. Must be a positive integer or Inf.
+  # The two-step check is necessary: `is_scalar_integer` rejects `5` (which
+  # R treats as a double literal), so we also accept a scalar double whose
+  # value equals its floor. `identical(., Inf)` is the clean way to test
+  # for the special-case "full history".
   if (!is.null(history)) {
     if (
       !rlang::is_scalar_double(history) &&

@@ -103,10 +103,13 @@ to_person_period <- function(
   }
 
   # Build the long table by stacking n_times copies of the data,
-  # one per time point. This is the simple/explicit reshape idiom --
-  # clearer than `data.table::melt()` when every variable has its
-  # own column-name pattern (the `time_varying` list specifies
-  # exactly which original column maps to which time point).
+  # one per time point. `data.table::melt()` expects a regular
+  # column-name pattern (e.g. a common prefix/suffix) to match
+  # variables to time points. Here every variable can have an
+  # arbitrary naming scheme (e.g. A0/A1 vs. trt_baseline/trt_fu),
+  # so the `time_varying` list is the explicit mapping and the
+  # stacking loop is clearer than a melt() call with a regex.
+  # `rbindlist` at the end is faster than repeated row-binding.
   long_list <- lapply(seq_len(n_times), function(k) {
     row_dt <- data[, c(id, time_invariant), with = FALSE]
     row_dt[, (time_name) := k - 1L] # 0-indexed time

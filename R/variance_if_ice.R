@@ -110,20 +110,22 @@ variance_if_ice_one <- function(fit, ice_result, target) {
     w_t <- rep(1, sum(target))
   }
   sum_w_target <- sum(w_t)
+  # \hat{mu} = (1/sum_w) sum_{target} w_i \tilde{Y}_{0,i}: Hajek-weighted
+  # average of the backward-iterated pseudo-outcome over the target population.
   mu_hat <- sum(w_t * pseudo_final[target]) / sum_w_target
+  # Channel 1: IF_i = n * (w_i / sum_w) * (\tilde{Y}_{0,i} - \hat{mu}).
+  # Scaled by n so vcov_from_if(n) gives the sandwich (1/n^2) sum IF_i^2.
   IF_vec <- numeric(n)
   IF_vec[target] <- n *
     (w_t / sum_w_target) *
     (pseudo_final[target] - mu_hat)
 
-  # Per-time-step id -> external-weight lookup. Needed for the
-  # step > 1 cascade gradient, which must multiply by the weight of
-  # the PREVIOUS model's fit row (w_{k-1} enters through A_{k-1,k} =
-  # E[\partial s_{k-1}/\partial \beta_k]; see variance-theory vignette
-  # Section 5.4). Without this factor the sandwich silently drops a
-  # term and underestimates the ICE SE under non-uniform weights by
-  # ~2x on heterogeneous designs. Only built when external weights
-  # are present -- unweighted ICE is unchanged.
+  # Per-time-step id-to-weight lookup for the cascade gradient.
+  # At step k > 1, g_k = sum_{j: prev fit} w_{k-1,j} d_{k-1,j} X*_{k,j} \mu'_{k,j}.
+  # The w_{k-1} factor arises from A_{k-1,k} = (1/n) sum \partial s_{k-1}/\partial \beta_k
+  # in the block-triangular bread (see variance-theory vignette Section 5.4).
+  # Omitting it silently under-scales the off-diagonal correction by ext_w,
+  # causing ~2x SE underestimation under heterogeneous external weights.
   w_at_step <- if (has_weights) {
     lapply(seq_len(n_times), function(k) {
       rows_k <- data[[time_col]] == time_points[k]
@@ -158,6 +160,9 @@ variance_if_ice_one <- function(fit, ice_result, target) {
     iv_ids_current <- as.character(iv_data_current[[id_col]])
 
     if (step_i == 1L) {
+      # Step 1 (earliest time): g_1 = (1/sum_w) sum_{target} w_i X*_{1,i} \mu'(\eta*_{1,i}).
+      # This is \partial \hat{mu} / \partial \beta_1, the gradient of the ICE
+      # estimand w.r.t. the first outcome model's parameters.
       target_in_iv <- match(all_ids[target], iv_ids_current)
       valid_target <- !is.na(target_in_iv)
       target_in_iv <- target_in_iv[valid_target]
@@ -198,6 +203,8 @@ variance_if_ice_one <- function(fit, ice_result, target) {
           X_star_k %*% stats::coef(model_k)
         )
         mu_eta_star <- model_k$family$mu.eta(eta_star)
+        # g_k = (1/sum_w) X*^T diag(w_target) \mu'(\eta*): the raw gradient
+        # before apply_model_correction scales it through the model bread.
         g_k <- as.numeric(
           crossprod(
             X_star_k[target_in_iv, , drop = FALSE],
@@ -207,6 +214,11 @@ variance_if_ice_one <- function(fit, ice_result, target) {
           sum_w_target
       }
     } else {
+      # Step k > 1: chain rule through the ICE recursion.
+      # g_k = sum_{j: prev fit} w_{k-1,j} d_{k-1,j} X*_{k,j} \mu'_{k,j}.
+      # d_{k-1,j} is the sensitivity of \hat{mu} to Q_{k-1,j}; it comes
+      # from the previous correct_model() call. w_{k-1,j} is the external
+      # weight at the previous time step (see w_at_step lookup above).
       prev_fit_ids <- fit_ids_list[[step_i - 1L]]
       idx_in_all <- id_to_idx[prev_fit_ids]
       rows_in_iv <- match(prev_fit_ids, iv_ids_current)
@@ -274,6 +286,10 @@ variance_if_ice_one <- function(fit, ice_result, target) {
     }
 
     fit_id_idx <- id_to_idx[fit_ids_k]
+    # correct_model() computes two outputs:
+    #   $correction: per-individual model-k IF contribution (n-scaled)
+    #   $d:          updated sensitivity vector d_k = d_{k-1} * (\partial Q_{k-1}/\partial Q_k)
+    # The correction is added to IF_vec; d_vec is passed to the next step.
     res <- correct_model(model_k, g_k, fit_id_idx, n)
     IF_vec <- IF_vec + res$correction
     d_vec <- res$d

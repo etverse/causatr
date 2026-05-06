@@ -69,10 +69,13 @@ prepare_data <- function(
   data <- data[, keep_cols, with = FALSE]
 
   # Longitudinal-only: build `lag1_A`, `lag2_A`, ..., `lag1_L`, ...
-  # columns up to `history`. These materialized columns let the
-  # outcome model formulas reference past values directly
-  # (e.g. `Y ~ A + lag1_A + L + lag1_L`) without needing custom
-  # lag operators at model-fit time.
+  # columns up to `history`. Materializing lags here rather than
+  # computing them on-the-fly at model-fit time means every fitting
+  # function (ICE, longitudinal IPW, longitudinal AIPW) can express
+  # its formula as a plain character string like `Y ~ A + lag1_A + L`
+  # that works with any model_fn (glm, gam, ...) without requiring
+  # model-fn-specific lag hooks. It also ensures that bootstrap
+  # resamples see the same lag structure without re-running the shift.
   if (!is.null(id) && !is.null(time)) {
     data <- create_lag_vars(data, treatment, tv_vars, id, time, history)
     # Sanity check: warn about confounders that are obviously
@@ -121,10 +124,11 @@ create_lag_vars <- function(data, treatment, tv_vars, id, time, history) {
     as.integer(history)
   }
 
-  # Deep copy + key. The key sort is load-bearing: `data.table::shift`
-  # with `by = id` assumes rows within each id are already ordered by
-  # time, and `setkeyv` guarantees that ordering. Without it, lags
-  # would land in arbitrary order.
+  # Deep copy + key. `setkeyv` is load-bearing: `data.table::shift`
+  # with `by = id` processes rows in their current order within each
+  # group, so if an id's rows are not sorted by time the lag at
+  # position k will correspond to the wrong time point. `setkeyv`
+  # sorts by (id, time) in place, guaranteeing correct lag alignment.
   data <- data.table::copy(data)
   data.table::setkeyv(data, c(id, time))
 

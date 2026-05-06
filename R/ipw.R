@@ -318,6 +318,10 @@ fit_ipw <- function(
   # places like `resolve_family()`) find a valid family. The
   # estimation path does NOT consume this model -- every intervention
   # in `compute_contrast()` refits its own weighted MSM.
+  #
+  # `Y ~ A` (unweighted, unadjusted) is chosen because it can always
+  # be fit regardless of treatment type and gives `print()` a sensible
+  # coefficient table. The real weighted MSM is `Y ~ 1` per intervention.
   fam_obj <- resolve_family(family)
   placeholder_formula <- stats::reformulate(treatment, response = outcome)
   placeholder_args <- list(
@@ -355,6 +359,9 @@ fit_ipw <- function(
       n_total = nrow(data),
       weights = weights,
       dots = dots,
+      # `treatment_model` is the univariate case; `treatment_models` is a
+      # named list of length K for multivariate. Both are stashed so the
+      # contrast / variance path never needs to re-dispatch.
       treatment_model = tm,
       treatment_models = treatment_models,
       propensity_model = propensity_model,

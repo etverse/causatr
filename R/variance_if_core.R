@@ -147,6 +147,8 @@ bread_inv <- function(model, X_fit) {
     }
   }
 
+  # W = diag(mu'(eta)^2 / V(mu)), so X'WX is the Fisher information
+  # matrix. Its inverse is the GLM "bread" B^{-1} = (X'WX)^{-1}.
   XtWX <- crossprod(X_fit, X_fit * w_iwls)
   tryCatch(
     solve(XtWX),
@@ -287,10 +289,20 @@ prepare_model_if <- function(model, fit_idx, n_total) {
   X_fit <- stats::model.matrix(model)
   B_inv <- bread_inv(model, X_fit)
 
+  # r^{score}_i = (Y_i - mu_i) * mu'(eta_i) / V(mu_i), the GLM score
+  # (gradient of the log-likelihood w.r.t. eta_i). For canonical links
+  # mu'(eta)/V(mu) = 1, so this collapses to the response residual. For
+  # non-canonical links (probit, cloglog, Gamma-log) the link factor is
+  # essential. sandwich::estfun() uses the same decomposition; see
+  # Zeileis (2006, J. Stat. Software) for the canonical derivation.
+  # `residuals(type="working") * weights(type="working")` is the
+  # fastest route because both accessors are precomputed by IWLS.
   r_score <- tryCatch(
     stats::residuals(model, type = "working") *
       stats::weights(model, type = "working"),
     error = function(e) {
+      # Fallback for model subclasses that don't support the "working"
+      # type accessors: recompute from first principles.
       eta <- model$linear.predictors
       mu_eta <- model$family$mu.eta(eta)
       var_mu <- model$family$variance(stats::fitted(model))
@@ -377,10 +389,11 @@ prepare_model_if_multinom <- function(model, fit_idx, n_total) {
   # Score residual matrix: n x (K-1), each column is (I(A=k) - p_k)
   R_mat <- Y_mat - P_non_ref
 
-  # Stacked score: n x ((K-1)*p). Row i of R_score is the Kronecker
-  # product of the K-1 residuals with X_i. We stack column-major
-  # within each row to match the row-major alpha flattening:
-  # (r_{i,1}*X_i, r_{i,2}*X_i, ...).
+  # Stacked score: n x ((K-1)*p). Row i is the Kronecker product of
+  # the K-1 residuals with X_i, giving the gradient of the multinomial
+  # log-likelihood w.r.t. the vectorised parameter alpha = (alpha_1,...,alpha_{K-1}).
+  # Column ordering matches nnet::multinom's coefficient layout:
+  # (alpha_1, alpha_2, ...) within each non-reference class block.
   X_stacked <- matrix(0, nrow = n, ncol = Km1 * p)
   for (k in seq_len(Km1)) {
     cols <- ((k - 1L) * p + 1L):(k * p)
@@ -422,16 +435,12 @@ prepare_model_if_multinom <- function(model, fit_idx, n_total) {
     }
   )
 
-  # `r_score` in the standard prep is a length-n vector of per-obs
-  # scores. For multinomial, the score is (K-1)*p-dimensional per obs.
-  # `apply_model_correction()` computes `d_fit = X_fit %*% h` then
-  # correction = (d_fit * r_score) summed over fit_idx. For the
-  # stacked system, `X_fit` = X_stacked (n x (Km1*p)), `r_score` = 1
-  # (a scalar) because the score is already embedded in X_stacked.
-  # This is equivalent to saying: each row of X_stacked IS the per-obs
-  # score vector (the estimating equation). The prep/apply split needs
-  # `r_score * X_fit` = the n x (Km1*p) score matrix. We achieve this
-  # by setting r_score = rep(1, n).
+  # `apply_model_correction()` forms correction_i = n * (X_fit[i,] %*% h) * r_score_i.
+  # For a GLM, X_fit holds the design matrix and r_score holds the scalar
+  # score residual, so X_fit[i,] %*% h scales the score by the bread-projected
+  # gradient. For the stacked multinomial system each row of X_stacked
+  # already IS the per-obs score vector (residual tensor-producted with X_i),
+  # so we set r_score = 1 to avoid double-multiplying the score.
   r_score <- rep(1, n)
 
   list(
@@ -470,15 +479,24 @@ prepare_model_if_multinom <- function(model, fit_idx, n_total) {
 #'
 #' @noRd
 apply_model_correction <- function(prep, gradient) {
+  # h = A^{-1} g: bread-projected gradient. A^{-1} = (X'WX)^{-1} is the
+  # model's inverse bread; g = \partial\hat{mu}/\partial\beta is the
+  # marginal-mean sensitivity from iv_design_matrix().
   h <- as.numeric(prep$B_inv %*% gradient)
+  # d_i = X_i^T h: per-observation inner product between the design row
+  # and the bread-projected gradient. This is the Channel-2 "lever arm".
   d_fit <- as.numeric(prep$X_fit %*% h)
 
   n_total <- prep$n_total
   fit_idx <- prep$fit_idx
 
+  # Pad d to the full dataset length; rows outside fit_idx contribute 0.
   d_full <- rep(0, n_total)
   d_full[fit_idx] <- d_fit
 
+  # correction_i = n * d_i * r^{score}_i. The factor n (= n_total) converts
+  # (X'WX)^{-1} into A^{-1} = n(X'WX)^{-1}, keeping the M-estimation bread
+  # on the same scale as the score \psi_i (Stefanski & Boos 2002, eq. 9).
   correction <- rep(0, n_total)
   correction[fit_idx] <- n_total * d_fit * prep$r_score
 
@@ -564,6 +582,12 @@ vcov_from_if <- function(IF_list, n, int_names, cluster = NULL) {
     # levels themselves have been permuted. Use a first-seen factor so
     # `rowsum(..., reorder = FALSE)` groups consistently with IF_mat's
     # row ordering.
+    # Sum IFs within each matched pair/subclass before squaring.
+    # This implements the cluster-robust variance of Liang & Zeger (1986):
+    # \hat{V} = (1/n^2) \sum_c (\sum_{i in c} IF_i)^2.
+    # `levels = unique(cluster)` preserves first-seen order so rowsum's
+    # row mapping stays aligned with IF_mat's row order (see R8 review note
+    # in vcov_from_if() source for the reordering pitfall this avoids).
     cluster_f <- factor(cluster, levels = unique(cluster))
     IF_mat <- rowsum(IF_mat, cluster_f, reorder = FALSE)
   }

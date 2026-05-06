@@ -75,6 +75,11 @@ shift <- function(delta) {
   if (!(is.numeric(delta) && length(delta) == 1L && !is.na(delta))) {
     rlang::abort("`delta` must be a single non-NA number.")
   }
+  # The object stores only the scalar `delta`; the density-ratio
+  # formula g(a|L) = f(a - delta|L) is applied in `make_weight_fn()`.
+  # We don't touch the data here because the intervention must work
+  # on any future dataset (bootstrap resamples, new data), not just
+  # the one the user holds at construction time.
   new_causatr_intervention("shift", list(delta = delta))
 }
 
@@ -106,6 +111,11 @@ scale_by <- function(factor) {
   if (!(is.numeric(factor) && length(factor) == 1L && !is.na(factor))) {
     rlang::abort("`factor` must be a single non-NA number.")
   }
+  # For a multiplicative MTP d(a) = a * factor, the density ratio is
+  #   g(a|L) / f(a|L) = f(a/factor|L) / (factor * f(a|L))
+  # The 1/factor Jacobian term (change of variables for the inverse
+  # transform) is included in `make_weight_fn()` alongside the
+  # density evaluation at a/factor.
   new_causatr_intervention("scale", list(factor = factor))
 }
 
@@ -144,6 +154,11 @@ threshold <- function(lower = -Inf, upper = Inf) {
   if (lower > upper) {
     rlang::abort("`lower` must be <= `upper`.")
   }
+  # Threshold has no tractable closed-form density ratio: the clamping
+  # operation maps a positive-measure set of pre-intervention values
+  # to a point mass at the boundary, making f(d(a)|L) degenerate.
+  # This is why threshold is gcomp-only; IPW will reject it at
+  # contrast() time via `check_intervention_estimator_compat()`.
   new_causatr_intervention("threshold", list(lower = lower, upper = upper))
 }
 
@@ -321,6 +336,12 @@ stochastic <- function(sampler, n_mc = 100L) {
       "`sampler` must be a function with signature function(data, treatment)."
     )
   }
+  # Stochastic interventions require Monte Carlo integration over the
+  # policy distribution, which g-comp handles by repeated sampling.
+  # IPW/AIPW need a single counterfactual value per individual to
+  # evaluate the density ratio w_i = g(d(A_i)|L_i)/f(A_i|L_i), but
+  # for a stochastic policy there is no single d(A_i) -- only a
+  # distribution over possible values. Hence gcomp-only.
   if (
     !(rlang::is_scalar_integerish(n_mc) &&
       !is.na(n_mc) &&

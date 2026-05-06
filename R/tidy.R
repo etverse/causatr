@@ -91,6 +91,10 @@ tidy.causatr_result <- function(
     all = rbind(means_df, contrasts_df)
   )
 
+  # `rbind()` preserves the original rownames (1,2,...) from each
+  # component, producing discontiguous indices (1,2,1,2) for `which =
+  # "all"`. Reset to sequential so downstream code doesn't trip on the
+  # duplicates (e.g. broom's `bind_rows()` checks rownames uniqueness).
   rownames(result) <- NULL
   result
 }

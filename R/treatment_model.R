@@ -235,7 +235,6 @@ fit_treatment_model <- function(
   X_prop <- stats::model.matrix(model)
 
   # For multinomial models, `coef()` returns a (K-1) x p matrix where
-
   # K is the number of levels and p is the number of design-matrix
   # columns. The variance engine needs a flat vector so it can perturb
   # each scalar entry independently via `numDeriv::jacobian()`. We
@@ -899,18 +898,21 @@ evaluate_density <- function(treatment_model, treatment_values, newdata) {
   family_tag <- treatment_model$family
 
   if (family_tag == "bernoulli") {
-    # Bernoulli pmf: f(a | L) = p^a * (1-p)^(1-a). For numeric 0/1
-    # treatments this collapses to either `p` or `1-p` depending on
-    # which branch a_i is in, so we use `ifelse` rather than the
-    # explicit power form to avoid `0^0` quirks when p is exactly 0 or 1.
+    # Bernoulli pmf: f(a | L) = p(L)^a * (1 - p(L))^(1-a),
+    # where p(L) = logistic(X alpha). For binary 0/1 this is just
+    # p when a = 1 and 1-p when a = 0, so `ifelse` is cleaner and
+    # avoids 0^0 = 1 quirks when p is exactly at the boundary.
     p <- stats::predict(model, newdata = newdata, type = "response")
     return(ifelse(treatment_values == 1, p, 1 - p))
   }
 
   if (family_tag == "gaussian") {
-    # Normal pdf: f(a | L) = dnorm(a, mu, sigma) with mu = fitted mean
-    # and sigma = residual SD (fixed at fit time). `dnorm` is
-    # vectorised -- one call per density evaluation, not per row.
+    # Normal pdf: f(a | L) = phi((a - mu(L)) / sigma) / sigma,
+    # i.e. dnorm(a, mean = mu(L), sd = sigma), where mu(L) = X alpha
+    # and sigma is the residual SD fixed at fit time (not perturbed in
+    # the sandwich -- same convention as fixing a GLM dispersion). This
+    # is the standard continuous-treatment IPW recipe (Hernan & Robins
+    # Ch. 12.4). `dnorm` is fully vectorised.
     mu <- stats::predict(model, newdata = newdata, type = "response")
     sigma <- treatment_model$sigma
     return(stats::dnorm(treatment_values, mean = mu, sd = sigma))
@@ -921,7 +923,8 @@ evaluate_density <- function(treatment_model, treatment_values, newdata) {
     # the predicted probability matrix. `predict(type = "probs")`
     # returns an n x K matrix for K > 2 levels, or a length-n vector
     # for K = 2 (giving P(second level)). We normalise both shapes
-    # into an n x K matrix with columns named by the factor levels.
+    # into an n x K matrix with columns named by the factor levels,
+    # then row-index to extract the column matching each a_i.
     return(evaluate_categorical_density(
       model,
       treatment_model$levels,
@@ -931,15 +934,19 @@ evaluate_density <- function(treatment_model, treatment_values, newdata) {
   }
 
   if (family_tag == "poisson") {
-    # Poisson pmf: f(a | L) = dpois(a, lambda) with lambda = E[A|L].
+    # Poisson pmf: f(a | L) = e^{-lambda} * lambda^a / a!,
+    # where lambda = exp(X alpha) = E[A|L]. `dpois` handles the
+    # factorial and the vectorisation.
     lambda <- stats::predict(model, newdata = newdata, type = "response")
     return(stats::dpois(treatment_values, lambda))
   }
 
   if (family_tag == "negbin") {
-    # Negative binomial pmf: f(a | L) = dnbinom(a, mu = lambda,
-    # size = theta) with lambda = E[A|L] and theta estimated by MLE
-    # at fit time.
+    # Negative binomial pmf: f(a | L) = NB(a; mu = lambda, size = theta),
+    # where lambda = exp(X alpha) = E[A|L] and theta is the MLE dispersion.
+    # As theta -> Inf the NB converges to Poisson; smaller theta means more
+    # overdispersion. theta is treated as fixed (like sigma in Gaussian),
+    # so the variance engine only perturbs the mean-model alpha.
     lambda <- stats::predict(model, newdata = newdata, type = "response")
     theta <- treatment_model$theta
     return(stats::dnbinom(treatment_values, mu = lambda, size = theta))

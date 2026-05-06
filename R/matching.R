@@ -93,8 +93,14 @@ fit_matching <- function(
   fit_rows <- get_fit_rows(data, outcome)
   fit_data <- as.data.frame(data[fit_rows])
 
-  # For ATE, MatchIt::matchit() requires method = "full" (full matching) since
-  # nearest-neighbour only supports ATT/ATC.  Allow user override via `...`.
+  # For ATE, MatchIt::matchit() requires method = "full" (full matching)
+  # because nearest-neighbour matching is one-directional: it finds the
+  # best control for each treated unit (ATT) or the best treated for
+  # each control (ATC), but cannot balance both sides simultaneously.
+  # Full matching (Hansen 2004) retains all observations by forming
+  # matched sets with variable 1:k or k:1 ratios.
+  # `check_pkg("optmatch")` ensures the backend is available: MatchIt
+  # delegates full matching to `optmatch` internally.
   dots <- list(...)
   if (estimand == "ATE" && is.null(dots$method)) {
     check_pkg("optmatch")
@@ -121,9 +127,12 @@ fit_matching <- function(
 
   matched_data <- MatchIt::match.data(m)
 
-  # Without EM: `Y ~ A` — the matched design handles confounding.
+  # Without EM: `Y ~ A` — the matched design handles confounding, so the
+  # MSM needs only a treatment indicator (unlike IPW's `Y ~ 1`).
   # With EM (e.g. `A:sex` in confounders): `Y ~ A + sex + A:sex` —
   # the saturated MSM recovers stratum-specific treatment effects.
+  # The interaction term is necessary because removing it would force
+  # a common slope across modifier strata, biasing HTE estimates.
   msm_formula <- build_matching_msm_formula(outcome, treatment, em_info)
   # `stats::glm()` evaluates the `weights` argument in the formula's
 
