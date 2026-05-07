@@ -100,7 +100,7 @@ causatr owns g-comp (parametric g-formula + ICE), a self-contained IPW density-r
 | Dimension | Values |
 |---|---|
 | **Treatment timing** | point, longitudinal (ICE + longitudinal IPW + longitudinal AIPW) |
-| **Treatment type** | binary, continuous, categorical k>2, count (IPW: Poisson/NB), multivariate (gcomp + IPW) |
+| **Treatment type** | binary, continuous, categorical k>2, count (IPW: Poisson/NB), multivariate (gcomp + IPW + AIPW) |
 | **Outcome family** | gaussian, binomial, quasibinomial, poisson, Gamma, any GLM family, `MASS::glm.nb`, `betareg::betareg` (beta regression) |
 | **Interventions** | `static`, `shift`, `scale_by`, `threshold` (gcomp only), `dynamic`, `ipsi` (IPW only), `stochastic` (gcomp only) |
 | **Estimand** | ATE, ATT, ATC, `by`-stratified |
@@ -121,4 +121,4 @@ causatr owns g-comp (parametric g-formula + ICE), a self-contained IPW density-r
 - **`na.action = na.exclude` is rejected** — causes silent IF corruption via residual padding mismatch.
 - **ATT/ATC only for static interventions on binary 0/1 treatment.**
 - **Effect modifier must be baseline** under IPW/matching/longitudinal IPW (doc-level constraint, not enforced at runtime).
-- **Stabilized weights** (`stabilize = "marginal"`) supported for multivariate IPW (Phase 8) and longitudinal IPW (Phase 10). Numerator parameters held fixed in sandwich; bootstrap refits both.
+- **Stabilized weights** (`stabilize = "marginal"`) supported for multivariate IPW (Phase 8), multivariate AIPW (Phase 16m), and longitudinal IPW (Phase 10). Numerator parameters held fixed in sandwich; bootstrap refits both.

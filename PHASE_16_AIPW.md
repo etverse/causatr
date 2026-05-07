@@ -33,7 +33,7 @@ causatr is the right home for AIPW because (a) the gcomp and IPW engines already
 
 - **TMLE / SDR with cross-fitting.** `lmtp` already covers this; different design problem (ML nuisances, cross-fitting folds, targeting step).
 - **Machine-learning nuisances.** AIPW with ML nuisances requires cross-fitting to recover $\sqrt{n}$-consistency; out of scope by the same logic as plain gcomp (see CLAUDE.md "Why GLMs/GAMs, not ML").
-- **AIPW under multivariate treatment.** Deferred to a three-way composition with Phase 8.
+- **AIPW under multivariate treatment.** Shipped as chunk 16m (composes Phase 8 joint density with AIPW functional).
 - **Targeted maximum likelihood.** The targeting step is the TMLE innovation, not the AIPW innovation. AIPW is the non-targeted DR estimator.
 
 ## Design
@@ -139,7 +139,7 @@ where $\tilde Y_{k+1}$ is the pseudo-outcome from the $(k+1)$-th AIPW step and $
 
 ## Composition with pending phases
 
-- **Phase 8 (multivariate treatment IPW) × AIPW.** Joint outcome model `Y ~ A1 + A2 + L` already supported by Phase 2 multivariate gcomp; joint density from Phase 8. AIPW combines the two. Chunk deferred to after both Phases 8 and 16 ship.
+- **Phase 8 (multivariate treatment IPW) × AIPW.** Shipped as chunk 16m. Joint outcome model `Y ~ A1 + A2 + L` (Phase 2) + joint density (Phase 8) composed in the AIPW functional. Includes stabilized weights, DR tests, sandwich + bootstrap variance.
 - **Phase 10 (longitudinal IPW) × AIPW.** This is exactly ICE-AIPW, chunk 16g.
 - **Phase 12 (stochastic) × AIPW.** MC integration applies to the outcome-model augmentation term (average $\hat{m}(A_{i,m}, L_i)$ across $M$ draws) and to the weight; AIPW is a scalar so regular MC averaging of the residual correction suffices. Add explicit subsection to `PHASE_12_STOCHASTIC.md` once Phase 16 lands.
 - **Phase 14 (IPCW) × AIPW.** Triply-weighted estimator: `ψ̂_AIPW,IPCW = standardization + (treatment weight × censoring weight) × outcome residual`. Sandwich: stacked EE with outcome model + propensity model + censoring model + plug-in. This is the **most efficient** estimator in the lineage and is a major deliverable once both Phase 14 and Phase 16 are done.
@@ -169,7 +169,7 @@ where $\tilde Y_{k+1}$ is the pseudo-outcome from the $(k+1)$-th AIPW step and $
 
 ## Invariants
 
-- `estimator = "aipw"` requires **both** `model_fn` (outcome) and `propensity_model_fn` (treatment). If only one is supplied, abort with `causatr_aipw_missing_nuisance` and a clear pointer to the other argument.
+- `estimator = "aipw"` uses `model_fn` (outcome) and `propensity_model_fn` (treatment). When `propensity_model_fn` is not specified, AIPW warns and defaults to `stats::glm` — it does NOT silently reuse `model_fn` for propensity (chunk 16m). Chunk 16q will extend this warning pattern to `model_fn` and to all estimators.
 - `estimator = "aipw"` triangulates gcomp and IPW, so the three point estimates (gcomp, IPW, AIPW) on the same DGP MUST agree up to Monte Carlo noise when both nuisances are correct. This is a regression invariant for every AIPW DGP test.
 - Under a deliberately-misspecified nuisance, AIPW MUST be consistent (chunks 16d, 16e). If either test fails, the implementation of the augmentation term is buggy.
 - AIPW sandwich SE MUST be ≤ IPW sandwich SE and ≤ gcomp sandwich SE when both nuisances are correctly specified on a large-$n$ DGP (chunk 16f). Violations indicate either a sandwich bug or misspecification.
