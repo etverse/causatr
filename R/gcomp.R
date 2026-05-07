@@ -124,11 +124,9 @@ fit_gcomp_point <- function(
   ...
 ) {
   # Build outcome model formula: Y ~ A [+ A2 ...] + confounder_terms.
-  # `term.labels` extracts the RHS terms, preserving interactions and
-  # transformations the user wrote in `confounders` (e.g. ns(age, 4), L1*L2).
-  confounder_terms <- attr(stats::terms(confounders), "term.labels")
-  rhs <- c(treatment, confounder_terms)
-  model_formula <- stats::reformulate(rhs, response = outcome)
+  # Preserves interactions and transforms the user wrote in `confounders`
+  # (e.g. ns(age, 4), L1*L2).
+  model_formula <- build_outcome_formula(outcome, treatment, confounders)
 
   # Identify fitting rows: uncensored (C == 0) AND non-missing outcome.
   # contrast() will predict for ALL rows -- the g-formula standardises over

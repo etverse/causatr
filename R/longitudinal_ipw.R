@@ -464,14 +464,10 @@ build_longitudinal_ps_formula <- function(
   # The naming convention `lag{j}_{col}` matches what `create_lag_vars()`
   # in `prepare_data()` materialises; any mismatch here silently drops
   # the column in the all-NA guard below rather than causing an error.
-  if (available_lags > 0L) {
-    for (lag_k in seq_len(available_lags)) {
-      rhs_dynamic <- c(rhs_dynamic, paste0("lag", lag_k, "_", treatment))
-      for (v in tv_vars) {
-        rhs_dynamic <- c(rhs_dynamic, paste0("lag", lag_k, "_", v))
-      }
-    }
-  }
+  rhs_dynamic <- c(
+    rhs_dynamic,
+    build_lag_terms(c(treatment, tv_vars), available_lags)
+  )
 
   # Drop columns that don't exist or are all-NA at this time. Mirrors
   # `ice_build_formula()`'s defensive guard. Most common case: at

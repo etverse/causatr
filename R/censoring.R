@@ -87,9 +87,7 @@ fit_censoring_model <- function(
   uncens_response <- 1L - as.integer(fit_data[[censoring]])
 
   # Build formula: .uncens ~ A + confounders
-  confounder_terms <- attr(stats::terms(confounders), "term.labels")
-  rhs <- c(treatment, confounder_terms)
-  cens_formula <- stats::reformulate(rhs, response = ".uncens")
+  cens_formula <- build_outcome_formula(".uncens", treatment, confounders)
 
   fit_data$.uncens <- uncens_response
 
@@ -347,14 +345,10 @@ build_longitudinal_censoring_formula <- function(
 ) {
   rhs_dynamic <- c(treatment, tv_vars)
 
-  if (available_lags > 0L) {
-    for (lag_k in seq_len(available_lags)) {
-      rhs_dynamic <- c(rhs_dynamic, paste0("lag", lag_k, "_", treatment))
-      for (v in tv_vars) {
-        rhs_dynamic <- c(rhs_dynamic, paste0("lag", lag_k, "_", v))
-      }
-    }
-  }
+  rhs_dynamic <- c(
+    rhs_dynamic,
+    build_lag_terms(c(treatment, tv_vars), available_lags)
+  )
 
   # Drop columns that don't exist or are all-NA at this time
   valid <- vapply(
