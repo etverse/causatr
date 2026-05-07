@@ -244,7 +244,7 @@ silently producing wrong answers. Key restrictions:
 
 For the full matrix of supported estimator × treatment × intervention × outcome
 combinations, see `vignette("interventions")` and
-[`FEATURE_COVERAGE_MATRIX.md`](../FEATURE_COVERAGE_MATRIX.md).
+`FEATURE_COVERAGE_MATRIX.md`.
 
 ::: {.callout-warning}
 ## Confounder selection: use a DAG, not data-driven methods
