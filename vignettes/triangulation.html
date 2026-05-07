@@ -607,9 +607,11 @@ window.Quarto = {
 <span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>fit_aipw <span class="ot">&lt;-</span> <span class="fu">causat</span>(nhefs_complete, <span class="at">outcome =</span> <span class="st">"wt82_71"</span>, <span class="at">treatment =</span> <span class="st">"qsmk"</span>,</span>
 <span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> confounders, <span class="at">estimator =</span> <span class="st">"aipw"</span>)</span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>fit_m <span class="ot">&lt;-</span> <span class="fu">causat</span>(nhefs_complete, <span class="at">outcome =</span> <span class="st">"wt82_71"</span>, <span class="at">treatment =</span> <span class="st">"qsmk"</span>,</span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> confounders, <span class="at">estimator =</span> <span class="st">"matching"</span>, <span class="at">estimand =</span> <span class="st">"ATT"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Warning: No `propensity_model_fn` specified; defaulting to `stats::glm` for the treatment density model(s).</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ℹ Set `propensity_model_fn` explicitly if you need a different fitter (e.g. `mgcv::gam`).</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>fit_m <span class="ot">&lt;-</span> <span class="fu">causat</span>(nhefs_complete, <span class="at">outcome =</span> <span class="st">"wt82_71"</span>, <span class="at">treatment =</span> <span class="st">"qsmk"</span>,</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> confounders, <span class="at">estimator =</span> <span class="st">"matching"</span>, <span class="at">estimand =</span> <span class="st">"ATT"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
 </section>
@@ -696,29 +698,31 @@ window.Quarto = {
 <span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>fit_aipw_bin <span class="ot">&lt;-</span> <span class="fu">causat</span>(nhefs_complete, <span class="at">outcome =</span> <span class="st">"gained_weight"</span>,</span>
 <span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"qsmk"</span>, <span class="at">confounders =</span> confounders,</span>
 <span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimator =</span> <span class="st">"aipw"</span>, <span class="at">family =</span> <span class="st">"binomial"</span>)</span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>fit_m_bin <span class="ot">&lt;-</span> <span class="fu">causat</span>(nhefs_complete, <span class="at">outcome =</span> <span class="st">"gained_weight"</span>,</span>
-<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"qsmk"</span>, <span class="at">confounders =</span> confounders,</span>
-<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimator =</span> <span class="st">"matching"</span>, <span class="at">estimand =</span> <span class="st">"ATT"</span>)</span>
-<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>res_gc_bin   <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit_gc_bin,   ivs, <span class="at">reference =</span> <span class="st">"continue"</span>)</span>
-<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>res_ipw_bin  <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit_ipw_bin,  ivs, <span class="at">reference =</span> <span class="st">"continue"</span>)</span>
-<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>res_aipw_bin <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit_aipw_bin, ivs, <span class="at">reference =</span> <span class="st">"continue"</span>)</span>
-<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>res_m_bin    <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit_m_bin,    ivs, <span class="at">reference =</span> <span class="st">"continue"</span>)</span>
-<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>results_bin <span class="ot">&lt;-</span> <span class="fu">rbind</span>(</span>
-<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cbind</span>(<span class="at">method =</span> <span class="st">"G-computation"</span>, res_gc_bin<span class="sc">$</span>contrasts),</span>
-<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cbind</span>(<span class="at">method =</span> <span class="st">"IPW"</span>,           res_ipw_bin<span class="sc">$</span>contrasts),</span>
-<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cbind</span>(<span class="at">method =</span> <span class="st">"AIPW"</span>,          res_aipw_bin<span class="sc">$</span>contrasts),</span>
-<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cbind</span>(<span class="at">method =</span> <span class="st">"Matching (ATT)"</span>, res_m_bin<span class="sc">$</span>contrasts)</span>
-<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>results_bin</span>
-<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;            method       comparison  estimate         se   ci_lower  ci_upper</span></span>
-<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;            &lt;char&gt;           &lt;char&gt;     &lt;num&gt;      &lt;num&gt;      &lt;num&gt;     &lt;num&gt;</span></span>
-<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1:  G-computation quit vs continue 0.1326922 0.02366249 0.08631463 0.1790699</span></span>
-<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2:            IPW quit vs continue 0.1379464 0.02498002 0.08898648 0.1869064</span></span>
-<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3:           AIPW quit vs continue 0.1361954 0.02688531 0.08350119 0.1888897</span></span>
-<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4: Matching (ATT) quit vs continue 0.1488834 0.03168677 0.08677844 0.2109883</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Warning: No `propensity_model_fn` specified; defaulting to `stats::glm` for the treatment density model(s).</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ℹ Set `propensity_model_fn` explicitly if you need a different fitter (e.g. `mgcv::gam`).</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>fit_m_bin <span class="ot">&lt;-</span> <span class="fu">causat</span>(nhefs_complete, <span class="at">outcome =</span> <span class="st">"gained_weight"</span>,</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"qsmk"</span>, <span class="at">confounders =</span> confounders,</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimator =</span> <span class="st">"matching"</span>, <span class="at">estimand =</span> <span class="st">"ATT"</span>)</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>res_gc_bin   <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit_gc_bin,   ivs, <span class="at">reference =</span> <span class="st">"continue"</span>)</span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>res_ipw_bin  <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit_ipw_bin,  ivs, <span class="at">reference =</span> <span class="st">"continue"</span>)</span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>res_aipw_bin <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit_aipw_bin, ivs, <span class="at">reference =</span> <span class="st">"continue"</span>)</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>res_m_bin    <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit_m_bin,    ivs, <span class="at">reference =</span> <span class="st">"continue"</span>)</span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>results_bin <span class="ot">&lt;-</span> <span class="fu">rbind</span>(</span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cbind</span>(<span class="at">method =</span> <span class="st">"G-computation"</span>, res_gc_bin<span class="sc">$</span>contrasts),</span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cbind</span>(<span class="at">method =</span> <span class="st">"IPW"</span>,           res_ipw_bin<span class="sc">$</span>contrasts),</span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cbind</span>(<span class="at">method =</span> <span class="st">"AIPW"</span>,          res_aipw_bin<span class="sc">$</span>contrasts),</span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cbind</span>(<span class="at">method =</span> <span class="st">"Matching (ATT)"</span>, res_m_bin<span class="sc">$</span>contrasts)</span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a>results_bin</span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;            method       comparison  estimate         se   ci_lower  ci_upper</span></span>
+<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;            &lt;char&gt;           &lt;char&gt;     &lt;num&gt;      &lt;num&gt;      &lt;num&gt;     &lt;num&gt;</span></span>
+<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1:  G-computation quit vs continue 0.1326922 0.02366249 0.08631463 0.1790699</span></span>
+<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2:            IPW quit vs continue 0.1379464 0.02498002 0.08898648 0.1869064</span></span>
+<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3:           AIPW quit vs continue 0.1361954 0.02688531 0.08350119 0.1888897</span></span>
+<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4: Matching (ATT) quit vs continue 0.1488834 0.03168677 0.08677844 0.2109883</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
 <div class="cell">
@@ -808,45 +812,47 @@ window.Quarto = {
 <span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"qsmk"</span>, <span class="at">confounders =</span> confounders_em, <span class="at">estimator =</span> <span class="st">"ipw"</span>)</span>
 <span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>fit_aipw_em <span class="ot">&lt;-</span> <span class="fu">causat</span>(nhefs_complete, <span class="at">outcome =</span> <span class="st">"wt82_71"</span>,</span>
 <span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"qsmk"</span>, <span class="at">confounders =</span> confounders_em, <span class="at">estimator =</span> <span class="st">"aipw"</span>)</span>
-<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>fit_m_em    <span class="ot">&lt;-</span> <span class="fu">causat</span>(nhefs_complete, <span class="at">outcome =</span> <span class="st">"wt82_71"</span>,</span>
-<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"qsmk"</span>, <span class="at">confounders =</span> confounders_em, <span class="at">estimator =</span> <span class="st">"matching"</span>)</span>
-<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>res_gc_em   <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit_gc_em,   ivs, <span class="at">reference =</span> <span class="st">"continue"</span>,</span>
-<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">ci_method =</span> <span class="st">"sandwich"</span>, <span class="at">by =</span> <span class="st">"sex"</span>)</span>
-<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>res_ipw_em  <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit_ipw_em,  ivs, <span class="at">reference =</span> <span class="st">"continue"</span>,</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Warning: No `propensity_model_fn` specified; defaulting to `stats::glm` for the treatment density model(s).</span></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ℹ Set `propensity_model_fn` explicitly if you need a different fitter (e.g. `mgcv::gam`).</span></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>fit_m_em    <span class="ot">&lt;-</span> <span class="fu">causat</span>(nhefs_complete, <span class="at">outcome =</span> <span class="st">"wt82_71"</span>,</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"qsmk"</span>, <span class="at">confounders =</span> confounders_em, <span class="at">estimator =</span> <span class="st">"matching"</span>)</span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>res_gc_em   <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit_gc_em,   ivs, <span class="at">reference =</span> <span class="st">"continue"</span>,</span>
 <span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>  <span class="at">ci_method =</span> <span class="st">"sandwich"</span>, <span class="at">by =</span> <span class="st">"sex"</span>)</span>
-<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>res_aipw_em <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit_aipw_em, ivs, <span class="at">reference =</span> <span class="st">"continue"</span>,</span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>res_ipw_em  <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit_ipw_em,  ivs, <span class="at">reference =</span> <span class="st">"continue"</span>,</span>
 <span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>  <span class="at">ci_method =</span> <span class="st">"sandwich"</span>, <span class="at">by =</span> <span class="st">"sex"</span>)</span>
-<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>res_m_em    <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit_m_em,    ivs, <span class="at">reference =</span> <span class="st">"continue"</span>,</span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>res_aipw_em <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit_aipw_em, ivs, <span class="at">reference =</span> <span class="st">"continue"</span>,</span>
 <span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>  <span class="at">ci_method =</span> <span class="st">"sandwich"</span>, <span class="at">by =</span> <span class="st">"sex"</span>)</span>
-<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>results_em <span class="ot">&lt;-</span> <span class="fu">rbind</span>(</span>
-<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cbind</span>(<span class="at">method =</span> <span class="st">"G-computation"</span>, res_gc_em<span class="sc">$</span>contrasts),</span>
-<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cbind</span>(<span class="at">method =</span> <span class="st">"IPW"</span>,           res_ipw_em<span class="sc">$</span>contrasts),</span>
-<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cbind</span>(<span class="at">method =</span> <span class="st">"AIPW"</span>,          res_aipw_em<span class="sc">$</span>contrasts),</span>
-<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cbind</span>(<span class="at">method =</span> <span class="st">"Matching"</span>,      res_m_em<span class="sc">$</span>contrasts)</span>
-<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a>results_em</span>
-<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;           method       comparison estimate        se ci_lower ci_upper     by</span></span>
-<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;           &lt;char&gt;           &lt;char&gt;    &lt;num&gt;     &lt;num&gt;    &lt;num&gt;    &lt;num&gt; &lt;char&gt;</span></span>
-<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1: G-computation quit vs continue 3.576000 0.6174533 2.365814 4.786186   Male</span></span>
-<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2: G-computation quit vs continue 3.333079 0.6924483 1.975906 4.690253 Female</span></span>
-<span id="cb10-35"><a href="#cb10-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3:           IPW quit vs continue 3.568991 0.6329339 2.328464 4.809519   Male</span></span>
-<span id="cb10-36"><a href="#cb10-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4:           IPW quit vs continue 3.430123 0.7769946 1.907242 4.953005 Female</span></span>
-<span id="cb10-37"><a href="#cb10-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 5:          AIPW quit vs continue 3.437330 0.6788998 2.106711 4.767950   Male</span></span>
-<span id="cb10-38"><a href="#cb10-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 6:          AIPW quit vs continue 3.511083 0.7998670 1.943372 5.078793 Female</span></span>
-<span id="cb10-39"><a href="#cb10-39" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 7:      Matching quit vs continue 3.057178 0.5785409 1.923259 4.191097   Male</span></span>
-<span id="cb10-40"><a href="#cb10-40" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 8:      Matching quit vs continue 4.178475 0.5785409 3.044555 5.312394 Female</span></span>
-<span id="cb10-41"><a href="#cb10-41" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     n_by</span></span>
-<span id="cb10-42"><a href="#cb10-42" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    &lt;int&gt;</span></span>
-<span id="cb10-43"><a href="#cb10-43" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1:   762</span></span>
-<span id="cb10-44"><a href="#cb10-44" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2:   804</span></span>
-<span id="cb10-45"><a href="#cb10-45" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3:   762</span></span>
-<span id="cb10-46"><a href="#cb10-46" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4:   804</span></span>
-<span id="cb10-47"><a href="#cb10-47" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 5:   762</span></span>
-<span id="cb10-48"><a href="#cb10-48" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 6:   804</span></span>
-<span id="cb10-49"><a href="#cb10-49" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 7:   762</span></span>
-<span id="cb10-50"><a href="#cb10-50" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 8:   804</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>res_m_em    <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit_m_em,    ivs, <span class="at">reference =</span> <span class="st">"continue"</span>,</span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>  <span class="at">ci_method =</span> <span class="st">"sandwich"</span>, <span class="at">by =</span> <span class="st">"sex"</span>)</span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a>results_em <span class="ot">&lt;-</span> <span class="fu">rbind</span>(</span>
+<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cbind</span>(<span class="at">method =</span> <span class="st">"G-computation"</span>, res_gc_em<span class="sc">$</span>contrasts),</span>
+<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cbind</span>(<span class="at">method =</span> <span class="st">"IPW"</span>,           res_ipw_em<span class="sc">$</span>contrasts),</span>
+<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cbind</span>(<span class="at">method =</span> <span class="st">"AIPW"</span>,          res_aipw_em<span class="sc">$</span>contrasts),</span>
+<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cbind</span>(<span class="at">method =</span> <span class="st">"Matching"</span>,      res_m_em<span class="sc">$</span>contrasts)</span>
+<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a>results_em</span>
+<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;           method       comparison estimate        se ci_lower ci_upper     by</span></span>
+<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;           &lt;char&gt;           &lt;char&gt;    &lt;num&gt;     &lt;num&gt;    &lt;num&gt;    &lt;num&gt; &lt;char&gt;</span></span>
+<span id="cb10-35"><a href="#cb10-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1: G-computation quit vs continue 3.576000 0.6174533 2.365814 4.786186   Male</span></span>
+<span id="cb10-36"><a href="#cb10-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2: G-computation quit vs continue 3.333079 0.6924483 1.975906 4.690253 Female</span></span>
+<span id="cb10-37"><a href="#cb10-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3:           IPW quit vs continue 3.568991 0.6329339 2.328464 4.809519   Male</span></span>
+<span id="cb10-38"><a href="#cb10-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4:           IPW quit vs continue 3.430123 0.7769946 1.907242 4.953005 Female</span></span>
+<span id="cb10-39"><a href="#cb10-39" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 5:          AIPW quit vs continue 3.437330 0.6788998 2.106711 4.767950   Male</span></span>
+<span id="cb10-40"><a href="#cb10-40" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 6:          AIPW quit vs continue 3.511083 0.7998670 1.943372 5.078793 Female</span></span>
+<span id="cb10-41"><a href="#cb10-41" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 7:      Matching quit vs continue 3.057178 0.5785409 1.923259 4.191097   Male</span></span>
+<span id="cb10-42"><a href="#cb10-42" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 8:      Matching quit vs continue 4.178475 0.5785409 3.044555 5.312394 Female</span></span>
+<span id="cb10-43"><a href="#cb10-43" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     n_by</span></span>
+<span id="cb10-44"><a href="#cb10-44" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    &lt;int&gt;</span></span>
+<span id="cb10-45"><a href="#cb10-45" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1:   762</span></span>
+<span id="cb10-46"><a href="#cb10-46" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2:   804</span></span>
+<span id="cb10-47"><a href="#cb10-47" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3:   762</span></span>
+<span id="cb10-48"><a href="#cb10-48" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4:   804</span></span>
+<span id="cb10-49"><a href="#cb10-49" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 5:   762</span></span>
+<span id="cb10-50"><a href="#cb10-50" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 6:   804</span></span>
+<span id="cb10-51"><a href="#cb10-51" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 7:   762</span></span>
+<span id="cb10-52"><a href="#cb10-52" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 8:   804</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
 <div class="cell">
