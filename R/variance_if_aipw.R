@@ -10,11 +10,16 @@
 #' The per-individual IF for \eqn{\hat\mu(g)} is:
 #' \deqn{\mathrm{IF}_i = \mathrm{Ch1}_i +
 #'   \mathrm{outcome\_correction}_i -
-#'   \mathrm{propensity\_correction}_i}
+#'   \mathrm{propensity\_correction}_i -
+#'   \mathrm{sampling\_correction}_i -
+#'   \mathrm{censoring\_correction}_i}
 #'
 #' where Ch1 is the direct AIPW functional evaluated at individual i
 #' minus the estimate, and the corrections propagate nuisance-model
-#' parameter uncertainty through the plug-in functional.
+#' parameter uncertainty through the plug-in functional. The censoring
+#' correction (Channel 2d) accounts for IPCW weight uncertainty via
+#' three cross-derivative sub-components: direct Hajek effect,
+#' outcome-model cross-block, and propensity-model cross-block.
 #'
 #' @noRd
 variance_if_aipw <- function(
@@ -83,15 +88,14 @@ variance_if_aipw <- function(
   # Multivariate: per-component prep deferred to inside the loop.
   prop_prep <- NULL
   if (!is_mv) {
-    fit_idx_ps <- which(tm$fit_rows)
     if (inherits(propensity_model, "multinom")) {
       prop_prep <- prepare_model_if_multinom(
         propensity_model,
-        fit_idx_ps,
+        aipw_fit_idx,
         n_total
       )
     } else {
-      prop_prep <- prepare_model_if(propensity_model, fit_idx_ps, n_total)
+      prop_prep <- prepare_model_if(propensity_model, aipw_fit_idx, n_total)
     }
   }
 
@@ -127,6 +131,33 @@ variance_if_aipw <- function(
       fit$target_subset
     )
     gamma_hat <- samp_model$gamma_hat
+  }
+
+  # IPCW: censoring model prep (shared across interventions)
+  is_ipcw <- isTRUE(fit$details$ipcw)
+  cens_prep <- NULL
+  cens_wfn <- NULL
+  cens_gamma_hat <- NULL
+  w_pre_ipcw_fit <- NULL
+  ipcw_w_fit <- NULL
+  if (is_ipcw) {
+    cens_model <- fit$details$censoring_model
+    cens_prep <- prepare_model_if(
+      cens_model$model,
+      which(cens_model$fit_rows),
+      n_total
+    )
+    cens_wfn <- make_ipcw_weight_fn(
+      cens_model,
+      n_total = n_total,
+      censoring_col = as.integer(data[[fit$censoring]]),
+      stabilize = TRUE
+    )
+    cens_gamma_hat <- cens_model$alpha_hat
+    ipcw_w_fit <- fit$details$ipcw_weights[fit_rows]
+
+    w_pre <- fit$details$weights_pre_ipcw
+    w_pre_ipcw_fit <- if (!is.null(w_pre)) w_pre[fit_rows] else rep(1, n_sub)
   }
 
   IF_list <- lapply(int_names, function(nm) {
@@ -180,8 +211,12 @@ variance_if_aipw <- function(
       # phi_i = Q_i(g) + W_i * (Y_i - Q_i(obs))
       # Ch1_i = n * (w_i / sum_w) * (phi_i - mu_hat)
       aipw_contrib <- preds_g + w_aug * resid_obs
-      Ch1_i <- n_sub * (w_target_vec / sum_w_target) * (aipw_contrib - mu_hat_j)
-      Ch1_i[!target_fit] <- 0
+      Ch1_fit <- n_sub * (w_target_vec / sum_w_target) * (aipw_contrib - mu_hat_j)
+      Ch1_fit[!target_fit] <- 0
+      # Pad to n_total so Ch1_i aligns with correction vectors from
+      # apply_model_correction(), which are always length n_total.
+      Ch1_i <- rep(0, n_total)
+      Ch1_i[fit_rows] <- Ch1_fit
     }
 
     # --- Channel 2a: outcome model correction ------------------------------
@@ -373,8 +408,111 @@ variance_if_aipw <- function(
       samp_correction <- samp_res$correction
     }
 
+    # --- Channel 2d: censoring model correction (IPCW only) ---------------
+    # Three sub-components from the A_{*,gamma} cross-blocks:
+    # (i)   Direct: d(AIPW_mean)/d(gamma) — Hajek weights depend on IPCW.
+    # (ii)  Outcome: A_{beta,gamma}^T h_outcome — IPCW fitting weights
+    #       enter the outcome model score.
+    # (iii) Propensity: A_{alpha,gamma}^T h_prop — IPCW fitting weights
+    #       enter the propensity model score.
+    cens_correction <- rep(0, n_total)
+    if (is_ipcw) {
+      # (i) Direct effect: vary gamma in the AIPW augmented mean
+      # (ext_w = w_pre_ipcw * w_ipcw, so varying gamma changes ext_w).
+      aipw_phi <- preds_g + w_iv * resid_obs
+      aug_mean_cens <- function(gamma_c) {
+        w_ipcw_c <- cens_wfn(gamma_c)[fit_rows]
+        w_total_c <- w_pre_ipcw_fit * w_ipcw_c
+        w_tgt_c <- w_total_c * as.numeric(target_fit)
+        sw_c <- sum(w_tgt_c[target_fit])
+        if (sw_c <= 0) return(0)
+        sum(w_tgt_c * aipw_phi) / sw_c
+      }
+      J_gamma_direct <- as.numeric(
+        numDeriv::jacobian(aug_mean_cens, x = cens_gamma_hat)
+      )
+
+      # (ii) Outcome cross-block: the outcome model was fit with IPCW
+      # weights, so its score psi_beta depends on gamma through the
+      # fitting weights.
+      h_outcome <- outcome_res$h
+      out_score_factor <- mu_eta_obs * resid_obs / fam$variance(preds_obs)
+      phi_bar_out_cens <- function(gamma_c) {
+        w_ipcw_c <- cens_wfn(gamma_c)[fit_rows]
+        w_c <- w_pre_ipcw_fit * w_ipcw_c
+        as.numeric(crossprod(X_fit, w_c * out_score_factor)) / n_sub
+      }
+      A_beta_gamma <- -numDeriv::jacobian(phi_bar_out_cens, x = cens_gamma_hat)
+      g_out_cens <- as.numeric(crossprod(A_beta_gamma, h_outcome))
+
+      # (iii) Propensity cross-block: the propensity model was also fit
+      # with IPCW weights, so its score depends on gamma too.
+      g_prop_cens <- rep(0, length(cens_gamma_hat))
+      if (!is_natural_course) {
+        if (!is_mv) {
+          X_ps <- stats::model.matrix(propensity_model)
+          fam_ps <- propensity_model$family
+          eta_ps <- propensity_model$linear.predictors
+          mu_ps <- fam_ps$linkinv(eta_ps)
+          ps_score_factor <- fam_ps$mu.eta(eta_ps) *
+            (stats::model.response(stats::model.frame(propensity_model)) -
+              mu_ps) /
+            fam_ps$variance(mu_ps)
+          h_prop <- prop_res$h
+
+          phi_bar_ps_cens <- function(gamma_c) {
+            w_ipcw_c <- cens_wfn(gamma_c)[fit_rows]
+            w_c <- w_pre_ipcw_fit * w_ipcw_c
+            as.numeric(crossprod(X_ps, w_c * ps_score_factor)) / n_sub
+          }
+          A_alpha_gamma <- -numDeriv::jacobian(
+            phi_bar_ps_cens,
+            x = cens_gamma_hat
+          )
+          g_prop_cens <- as.numeric(crossprod(A_alpha_gamma, h_prop))
+        }
+        if (is_mv) {
+          for (kk in seq_along(tms)) {
+            prop_model_kk <- tms[[kk]]$model
+            if (inherits(prop_model_kk, "multinom")) next
+            X_ps_k <- stats::model.matrix(prop_model_kk)
+            fam_ps_k <- prop_model_kk$family
+            eta_ps_k <- prop_model_kk$linear.predictors
+            mu_ps_k <- fam_ps_k$linkinv(eta_ps_k)
+            ps_sf_k <- fam_ps_k$mu.eta(eta_ps_k) *
+              (stats::model.response(stats::model.frame(prop_model_kk)) -
+                mu_ps_k) /
+              fam_ps_k$variance(mu_ps_k)
+
+            idx_k <- mv_closure$offsets[kk]:(mv_closure$offsets[kk + 1L] - 1L)
+            prop_prep_kk <- prepare_model_if(
+              prop_model_kk, aipw_fit_idx, n_total
+            )
+            prop_res_kk <- apply_model_correction(prop_prep_kk, J_alpha[idx_k])
+            h_prop_k <- prop_res_kk$h
+
+            phi_bar_ps_k <- function(gamma_c) {
+              w_ipcw_c <- cens_wfn(gamma_c)[fit_rows]
+              w_c <- w_pre_ipcw_fit * w_ipcw_c
+              as.numeric(crossprod(X_ps_k, w_c * ps_sf_k)) / n_sub
+            }
+            A_ak_gamma <- -numDeriv::jacobian(
+              phi_bar_ps_k, x = cens_gamma_hat
+            )
+            g_prop_cens <- g_prop_cens +
+              as.numeric(crossprod(A_ak_gamma, h_prop_k))
+          }
+        }
+      }
+
+      g_cens_total <- J_gamma_direct + g_out_cens + g_prop_cens
+      cens_res <- apply_model_correction(cens_prep, g_cens_total)
+      cens_correction <- cens_res$correction
+    }
+
     # --- Assembly ----------------------------------------------------------
-    Ch1_i + outcome_res$correction - prop_correction - samp_correction
+    Ch1_i + outcome_res$correction - prop_correction -
+      samp_correction - cens_correction
   })
   names(IF_list) <- int_names
 
@@ -693,6 +831,8 @@ variance_if_aipw_long_one <- function(
     }
 
     fit_id_idx <- id_to_idx[fit_ids_k]
+    na_act_k <- model_k$na.action
+    if (!is.null(na_act_k)) fit_id_idx <- fit_id_idx[-na_act_k]
     res <- correct_model(model_k, g_k, fit_id_idx, n)
     IF_vec <- IF_vec + res$correction
     d_vec <- res$d

@@ -35,6 +35,7 @@ causatr is the right home for AIPW because (a) the gcomp and IPW engines already
 - **Machine-learning nuisances.** AIPW with ML nuisances requires cross-fitting to recover $\sqrt{n}$-consistency; out of scope by the same logic as plain gcomp (see CLAUDE.md "Why GLMs/GAMs, not ML").
 - **AIPW under multivariate treatment.** Shipped as chunk 16m (composes Phase 8 joint density with AIPW functional).
 - **Targeted maximum likelihood.** The targeting step is the TMLE innovation, not the AIPW innovation. AIPW is the non-targeted DR estimator.
+- **Stochastic interventions under AIPW.** Moved to **Phase 24** (`PHASE_24_STOCHASTIC_AIPW.md`). Stochastic AIPW requires extending the `stochastic()` constructor with a user-supplied `density` function to compute density-ratio weights. Phase 24 covers both stochastic IPW and stochastic AIPW in a unified phase.
 
 ## Design
 
@@ -85,7 +86,7 @@ The efficiency story is the secondary selling point and is tested in chunk 16f.
 | `dynamic(rule)` binary | ✓ | Deterministic rule on binary; HT-indicator weight path. |
 | `dynamic(rule)` continuous | ⛔ | Same rejection as IPW (Dirac). |
 | `ipsi(δ)` | ✓ | Closed-form IPSI weight; outcome model evaluated at the IPSI-shifted expected-propensity treatment. Minor care: the outcome-model augmentation term evaluates at the observed A (not at a drawn IPSI treatment), so the estimator is well-defined without MC. |
-| `stochastic()` (Phase 12) | composition | See § "AIPW × stochastic"; MC averaging on both nuisance evaluations. |
+| `stochastic(density=)` (Phase 24) | ✓ (when density supplied) | Phase 24: MC-averaged outcome predictions + density-ratio weights via user-supplied `density`. Without `density`, rejected (gcomp-only). |
 
 The rejections are exactly those inherited from the self-contained IPW engine — AIPW does not *add* any rejections, because the outcome-model side is always well-defined.
 
@@ -141,7 +142,7 @@ where $\tilde Y_{k+1}$ is the pseudo-outcome from the $(k+1)$-th AIPW step and $
 
 - **Phase 8 (multivariate treatment IPW) × AIPW.** Shipped as chunk 16m. Joint outcome model `Y ~ A1 + A2 + L` (Phase 2) + joint density (Phase 8) composed in the AIPW functional. Includes stabilized weights, DR tests, sandwich + bootstrap variance.
 - **Phase 10 (longitudinal IPW) × AIPW.** This is exactly ICE-AIPW, chunk 16g.
-- **Phase 12 (stochastic) × AIPW.** MC integration applies to the outcome-model augmentation term (average $\hat{m}(A_{i,m}, L_i)$ across $M$ draws) and to the weight; AIPW is a scalar so regular MC averaging of the residual correction suffices. Add explicit subsection to `PHASE_12_STOCHASTIC.md` once Phase 16 lands.
+- **Phase 12 (stochastic) × AIPW.** Moved to **Phase 24** (`PHASE_24_STOCHASTIC_AIPW.md`). Stochastic AIPW requires extending the `stochastic()` constructor with a user-supplied `density` function to compute density-ratio weights. Phase 24 covers stochastic IPW (originally "Phase 12b") and stochastic AIPW (originally chunk 16n) in a unified phase.
 - **Phase 14 (IPCW) × AIPW.** Triply-weighted estimator: `ψ̂_AIPW,IPCW = standardization + (treatment weight × censoring weight) × outcome residual`. Sandwich: stacked EE with outcome model + propensity model + censoring model + plug-in. This is the **most efficient** estimator in the lineage and is a major deliverable once both Phase 14 and Phase 16 are done.
 - **Survival composition.** AIPW-survival (Bai et al. 2013; Zhang & Schaubel 2012) lives in the separate survival package (`etverse/survatr`); it imports Phase 16 as the scalar-outcome AIPW primitive and layers the cross-time delta chain on top.
 
@@ -162,8 +163,8 @@ where $\tilde Y_{k+1}$ is the pseudo-outcome from the $(k+1)$-th AIPW step and $
 | 16k | `delicatessen` external cross-check on a shared DGP | 16b, 16d, 16e | ✅ done |
 | 16l | Documentation, vignette, `CLAUDE.md` phase update, `FEATURE_COVERAGE_MATRIX.md` rows | 16a–16j | ✅ done |
 | 16m | Multivariate point AIPW: joint outcome model `Y ~ A1 + A2 + L` + multivariate density-ratio weights in augmentation term. Composes Phase 8 joint density with Phase 16 AIPW functional. Lifts `causatr_aipw_multivariate_pending` rejection for point treatment. Includes stabilized weights (`stabilize = "marginal"`), propensity_model_fn default warning, and `model.matrix(terms(model))` fix for custom fitters. | Phase 8, 16b | ✅ done |
-| 16n | Stochastic + AIPW: MC integration on outcome-model augmentation term (average $\hat{m}(A_{i,m}, L_i)$ across $M$ draws); MC-averaged residual correction; MC-averaged IF sandwich. Composes Phase 12 stochastic gcomp with Phase 16 AIPW augmentation. Lifts stochastic rejection for AIPW. | Phase 12, 16b | pending |
-| 16o | IPCW + AIPW: triply-weighted estimator $\hat\psi_{\text{AIPW,IPCW}} = \text{standardization} + (\text{treatment weight} \times \text{censoring weight}) \times \text{outcome residual}$; stacked EE with outcome + propensity + censoring model blocks + plug-in. | Phase 14, 16b | pending |
+| 16n | ~~Stochastic + AIPW~~ — **moved to Phase 24** (`PHASE_24_STOCHASTIC_AIPW.md`). Stochastic interventions under AIPW (and IPW) require extending `stochastic()` with an optional `density` parameter, which is broader than a single composition chunk. | — | moved → Phase 24 |
+| 16o | IPCW + AIPW: triply-weighted estimator. Point estimate flows through merged IPCW weights in `ext_w`. Sandwich variance adds Channel 2d (censoring model correction) with three sub-components: direct Hajek effect, outcome cross-block, propensity cross-block. Also fixes latent `Ch1_i` dimension bug and `fit_idx_ps` alignment bug. | Phase 14, 16b | ✅ done |
 | 16p | AIPW test coverage parity: outcome types (gamma, quasibinomial, negbin, beta), survey weights, cluster-robust sandwich, missing data, subset estimand, GAM outcome/propensity models. Infrastructure should already work — these are test gaps, not implementation gaps. | 16b | pending |
 | 16q | Audit `model_fn` / `propensity_model_fn` defaults across causatr. Currently `model_fn` defaults to `stats::glm` silently; `propensity_model_fn` falls back to `model_fn` in IPW and to `stats::glm` (with warning) in AIPW. The model choice is important and should never be silent. Add `rlang::warn()` in `causat()` when either argument is not explicitly specified (use `missing()` or sentinel), defaulting to `stats::glm` with auto-detected family. Applies to all estimators (gcomp, IPW, AIPW, matching). Update all test files to suppress or specify explicitly. | all | pending |
 

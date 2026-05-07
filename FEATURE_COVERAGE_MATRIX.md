@@ -634,9 +634,21 @@ Composes Phase 2 gcomp + Phase 4 IPW into the classical analytical doubly-robust
 | AIPW rejects stabilize for univariate treatment | ✅ | test-aipw.R |
 | AIPW warns when propensity_model_fn not specified | ✅ | test-aipw.R (implicit) |
 
-**Rejections (point, same as IPW):** static/threshold/dynamic on continuous → Dirac rejection ✅; stochastic → rejected ✅.
+**Rejections (point, same as IPW):** static/threshold/dynamic on continuous → Dirac rejection ✅; stochastic (without `density`) → rejected ✅; stochastic (with `density`) → Phase 24.
 
 **Rejections (longitudinal):** multivariate → deferred ✅; ATT/ATC → rejected ✅.
+
+**Chunk 16o — AIPW + IPCW (triply-weighted DR)**
+
+| Feature | Status | Test |
+|---|---|---|
+| AIPW + IPCW recovers ATE on DGP-M2b | ✅ | test-aipw-ipcw.R |
+| AIPW + IPCW: sandwich SE finite, CI covers truth | ✅ | test-aipw-ipcw.R |
+| AIPW + IPCW reduces bias vs naive complete-case AIPW | ✅ | test-aipw-ipcw.R |
+| AIPW + IPCW: sandwich vs bootstrap SE ratio in (0.5, 2.0) | ✅ | test-aipw-ipcw.R |
+| AIPW + IPCW DR: wrong outcome model still recovers truth | ✅ | test-aipw-ipcw.R |
+| AIPW + IPCW + external weights composes correctly | ✅ | test-aipw-ipcw.R |
+| AIPW + IPCW stashes correct details | ✅ | test-aipw-ipcw.R |
 
 ### Phase 17 — Transportability / Generalizability
 Sampling model `P(S=1 | L)` + sampling-odds weights multiply into IPW Hájek MSM; gcomp / IPW / AIPW transport paths; stacked EE extends with sampling-model block. References: Dahabreh et al. 2020; Westreich et al. 2017. Cross-check against `transport` / `transported` R packages.
