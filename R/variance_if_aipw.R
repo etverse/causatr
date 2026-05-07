@@ -29,7 +29,9 @@ variance_if_aipw <- function(
   data <- fit$data
   outcome_model <- fit$model
   tm <- fit$details$treatment_model
-  propensity_model <- tm$model
+  is_mv <- isTRUE(fit$details$is_multivariate)
+  tms <- fit$details$treatment_models
+  propensity_model <- if (is_mv) NULL else tm$model
   fit_rows <- fit$details$fit_rows
   fit_data <- data[fit_rows]
   ext_w <- fit$details$weights
@@ -77,16 +79,20 @@ variance_if_aipw <- function(
   # Outcome model prep (shared across interventions)
   outcome_prep <- prepare_model_if(outcome_model, aipw_fit_idx, n_total)
 
-  # Propensity model prep
-  fit_idx_ps <- which(tm$fit_rows)
-  if (inherits(propensity_model, "multinom")) {
-    prop_prep <- prepare_model_if_multinom(
-      propensity_model,
-      fit_idx_ps,
-      n_total
-    )
-  } else {
-    prop_prep <- prepare_model_if(propensity_model, fit_idx_ps, n_total)
+  # Univariate: single propensity model prep shared across interventions.
+  # Multivariate: per-component prep deferred to inside the loop.
+  prop_prep <- NULL
+  if (!is_mv) {
+    fit_idx_ps <- which(tm$fit_rows)
+    if (inherits(propensity_model, "multinom")) {
+      prop_prep <- prepare_model_if_multinom(
+        propensity_model,
+        fit_idx_ps,
+        n_total
+      )
+    } else {
+      prop_prep <- prepare_model_if(propensity_model, fit_idx_ps, n_total)
+    }
   }
 
   # Outcome model family objects for Jacobian computation
@@ -250,39 +256,104 @@ variance_if_aipw <- function(
     outcome_res <- apply_model_correction(outcome_prep, J_beta)
 
     # --- Channel 2b: propensity model correction ---------------------------
-    weight_fn <- make_weight_fn(
-      tm,
-      fit_data,
-      b$intervention,
-      estimand = estimand
-    )
+    # Natural-course intervention (NULL) has constant w_iv = 1, so
+    # d(aug_mean)/d(alpha) = 0 and propensity correction vanishes.
+    is_natural_course <- is.null(b$intervention)
 
-    if (is_transport) {
-      aug_mean_alpha <- function(alpha) {
-        w_alpha <- weight_fn(alpha)
-        w_aug_alpha <- w_S_fit * w_alpha
-        if (!is.null(ext_w)) {
-          sum(ext_w[fit_rows] * w_aug_alpha * resid_obs) / sum_w_target
-        } else {
-          sum(w_aug_alpha * resid_obs) / sum_w_target
+    if (is_mv && !is_natural_course) {
+      # Stacked-alpha closure across K independent propensity models.
+      # The block-diagonal bread means each component's IF correction
+      # depends only on its own alpha block.
+      tms_local <- tms
+      for (kk in seq_along(tms_local)) {
+        tms_local[[kk]]$fit_rows <- rep(TRUE, nrow(fit_data))
+      }
+      class(tms_local) <- c("causatr_treatment_models", "list")
+
+      mv_closure <- make_weight_fn_mv(
+        treatment_models = tms_local,
+        data = fit_data,
+        interventions = b$intervention,
+        estimand = "ATE"
+      )
+      mv_weight_fn <- mv_closure$weight_fn
+
+      if (is_transport) {
+        aug_mean_alpha <- function(alpha) {
+          w_alpha <- mv_weight_fn(alpha)
+          w_aug_alpha <- w_S_fit * w_alpha
+          if (!is.null(ext_w)) {
+            sum(ext_w[fit_rows] * w_aug_alpha * resid_obs) / sum_w_target
+          } else {
+            sum(w_aug_alpha * resid_obs) / sum_w_target
+          }
+        }
+      } else {
+        aug_mean_alpha <- function(alpha) {
+          w_alpha <- mv_weight_fn(alpha)
+          sum(w_target_vec * w_alpha * resid_obs) / sum_w_target
         }
       }
-    } else {
-      aug_mean_alpha <- function(alpha) {
-        w_alpha <- weight_fn(alpha)
-        sum(w_target_vec * w_alpha * resid_obs) / sum_w_target
+
+      J_alpha <- as.numeric(
+        numDeriv::jacobian(aug_mean_alpha, x = mv_closure$alpha_hat)
+      )
+
+      # Per-component propensity corrections summed over K blocks.
+      K <- length(tms_local)
+      prop_correction <- rep(0, n_total)
+      for (kk in seq_len(K)) {
+        idx <- mv_closure$offsets[kk]:(mv_closure$offsets[kk + 1L] - 1L)
+        J_alpha_k <- J_alpha[idx]
+        prop_model_k <- tms_local[[kk]]$model
+        prop_prep_k <- if (inherits(prop_model_k, "multinom")) {
+          prepare_model_if_multinom(prop_model_k, aipw_fit_idx, n_total)
+        } else {
+          prepare_model_if(prop_model_k, aipw_fit_idx, n_total)
+        }
+        prop_res_k <- apply_model_correction(prop_prep_k, J_alpha_k)
+        prop_correction <- prop_correction + prop_res_k$correction
       }
-    }
-
-    alpha_hat_raw <- stats::coef(propensity_model)
-    if (!is.null(dim(alpha_hat_raw))) {
-      alpha_hat <- as.vector(t(alpha_hat_raw))
+    } else if (is_natural_course) {
+      prop_correction <- rep(0, n_total)
     } else {
-      alpha_hat <- alpha_hat_raw
-    }
+      weight_fn <- make_weight_fn(
+        tm,
+        fit_data,
+        b$intervention,
+        estimand = estimand
+      )
 
-    J_alpha <- as.numeric(numDeriv::jacobian(aug_mean_alpha, x = alpha_hat))
-    prop_res <- apply_model_correction(prop_prep, J_alpha)
+      if (is_transport) {
+        aug_mean_alpha <- function(alpha) {
+          w_alpha <- weight_fn(alpha)
+          w_aug_alpha <- w_S_fit * w_alpha
+          if (!is.null(ext_w)) {
+            sum(ext_w[fit_rows] * w_aug_alpha * resid_obs) / sum_w_target
+          } else {
+            sum(w_aug_alpha * resid_obs) / sum_w_target
+          }
+        }
+      } else {
+        aug_mean_alpha <- function(alpha) {
+          w_alpha <- weight_fn(alpha)
+          sum(w_target_vec * w_alpha * resid_obs) / sum_w_target
+        }
+      }
+
+      alpha_hat_raw <- stats::coef(propensity_model)
+      if (!is.null(dim(alpha_hat_raw))) {
+        alpha_hat <- as.vector(t(alpha_hat_raw))
+      } else {
+        alpha_hat <- alpha_hat_raw
+      }
+
+      J_alpha <- as.numeric(
+        numDeriv::jacobian(aug_mean_alpha, x = alpha_hat)
+      )
+      prop_res <- apply_model_correction(prop_prep, J_alpha)
+      prop_correction <- prop_res$correction
+    }
 
     # --- Channel 2c: sampling model correction (transport only) ------------
     samp_correction <- rep(0, n_total)
@@ -303,9 +374,7 @@ variance_if_aipw <- function(
     }
 
     # --- Assembly ----------------------------------------------------------
-    # All corrections are n_total-length vectors from apply_model_correction.
-    # For non-transport, Ch1 is n_sub-length (== n_total when no transport).
-    Ch1_i + outcome_res$correction - prop_res$correction - samp_correction
+    Ch1_i + outcome_res$correction - prop_correction - samp_correction
   })
   names(IF_list) <- int_names
 

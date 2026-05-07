@@ -726,6 +726,7 @@ causat <- function(
       model_fn,
       propensity_model_fn,
       propensity_family,
+      stabilize = stabilize,
       id = id,
       time = time,
       call = call,

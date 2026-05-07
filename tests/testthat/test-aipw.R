@@ -7,7 +7,8 @@ test_that("AIPW recovers ATE on linear-Gaussian DGP (binary treatment)", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    estimator = "aipw"
+    estimator = "aipw",
+    propensity_model_fn = stats::glm
   )
   result <- contrast(
     fit,
@@ -43,7 +44,8 @@ test_that("AIPW agrees with gcomp and IPW on well-specified DGP", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    estimator = "aipw"
+    estimator = "aipw",
+    propensity_model_fn = stats::glm
   )
 
   res_gc <- contrast(fit_gc, interventions = ivs, reference = "a0")
@@ -67,7 +69,8 @@ test_that("AIPW bootstrap agrees with sandwich (within 30%)", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    estimator = "aipw"
+    estimator = "aipw",
+    propensity_model_fn = stats::glm
   )
   ivs <- list(a1 = static(1), a0 = static(0))
 
@@ -108,7 +111,8 @@ test_that("AIPW DR: wrong outcome model, correct propensity => ATE ~ 3", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    estimator = "aipw"
+    estimator = "aipw",
+    propensity_model_fn = stats::glm
   )
   result <- contrast(
     fit,
@@ -138,7 +142,8 @@ test_that("AIPW DR: correct outcome model, wrong propensity => ATE ~ 3", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    estimator = "aipw"
+    estimator = "aipw",
+    propensity_model_fn = stats::glm
   )
   result <- contrast(
     fit,
@@ -175,7 +180,8 @@ test_that("AIPW SE <= gcomp SE and IPW SE (both correct, large n)", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    estimator = "aipw"
+    estimator = "aipw",
+    propensity_model_fn = stats::glm
   )
 
   res_gc <- contrast(fit_gc, interventions = ivs, reference = "a0")
@@ -204,6 +210,7 @@ test_that("AIPW accepts longitudinal data (ICE-AIPW)", {
     confounders = ~L0,
     confounders_tv = ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     family = "gaussian",
     id = "id",
     time = "time"
@@ -212,22 +219,19 @@ test_that("AIPW accepts longitudinal data (ICE-AIPW)", {
   expect_equal(fit$estimator, "aipw")
 })
 
-test_that("AIPW rejects multivariate treatment", {
-  d <- data.frame(
-    Y = rnorm(50),
-    A1 = rbinom(50, 1, 0.5),
-    A2 = rbinom(50, 1, 0.5),
-    L = rnorm(50)
-  )
+test_that("AIPW rejects stabilize for univariate treatment", {
+  d <- simulate_binary_continuous(n = 200, seed = 80)
   expect_error(
     causat(
       d,
       outcome = "Y",
-      treatment = c("A1", "A2"),
+      treatment = "A",
       confounders = ~L,
-      estimator = "aipw"
+      estimator = "aipw",
+      propensity_model_fn = stats::glm,
+      stabilize = "marginal"
     ),
-    "Multivariate"
+    class = "causatr_stabilize_univariate"
   )
 })
 
@@ -240,7 +244,8 @@ test_that("AIPW marginal means are finite and correctly ordered", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    estimator = "aipw"
+    estimator = "aipw",
+    propensity_model_fn = stats::glm
   )
   result <- contrast(fit, interventions = list(a1 = static(1), a0 = static(0)))
   expect_true(all(is.finite(result$estimates$estimate)))
@@ -267,6 +272,7 @@ test_that("AIPW works with binomial outcome (risk difference)", {
     treatment = "A",
     confounders = ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     family = "binomial"
   )
   result <- contrast(
@@ -291,7 +297,8 @@ test_that("AIPW works with continuous treatment and shift intervention", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    estimator = "aipw"
+    estimator = "aipw",
+    propensity_model_fn = stats::glm
   )
   result <- contrast(
     fit,
@@ -313,7 +320,8 @@ test_that("AIPW works with scale_by intervention (continuous treatment)", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    estimator = "aipw"
+    estimator = "aipw",
+    propensity_model_fn = stats::glm
   )
   result <- contrast(
     fit,
@@ -334,7 +342,8 @@ test_that("AIPW works with dynamic intervention (binary treatment)", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    estimator = "aipw"
+    estimator = "aipw",
+    propensity_model_fn = stats::glm
   )
   # Dynamic rule: treat everyone with L > 0, don't treat L <= 0
   rule <- function(data, orig_trt) as.integer(data$L > 0)
@@ -357,7 +366,8 @@ test_that("AIPW works with ipsi intervention (binary treatment)", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    estimator = "aipw"
+    estimator = "aipw",
+    propensity_model_fn = stats::glm
   )
   result <- contrast(
     fit,
@@ -378,7 +388,8 @@ test_that("AIPW rejects stochastic interventions", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    estimator = "aipw"
+    estimator = "aipw",
+    propensity_model_fn = stats::glm
   )
 
   sampler <- function(data) rbinom(nrow(data), 1, 0.5)
@@ -399,7 +410,8 @@ test_that("AIPW rejects threshold on continuous treatment", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    estimator = "aipw"
+    estimator = "aipw",
+    propensity_model_fn = stats::glm
   )
   expect_error(
     contrast(
@@ -421,6 +433,7 @@ test_that("AIPW recovers ATT on linear DGP (static binary)", {
     treatment = "A",
     confounders = ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     estimand = "ATT"
   )
   result <- contrast(
@@ -441,6 +454,7 @@ test_that("AIPW recovers ATC on linear DGP (static binary)", {
     treatment = "A",
     confounders = ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     estimand = "ATC"
   )
   result <- contrast(
@@ -463,7 +477,8 @@ test_that("AIPW recovers sex-stratified ATE with effect modification", {
     outcome = "Y",
     treatment = "A",
     confounders = ~ L + A:sex,
-    estimator = "aipw"
+    estimator = "aipw",
+    propensity_model_fn = stats::glm
   )
   result <- contrast(
     fit,
@@ -500,7 +515,8 @@ test_that("AIPW works with categorical treatment", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    estimator = "aipw"
+    estimator = "aipw",
+    propensity_model_fn = stats::glm
   )
   result <- contrast(
     fit,
@@ -525,6 +541,7 @@ test_that("longitudinal AIPW: binary static, sandwich, ATE ~ 5", {
     confounders = ~L0,
     confounders_tv = ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     family = "gaussian",
     id = "id",
     time = "time"
@@ -550,6 +567,7 @@ test_that("longitudinal AIPW: binary static, bootstrap, ATE ~ 5", {
     confounders = ~L0,
     confounders_tv = ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     family = "gaussian",
     id = "id",
     time = "time"
@@ -576,6 +594,7 @@ test_that("longitudinal AIPW: continuous shift, sandwich", {
     confounders = ~L0,
     confounders_tv = ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     family = "gaussian",
     id = "id",
     time = "time"
@@ -621,6 +640,7 @@ test_that("longitudinal AIPW: continuous shift, bootstrap", {
     confounders = ~L0,
     confounders_tv = ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     family = "gaussian",
     id = "id",
     time = "time"
@@ -647,6 +667,7 @@ test_that("longitudinal AIPW: dynamic intervention, sandwich", {
     confounders = ~L0,
     confounders_tv = ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     family = "gaussian",
     id = "id",
     time = "time"
@@ -673,6 +694,7 @@ test_that("longitudinal AIPW: scale_by intervention, sandwich", {
     confounders = ~L0,
     confounders_tv = ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     family = "gaussian",
     id = "id",
     time = "time"
@@ -700,6 +722,7 @@ test_that("longitudinal AIPW vs ICE vs long-IPW: cross-method agreement", {
     confounders = ~L0,
     confounders_tv = ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     family = "gaussian",
     id = "id",
     time = "time"
@@ -764,6 +787,7 @@ test_that("longitudinal AIPW vs ICE: continuous shift agreement", {
     confounders = ~L0,
     confounders_tv = ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     family = "gaussian",
     id = "id",
     time = "time"
@@ -808,6 +832,7 @@ test_that("longitudinal AIPW DR: wrong outcome, correct propensity", {
     treatment = "A",
     confounders = ~L0,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     family = "gaussian",
     id = "id",
     time = "time"
@@ -839,6 +864,7 @@ test_that("longitudinal AIPW DR: correct outcome, wrong propensity", {
     confounders = ~L0,
     confounders_tv = ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     family = "gaussian",
     id = "id",
     time = "time"
@@ -849,6 +875,7 @@ test_that("longitudinal AIPW DR: correct outcome, wrong propensity", {
     treatment = "A",
     confounders = ~L0,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     family = "gaussian",
     id = "id",
     time = "time"
@@ -881,6 +908,7 @@ test_that("longitudinal AIPW: sandwich SE finite and positive", {
     confounders = ~L0,
     confounders_tv = ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     family = "gaussian",
     id = "id",
     time = "time"
@@ -903,6 +931,7 @@ test_that("longitudinal AIPW: bootstrap SE finite and positive", {
     confounders = ~L0,
     confounders_tv = ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     family = "gaussian",
     id = "id",
     time = "time"
@@ -926,6 +955,7 @@ test_that("longitudinal AIPW: sandwich vs bootstrap SE agreement", {
     confounders = ~L0,
     confounders_tv = ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     family = "gaussian",
     id = "id",
     time = "time"
@@ -953,6 +983,7 @@ test_that("longitudinal AIPW: effect modification by baseline (sex)", {
     confounders = ~ L0 + sex,
     confounders_tv = ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     family = "gaussian",
     id = "id",
     time = "time"
@@ -986,6 +1017,7 @@ test_that("longitudinal AIPW: EM agreement with ICE", {
     confounders = ~ L0 + sex,
     confounders_tv = ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     family = "gaussian",
     id = "id",
     time = "time"
@@ -1059,6 +1091,7 @@ test_that("longitudinal AIPW: binomial outcome", {
     confounders = ~L0,
     confounders_tv = ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     family = "binomial",
     id = "id",
     time = "time"
@@ -1082,6 +1115,7 @@ test_that("longitudinal AIPW: 3-period DGP agrees with IPW", {
     confounders = ~L0,
     confounders_tv = ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     family = "gaussian",
     id = "id",
     time = "time"
@@ -1129,6 +1163,7 @@ test_that("longitudinal AIPW: multivariate treatment rejected", {
       confounders = ~L0,
       confounders_tv = ~L,
       estimator = "aipw",
+      propensity_model_fn = stats::glm,
       family = "gaussian",
       id = "id",
       time = "time"
@@ -1147,6 +1182,7 @@ test_that("longitudinal AIPW: ATT rejected", {
       confounders = ~L0,
       confounders_tv = ~L,
       estimator = "aipw",
+      propensity_model_fn = stats::glm,
       family = "gaussian",
       estimand = "ATT",
       id = "id",
@@ -1168,6 +1204,7 @@ test_that("longitudinal AIPW: lmtp cross-check (binary static)", {
     confounders = ~L0,
     confounders_tv = ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     family = "gaussian",
     id = "id",
     time = "time"
@@ -1220,8 +1257,14 @@ test_that("longitudinal AIPW: lmtp cross-check (binary static)", {
   # causatr sandwich targets the contrast directly — ratio < 1 expected.
   se_aipw <- res$contrasts$se[1]
   expect_true(is.finite(se_aipw), label = "causatr SE is finite")
-  expect_true(is.finite(lmtp_a1$estimate@std_error), label = "lmtp_a1 SE is finite")
-  expect_true(is.finite(lmtp_a0$estimate@std_error), label = "lmtp_a0 SE is finite")
+  expect_true(
+    is.finite(lmtp_a1$estimate@std_error),
+    label = "lmtp_a1 SE is finite"
+  )
+  expect_true(
+    is.finite(lmtp_a0$estimate@std_error),
+    label = "lmtp_a0 SE is finite"
+  )
   se_lmtp <- sqrt(
     lmtp_a1$estimate@std_error^2 + lmtp_a0$estimate@std_error^2
   )
@@ -1242,6 +1285,7 @@ test_that("longitudinal AIPW: lmtp cross-check (continuous shift)", {
     confounders = ~L0,
     confounders_tv = ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     family = "gaussian",
     id = "id",
     time = "time"
@@ -1294,8 +1338,14 @@ test_that("longitudinal AIPW: lmtp cross-check (continuous shift)", {
   # below 1.  Smoke-test bounds only.
   se_aipw <- res$contrasts$se[1]
   expect_true(is.finite(se_aipw), label = "causatr SE is finite")
-  expect_true(is.finite(lmtp_up$estimate@std_error), label = "lmtp_up SE is finite")
-  expect_true(is.finite(lmtp_nat$estimate@std_error), label = "lmtp_nat SE is finite")
+  expect_true(
+    is.finite(lmtp_up$estimate@std_error),
+    label = "lmtp_up SE is finite"
+  )
+  expect_true(
+    is.finite(lmtp_nat$estimate@std_error),
+    label = "lmtp_nat SE is finite"
+  )
   se_lmtp <- sqrt(
     lmtp_up$estimate@std_error^2 + lmtp_nat$estimate@std_error^2
   )
@@ -1337,6 +1387,7 @@ test_that("longitudinal AIPW: lmtp cross-check (binary outcome)", {
     confounders = ~L0,
     confounders_tv = ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     family = "binomial",
     id = "id",
     time = "time"
@@ -1387,8 +1438,14 @@ test_that("longitudinal AIPW: lmtp cross-check (binary outcome)", {
   # (ignoring covariance), causatr targets the contrast — ratio < 1 expected.
   se_aipw <- res$contrasts$se[1]
   expect_true(is.finite(se_aipw), label = "causatr SE is finite")
-  expect_true(is.finite(lmtp_a1$estimate@std_error), label = "lmtp_a1 SE is finite")
-  expect_true(is.finite(lmtp_a0$estimate@std_error), label = "lmtp_a0 SE is finite")
+  expect_true(
+    is.finite(lmtp_a1$estimate@std_error),
+    label = "lmtp_a1 SE is finite"
+  )
+  expect_true(
+    is.finite(lmtp_a0$estimate@std_error),
+    label = "lmtp_a0 SE is finite"
+  )
   se_lmtp <- sqrt(
     lmtp_a1$estimate@std_error^2 + lmtp_a0$estimate@std_error^2
   )
@@ -1409,6 +1466,7 @@ test_that("longitudinal AIPW DR caveat: sandwich SE under misspecified outcome",
     treatment = "A",
     confounders = ~L0,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     family = "gaussian",
     id = "id",
     time = "time"
@@ -1449,6 +1507,7 @@ test_that("longitudinal AIPW: EM agreement with long-IPW", {
     confounders = ~ L0 + sex,
     confounders_tv = ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     family = "gaussian",
     id = "id",
     time = "time"
@@ -1500,6 +1559,7 @@ test_that("longitudinal AIPW: 3-period sandwich vs bootstrap SE agreement", {
     confounders = ~L0,
     confounders_tv = ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     family = "gaussian",
     id = "id",
     time = "time"
@@ -1554,6 +1614,7 @@ test_that("longitudinal AIPW: near-positivity stress test", {
     confounders = ~L0,
     confounders_tv = ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     family = "gaussian",
     id = "id",
     time = "time"
@@ -1597,7 +1658,8 @@ test_that("AIPW sandwich matches delicatessen — binary treatment, ATE", {
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    estimator = "aipw"
+    estimator = "aipw",
+    propensity_model_fn = stats::glm
   )
   res <- contrast(
     fit,
@@ -1639,7 +1701,8 @@ test_that("AIPW sandwich matches delicatessen — continuous treatment, shift(1)
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
-    estimator = "aipw"
+    estimator = "aipw",
+    propensity_model_fn = stats::glm
   )
   res <- contrast(
     fit,
@@ -1670,6 +1733,7 @@ test_that("longitudinal AIPW: IPSI rejection", {
     confounders = ~L0,
     confounders_tv = ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     family = "gaussian",
     id = "id",
     time = "time"
@@ -1682,4 +1746,222 @@ test_that("longitudinal AIPW: IPSI rejection", {
     ),
     class = "causatr_longitudinal_ipsi_pending"
   )
+})
+
+
+# --- Multivariate AIPW (binary x binary) ------------------------------------
+
+# DGP: L ~ N(0,1), A1|L ~ Bernoulli(plogis(0.3*L)),
+#       A2|L ~ Bernoulli(plogis(-0.3*L)),
+#       Y = 2 + 1.5*A1 + 1.0*A2 - 0.5*L + N(0,1).
+# Truth: E[Y(1,1)] = 4.5, E[Y(0,0)] = 2.0, ATE = 2.5.
+sim_bb_aipw <- function(n = 3000, seed = 42) {
+  set.seed(seed)
+  L <- rnorm(n)
+  A1 <- rbinom(n, 1, plogis(0.3 * L))
+  A2 <- rbinom(n, 1, plogis(-0.3 * L))
+  Y <- 2 + 1.5 * A1 + 1.0 * A2 - 0.5 * L + rnorm(n)
+  data.frame(L = L, A1 = A1, A2 = A2, Y = Y)
+}
+
+# DGP: continuous x continuous with downstream conditioning.
+# L ~ N(0,1), A1|L ~ N(0.5*L, 1), A2|A1,L ~ N(0.3*A1+0.5*L, 1),
+# Y = 1 + 0.5*A1 + 0.4*A2 - 0.5*L + N(0,1).
+# Truth for shift(-1,-1): 0.5*(-1) + 0.4*(-1) = -0.9.
+sim_cc_aipw <- function(n = 3000, seed = 42) {
+  set.seed(seed)
+  L <- rnorm(n)
+  A1 <- 0.5 * L + rnorm(n)
+  A2 <- 0.3 * A1 + 0.5 * L + rnorm(n)
+  Y <- 1 + 0.5 * A1 + 0.4 * A2 - 0.5 * L + rnorm(n)
+  data.frame(L = L, A1 = A1, A2 = A2, Y = Y)
+}
+
+# DGP: binary x binary, binomial outcome.
+# Y ~ Bernoulli(plogis(-1 + A1 + 0.8*A2 + 0.5*L)).
+# MC truth: P[Y(1,1)] ~ 0.622, P[Y(0,0)] ~ 0.269.
+sim_bb_binary_aipw <- function(n = 5000, seed = 42) {
+  set.seed(seed)
+  L <- rnorm(n)
+  A1 <- rbinom(n, 1, plogis(0.3 * L))
+  A2 <- rbinom(n, 1, plogis(-0.3 * L))
+  Y <- rbinom(n, 1, plogis(-1 + A1 + 0.8 * A2 + 0.5 * L))
+  data.frame(L = L, A1 = A1, A2 = A2, Y = Y)
+}
+
+test_that("mv AIPW: binary x binary static recovers truth", {
+  df <- sim_bb_aipw()
+  fit <- causat(df, "Y", c("A1", "A2"), ~L, estimator = "aipw", propensity_model_fn = stats::glm)
+  res <- contrast(
+    fit,
+    interventions = list(
+      both = list(A1 = static(1), A2 = static(1)),
+      neither = list(A1 = static(0), A2 = static(0))
+    ),
+    reference = "neither",
+    ci_method = "sandwich"
+  )
+  ate <- res$contrasts$estimate[1]
+  se <- res$contrasts$se[1]
+  expect_equal(ate, 2.5, tolerance = 0.3)
+  expect_true(is.finite(se) && se > 0)
+})
+
+test_that("mv AIPW: cross-checks gcomp and IPW", {
+  df <- sim_bb_aipw()
+  ivs <- list(
+    both = list(A1 = static(1), A2 = static(1)),
+    neither = list(A1 = static(0), A2 = static(0))
+  )
+
+  fit_a <- causat(df, "Y", c("A1", "A2"), ~L, estimator = "aipw", propensity_model_fn = stats::glm)
+  res_a <- contrast(fit_a, interventions = ivs, reference = "neither",
+                    ci_method = "sandwich")
+
+  fit_g <- causat(df, "Y", c("A1", "A2"), ~L, estimator = "gcomp")
+  res_g <- contrast(fit_g, interventions = ivs, reference = "neither",
+                    ci_method = "sandwich")
+
+  fit_i <- causat(df, "Y", c("A1", "A2"), ~L, estimator = "ipw")
+  res_i <- contrast(fit_i, interventions = ivs, reference = "neither",
+                    ci_method = "sandwich")
+
+  ate_a <- res_a$contrasts$estimate[1]
+  ate_g <- res_g$contrasts$estimate[1]
+  ate_i <- res_i$contrasts$estimate[1]
+  expect_equal(ate_a, ate_g, tolerance = 0.15)
+  expect_equal(ate_a, ate_i, tolerance = 0.15)
+})
+
+test_that("mv AIPW: bootstrap parity with sandwich", {
+  df <- sim_bb_aipw(n = 1000, seed = 99)
+  fit <- causat(df, "Y", c("A1", "A2"), ~L, estimator = "aipw", propensity_model_fn = stats::glm)
+  ivs <- list(
+    both = list(A1 = static(1), A2 = static(1)),
+    neither = list(A1 = static(0), A2 = static(0))
+  )
+  res_sw <- contrast(fit, interventions = ivs, reference = "neither",
+                     ci_method = "sandwich")
+  set.seed(123)
+  res_bt <- contrast(fit, interventions = ivs, reference = "neither",
+                     ci_method = "bootstrap", n_boot = 200)
+  se_sw <- res_sw$contrasts$se[1]
+  se_bt <- res_bt$contrasts$se[1]
+  expect_true(abs(se_sw - se_bt) < 0.3 * se_sw)
+})
+
+test_that("mv AIPW: continuous x continuous shift recovers truth", {
+  df <- sim_cc_aipw(n = 5000)
+  fit <- causat(df, "Y", c("A1", "A2"), ~L, estimator = "aipw", propensity_model_fn = stats::glm)
+  res <- contrast(
+    fit,
+    interventions = list(
+      shifted = list(A1 = shift(-1), A2 = shift(-1)),
+      obs = NULL
+    ),
+    reference = "obs",
+    ci_method = "sandwich"
+  )
+  ate <- res$contrasts$estimate[1]
+  se <- res$contrasts$se[1]
+  expect_equal(ate, -0.9, tolerance = 0.3)
+  expect_true(is.finite(se) && se > 0)
+})
+
+test_that("mv AIPW: DR — wrong outcome, correct propensity", {
+  df <- sim_bb_aipw(n = 5000, seed = 77)
+  # Outcome model omits L (misspecified); propensity correctly includes L.
+  fit <- causat(
+    df, "Y", c("A1", "A2"), ~L,
+    estimator = "aipw",
+    propensity_model_fn = stats::glm,
+    model_fn = function(formula, data, ...) {
+      stats::glm(Y ~ A1 + A2, data = data, ...)
+    }
+  )
+  res <- contrast(
+    fit,
+    interventions = list(
+      both = list(A1 = static(1), A2 = static(1)),
+      neither = list(A1 = static(0), A2 = static(0))
+    ),
+    reference = "neither",
+    ci_method = "sandwich"
+  )
+  ate <- res$contrasts$estimate[1]
+  expect_equal(ate, 2.5, tolerance = 0.4)
+})
+
+test_that("mv AIPW: DR — correct outcome, wrong propensity", {
+  df <- sim_bb_aipw(n = 5000, seed = 78)
+  # Propensity model drops L (misspecified); outcome model is correct.
+  fit <- causat(
+    df, "Y", c("A1", "A2"), ~L,
+    estimator = "aipw",
+    propensity_model_fn = function(formula, data, ...) {
+      resp <- all.vars(formula)[1]
+      stats::glm(
+        stats::reformulate("1", response = resp),
+        data = data, ...
+      )
+    }
+  )
+  res <- contrast(
+    fit,
+    interventions = list(
+      both = list(A1 = static(1), A2 = static(1)),
+      neither = list(A1 = static(0), A2 = static(0))
+    ),
+    reference = "neither",
+    ci_method = "sandwich"
+  )
+  ate <- res$contrasts$estimate[1]
+  expect_equal(ate, 2.5, tolerance = 0.4)
+})
+
+test_that("mv AIPW: binary x binary binomial outcome", {
+  df <- sim_bb_binary_aipw()
+  fit <- causat(
+    df, "Y", c("A1", "A2"), ~L,
+    estimator = "aipw",
+    propensity_model_fn = stats::glm,
+    family = "binomial"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(
+      both = list(A1 = static(1), A2 = static(1)),
+      neither = list(A1 = static(0), A2 = static(0))
+    ),
+    reference = "neither",
+    ci_method = "sandwich"
+  )
+  rd <- res$contrasts$estimate[1]
+  se <- res$contrasts$se[1]
+  # MC truth: RD ~ 0.353 (from 1e6 simulation)
+  expect_true(abs(rd - 0.353) < 0.15)
+  expect_true(is.finite(se) && se > 0)
+})
+
+test_that("mv AIPW: stabilize = 'marginal' produces finite results", {
+  df <- sim_bb_aipw()
+  fit <- causat(
+    df, "Y", c("A1", "A2"), ~L,
+    estimator = "aipw",
+    propensity_model_fn = stats::glm,
+    stabilize = "marginal"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(
+      both = list(A1 = static(1), A2 = static(1)),
+      neither = list(A1 = static(0), A2 = static(0))
+    ),
+    reference = "neither",
+    ci_method = "sandwich"
+  )
+  ate <- res$contrasts$estimate[1]
+  se <- res$contrasts$se[1]
+  expect_equal(ate, 2.5, tolerance = 0.3)
+  expect_true(is.finite(se) && se > 0)
 })

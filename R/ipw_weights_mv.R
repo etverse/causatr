@@ -339,10 +339,13 @@ make_weight_fn_mv <- function(
     tm_k <- treatment_models[[k]]
     a_obs_k <- data[[tm_k$treatment]]
 
-    # Propensity design matrix at OBSERVED upstream conditioning. Used
-    # for both numerator and denominator of the per-component ratio
-    # (sequential MTP semantics).
-    X_prop <- stats::model.matrix(tm_k$ps_formula, data = data)
+    # Propensity design matrix at OBSERVED upstream conditioning. Use
+    # the model's actual formula (not ps_formula) so that custom
+    # propensity_model_fn that override the formula stay conformable
+    # with alpha_hat.
+    X_prop <- stats::model.matrix(
+      stats::terms(tm_k$model), data = data
+    )
 
     fam_tag <- tm_k$family
     sigma <- tm_k$sigma

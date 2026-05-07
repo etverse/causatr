@@ -6,6 +6,7 @@ test_that("AIPW transport: fit_rows restricted to study rows (S=1)", {
     treatment = "A",
     confounders = ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     target = "S"
   )
   expected <- which(d$S == 1L & !is.na(d$Y))
@@ -24,6 +25,7 @@ test_that("AIPW transport: target_subset stored on fit", {
     "A",
     ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     target = "S",
     target_subset = "target"
   )
@@ -33,6 +35,7 @@ test_that("AIPW transport: target_subset stored on fit", {
     "A",
     ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     target = "S",
     target_subset = "all"
   )
@@ -51,6 +54,7 @@ test_that("AIPW transport (transportability): recovers target ATE", {
     treatment = "A",
     confounders = ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     target = "S",
     target_subset = "target"
   )
@@ -75,6 +79,7 @@ test_that("AIPW transport (generalizability): recovers marginal ATE", {
     treatment = "A",
     confounders = ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     target = "S",
     target_subset = "all"
   )
@@ -99,6 +104,7 @@ test_that("AIPW transport corrects study bias vs. naive study-only estimate", {
     "A",
     ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     target = "S",
     target_subset = "target"
   )
@@ -110,7 +116,7 @@ test_that("AIPW transport corrects study bias vs. naive study-only estimate", {
   )
 
   d_study <- d[d$S == 1, ]
-  fit_naive <- causat(d_study, "Y", "A", ~L, estimator = "aipw")
+  fit_naive <- causat(d_study, "Y", "A", ~L, estimator = "aipw", propensity_model_fn = stats::glm)
   res_naive <- contrast(
     fit_naive,
     interventions = list(a1 = static(1), a0 = static(0)),
@@ -136,6 +142,7 @@ test_that("AIPW transport: 2-of-3 DR — wrong outcome model", {
     treatment = "A",
     confounders = ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     target = "S"
   )
   res <- contrast(
@@ -189,6 +196,7 @@ test_that("AIPW transport: 2-of-3 DR — wrong sampling model", {
     treatment = "A",
     confounders = ~ L + A:L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     target = "S",
     sampling_model_fn = function(formula, data, family, weights = NULL) {
       args <- list(S ~ 1, data = data, family = family)
@@ -218,6 +226,7 @@ test_that("AIPW transport: sandwich SE plausible (ratio to bootstrap)", {
     "A",
     ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     target = "S",
     target_subset = "target"
   )
@@ -253,6 +262,7 @@ test_that("AIPW transport: bootstrap point estimate near truth", {
     "A",
     ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     target = "S",
     target_subset = "target"
   )
@@ -284,7 +294,7 @@ test_that("AIPW transport: continuous treatment with shift (binary S column)", {
   Y <- ifelse(S == 1L, 2 + 1.5 * A + 1.0 * L + rnorm(n), NA_real_)
   d <- data.frame(Y = Y, A = A, L = L, S = S)
 
-  fit <- causat(d, "Y", "A", ~L, estimator = "aipw", target = "S")
+  fit <- causat(d, "Y", "A", ~L, estimator = "aipw", propensity_model_fn = stats::glm, target = "S")
   res <- contrast(
     fit,
     interventions = list(d1 = static(1), d0 = static(0)),
@@ -304,6 +314,7 @@ test_that("AIPW transport: dynamic intervention", {
     "A",
     ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     target = "S"
   )
   res <- contrast(
@@ -332,6 +343,7 @@ test_that("AIPW transport: ipsi intervention", {
     "A",
     ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     target = "S"
   )
   res <- contrast(
@@ -355,7 +367,7 @@ test_that("AIPW transport: binary treatment with different seeds", {
   Y <- ifelse(S == 1L, 2 + 2 * A + 1.0 * L + rnorm(n), NA_real_)
   d <- data.frame(Y = Y, A = A, L = L, S = S)
 
-  fit <- causat(d, "Y", "A", ~L, estimator = "aipw", target = "S")
+  fit <- causat(d, "Y", "A", ~L, estimator = "aipw", propensity_model_fn = stats::glm, target = "S")
   res <- contrast(
     fit,
     interventions = list(a1 = static(1), a0 = static(0)),
@@ -383,6 +395,7 @@ test_that("AIPW transport: binomial outcome (diff/ratio/OR)", {
     "A",
     ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     family = "binomial",
     target = "S"
   )
@@ -436,7 +449,7 @@ test_that("AIPW transport: categorical treatment", {
   )
   d <- data.frame(Y = Y, A = A, L = L, S = S)
 
-  fit <- causat(d, "Y", "A", ~L, estimator = "aipw", target = "S")
+  fit <- causat(d, "Y", "A", ~L, estimator = "aipw", propensity_model_fn = stats::glm, target = "S")
   res <- contrast(
     fit,
     interventions = list(b = static("b"), a = static("a")),
@@ -468,6 +481,7 @@ test_that("AIPW transport: count (Poisson) treatment with shift (generalizabilit
     "A",
     ~L,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     target = "S",
     propensity_family = "poisson"
   )
@@ -496,6 +510,7 @@ test_that("AIPW transport: effect modification (by=sex)", {
     "A",
     ~ L + A:sex,
     estimator = "aipw",
+    propensity_model_fn = stats::glm,
     target = "S"
   )
   res <- contrast(
@@ -522,7 +537,7 @@ test_that("AIPW transport: cross-estimator agreement (gcomp, IPW, AIPW)", {
   res_ipw <- contrast(fit_ipw, ivs, type = "difference", ci_method = "sandwich")
   est_ipw <- coef(res_ipw)["a1"] - coef(res_ipw)["a0"]
 
-  fit_aipw <- causat(d, "Y", "A", ~ L + A:L, estimator = "aipw", target = "S")
+  fit_aipw <- causat(d, "Y", "A", ~ L + A:L, estimator = "aipw", propensity_model_fn = stats::glm, target = "S")
   res_aipw <- contrast(
     fit_aipw,
     ivs,
@@ -545,7 +560,7 @@ test_that("AIPW transport: efficiency (SE_AIPW <= SE_gcomp and SE_IPW)", {
   fit_ipw <- causat(d, "Y", "A", ~L, estimator = "ipw", target = "S")
   res_ipw <- contrast(fit_ipw, ivs, type = "difference", ci_method = "sandwich")
 
-  fit_aipw <- causat(d, "Y", "A", ~ L + A:L, estimator = "aipw", target = "S")
+  fit_aipw <- causat(d, "Y", "A", ~ L + A:L, estimator = "aipw", propensity_model_fn = stats::glm, target = "S")
   res_aipw <- contrast(
     fit_aipw,
     ivs,
@@ -570,7 +585,7 @@ test_that("AIPW transport: target rows with NA outcome/treatment handled", {
   expect_true(all(is.na(d$Y[d$S == 0])))
   expect_true(all(is.na(d$A[d$S == 0])))
 
-  fit <- causat(d, "Y", "A", ~L, estimator = "aipw", target = "S")
+  fit <- causat(d, "Y", "A", ~L, estimator = "aipw", propensity_model_fn = stats::glm, target = "S")
   res <- contrast(
     fit,
     interventions = list(a1 = static(1), a0 = static(0)),
@@ -585,7 +600,7 @@ test_that("AIPW without transport is unaffected (target = NULL default)", {
   d <- simulate_transport(n = 500, seed = 6)
   d_study <- d[d$S == 1, ]
 
-  fit <- causat(d_study, "Y", "A", ~L, estimator = "aipw")
+  fit <- causat(d_study, "Y", "A", ~L, estimator = "aipw", propensity_model_fn = stats::glm)
   expect_null(fit$target)
 
   res <- contrast(

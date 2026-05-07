@@ -493,14 +493,11 @@ check_causat_inputs <- function(
   }
 
   # MatchIt expects a single binary or categorical treatment column with
-  # no joint-treatment matching algorithm. AIPW is excluded because the
-  # doubly-robust correction term requires a single outcome model whose
-  # score aligns with the IPW weight chain -- the multivariate extension
-  # is a different estimator not implemented here. IPW handles multivariate
-  # via sequential factorisation (`fit_treatment_models()` + product
-  # density-ratio weights); per-component family / intervention
+  # no joint-treatment matching algorithm. IPW and AIPW handle
+  # multivariate via sequential factorisation (`fit_treatment_models()`
+  # + product density-ratio weights); per-component family / intervention
   # compatibility is checked downstream by the multivariate weight engine.
-  if (length(treatment) > 1L && estimator %in% c("matching", "aipw")) {
+  if (length(treatment) > 1L && estimator == "matching") {
     rlang::abort(
       paste0(
         "Multivariate treatments are not supported for estimator = '",

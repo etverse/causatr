@@ -55,6 +55,7 @@ fit_aipw <- function(
   model_fn,
   propensity_model_fn,
   propensity_family,
+  stabilize = "none",
   id = NULL,
   time = NULL,
   call,
@@ -83,16 +84,6 @@ fit_aipw <- function(
     ))
   }
 
-  if (length(treatment) > 1L) {
-    rlang::abort(
-      c(
-        "Multivariate treatment is not supported under AIPW.",
-        i = "Use `estimator = 'gcomp'` or `estimator = 'ipw'` for multivariate treatments."
-      ),
-      class = "causatr_aipw_multivariate_pending"
-    )
-  }
-
   fit_aipw_point(
     data = data,
     outcome = outcome,
@@ -105,6 +96,7 @@ fit_aipw <- function(
     model_fn = model_fn,
     propensity_model_fn = propensity_model_fn,
     propensity_family = propensity_family,
+    stabilize = stabilize,
     call = call,
     target = target,
     ...
@@ -133,6 +125,7 @@ fit_aipw_point <- function(
   model_fn,
   propensity_model_fn,
   propensity_family,
+  stabilize = "none",
   call,
   target = NULL,
   ...
@@ -143,6 +136,25 @@ fit_aipw_point <- function(
     treatment,
     estimator = "ipw"
   )
+
+  is_multivariate <- length(treatment) > 1L
+
+  if (!is_multivariate && stabilize != "none") {
+    rlang::abort(
+      c(
+        paste0(
+          "`stabilize = '", stabilize,
+          "'` is only supported for multivariate AIPW."
+        ),
+        i = paste0(
+          "Univariate AIPW already uses Hajek normalization; ",
+          "a separate numerator model is not implemented ",
+          "for single-treatment weights."
+        )
+      ),
+      class = "causatr_stabilize_univariate"
+    )
+  }
 
   # --- Shared fit rows (outcome-clean + uncensored + S=1 if transport) -----
   fit_rows <- get_fit_rows(data, outcome, censoring, target = target)
@@ -165,46 +177,114 @@ fit_aipw_point <- function(
   }
   outcome_model <- replay_fit(model_fn, model_args, dots)
 
-  # --- Treatment density model f(A | L) -----------------------------------
-  trt_family <- detect_treatment_family(data[[treatment]])
-  prop_model_fn <- if (!is.null(propensity_model_fn)) {
-    propensity_model_fn
-  } else if (trt_family == "categorical") {
-    nnet::multinom
-  } else if (identical(propensity_family, "negbin")) {
-    check_pkg("MASS")
-    MASS::glm.nb
-  } else {
-    model_fn
-  }
-
-  tm_args <- list(
-    data = fit_data,
-    treatment = treatment,
-    confounders = confounders,
-    model_fn = prop_model_fn,
-    propensity_family = propensity_family
-  )
-  if (!is.null(model_weights)) {
-    tm_args$weights <- model_weights
-  }
-  tm <- do.call(fit_treatment_model, c(tm_args, dots))
-
-  # Row-alignment invariant: both models must operate on the same rows.
+  # --- Treatment density model(s) f(A | L) --------------------------------
   n_fit_outcome <- sum(fit_rows)
-  n_fit_ps <- sum(tm$fit_rows)
-  if (n_fit_ps != n_fit_outcome) {
-    rlang::abort(
-      paste0(
-        "Treatment density model kept ",
-        n_fit_ps,
-        " rows but the outcome-non-missing mask has ",
-        n_fit_outcome,
-        " rows. A confounder column has missing values the outcome ",
-        "mask does not exclude. Drop or impute those rows before ",
-        "calling `causat()` so the outcome and propensity fits agree."
-      )
+
+  # Resolve propensity fitter. In AIPW, model_fn is the outcome fitter;
+  # do not silently reuse it for propensity. When the user omits
+  # propensity_model_fn, default to stats::glm with a warning.
+  if (is.null(propensity_model_fn)) {
+    rlang::warn(
+      c(
+        paste0(
+          "No `propensity_model_fn` specified; defaulting to ",
+          "`stats::glm` for the treatment density model(s)."
+        ),
+        i = paste0(
+          "Set `propensity_model_fn` explicitly if you need a ",
+          "different fitter (e.g. `mgcv::gam`)."
+        )
+      ),
+      class = "causatr_propensity_fn_default"
     )
+    propensity_model_fn <- stats::glm
+  }
+
+  if (is_multivariate) {
+    tm_args <- list(
+      data = fit_data,
+      treatment = treatment,
+      confounders = confounders,
+      model_fn = stats::glm,
+      propensity_model_fn = propensity_model_fn,
+      propensity_family = propensity_family,
+      stabilize = stabilize
+    )
+    if (!is.null(model_weights)) {
+      tm_args$weights <- model_weights
+    }
+    treatment_models <- do.call(
+      fit_treatment_models,
+      c(tm_args, dots)
+    )
+
+    for (k in seq_along(treatment_models)) {
+      n_fit_k <- sum(treatment_models[[k]]$fit_rows)
+      if (n_fit_k != n_fit_outcome) {
+        rlang::abort(
+          paste0(
+            "Treatment density model for component '",
+            treatment[k],
+            "' kept ", n_fit_k,
+            " rows but the outcome-non-missing mask has ",
+            n_fit_outcome,
+            " rows. Drop or impute the offending rows ",
+            "before calling `causat()`."
+          )
+        )
+      }
+    }
+
+    tm <- NULL
+    propensity_model <- NULL
+    prop_model_fn <- propensity_model_fn
+  } else {
+    trt_family <- detect_treatment_family(data[[treatment]])
+    # Categorical and negbin need specialized fitters regardless
+    # of what the user passed.
+    prop_model_fn <- if (trt_family == "categorical") {
+      nnet::multinom
+    } else if (identical(propensity_family, "negbin")) {
+      check_pkg("MASS")
+      MASS::glm.nb
+    } else {
+      propensity_model_fn
+    }
+
+    tm_args <- list(
+      data = fit_data,
+      treatment = treatment,
+      confounders = confounders,
+      model_fn = prop_model_fn,
+      propensity_family = propensity_family
+    )
+    if (!is.null(model_weights)) {
+      tm_args$weights <- model_weights
+    }
+    tm <- do.call(fit_treatment_model, c(tm_args, dots))
+
+    # Row-alignment invariant: both models must operate on the same rows.
+    n_fit_ps <- sum(tm$fit_rows)
+    if (n_fit_ps != n_fit_outcome) {
+      rlang::abort(
+        paste0(
+          "Treatment density model kept ",
+          n_fit_ps,
+          " rows but the outcome-non-missing mask has ",
+          n_fit_outcome,
+          " rows. A confounder column has missing values the outcome ",
+          "mask does not exclude. Drop or impute those rows before ",
+          "calling `causat()` so the outcome and propensity fits agree."
+        )
+      )
+    }
+
+    treatment_models <- structure(
+      list(tm),
+      class = c("causatr_treatment_models", "list"),
+      names = treatment
+    )
+    propensity_model <- tm$model
   }
 
   new_causatr_fit(
@@ -234,10 +314,13 @@ fit_aipw_point <- function(
       weights = weights,
       dots = dots,
       treatment_model = tm,
-      propensity_model = tm$model,
+      treatment_models = treatment_models,
+      propensity_model = propensity_model,
       propensity_model_fn = prop_model_fn,
       propensity_family = propensity_family,
-      em_info = em_info
+      em_info = em_info,
+      is_multivariate = is_multivariate,
+      stabilize = stabilize
     )
   )
 }
@@ -268,6 +351,8 @@ compute_aipw_contrast_point <- function(fit, interventions, target_idx) {
   outcome <- fit$outcome
   outcome_model <- fit$model
   tm <- fit$details$treatment_model
+  is_mv <- isTRUE(fit$details$is_multivariate)
+  tms <- fit$details$treatment_models
   fit_rows <- fit$details$fit_rows
   fit_data <- data[fit_rows]
   ext_w <- fit$details$weights
@@ -324,11 +409,21 @@ compute_aipw_contrast_point <- function(fit, interventions, target_idx) {
   bundles <- lapply(int_names, function(nm) {
     iv <- interventions[[nm]]
 
-    # Density-ratio weights W_i(g) — computed first so that
-    # check_intervention_family_compat() fires rejection errors
-    # (stochastic, threshold on continuous, etc.) before we attempt
-    # apply_intervention() which would fail differently.
-    w_iv <- compute_density_ratio_weights(tm, fit_data, iv, estimand = estimand)
+    # Density-ratio weights W_i(g): univariate uses the single propensity
+    # model; multivariate builds the joint weight as a product of K
+    # per-component density ratios under the chain-rule factorisation.
+    w_iv <- if (is_mv) {
+      tms_local <- tms
+      for (k in seq_along(tms_local)) {
+        tms_local[[k]]$fit_rows <- rep(TRUE, nrow(fit_data))
+      }
+      class(tms_local) <- c("causatr_treatment_models", "list")
+      compute_density_ratio_weights_mv(
+        tms_local, fit_data, iv, estimand = estimand
+      )
+    } else {
+      compute_density_ratio_weights(tm, fit_data, iv, estimand = estimand)
+    }
 
     # IPSI shifts the propensity, not the treatment value — there is no
     # counterfactual A to predict at. The outcome-model augmentation

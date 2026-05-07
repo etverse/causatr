@@ -675,6 +675,7 @@ refit_aipw <- function(fit, d_b, weights = NULL) {
     model_fn = fit$details$model_fn,
     propensity_model_fn = fit$details$propensity_model_fn,
     propensity_family = fit$details$propensity_family,
+    stabilize = fit$details$stabilize %||% "none",
     call = NULL,
     target = fit$target
   )

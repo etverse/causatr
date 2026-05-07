@@ -619,7 +619,22 @@ Composes Phase 2 gcomp + Phase 4 IPW into the classical analytical doubly-robust
 | binary | binomial | longitudinal static (always vs never) | ATE | diff | sandwich | ✅ | test-aipw.R |
 | binary | binomial | longitudinal lmtp cross-check (binary outcome) | ATE | diff | — | ✅ vs lmtp_sdr | test-aipw.R |
 
-**Rejections (point, same as IPW):** static/threshold/dynamic on continuous → Dirac rejection ✅; stochastic → rejected ✅; multivariate → deferred ✅.
+**Chunk 16m — Multivariate point AIPW**
+
+| Feature | Status | Test |
+|---|---|---|
+| mv AIPW: binary × binary static recovers truth (ATE ≈ 2.5) | ✅ | test-aipw.R |
+| mv AIPW: cross-checks gcomp and IPW (all agree within 0.15) | ✅ | test-aipw.R |
+| mv AIPW: bootstrap parity with sandwich (within 30%) | ✅ | test-aipw.R |
+| mv AIPW: continuous × continuous shift (truth ≈ −0.9) | ✅ | test-aipw.R |
+| mv AIPW: DR — wrong outcome, correct propensity (ATE ≈ 2.5) | ✅ | test-aipw.R |
+| mv AIPW: DR — correct outcome, wrong propensity (ATE ≈ 2.5) | ✅ | test-aipw.R |
+| mv AIPW: binary × binary binomial outcome (finite RD) | ✅ | test-aipw.R |
+| mv AIPW: stabilize = "marginal" matches unstabilized | ✅ | test-aipw.R |
+| AIPW rejects stabilize for univariate treatment | ✅ | test-aipw.R |
+| AIPW warns when propensity_model_fn not specified | ✅ | test-aipw.R (implicit) |
+
+**Rejections (point, same as IPW):** static/threshold/dynamic on continuous → Dirac rejection ✅; stochastic → rejected ✅.
 
 **Rejections (longitudinal):** multivariate → deferred ✅; ATT/ATC → rejected ✅.
 
