@@ -7,7 +7,7 @@ Part of the [etverse](https://github.com/etverse) ecosystem.
 ## Guide files
 
 - `FEATURE_COVERAGE_MATRIX.md` — **single source of truth for "what works".** Every PR that changes a feature MUST update this file.
-- `PHASE_*.md` — per-phase implementation guides in the project root. Completed: 2–6, 8–16. In progress: 17 (17a–17e shipped; 17f–17i pending). Pending: 18–23 (design docs).
+- `PHASE_*.md` — per-phase implementation guides in the project root. Completed: 2–6, 8–16. In progress: 17 (17a–17e shipped; 17f–17i pending). Pending: 18–24 (design docs).
 
 ## Project structure
 
@@ -102,7 +102,7 @@ causatr owns g-comp (parametric g-formula + ICE), a self-contained IPW density-r
 | **Treatment timing** | point, longitudinal (ICE + longitudinal IPW + longitudinal AIPW) |
 | **Treatment type** | binary, continuous, categorical k>2, count (IPW: Poisson/NB), multivariate (gcomp + IPW + AIPW) |
 | **Outcome family** | gaussian, binomial, quasibinomial, poisson, Gamma, any GLM family, `MASS::glm.nb`, `betareg::betareg` (beta regression) |
-| **Interventions** | `static`, `shift`, `scale_by`, `threshold` (gcomp only), `dynamic`, `ipsi` (IPW only), `stochastic` (gcomp only) |
+| **Interventions** | `static`, `shift`, `scale_by`, `threshold` (gcomp only), `dynamic`, `ipsi` (IPW only), `stochastic` (gcomp only; IPW/AIPW when `density` supplied — Phase 24) |
 | **Estimand** | ATE, ATT, ATC, `by`-stratified |
 | **Contrast** | difference, ratio, OR |
 | **Variance** | sandwich (analytic IF), bootstrap, numeric Tier 1/2 fallback |

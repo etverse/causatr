@@ -129,7 +129,7 @@ Each composition is tracked as a concrete chunk below (17f–17m). Summary:
 
 - **Phase 8 (multivariate IPW) × Phase 17** → chunk 17j.
 - **Phase 10 (longitudinal IPW) × Phase 17** → chunk 17i.
-- **Phase 12 (stochastic) × Phase 17.** MC integration on the outcome-model augmentation term; sampling weight is deterministic in L. This is tracked as chunk 16n in PHASE_16_AIPW.md. It also subsumes MTP + transportability (see 17l).
+- **Phase 12 (stochastic) × Phase 17.** MC integration on the outcome-model augmentation term; sampling weight is deterministic in L. Stochastic AIPW is tracked in **Phase 24** (`PHASE_24_STOCHASTIC_AIPW.md`). Also subsumes MTP + transportability (see 17l).
 - **Phase 14 (IPCW) × Phase 17** → chunk 17k.
 - **Phase 16 (AIPW) × Phase 17** → chunk 17e (✅ done).
 - **MTP (shift/scale_by/ipsi) × transportability** → chunk 17l. For static interventions, $\hat{m}(a, L)$ on target rows (S=0) is well-defined. For MTPs where $d(A, L)$ depends on observed $A$, target rows have $A = \mathrm{NA}$. The solution (Díaz & Hejazi 2020; Hejazi et al. 2024) is to marginalize $E_{A|L,S=1}[\hat{m}(d(A,L), L) \mid L]$ over the study treatment distribution via MC integration or sequential regression. Until then, MTP + transportability is unsupported; MTP + generalizability works where all target rows have observed $A$.

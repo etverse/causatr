@@ -3,7 +3,8 @@
 > **Status: DONE**
 >
 > **Depends on:** Phases 2 (point gcomp) and 5 (ICE) — both done.
-> Stochastic interventions are gcomp-only and do not touch the IPW engine.
+> Stochastic interventions are gcomp-only in this phase. IPW and AIPW
+> support via an optional `density` parameter is in Phase 24.
 
 ## Motivation
 
@@ -56,19 +57,20 @@ are already in place.
 
 ## Non-scope
 
-- Stochastic interventions under IPW (beyond `ipsi()`) — deferred to a
-  future phase (Phase 12b). The mechanism is straightforward: the user
-  supplies an optional `density` function `g*(a | L)` in `stochastic()`,
-  and IPW computes importance weights `w_i = g*(A_i | L_i) / ĝ(A_i | L_i)`.
-  This requires adding an optional `density` parameter to the constructor
-  and a new weight-computation branch in `compute_density_ratio_weights()`.
-  The variance engine would need the score of the intervention density
-  (or a numeric derivative). Out of scope for Phase 12.
+- Stochastic interventions under IPW (beyond `ipsi()`) — moved to
+  **Phase 24** (`PHASE_24_STOCHASTIC_AIPW.md`). The user supplies an
+  optional `density` function `g*(a | L)` in `stochastic()`, and IPW
+  computes importance weights `w_i = g*(A_i | L_i) / ĝ(A_i | L_i)`.
+  Phase 24 covers the constructor extension, stochastic IPW (point,
+  multivariate, longitudinal), stochastic AIPW (point, multivariate,
+  longitudinal), sandwich + bootstrap variance.
 - Stochastic interventions under matching — architecturally incompatible.
-- Stochastic interventions under AIPW — planned as chunk 16n in
-  `PHASE_16_AIPW.md`. MC integration applies to both the outcome-model
-  augmentation term and the residual correction; the IF averages over MC
-  draws. Depends on Phase 12 (this phase) and Phase 16 (AIPW).
+- Stochastic interventions under AIPW — moved to **Phase 24**
+  (`PHASE_24_STOCHASTIC_AIPW.md`). MC integration applies to the
+  outcome-model prediction term (same as gcomp stochastic); the
+  augmentation uses density-ratio weights via the user-supplied `density`.
+  Phase 24 unifies the formerly separate stochastic-IPW and
+  stochastic-AIPW scopes.
 - Optimal treatment regime estimation (DTR) — different problem class.
 - TMLE/SDR for stochastic interventions — `lmtp` covers this.
 
