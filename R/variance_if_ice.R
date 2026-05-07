@@ -295,7 +295,9 @@ variance_if_ice_one <- function(fit, ice_result, target) {
 
     fit_id_idx <- id_to_idx[fit_ids_k]
     na_act_k <- model_k$na.action
-    if (!is.null(na_act_k)) fit_id_idx <- fit_id_idx[-na_act_k]
+    if (!is.null(na_act_k)) {
+      fit_id_idx <- fit_id_idx[-na_act_k]
+    }
     # correct_model() computes two outputs:
     #   $correction: per-individual model-k IF contribution (n-scaled)
     #   $d:          updated sensitivity vector d_k = d_{k-1} * (\partial Q_{k-1}/\partial Q_k)

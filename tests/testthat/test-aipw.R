@@ -1791,7 +1791,14 @@ sim_bb_binary_aipw <- function(n = 5000, seed = 42) {
 
 test_that("mv AIPW: binary x binary static recovers truth", {
   df <- sim_bb_aipw()
-  fit <- causat(df, "Y", c("A1", "A2"), ~L, estimator = "aipw", propensity_model_fn = stats::glm)
+  fit <- causat(
+    df,
+    "Y",
+    c("A1", "A2"),
+    ~L,
+    estimator = "aipw",
+    propensity_model_fn = stats::glm
+  )
   res <- contrast(
     fit,
     interventions = list(
@@ -1814,17 +1821,36 @@ test_that("mv AIPW: cross-checks gcomp and IPW", {
     neither = list(A1 = static(0), A2 = static(0))
   )
 
-  fit_a <- causat(df, "Y", c("A1", "A2"), ~L, estimator = "aipw", propensity_model_fn = stats::glm)
-  res_a <- contrast(fit_a, interventions = ivs, reference = "neither",
-                    ci_method = "sandwich")
+  fit_a <- causat(
+    df,
+    "Y",
+    c("A1", "A2"),
+    ~L,
+    estimator = "aipw",
+    propensity_model_fn = stats::glm
+  )
+  res_a <- contrast(
+    fit_a,
+    interventions = ivs,
+    reference = "neither",
+    ci_method = "sandwich"
+  )
 
   fit_g <- causat(df, "Y", c("A1", "A2"), ~L, estimator = "gcomp")
-  res_g <- contrast(fit_g, interventions = ivs, reference = "neither",
-                    ci_method = "sandwich")
+  res_g <- contrast(
+    fit_g,
+    interventions = ivs,
+    reference = "neither",
+    ci_method = "sandwich"
+  )
 
   fit_i <- causat(df, "Y", c("A1", "A2"), ~L, estimator = "ipw")
-  res_i <- contrast(fit_i, interventions = ivs, reference = "neither",
-                    ci_method = "sandwich")
+  res_i <- contrast(
+    fit_i,
+    interventions = ivs,
+    reference = "neither",
+    ci_method = "sandwich"
+  )
 
   ate_a <- res_a$contrasts$estimate[1]
   ate_g <- res_g$contrasts$estimate[1]
@@ -1835,16 +1861,32 @@ test_that("mv AIPW: cross-checks gcomp and IPW", {
 
 test_that("mv AIPW: bootstrap parity with sandwich", {
   df <- sim_bb_aipw(n = 1000, seed = 99)
-  fit <- causat(df, "Y", c("A1", "A2"), ~L, estimator = "aipw", propensity_model_fn = stats::glm)
+  fit <- causat(
+    df,
+    "Y",
+    c("A1", "A2"),
+    ~L,
+    estimator = "aipw",
+    propensity_model_fn = stats::glm
+  )
   ivs <- list(
     both = list(A1 = static(1), A2 = static(1)),
     neither = list(A1 = static(0), A2 = static(0))
   )
-  res_sw <- contrast(fit, interventions = ivs, reference = "neither",
-                     ci_method = "sandwich")
+  res_sw <- contrast(
+    fit,
+    interventions = ivs,
+    reference = "neither",
+    ci_method = "sandwich"
+  )
   set.seed(123)
-  res_bt <- contrast(fit, interventions = ivs, reference = "neither",
-                     ci_method = "bootstrap", n_boot = 200)
+  res_bt <- contrast(
+    fit,
+    interventions = ivs,
+    reference = "neither",
+    ci_method = "bootstrap",
+    n_boot = 200
+  )
   se_sw <- res_sw$contrasts$se[1]
   se_bt <- res_bt$contrasts$se[1]
   expect_true(abs(se_sw - se_bt) < 0.3 * se_sw)
@@ -1852,7 +1894,14 @@ test_that("mv AIPW: bootstrap parity with sandwich", {
 
 test_that("mv AIPW: continuous x continuous shift recovers truth", {
   df <- sim_cc_aipw(n = 5000)
-  fit <- causat(df, "Y", c("A1", "A2"), ~L, estimator = "aipw", propensity_model_fn = stats::glm)
+  fit <- causat(
+    df,
+    "Y",
+    c("A1", "A2"),
+    ~L,
+    estimator = "aipw",
+    propensity_model_fn = stats::glm
+  )
   res <- contrast(
     fit,
     interventions = list(
@@ -1872,7 +1921,10 @@ test_that("mv AIPW: DR — wrong outcome, correct propensity", {
   df <- sim_bb_aipw(n = 5000, seed = 77)
   # Outcome model omits L (misspecified); propensity correctly includes L.
   fit <- causat(
-    df, "Y", c("A1", "A2"), ~L,
+    df,
+    "Y",
+    c("A1", "A2"),
+    ~L,
     estimator = "aipw",
     propensity_model_fn = stats::glm,
     model_fn = function(formula, data, ...) {
@@ -1896,13 +1948,17 @@ test_that("mv AIPW: DR — correct outcome, wrong propensity", {
   df <- sim_bb_aipw(n = 5000, seed = 78)
   # Propensity model drops L (misspecified); outcome model is correct.
   fit <- causat(
-    df, "Y", c("A1", "A2"), ~L,
+    df,
+    "Y",
+    c("A1", "A2"),
+    ~L,
     estimator = "aipw",
     propensity_model_fn = function(formula, data, ...) {
       resp <- all.vars(formula)[1]
       stats::glm(
         stats::reformulate("1", response = resp),
-        data = data, ...
+        data = data,
+        ...
       )
     }
   )
@@ -1922,7 +1978,10 @@ test_that("mv AIPW: DR — correct outcome, wrong propensity", {
 test_that("mv AIPW: binary x binary binomial outcome", {
   df <- sim_bb_binary_aipw()
   fit <- causat(
-    df, "Y", c("A1", "A2"), ~L,
+    df,
+    "Y",
+    c("A1", "A2"),
+    ~L,
     estimator = "aipw",
     propensity_model_fn = stats::glm,
     family = "binomial"
@@ -1946,7 +2005,10 @@ test_that("mv AIPW: binary x binary binomial outcome", {
 test_that("mv AIPW: stabilize = 'marginal' produces finite results", {
   df <- sim_bb_aipw()
   fit <- causat(
-    df, "Y", c("A1", "A2"), ~L,
+    df,
+    "Y",
+    c("A1", "A2"),
+    ~L,
     estimator = "aipw",
     propensity_model_fn = stats::glm,
     stabilize = "marginal"

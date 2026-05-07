@@ -483,7 +483,8 @@ apply_model_correction <- function(prep, gradient) {
     rlang::abort(paste0(
       "apply_model_correction(): fit_idx length (",
       length(prep$fit_idx),
-      ") != model rows (", nrow(prep$X_fit),
+      ") != model rows (",
+      nrow(prep$X_fit),
       "). Caller passed misaligned indices."
     ))
   }

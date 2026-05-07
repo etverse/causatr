@@ -211,7 +211,9 @@ variance_if_aipw <- function(
       # phi_i = Q_i(g) + W_i * (Y_i - Q_i(obs))
       # Ch1_i = n * (w_i / sum_w) * (phi_i - mu_hat)
       aipw_contrib <- preds_g + w_aug * resid_obs
-      Ch1_fit <- n_sub * (w_target_vec / sum_w_target) * (aipw_contrib - mu_hat_j)
+      Ch1_fit <- n_sub *
+        (w_target_vec / sum_w_target) *
+        (aipw_contrib - mu_hat_j)
       Ch1_fit[!target_fit] <- 0
       # Pad to n_total so Ch1_i aligns with correction vectors from
       # apply_model_correction(), which are always length n_total.
@@ -425,7 +427,9 @@ variance_if_aipw <- function(
         w_total_c <- w_pre_ipcw_fit * w_ipcw_c
         w_tgt_c <- w_total_c * as.numeric(target_fit)
         sw_c <- sum(w_tgt_c[target_fit])
-        if (sw_c <= 0) return(0)
+        if (sw_c <= 0) {
+          return(0)
+        }
         sum(w_tgt_c * aipw_phi) / sw_c
       }
       J_gamma_direct <- as.numeric(
@@ -474,7 +478,9 @@ variance_if_aipw <- function(
         if (is_mv) {
           for (kk in seq_along(tms)) {
             prop_model_kk <- tms[[kk]]$model
-            if (inherits(prop_model_kk, "multinom")) next
+            if (inherits(prop_model_kk, "multinom")) {
+              next
+            }
             X_ps_k <- stats::model.matrix(prop_model_kk)
             fam_ps_k <- prop_model_kk$family
             eta_ps_k <- prop_model_kk$linear.predictors
@@ -486,7 +492,9 @@ variance_if_aipw <- function(
 
             idx_k <- mv_closure$offsets[kk]:(mv_closure$offsets[kk + 1L] - 1L)
             prop_prep_kk <- prepare_model_if(
-              prop_model_kk, aipw_fit_idx, n_total
+              prop_model_kk,
+              aipw_fit_idx,
+              n_total
             )
             prop_res_kk <- apply_model_correction(prop_prep_kk, J_alpha[idx_k])
             h_prop_k <- prop_res_kk$h
@@ -497,7 +505,8 @@ variance_if_aipw <- function(
               as.numeric(crossprod(X_ps_k, w_c * ps_sf_k)) / n_sub
             }
             A_ak_gamma <- -numDeriv::jacobian(
-              phi_bar_ps_k, x = cens_gamma_hat
+              phi_bar_ps_k,
+              x = cens_gamma_hat
             )
             g_prop_cens <- g_prop_cens +
               as.numeric(crossprod(A_ak_gamma, h_prop_k))
@@ -511,8 +520,11 @@ variance_if_aipw <- function(
     }
 
     # --- Assembly ----------------------------------------------------------
-    Ch1_i + outcome_res$correction - prop_correction -
-      samp_correction - cens_correction
+    Ch1_i +
+      outcome_res$correction -
+      prop_correction -
+      samp_correction -
+      cens_correction
   })
   names(IF_list) <- int_names
 
@@ -832,7 +844,9 @@ variance_if_aipw_long_one <- function(
 
     fit_id_idx <- id_to_idx[fit_ids_k]
     na_act_k <- model_k$na.action
-    if (!is.null(na_act_k)) fit_id_idx <- fit_id_idx[-na_act_k]
+    if (!is.null(na_act_k)) {
+      fit_id_idx <- fit_id_idx[-na_act_k]
+    }
     res <- correct_model(model_k, g_k, fit_id_idx, n)
     IF_vec <- IF_vec + res$correction
     d_vec <- res$d

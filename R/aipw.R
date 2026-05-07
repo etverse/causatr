@@ -143,7 +143,8 @@ fit_aipw_point <- function(
     rlang::abort(
       c(
         paste0(
-          "`stabilize = '", stabilize,
+          "`stabilize = '",
+          stabilize,
           "'` is only supported for multivariate AIPW."
         ),
         i = paste0(
@@ -225,7 +226,8 @@ fit_aipw_point <- function(
           paste0(
             "Treatment density model for component '",
             treatment[k],
-            "' kept ", n_fit_k,
+            "' kept ",
+            n_fit_k,
             " rows but the outcome-non-missing mask has ",
             n_fit_outcome,
             " rows. Drop or impute the offending rows ",
@@ -419,7 +421,10 @@ compute_aipw_contrast_point <- function(fit, interventions, target_idx) {
       }
       class(tms_local) <- c("causatr_treatment_models", "list")
       compute_density_ratio_weights_mv(
-        tms_local, fit_data, iv, estimand = estimand
+        tms_local,
+        fit_data,
+        iv,
+        estimand = estimand
       )
     } else {
       compute_density_ratio_weights(tm, fit_data, iv, estimand = estimand)

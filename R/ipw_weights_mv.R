@@ -344,7 +344,8 @@ make_weight_fn_mv <- function(
     # propensity_model_fn that override the formula stay conformable
     # with alpha_hat.
     X_prop <- stats::model.matrix(
-      stats::terms(tm_k$model), data = data
+      stats::terms(tm_k$model),
+      data = data
     )
 
     fam_tag <- tm_k$family
