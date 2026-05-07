@@ -68,8 +68,8 @@ variance_if_numeric <- function(
   # Normalise weights to sum to 1 on target rows; non-target rows stay 0.
   target_w <- numeric(n_total)
   if (!is.null(weights)) {
-    sum_w <- sum(weights)
-    target_w[target_idx] <- weights / sum_w
+    sum_w <- sum(weights[target_idx])
+    target_w[target_idx] <- weights[target_idx] / sum_w
   } else {
     n_t <- sum(target_idx)
     target_w[target_idx] <- 1 / n_t
@@ -83,6 +83,7 @@ variance_if_numeric <- function(
   })
 
   # Marginal-mean Jacobian J (k x p), via numDeriv on predict().
+  weights_target <- if (!is.null(weights)) weights[target_idx] else NULL
   is_betareg <- inherits(model, "betareg")
   pred_fun <- function(beta) {
     model_tmp <- model
@@ -98,8 +99,8 @@ variance_if_numeric <- function(
       data_a_frames,
       function(df) {
         preds <- stats::predict(model_tmp, newdata = df, type = "response")
-        if (!is.null(weights)) {
-          stats::weighted.mean(preds, weights, na.rm = TRUE)
+        if (!is.null(weights_target)) {
+          stats::weighted.mean(preds, weights_target, na.rm = TRUE)
         } else {
           mean(preds, na.rm = TRUE)
         }

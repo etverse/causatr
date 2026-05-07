@@ -188,11 +188,15 @@ variance_if_ice_one <- function(fit, ice_result, target) {
           tgt_in_m <- match(all_ids[target], ids_m)
           vt_m <- !is.na(tgt_in_m)
           tgt_in_m <- tgt_in_m[vt_m]
+          # target_w is length sum(valid_target); vt_m is length
+          # sum(target). Index into the already-subsetted target_w
+          # via vt_m[valid_target] so both operands align.
+          vt_in_valid <- vt_m[valid_target]
           g_k_sum <- g_k_sum +
             as.numeric(
               crossprod(
                 X_m[tgt_in_m, , drop = FALSE],
-                target_w[vt_m] * mu_eta_m[tgt_in_m]
+                target_w[vt_in_valid] * mu_eta_m[tgt_in_m]
               )
             )
         }
@@ -251,9 +255,13 @@ variance_if_ice_one <- function(fit, ice_result, target) {
             ids_m <- as.character(iv_cur_m[[id_col]])
             riv_m <- match(prev_fit_ids, ids_m)
             keep_m <- !is.na(idx_in_all) & !is.na(riv_m)
+            # keep_m_in_keep: which of the already-kept indices also
+            # survive in keep_m (both are length P, but w_prev/d_prev
+            # are length sum(keep), so index into them via keep[keep_m]).
+            keep_m_in_keep <- keep_m[keep]
             if (any(keep_m)) {
-              wg_m <- w_prev[keep_m] *
-                d_prev[keep_m] *
+              wg_m <- w_prev[keep_m_in_keep] *
+                d_prev[keep_m_in_keep] *
                 mu_eta_m[riv_m[keep_m]]
               g_k_sum <- g_k_sum +
                 as.numeric(
@@ -286,6 +294,8 @@ variance_if_ice_one <- function(fit, ice_result, target) {
     }
 
     fit_id_idx <- id_to_idx[fit_ids_k]
+    na_act_k <- model_k$na.action
+    if (!is.null(na_act_k)) fit_id_idx <- fit_id_idx[-na_act_k]
     # correct_model() computes two outputs:
     #   $correction: per-individual model-k IF contribution (n-scaled)
     #   $d:          updated sensitivity vector d_k = d_{k-1} * (\partial Q_{k-1}/\partial Q_k)

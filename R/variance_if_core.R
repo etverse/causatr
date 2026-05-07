@@ -479,6 +479,14 @@ prepare_model_if_multinom <- function(model, fit_idx, n_total) {
 #'
 #' @noRd
 apply_model_correction <- function(prep, gradient) {
+  if (length(prep$fit_idx) != nrow(prep$X_fit)) {
+    rlang::abort(paste0(
+      "apply_model_correction(): fit_idx length (",
+      length(prep$fit_idx),
+      ") != model rows (", nrow(prep$X_fit),
+      "). Caller passed misaligned indices."
+    ))
+  }
   # h = A^{-1} g: bread-projected gradient. A^{-1} = (X'WX)^{-1} is the
   # model's inverse bread; g = \partial\hat{mu}/\partial\beta is the
   # marginal-mean sensitivity from iv_design_matrix().
