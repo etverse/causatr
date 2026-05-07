@@ -15,6 +15,10 @@
 #    `parallel::detectCores(logical = FALSE)` would give physical
 #    cores; we cap at 4 to leave headroom on CI runners and avoid
 #    thrashing nested parallel layers (testthat-files × boot-cpus).
+if (.Platform$OS.type == "windows") {
+  data.table::setDTthreads(1L)
+}
+
 local({
   # Cap at 6 physical cores — beyond that the ICE bootstrap's
   # per-replicate workload hits diminishing returns from fork
