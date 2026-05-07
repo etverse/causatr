@@ -1219,6 +1219,9 @@ test_that("longitudinal AIPW: lmtp cross-check (binary static)", {
   # lmtp sums two marginal EIF SEs in quadrature (ignoring covariance),
   # causatr sandwich targets the contrast directly — ratio < 1 expected.
   se_aipw <- res$contrasts$se[1]
+  expect_true(is.finite(se_aipw), label = "causatr SE is finite")
+  expect_true(is.finite(lmtp_a1$estimate@std_error), label = "lmtp_a1 SE is finite")
+  expect_true(is.finite(lmtp_a0$estimate@std_error), label = "lmtp_a0 SE is finite")
   se_lmtp <- sqrt(
     lmtp_a1$estimate@std_error^2 + lmtp_a0$estimate@std_error^2
   )
@@ -1290,6 +1293,9 @@ test_that("longitudinal AIPW: lmtp cross-check (continuous shift)", {
   # while causatr sandwich targets the contrast directly — expect a ratio well
   # below 1.  Smoke-test bounds only.
   se_aipw <- res$contrasts$se[1]
+  expect_true(is.finite(se_aipw), label = "causatr SE is finite")
+  expect_true(is.finite(lmtp_up$estimate@std_error), label = "lmtp_up SE is finite")
+  expect_true(is.finite(lmtp_nat$estimate@std_error), label = "lmtp_nat SE is finite")
   se_lmtp <- sqrt(
     lmtp_up$estimate@std_error^2 + lmtp_nat$estimate@std_error^2
   )
@@ -1380,6 +1386,9 @@ test_that("longitudinal AIPW: lmtp cross-check (binary outcome)", {
   # Same caveat as continuous shift: lmtp sums marginal SEs in quadrature
   # (ignoring covariance), causatr targets the contrast — ratio < 1 expected.
   se_aipw <- res$contrasts$se[1]
+  expect_true(is.finite(se_aipw), label = "causatr SE is finite")
+  expect_true(is.finite(lmtp_a1$estimate@std_error), label = "lmtp_a1 SE is finite")
+  expect_true(is.finite(lmtp_a0$estimate@std_error), label = "lmtp_a0 SE is finite")
   se_lmtp <- sqrt(
     lmtp_a1$estimate@std_error^2 + lmtp_a0$estimate@std_error^2
   )
