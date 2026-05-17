@@ -280,7 +280,7 @@ contrast(fit,
 Hernan MA, Robins JM (2025). \emph{Causal Inference: What If}. Chapman &
 Hall/CRC. Chapters 12-13.
 
-Imai K, King G, Stuart EA (2011). Misunderstandings between experimentalists
+Imai K, King G, Stuart EA (2008). Misunderstandings between experimentalists
 and observationalists about causal inference. \emph{Journal of the Royal
 Statistical Society} Series A 171:481-502.
 

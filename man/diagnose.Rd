@@ -153,7 +153,8 @@ print(diag2)
 Greifer N (2024). cobalt: Covariate Balance Tables and Plots.
 \url{https://ngreifer.github.io/cobalt/}
 
-Hernán MA, Robins JM (2020). \emph{Causal Inference: What If}. CRC.
+Hernán MA, Robins JM (2025). \emph{Causal Inference: What If}. Chapman &
+Hall/CRC.
 }
 \seealso{
 \code{\link[=causat]{causat()}}, \code{\link[=plot.causatr_diag]{plot.causatr_diag()}}

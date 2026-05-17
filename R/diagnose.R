@@ -106,7 +106,8 @@
 #' Greifer N (2024). cobalt: Covariate Balance Tables and Plots.
 #' \url{https://ngreifer.github.io/cobalt/}
 #'
-#' Hernán MA, Robins JM (2020). *Causal Inference: What If*. CRC.
+#' Hernán MA, Robins JM (2025). *Causal Inference: What If*. Chapman &
+#' Hall/CRC.
 #'
 #' @examples
 #' \dontrun{

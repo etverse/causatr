@@ -2535,7 +2535,7 @@ If unsure, run with `ci_method = "sandwich"` first — if you see a
 ## References
 
 - Bang H, Robins JM (2005). Doubly robust estimation in missing data and
-  causal inference models. *Biometrics* 61:962–973.
+  causal inference models. *Biometrics* 61:962–972.
 - Hampel FR, Ronchetti EM, Rousseeuw PJ, Stahel WA (1986). *Robust
   Statistics: The Approach Based on Influence Functions*. Wiley.
 - Hirano K, Imbens GW, Ridder G (2003). Efficient estimation of average
@@ -2569,8 +2569,8 @@ If unsure, run with `ci_method = "sandwich"` first — if you see a
 - Zeileis A (2006). Object-oriented computation of sandwich estimators.
   *Journal of Statistical Software* 16(9):1–16.
 - Zivich PN, Klose M, Cole SR, Edwards JK, Shook-Sa BE (2022).
-  Delicatessen: a Python package for the generalized computation of the
-  sandwich estimator. *arXiv preprint* arXiv:2203.11300.
+  Delicatessen: M-Estimation in Python. *arXiv preprint*
+  arXiv:2203.11300.
 - Zivich PN, Ross RK, Shook-Sa BE, Cole SR, Edwards JK (2024). Empirical
   sandwich variance estimator for iterated conditional expectation
   g-computation. *Statistics in Medicine* 43:5562–5572.
