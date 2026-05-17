@@ -1,5 +1,17 @@
 # causatr (development version)
 
+## 2026-05-17 — AIPW + IPCW + transport sandwich fix
+
+Fixed an error in `variance_if_aipw()` where the IPCW censoring
+correction (Channel 2d) referenced the non-transport variable
+`target_fit` unconditionally. When `ipcw = TRUE` and `target =` were
+both supplied, `contrast(..., ci_method = "sandwich")` failed with
+"object 'target_fit' not found". The censoring correction closure now
+branches on transport mode: the transport path varies IPCW weights in
+the study-row augmentation term with a fixed target-population
+denominator, while the non-transport path retains the original Hájek
+ratio.
+
 ## 2026-05-04 — Extended outcome type coverage (Phase 13)
 
 `causat(model_fn = MASS::glm.nb)` and `causat(model_fn = betareg::betareg,

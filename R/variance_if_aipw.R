@@ -421,16 +421,27 @@ variance_if_aipw <- function(
     if (is_ipcw) {
       # (i) Direct effect: vary gamma in the AIPW augmented mean
       # (ext_w = w_pre_ipcw * w_ipcw, so varying gamma changes ext_w).
-      aipw_phi <- preds_g + w_iv * resid_obs
-      aug_mean_cens <- function(gamma_c) {
-        w_ipcw_c <- cens_wfn(gamma_c)[fit_rows]
-        w_total_c <- w_pre_ipcw_fit * w_ipcw_c
-        w_tgt_c <- w_total_c * as.numeric(target_fit)
-        sw_c <- sum(w_tgt_c[target_fit])
-        if (sw_c <= 0) {
-          return(0)
+      # Transport and non-transport functionals differ: transport sums
+      # over study rows with fixed denominator n_T; non-transport uses
+      # the Hajek ratio where both numerator and denominator vary.
+      if (is_transport) {
+        aug_mean_cens <- function(gamma_c) {
+          w_ipcw_c <- cens_wfn(gamma_c)[fit_rows]
+          w_c <- w_pre_ipcw_fit * w_ipcw_c
+          sum(w_c * w_S_fit * w_iv * resid_obs) / sum_w_target
         }
-        sum(w_tgt_c * aipw_phi) / sw_c
+      } else {
+        aipw_phi <- preds_g + w_iv * resid_obs
+        aug_mean_cens <- function(gamma_c) {
+          w_ipcw_c <- cens_wfn(gamma_c)[fit_rows]
+          w_total_c <- w_pre_ipcw_fit * w_ipcw_c
+          w_tgt_c <- w_total_c * as.numeric(target_fit)
+          sw_c <- sum(w_tgt_c[target_fit])
+          if (sw_c <= 0) {
+            return(0)
+          }
+          sum(w_tgt_c * aipw_phi) / sw_c
+        }
       }
       J_gamma_direct <- as.numeric(
         numDeriv::jacobian(aug_mean_cens, x = cens_gamma_hat)

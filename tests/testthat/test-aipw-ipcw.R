@@ -232,3 +232,64 @@ test_that("AIPW + IPCW stashes correct details", {
   expect_true(all(fit$details$ipcw_weights[dt$C == 1] == 0))
   expect_true(all(fit$details$ipcw_weights[dt$C == 0] > 0))
 })
+
+
+# AIPW + IPCW + transport: sandwich variance must not error on
+# `target_fit` lookup. Before the fix, `target_fit` was only defined
+# in the non-transport branch but referenced by the IPCW censoring
+# correction unconditionally.
+# Critical review round 2026-05-17, Issue #1.
+# Repro: /tmp/causatr_repro_ipcw_transport.R
+test_that("AIPW + IPCW + transport: sandwich SE runs and agrees with bootstrap", {
+  set.seed(500)
+  n <- 2000
+  L <- rnorm(n)
+  ps_s <- plogis(-0.3 + 0.8 * L)
+  S <- rbinom(n, 1, ps_s)
+
+  A <- ifelse(S == 1L, rbinom(n, 1, plogis(0.2 + 0.3 * L)), NA_integer_)
+  Y <- ifelse(S == 1L, 1 + 2 * A + 0.5 * L + rnorm(n), NA_real_)
+  C <- ifelse(S == 1L, rbinom(n, 1, plogis(-2 + 0.3 * L)), NA_integer_)
+  Y[C == 1L & !is.na(C)] <- NA_real_
+
+  dt <- data.table::data.table(Y = Y, A = A, L = L, S = S, C = C)
+
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L,
+    estimator = "aipw",
+    target = "S",
+    censoring = "C",
+    ipcw = TRUE,
+    propensity_model_fn = stats::glm
+  )
+
+  result_sw <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    type = "difference",
+    ci_method = "sandwich"
+  )
+
+  # Target ATE = 2 + E[0 | S=0] = 2 (no interaction), so contrast ~ -2
+  ate <- result_sw$contrasts$estimate
+  expect_equal(ate, -2, tolerance = 0.3)
+
+  se_sw <- result_sw$contrasts$se
+  expect_true(all(is.finite(se_sw)))
+  expect_true(all(se_sw > 0))
+
+  # Sandwich vs bootstrap agreement
+  result_bt <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    type = "difference",
+    ci_method = "bootstrap",
+    n_boot = 200
+  )
+  se_bt <- result_bt$contrasts$se
+  ratio <- se_sw / se_bt
+  expect_true(ratio > 0.5 && ratio < 2.0)
+})
