@@ -1556,3 +1556,184 @@ test_that("pct_intervened works for longitudinal ICE", {
   expect_true("1" %in% names(pct))
   expect_true("overall" %in% names(pct))
 })
+
+
+# ── Sampling-model diagnostics (Phase 17f) ─────────────────────
+
+test_that("sampling panel present for gcomp transport fit", {
+  d <- simulate_transport(n = 1000, seed = 800)
+  dt <- data.table::as.data.table(d)
+
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "gcomp",
+    target = "S",
+    model_fn = stats::glm
+  )
+
+  diag <- diagnose(fit)
+  expect_false(is.null(diag$sampling))
+  expect_s3_class(diag$sampling, "data.table")
+
+  stats <- diag$sampling$statistic
+  expect_true("n_study" %in% stats)
+  expect_true("n_target" %in% stats)
+  expect_true("p_study_median" %in% stats)
+  expect_true("sw_mean" %in% stats)
+  expect_true("sw_ess" %in% stats)
+  expect_true("sw_n_extreme" %in% stats)
+})
+
+test_that("sampling panel present for IPW transport fit", {
+  d <- simulate_transport(n = 1000, seed = 801)
+  dt <- data.table::as.data.table(d)
+
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw",
+    target = "S",
+    propensity_model_fn = stats::glm
+  )
+
+  diag <- diagnose(fit)
+  expect_false(is.null(diag$sampling))
+  expect_s3_class(diag$sampling, "data.table")
+
+  stats <- diag$sampling$statistic
+  expect_true("n_study" %in% stats)
+  expect_true("sw_ess" %in% stats)
+})
+
+test_that("sampling panel present for AIPW transport fit", {
+  d <- simulate_transport(n = 1000, seed = 802)
+  dt <- data.table::as.data.table(d)
+
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "aipw",
+    target = "S",
+    model_fn = stats::glm,
+    propensity_model_fn = stats::glm
+  )
+
+  diag <- diagnose(fit)
+  expect_false(is.null(diag$sampling))
+  expect_s3_class(diag$sampling, "data.table")
+})
+
+test_that("sampling panel NULL when target = NULL", {
+  d <- simulate_binary_continuous(n = 500, seed = 803)
+  dt <- data.table::as.data.table(d)
+
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "gcomp",
+    model_fn = stats::glm
+  )
+
+  diag <- diagnose(fit)
+  expect_null(diag$sampling)
+})
+
+test_that("sampling weight values are plausible", {
+  d <- simulate_transport(n = 1500, seed = 804)
+  dt <- data.table::as.data.table(d)
+
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw",
+    target = "S",
+    propensity_model_fn = stats::glm
+  )
+
+  diag <- diagnose(fit)
+  samp <- diag$sampling
+  get_val <- function(stat) samp$value[samp$statistic == stat]
+
+  n_study <- get_val("n_study")
+  n_target <- get_val("n_target")
+  expect_true(n_study > 0)
+  expect_true(n_target > 0)
+  expect_equal(n_study + n_target, nrow(dt))
+
+  sw_mean <- get_val("sw_mean")
+  sw_ess <- get_val("sw_ess")
+  expect_true(sw_mean > 0)
+  expect_true(sw_ess > 0)
+  expect_true(sw_ess <= n_study)
+
+  # P(S=1|L) quantiles must be in (0, 1).
+  expect_true(get_val("p_study_min") > 0)
+  expect_true(get_val("p_study_max") < 1)
+  expect_true(get_val("p_study_q05") > 0)
+  expect_true(get_val("p_study_q95") < 1)
+
+  # Per-group mean scores: study group should have higher mean P(S=1|L).
+  expect_true(get_val("p_study_mean_s1") > get_val("p_study_mean_s0"))
+
+  # Extreme weight count is a non-negative integer.
+  n_ext <- get_val("sw_n_extreme")
+  expect_true(n_ext >= 0)
+  expect_equal(n_ext, floor(n_ext))
+})
+
+test_that("sampling panel appears in per-intervention panels", {
+  d <- simulate_transport(n = 800, seed = 805)
+  dt <- data.table::as.data.table(d)
+
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw",
+    target = "S",
+    propensity_model_fn = stats::glm
+  )
+
+  diag <- diagnose(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0))
+  )
+
+  # Both panels carry the same sampling diagnostic.
+  expect_false(is.null(diag$per_intervention$a1$sampling))
+  expect_false(is.null(diag$per_intervention$a0$sampling))
+  expect_identical(
+    diag$per_intervention$a1$sampling,
+    diag$per_intervention$a0$sampling
+  )
+})
+
+test_that("sampling panel prints without error", {
+  d <- simulate_transport(n = 500, seed = 806)
+  dt <- data.table::as.data.table(d)
+
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "gcomp",
+    target = "S",
+    model_fn = stats::glm
+  )
+
+  diag <- diagnose(fit)
+  expect_output(print(diag), "Sampling model")
+})

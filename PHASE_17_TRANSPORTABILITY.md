@@ -1,10 +1,10 @@
 # Phase 17 — Transportability and Generalizability
 
-> **Status: IN PROGRESS** — 17a–17e shipped; 17f–17m pending.
+> **Status: IN PROGRESS** — 17a–17f shipped; 17g–17m pending.
 >
 > **Depends on:** Phase 2 (point gcomp), Phase 4 (self-contained IPW)
 >
-> **Composes with:** Phase 10 (longitudinal, chunk 17h), Phase 14 (IPCW, chunk 17k), Phase 16 (AIPW, chunk 17e ✅).
+> **Composes with:** Phase 10 (longitudinal, chunk 17i), Phase 14 (IPCW, chunk 17k), Phase 16 (AIPW, chunk 17e ✅).
 
 ## Motivation
 
@@ -125,7 +125,7 @@ Phase 11 (diagnose rewrite) will fold this in; Phase 17 ships a minimal shim ana
 
 ## Composition with other phases
 
-Each composition is tracked as a concrete chunk below (17f–17m). Summary:
+Each composition is tracked as a concrete chunk below (17i–17l). Summary:
 
 - **Phase 8 (multivariate IPW) × Phase 17** → chunk 17j.
 - **Phase 10 (longitudinal IPW) × Phase 17** → chunk 17i.
@@ -144,7 +144,7 @@ Each composition is tracked as a concrete chunk below (17f–17m). Summary:
 | 17c | IPW transport: sampling × treatment weight product in the IPW weight pipeline (`ipw_weights.R` / `make_weight_fn()`); weighted MSM on study rows; stacked sandwich | 17a, Phase 4 | ✅ done |
 | 17d | Bootstrap (refit sampling + propensity + outcome per replicate) | 17a–17c | ✅ done |
 | 17e | AIPW transport: compose Phase 16 + Phase 17; 2-out-of-3 DR test (deliberately misspecify any one of outcome / treatment / sampling — verify consistency) | 17a–17c, Phase 16 | ✅ done |
-| 17f | `diagnose()` shim: sampling-score panel + extreme-sampling-weight flags | 17a | pending |
+| 17f | `diagnose()` shim: sampling-score panel + extreme-sampling-weight flags | 17a | ✅ done |
 | 17g | Sampling model predictor-set validation: emit `rlang::warn()` when confounders formula RHS is a strict subset of outcome/treatment model predictors | 17a | pending |
 | 17h | External cross-check against `transport` / `transported` R packages on shared DGPs | 17b, 17c | pending |
 | 17i | Longitudinal transport (Phase 10 × Phase 17): broadcast sampling weight onto person-period rows; multiply into per-period treatment weight; weighted longitudinal MSM | Phase 10, 17c | pending |

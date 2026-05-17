@@ -49,6 +49,7 @@ diagnose_longitudinal <- function(
   )
 
   censoring_shared <- compute_censoring_diagnostics(fit)
+  sampling_shared <- compute_sampling_diagnostics(fit)
 
   per_intervention <- lapply(seq_along(interventions), function(i) {
     iv <- interventions[[i]]
@@ -66,6 +67,7 @@ diagnose_longitudinal <- function(
       balance = balance_shared,
       weights = weights_panel,
       censoring = censoring_shared,
+      sampling = sampling_shared,
       pct_intervened = pct_panel
     )
   })

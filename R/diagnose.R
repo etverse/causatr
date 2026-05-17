@@ -183,6 +183,7 @@ diagnose <- function(
   positivity_shared <- compute_positivity(fit, ps_bounds)
   balance_shared <- compute_balance(fit, stats, thresholds, by = by)
   censoring_shared <- compute_censoring_diagnostics(fit)
+  sampling_shared <- compute_sampling_diagnostics(fit)
 
   per_intervention <- lapply(seq_along(interventions), function(i) {
     nm <- names(interventions)[i]
@@ -195,6 +196,7 @@ diagnose <- function(
       balance = balance_shared,
       weights = weights_panel,
       censoring = censoring_shared,
+      sampling = sampling_shared,
       pct_intervened = pct_panel
     )
   })

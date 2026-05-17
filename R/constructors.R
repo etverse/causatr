@@ -194,6 +194,7 @@ new_causatr_diag <- function(
       balance = first$balance,
       weights = first$weights,
       censoring = first$censoring,
+      sampling = first$sampling,
       match_quality = match_quality,
       estimator = estimator,
       fit_info = fit_info,

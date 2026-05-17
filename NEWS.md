@@ -1,5 +1,17 @@
 # causatr (development version)
 
+## 2026-05-17 — Sampling-model diagnostics for transportability (Phase 17f)
+
+`diagnose()` now includes a **sampling-model panel** when the fit uses
+transportability or generalizability (`target =`). The panel reports:
+the sampling-score distribution (quantiles of P(S=1|L) overall and per
+population), the sampling-weight distribution on study rows (mean, SD,
+min, max, ESS), and a count of extreme sampling weights that may signal
+positivity violations. The panel appears in every per-intervention
+diagnostic and is shared across interventions (it depends only on the
+sampling model, not the treatment intervention). `print.causatr_diag()`
+renders it automatically.
+
 ## 2026-05-17 — AIPW + IPCW + transport sandwich fix
 
 Fixed an error in `variance_if_aipw()` where the IPCW censoring

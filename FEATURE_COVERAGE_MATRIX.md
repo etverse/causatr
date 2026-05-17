@@ -781,7 +781,19 @@ Sampling model `P(S=1 | L)` + sampling-odds weights multiply into IPW Hájek MSM
 | AIPW transport: target rows with NA outcome/treatment handled | ✅ | test-aipw-transport.R |
 | AIPW without transport unaffected (target=NULL) | ✅ | test-aipw-transport.R |
 
-Remaining chunks (17f–17i): diagnostics, external cross-check, longitudinal transport, documentation. All ❌.
+**Chunk 17f — Sampling-model diagnostics**
+
+| Feature | Status | Test |
+|---|---|---|
+| `diagnose()` sampling panel for gcomp transport | ✅ | test-diagnose.R |
+| `diagnose()` sampling panel for IPW transport | ✅ | test-diagnose.R |
+| `diagnose()` sampling panel for AIPW transport | ✅ | test-diagnose.R |
+| `diagnose()` sampling panel NULL when target = NULL | ✅ | test-diagnose.R |
+| Sampling weight plausibility (ESS, quantiles, extreme count) | ✅ | test-diagnose.R |
+| Per-intervention panels carry shared sampling panel | ✅ | test-diagnose.R |
+| `print(diagnose(...))` renders sampling panel | ✅ | test-diagnose.R |
+
+Remaining chunks (17g–17i): predictor-set validation, external cross-check, longitudinal transport. Chunk 17m (documentation) pending. All ❌.
 
 ### Phase 18 — G-estimation of Structural Nested Mean Models
 Third leg of the Robins triangle. Motivating use case: **correct handling of time-varying effect modification** — SNMs parameterise the per-stage blip $\gamma_k(a_k, \bar{l}_k, \bar{a}_{k-1}; \psi)$ directly and identify it via a moment condition that uses the treatment model as instrument, so time-varying modifiers are supported by design (closes the Phase 6 limitation under MSM-based estimators). Scope: linear-blip additive SNMMs for point + longitudinal, stacked EE sandwich ($K$ treatment blocks + blip block), bootstrap, `gesttools` cross-check. Survival SNMs (SNFTMs/SNCFTMs) out of scope. All ❌.
