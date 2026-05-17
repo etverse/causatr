@@ -43,6 +43,7 @@ altdoc/pkgdown.yml
 skills-lock.json
 _quarto/
 docs/
+README.html
 vignettes/*.html
 vignettes/*_files/
 vignettes/*.markdown_strict_files/
