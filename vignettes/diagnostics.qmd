@@ -304,7 +304,7 @@ fit_cat <- causat(
   confounders = ~ sex + age + race + smokeintensity + wt71,
   estimator = "ipw",
   model_fn = stats::glm,
-  propensity_model_fn = stats::glm
+  propensity_model_fn = nnet::multinom
 )
 
 diag_cat <- diagnose(fit_cat)
