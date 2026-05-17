@@ -19,6 +19,11 @@ if (.Platform$OS.type == "windows") {
   data.table::setDTthreads(1L)
 }
 
+# Suppress the model_fn / propensity_model_fn default warnings globally
+# so that ~900 causat() calls in tests don't need individual suppression.
+# Tests that verify warning emission temporarily unset this option.
+options(causatr.suppress_default_warnings = TRUE)
+
 local({
   # Cap at 6 physical cores — beyond that the ICE bootstrap's
   # per-replicate workload hits diminishing returns from fork

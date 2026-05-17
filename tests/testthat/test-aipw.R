@@ -2408,15 +2408,16 @@ test_that("aipw x svydesign auto-extract x sandwich", {
   df <- data.frame(Y = Y, A = A, L = L, cl = cl, pw = pw)
 
   des <- survey::svydesign(ids = ~cl, weights = ~pw, data = df)
-  fit <- suppressWarnings(causat(
+  fit <- causat(
     df,
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
     estimator = "aipw",
+    model_fn = stats::glm,
     propensity_model_fn = stats::glm,
     weights = des
-  ))
+  )
   expect_equal(fit$details$cluster, "cl")
   res <- contrast(
     fit,
@@ -2444,25 +2445,27 @@ test_that("aipw x svydesign equivalence to manual weights + cluster", {
   df <- data.frame(Y = Y, A = A, L = L, cl = cl, pw = pw)
 
   des <- survey::svydesign(ids = ~cl, weights = ~pw, data = df)
-  fit_des <- suppressWarnings(causat(
+  fit_des <- causat(
     df,
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
     estimator = "aipw",
+    model_fn = stats::glm,
     propensity_model_fn = stats::glm,
     weights = des
-  ))
-  fit_manual <- suppressWarnings(causat(
+  )
+  fit_manual <- causat(
     df,
     outcome = "Y",
     treatment = "A",
     confounders = ~L,
     estimator = "aipw",
+    model_fn = stats::glm,
     propensity_model_fn = stats::glm,
     weights = df$pw,
     cluster = "cl"
-  ))
+  )
 
   r_des <- contrast(fit_des, list(a1 = static(1), a0 = static(0)))
   r_manual <- contrast(fit_manual, list(a1 = static(1), a0 = static(0)))

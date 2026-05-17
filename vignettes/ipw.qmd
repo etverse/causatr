@@ -98,7 +98,9 @@ fit_ipw <- causat(
     smokeintensity + I(smokeintensity^2) + smokeyrs + I(smokeyrs^2) +
     factor(exercise) + factor(active) + wt71 + I(wt71^2),
   estimator = "ipw",
-  estimand = "ATE"
+  estimand = "ATE",
+  model_fn = stats::glm,
+  propensity_model_fn = stats::glm
 )
 
 res_ate_sw <- contrast(
@@ -141,7 +143,9 @@ fit_ipw_att <- causat(
     smokeintensity + I(smokeintensity^2) + smokeyrs + I(smokeyrs^2) +
     factor(exercise) + factor(active) + wt71 + I(wt71^2),
   estimator = "ipw",
-  estimand = "ATT"
+  estimand = "ATT",
+  model_fn = stats::glm,
+  propensity_model_fn = stats::glm
 )
 
 res_att <- contrast(
@@ -165,7 +169,9 @@ fit_ipw_atc <- causat(
     smokeintensity + I(smokeintensity^2) + smokeyrs + I(smokeyrs^2) +
     factor(exercise) + factor(active) + wt71 + I(wt71^2),
   estimator = "ipw",
-  estimand = "ATC"
+  estimand = "ATC",
+  model_fn = stats::glm,
+  propensity_model_fn = stats::glm
 )
 
 res_atc <- contrast(
@@ -221,7 +227,9 @@ fit_ipw_bin <- causat(
   confounders = ~ sex + age + I(age^2) + race + factor(education) +
     smokeintensity + I(smokeintensity^2) + smokeyrs + I(smokeyrs^2) +
     factor(exercise) + factor(active) + wt71 + I(wt71^2),
-  estimator = "ipw"
+  estimator = "ipw",
+  model_fn = stats::glm,
+  propensity_model_fn = stats::glm
 )
 
 res_rd <- contrast(
@@ -446,7 +454,9 @@ fit_ipw_cat <- causat(
   outcome = "Y",
   treatment = "A",
   confounders = ~ L,
-  estimator = "ipw"
+  estimator = "ipw",
+  model_fn = stats::glm,
+  propensity_model_fn = stats::glm
 )
 
 res_ipw_cat <- contrast(
@@ -500,7 +510,9 @@ fit_ipw_cont <- causat(
   outcome = "Y",
   treatment = "A",
   confounders = ~ L,
-  estimator = "ipw"
+  estimator = "ipw",
+  model_fn = stats::glm,
+  propensity_model_fn = stats::glm
 )
 
 res_shift <- contrast(
@@ -565,7 +577,9 @@ fit_pois <- causat(
   treatment = "A",
   confounders = ~ L,
   estimator = "ipw",
-  propensity_family = "poisson"
+  propensity_family = "poisson",
+  model_fn = stats::glm,
+  propensity_model_fn = stats::glm
 )
 
 res_pois <- contrast(
@@ -591,7 +605,9 @@ fit_nb <- causat(
   treatment = "A",
   confounders = ~ L,
   estimator = "ipw",
-  propensity_family = "negbin"
+  propensity_family = "negbin",
+  model_fn = stats::glm,
+  propensity_model_fn = stats::glm
 )
 
 res_nb <- contrast(
@@ -635,6 +651,7 @@ fit_gam_ps <- causat(
     s(smokeintensity) + s(smokeyrs) + factor(exercise) +
     factor(active) + s(wt71),
   estimator = "ipw",
+  model_fn = stats::glm,
   propensity_model_fn = mgcv::gam
 )
 
@@ -684,7 +701,9 @@ fit_ipw_sv <- causat(
   treatment = "A",
   confounders = ~ L,
   estimator = "ipw",
-  weights = w
+  weights = w,
+  model_fn = stats::glm,
+  propensity_model_fn = stats::glm
 )
 
 res_ipw_sv <- contrast(
@@ -711,7 +730,8 @@ library(survey)
 des <- svydesign(ids = ~psu, weights = ~pw, data = d)
 fit <- causat(d, outcome = "Y", treatment = "A",
               confounders = ~ L, estimator = "ipw",
-              weights = des)
+              weights = des,
+              model_fn = stats::glm, propensity_model_fn = stats::glm)
 ```
 
 ## Cluster-robust sandwich
@@ -729,7 +749,8 @@ usual $G/(G-1)$ small-cluster factor.
 #| eval: false
 fit_cl <- causat(d, outcome = "Y", treatment = "A",
                  confounders = ~ L, estimator = "ipw",
-                 cluster = "site")
+                 cluster = "site",
+                 model_fn = stats::glm, propensity_model_fn = stats::glm)
 contrast(fit_cl, list(a1 = static(1), a0 = static(0)))
 ```
 
@@ -792,7 +813,9 @@ fit_ipw_hte <- causat(
     smokeintensity + I(smokeintensity^2) + smokeyrs + I(smokeyrs^2) +
     factor(exercise) + factor(active) + wt71 + I(wt71^2) +
     qsmk:sex,
-  estimator = "ipw"
+  estimator = "ipw",
+  model_fn = stats::glm,
+  propensity_model_fn = stats::glm
 )
 
 res_ipw_by_sex <- contrast(
@@ -918,7 +941,8 @@ A2 <- rbinom(n, 1, plogis(-0.3 * L))
 Y  <- 2 + 1.5 * A1 + 1.0 * A2 - 0.5 * L + rnorm(n)
 df_mv <- data.frame(L = L, A1 = A1, A2 = A2, Y = Y)
 
-fit_mv <- causat(df_mv, "Y", c("A1", "A2"), ~ L, estimator = "ipw")
+fit_mv <- causat(df_mv, "Y", c("A1", "A2"), ~ L, estimator = "ipw",
+  model_fn = stats::glm, propensity_model_fn = stats::glm)
 res_mv <- contrast(
   fit_mv,
   interventions = list(
@@ -960,7 +984,8 @@ $$
 ```{r}
 fit_mv_stab <- causat(
   df_mv, "Y", c("A1", "A2"), ~ L,
-  estimator = "ipw", stabilize = "marginal"
+  estimator = "ipw", stabilize = "marginal",
+  model_fn = stats::glm, propensity_model_fn = stats::glm
 )
 res_mv_stab <- contrast(
   fit_mv_stab,
@@ -994,7 +1019,8 @@ A2 <- 5 + 0.5 * L + rnorm(n)
 Y  <- 1 + 2 * A1 + 0.3 * A2 - 0.5 * L + rnorm(n)
 df_mix <- data.frame(L = L, A1 = A1, A2 = A2, Y = Y)
 
-fit_mix <- causat(df_mix, "Y", c("A1", "A2"), ~ L, estimator = "ipw")
+fit_mix <- causat(df_mix, "Y", c("A1", "A2"), ~ L, estimator = "ipw",
+  model_fn = stats::glm, propensity_model_fn = stats::glm)
 res_mix <- contrast(
   fit_mix,
   interventions = list(

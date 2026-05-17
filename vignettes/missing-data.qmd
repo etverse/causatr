@@ -71,7 +71,8 @@ fit_y <- causat(
   df_y_miss,
   outcome = "Y",
   treatment = "A",
-  confounders = ~ L1 + L2
+  confounders = ~ L1 + L2,
+  model_fn = stats::glm
 )
 
 res_y <- contrast(
@@ -89,7 +90,8 @@ The estimate remains close to 3 despite 15% missing outcomes.
 ### Comparison: complete data vs missing-outcome data
 
 ```{r}
-fit_complete <- causat(df, outcome = "Y", treatment = "A", confounders = ~ L1 + L2)
+fit_complete <- causat(df, outcome = "Y", treatment = "A", confounders = ~ L1 + L2,
+  model_fn = stats::glm)
 res_complete <- contrast(
   fit_complete,
   interventions = list(a1 = static(1), a0 = static(0)),
@@ -123,7 +125,9 @@ fit_y_ipw <- causat(
   outcome = "Y",
   treatment = "A",
   confounders = ~ L1 + L2,
-  estimator = "ipw"
+  estimator = "ipw",
+  model_fn = stats::glm,
+  propensity_model_fn = stats::glm
 )
 
 res_y_ipw <- contrast(
@@ -214,7 +218,8 @@ fit_l <- causat(
   df_l_miss,
   outcome = "Y",
   treatment = "A",
-  confounders = ~ L1 + L2
+  confounders = ~ L1 + L2,
+  model_fn = stats::glm
 )
 
 res_l <- contrast(
@@ -244,7 +249,8 @@ fit_both <- causat(
   df_both,
   outcome = "Y",
   treatment = "A",
-  confounders = ~ L1 + L2
+  confounders = ~ L1 + L2,
+  model_fn = stats::glm
 )
 
 res_both <- contrast(
@@ -271,7 +277,8 @@ causat(
   df_a_miss,
   outcome = "Y",
   treatment = "A",
-  confounders = ~ L1 + L2
+  confounders = ~ L1 + L2,
+  model_fn = stats::glm
 )
 ```
 
@@ -313,7 +320,9 @@ fit_cont_ipw <- causat(
   outcome = "Y",
   treatment = "A",
   confounders = ~ L,
-  estimator = "ipw"
+  estimator = "ipw",
+  model_fn = stats::glm,
+  propensity_model_fn = stats::glm
 )
 
 res_cont_ipw <- contrast(
@@ -359,7 +368,8 @@ fit_cat <- causat(
   df_cat,
   outcome = "Y",
   treatment = "A",
-  confounders = ~ L
+  confounders = ~ L,
+  model_fn = stats::glm
 )
 
 res_cat <- contrast(
@@ -420,7 +430,8 @@ fit_ice_miss <- causat(
   confounders = ~ L0,
   confounders_tv = ~ L,
   id = "id",
-  time = "time"
+  time = "time",
+  model_fn = stats::glm
 )
 
 res_ice_miss <- contrast(
@@ -531,7 +542,8 @@ fit_ipcw <- causat(
   treatment = "A",
   confounders = ~ L1 + L2,
   censoring = "C",
-  ipcw = TRUE
+  ipcw = TRUE,
+  model_fn = stats::glm
 )
 
 res_ipcw <- contrast(
@@ -558,7 +570,9 @@ fit_ipcw_ipw <- causat(
   confounders = ~ L1 + L2,
   estimator = "ipw",
   censoring = "C",
-  ipcw = TRUE
+  ipcw = TRUE,
+  model_fn = stats::glm,
+  propensity_model_fn = stats::glm
 )
 
 res_ipcw_ipw <- contrast(
@@ -579,7 +593,8 @@ fit_naive <- causat(
   outcome = "Y",
   treatment = "A",
   confounders = ~ L1 + L2,
-  censoring = "C"
+  censoring = "C",
+  model_fn = stats::glm
 )
 res_naive <- contrast(
   fit_naive,
@@ -634,7 +649,8 @@ fit_manual_ipcw <- causat(
   outcome = "Y",
   treatment = "A",
   confounders = ~ L1 + L2,
-  weights = ipcw_manual[observed]
+  weights = ipcw_manual[observed],
+  model_fn = stats::glm
 )
 
 res_manual_ipcw <- contrast(

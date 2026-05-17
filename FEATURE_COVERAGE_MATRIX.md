@@ -680,6 +680,17 @@ Composes Phase 2 gcomp + Phase 4 IPW into the classical analytical doubly-robust
 | AIPW × GAM propensity DR (wrong outcome, correct GAM) | ✅ | test-aipw.R |
 | AIPW × GAM outcome+propensity × sandwich vs bootstrap SE | ✅ | test-aipw.R |
 
+**Chunk 16q — model_fn / propensity_model_fn default warnings audit**
+
+| Feature | Status | Test |
+|---|---|---|
+| `model_fn` default warns for gcomp | ✅ | test-checks.R |
+| `model_fn` default warns for IPW | ✅ | test-checks.R |
+| `propensity_model_fn` default warns for IPW | ✅ | test-checks.R |
+| `propensity_model_fn` default warns for AIPW | ✅ | test-checks.R |
+| No `model_fn` warning for matching | ✅ | test-checks.R |
+| Explicit `model_fn` suppresses warning | ✅ | test-checks.R |
+
 ### Phase 17 — Transportability / Generalizability
 Sampling model `P(S=1 | L)` + sampling-odds weights multiply into IPW Hájek MSM; gcomp / IPW / AIPW transport paths; stacked EE extends with sampling-model block. References: Dahabreh et al. 2020; Westreich et al. 2017. Cross-check against `transport` / `transported` R packages.
 

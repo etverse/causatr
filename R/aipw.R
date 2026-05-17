@@ -182,22 +182,9 @@ fit_aipw_point <- function(
   n_fit_outcome <- sum(fit_rows)
 
   # Resolve propensity fitter. In AIPW, model_fn is the outcome fitter;
-  # do not silently reuse it for propensity. When the user omits
-  # propensity_model_fn, default to stats::glm with a warning.
+  # do not silently reuse it for propensity. Warning for unspecified
+  # propensity_model_fn is now centralized in causat().
   if (is.null(propensity_model_fn)) {
-    rlang::warn(
-      c(
-        paste0(
-          "No `propensity_model_fn` specified; defaulting to ",
-          "`stats::glm` for the treatment density model(s)."
-        ),
-        i = paste0(
-          "Set `propensity_model_fn` explicitly if you need a ",
-          "different fitter (e.g. `mgcv::gam`)."
-        )
-      ),
-      class = "causatr_propensity_fn_default"
-    )
     propensity_model_fn <- stats::glm
   }
 

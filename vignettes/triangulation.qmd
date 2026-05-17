@@ -70,13 +70,16 @@ confounders <- ~ sex + age + I(age^2) + race + factor(education) +
 
 ```{r}
 fit_gc <- causat(nhefs, outcome = "wt82_71", treatment = "qsmk",
-  confounders = confounders, censoring = "censored")
+  confounders = confounders, censoring = "censored",
+  model_fn = stats::glm)
 
 fit_ipw <- causat(nhefs_complete, outcome = "wt82_71", treatment = "qsmk",
-  confounders = confounders, estimator = "ipw")
+  confounders = confounders, estimator = "ipw",
+  model_fn = stats::glm, propensity_model_fn = stats::glm)
 
 fit_aipw <- causat(nhefs_complete, outcome = "wt82_71", treatment = "qsmk",
-  confounders = confounders, estimator = "aipw")
+  confounders = confounders, estimator = "aipw",
+  model_fn = stats::glm, propensity_model_fn = stats::glm)
 
 fit_m <- causat(nhefs_complete, outcome = "wt82_71", treatment = "qsmk",
   confounders = confounders, estimator = "matching", estimand = "ATT")
@@ -133,14 +136,17 @@ abline(h = 0, lty = 2, col = "grey40")
 
 ```{r}
 fit_gc_bin <- causat(nhefs_complete, outcome = "gained_weight",
-  treatment = "qsmk", confounders = confounders, family = "binomial")
+  treatment = "qsmk", confounders = confounders, family = "binomial",
+  model_fn = stats::glm)
 
 fit_ipw_bin <- causat(nhefs_complete, outcome = "gained_weight",
-  treatment = "qsmk", confounders = confounders, estimator = "ipw")
+  treatment = "qsmk", confounders = confounders, estimator = "ipw",
+  model_fn = stats::glm, propensity_model_fn = stats::glm)
 
 fit_aipw_bin <- causat(nhefs_complete, outcome = "gained_weight",
   treatment = "qsmk", confounders = confounders,
-  estimator = "aipw", family = "binomial")
+  estimator = "aipw", family = "binomial",
+  model_fn = stats::glm, propensity_model_fn = stats::glm)
 
 fit_m_bin <- causat(nhefs_complete, outcome = "gained_weight",
   treatment = "qsmk", confounders = confounders,
@@ -227,11 +233,14 @@ confounders_em <- ~ sex + age + I(age^2) + race + factor(education) +
   qsmk:sex
 
 fit_gc_em   <- causat(nhefs_complete, outcome = "wt82_71",
-  treatment = "qsmk", confounders = confounders_em)
+  treatment = "qsmk", confounders = confounders_em,
+  model_fn = stats::glm)
 fit_ipw_em  <- causat(nhefs_complete, outcome = "wt82_71",
-  treatment = "qsmk", confounders = confounders_em, estimator = "ipw")
+  treatment = "qsmk", confounders = confounders_em, estimator = "ipw",
+  model_fn = stats::glm, propensity_model_fn = stats::glm)
 fit_aipw_em <- causat(nhefs_complete, outcome = "wt82_71",
-  treatment = "qsmk", confounders = confounders_em, estimator = "aipw")
+  treatment = "qsmk", confounders = confounders_em, estimator = "aipw",
+  model_fn = stats::glm, propensity_model_fn = stats::glm)
 fit_m_em    <- causat(nhefs_complete, outcome = "wt82_71",
   treatment = "qsmk", confounders = confounders_em, estimator = "matching")
 

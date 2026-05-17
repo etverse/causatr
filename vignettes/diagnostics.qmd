@@ -51,7 +51,9 @@ fit_ipw <- causat(
   treatment = "qsmk",
   confounders = ~ sex + age + race + education +
     smokeintensity + smokeyrs + exercise + active + wt71,
-  estimator = "ipw"
+  estimator = "ipw",
+  model_fn = stats::glm,
+  propensity_model_fn = stats::glm
 )
 
 diag <- diagnose(fit_ipw)
@@ -169,7 +171,9 @@ fit_att <- causat(
   confounders = ~ sex + age + race + education +
     smokeintensity + smokeyrs + exercise + active + wt71,
   estimator = "ipw",
-  estimand = "ATT"
+  estimand = "ATT",
+  model_fn = stats::glm,
+  propensity_model_fn = stats::glm
 )
 
 diag_att <- diagnose(fit_att)
@@ -187,7 +191,9 @@ fit_atc <- causat(
   confounders = ~ sex + age + race + education +
     smokeintensity + smokeyrs + exercise + active + wt71,
   estimator = "ipw",
-  estimand = "ATC"
+  estimand = "ATC",
+  model_fn = stats::glm,
+  propensity_model_fn = stats::glm
 )
 
 diag_atc <- diagnose(fit_atc)
@@ -217,7 +223,8 @@ fit_gcomp <- causat(
   treatment = "qsmk",
   confounders = ~ sex + age + race + education +
     smokeintensity + smokeyrs + exercise + active + wt71,
-  estimator = "gcomp"
+  estimator = "gcomp",
+  model_fn = stats::glm
 )
 
 diag_gcomp <- diagnose(fit_gcomp)
@@ -256,7 +263,9 @@ fit_cont <- causat(
   treatment = "smokeintensity",
   confounders = ~ sex + age + race + education +
     smokeyrs + exercise + active + wt71,
-  estimator = "ipw"
+  estimator = "ipw",
+  model_fn = stats::glm,
+  propensity_model_fn = stats::glm
 )
 
 diag_cont <- diagnose(fit_cont)
@@ -293,7 +302,9 @@ fit_cat <- causat(
   outcome = "wt82_71",
   treatment = "exercise_cat",
   confounders = ~ sex + age + race + smokeintensity + wt71,
-  estimator = "ipw"
+  estimator = "ipw",
+  model_fn = stats::glm,
+  propensity_model_fn = stats::glm
 )
 
 diag_cat <- diagnose(fit_cat)
@@ -326,7 +337,9 @@ fit_long <- causat(
   confounders = ~ L,
   id = "id",
   time = "time",
-  estimator = "ipw"
+  estimator = "ipw",
+  model_fn = stats::glm,
+  propensity_model_fn = stats::glm
 )
 
 diag_long <- diagnose(fit_long)

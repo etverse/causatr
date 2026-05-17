@@ -985,7 +985,8 @@ se_mu1_manual  <- sqrt(var_mu1_manual)
 
 # Gold standard: causatr's variance_if() routed through contrast().
 fit_c <- causat(dat, outcome = "Y", treatment = "A",
-                confounders = ~ L, family = binomial)
+                confounders = ~ L, family = binomial,
+                model_fn = stats::glm)
 res_c <- contrast(
   fit_c,
   interventions = list(a1 = static(1), a0 = static(0)),
@@ -1690,7 +1691,8 @@ mu1_ipw_manual <- sum(w1 * dat$Y) / n
 
 fit_ipw <- causat(
   dat, outcome = "Y", treatment = "A", confounders = ~ L,
-  estimator = "ipw", family = binomial
+  estimator = "ipw", family = binomial,
+  model_fn = stats::glm, propensity_model_fn = stats::glm
 )
 res_ipw <- contrast(
   fit_ipw,
@@ -2175,7 +2177,8 @@ fit_ice <- causat(
   long, outcome = "Y", treatment = "A",
   confounders     = ~ 1,
   confounders_tv  = ~ L,
-  id = "id", time = "time"
+  id = "id", time = "time",
+  model_fn = stats::glm
 )
 res_ice <- contrast(
   fit_ice,

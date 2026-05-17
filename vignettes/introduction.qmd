@@ -36,7 +36,7 @@ All analyses follow the same two-step pattern:
 ```r
 # Step 1: Fit
 fit <- causat(data, outcome = "Y", treatment = "A", confounders = ~ L1 + L2,
-              estimator = "gcomp")
+              estimator = "gcomp", model_fn = stats::glm)
 
 # Step 2: Contrast
 result <- contrast(fit,
@@ -77,7 +77,8 @@ fit <- causat(
   treatment = "qsmk",
   confounders = ~ sex + age + race + smokeintensity + smokeyrs +
     factor(exercise) + factor(active) + wt71,
-  censoring = "censored"
+  censoring = "censored",
+  model_fn = stats::glm
 )
 
 result <- contrast(
@@ -181,7 +182,8 @@ directly to `weights =` and causatr unpacks both the sampling weights
 library(survey)
 des <- svydesign(ids = ~psu, weights = ~pw, data = nhefs)
 fit <- causat(nhefs, outcome = "wt82_71", treatment = "qsmk",
-              confounders = ~ sex + age + wt71, weights = des)
+              confounders = ~ sex + age + wt71, weights = des,
+              model_fn = stats::glm)
 ```
 
 **Cluster-robust sandwich.** Use `cluster = "col"` on `causat()` (or

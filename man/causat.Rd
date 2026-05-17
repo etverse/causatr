@@ -361,7 +361,8 @@ fit <- causat(
   outcome = "wt82_71",
   treatment = "qsmk",
   confounders = ~ sex + age + race + education +
-    smokeintensity + smokeyrs + exercise + active + wt71
+    smokeintensity + smokeyrs + exercise + active + wt71,
+  model_fn = stats::glm
 )
 
 # ATT via g-computation (override estimand in contrast())
@@ -371,7 +372,8 @@ fit_att <- causat(
   treatment = "qsmk",
   confounders = ~ sex + age + race + education +
     smokeintensity + smokeyrs + exercise + active + wt71,
-  estimand = "ATT"
+  estimand = "ATT",
+  model_fn = stats::glm
 )
 
 # IPW -- self-contained density-ratio engine; estimand fixed at
@@ -385,7 +387,9 @@ fit_ipw <- causat(
   confounders = ~ sex + age + race + education +
     smokeintensity + smokeyrs + exercise + active + wt71,
   estimator = "ipw",
-  estimand = "ATE"
+  estimand = "ATE",
+  model_fn = stats::glm,
+  propensity_model_fn = stats::glm
 )
 
 # Matching (requires MatchIt). `method = "nearest"` is MatchIt's own arg.
@@ -409,7 +413,8 @@ fit_long <- causat(
   confounders_tv = ~ CD4 + viral_load,
   id = "id",
   time = "time",
-  history = Inf
+  history = Inf,
+  model_fn = stats::glm
 )
 
 # Multivariate treatment
@@ -417,7 +422,8 @@ fit_multi <- causat(
   data,
   outcome = "Y",
   treatment = c("A1", "A2"),
-  confounders = ~ L1 + L2
+  confounders = ~ L1 + L2,
+  model_fn = stats::glm
 )
 
 # Negative binomial outcome (count data with overdispersion)

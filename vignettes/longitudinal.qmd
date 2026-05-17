@@ -182,7 +182,8 @@ fit <- causat(
   confounders = ~ 1,
   confounders_tv = ~ L,
   id = "id",
-  time = "time"
+  time = "time",
+  model_fn = stats::glm
 )
 fit
 ```
@@ -391,7 +392,8 @@ fit_inf <- causat(
   confounders_tv = ~ L,
   id = "id",
   time = "time",
-  history = Inf
+  history = Inf,
+  model_fn = stats::glm
 )
 
 result_inf <- contrast(
@@ -468,7 +470,8 @@ fit_sim <- causat(
   confounders = ~ 1,
   confounders_tv = ~ L,
   id = "id",
-  time = "time"
+  time = "time",
+  model_fn = stats::glm
 )
 
 res_sim <- contrast(
@@ -516,7 +519,8 @@ fit_bin <- causat(
   confounders_tv = ~ L,
   family = "binomial",
   id = "id",
-  time = "time"
+  time = "time",
+  model_fn = stats::glm
 )
 
 res_bin <- contrast(
@@ -612,7 +616,8 @@ fit_4p <- causat(
   confounders_tv = ~ L,
   family = "binomial",
   id = "id",
-  time = "time"
+  time = "time",
+  model_fn = stats::glm
 )
 
 res_4p <- contrast(
@@ -704,7 +709,8 @@ fit_cont <- causat(
   confounders = ~ 1,
   confounders_tv = ~ L,
   id = "id",
-  time = "time"
+  time = "time",
+  model_fn = stats::glm
 )
 
 res_mtp <- contrast(
@@ -758,7 +764,9 @@ fit_ipw_long <- causat(
   confounders_tv = ~ L,
   id          = "id",
   time        = "time",
-  estimator   = "ipw"
+  estimator   = "ipw",
+  model_fn = stats::glm,
+  propensity_model_fn = stats::glm
 )
 
 res_ipw_long <- contrast(
@@ -834,7 +842,9 @@ fit_ipw_long_stab <- causat(
   id          = "id",
   time        = "time",
   estimator   = "ipw",
-  stabilize   = "marginal"
+  stabilize   = "marginal",
+  model_fn = stats::glm,
+  propensity_model_fn = stats::glm
 )
 
 contrast(
@@ -875,7 +885,9 @@ fit_em <- causat(
   confounders_tv = ~ L,
   id          = "id",
   time        = "time",
-  estimator   = "ipw"
+  estimator   = "ipw",
+  model_fn = stats::glm,
+  propensity_model_fn = stats::glm
 )
 contrast(
   fit_em,
@@ -960,7 +972,8 @@ fit_mv_long <- causat(
   confounders = ~ 1,
   confounders_tv = ~ L,
   id = "id",
-  time = "time"
+  time = "time",
+  model_fn = stats::glm
 )
 
 res_mv_long <- contrast(
@@ -1038,7 +1051,8 @@ fit_w <- causat(
   confounders_tv = ~ L,
   id = "id",
   time = "time",
-  weights = weights_long
+  weights = weights_long,
+  model_fn = stats::glm
 )
 
 res_w <- contrast(
@@ -1115,7 +1129,8 @@ fit_c <- causat(
   confounders_tv = ~ L,
   id = "id",
   time = "time",
-  censoring = "C"
+  censoring = "C",
+  model_fn = stats::glm
 )
 
 res_c <- contrast(
@@ -1254,7 +1269,8 @@ fit_ice_em <- causat(
   confounders = ~ L0 + sex + A:sex,
   confounders_tv = ~ L,
   id = "id",
-  time = "time"
+  time = "time",
+  model_fn = stats::glm
 )
 
 res_ice_em <- contrast(

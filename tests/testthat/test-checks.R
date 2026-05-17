@@ -288,3 +288,73 @@ test_that("resolve_family() error message lists supported families", {
   expect_error(resolve_family("nonsense"), "Supported")
   expect_error(resolve_family("nonsense"), "beta")
 })
+
+# ── model_fn / propensity_model_fn default warnings ─────────────────────────
+
+test_that("model_fn default warns for gcomp", {
+  withr::local_options(causatr.suppress_default_warnings = FALSE)
+  df <- data.frame(Y = rnorm(50), A = rep(0:1, 25), L = rnorm(50))
+  cnd <- rlang::catch_cnd(
+    causat(df, "Y", "A", ~L, estimator = "gcomp"),
+    classes = "causatr_model_fn_default"
+  )
+  expect_s3_class(cnd, "causatr_model_fn_default")
+})
+
+test_that("model_fn default warns for ipw", {
+  withr::local_options(causatr.suppress_default_warnings = FALSE)
+  df <- data.frame(Y = rnorm(50), A = rep(0:1, 25), L = rnorm(50))
+  cnd <- rlang::catch_cnd(
+    causat(
+      df,
+      "Y",
+      "A",
+      ~L,
+      estimator = "ipw",
+      propensity_model_fn = stats::glm
+    ),
+    classes = "causatr_model_fn_default"
+  )
+  expect_s3_class(cnd, "causatr_model_fn_default")
+})
+
+test_that("propensity_model_fn default warns for ipw", {
+  withr::local_options(causatr.suppress_default_warnings = FALSE)
+  df <- data.frame(Y = rnorm(50), A = rep(0:1, 25), L = rnorm(50))
+  cnd <- rlang::catch_cnd(
+    causat(df, "Y", "A", ~L, estimator = "ipw", model_fn = stats::glm),
+    classes = "causatr_propensity_fn_default"
+  )
+  expect_s3_class(cnd, "causatr_propensity_fn_default")
+})
+
+test_that("propensity_model_fn default warns for aipw", {
+  withr::local_options(causatr.suppress_default_warnings = FALSE)
+  df <- data.frame(Y = rnorm(50), A = rep(0:1, 25), L = rnorm(50))
+  cnd <- rlang::catch_cnd(
+    causat(df, "Y", "A", ~L, estimator = "aipw", model_fn = stats::glm),
+    classes = "causatr_propensity_fn_default"
+  )
+  expect_s3_class(cnd, "causatr_propensity_fn_default")
+})
+
+test_that("no model_fn warning for matching", {
+  withr::local_options(causatr.suppress_default_warnings = FALSE)
+  skip_if_not_installed("MatchIt")
+  df <- data.frame(Y = rnorm(50), A = rep(0:1, 25), L = rnorm(50))
+  cnd <- rlang::catch_cnd(
+    causat(df, "Y", "A", ~L, estimator = "matching", estimand = "ATT"),
+    classes = "causatr_model_fn_default"
+  )
+  expect_null(cnd)
+})
+
+test_that("explicit model_fn suppresses warning", {
+  withr::local_options(causatr.suppress_default_warnings = FALSE)
+  df <- data.frame(Y = rnorm(50), A = rep(0:1, 25), L = rnorm(50))
+  cnd <- rlang::catch_cnd(
+    causat(df, "Y", "A", ~L, estimator = "gcomp", model_fn = stats::glm),
+    classes = "causatr_model_fn_default"
+  )
+  expect_null(cnd)
+})

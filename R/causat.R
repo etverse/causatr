@@ -298,7 +298,8 @@
 #'   outcome = "wt82_71",
 #'   treatment = "qsmk",
 #'   confounders = ~ sex + age + race + education +
-#'     smokeintensity + smokeyrs + exercise + active + wt71
+#'     smokeintensity + smokeyrs + exercise + active + wt71,
+#'   model_fn = stats::glm
 #' )
 #'
 #' # ATT via g-computation (override estimand in contrast())
@@ -308,7 +309,8 @@
 #'   treatment = "qsmk",
 #'   confounders = ~ sex + age + race + education +
 #'     smokeintensity + smokeyrs + exercise + active + wt71,
-#'   estimand = "ATT"
+#'   estimand = "ATT",
+#'   model_fn = stats::glm
 #' )
 #'
 #' # IPW -- self-contained density-ratio engine; estimand fixed at
@@ -322,7 +324,9 @@
 #'   confounders = ~ sex + age + race + education +
 #'     smokeintensity + smokeyrs + exercise + active + wt71,
 #'   estimator = "ipw",
-#'   estimand = "ATE"
+#'   estimand = "ATE",
+#'   model_fn = stats::glm,
+#'   propensity_model_fn = stats::glm
 #' )
 #'
 #' # Matching (requires MatchIt). `method = "nearest"` is MatchIt's own arg.
@@ -346,7 +350,8 @@
 #'   confounders_tv = ~ CD4 + viral_load,
 #'   id = "id",
 #'   time = "time",
-#'   history = Inf
+#'   history = Inf,
+#'   model_fn = stats::glm
 #' )
 #'
 #' # Multivariate treatment
@@ -354,7 +359,8 @@
 #'   data,
 #'   outcome = "Y",
 #'   treatment = c("A1", "A2"),
-#'   confounders = ~ L1 + L2
+#'   confounders = ~ L1 + L2,
+#'   model_fn = stats::glm
 #' )
 #'
 #' # Negative binomial outcome (count data with overdispersion)
@@ -416,6 +422,40 @@ causat <- function(
   # argument name would create an ambiguous named match in do.call().
   estimator <- rlang::arg_match(estimator)
   estimand <- rlang::arg_match(estimand)
+
+  # Warn when the user relies on silent defaults for model fitters.
+  # `missing()` detects whether the argument was supplied at the call site,
+  # regardless of whether the default value happens to match what the user
+  # would have chosen. The option gate lets tests suppress globally.
+  suppress <- isTRUE(getOption("causatr.suppress_default_warnings"))
+
+  if (!suppress && missing(model_fn) && estimator != "matching") {
+    rlang::warn(
+      c(
+        "`model_fn` not specified; defaulting to `stats::glm`.",
+        i = paste0(
+          "Set `model_fn` explicitly ",
+          "(e.g. `model_fn = stats::glm` or `model_fn = mgcv::gam`)."
+        )
+      ),
+      class = "causatr_model_fn_default"
+    )
+  }
+
+  if (
+    !suppress && missing(propensity_model_fn) && estimator %in% c("ipw", "aipw")
+  ) {
+    rlang::warn(
+      c(
+        "`propensity_model_fn` not specified; defaulting to `stats::glm`.",
+        i = paste0(
+          "Set `propensity_model_fn` explicitly if you need a ",
+          "different fitter (e.g. `mgcv::gam`)."
+        )
+      ),
+      class = "causatr_propensity_fn_default"
+    )
+  }
 
   # Separate fit (causat) from inference (contrast): the fit object carries
   # the nuisance models and data, but not the estimand-specific marginal

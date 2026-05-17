@@ -73,7 +73,8 @@ fit_gc <- causat(
   treatment = "qsmk",
   confounders = ~ sex + age + I(age^2) + race + factor(education) +
     smokeintensity + I(smokeintensity^2) + smokeyrs + I(smokeyrs^2) +
-    factor(exercise) + factor(active) + wt71 + I(wt71^2)
+    factor(exercise) + factor(active) + wt71 + I(wt71^2),
+  model_fn = stats::glm
 )
 
 contrast(
@@ -94,7 +95,9 @@ fit_ipw <- causat(
   confounders = ~ sex + age + I(age^2) + race + factor(education) +
     smokeintensity + I(smokeintensity^2) + smokeyrs + I(smokeyrs^2) +
     factor(exercise) + factor(active) + wt71 + I(wt71^2),
-  estimator = "ipw"
+  estimator = "ipw",
+  model_fn = stats::glm,
+  propensity_model_fn = stats::glm
 )
 
 contrast(
@@ -147,7 +150,8 @@ fit_gc_cont <- causat(
   treatment = "smokeintensity",
   confounders = ~ sex + age + I(age^2) + race + factor(education) +
     smokeyrs + I(smokeyrs^2) + factor(exercise) + factor(active) +
-    wt71 + I(wt71^2)
+    wt71 + I(wt71^2),
+  model_fn = stats::glm
 )
 
 res_shift_gc <- contrast(
@@ -174,7 +178,9 @@ fit_ipw_cont <- causat(
   confounders = ~ sex + age + I(age^2) + race + factor(education) +
     smokeyrs + I(smokeyrs^2) + factor(exercise) + factor(active) +
     wt71 + I(wt71^2),
-  estimator = "ipw"
+  estimator = "ipw",
+  model_fn = stats::glm,
+  propensity_model_fn = stats::glm
 )
 
 res_shift_ipw <- contrast(
@@ -260,7 +266,9 @@ fit_pois <- causat(
   treatment = "A",
   confounders = ~ L,
   estimator = "ipw",
-  propensity_family = "poisson"
+  propensity_family = "poisson",
+  model_fn = stats::glm,
+  propensity_model_fn = stats::glm
 )
 
 res_pois <- contrast(

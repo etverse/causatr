@@ -89,7 +89,8 @@ fit_gc <- causat(
     smokeintensity + I(smokeintensity^2) + smokeyrs + I(smokeyrs^2) +
     factor(exercise) + factor(active) + wt71 + I(wt71^2) +
     qsmk:smokeintensity,
-  censoring = "censored"
+  censoring = "censored",
+  model_fn = stats::glm
 )
 
 res_ate_sw <- contrast(
@@ -233,7 +234,8 @@ fit_bin <- causat(
     smokeintensity + I(smokeintensity^2) + smokeyrs + I(smokeyrs^2) +
     factor(exercise) + factor(active) + wt71 + I(wt71^2) +
     qsmk:smokeintensity,
-  family = "binomial"
+  family = "binomial",
+  model_fn = stats::glm
 )
 
 res_rd <- contrast(
@@ -301,7 +303,8 @@ fit_cont <- causat(
   confounders = ~ sex + age + I(age^2) + race + factor(education) +
     smokeyrs + I(smokeyrs^2) + factor(exercise) + factor(active) +
     wt71 + I(wt71^2),
-  censoring = "censored"
+  censoring = "censored",
+  model_fn = stats::glm
 )
 ```
 
@@ -476,7 +479,8 @@ fit_gc_hte <- causat(
     smokeintensity + I(smokeintensity^2) + smokeyrs + I(smokeyrs^2) +
     factor(exercise) + factor(active) + wt71 + I(wt71^2) +
     qsmk:smokeintensity + qsmk:sex,
-  censoring = "censored"
+  censoring = "censored",
+  model_fn = stats::glm
 )
 
 res_by_sex <- contrast(
@@ -555,7 +559,8 @@ A <- sample(c("A", "B", "C"), n, replace = TRUE, prob = c(0.4, 0.35, 0.25))
 Y <- 2 + (A == "B") * 1.5 + (A == "C") * -0.8 + 0.5 * L + rnorm(n)
 cat_df <- data.frame(Y = Y, A = factor(A, levels = c("A", "B", "C")), L = L)
 
-fit_cat <- causat(cat_df, outcome = "Y", treatment = "A", confounders = ~ L)
+fit_cat <- causat(cat_df, outcome = "Y", treatment = "A", confounders = ~ L,
+  model_fn = stats::glm)
 
 res_cat <- contrast(
   fit_cat,
@@ -611,7 +616,8 @@ fit_mv <- causat(
   mv_df,
   outcome = "Y",
   treatment = c("A1", "A2"),
-  confounders = ~ L1 + L2
+  confounders = ~ L1 + L2,
+  model_fn = stats::glm
 )
 
 res_mv <- contrast(
@@ -667,7 +673,8 @@ fit_sv <- causat(
   outcome = "Y",
   treatment = "A",
   confounders = ~ L,
-  weights = w
+  weights = w,
+  model_fn = stats::glm
 )
 
 res_sv <- contrast(
@@ -698,7 +705,8 @@ propagate only weights.
 library(survey)
 des <- svydesign(ids = ~psu, weights = ~pw, data = d)
 fit <- causat(d, outcome = "Y", treatment = "A",
-              confounders = ~ L, weights = des)
+              confounders = ~ L, weights = des,
+              model_fn = stats::glm)
 # weights + cluster both applied automatically
 contrast(fit, list(a1 = static(1), a0 = static(0)))
 ```
@@ -721,7 +729,8 @@ default or switch clustering off (`cluster = NULL`).
 #| eval: false
 # cluster at fit time -- auto-propagates to contrast
 fit_cl <- causat(d, outcome = "Y", treatment = "A",
-                 confounders = ~ L, cluster = "site")
+                 confounders = ~ L, cluster = "site",
+                 model_fn = stats::glm)
 contrast(fit_cl, list(a1 = static(1), a0 = static(0)))
 
 # or at contrast time, column name or direct vector
@@ -764,7 +773,8 @@ fit_pois <- causat(
   outcome = "Y",
   treatment = "A",
   confounders = ~ L,
-  family = "poisson"
+  family = "poisson",
+  model_fn = stats::glm
 )
 
 res_rr_pois <- contrast(
@@ -812,7 +822,8 @@ fit_gamma <- causat(
   outcome = "Y",
   treatment = "A",
   confounders = ~ L,
-  family = "Gamma"
+  family = "Gamma",
+  model_fn = stats::glm
 )
 
 res_gamma <- contrast(
@@ -863,7 +874,8 @@ fit_quasi <- causat(
   outcome = "Y",
   treatment = "A",
   confounders = ~ L,
-  family = "quasibinomial"
+  family = "quasibinomial",
+  model_fn = stats::glm
 )
 
 res_quasi <- contrast(
@@ -998,7 +1010,8 @@ fit_spline <- causat(
   confounders = ~ sex + splines::ns(age, 3) + race + factor(education) +
     splines::ns(smokeintensity, 3) + splines::ns(smokeyrs, 3) +
     factor(exercise) + factor(active) + splines::ns(wt71, 3),
-  censoring = "censored"
+  censoring = "censored",
+  model_fn = stats::glm
 )
 
 res_spline <- contrast(
@@ -1176,7 +1189,8 @@ fit_cont_stoch <- causat(
   treatment = "smokeintensity",
   confounders = ~ sex + age + I(age^2) + race + factor(education) +
     smokeyrs + I(smokeyrs^2) + factor(exercise) + factor(active) +
-    wt71 + I(wt71^2)
+    wt71 + I(wt71^2),
+  model_fn = stats::glm
 )
 
 res_stoch_cont <- contrast(

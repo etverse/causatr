@@ -243,7 +243,8 @@ fit_gcomp <- causat(
   outcome = "Y",
   treatment = "A",
   confounders = ~L,
-  estimator = "gcomp"
+  estimator = "gcomp",
+  model_fn = stats::glm
 )
 res_gcomp <- contrast(
   fit_gcomp,
@@ -287,7 +288,8 @@ fit_bin <- causat(
   treatment = "A",
   confounders = ~L,
   family = binomial(),
-  estimator = "gcomp"
+  estimator = "gcomp",
+  model_fn = stats::glm
 )
 res_bin_rd <- contrast(
   fit_bin,
@@ -376,7 +378,9 @@ fit_ipw <- causat(
   outcome = "Y",
   treatment = "A",
   confounders = ~L,
-  estimator = "ipw"
+  estimator = "ipw",
+  model_fn = stats::glm,
+  propensity_model_fn = stats::glm
 )
 res_ipw <- contrast(
   fit_ipw,
@@ -506,7 +510,8 @@ fit_ice <- causat(
   time = "time",
   estimator = "gcomp",
   type = "longitudinal",
-  history = 1L
+  history = 1L,
+  model_fn = stats::glm
 )
 res_ice <- contrast(
   fit_ice,
@@ -587,7 +592,8 @@ fit_ice_shift <- causat(
   time = "time",
   estimator = "gcomp",
   type = "longitudinal",
-  history = 1L
+  history = 1L,
+  model_fn = stats::glm
 )
 res_ice_shift <- contrast(
   fit_ice_shift,
