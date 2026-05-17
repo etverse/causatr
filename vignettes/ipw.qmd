@@ -456,7 +456,7 @@ fit_ipw_cat <- causat(
   confounders = ~ L,
   estimator = "ipw",
   model_fn = stats::glm,
-  propensity_model_fn = stats::glm
+  propensity_model_fn = nnet::multinom
 )
 
 res_ipw_cat <- contrast(
@@ -607,7 +607,7 @@ fit_nb <- causat(
   estimator = "ipw",
   propensity_family = "negbin",
   model_fn = stats::glm,
-  propensity_model_fn = stats::glm
+  propensity_model_fn = MASS::glm.nb
 )
 
 res_nb <- contrast(
