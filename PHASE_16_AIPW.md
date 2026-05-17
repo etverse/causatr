@@ -1,6 +1,6 @@
 # Phase 16 — Augmented IPW (AIPW, doubly-robust estimator)
 
-> **Status: COMPLETE** — all chunks 16a–16l shipped.
+> **Status: SUBSTANTIALLY COMPLETE** — chunks 16a–16p shipped; 16q (model_fn defaults audit) pending.
 >
 > **Depends on:** Phase 2 (point gcomp), Phase 4 (self-contained IPW), Phase 5 (ICE, for longitudinal), Phase 10 (longitudinal IPW, for longitudinal), Phase 14 (for IPCW composition)
 >
@@ -42,15 +42,19 @@ causatr is the right home for AIPW because (a) the gcomp and IPW engines already
 ### The estimator
 
 For a static binary intervention `a ∈ {0, 1}`, the AIPW functional is
+
 $$
 \hat\psi_{\mathrm{AIPW}}(a) = \frac{1}{n} \sum_{i=1}^{n} \left[ \hat{m}(a, L_i) + \frac{\mathbb{1}\{A_i = a\}}{\hat\pi(a \mid L_i)} \, (Y_i - \hat{m}(A_i, L_i)) \right],
 $$
+
 where $\hat{m}(a, l) = \hat{E}[Y \mid A = a, L = l]$ is the outcome model and $\hat\pi(a \mid l) = \hat{P}(A = a \mid L = l)$ is the propensity score. The first term is the gcomp standardization; the second is the IPW residual correction.
 
 For a general intervention under the self-contained density-ratio engine (static / shift / scale_by / binary dynamic / IPSI), the AIPW functional generalises to
+
 $$
 \hat\psi_{\mathrm{AIPW}}(g) = \frac{1}{n} \sum_{i=1}^{n} \left[ \hat{m}(g(L_i, A_i), L_i) + W_i(g) \, (Y_i - \hat{m}(A_i, L_i)) \right],
 $$
+
 where $W_i(g)$ is the density-ratio weight produced by `make_weight_fn()` under intervention `g`. For static binary this reduces to $\mathbb{1}\{A_i = a\} / \hat\pi_i$; for continuous shift it is the Jacobian-including pushforward ratio.
 
 Both forms have the same stacked-EE structure — the augmentation term is always "weight × outcome residual at the observed treatment." The implementation is a single pathway that calls existing gcomp (for $\hat{m}$) and existing density-ratio (for $W_i(g)$) infrastructure, glues them with an additional plug-in estimating equation, and reuses the sandwich-variance primitives.
@@ -58,9 +62,11 @@ Both forms have the same stacked-EE structure — the augmentation term is alway
 ### Double robustness
 
 The AIPW estimating function for ψ is
+
 $$
 \omega_{\psi}(L, A, Y; \beta, \alpha, \psi) = \hat{m}_\beta(g(L, A), L) + W_\alpha(g; L, A) \, (Y - \hat{m}_\beta(A, L)) - \psi.
 $$
+
 Under regularity, $\hat\psi_{\mathrm{AIPW}}$ is consistent if **either** $\beta$ is estimated from a correctly-specified outcome model **or** $\alpha$ is estimated from a correctly-specified propensity model. The argument is standard: if the outcome model is correct, $\hat{m}(A, L)$ converges to $E[Y \mid A, L]$ and the second term has zero mean (by iterated expectation over $A \mid L$); if the propensity is correct, the weighted residual term has the right mean by the density-ratio argument used in IPW.
 
 This is the **main selling point** and the **main thing to test**. Chunks 16d and 16e are devoted to DR tests with deliberately-misspecified nuisances.
@@ -77,35 +83,41 @@ The efficiency story is the secondary selling point and is tested in chunk 16f.
 
 ### Estimands and interventions
 
-| Intervention | Supported under AIPW? | Notes |
-|---|---|---|
-| `static(a)` binary | ✓ | The classical case. ATE / ATT / ATC all available; ATT/ATC use the Bayes-rule numerator trick from Phase 4 (numerator absorbs $p(L)$ or $1 - p(L)$ so the weight closure stays $\alpha$-consistent). |
-| `static(a)` continuous | ⛔ | Same rejection as IPW (Dirac point mass has no Lebesgue density). |
-| `shift(δ)`, `scale_by(c)` continuous | ✓ | Density-ratio weight from `make_weight_fn()`; outcome model evaluated at shifted/scaled A. |
-| `threshold(...)` | ⛔ | Same rejection as IPW. |
-| `dynamic(rule)` binary | ✓ | Deterministic rule on binary; HT-indicator weight path. |
-| `dynamic(rule)` continuous | ⛔ | Same rejection as IPW (Dirac). |
-| `ipsi(δ)` | ✓ | Closed-form IPSI weight; outcome model evaluated at the IPSI-shifted expected-propensity treatment. Minor care: the outcome-model augmentation term evaluates at the observed A (not at a drawn IPSI treatment), so the estimator is well-defined without MC. |
-| `stochastic(density=)` (Phase 24) | ✓ (when density supplied) | Phase 24: MC-averaged outcome predictions + density-ratio weights via user-supplied `density`. Without `density`, rejected (gcomp-only). |
+| Intervention                         | Supported under AIPW?     | Notes                                                                                                                                                                                                                                                         |
+| ------------------------------------ | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `static(a)` binary                   | ✓                         | The classical case. ATE / ATT / ATC all available; ATT/ATC use the Bayes-rule numerator trick from Phase 4 (numerator absorbs $p(L)$ or $1 - p(L)$ so the weight closure stays $\alpha$-consistent).                                                          |
+| `static(a)` continuous               | ⛔                        | Same rejection as IPW (Dirac point mass has no Lebesgue density).                                                                                                                                                                                             |
+| `shift(δ)`, `scale_by(c)` continuous | ✓                         | Density-ratio weight from `make_weight_fn()`; outcome model evaluated at shifted/scaled A.                                                                                                                                                                    |
+| `threshold(...)`                     | ⛔                        | Same rejection as IPW.                                                                                                                                                                                                                                        |
+| `dynamic(rule)` binary               | ✓                         | Deterministic rule on binary; HT-indicator weight path.                                                                                                                                                                                                       |
+| `dynamic(rule)` continuous           | ⛔                        | Same rejection as IPW (Dirac).                                                                                                                                                                                                                                |
+| `ipsi(δ)`                            | ✓                         | Closed-form IPSI weight; outcome model evaluated at the IPSI-shifted expected-propensity treatment. Minor care: the outcome-model augmentation term evaluates at the observed A (not at a drawn IPSI treatment), so the estimator is well-defined without MC. |
+| `stochastic(density=)` (Phase 24)    | ✓ (when density supplied) | Phase 24: MC-averaged outcome predictions + density-ratio weights via user-supplied `density`. Without `density`, rejected (gcomp-only).                                                                                                                      |
 
-The rejections are exactly those inherited from the self-contained IPW engine — AIPW does not *add* any rejections, because the outcome-model side is always well-defined.
+The rejections are exactly those inherited from the self-contained IPW engine — AIPW does not _add_ any rejections, because the outcome-model side is always well-defined.
 
 **Estimand gating.** `check_estimand_intervention_compat()` from Phase 4 carries over unchanged. ATT/ATC are only defined for static binary; all other AIPW interventions are ATE-only.
 
 ### Stacked sandwich variance
 
 The estimating-equation system is
+
 $$
 \omega(L, A, Y; \beta, \alpha, \psi) = \begin{pmatrix} s_\beta(L, A, Y) \\[2pt] s_\alpha(L, A) \\[2pt] \omega_\psi(L, A, Y; \beta, \alpha, \psi) \end{pmatrix},
 $$
+
 where $s_\beta$ is the outcome-model score, $s_\alpha$ is the propensity score, and $\omega_\psi$ is the AIPW plug-in. The bread matrix is block-lower-triangular
+
 $$
 B = \begin{pmatrix} B_{\beta\beta} & 0 & 0 \\ 0 & B_{\alpha\alpha} & 0 \\ B_{\psi\beta} & B_{\psi\alpha} & -I \end{pmatrix},
 $$
+
 because $s_\beta$ and $s_\alpha$ do not depend on $\alpha$ and $\beta$ respectively (classical two-block nuisance structure), and the ψ-block's cross-derivatives $B_{\psi\beta}, B_{\psi\alpha}$ capture how plugging in $\hat\beta$ and $\hat\alpha$ affects $\hat\psi$. The meat is
+
 $$
 M = E[\omega \omega^\top],
 $$
+
 and the per-individual IF on ψ is the last row of $-B^{-1} \omega$, aggregated via `vcov_from_if()`.
 
 **Implementation strategy.** Reuse Phase 4/5's primitives:
@@ -120,20 +132,22 @@ The cross-derivatives $B_{\psi\beta}$ and $B_{\psi\alpha}$ are available in clos
 
 AIPW works for whichever treatment types have both a supported outcome model and a supported propensity model:
 
-| Treatment type | Outcome side | Propensity side | AIPW? |
-|---|---|---|---|
-| binary | gcomp via `model_fn` | binary GLM via `propensity_model_fn` | ✓ |
-| continuous | gcomp via `model_fn` | gaussian GLM via `propensity_model_fn` | ✓ (shift / scale_by) |
-| categorical | gcomp via `model_fn` | multinomial via `nnet::multinom` | ✓ (static, dynamic) |
-| count | gcomp via `model_fn` | poisson or negbin | ✓ (integer shift / valid scale_by) |
-| multivariate | gcomp multi | Phase 8 joint density | composition (not Phase 16) |
+| Treatment type | Outcome side         | Propensity side                        | AIPW?                              |
+| -------------- | -------------------- | -------------------------------------- | ---------------------------------- |
+| binary         | gcomp via `model_fn` | binary GLM via `propensity_model_fn`   | ✓                                  |
+| continuous     | gcomp via `model_fn` | gaussian GLM via `propensity_model_fn` | ✓ (shift / scale_by)               |
+| categorical    | gcomp via `model_fn` | multinomial via `nnet::multinom`       | ✓ (static, dynamic)                |
+| count          | gcomp via `model_fn` | poisson or negbin                      | ✓ (integer shift / valid scale_by) |
+| multivariate   | gcomp multi          | Phase 8 joint density                  | composition (not Phase 16)         |
 
 ### Longitudinal AIPW (ICE-AIPW, Bang & Robins 2005)
 
 Sequential application of AIPW through time, using the ICE backward-iteration structure for the outcome side and per-period propensity models for the weight side. At each step $k$:
+
 $$
 \hat\psi_{k, \mathrm{AIPW}} = \hat{m}_k(\bar{d}_k, \bar{L}_k) + W_{i, k} \cdot (\tilde Y_{k+1} - \hat{m}_k(\bar{A}_k, \bar{L}_k)),
 $$
+
 where $\tilde Y_{k+1}$ is the pseudo-outcome from the $(k+1)$-th AIPW step and $W_{i,k}$ is the cumulative density-ratio weight up through $k$. The result is a doubly-robust, asymptotically-efficient longitudinal estimator that reduces to plain ICE when the IPW weights are uninformative (constant) and to plain longitudinal IPW when the outcome pseudo-regressions are uninformative.
 
 **Depends on Phase 10 (longitudinal IPW) and Phase 5 (ICE).** Chunk 16g.
@@ -148,25 +162,25 @@ where $\tilde Y_{k+1}$ is the pseudo-outcome from the $(k+1)$-th AIPW step and $
 
 ## Chunks
 
-| Chunk | Scope | Depends on | Status |
-|---|---|---|---|
-| 16a | `fit_aipw()`: fit outcome model + propensity model, store both in `fit$details` | Phases 2, 4 | ✅ done |
-| 16b | `compute_aipw_contrast_point()`: AIPW functional for static binary ATE with sandwich variance | 16a | ✅ done |
-| 16c | Bootstrap variance for AIPW (refit both nuisances per replicate) | 16a | ✅ done |
-| 16d | DR test: misspecified outcome, correct propensity — verify consistency | 16b | ✅ done |
-| 16e | DR test: correct outcome, misspecified propensity — verify consistency | 16b | ✅ done |
-| 16f | Efficiency test: AIPW SE ≤ gcomp SE and AIPW SE ≤ IPW SE | 16b | ✅ done |
-| 16g | Full intervention set: shift / scale_by / dynamic / IPSI; rejections for static-on-continuous / threshold / stochastic | 16b | ✅ done |
-| 16h | ATT / ATC for static binary; effect modification (`by = "sex"`) | 16b | ✅ done |
-| 16i | Longitudinal AIPW (ICE-AIPW): sequential nuisance fits through the ICE backward loop | Phase 5, Phase 10, 16b | ✅ done |
-| 16j | Categorical + count treatment extensions | 16b | ✅ done |
-| 16k | `delicatessen` external cross-check on a shared DGP | 16b, 16d, 16e | ✅ done |
-| 16l | Documentation, vignette, `CLAUDE.md` phase update, `FEATURE_COVERAGE_MATRIX.md` rows | 16a–16j | ✅ done |
-| 16m | Multivariate point AIPW: joint outcome model `Y ~ A1 + A2 + L` + multivariate density-ratio weights in augmentation term. Composes Phase 8 joint density with Phase 16 AIPW functional. Lifts `causatr_aipw_multivariate_pending` rejection for point treatment. Includes stabilized weights (`stabilize = "marginal"`), propensity_model_fn default warning, and `model.matrix(terms(model))` fix for custom fitters. | Phase 8, 16b | ✅ done |
-| 16n | ~~Stochastic + AIPW~~ — **moved to Phase 24** (`PHASE_24_STOCHASTIC_AIPW.md`). Stochastic interventions under AIPW (and IPW) require extending `stochastic()` with an optional `density` parameter, which is broader than a single composition chunk. | — | moved → Phase 24 |
-| 16o | IPCW + AIPW: triply-weighted estimator. Point estimate flows through merged IPCW weights in `ext_w`. Sandwich variance adds Channel 2d (censoring model correction) with three sub-components: direct Hajek effect, outcome cross-block, propensity cross-block. Also fixes latent `Ch1_i` dimension bug and `fit_idx_ps` alignment bug. | Phase 14, 16b | ✅ done |
-| 16p | AIPW test coverage parity: outcome types (gamma, quasibinomial, negbin, beta), survey weights, cluster-robust sandwich, missing data, subset estimand, GAM outcome/propensity models. Infrastructure should already work — these are test gaps, not implementation gaps. | 16b | pending |
-| 16q | Audit `model_fn` / `propensity_model_fn` defaults across causatr. Currently `model_fn` defaults to `stats::glm` silently; `propensity_model_fn` falls back to `model_fn` in IPW and to `stats::glm` (with warning) in AIPW. The model choice is important and should never be silent. Add `rlang::warn()` in `causat()` when either argument is not explicitly specified (use `missing()` or sentinel), defaulting to `stats::glm` with auto-detected family. Applies to all estimators (gcomp, IPW, AIPW, matching). Update all test files to suppress or specify explicitly. | all | pending |
+| Chunk | Scope                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | Depends on             | Status           |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------- | ---------------- |
+| 16a   | `fit_aipw()`: fit outcome model + propensity model, store both in `fit$details`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | Phases 2, 4            | ✅ done          |
+| 16b   | `compute_aipw_contrast_point()`: AIPW functional for static binary ATE with sandwich variance                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | 16a                    | ✅ done          |
+| 16c   | Bootstrap variance for AIPW (refit both nuisances per replicate)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | 16a                    | ✅ done          |
+| 16d   | DR test: misspecified outcome, correct propensity — verify consistency                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | 16b                    | ✅ done          |
+| 16e   | DR test: correct outcome, misspecified propensity — verify consistency                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | 16b                    | ✅ done          |
+| 16f   | Efficiency test: AIPW SE ≤ gcomp SE and AIPW SE ≤ IPW SE                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | 16b                    | ✅ done          |
+| 16g   | Full intervention set: shift / scale_by / dynamic / IPSI; rejections for static-on-continuous / threshold / stochastic                                                                                                                                                                                                                                                                                                                                                                                                                                                         | 16b                    | ✅ done          |
+| 16h   | ATT / ATC for static binary; effect modification (`by = "sex"`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | 16b                    | ✅ done          |
+| 16i   | Longitudinal AIPW (ICE-AIPW): sequential nuisance fits through the ICE backward loop                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | Phase 5, Phase 10, 16b | ✅ done          |
+| 16j   | Categorical + count treatment extensions                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | 16b                    | ✅ done          |
+| 16k   | `delicatessen` external cross-check on a shared DGP                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | 16b, 16d, 16e          | ✅ done          |
+| 16l   | Documentation, vignette, `CLAUDE.md` phase update, `FEATURE_COVERAGE_MATRIX.md` rows                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | 16a–16j                | ✅ done          |
+| 16m   | Multivariate point AIPW: joint outcome model `Y ~ A1 + A2 + L` + multivariate density-ratio weights in augmentation term. Composes Phase 8 joint density with Phase 16 AIPW functional. Lifts `causatr_aipw_multivariate_pending` rejection for point treatment. Includes stabilized weights (`stabilize = "marginal"`), propensity_model_fn default warning, and `model.matrix(terms(model))` fix for custom fitters.                                                                                                                                                         | Phase 8, 16b           | ✅ done          |
+| 16n   | ~~Stochastic + AIPW~~ — **moved to Phase 24** (`PHASE_24_STOCHASTIC_AIPW.md`). Stochastic interventions under AIPW (and IPW) require extending `stochastic()` with an optional `density` parameter, which is broader than a single composition chunk.                                                                                                                                                                                                                                                                                                                          | —                      | moved → Phase 24 |
+| 16o   | IPCW + AIPW: triply-weighted estimator. Point estimate flows through merged IPCW weights in `ext_w`. Sandwich variance adds Channel 2d (censoring model correction) with three sub-components: direct Hajek effect, outcome cross-block, propensity cross-block. Also fixes latent `Ch1_i` dimension bug and `fit_idx_ps` alignment bug.                                                                                                                                                                                                                                       | Phase 14, 16b          | ✅ done          |
+| 16p   | AIPW test coverage parity: outcome types (gamma, quasibinomial, negbin, beta), survey weights, cluster-robust sandwich, missing data, subset estimand, GAM outcome/propensity models. Also discovered and fixed a bug: `cluster_vec` was not passed to `variance_if()` for AIPW point estimates in `contrast.R`.                                                                                                                                                                                                                                                                   | 16b                    | ✅ done          |
+| 16q   | Audit `model_fn` / `propensity_model_fn` defaults across causatr. Currently `model_fn` defaults to `stats::glm` silently; `propensity_model_fn` falls back to `model_fn` in IPW and to `stats::glm` (with warning) in AIPW. The model choice is important and should never be silent. Add `rlang::warn()` in `causat()` when either argument is not explicitly specified (use `missing()` or sentinel), defaulting to `stats::glm` with auto-detected family. Applies to all estimators (gcomp, IPW, AIPW, matching). Update all test files to suppress or specify explicitly. | all                    | pending          |
 
 ## Invariants
 
@@ -182,12 +196,14 @@ where $\tilde Y_{k+1}$ is the pseudo-outcome from the $(k+1)$-th AIPW step and $
 ### Point (chunks 16b–16h)
 
 Linear-Gaussian with binary treatment:
+
 ```
 L ~ N(0, 1)
 A | L ~ Bernoulli(expit(0.3 + 0.5 * L))
 Y = 2 + 3 * A + 1.5 * L + ε,  ε ~ N(0, 1)
 E[Y^1] - E[Y^0] = 3  (ATE)
 ```
+
 - Chunk 16b: both nuisances correct — check point estimate, SE, CI vs analytical truth.
 - Chunk 16d: outcome model `Y ~ A` (drops L) — AIPW must still give ATE = 3.
 - Chunk 16e: propensity model `A ~ 1` (drops L) — AIPW must still give ATE = 3.
@@ -199,9 +215,9 @@ Reuse the Phase 10 / Phase 5 linear-Gaussian DGP (2-period, time-varying treatme
 
 ## References
 
-- Robins JM, Rotnitzky A, Zhao LP (1994). Estimation of regression coefficients when some regressors are not always observed. *JASA* 89:846–866. *(foundational AIPW paper)*
-- Scharfstein DO, Rotnitzky A, Robins JM (1999). Adjusting for nonignorable drop-out using semiparametric nonresponse models. *JASA* 94:1096–1120. *(DR property framing)*
-- Bang H, Robins JM (2005). Doubly robust estimation in missing data and causal inference models. *Biometrics* 61:962–973. *(ICE-AIPW / longitudinal extension)*
-- Funk MJ, Westreich D, Wiesen C, Stürmer T, Brookhart MA, Davidian M (2011). Doubly robust estimation of causal effects. *Am J Epidemiol* 173:761–767. *(applied epi primer)*
-- Kang JD, Schafer JL (2007). Demystifying double robustness. *Stat Sci* 22:523–539. *(practical DR pitfalls — cite as a caveat on finite-sample behavior)*
-- Tchetgen Tchetgen EJ (2009). A commentary on G. Molenberghs' review of missing data. *Stat Methods Med Res* 18:93–97. *(AIPW efficiency vs IPW)*
+- Robins JM, Rotnitzky A, Zhao LP (1994). Estimation of regression coefficients when some regressors are not always observed. _JASA_ 89:846–866. _(foundational AIPW paper)_
+- Scharfstein DO, Rotnitzky A, Robins JM (1999). Adjusting for nonignorable drop-out using semiparametric nonresponse models. _JASA_ 94:1096–1120. _(DR property framing)_
+- Bang H, Robins JM (2005). Doubly robust estimation in missing data and causal inference models. _Biometrics_ 61:962–973. _(ICE-AIPW / longitudinal extension)_
+- Funk MJ, Westreich D, Wiesen C, Stürmer T, Brookhart MA, Davidian M (2011). Doubly robust estimation of causal effects. _Am J Epidemiol_ 173:761–767. _(applied epi primer)_
+- Kang JD, Schafer JL (2007). Demystifying double robustness. _Stat Sci_ 22:523–539. _(practical DR pitfalls — cite as a caveat on finite-sample behavior)_
+- Tchetgen Tchetgen EJ (2009). A commentary on G. Molenberghs' review of missing data. _Stat Methods Med Res_ 18:93–97. _(AIPW efficiency vs IPW)_

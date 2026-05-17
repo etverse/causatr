@@ -983,7 +983,8 @@ compute_contrast <- function(
         mu_hat = mu_hat,
         aipw_bundles = aipw_point$bundles,
         aipw_fit_idx = aipw_point$fit_idx,
-        aipw_n_total = aipw_point$n_total
+        aipw_n_total = aipw_point$n_total,
+        cluster_vec = cluster_vec
       )
     } else {
       boot_res <- variance_bootstrap(

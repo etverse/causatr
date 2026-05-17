@@ -650,6 +650,36 @@ Composes Phase 2 gcomp + Phase 4 IPW into the classical analytical doubly-robust
 | AIPW + IPCW + external weights composes correctly | ✅ | test-aipw-ipcw.R |
 | AIPW + IPCW stashes correct details | ✅ | test-aipw-ipcw.R |
 
+**Chunk 16p — AIPW test coverage parity**
+
+| Feature | Status | Test |
+|---|---|---|
+| AIPW × gamma(log) × diff | ✅ | test-aipw.R |
+| AIPW × gamma(log) × ratio | ✅ | test-aipw.R |
+| AIPW × quasibinomial × diff | ✅ | test-aipw.R |
+| AIPW × quasibinomial × ratio | ✅ | test-aipw.R |
+| AIPW × negbin × diff | ✅ | test-aipw.R |
+| AIPW × negbin × ratio | ✅ | test-aipw.R |
+| AIPW × beta (betareg) × diff × bootstrap | ✅ | test-aipw.R |
+| AIPW × beta (betareg) × ratio × bootstrap | ✅ | test-aipw.R |
+| AIPW × external weights × sandwich | ✅ | test-aipw.R |
+| AIPW × external weights × bootstrap SE agreement | ✅ | test-aipw.R |
+| AIPW × svydesign auto-extract | ✅ | test-aipw.R |
+| AIPW × svydesign equivalence to manual | ✅ | test-aipw.R |
+| AIPW × cluster-robust SE inflation | ✅ | test-aipw.R |
+| AIPW × cluster × truth recovery | ✅ | test-aipw.R |
+| AIPW × cluster × by(sex) | ✅ | test-aipw.R |
+| AIPW × MCAR outcome NAs × censoring × sandwich | ✅ | test-aipw.R |
+| AIPW × MCAR outcome NAs × bootstrap SE agreement | ✅ | test-aipw.R |
+| AIPW × covariate NAs → error (require pre-processing) | ✅ | test-aipw.R |
+| AIPW × external weights + MCAR outcome NAs | ✅ | test-aipw.R |
+| AIPW × subset(L > 0) restricts population | ✅ | test-aipw.R |
+| AIPW × subset + by composition | ✅ | test-aipw.R |
+| AIPW × subset + ATT | ✅ | test-aipw.R |
+| AIPW × GAM outcome × nonlinear DGP × sandwich | ✅ | test-aipw.R |
+| AIPW × GAM propensity DR (wrong outcome, correct GAM) | ✅ | test-aipw.R |
+| AIPW × GAM outcome+propensity × sandwich vs bootstrap SE | ✅ | test-aipw.R |
+
 ### Phase 17 — Transportability / Generalizability
 Sampling model `P(S=1 | L)` + sampling-odds weights multiply into IPW Hájek MSM; gcomp / IPW / AIPW transport paths; stacked EE extends with sampling-model block. References: Dahabreh et al. 2020; Westreich et al. 2017. Cross-check against `transport` / `transported` R packages.
 
