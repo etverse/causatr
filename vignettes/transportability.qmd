@@ -1,0 +1,294 @@
+---
+title: "Transportability and generalizability"
+code-fold: show
+code-tools: true
+vignette: >
+  %\VignetteIndexEntry{Transportability and generalizability}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r}
+#| include: false
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+Causal effects estimated by `causat()` are, by default, effects in the
+**study sample** --- the rows of `data`. In applied work the scientific
+question is often about a different population: a clinic, country, or
+cohort that differs in covariate distribution from the study. Moving the
+estimand from study to target is the job of **transportability** (or
+**generalizability**) weights.
+
+This vignette shows how to transport causal estimates to a target
+population using the `target =` argument.
+
+## Setup
+
+```{r}
+#| message: false
+library(causatr)
+```
+
+### Simulated data
+
+We simulate a mixed dataset with study rows ($S = 1$, full data) and
+target rows ($S = 0$, covariates only):
+
+```{r}
+set.seed(42)
+n <- 3000
+L <- rnorm(n)
+S <- rbinom(n, 1, plogis(-0.5 + 1.0 * L))
+A <- ifelse(S == 1L, rbinom(n, 1, plogis(0.2 + 0.3 * L)), NA_integer_)
+Y <- ifelse(S == 1L, 2 + 3 * A + 1.5 * L + 1.0 * A * L + rnorm(n), NA_real_)
+
+df <- data.frame(Y = Y, A = A, L = L, S = S)
+head(df)
+table(df$S)
+```
+
+The true ATE in the **study** population is 3 (constant treatment effect
+plus an interaction $A \times L$ whose average depends on the
+distribution of $L$ among the study rows). Because the sampling model
+shifts the $L$-distribution, the target-population ATE differs from the
+study ATE.
+
+## The `target =` argument
+
+Pass the name of the binary selection indicator ($S$) to `target =`:
+
+```{r}
+fit_gc <- causat(
+  df,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L,
+  target = "S"
+)
+fit_gc
+```
+
+This tells causatr to:
+
+1. Fit the outcome model on study rows ($S = 1$) only.
+2. Fit a **sampling model** $P(S = 1 \mid L)$ on all rows.
+3. At contrast time, standardise predictions over target-population
+   covariates (not study covariates).
+
+### Contrasting
+
+```{r}
+res_gc <- contrast(
+  fit_gc,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  reference = "a0"
+)
+res_gc
+```
+
+Compare with the study-only estimate (no `target =`):
+
+```{r}
+fit_study <- causat(
+  df[df$S == 1, ],
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L
+)
+
+res_study <- contrast(
+  fit_study,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  reference = "a0"
+)
+res_study
+```
+
+The two estimates differ because the target population has a different
+distribution of $L$ than the study sample.
+
+## Transportability vs generalizability
+
+The `target_subset` argument controls which rows define the target:
+
+- `target_subset = "target"` (default): the target population is $S = 0$
+  only. This is **transportability** --- the study is external to the
+  target.
+- `target_subset = "all"`: the target population is $S = 0 \cup S = 1$
+  (the full combined sample). This is **generalizability** --- the study
+  is a biased subsample of the target.
+
+```{r}
+fit_gen <- causat(
+  df,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L,
+  target = "S",
+  target_subset = "all"
+)
+
+res_gen <- contrast(
+  fit_gen,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  reference = "a0"
+)
+res_gen
+```
+
+## Three estimators
+
+All three point-treatment estimators support `target =`:
+
+### IPW transport
+
+Under IPW, the treatment density-ratio weights are multiplied by
+sampling weights $w^S_i = [1 - \hat P(S = 1 \mid L_i)] / \hat P(S = 1 \mid L_i)$:
+
+```{r}
+fit_ipw <- causat(
+  df,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L,
+  estimator = "ipw",
+  target = "S"
+)
+
+res_ipw <- contrast(
+  fit_ipw,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  reference = "a0"
+)
+res_ipw
+```
+
+### AIPW transport (doubly robust)
+
+AIPW combines the outcome model and treatment weights with sampling
+weights, providing consistency if either the outcome model or the
+treatment model is correctly specified:
+
+```{r}
+fit_aipw <- causat(
+  df,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L,
+  estimator = "aipw",
+  target = "S"
+)
+
+res_aipw <- contrast(
+  fit_aipw,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  reference = "a0"
+)
+res_aipw
+```
+
+### Comparison
+
+```{r}
+#| fig-width: 7
+#| fig-height: 4
+#| fig-alt: "Forest plot comparing gcomp, IPW, and AIPW transport estimates."
+methods_df <- data.frame(
+  Method = c("G-comp", "IPW", "AIPW"),
+  Estimate = c(
+    res_gc$contrasts$estimate[1],
+    res_ipw$contrasts$estimate[1],
+    res_aipw$contrasts$estimate[1]
+  ),
+  CI_lower = c(
+    res_gc$contrasts$ci_lower[1],
+    res_ipw$contrasts$ci_lower[1],
+    res_aipw$contrasts$ci_lower[1]
+  ),
+  CI_upper = c(
+    res_gc$contrasts$ci_upper[1],
+    res_ipw$contrasts$ci_upper[1],
+    res_aipw$contrasts$ci_upper[1]
+  )
+)
+
+tinyplot::tinyplot(
+  Estimate ~ Method,
+  data = methods_df,
+  type = "pointrange",
+  ymin = methods_df$CI_lower,
+  ymax = methods_df$CI_upper,
+  ylab = "Target-population ATE",
+  main = "Transport estimates: three methods"
+)
+```
+
+## Diagnostics
+
+`diagnose()` includes a **sampling model panel** for transport fits,
+reporting the sampling-score distribution, sampling-weight summary, and
+extreme-weight flags:
+
+```{r}
+diag <- diagnose(fit_ipw)
+diag
+```
+
+Key diagnostics to check:
+
+- **Sampling positivity**: $P(S = 1 \mid L)$ should not be too close to
+  0 or 1. The `p_study_min` and `p_study_max` quantiles flag overlap
+  violations.
+- **Extreme weights**: large sampling weights indicate regions of $L$
+  where the study underrepresents the target, leading to instability.
+- **ESS**: the effective sample size after sampling reweighting. Low ESS
+  signals that a few observations drive the estimate.
+
+## Identification assumptions
+
+Transport estimates require four assumptions (Dahabreh et al. 2020):
+
+1. **Conditional exchangeability in the study:**
+   $Y^a \perp A \mid L, S = 1$.
+2. **Treatment positivity in the study:**
+   $0 < P(A = a \mid L, S = 1) < 1$.
+3. **Exchangeability over populations (transportability):**
+   $E[Y^a \mid L, S = 1] = E[Y^a \mid L, S = 0]$ --- the conditional
+   potential-outcome mean is the same across populations given $L$.
+4. **Sampling positivity:**
+   $P(S = 1 \mid L) > 0$ on the target support.
+
+Assumptions 1--2 are the standard causal assumptions (checked via
+`diagnose()` balance and positivity panels). Assumption 3 is the
+transportability leap --- it is not directly testable but requires
+domain knowledge. Assumption 4 is checked by the sampling diagnostics.
+
+## Matching is not supported
+
+Matching + transportability is a hard rejection:
+
+```{r}
+#| error: true
+causat(
+  df,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L,
+  estimator = "matching",
+  target = "S"
+)
+```
+
+This is by design: MatchIt's match-weight pathway does not compose
+cleanly with external sampling weights.
+
+## References
+
+- Dahabreh IJ, Robertson SE, Steingrimsson JA, Stuart EA, Hernán MA
+  (2020). Extending inferences from a randomized trial to a new target
+  population. *Stat Med* 39:1999--2014.
+- Cole SR, Stuart EA (2010). Generalizing evidence from randomized
+  clinical trials to target populations. *Am J Epidemiol* 172:107--115.
+- Hernán MA, VanderWeele TJ (2017). Causal inference under multiple
+  versions of treatment. *J Causal Inf* 5(2):20160014.

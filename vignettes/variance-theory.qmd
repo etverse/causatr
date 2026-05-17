@@ -63,10 +63,11 @@ The destination is $\mathrm{Var}(\hat\mu)$, the sampling variance of a
    The delta method $J V_\beta J^{\mathsf T}$ is the Channel-2-only
    shortcut — **exact when predictions are constant per intervention, too
    small otherwise.**
-4. **Section 4 — The three estimators.** G-computation, IPW, and matching
-   are just three choices of estimating equations plugged into the same
-   machinery. Each gets its own IF, but all three are aggregated the same
-   way.
+4. **Section 4 — The core estimators.** G-computation, IPW, and matching
+   are three choices of estimating equations plugged into the same
+   machinery. Each gets its own IF, but all are aggregated the same
+   way. AIPW combines the g-comp and IPW influence functions into a
+   doubly-robust IF; its variance follows the same framework.
 5. **Section 5 — Chained estimators (ICE).** When several nuisance models
    feed into each other (as in iterated conditional expectation
    g-computation for longitudinal data), the IF picks up one extra
@@ -1416,11 +1417,14 @@ gcomp_influence <- function(model, data_a, target_idx) {
 ```
 
 
-## 4. The three causal estimators
+## 4. The core causal estimators
 
 This section applies the IF framework from Section 3 to g-computation, IPW, and
 matching. The variance formula is always the same (@eq-var-if); what differs is
-the estimating equations and whether Channel 1 is zero.
+the estimating equations and whether Channel 1 is zero. AIPW combines the g-comp
+and IPW influence functions into a single doubly-robust IF — its variance
+derivation follows the same Channel 1 + Channel 2 structure; see
+`R/variance_if_aipw.R` for the implementation.
 
 ### 4.1 G-computation
 
@@ -1863,9 +1867,9 @@ squaring.
 
 :::
 
-### 4.4 Summary: one method, three estimators
+### 4.4 Summary: one method, multiple estimators
 
-All three methods use the same variance formula — the IF squared and summed
+All methods use the same variance formula — the IF squared and summed
 (@eq-var-if). What differs is the estimating equations and how Channel 2
 is computed.
 

@@ -1,5 +1,7 @@
 # Phase 21 — Multiple Imputation via `causat_mice()`
 
+> **Status: PENDING (design doc)**
+
 ## Motivation
 
 causatr currently handles missing data via complete-case analysis

@@ -46,7 +46,7 @@ $$
 The confounders $L$ are common causes of both $A$ and $Y$. Under this
 structure, g-computation adjusts for $L$ via an outcome model,
 IPW adjusts via a treatment model, and matching balances $L$ between
-treatment groups. When all three methods agree, the result is unlikely to
+treatment groups. When all four methods agree, the result is unlikely to
 be an artefact of a single modelling assumption.
 
 ```{r}
@@ -213,8 +213,8 @@ plot(diag_m)
 
 ## Cross-method effect modification
 
-All three point-treatment methods support effect modification via
-`A:modifier` interaction terms in `confounders`. When the three methods
+All four point-treatment methods support effect modification via
+`A:modifier` interaction terms in `confounders`. When the four methods
 agree on stratum-specific treatment effects, this gives strong evidence
 that the effect heterogeneity is real rather than an artefact of model
 specification.

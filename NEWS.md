@@ -12,6 +12,25 @@ diagnostic and is shared across interventions (it depends only on the
 sampling model, not the treatment intervention). `print.causatr_diag()`
 renders it automatically.
 
+## 2026-05-17 — AIPW test coverage parity + model_fn default warnings (Phase 16p, 16q)
+
+AIPW now has full test coverage parity with gcomp and IPW for
+non-standard outcome families: Gamma, quasibinomial, negative binomial,
+and beta regression (betareg). Also covers external weights, survey
+design auto-extract, cluster-robust variance, MCAR outcome NAs, subset,
+GAM outcome and propensity models, and all compositions thereof.
+
+`causat()` now emits a one-per-session warning when `model_fn` or
+`propensity_model_fn` is left at the implicit `stats::glm` default.
+The warning encourages deliberate model specification and is silenced
+once the user supplies an explicit function. Matching is excluded (it
+delegates model choice to MatchIt).
+
+Fixed a cluster-robust variance bug where the cluster vector was not
+subset to `fit_rows` before being passed to the AIPW IF engine,
+producing misaligned cluster assignments when outcome NAs caused
+row-dropping.
+
 ## 2026-05-17 — AIPW + IPCW + transport sandwich fix
 
 Fixed an error in `variance_if_aipw()` where the IPCW censoring
@@ -23,6 +42,138 @@ branches on transport mode: the transport path varies IPCW weights in
 the study-row augmentation term with a fixed target-population
 denominator, while the non-transport path retains the original Hájek
 ratio.
+
+## 2026-05-07 — Multivariate point AIPW + AIPW-IPCW composition (Phase 16m, 16o)
+
+**Multivariate AIPW (chunk 16m).** `estimator = "aipw"` now supports
+multivariate (joint) treatments `treatment = c("A1", "A2", ...)`. The
+doubly-robust augmentation term uses per-component density-ratio
+weights from the sequential-MTP factorisation. Binary × binary,
+continuous × continuous, and mixed-type combinations are supported.
+`stabilize = "marginal"` composes correctly (stabilized weights in the
+augmentation term match unstabilized point estimates). Rejected for
+univariate AIPW (univariate already benefits from Hájek
+normalization).
+
+**AIPW + IPCW (chunk 16o).** AIPW now composes with built-in IPCW
+(`ipcw = TRUE`) for triply-weighted doubly-robust estimation. The
+censoring weights multiply into the augmentation term alongside the
+treatment and (optionally) sampling weights. The stacked estimating
+equation adds the censoring-model block. Consistent if any two of the
+three models (outcome, treatment, censoring) are correctly specified.
+
+## 2026-05-06 — Transportability and generalizability core (Phase 17a–17e)
+
+`causat(target = "S")` enables transportability and generalizability
+estimation. The sampling indicator S (1 = study, 0 = target) tags rows
+in a mixed-data input; the sampling model P(S = 1 | L) is fit via
+`sampling_model_fn` (default logistic GLM) on all rows.
+
+Three estimators transport the estimand to the target population:
+
+- **Gcomp transport**: outcome model fit on S = 1 rows, standardized
+  over target-population covariates.
+- **IPW transport**: sampling × treatment density-ratio weights multiply
+  pointwise in the Hájek MSM on study rows.
+- **AIPW transport**: 2-out-of-3 doubly-robust composition (Dahabreh
+  et al. 2020) — consistent if any two of outcome, treatment, and
+  sampling models are correctly specified.
+
+`target_subset = "target"` (default) targets S = 0 only
+(transportability); `target_subset = "all"` targets S = 0 ∪ S = 1
+(generalizability). Sandwich variance extends the stacked estimating
+equation with the sampling-model block. Bootstrap refits the sampling
+model per replicate.
+
+Truth-based simulation tests verify that the transport estimators
+recover the target-population ATE on a DGP where study and target ATEs
+diverge via an A × L interaction. Cross-estimator agreement (gcomp,
+IPW, AIPW) and AIPW efficiency (SE ≤ gcomp ∧ IPW) are pinned.
+
+## 2026-05-05 — Point AIPW estimator (Phase 16a–16j)
+
+New `estimator = "aipw"` implements the classical doubly-robust
+estimator: the augmented IPW functional
+
+  ψ(g) = E[m(g(A,L), L)] + E[W(g) · (Y − m(A, L))]
+
+where m is the outcome model and W is the density-ratio weight from
+the self-contained IPW engine. Consistent if either the outcome model
+or the treatment model is correctly specified.
+
+Supported: binary / continuous / categorical / count (Poisson)
+treatments, all contrast types, static / dynamic / shift / scale_by /
+ipsi interventions, ATT / ATC / ATE estimands, effect modification
+(by =), sandwich and bootstrap variance. Stacked estimating equation
+adds the outcome-model and propensity-model score blocks plus the
+plug-in row, computed via the existing `prepare_model_if()` and
+`apply_model_correction()` primitives.
+
+Cross-validated against `delicatessen` (Python) for both binary static
+and continuous shift DGPs — point estimates and SEs match to 3
+significant figures.
+
+## 2026-05-05 — Longitudinal AIPW (Phase 16i)
+
+`estimator = "aipw"` with `id =` and `time =` implements the
+ICE-AIPW sequential doubly-robust estimator (Bang & Robins 2005). At
+each backward step k, the augmentation term corrects the ICE pseudo-
+outcome using the period-k density-ratio weight and the period-k
+outcome model residual. The cumulative product of per-period
+augmentation terms gives the longitudinal DR correction.
+
+Supported: binary / continuous treatments, static / shift / scale_by /
+dynamic interventions, gaussian / binomial outcomes, effect
+modification (by =), sandwich and bootstrap variance. Double robustness
+verified: deliberately misspecifying either the outcome model or the
+propensity model still recovers the correct ATE.
+
+Cross-validated against `lmtp::lmtp_sdr()` for binary static and
+continuous shift settings.
+
+## 2026-05-05 — Polish: target_trial(), ICE formula builder, feasibility diagnostic (Phase 15)
+
+- `target_trial()` constructor + S3 print method for documenting
+  target trial emulation parameters (eligibility, treatment strategy,
+  follow-up, outcome, causal contrast, analysis plan).
+- `ice_build_formula()` now handles transformed time-varying
+  confounders (`poly()`, `ns()`, `log()`, `I()`) via the new
+  `substitute_vars_in_term()` helper. Previously, ICE silently dropped
+  any term that wasn't a bare column name when building per-step
+  formulas.
+- `compute_pct_intervened()` reports what fraction of observations are
+  affected by each intervention (feasibility diagnostic). Appears in
+  the `pct_intervened` slot of per-intervention diagnostic panels.
+  Returns NULL for natural-course and ipsi interventions. Longitudinal
+  variant reports per-period and overall feasibility.
+
+## 2026-05-04 — Built-in IPCW for MAR outcome censoring (Phase 14)
+
+`causat(censoring = "C", ipcw = TRUE)` now fits an internal censoring
+model P(C = 0 | A, L) and applies inverse-probability-of-censoring
+weights to the estimator, replacing the previous row-filter-only
+`censoring =` behavior when `ipcw = TRUE` is specified.
+
+**Point estimators (14b).** Gcomp, IPW, and matching all receive IPCW
+weights. For gcomp and matching, the IPCW weights enter the outcome
+model via the `weights` argument. For IPW, the IPCW weight multiplies
+into the treatment density-ratio weight. The sandwich variance engine
+extends with the censoring-model score block.
+
+**Longitudinal IPCW (14c).** ICE and longitudinal IPW fit per-period
+censoring models and apply cumulative IPCW weights. The per-period
+censoring probability enters the per-step pseudo-outcome weighting.
+
+**Variance regression (14e).** Sandwich SEs for IPCW fits agree with
+bootstrap SEs within the standard MC tolerance (ratio in 0.5–2.0).
+
+**Diagnostics (14f).** `diagnose()` includes a censoring panel with
+IPCW weight distribution, censoring prevalence, and censoring-model
+positivity quantiles. Longitudinal IPCW shows per-period and
+cumulative censoring diagnostics.
+
+Cross-validated against `lmtp::lmtp_sdr()` for both point and
+longitudinal IPCW settings.
 
 ## 2026-05-04 — Extended outcome type coverage (Phase 13)
 
@@ -99,6 +250,24 @@ all three plot types.
 This completes Phase 11. All `causatr_diag_*_pending` gates from
 chunk 11a are lifted, and `diagnose()` now handles every supported
 combination of estimator, treatment type, estimand, and timing.
+
+## 2026-05-02 — Treatment-type and longitudinal dispatch for diagnose() (Phase 11 chunks 11b, 11c)
+
+**Chunk 11b — treatment-type dispatch.** `diagnose()` now handles
+continuous, categorical, count (Poisson / NB), and multivariate IPW
+fits. Continuous IPW reports density-range positivity (flagging
+observations in the low-density tails), categorical IPW reports
+per-level probability positivity, count IPW reports density-range
+positivity, and multivariate IPW reports per-component positivity plus
+the combined product-weight distribution. Previously all non-binary
+IPW fits hit a `_pending` classed error.
+
+**Chunk 11c — longitudinal dispatch.** Longitudinal IPW and ICE fits
+now produce per-period diagnostics: per-period positivity and weight
+distribution for longitudinal IPW, per-period covariate balance for
+both. The cumulative (product) weight summary flags compounding
+instability across periods. Previously longitudinal fits hit a
+`_pending` classed error.
 
 ## 2026-04-26 — `diagnose()` rewrite foundation (Phase 11 chunk 11a)
 

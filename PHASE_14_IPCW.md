@@ -1,5 +1,7 @@
 # Phase 14 — Built-in IPCW for MAR outcome censoring
 
+> **Status: DONE** — all chunks (14a–14f) shipped.
+
 ## Motivation
 
 causatr's `censoring =` parameter today is a **row filter** only. Phase 14 adds a **built-in IPCW** path so users do not have to compute censoring weights externally for MAR outcome censoring.

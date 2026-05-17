@@ -108,6 +108,29 @@ contrast(
 )
 ```
 
+### AIPW (doubly robust)
+
+```{r}
+fit_aipw <- causat(
+  nhefs_complete,
+  outcome = "wt82_71",
+  treatment = "qsmk",
+  confounders = ~ sex + age + I(age^2) + race + factor(education) +
+    smokeintensity + I(smokeintensity^2) + smokeyrs + I(smokeyrs^2) +
+    factor(exercise) + factor(active) + wt71 + I(wt71^2),
+  estimator = "aipw",
+  model_fn = stats::glm,
+  propensity_model_fn = stats::glm
+)
+
+contrast(
+  fit_aipw,
+  interventions = list(quit = static(1), continue = static(0)),
+  reference = "continue",
+  type = "difference"
+)
+```
+
 ### Matching
 
 ```{r}
@@ -130,7 +153,7 @@ contrast(
 )
 ```
 
-All three methods should give broadly similar estimates (methodological
+All four methods should give broadly similar estimates (methodological
 triangulation). Discrepancies signal model misspecification in one or more
 approaches.
 

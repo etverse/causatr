@@ -20,11 +20,12 @@ knitr::opts_chunk$set(
 [![Codecov test coverage](https://codecov.io/gh/etverse/causatr/graph/badge.svg)](https://app.codecov.io/gh/etverse/causatr)
 <!-- badges: end -->
 
-**causatr** provides a unified interface for causal effect estimation via three
+**causatr** provides a unified interface for causal effect estimation via four
 complementary methods: g-computation (parametric g-formula + ICE), inverse
-probability weighting (IPW with a self-contained density-ratio engine), and
-propensity score matching (via [MatchIt](https://kosukeimai.github.io/MatchIt/)).
-When all three methods agree, you can be more confident in your findings — this
+probability weighting (IPW with a self-contained density-ratio engine),
+augmented IPW (AIPW — doubly robust), and propensity score matching (via
+[MatchIt](https://kosukeimai.github.io/MatchIt/)).
+When multiple methods agree, you can be more confident in your findings — this
 is called **methodological triangulation**.
 
 The package implements the methods described in Hernán & Robins (2025)
@@ -74,35 +75,39 @@ result
 
 ## Methodological triangulation
 
-Compare g-computation, IPW, and matching on the same data:
+Compare g-computation, IPW, AIPW, and matching on the same data:
 
 ```{r triangulation}
+conf <- ~ sex + age + race + smokeintensity + smokeyrs +
+  factor(exercise) + factor(active) + wt71
+
 # G-computation (outcome model)
 fit_gc <- causat(nhefs, outcome = "wt82_71", treatment = "qsmk",
-  confounders = ~ sex + age + race + smokeintensity + smokeyrs +
-    factor(exercise) + factor(active) + wt71,
-  censoring = "censored")
+  confounders = conf, censoring = "censored")
 
 # IPW (treatment model)
 fit_ipw <- causat(nhefs, outcome = "wt82_71", treatment = "qsmk",
-  confounders = ~ sex + age + race + smokeintensity + smokeyrs +
-    factor(exercise) + factor(active) + wt71,
-  estimator = "ipw")
+  confounders = conf, estimator = "ipw")
+
+# AIPW (doubly robust)
+fit_aipw <- causat(nhefs, outcome = "wt82_71", treatment = "qsmk",
+  confounders = conf, estimator = "aipw", censoring = "censored")
 
 # Matching (propensity score)
 fit_m <- causat(nhefs, outcome = "wt82_71", treatment = "qsmk",
-  confounders = ~ sex + age + race + smokeintensity + smokeyrs +
-    factor(exercise) + factor(active) + wt71,
-  estimator = "matching", estimand = "ATT")
+  confounders = conf, estimator = "matching", estimand = "ATT")
 
-# All three estimates
+# All four estimates
+intv <- list(quit = static(1), cont = static(0))
 rbind(
   data.frame(estimator = "gcomp", contrast(fit_gc,
-    list(quit = static(1), cont = static(0)), reference = "cont")$contrasts),
+    intv, reference = "cont")$contrasts),
   data.frame(estimator = "ipw", contrast(fit_ipw,
-    list(quit = static(1), cont = static(0)), reference = "cont")$contrasts),
+    intv, reference = "cont")$contrasts),
+  data.frame(estimator = "aipw", contrast(fit_aipw,
+    intv, reference = "cont")$contrasts),
   data.frame(estimator = "matching", contrast(fit_m,
-    list(quit = static(1), cont = static(0)), reference = "cont")$contrasts)
+    intv, reference = "cont")$contrasts)
 )
 ```
 
@@ -140,16 +145,17 @@ plot(diag)    # Love plot (requires cobalt)
 
 ## Features
 
-- **Three estimation methods**: g-computation (parametric g-formula),
+- **Four estimation methods**: g-computation (parametric g-formula),
   IPW (self-contained density-ratio engine — no runtime dependency on
-  WeightIt), and matching (via
+  WeightIt), AIPW (doubly robust — consistent if either outcome or
+  treatment model is correct), and matching (via
   [MatchIt](https://kosukeimai.github.io/MatchIt/)). Matching is
   binary-only; continuous, categorical, count, and multivariate
-  treatments use g-comp or IPW.
-- **Longitudinal support**: ICE g-computation (Zivich et al. 2024) and
-  longitudinal IPW for time-varying treatments. Sandwich variance via
-  stacked estimating equations, plus parallel bootstrap via
-  `boot::boot()` (with optional
+  treatments use g-comp, IPW, or AIPW.
+- **Longitudinal support**: ICE g-computation (Zivich et al. 2024),
+  longitudinal IPW, and longitudinal AIPW for time-varying treatments.
+  Sandwich variance via stacked estimating equations, plus parallel
+  bootstrap via `boot::boot()` (with optional
   [future](https://future.futureverse.org/) backend).
 - **Flexible interventions**: `static()`, `shift()`, `scale_by()`,
   `threshold()`, `dynamic()`, `ipsi()` (incremental propensity score),
@@ -186,9 +192,15 @@ plot(diag)    # Love plot (requires cobalt)
 - **Effect modification**: `by =` in `contrast()` for subgroup-specific
   effects. Under IPW and matching the modifier must be a baseline
   variable.
+- **Transportability / generalizability**: transport causal estimates
+  from a study sample to a target population with `target =`. causatr
+  fits a sampling model P(S=1|L) and reweights (gcomp, IPW) or
+  augments (AIPW) the estimator to recover the target-population
+  estimand. Diagnostics include sampling-score overlap and weight
+  summaries.
 - **Built-in diagnostics**: positivity checks, covariate balance via
   [cobalt](https://ngreifer.github.io/cobalt/), weight summaries,
-  censoring model diagnostics, Love plots.
+  censoring model diagnostics, sampling model diagnostics, Love plots.
 - **Tidy integration**: `tidy()` / `glance()` / `confint()` / `coef()`
   / `vcov()` / `plot()` (forest plot via
   [forrest](https://github.com/etverse/forrest)) / broom-compatible
