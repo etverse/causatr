@@ -939,3 +939,48 @@ simulate_mv_transport <- function(n = 6000, seed = 42) {
 
   data.frame(Y = Y, A1 = A1, A2 = A2, L = L, S = S)
 }
+
+
+# DGP for IPCW × transport (chunk 17k).
+#
+# Combines differential MAR censoring with sampling selection.
+# Study rows (S=1) have treatment, outcome (possibly censored), and covariates.
+# Target rows (S=0) have covariates only (A=NA, Y=NA).
+#
+#   L ~ N(0, 1)
+#   P(S = 1 | L) = expit(-0.5 + L)
+#   A | L, S=1 ~ Bernoulli(expit(0.2 + 0.3*L))
+#   C | A, L, S=1 ~ Bernoulli(expit(-1.5 + 0.5*A + 0.3*L))   [~20% censoring]
+#   Y | A, L, S=1, C=0 ~ N(2 + 3*A + 1.5*L + A*L, 1)
+#
+# True target ATE (transportability): 3 + E[L|S=0]
+# True target ATE (generalizability): 3 + E[L] = 3
+# Study ATE: 3 + E[L|S=1] (biased by sampling)
+#
+# The interaction A*L makes the ATE depend on the covariate distribution,
+# so the naive study estimator differs from the target estimand.
+# The differential censoring (C depends on A and L) biases complete-case
+# analysis; IPCW corrects for this.
+simulate_ipcw_transport <- function(n = 6000, seed = 42) {
+  set.seed(seed)
+  L <- rnorm(n)
+  ps_sampling <- plogis(-0.5 + 1.0 * L)
+  S <- rbinom(n, 1, ps_sampling)
+
+  ps_treat <- plogis(0.2 + 0.3 * L)
+  A <- ifelse(S == 1L, rbinom(n, 1, ps_treat), NA_integer_)
+
+  Y_full <- ifelse(
+    S == 1L,
+    2 + 3 * A + 1.5 * L + 1.0 * A * L + rnorm(n),
+    NA_real_
+  )
+
+  # Differential censoring: treated + high-L individuals censored more.
+  # Intercept -1.5 keeps overall censoring at ~20% so study rows remain usable.
+  p_cens <- ifelse(S == 1L, plogis(-1.5 + 0.5 * A + 0.3 * L), 0)
+  C <- ifelse(S == 1L, rbinom(n, 1, p_cens), 0L)
+  Y <- ifelse(C == 1L, NA_real_, Y_full)
+
+  data.frame(Y = Y, Y_full = Y_full, A = A, L = L, S = S, C = C)
+}

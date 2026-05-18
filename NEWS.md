@@ -1,5 +1,24 @@
 # causatr (development version)
 
+## 2026-05-18 — IPCW × transportability (Phase 17k)
+
+`causat()` now supports `target = "S"` together with `ipcw = TRUE` for all
+three estimators (gcomp, IPW, AIPW). The composition produces a
+triply/quadruply-weighted estimator: treatment density-ratio weights, stabilized
+IPCW weights, and sampling-odds weights all multiply pointwise into the MSM
+prior weights (IPW) or the outcome-model fitting weights (gcomp/AIPW). The
+sandwich variance engine already handled the IPCW and sampling-model score
+blocks independently; this chunk verifies the full four-block composition
+(propensity + censoring + sampling + plug-in) works end-to-end.
+
+Truth-based simulation tests validate transportability and generalizability ATE
+recovery for all three estimators, sandwich-vs-bootstrap SE agreement, AIPW
+double-robustness under outcome misspecification, and cross-estimator agreement
+(gcomp ≈ IPW ≈ AIPW). External cross-checks against delicatessen (stacked
+M-estimation sandwich) and TransportHealth (gcomp transport with manual IPCW
+weights) confirm the composition. A longitudinal IPW + IPCW + transport smoke
+test verifies the person-period pathway produces finite estimates.
+
 ## 2026-05-18 — Multivariate IPW × transportability (Phase 17j)
 
 `causat()` now supports `target = "S"` together with multivariate treatment

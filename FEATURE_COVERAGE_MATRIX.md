@@ -840,7 +840,31 @@ Sampling model `P(S=1 | L)` + sampling-odds weights multiply into IPW Hájek MSM
 
 **Implementation note.** The only source change was removing the early `return()` in the multivariate branch of `variance_if_ipw()` and applying `compute_ipw_sampling_correction()` when `fit$details$transport == TRUE`. Weight multiplication and bootstrap already handled multivariate transport correctly; only the sandwich gamma-block correction was missing.
 
-Remaining chunks (17k–17l): IPCW × transport, MTP + transportability. Chunk 17m (documentation) pending. All ❌.
+**Chunk 17k — IPCW × transport**
+
+| Feature | Status | Test |
+|---|---|---|
+| gcomp + IPCW + transport (transportability): recovers target ATE | ✅ | test-ipcw-transport.R |
+| gcomp + IPCW + transport (generalizability): recovers marginal ATE | ✅ | test-ipcw-transport.R |
+| gcomp + IPCW + transport: sandwich SE finite, CI covers truth | ✅ | test-ipcw-transport.R |
+| IPW + IPCW + transport (transportability): recovers target ATE | ✅ | test-ipcw-transport.R |
+| IPW + IPCW + transport (generalizability): recovers marginal ATE | ✅ | test-ipcw-transport.R |
+| IPW + IPCW + transport: sandwich vs bootstrap SE ratio in (0.4, 2.5) | ✅ | test-ipcw-transport.R |
+| AIPW + IPCW + transport (transportability): recovers target ATE | ✅ | test-ipcw-transport.R |
+| AIPW + IPCW + transport: sandwich SE finite, CI covers truth | ✅ | test-ipcw-transport.R |
+| AIPW + IPCW + transport: 2-of-3 DR (wrong outcome model) | ✅ | test-ipcw-transport.R |
+| AIPW + IPCW + transport: sandwich vs bootstrap SE ratio in (0.5, 2.0) | ✅ | test-ipcw-transport.R |
+| Cross-estimator agreement: gcomp ≈ IPW ≈ AIPW under correct specification | ✅ | test-ipcw-transport.R |
+| IPCW + transport corrects bias vs naive complete-case transport | ✅ | test-ipcw-transport.R |
+| Bootstrap refits sampling + censoring + propensity per replicate | ✅ | test-ipcw-transport.R |
+| Details stashing: transport + ipcw flags and models present | ✅ | test-ipcw-transport.R |
+| TransportHealth cross-check: gcomp + manual IPCW weights | ✅ | test-ipcw-transport.R |
+| delicatessen stacked-EE cross-check: IPW point + SE | ✅ | test-ipcw-transport.R |
+| Longitudinal IPW + IPCW + transport: smoke test (finite output) | ✅ | test-ipcw-transport.R |
+
+**Implementation note.** No source code changes were required. The runtime path in `causat.R` already composes transport (sampling model) and IPCW (censoring model) independently and sequentially; the sandwich variance engines (`variance_if_ipw`, `variance_if_gcomp`, `variance_if_aipw`) already apply both the IPCW and sampling-model corrections when the respective flags are active. This chunk is purely test coverage validating the four-block composition.
+
+Remaining chunks (17l): MTP + transportability. Chunk 17m (documentation) pending. All ❌.
 
 ### Phase 18 — G-estimation of Structural Nested Mean Models
 Third leg of the Robins triangle. Motivating use case: **correct handling of time-varying effect modification** — SNMs parameterise the per-stage blip $\gamma_k(a_k, \bar{l}_k, \bar{a}_{k-1}; \psi)$ directly and identify it via a moment condition that uses the treatment model as instrument, so time-varying modifiers are supported by design (closes the Phase 6 limitation under MSM-based estimators). Scope: linear-blip additive SNMMs for point + longitudinal, stacked EE sandwich ($K$ treatment blocks + blip block), bootstrap, `gesttools` cross-check. Survival SNMs (SNFTMs/SNCFTMs) out of scope. All ❌.

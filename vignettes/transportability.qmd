@@ -224,6 +224,49 @@ tinyplot::tinyplot(
 )
 ```
 
+## Censored outcomes (IPCW × transport)
+
+When outcomes are subject to right-censoring, `censoring =` adds
+inverse-probability-of-censoring weights (IPCW). These compose
+seamlessly with transportability weights --- the three weight components
+(treatment, censoring, sampling) multiply pointwise:
+
+```{r}
+set.seed(99)
+n2 <- 4000
+L2 <- rnorm(n2)
+S2 <- rbinom(n2, 1, plogis(-0.5 + 1.0 * L2))
+A2 <- ifelse(S2 == 1L, rbinom(n2, 1, plogis(0.2 + 0.3 * L2)), NA_integer_)
+C2 <- ifelse(S2 == 1L, rbinom(n2, 1, plogis(-1.5 + 0.5 * A2 + 0.3 * L2)), 0L)
+Y2_full <- ifelse(S2 == 1L, 2 + 3 * A2 + 1.5 * L2 + rnorm(n2), NA_real_)
+Y2 <- ifelse(C2 == 1L, NA_real_, Y2_full)
+
+df2 <- data.frame(Y = Y2, A = A2, L = L2, S = S2, C = C2)
+```
+
+All three estimators support IPCW + transport:
+
+```{r}
+fit_ipcw_gc <- causat(
+  df2,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L,
+  target = "S",
+  censoring = "C"
+)
+
+res_ipcw_gc <- contrast(
+  fit_ipcw_gc,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  reference = "a0"
+)
+res_ipcw_gc
+```
+
+The sandwich variance accounts for all three nuisance models (outcome,
+censoring, sampling) via the influence-function correction chain.
+
 ## Diagnostics
 
 `diagnose()` includes a **sampling model panel** for transport fits,
