@@ -1,5 +1,27 @@
 # causatr (development version)
 
+## 2026-05-18 — MTP + transportability via MC marginalization (Phase 17l)
+
+Modified treatment policy (MTP) interventions (`shift()`, `scale_by()`,
+`threshold()`, `dynamic()`, and natural-course `NULL`) can now be combined with
+`target = "S"` under g-computation and AIPW. Previously, target-population rows
+(S=0) had no observed treatment, so MTP interventions that depend on observed A
+produced NA predictions and silently dropped all target rows.
+
+The fix uses Monte Carlo marginalization: for each target row with covariates
+L_i, causatr draws treatment values from P(A|L_i, S=1) — the study treatment
+distribution — applies the intervention d(A,L), predicts outcomes from the
+fitted model, and averages. For binary treatments, exact enumeration replaces
+MC sampling. A simple GLM treatment model is fitted internally at contrast time
+for g-computation; AIPW reuses its existing propensity model.
+
+IPW + MTP + transport requires no MC marginalization (density-ratio weights
+operate on study rows only) and continues to support sandwich variance. Sandwich
+variance for gcomp and AIPW + MTP + transport is not yet supported (the MC
+marginalization introduces treatment-model dependence not captured by the
+current IF chain); `ci_method = "sandwich"` aborts with class
+`causatr_mtp_transport_sandwich`, pointing users to bootstrap.
+
 ## 2026-05-18 — IPCW × transportability (Phase 17k)
 
 `causat()` now supports `target = "S"` together with `ipcw = TRUE` for all

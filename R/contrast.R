@@ -520,6 +520,154 @@ predict_under_intervention <- function(model, data, treatment, iv) {
 }
 
 
+#' Fit a treatment model for MC marginalization under transport
+#'
+#' When an MTP intervention (shift, scale_by, threshold, dynamic) is
+#' combined with transportability, target-population rows have no
+#' observed treatment. This helper fits a simple GLM for
+#' \eqn{f(A \mid L, S = 1)} on study rows so that treatment values
+#' can be drawn (or enumerated for binary) to marginalize the
+#' outcome-model prediction over the study treatment distribution.
+#'
+#' @param data data.table. Full dataset (study + target).
+#' @param treatment Character. Treatment column name.
+#' @param confounders One-sided formula.
+#' @param fit_rows Logical vector. Study rows (S = 1) with observed outcome.
+#' @return A fitted GLM object.
+#' @noRd
+fit_mc_treatment_model <- function(data, treatment, confounders, fit_rows) {
+  study_data <- data[fit_rows]
+  trt_vals <- study_data[[treatment]]
+  is_binary <- length(unique(stats::na.omit(trt_vals))) <= 2L &&
+    all(trt_vals %in% c(0L, 1L, 0, 1), na.rm = TRUE)
+  fam <- if (is_binary) stats::binomial() else stats::gaussian()
+  rhs <- deparse(confounders[[2]], width.cutoff = 500L)
+  fml <- stats::as.formula(paste(treatment, "~", rhs))
+  stats::glm(fml, data = study_data, family = fam)
+}
+
+
+#' MC-marginalize outcome predictions for target rows
+#'
+#' For target rows where treatment \eqn{A} is unobserved, computes
+#' \deqn{E_{A \mid L, S=1}[\hat{m}(d(A, L), L) \mid L_i]}
+#' by either exact enumeration (binary treatment) or Monte Carlo
+#' integration (continuous treatment). Used by gcomp and AIPW Term 1
+#' when MTP interventions are combined with transportability.
+#'
+#' @param outcome_model Fitted outcome model.
+#' @param mc_data data.table. Target rows needing marginalization.
+#' @param treatment Character. Treatment column name.
+#' @param iv A `causatr_intervention` or NULL.
+#' @param treatment_model Fitted GLM from `fit_mc_treatment_model()`.
+#' @param n_mc Integer. MC draws for continuous treatment (ignored for binary).
+#' @return Numeric vector of marginalized predictions (length = nrow(mc_data)).
+#' @noRd
+mc_marginalize_preds <- function(
+  outcome_model,
+  mc_data,
+  treatment,
+  iv,
+  treatment_model,
+  n_mc = 50L
+) {
+  is_binary <- treatment_model$family$family == "binomial"
+  if (is_binary) {
+    mc_marginalize_binary(
+      outcome_model,
+      mc_data,
+      treatment,
+      iv,
+      treatment_model
+    )
+  } else {
+    mc_marginalize_continuous(
+      outcome_model,
+      mc_data,
+      treatment,
+      iv,
+      treatment_model,
+      n_mc
+    )
+  }
+}
+
+
+#' Exact marginalization for binary treatment
+#'
+#' Enumerates both treatment values weighted by the propensity:
+#' \deqn{\hat\mu_i = \hat p_i \cdot \hat m(d(1, L_i), L_i) +
+#'   (1 - \hat p_i) \cdot \hat m(d(0, L_i), L_i)}
+#'
+#' @noRd
+mc_marginalize_binary <- function(
+  outcome_model,
+  mc_data,
+  treatment,
+  iv,
+  treatment_model
+) {
+  p1 <- stats::predict(treatment_model, newdata = mc_data, type = "response")
+
+  # A = 0 branch
+  d0 <- data.table::copy(mc_data)
+  d0[, (treatment) := 0L]
+  if (!is.null(iv)) {
+    d0 <- apply_single_intervention(d0, treatment, iv)
+  }
+  preds_0 <- stats::predict(outcome_model, newdata = d0, type = "response")
+
+  # A = 1 branch
+  d1 <- data.table::copy(mc_data)
+  d1[, (treatment) := 1L]
+  if (!is.null(iv)) {
+    d1 <- apply_single_intervention(d1, treatment, iv)
+  }
+  preds_1 <- stats::predict(outcome_model, newdata = d1, type = "response")
+
+  (1 - p1) * preds_0 + p1 * preds_1
+}
+
+
+#' MC marginalization for continuous treatment
+#'
+#' Draws \eqn{A_1, \ldots, A_M \sim f(A \mid L, S=1)} from the fitted
+#' treatment model, applies the intervention, predicts, and averages.
+#'
+#' @noRd
+mc_marginalize_continuous <- function(
+  outcome_model,
+  mc_data,
+  treatment,
+  iv,
+  treatment_model,
+  n_mc
+) {
+  mu_a <- stats::predict(treatment_model, newdata = mc_data, type = "response")
+  sigma_a <- sqrt(summary(treatment_model)$dispersion)
+
+  n_rows <- nrow(mc_data)
+  preds_sum <- rep(0, n_rows)
+
+  for (m in seq_len(n_mc)) {
+    a_draw <- stats::rnorm(n_rows, mean = mu_a, sd = sigma_a)
+    draw_data <- data.table::copy(mc_data)
+    draw_data[, (treatment) := a_draw]
+    if (!is.null(iv)) {
+      draw_data <- apply_single_intervention(draw_data, treatment, iv)
+    }
+    preds_m <- stats::predict(
+      outcome_model,
+      newdata = draw_data,
+      type = "response"
+    )
+    preds_sum <- preds_sum + preds_m
+  }
+
+  preds_sum / n_mc
+}
+
+
 #' Core standardisation engine for causal contrasts
 #'
 #' @description
@@ -991,6 +1139,35 @@ compute_contrast <- function(
 
     boot_t <- NULL
     boot_info <- NULL
+
+    # Reject sandwich for MTP + transport: the MC marginalization
+    # introduces treatment-model dependence not captured by the IF.
+    is_transport_aipw <- isTRUE(fit$details$transport)
+    any_mc_aipw <- is_transport_aipw &&
+      any(vapply(
+        interventions,
+        needs_observed_treatment,
+        logical(1)
+      ))
+    if (ci_method == "sandwich" && any_mc_aipw) {
+      rlang::abort(
+        c(
+          paste0(
+            "Sandwich variance is not supported for MTP interventions ",
+            "(shift, scale_by, threshold, dynamic) combined with ",
+            "transportability under AIPW."
+          ),
+          i = paste0(
+            "The MC marginalization over the study treatment distribution ",
+            "introduces dependence on the treatment model whose influence ",
+            "function is not yet propagated through Term 1."
+          ),
+          i = "Use `ci_method = \"bootstrap\"` for valid inference."
+        ),
+        class = "causatr_mtp_transport_sandwich"
+      )
+    }
+
     if (ci_method == "sandwich") {
       vcov_mat <- variance_if(
         fit,
@@ -1046,6 +1223,42 @@ compute_contrast <- function(
     preds_list <- lapply(pred_results, `[[`, "preds")
     data_a_list <- lapply(pred_results, `[[`, "data_a")
 
+    # MTP + transport: MC-marginalize predictions for target rows
+    # where treatment is unobserved. For each MTP intervention,
+    # replace the NA predictions on target rows with
+    # E_{A|L,S=1}[m(d(A,L), L)] computed via exact enumeration
+    # (binary) or Monte Carlo integration (continuous).
+    is_transport <- isTRUE(fit$details$transport)
+    any_needs_mc <- is_transport &&
+      any(vapply(
+        interventions,
+        needs_observed_treatment,
+        logical(1)
+      ))
+    if (any_needs_mc && length(fit$treatment) == 1L) {
+      mc_rows <- is.na(data[[fit$treatment]])
+      if (any(mc_rows)) {
+        mc_tm <- fit_mc_treatment_model(
+          data,
+          fit$treatment,
+          fit$confounders,
+          fit$details$fit_rows
+        )
+        mc_data <- data[mc_rows]
+        for (i in seq_along(interventions)) {
+          if (needs_observed_treatment(interventions[[i]])) {
+            preds_list[[i]][mc_rows] <- mc_marginalize_preds(
+              model,
+              mc_data,
+              fit$treatment,
+              interventions[[i]],
+              mc_tm
+            )
+          }
+        }
+      }
+    }
+
     # Handle NA predictions (e.g. rows with missing confounders).
     # Intersect a "valid-across-all-interventions" mask with the target
     # to avoid losing rows whose prediction is NA under *any* regime
@@ -1089,6 +1302,24 @@ compute_contrast <- function(
     # `fit$estimator`) or nonparametric bootstrap.
     boot_t <- NULL
     boot_info <- NULL
+    if (ci_method == "sandwich" && any_needs_mc) {
+      rlang::abort(
+        c(
+          paste0(
+            "Sandwich variance is not supported for MTP interventions ",
+            "(shift, scale_by, threshold, dynamic) combined with ",
+            "transportability under g-computation."
+          ),
+          i = paste0(
+            "The MC marginalization over the study treatment distribution ",
+            "introduces dependence on a treatment model whose influence ",
+            "function is not yet accounted for in the sandwich."
+          ),
+          i = "Use `ci_method = \"bootstrap\"` for valid inference."
+        ),
+        class = "causatr_mtp_transport_sandwich"
+      )
+    }
     if (ci_method == "sandwich") {
       vcov_mat <- variance_if(
         fit,

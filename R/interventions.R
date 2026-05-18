@@ -691,3 +691,22 @@ apply_single_intervention <- function(data, trt_col, iv) {
   )
   data
 }
+
+
+#' Check if an intervention requires observed treatment values
+#'
+#' Returns `TRUE` for interventions whose counterfactual treatment
+#' \eqn{d(A, L)} depends on the observed value \eqn{A} (shift, scale,
+#' threshold, dynamic, or NULL = natural course). Returns `FALSE` for
+#' static (sets \eqn{A} to a fixed value) and stochastic (draws from a
+#' user-supplied sampler that receives the full data).
+#'
+#' @param iv A `causatr_intervention` object, or `NULL` (natural course).
+#' @return Logical scalar.
+#' @noRd
+needs_observed_treatment <- function(iv) {
+  if (is.null(iv)) {
+    return(TRUE)
+  }
+  iv$type %in% c("shift", "scale", "threshold", "dynamic")
+}

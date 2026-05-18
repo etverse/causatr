@@ -984,3 +984,32 @@ simulate_ipcw_transport <- function(n = 6000, seed = 42) {
 
   data.frame(Y = Y, Y_full = Y_full, A = A, L = L, S = S, C = C)
 }
+
+
+# DGP for MTP + transport tests (continuous treatment).
+#
+#   L ~ N(0, 1)
+#   P(S = 1 | L) = expit(-0.5 + L)
+#   A | L, S=1 ~ N(0.5 + 0.3L, 1)   (continuous treatment on study rows)
+#   Y | A, L, S=1 ~ N(2 + 3A + 1.5L + AL, 1)
+#
+# Truth for shift(delta) vs natural course on the target population:
+#   E[Y^{A+delta}] - E[Y^A] = 3*delta + delta*E[L|target]
+#
+# The shift effect depends on L through the A*L interaction term.
+# Target rows (S=0) have A = NA (not observed).
+simulate_mtp_transport <- function(n = 5000, seed = 42) {
+  set.seed(seed)
+  L <- rnorm(n)
+  p_study <- plogis(-0.5 + 1.0 * L)
+  S <- rbinom(n, 1, p_study)
+
+  A <- ifelse(S == 1L, rnorm(n, 0.5 + 0.3 * L, 1), NA_real_)
+  Y <- ifelse(
+    S == 1L,
+    2 + 3 * A + 1.5 * L + A * L + rnorm(n),
+    NA_real_
+  )
+
+  data.frame(Y = Y, A = A, L = L, S = S)
+}

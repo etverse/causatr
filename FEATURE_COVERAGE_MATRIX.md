@@ -864,7 +864,31 @@ Sampling model `P(S=1 | L)` + sampling-odds weights multiply into IPW Hájek MSM
 
 **Implementation note.** No source code changes were required. The runtime path in `causat.R` already composes transport (sampling model) and IPCW (censoring model) independently and sequentially; the sandwich variance engines (`variance_if_ipw`, `variance_if_gcomp`, `variance_if_aipw`) already apply both the IPCW and sampling-model corrections when the respective flags are active. This chunk is purely test coverage validating the four-block composition.
 
-Remaining chunks (17l): MTP + transportability. Chunk 17m (documentation) pending. All ❌.
+**Chunk 17l — MTP + transportability (MC marginalization)**
+
+For MTP interventions (shift, scale_by, threshold, dynamic) combined with transportability, target rows (S=0) have no observed treatment. MC marginalization integrates $E_{A|L,S=1}[\hat{m}(d(A,L), L)]$ over the study treatment distribution: exact enumeration for binary treatment, Monte Carlo draws for continuous. Sandwich variance is rejected (classed error `causatr_mtp_transport_sandwich`) for gcomp and AIPW because the MC marginalization introduces treatment-model dependence not captured by the current IF chain; bootstrap is supported. IPW + MTP + transport does not require MC marginalization (density-ratio weights operate on study rows only) so sandwich works.
+
+| Feature | Status | Test |
+|---|---|---|
+| gcomp + shift + transport: recovers analytical truth | ✅ | test-mtp-transport.R |
+| gcomp + scale_by + transport: recovers truth | ✅ | test-mtp-transport.R |
+| gcomp + threshold + transport: runs without error | 🟡 | test-mtp-transport.R |
+| gcomp + dynamic + transport: recovers truth | ✅ | test-mtp-transport.R |
+| gcomp + shift + generalizability: recovers truth | ✅ | test-mtp-transport.R |
+| IPW + shift + transport: recovers truth | ✅ | test-mtp-transport.R |
+| IPW + ipsi + transport: runs and produces finite estimates (binary DGP) | 🟡 | test-mtp-transport.R |
+| AIPW + shift + transport: recovers truth | ✅ | test-mtp-transport.R |
+| AIPW + shift + transport: DR under wrong outcome model | ✅ | test-mtp-transport.R |
+| AIPW + shift + transport: smoke test | 🟡 | test-mtp-transport.R |
+| Cross-estimator agreement: gcomp shift ≈ IPW shift | ✅ | test-mtp-transport.R |
+| gcomp + shift + transport: bootstrap SE finite and reasonable | ✅ | test-mtp-transport.R |
+| gcomp + shift + transport: sandwich is rejected | ✅ | test-mtp-transport.R |
+| AIPW + shift + transport: sandwich is rejected | ✅ | test-mtp-transport.R |
+| IPW + shift + transport: sandwich works (no MC marginalization) | ✅ | test-mtp-transport.R |
+| gcomp + static + transport: sandwich still works (no MC needed) | ✅ | test-mtp-transport.R |
+| gcomp + dynamic + binary treatment + transport: exact marginalization | ✅ | test-mtp-transport.R |
+
+Remaining chunks: 17m (documentation). Pending.
 
 ### Phase 18 — G-estimation of Structural Nested Mean Models
 Third leg of the Robins triangle. Motivating use case: **correct handling of time-varying effect modification** — SNMs parameterise the per-stage blip $\gamma_k(a_k, \bar{l}_k, \bar{a}_{k-1}; \psi)$ directly and identify it via a moment condition that uses the treatment model as instrument, so time-varying modifiers are supported by design (closes the Phase 6 limitation under MSM-based estimators). Scope: linear-blip additive SNMMs for point + longitudinal, stacked EE sandwich ($K$ treatment blocks + blip block), bootstrap, `gesttools` cross-check. Survival SNMs (SNFTMs/SNCFTMs) out of scope. All ❌.

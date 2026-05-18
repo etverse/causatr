@@ -425,13 +425,63 @@ variance_bootstrap <- function(
         )
         target_idx_b <- transport_override(d_b) %||% target_idx_b
 
+        # MTP + transport: fit a treatment model on the bootstrap
+        # sample's study rows and MC-marginalize predictions for
+        # target rows where A is unobserved.
+        is_transport_b <- !is.null(fit$target)
+        mc_tm_b <- NULL
+        mc_rows_b <- NULL
+        any_mc_b <- FALSE
+        if (is_transport_b && length(treatment) == 1L) {
+          mc_rows_b <- is.na(d_b[[treatment]])
+          if (
+            any(mc_rows_b) &&
+              any(vapply(
+                interventions,
+                needs_observed_treatment,
+                logical(1)
+              ))
+          ) {
+            any_mc_b <- TRUE
+            fit_rows_b <- get_fit_rows(
+              d_b,
+              fit$outcome,
+              fit$censoring,
+              target = fit$target
+            )
+            mc_tm_b <- fit_mc_treatment_model(
+              d_b,
+              treatment,
+              fit$confounders,
+              fit_rows_b
+            )
+          }
+        }
+
         vapply(
           interventions,
           function(iv) {
             data_a_b <- apply_intervention(d_b, treatment, iv)
-            pred_a_b <- predict(model_b, newdata = data_a_b, type = "response")
+            pred_a_b <- predict(
+              model_b,
+              newdata = data_a_b,
+              type = "response"
+            )
+            # MC-marginalize target-row predictions for MTP interventions
+            if (any_mc_b && needs_observed_treatment(iv)) {
+              pred_a_b[mc_rows_b] <- mc_marginalize_preds(
+                model_b,
+                d_b[mc_rows_b],
+                treatment,
+                iv,
+                mc_tm_b
+              )
+            }
             valid <- target_idx_b & !is.na(pred_a_b)
-            maybe_weighted_mean(pred_a_b[valid], if (!is.null(w_b)) w_b[valid])
+            maybe_weighted_mean(
+              pred_a_b[valid],
+              if (!is.null(w_b)) w_b[valid]
+            )
           },
           numeric(1)
         )

@@ -441,13 +441,53 @@ compute_aipw_contrast_point <- function(fit, interventions, target_idx) {
       #   mu(d) = (1/n_T) sum_{target} m(d,L) + (1/n_T) sum_{S=1} w_S * W_A * resid
       # Term 1 sums over target rows; Term 2 sums over study (fit) rows.
 
-      # Term 1: outcome-model predictions on target rows
+      # Term 1: outcome-model predictions on target rows.
+      # For MTP interventions (shift, scale_by, etc.) target rows have
+      # A = NA, so we MC-marginalize over the study treatment distribution.
       if (is_ipsi) {
         preds_target <- stats::predict(
           outcome_model,
           newdata = target_data,
           type = "response"
         )
+      } else if (
+        needs_observed_treatment(iv) &&
+          length(treatment) == 1L &&
+          any(is.na(target_data[[treatment]]))
+      ) {
+        mc_target <- is.na(target_data[[treatment]])
+        preds_target <- rep(NA_real_, nrow(target_data))
+        if (any(!mc_target)) {
+          obs_data <- apply_intervention(
+            target_data[!mc_target],
+            treatment,
+            iv
+          )
+          preds_target[!mc_target] <- stats::predict(
+            outcome_model,
+            newdata = obs_data,
+            type = "response"
+          )
+        }
+        if (any(mc_target)) {
+          aipw_tm <- if (!is.null(tm)) {
+            tm$model
+          } else {
+            fit_mc_treatment_model(
+              fit$data,
+              treatment,
+              fit$confounders,
+              fit_rows
+            )
+          }
+          preds_target[mc_target] <- mc_marginalize_preds(
+            outcome_model,
+            target_data[mc_target],
+            treatment,
+            iv,
+            aipw_tm
+          )
+        }
       } else {
         target_data_a <- apply_intervention(target_data, treatment, iv)
         preds_target <- stats::predict(

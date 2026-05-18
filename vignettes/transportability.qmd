@@ -267,6 +267,54 @@ res_ipcw_gc
 The sandwich variance accounts for all three nuisance models (outcome,
 censoring, sampling) via the influence-function correction chain.
 
+## Modified treatment policies (MTP) + transport
+
+For static interventions, target-row predictions use $\hat{m}(a, L_i)$
+directly. But MTP interventions --- `shift()`, `scale_by()`,
+`threshold()`, `dynamic()` --- transform the *observed* treatment via
+$d(A, L)$, and target rows (S = 0) have $A = \text{NA}$. causatr solves
+this via **MC marginalization**: it integrates
+$E_{A \mid L, S=1}[\hat{m}(d(A,L), L)]$ over the study treatment
+distribution. For binary treatment this is exact enumeration; for
+continuous treatment it draws Monte Carlo samples from a fitted
+treatment model.
+
+```{r}
+set.seed(201)
+n3 <- 6000
+L3 <- rnorm(n3)
+S3 <- rbinom(n3, 1, plogis(-0.5 + L3))
+A3 <- ifelse(S3 == 1L, rnorm(n3, 0.5 + 0.3 * L3, 1), NA_real_)
+Y3 <- ifelse(
+  S3 == 1L,
+  2 + 3 * A3 + 1.5 * L3 + A3 * L3 + rnorm(n3),
+  NA_real_
+)
+df3 <- data.frame(Y = Y3, A = A3, L = L3, S = S3)
+
+fit_mtp <- causat(df3, "Y", "A", ~ L + A:L, target = "S")
+
+res_mtp <- contrast(
+  fit_mtp,
+  interventions = list(shifted = shift(1), natural = NULL),
+  reference = "natural",
+  type = "difference",
+  ci_method = "bootstrap",
+  n_boot = 200
+)
+res_mtp
+```
+
+The analytical truth for this DGP is
+$3 \delta + \delta \cdot E[L \mid S = 0]$; the bootstrap CI should
+bracket it.
+
+**Important**: sandwich variance is not available for gcomp or AIPW
+with MTP + transport, because the MC marginalization introduces
+treatment-model dependence not captured by the current IF chain. Use
+`ci_method = "bootstrap"` instead. IPW + MTP + transport supports
+sandwich (no MC marginalization needed).
+
 ## Diagnostics
 
 `diagnose()` includes a **sampling model panel** for transport fits,

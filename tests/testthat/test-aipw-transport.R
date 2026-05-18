@@ -332,6 +332,8 @@ test_that("AIPW transport: dynamic intervention", {
     propensity_model_fn = stats::glm,
     target = "S"
   )
+  # dynamic() + transport requires bootstrap (sandwich rejected because
+  # MC marginalization introduces treatment-model dependence in Term 1).
   res <- contrast(
     fit,
     interventions = list(
@@ -340,7 +342,8 @@ test_that("AIPW transport: dynamic intervention", {
     ),
     reference = "a0",
     type = "difference",
-    ci_method = "sandwich"
+    ci_method = "bootstrap",
+    n_boot = 50
   )
   expect_s3_class(res, "causatr_result")
   expect_false(anyNA(coef(res)))
