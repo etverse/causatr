@@ -608,13 +608,25 @@ causat <- function(
       call = call
     )
     samp_fn <- sampling_model_fn %||% stats::glm
+    # For longitudinal data, S is constant across time for each individual.
+    # Fit the sampling model on first-period rows only to avoid K-fold
+    # inflation of the likelihood and the sandwich score.
+    if (type == "longitudinal") {
+      first_t <- min(data[[time]])
+      rows_first_samp <- data[[time]] == first_t
+      samp_data <- data[rows_first_samp]
+      samp_weights <- if (is.null(weights)) NULL else weights[rows_first_samp]
+    } else {
+      samp_data <- data
+      samp_weights <- weights
+    }
     samp_model <- fit_sampling_model(
-      data = data,
+      data = samp_data,
       target = target,
       confounders = confounders,
       treatment = treatment,
       model_fn = samp_fn,
-      weights = weights
+      weights = samp_weights
     )
     sampling_details <- list(
       transport = TRUE,

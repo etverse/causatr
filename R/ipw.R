@@ -115,6 +115,7 @@ fit_ipw <- function(
       id = id,
       time = time,
       call = call,
+      target = target,
       ...
     ))
   }

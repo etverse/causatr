@@ -594,15 +594,26 @@ refit_ipw <- function(fit, d_b, weights = NULL) {
   fit_b <- do.call(fit_ipw, c(args, fit$details$dots))
   fit_b$call <- fit$call
 
-  # Transport: refit sampling model on bootstrap replicate
+  # Transport: refit sampling model on bootstrap replicate. For
+  # longitudinal fits, the sampling model must use first-period rows only
+  # (same as the original fit) to avoid K-fold inflation.
   if (!is.null(fit$target)) {
+    if (fit$type == "longitudinal") {
+      first_t_b <- fit$details$time_points[1]
+      rows_first_b <- d_b[[fit$time]] == first_t_b
+      d_samp_b <- d_b[rows_first_b]
+      w_samp_b <- if (is.null(weights)) NULL else weights[rows_first_b]
+    } else {
+      d_samp_b <- d_b
+      w_samp_b <- weights
+    }
     samp_model_b <- fit_sampling_model(
-      d_b,
+      d_samp_b,
       fit$target,
       fit$confounders,
       fit$treatment,
       model_fn = fit$details$sampling_model_fn,
-      weights = weights
+      weights = w_samp_b
     )
     fit_b$details$transport <- TRUE
     fit_b$details$sampling_model <- samp_model_b

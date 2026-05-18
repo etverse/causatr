@@ -850,6 +850,21 @@ compute_contrast <- function(
       # returns per-individual pseudo-outcomes at baseline along with
       # the fitted chain of models the sandwich variance engine
       # consumes.
+
+      # For transport, override target_within_first with the transport
+      # target population (S=0 for transportability, all for
+      # generalizability). Point IPW/AIPW use sampling weights instead;
+      # gcomp standardises the pseudo-outcome mean over the target.
+      if (!is.null(fit$target)) {
+        transport_rows_ice <- transport_target_idx(
+          data,
+          fit$target,
+          fit$target_subset
+        )
+        target_within_first <- transport_rows_ice[rows_first]
+        n_target <- sum(target_within_first)
+      }
+
       ice_results <- stats::setNames(
         lapply(interventions, function(iv) ice_iterate(fit, iv)),
         int_names

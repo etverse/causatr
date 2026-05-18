@@ -808,7 +808,24 @@ Sampling model `P(S=1 | L)` + sampling-odds weights multiply into IPW Hájek MSM
 | gcomp transport TATE matches `TransportHealth::transportGC()` (tolerance 1e-4) | ✅ | test-gcomp-transport.R |
 | IPW transport TATE matches `TransportHealth::transportIP()` (tolerance 1e-4) | ✅ | test-ipw-transport.R |
 
-Remaining chunks (17i–17l): longitudinal transport, multivariate IPW × transport, IPCW × transport, MTP + transportability. Chunk 17m (documentation) pending. All ❌.
+**Chunk 17i — Longitudinal IPW × transport**
+
+| Feature | Status | Test |
+|---|---|---|
+| `causat(target="S", estimator="ipw", id=, time=)`: sampling model fit on first-period rows only | ✅ | test-longitudinal-transport.R |
+| Sampling odds weight broadcast to all person-period rows for each individual | ✅ | test-longitudinal-transport.R |
+| Sampling weight × per-period treatment DR weight in longitudinal MSM | ✅ | test-longitudinal-transport.R |
+| `target_subset="target"` (transportability): truth-based test ATE ≈ 4 + E[L\|S=0] ≈ 3.67 | ✅ | test-longitudinal-transport.R |
+| `target_subset="all"` (generalizability): truth-based test ATE = 4 | ✅ | test-longitudinal-transport.R |
+| Transport corrects study-population bias (naive longitudinal IPW disagrees by >0.25) | ✅ | test-longitudinal-transport.R |
+| Long IPW transport agrees with long gcomp transport (linear DGP; diff < 0.15) | ✅ | test-longitudinal-transport.R |
+| Sandwich SE plausible (ratio to bootstrap SE in (0.4, 2.5)) | ✅ | test-longitudinal-transport.R |
+| Bootstrap refits sampling model per replicate; original fit unchanged | ✅ | test-longitudinal-transport.R |
+| `stabilize="marginal"` + transport: finite ATE and SE | ✅ | test-longitudinal-transport.R |
+| `target=NULL` longitudinal IPW (non-transport): behaviour unchanged | ✅ | test-longitudinal-transport.R |
+| ICE gcomp + longitudinal + transport: NA lag columns filled for target individuals under static interventions | ✅ | test-longitudinal-transport.R |
+
+Remaining chunks (17j–17l): multivariate IPW × transport, IPCW × transport, MTP + transportability. Chunk 17m (documentation) pending. All ❌.
 
 ### Phase 18 — G-estimation of Structural Nested Mean Models
 Third leg of the Robins triangle. Motivating use case: **correct handling of time-varying effect modification** — SNMs parameterise the per-stage blip $\gamma_k(a_k, \bar{l}_k, \bar{a}_{k-1}; \psi)$ directly and identify it via a moment condition that uses the treatment model as instrument, so time-varying modifiers are supported by design (closes the Phase 6 limitation under MSM-based estimators). Scope: linear-blip additive SNMMs for point + longitudinal, stacked EE sandwich ($K$ treatment blocks + blip block), bootstrap, `gesttools` cross-check. Survival SNMs (SNFTMs/SNCFTMs) out of scope. All ❌.

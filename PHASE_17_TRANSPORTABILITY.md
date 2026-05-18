@@ -1,6 +1,6 @@
 # Phase 17 — Transportability and Generalizability
 
-> **Status: IN PROGRESS** — 17a–17h shipped; 17i–17m pending.
+> **Status: IN PROGRESS** — 17a–17i shipped; 17j–17m pending.
 >
 > **Depends on:** Phase 2 (point gcomp), Phase 4 (self-contained IPW)
 >
@@ -147,7 +147,7 @@ Each composition is tracked as a concrete chunk below (17i–17l). Summary:
 | 17f | `diagnose()` shim: sampling-score panel + extreme-sampling-weight flags | 17a | ✅ done |
 | 17g | Sampling model predictor-set validation: emit `rlang::warn()` when confounders formula RHS is a strict subset of outcome/treatment model predictors | 17a | ✅ done |
 | 17h | External cross-check against `transport` / `transported` R packages on shared DGPs | 17b, 17c | ✅ done |
-| 17i | Longitudinal transport (Phase 10 × Phase 17): broadcast sampling weight onto person-period rows; multiply into per-period treatment weight; weighted longitudinal MSM | Phase 10, 17c | pending |
+| 17i | Longitudinal transport (Phase 10 × Phase 17): broadcast sampling weight onto person-period rows; multiply into per-period treatment weight; weighted longitudinal MSM | Phase 10, 17c | ✅ done |
 | 17j | Multivariate IPW × transport (Phase 8 composition): joint treatment density × sampling density; stacked sandwich with multivariate propensity + sampling blocks | Phase 8, 17c | pending |
 | 17k | IPCW × transport (Phase 14 composition): four-way stacked EE (outcome/propensity + censoring + sampling + plug-in); triply-weighted estimator | Phase 14, 17c | pending |
 | 17l | MTP + transportability: MC marginalization $E_{A|L,S=1}[\hat{m}(d(A,L), L) \mid L]$ for shift/scale\_by/ipsi on target rows where $A = \mathrm{NA}$; sequential regression or Monte Carlo integration (Díaz & Hejazi 2020; Hejazi et al. 2024) | 17e | pending |

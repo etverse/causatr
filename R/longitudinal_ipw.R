@@ -97,6 +97,7 @@ fit_longitudinal_ipw <- function(
   id,
   time,
   call,
+  target = NULL,
   ...
 ) {
   # Each abort is a classed error so callers can detect on `class`
@@ -344,6 +345,12 @@ fit_longitudinal_ipw <- function(
   last_time <- time_points[n_times]
   rows_final <- data[[time]] == last_time
   fit_rows_final <- rows_final & !is.na(data[[outcome]])
+  # Transport: restrict the final-period MSM to study rows (S=1). Target
+  # rows have no observed outcome; the sampling odds weights reweight the
+  # study population to the target population within the weighted MSM.
+  if (!is.null(target)) {
+    fit_rows_final <- fit_rows_final & data[[target]] == 1L
+  }
 
   if (sum(fit_rows_final) == 0L) {
     rlang::abort(
@@ -656,6 +663,21 @@ compute_ipw_contrast_longitudinal <- function(
 
   ext_w_final <- if (is.null(ext_w)) NULL else ext_w[fit_rows_final]
 
+  # Transport: compute per-final-row sampling odds weights once (shared
+  # across all interventions). The sampling model was fit on first-period
+  # (cross-sectional) data; it predicts correctly on any subset that
+  # carries the same baseline confounders, including the final-period rows.
+  is_transport <- isTRUE(fit$details$transport)
+  w_S_final <- NULL
+  if (is_transport) {
+    w_S_final <- compute_sampling_weights(
+      fit$details$sampling_model,
+      data_final,
+      fit$target,
+      fit$target_subset
+    )
+  }
+
   # MSM formula. Default `Y ~ 1` (intercept-only Hájek). With
   # baseline-modifier effect modification (`A:modifier` in
   # `confounders`), expands to `Y ~ 1 + modifier` via the existing
@@ -703,11 +725,15 @@ compute_ipw_contrast_longitudinal <- function(
     # Project per-id weights onto the final-period row order.
     w_final <- w_id[id_to_first_idx[ids_final]]
 
-    # Compose with external weights. Same multiplicative convention as
-    # `compute_ipw_contrast_point()`: density-ratio weights and survey
-    # / IPCW weights enter as independent reweightings of the target
-    # population.
-    w_combined <- if (is.null(ext_w_final)) w_final else w_final * ext_w_final
+    # Compose: treatment density-ratio × sampling odds × external weights.
+    # All three sources are independent reweightings; order is arbitrary.
+    w_combined <- w_final
+    if (!is.null(w_S_final)) {
+      w_combined <- w_combined * w_S_final
+    }
+    if (!is.null(ext_w_final)) {
+      w_combined <- w_combined * ext_w_final
+    }
 
     # Final-period weighted MSM. Intercept-only Hajek under
     # `Y ~ 1`; with EM the MSM is `Y ~ 1 + modifier` so `predict()`
@@ -722,12 +748,15 @@ compute_ipw_contrast_longitudinal <- function(
     msm_model <- do.call(model_fn, msm_args)
 
     # Counterfactual marginal mean over the target subset of
-    # individuals. `target_within_first` is length n_id; subset to the
-    # final-period rows that correspond to target ids. Under EM the
-    # MSM contains modifier columns, so `predict()` correctly returns
-    # the per-row stratum mean -- aggregation by modifier value is
-    # handled by the user via `by =` in `contrast()`.
-    target_ids_final <- target_within_first[id_to_first_idx[ids_final]]
+    # individuals. Under transport, all final-period rows are study rows
+    # (S=1, enforced by fit_rows_final); the sampling weights already
+    # reweight to the target population, so every row contributes.
+    # Otherwise `target_within_first` restricts to the user's subset.
+    target_ids_final <- if (is_transport) {
+      rep(TRUE, n_final)
+    } else {
+      target_within_first[id_to_first_idx[ids_final]]
+    }
     preds_final <- stats::predict(msm_model, type = "response")
     valid_final <- target_ids_final & !is.na(preds_final)
     w_target_final <- if (!is.null(ext_w_final)) {

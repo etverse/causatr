@@ -1,5 +1,28 @@
 # causatr (development version)
 
+## 2026-05-18 — Longitudinal IPW × transportability (Phase 17i)
+
+`causat()` now supports `target = "S"` together with `id =` / `time =`
+(longitudinal IPW). Passing a `sampling_model_fn` alongside the longitudinal
+arguments fits P(S=1 | L) on the first period of each individual, broadcasts
+the resulting sampling-odds weight `(1 − p̂) / p̂` to all person-period rows for
+that individual, and multiplies it into the per-period DR treatment weight
+inside the longitudinal Hájek MSM. The result is a transportable (or
+generalizable, via `target_subset = "all"`) longitudinal causal estimate.
+
+Sandwich variance extends the Phase 10 stacked EE to include a sampling-model
+score block; bootstrap refits the sampling model per replicate. ICE
+g-computation with longitudinal transport is also supported: NA lag treatment
+columns for target individuals (who have no observed treatment history) are
+filled with the static intervention value before the backward ICE iteration, so
+counterfactuals can be predicted over the target population. Stabilized weights
+(`stabilize = "marginal"`) compose without modification.
+
+Truth-based simulation tests verify transportability (ATE ≈ 4 + E[L|S=0] ≈ 3.67)
+and generalizability (ATE = 4) recovery, cross-estimator agreement between
+longitudinal IPW and ICE gcomp transport, SE plausibility against bootstrap, and
+correct bootstrap refitting of the sampling model.
+
 ## 2026-05-18 — External cross-check against TransportHealth (Phase 17h)
 
 Two cross-check tests confirm that causatr's transportability estimates agree

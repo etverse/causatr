@@ -549,6 +549,37 @@ ice_iterate <- function(fit, intervention) {
     time_col
   )
 
+  # For transport (target individuals have no observed treatment history),
+  # fill NA lag treatment columns with the static intervention value so
+  # the backward ICE iteration can compute counterfactuals for the target
+  # population. Leaving lag columns as NA would cause model.matrix to drop
+  # target rows during prediction, making pseudo-outcomes NA for all
+  # non-study individuals.
+  # Only valid for static interventions; MTPs require observed A_obs which
+  # is undefined for target individuals.
+  if (
+    !is.null(fit$target) &&
+      !is.null(intervention) &&
+      intervention$type == "static"
+  ) {
+    target_col <- fit$target
+    target_mask <- data_iv[[target_col]] == 0L
+    if (any(target_mask)) {
+      a_star <- intervention$value
+      for (trt_k in treatment) {
+        for (lag_k in seq_len(max_lag)) {
+          lag_col <- paste0("lag", lag_k, "_", trt_k)
+          if (lag_col %in% names(data_iv)) {
+            na_and_target <- target_mask & is.na(data_iv[[lag_col]])
+            if (any(na_and_target)) {
+              data_iv[na_and_target, (lag_col) := a_star]
+            }
+          }
+        }
+      }
+    }
+  }
+
   # `pseudo` is the rolling vector of individual-level pseudo-outcomes.
   # Initialized to NA for every unique id; at the final step it gets
   # filled with predictions under the fitted outcome model, and each
