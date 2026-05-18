@@ -178,6 +178,52 @@ test_that("IPW transport: target rows with NA outcome/treatment handled", {
   expect_false(anyNA(coef(res)))
 })
 
+test_that("IPW transport cross-check: matches TransportHealth::transportIP()", {
+  # TransportHealth::transportIP() fits the same models: P(A=1|L) logistic for
+  # confounding, P(S=1|L) logistic for sampling, then a weighted MSM Y ~ A on
+  # study rows. For binary A the MSM coefficient equals the Hajek ATE, matching
+  # causatr's per-intervention intercept-only MSM approach.
+  # Install: pak::pkg_install("CoreClinicalSciences/TransportHealth")
+  skip_if_not_installed("TransportHealth")
+  d <- simulate_transport(n = 10000, seed = 7)
+  d_th <- data.frame(d)
+  d_th$A <- factor(d_th$A)
+
+  invisible(capture.output(
+    res_ip <- TransportHealth::transportIP(
+      msmFormula = Y ~ A,
+      propensityScoreModel = A ~ L,
+      participationModel = S ~ L,
+      treatment = "A",
+      participation = "S",
+      response = "Y",
+      data = d_th,
+      transport = TRUE,
+      bootstrapNum = 0
+    )
+  ))
+  th_ate <- unname(stats::coef(res_ip$msm)["A1"])
+
+  fit <- causat(
+    d,
+    "Y",
+    "A",
+    ~L,
+    estimator = "ipw",
+    target = "S",
+    target_subset = "target"
+  )
+  res <- contrast(
+    fit,
+    list(a1 = static(1), a0 = static(0)),
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  c_ate <- unname(coef(res)["a1"] - coef(res)["a0"])
+
+  expect_equal(c_ate, th_ate, tolerance = 1e-4)
+})
+
 test_that("IPW without transport is unaffected (target = NULL default)", {
   d <- simulate_transport(n = 500, seed = 6)
   d_study <- d[d$S == 1, ]

@@ -48,6 +48,7 @@ Suggests:
     survey,
     tinyplot,
     tinytable,
+    TransportHealth,
     WeightIt,
     withr,
     testthat (>= 3.0.0)

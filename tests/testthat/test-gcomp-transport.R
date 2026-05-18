@@ -220,6 +220,56 @@ test_that("gcomp transport: target rows with NA outcome/treatment are handled", 
   expect_false(anyNA(coef(res)))
 })
 
+test_that("gcomp transport cross-check: matches TransportHealth::transportGC()", {
+  # TransportHealth (CoreClinicalSciences/TransportHealth) implements the same
+  # Dahabreh 2020 standardization: fit outcome model on study (S=1) rows,
+  # predict counterfactuals, average over target (S=0) rows.
+  # Install: pak::pkg_install("CoreClinicalSciences/TransportHealth")
+  skip_if_not_installed("TransportHealth")
+  d <- simulate_transport(n = 10000, seed = 7)
+  # TransportHealth requires factor treatment; causatr uses integer — same GLM fit.
+  d_th <- data.frame(d)
+  d_th$A <- factor(d_th$A)
+  study <- d_th[d_th$S == 1L & !is.na(d_th$Y), ]
+  target <- d_th[d_th$S == 0L, ]
+
+  m_out <- glm(Y ~ A + L + A:L, data = study, family = stats::gaussian())
+  prep <- TransportHealth::transportGCPreparedModel(
+    outcomeModel = m_out,
+    response = "Y",
+    treatment = "A",
+    wipe = FALSE
+  )
+  th_ate <- invisible(capture.output(
+    th_res <- TransportHealth::transportGC(
+      effectType = "meanDiff",
+      preparedModel = prep,
+      targetData = target,
+      bootstrapNum = 0
+    )
+  ))
+  th_ate <- summary(th_res)$effect
+
+  fit <- causat(
+    d,
+    "Y",
+    "A",
+    ~ L + A:L,
+    estimator = "gcomp",
+    target = "S",
+    target_subset = "target"
+  )
+  res <- contrast(
+    fit,
+    list(a1 = static(1), a0 = static(0)),
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  c_ate <- unname(coef(res)["a1"] - coef(res)["a0"])
+
+  expect_equal(c_ate, th_ate, tolerance = 1e-4)
+})
+
 test_that("gcomp without transport is unaffected (target = NULL default)", {
   d <- simulate_transport(n = 500, seed = 6)
   d_study <- d[d$S == 1, ]

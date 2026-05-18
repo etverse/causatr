@@ -1,5 +1,19 @@
 # causatr (development version)
 
+## 2026-05-18 — External cross-check against TransportHealth (Phase 17h)
+
+Two cross-check tests confirm that causatr's transportability estimates agree
+to numerical precision with the independent `TransportHealth` package
+(CoreClinicalSciences/TransportHealth, GitHub). `TransportHealth::transportGC()`
+implements the same Dahabreh 2020 standardization — fit outcome model on study
+rows, average counterfactual predictions over target rows — and agrees with
+causatr gcomp to within `1e-4`. `TransportHealth::transportIP()` fits the
+same P(S=1|L) sampling model and P(A=1|L) propensity model, combines them into
+a weighted MSM, and agrees with causatr IPW to within `1e-4`. Both tests skip
+on CRAN; `TransportHealth` is added to `Suggests`. The DGP used is the
+standard observational transport DGP with confounded treatment and
+treatment-effect heterogeneity (A:L interaction).
+
 ## 2026-05-18 — Sampling model predictor-set validation (Phase 17g)
 
 `fit_sampling_model()` now emits a `causatr_transport_predictor_subset` warning
