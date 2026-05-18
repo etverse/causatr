@@ -34,8 +34,6 @@
 #' @param time Character or `NULL`. Time column for longitudinal data.
 #' @param stabilize Character. Weight stabilization strategy; `"none"` or
 #'   `"marginal"` (for multivariate treatments).
-#' @param id Character or `NULL`. ID column for longitudinal data.
-#' @param time Character or `NULL`. Time column for longitudinal data.
 #' @param call The original `causat()` call.
 #' @param target Character or `NULL`. Name of the sampling indicator column
 #'   for transportability/generalizability.
@@ -494,16 +492,7 @@ compute_aipw_contrast_point <- function(fit, interventions, target_idx) {
           )
         }
         if (any(mc_target)) {
-          aipw_tm <- if (!is.null(tm)) {
-            tm$model
-          } else {
-            fit_mc_treatment_model(
-              fit$data,
-              treatment,
-              fit$confounders,
-              fit_rows
-            )
-          }
+          aipw_tm <- tm$model
           preds_target[mc_target] <- mc_marginalize_preds(
             outcome_model,
             target_data[mc_target],

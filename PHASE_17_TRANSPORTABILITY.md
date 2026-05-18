@@ -24,7 +24,7 @@ The distinction is a matter of data structure and interpretation, not a matter o
 4. **Sandwich variance** via a stacked estimating-equation system that extends the existing engines with the sampling-model block.
 5. **Bootstrap variance** (natural — resample individuals, refit everything per replicate).
 6. **Static binary interventions** are the primary target. MTP interventions (shift / scale\_by / ipsi) require observed A on target rows; for transportability (S = 0 has A = NA) these need MC marginalization (chunk 17l). MTP + generalizability works where all target rows have observed A.
-7. **External cross-check** against `transport` / `transported` R packages (Dahabreh group) on shared DGPs where feasible.
+7. **External cross-check** against `TransportHealth` R package (Dahabreh group) on shared DGPs where feasible.
 
 ## Non-scope
 
@@ -146,7 +146,7 @@ Each composition is tracked as a concrete chunk below (17i–17l). Summary:
 | 17e | AIPW transport: compose Phase 16 + Phase 17; 2-out-of-3 DR test (deliberately misspecify any one of outcome / treatment / sampling — verify consistency) | 17a–17c, Phase 16 | ✅ done |
 | 17f | `diagnose()` shim: sampling-score panel + extreme-sampling-weight flags | 17a | ✅ done |
 | 17g | Sampling model predictor-set validation: emit `rlang::warn()` when confounders formula RHS is a strict subset of outcome/treatment model predictors | 17a | ✅ done |
-| 17h | External cross-check against `transport` / `transported` R packages on shared DGPs | 17b, 17c | ✅ done |
+| 17h | External cross-check against `TransportHealth` R package on shared DGPs | 17b, 17c | ✅ done |
 | 17i | Longitudinal transport (Phase 10 × Phase 17): broadcast sampling weight onto person-period rows; multiply into per-period treatment weight; weighted longitudinal MSM | Phase 10, 17c | ✅ done |
 | 17j | Multivariate IPW × transport (Phase 8 composition): joint treatment density × sampling density; stacked sandwich with multivariate propensity + sampling blocks | Phase 8, 17c | ✅ done |
 | 17k | IPCW × transport (Phase 14 composition): four-way stacked EE (outcome/propensity + censoring + sampling + plug-in); triply-weighted estimator | Phase 14, 17c | ✅ done |
@@ -196,4 +196,4 @@ Same as above but target is S = 0 only and the interaction makes study $\neq$ ta
 - Dahabreh IJ, Robertson SE, Tchetgen EJ, Stuart EA, Hernán MA (2019). Generalizing causal inferences from individuals in randomized trials to all trial-eligible individuals. *Biometrics* 75:685–694.
 - Dahabreh IJ, Robertson SE, Steingrimsson JA, Stuart EA, Hernán MA (2020). Extending inferences from a randomized trial to a new target population. *Stat Med* 39:1999–2014.
 - Westreich D, Edwards JK, Lesko CR, Stuart EA, Cole SR (2017). Transportability of trial results using inverse odds of sampling weights. *Am J Epidemiol* 186:1010–1014.
-- `transport` / `transported` R packages (Dahabreh group).
+- `TransportHealth` R package (Dahabreh group).

@@ -24,16 +24,16 @@ support it, and demonstrates the calling pattern on real and simulated data.
 
 ## Intervention constructors at a glance
 
-| Constructor | What it does | G-comp | IPW | Matching |
-|---|---|---|---|---|
-| `static(v)` | Set treatment to `v` for everyone | All types | Binary, categorical | Binary |
-| `shift(d)` | Add `d` to observed treatment | Continuous | Continuous, count (integer `d`) | --- |
-| `scale_by(c)` | Multiply observed treatment by `c` | Continuous | Continuous, count (integer-preserving) | --- |
-| `threshold(lo, hi)` | Clamp treatment to `[lo, hi]` | Continuous | --- | --- |
-| `dynamic(rule)` | Apply a user-defined deterministic rule | All types | Binary, categorical | --- |
-| `ipsi(d)` | Multiply odds of treatment by `d` | --- | Binary | --- |
-| `stochastic(f)` | Draw treatment from user-supplied distribution | All types | --- | --- |
-| `NULL` | Natural course (observed values) | All types | All types | --- |
+| Constructor | What it does | G-comp | IPW | AIPW | Matching |
+|---|---|---|---|---|---|
+| `static(v)` | Set treatment to `v` for everyone | All types | Binary, categorical | All types | Binary |
+| `shift(d)` | Add `d` to observed treatment | Continuous | Continuous, count (integer `d`) | Continuous | --- |
+| `scale_by(c)` | Multiply observed treatment by `c` | Continuous | Continuous, count (integer-preserving) | Continuous | --- |
+| `threshold(lo, hi)` | Clamp treatment to `[lo, hi]` | Continuous | --- | --- | --- |
+| `dynamic(rule)` | Apply a user-defined deterministic rule | All types | Binary, categorical | All types | --- |
+| `ipsi(d)` | Multiply odds of treatment by `d` | --- | Binary | --- | --- |
+| `stochastic(f)` | Draw treatment from user-supplied distribution | All types | --- | --- | --- |
+| `NULL` | Natural course (observed values) | All types | All types | All types | --- |
 
 ## Data: NHEFS
 
@@ -651,16 +651,16 @@ rejected with an informative error. The restrictions reflect genuine
 architectural limits of the density-ratio framework, not implementation
 gaps.
 
-| Intervention | G-comp (point) | G-comp (longitudinal) | IPW | Matching |
-|---|---|---|---|---|
-| `static()` | All treatment types | All treatment types | Binary, categorical | Binary only |
-| `shift()` | Continuous | Continuous | Continuous, count (integer delta) | --- |
-| `scale_by()` | Continuous | Continuous | Continuous, count (integer-preserving) | --- |
-| `threshold()` | Continuous | Continuous | --- (mixed pushforward) | --- |
-| `dynamic()` | All treatment types | All treatment types | Binary, categorical | --- |
-| `ipsi()` | --- | --- | Binary only | --- |
-| `stochastic()` | All treatment types | All treatment types | --- (intractable density ratio) | --- |
-| `NULL` | All | All | All | --- |
+| Intervention | G-comp (point) | G-comp (longitudinal) | IPW | AIPW | Matching |
+|---|---|---|---|---|---|
+| `static()` | All treatment types | All treatment types | Binary, categorical | All types | Binary only |
+| `shift()` | Continuous | Continuous | Continuous, count (integer delta) | Continuous | --- |
+| `scale_by()` | Continuous | Continuous | Continuous, count (integer-preserving) | Continuous | --- |
+| `threshold()` | Continuous | Continuous | --- (mixed pushforward) | --- | --- |
+| `dynamic()` | All treatment types | All treatment types | Binary, categorical | All types | --- |
+| `ipsi()` | --- | --- | Binary only | --- | --- |
+| `stochastic()` | All treatment types | All treatment types | --- (intractable density ratio) | --- | --- |
+| `NULL` | All | All | All | All | --- |
 
 **Why some combinations are rejected:**
 

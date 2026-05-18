@@ -55,11 +55,12 @@ ICE step alongside their lagged values (controlled by \code{history}). Ignored
 for point treatments. If \code{NULL}, no time-varying confounders are used.}
 
 \item{estimator}{Character. Causal estimator: \code{"gcomp"} (default), \code{"ipw"},
-or \code{"matching"}. IPW uses a self-contained density-ratio engine
-(no runtime dependency on \code{WeightIt}); matching requires the
-\code{MatchIt} package. Note: \code{"matching"} is restricted to \strong{binary
-point treatments} (MatchIt does not support multi-category or
-continuous treatments); use \code{"gcomp"} or \code{"ipw"} for those cases.}
+\code{"aipw"}, or \code{"matching"}. IPW uses a self-contained density-ratio engine
+(no runtime dependency on \code{WeightIt}); AIPW is doubly-robust (outcome
+model + propensity weights); matching requires the \code{MatchIt} package.
+Note: \code{"matching"} is restricted to \strong{binary point treatments}
+(MatchIt does not support multi-category or continuous treatments);
+use \code{"gcomp"} or \code{"ipw"} for those cases.}
 
 \item{family}{Character or family object. The outcome model family
 (e.g. \code{"gaussian"}, \code{"binomial"}, \code{stats::quasibinomial()}). Used by
@@ -279,10 +280,20 @@ and dynamic-on-binary interventions. \code{threshold()} and continuous
 pointer. Categorical treatments are not supported under IPW;
 \code{estimator = "gcomp"} handles them via predict-then-average.
 
-\strong{Longitudinal IPW is not supported.} \code{estimator = "ipw"} with \code{id}
-and \code{time} aborts with an informative error. Use
-\code{estimator = "gcomp"} (which uses ICE g-computation for longitudinal
-data) for time-varying treatments.
+\strong{Longitudinal IPW} is supported via sequential density-ratio weights
+(cumulative product across time points) with optional stabilization.
+Supply \code{id} and \code{time} to activate.
+}
+
+\subsection{AIPW (\code{estimator = "aipw"})}{
+
+Doubly-robust estimation combining the outcome model (as in g-comp)
+with propensity-score weights (as in IPW). The AIPW estimator is
+consistent if either the outcome model or the treatment model is
+correctly specified. Supports binary, continuous, categorical,
+count, and multivariate treatments (point); longitudinal AIPW
+is also supported via sequential outcome models and cumulative
+density-ratio weights.
 }
 
 \subsection{Matching (\code{estimator = "matching"})}{

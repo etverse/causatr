@@ -143,7 +143,7 @@ causatr supports binary, continuous, categorical, count, and multivariate treatm
 | Continuous | Yes | Yes (GPS) | Yes (shift, scale\_by) | No (MatchIt binary-only) |
 | Categorical (k > 2) | Yes | Yes | Yes | No (MatchIt binary-only) |
 | Count (Poisson / NB) | Yes | Yes (`propensity_family =`) | Yes | No |
-| Multivariate (joint) | Yes | Yes (sequential MTP) | No (Phase 8 pending) | No |
+| Multivariate (joint) | Yes | Yes (sequential MTP) | Yes | No |
 
 For multivariate treatments (e.g. `treatment = c("A1", "A2")`), supply
 interventions as named lists with one element per treatment variable.
@@ -274,5 +274,6 @@ and query it for the minimal sufficient adjustment set
 ## Learning more
 
 causatr includes detailed vignettes for each estimation method: g-computation,
-IPW, matching, longitudinal ICE, and methodological triangulation. Use
-`vignette(package = "causatr")` to see all available vignettes.
+IPW, matching, longitudinal ICE, transportability, and methodological
+triangulation. Use `vignette(package = "causatr")` to see all available
+vignettes.

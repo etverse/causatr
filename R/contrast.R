@@ -661,15 +661,18 @@ mc_marginalize_continuous <- function(
   n_mc
 ) {
   mu_a <- stats::predict(treatment_model, newdata = mc_data, type = "response")
-  sigma_a <- sqrt(summary(treatment_model)$dispersion)
+  sigma_a <- sqrt(
+    sum(stats::residuals(treatment_model, type = "response")^2) /
+      treatment_model$df.residual
+  )
 
   n_rows <- nrow(mc_data)
   preds_sum <- rep(0, n_rows)
 
+  draw_data <- data.table::copy(mc_data)
   for (m in seq_len(n_mc)) {
     a_draw <- stats::rnorm(n_rows, mean = mu_a, sd = sigma_a)
-    draw_data <- data.table::copy(mc_data)
-    draw_data[, (treatment) := a_draw]
+    data.table::set(draw_data, j = treatment, value = a_draw)
     if (!is.null(iv)) {
       draw_data <- apply_single_intervention(draw_data, treatment, iv)
     }

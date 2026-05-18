@@ -30,11 +30,12 @@
 #'   ICE step alongside their lagged values (controlled by `history`). Ignored
 #'   for point treatments. If `NULL`, no time-varying confounders are used.
 #' @param estimator Character. Causal estimator: `"gcomp"` (default), `"ipw"`,
-#'   or `"matching"`. IPW uses a self-contained density-ratio engine
-#'   (no runtime dependency on `WeightIt`); matching requires the
-#'   `MatchIt` package. Note: `"matching"` is restricted to **binary
-#'   point treatments** (MatchIt does not support multi-category or
-#'   continuous treatments); use `"gcomp"` or `"ipw"` for those cases.
+#'   `"aipw"`, or `"matching"`. IPW uses a self-contained density-ratio engine
+#'   (no runtime dependency on `WeightIt`); AIPW is doubly-robust (outcome
+#'   model + propensity weights); matching requires the `MatchIt` package.
+#'   Note: `"matching"` is restricted to **binary point treatments**
+#'   (MatchIt does not support multi-category or continuous treatments);
+#'   use `"gcomp"` or `"ipw"` for those cases.
 #' @param family Character or family object. The outcome model family
 #'   (e.g. `"gaussian"`, `"binomial"`, `stats::quasibinomial()`). Used by
 #'   all methods: passed to the outcome model for `"gcomp"`, to the
@@ -216,10 +217,18 @@
 #' pointer. Categorical treatments are not supported under IPW;
 #' `estimator = "gcomp"` handles them via predict-then-average.
 #'
-#' **Longitudinal IPW is not supported.** `estimator = "ipw"` with `id`
-#' and `time` aborts with an informative error. Use
-#' `estimator = "gcomp"` (which uses ICE g-computation for longitudinal
-#' data) for time-varying treatments.
+#' **Longitudinal IPW** is supported via sequential density-ratio weights
+#' (cumulative product across time points) with optional stabilization.
+#' Supply `id` and `time` to activate.
+#'
+#' ## AIPW (`estimator = "aipw"`)
+#' Doubly-robust estimation combining the outcome model (as in g-comp)
+#' with propensity-score weights (as in IPW). The AIPW estimator is
+#' consistent if either the outcome model or the treatment model is
+#' correctly specified. Supports binary, continuous, categorical,
+#' count, and multivariate treatments (point); longitudinal AIPW
+#' is also supported via sequential outcome models and cumulative
+#' density-ratio weights.
 #'
 #' ## Matching (`estimator = "matching"`)
 #' Calls `MatchIt::matchit()` to create matched sets. The estimand is
@@ -803,7 +812,7 @@ causat <- function(
     # cannot silently return NULL from causat().
     rlang::abort(c(
       paste0("Unknown `estimator` '", estimator, "'."),
-      i = "Must be one of: 'gcomp', 'ipw', 'matching'."
+      i = "Must be one of: 'gcomp', 'ipw', 'aipw', 'matching'."
     ))
   )
 

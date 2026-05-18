@@ -400,7 +400,7 @@ Joint density via sequential factorisation, product density-ratio weights under 
 Survey design integration, general cluster-robust sandwich, `future` backend. **All shipped.** General cluster-robust sandwich ✅ (`cluster =` on `causat()` and `contrast()`; `sandwich::vcovCL` oracle). `svydesign` integration ✅ (`causat(weights = svydesign_obj)`). Parallel bootstrap ✅. `future` backend ✅ (`parallel = "future"`).
 
 ### Phase 10 — Longitudinal IPW
-Sequential density-ratio weights, cumulative product weights, stabilized weights, time-varying MSM. All ❌.
+Sequential density-ratio weights, cumulative product weights, stabilized weights, time-varying MSM. **All shipped.**
 
 ### Phase 11 — diagnose() rewrite
 Intervention-aware, treatment-type-aware, estimand-aware, longitudinal-aware diagnostics. **All chunks shipped (11a–11e).** 11a (foundation): nested per-intervention `causatr_diag` shape, `interventions =` argument, binary IPW per-intervention weight summary. 11b (treatment-type dispatch): density-range positivity for continuous/count, per-level positivity for categorical, per-component positivity for multivariate, overall weight summaries for all non-binary types, truth-based weight reconstruction test. 11c (longitudinal dispatch): per-period positivity/balance/weight diagnostics for longitudinal IPW, per-period balance for ICE, cumulative weight summary. 11d (estimand + EM): IPW ATT/ATC observed-treatment weights, `by =` stratified balance via cobalt `cluster`. 11e (plot overhaul + vignette): `plot.causatr_diag()` with `which = c("balance", "weights", "positivity")`, `diagnostics.qmd` vignette.
@@ -556,7 +556,7 @@ Comprehensive truth-based + cross-estimator tests for Poisson, Gamma, quasibinom
 Multinomial/ordinal outcomes — requires structural extensions beyond GLM families.
 
 ### Phase 14 — Built-in IPCW
-Scalar-outcome IPCW for MAR censoring: internal censoring model, stabilized IPCW weights, weighted fit, stacked EE sandwich extension for censoring model blocks. Point + ICE scalar final outcome. Survival-specific IPCW (per-period cumulative weights + hazard MSM) is owned by the separate survival package. All ❌.
+Scalar-outcome IPCW for MAR censoring: internal censoring model, stabilized IPCW weights, weighted fit, stacked EE sandwich extension for censoring model blocks. Point + ICE scalar final outcome. Survival-specific IPCW (per-period cumulative weights + hazard MSM) is owned by the separate survival package. **All shipped** (chunks 14a–14f).
 
 ### Phase 15 — Polish and documentation
 

@@ -15,14 +15,14 @@ This is an R package: `R/` (source), `tests/testthat/` (tests, `test-foo.R` mirr
 
 ### R/ file layout
 
-**Core API:** `causat.R` (main fitting), `contrast.R` (causal contrasts), `diagnose.R` (main dispatch + panel helpers) + `diagnose_longitudinal.R` + `diagnose_positivity.R` + `diagnose_balance.R` + `diagnose_weights.R` + `diagnose_censoring.R` + `diagnose_intervention.R`.
+**Core API:** `causat.R` (main fitting), `contrast.R` (causal contrasts), `diagnose.R` (main dispatch + panel helpers) + `diagnose_longitudinal.R` + `diagnose_positivity.R` + `diagnose_balance.R` + `diagnose_weights.R` + `diagnose_censoring.R` + `diagnose_intervention.R` + `diagnose_sampling.R` (sampling-model diagnostics for transport).
 **Interventions:** `interventions.R` — `static()`, `shift()`, `scale_by()`, `threshold()`, `dynamic()`, `ipsi()`, `stochastic()`.
-**Estimation:** `gcomp.R`, `ice.R`, `ipw.R`, `aipw.R` (point AIPW), `aipw_longitudinal.R` (longitudinal AIPW), `longitudinal_ipw.R`, `matching.R`.
+**Estimation:** `gcomp.R`, `ice.R`, `ipw.R`, `aipw.R` (point AIPW), `aipw_longitudinal.R` (longitudinal AIPW), `longitudinal_ipw.R`, `matching.R`, `censoring.R` (IPCW model fitting + weights).
 **Inference (IF sandwich):** `variance_if_core.R` (model-correction primitives + vcov aggregation), `variance_if.R` (main dispatcher + numeric fallback + point channel + gcomp/matching IF), `variance_if_ice.R`, `variance_if_ipw.R` (point + mv + longitudinal IPW IF), `variance_if_aipw.R` (point + longitudinal AIPW IF).
 **Inference (bootstrap):** `variance_bootstrap.R` (core + refitters), `variance_bootstrap_longitudinal.R` (longitudinal IPW/ICE/AIPW bootstrap).
-**Data:** `to_person_period.R`, `prepare_data.R`.
+**Data:** `to_person_period.R`, `prepare_data.R`, `data.R` (dataset documentation).
 **S3:** `print.R`, `summary.R`, `plot.R`, `coef.R`, `confint.R`, `tidy.R`, `knit_print.R`.
-**Support:** `effect_modification.R`, `ipw_weights.R` (point weights), `ipw_weights_mv.R` (mv weights + shared helpers), `ipw_weights_longitudinal.R`, `treatment_model.R`, `constructors.R` (`new_causatr_*` S3 constructors), `family.R` (GLM family helpers), `utils.R` (misc helpers), `checks.R`, `zzz.R`.
+**Support:** `effect_modification.R`, `ipw_weights.R` (point weights), `ipw_weights_mv.R` (mv weights + shared helpers), `ipw_weights_longitudinal.R`, `treatment_model.R`, `sampling_model.R` (sampling model for transport), `constructors.R` (`new_causatr_*` S3 constructors), `family.R` (GLM family helpers), `utils.R` (misc helpers), `checks.R`, `target_trial.R` (target trial protocol), `causat_mice.R` (MI workflow placeholder), `causatr-package.R` (package-level doc), `zzz.R`.
 
 ### S3 classes
 
@@ -94,12 +94,13 @@ causatr owns g-comp (parametric g-formula + ICE), a self-contained IPW density-r
 | Bootstrap | `boot` | **Imports** |
 | Weight estimation | `WeightIt` | **Suggests** (test oracle only) |
 | GAMs | `mgcv` | **Suggests** |
+| Transport cross-check | `TransportHealth` | **Suggests** (test oracle only) |
 
 ## Supported features
 
 | Dimension | Values |
 |---|---|
-| **Treatment timing** | point, longitudinal (ICE + longitudinal IPW + longitudinal AIPW) |
+| **Treatment timing** | point, longitudinal (ICE + longitudinal IPW + longitudinal AIPW), transportability (`target =`) |
 | **Treatment type** | binary, continuous, categorical k>2, count (IPW: Poisson/NB), multivariate (gcomp + IPW + AIPW) |
 | **Outcome family** | gaussian, binomial, quasibinomial, poisson, Gamma, any GLM family, `MASS::glm.nb`, `betareg::betareg` (beta regression) |
 | **Interventions** | `static`, `shift`, `scale_by`, `threshold` (gcomp only), `dynamic`, `ipsi` (IPW only), `stochastic` (gcomp only; IPW/AIPW when `density` supplied — Phase 24) |
@@ -117,8 +118,11 @@ causatr owns g-comp (parametric g-formula + ICE), a self-contained IPW density-r
 - **ICE applies intervention to current-time treatment only** — lag columns hold observed values. Recomputing lags double-counts interventions.
 - **Single IF engine** — `variance_if()` in `R/variance_if.R` serves all four methods via Channel 1 (sampling) + Channel 2 (nuisance correction).
 - **ICE defers model fitting to `contrast()`** — sequential outcome models are intervention-dependent.
-- **`censoring =` is a row filter, not IPCW.** No censoring model is fit. Built-in IPCW is Phase 14.
+- **`censoring =` is a row filter by default.** With `ipcw = TRUE`, an internal censoring model is fit and IPCW weights are computed (Phase 14, shipped).
 - **`na.action = na.exclude` is rejected** — causes silent IF corruption via residual padding mismatch.
 - **ATT/ATC only for static interventions on binary 0/1 treatment.**
 - **Effect modifier must be baseline** under IPW/matching/longitudinal IPW (doc-level constraint, not enforced at runtime).
 - **Stabilized weights** (`stabilize = "marginal"`) supported for multivariate IPW (Phase 8), multivariate AIPW (Phase 16m), and longitudinal IPW (Phase 10). Numerator parameters held fixed in sandwich; bootstrap refits both.
+- **Transport uses a sampling model** \eqn{P(S=1 \mid L)} fit on combined study+target data; weights are \eqn{(1-\hat{p})/\hat{p}} sampling-odds weights. `target_subset = "target"` (transportability) vs `"all"` (generalizability).
+- **MTP + transport uses MC marginalization** over \eqn{P(A \mid L, S=1)} because target rows lack observed treatment. Exact enumeration for binary, Monte Carlo integration for continuous. Sandwich variance is not supported for this combination (bootstrap only).
+- **Matching + transport is rejected** — matching estimands are fixed at fitting time and cannot incorporate sampling-odds reweighting.

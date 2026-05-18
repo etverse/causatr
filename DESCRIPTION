@@ -5,19 +5,21 @@ Authors@R:
     person("Lorenzo", "Fabbri", , "lorenzo.fabbri92sm@gmail.com", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0003-3031-322X"))
 Description: Estimates causal effects via g-computation, inverse probability
-    weighting, and matching for methodological triangulation. Primary engine
-    is the parametric g-formula and iterated conditional expectation (ICE)
-    g-computation with empirical sandwich variance estimation. Ships a
-    self-contained density-ratio IPW engine and delegates matching to
-    MatchIt. Supports binary, continuous,
-    categorical, and multivariate treatments; static, dynamic, modified
-    treatment, and stochastic interventions (stochastic is g-computation
-    only); continuous, binary, count (Poisson, negative binomial),
-    quasibinomial (fractional), Gamma, and beta regression outcomes; and
-    external observation weights. Longitudinal data is handled via ICE
-    g-computation and longitudinal IPW. Cluster-robust sandwich variance
-    is supported via the cluster argument.
-Date: 2026-05-04
+    weighting (IPW), augmented IPW (doubly-robust), and matching for
+    methodological triangulation. Primary engine is the parametric g-formula
+    and iterated conditional expectation (ICE) g-computation with empirical
+    sandwich variance estimation. Ships a self-contained density-ratio IPW
+    engine, a doubly-robust AIPW estimator, and delegates matching to
+    MatchIt. Supports binary, continuous, categorical, and multivariate
+    treatments; static, dynamic, modified treatment, and stochastic
+    interventions (stochastic is g-computation only); continuous, binary,
+    count (Poisson, negative binomial), quasibinomial (fractional), Gamma,
+    and beta regression outcomes; and external observation weights.
+    Longitudinal data is handled via ICE g-computation, longitudinal IPW,
+    and longitudinal AIPW. Transportability and generalizability via
+    sampling-odds reweighting with a target population indicator.
+    Cluster-robust sandwich variance is supported via the cluster argument.
+Date: 2026-05-18
 License: MIT + file LICENSE
 Imports:
     boot,
