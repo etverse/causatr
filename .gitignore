@@ -44,6 +44,7 @@ skills-lock.json
 _quarto/
 docs/
 README.html
+causatr-test-*.txt
 vignettes/*.html
 vignettes/*_files/
 vignettes/*.markdown_strict_files/
