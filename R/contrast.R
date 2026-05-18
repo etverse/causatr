@@ -599,6 +599,14 @@ mc_marginalize_preds <- function(
 #' \deqn{\hat\mu_i = \hat p_i \cdot \hat m(d(1, L_i), L_i) +
 #'   (1 - \hat p_i) \cdot \hat m(d(0, L_i), L_i)}
 #'
+#' @param outcome_model Fitted outcome model (from g-comp).
+#' @param mc_data data.table of target rows to marginalize over.
+#' @param treatment Character. Treatment column name.
+#' @param iv A `causatr_intervention` object or `NULL` (natural course).
+#' @param treatment_model Fitted binomial GLM for \eqn{P(A=1 \mid L, S=1)}.
+#'
+#' @return Numeric vector of marginalized predictions (one per target row).
+#'
 #' @noRd
 mc_marginalize_binary <- function(
   outcome_model,
@@ -633,6 +641,15 @@ mc_marginalize_binary <- function(
 #'
 #' Draws \eqn{A_1, \ldots, A_M \sim f(A \mid L, S=1)} from the fitted
 #' treatment model, applies the intervention, predicts, and averages.
+#'
+#' @param outcome_model Fitted outcome model (from g-comp).
+#' @param mc_data data.table of target rows to marginalize over.
+#' @param treatment Character. Treatment column name.
+#' @param iv A `causatr_intervention` object or `NULL` (natural course).
+#' @param treatment_model Fitted gaussian GLM for \eqn{E[A \mid L, S=1]}.
+#' @param n_mc Integer. Number of Monte Carlo draws per target row.
+#'
+#' @return Numeric vector of marginalized predictions (one per target row).
 #'
 #' @noRd
 mc_marginalize_continuous <- function(

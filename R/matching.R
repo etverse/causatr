@@ -21,6 +21,7 @@
 #' @param outcome Character. Outcome column name.
 #' @param treatment Character. Treatment column name (scalar only).
 #' @param confounders One-sided formula of baseline confounders.
+#' @param family Character or family object for the outcome model.
 #' @param estimand Character. `"ATE"`, `"ATT"`, or `"ATC"`.
 #' @param type Character. `"point"` or `"longitudinal"`.
 #' @param weights Numeric vector or `NULL`. External observation weights.

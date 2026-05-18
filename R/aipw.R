@@ -32,7 +32,13 @@
 #' @param propensity_family Character or `NULL`. Treatment family override.
 #' @param id Character or `NULL`. ID column for longitudinal data.
 #' @param time Character or `NULL`. Time column for longitudinal data.
+#' @param stabilize Character. Weight stabilization strategy; `"none"` or
+#'   `"marginal"` (for multivariate treatments).
+#' @param id Character or `NULL`. ID column for longitudinal data.
+#' @param time Character or `NULL`. Time column for longitudinal data.
 #' @param call The original `causat()` call.
+#' @param target Character or `NULL`. Name of the sampling indicator column
+#'   for transportability/generalizability.
 #' @param ... Passed to `propensity_model_fn` via `fit_treatment_model()`.
 #'
 #' @return A `causatr_fit` object with `estimator = "aipw"`, the outcome
@@ -111,6 +117,24 @@ fit_aipw <- function(
 #' the treatment density model \eqn{f(A \mid L)} (same as IPW) on the
 #' same row set, returning a `causatr_fit` that carries both for
 #' downstream use in `compute_aipw_contrast_point()`.
+#'
+#' @param data data.table from `prepare_data()`.
+#' @param outcome Character. Outcome column name.
+#' @param treatment Character scalar or vector. Treatment column name(s).
+#' @param confounders One-sided formula of baseline confounders.
+#' @param family Character or family object for the outcome model.
+#' @param estimand Character. `"ATE"`, `"ATT"`, or `"ATC"`.
+#' @param censoring Character column name for censoring indicator, or `NULL`.
+#' @param weights Numeric vector or `NULL`. External observation weights.
+#' @param model_fn Function. Outcome model fitting function.
+#' @param propensity_model_fn Function or `NULL`. Treatment density fitter.
+#' @param propensity_family Character or `NULL`. Treatment family override.
+#' @param stabilize Character. Weight stabilization; `"none"` or `"marginal"`.
+#' @param call The original `causat()` call.
+#' @param target Character or `NULL`. Sampling indicator column name.
+#' @param ... Passed to model fitting functions.
+#'
+#' @return A `causatr_fit` object carrying both outcome and treatment models.
 #'
 #' @noRd
 fit_aipw_point <- function(

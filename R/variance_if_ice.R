@@ -64,6 +64,12 @@ variance_if_ice <- function(
 #' Mirrors the closed-form back-substitution of the stacked-EE bread
 #' from vignette Section 5.4-5.6.
 #'
+#' @param fit A `causatr_fit` object (ICE estimator).
+#' @param ice_result Per-intervention ICE result from `ice_iterate()`.
+#' @param target Logical vector identifying target-population rows.
+#'
+#' @return Numeric vector of length `n` (individuals), the per-individual IF.
+#'
 #' @noRd
 variance_if_ice_one <- function(fit, ice_result, target) {
   data <- fit$data

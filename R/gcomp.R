@@ -14,7 +14,11 @@
 #' @param model_fn Function. The fitting function to use, e.g. `stats::glm`,
 #'   `mgcv::gam`, `MASS::glm.nb`. Must accept
 #'   `(formula, data, family, weights, ...)`.
+#' @param id Character or `NULL`. ID column for longitudinal data.
+#' @param time Character or `NULL`. Time column for longitudinal data.
 #' @param call The original `causat()` call (for error messages).
+#' @param target Character or `NULL`. Name of the sampling indicator column
+#'   for transportability/generalizability.
 #' @param ... Passed to `model_fn`.
 #'
 #' @return A `causatr_fit` object.

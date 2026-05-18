@@ -21,6 +21,17 @@
 #' three cross-derivative sub-components: direct Hajek effect,
 #' outcome-model cross-block, and propensity-model cross-block.
 #'
+#' @param fit A `causatr_fit` object (AIPW estimator).
+#' @param aipw_bundles Named list of per-intervention AIPW bundles from
+#'   `compute_aipw_contrast_point()`.
+#' @param target_idx Logical vector identifying target-population rows.
+#' @param mu_hat Named numeric vector of point estimates per intervention.
+#' @param aipw_fit_idx Logical vector of rows used for model fitting.
+#' @param aipw_n_total Integer. Total number of target observations.
+#' @param cluster_vec Integer or factor vector for cluster-robust SE, or `NULL`.
+#'
+#' @return A variance-covariance matrix (interventions x interventions).
+#'
 #' @noRd
 variance_if_aipw <- function(
   fit,
