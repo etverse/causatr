@@ -177,7 +177,7 @@ variance_if_ipw <- function(
         wfn <- function(alpha) base_wfn(alpha) * ext_w_closure
       }
 
-      return(compute_ipw_if_self_contained_mv_one(
+      if_i_mv <- compute_ipw_if_self_contained_mv_one(
         msm_model = msm_model,
         treatment_models = tms_local,
         weight_fn = wfn,
@@ -187,7 +187,24 @@ variance_if_ipw <- function(
         Ch1_i = Ch1_i,
         fit_idx = seq_len(n_sub),
         n_total = n_sub
-      ))
+      )
+      # Add the sampling-model correction block when transport is active.
+      # The multivariate propensity correction is already handled inside
+      # compute_ipw_if_self_contained_mv_one() (K per-component blocks).
+      # The gamma block for the sampling model is independent of the
+      # number of propensity components: same formula as the univariate
+      # transport path, only the MSM structure changes.
+      if (isTRUE(fit$details$transport)) {
+        if_i_mv <- if_i_mv -
+          compute_ipw_sampling_correction(
+            fit,
+            msm_model,
+            J,
+            fit_rows = fit_rows,
+            n_sub = n_sub
+          )
+      }
+      return(if_i_mv)
     }
 
     wfn <- make_weight_fn(

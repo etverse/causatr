@@ -1,5 +1,23 @@
 # causatr (development version)
 
+## 2026-05-18 — Multivariate IPW × transportability (Phase 17j)
+
+`causat()` now supports `target = "S"` together with multivariate treatment
+(`treatment = c("A1", "A2", ...)`, IPW estimator). Previously, the weight
+computation (joint density-ratio × sampling-odds) was already correct, and the
+bootstrap refitted the sampling model per replicate. The only missing piece was
+the sandwich variance: the multivariate branch of `variance_if_ipw()` exited
+early via `return()` before the sampling-model score block could be appended,
+so the gamma uncertainty was absent from the SE. The fix is a single structural
+change: store the multivariate IF, conditionally subtract
+`compute_ipw_sampling_correction()`, and return the corrected value. The
+correction is independent of the number of propensity components.
+
+Truth-based simulation tests verify transportability (target ATE ≈ 3.5 + E[L|S=0])
+and generalizability (ATE = 3.5) recovery under binary × binary static
+interventions, with SE plausibility against bootstrap. Stabilized weights
+(`stabilize = "marginal"`) also produce a finite, positive sandwich SE.
+
 ## 2026-05-18 — Longitudinal IPW × transportability (Phase 17i)
 
 `causat()` now supports `target = "S"` together with `id =` / `time =`

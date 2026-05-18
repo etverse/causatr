@@ -904,3 +904,38 @@ simulate_transport <- function(n = 3000, seed = 42) {
 
   data.frame(Y = Y, A = A, L = L, S = S)
 }
+
+
+# DGP for multivariate IPW × transport (chunk 17j).
+#
+# Y = 1 + 2*A1 + 1.5*A2 + L + A1*L + eps,  eps ~ N(0,1)
+# A1 | L, S=1 ~ Bernoulli(expit(0.2 + 0.3*L))
+# A2 | L, S=1 ~ Bernoulli(expit(-0.1 + 0.2*L))
+# P(S=1 | L) = expit(-0.5 + L)
+#
+# Target ATE [(A1=1,A2=1) vs (A1=0,A2=0)]:
+#   Y^{1,1} - Y^{0,0} = (1+2+1.5+L+L) - (1+L) = 3.5 + L
+#   => E_target[ATE] = 3.5 + E_target[L]
+#
+# Generalizability (target_subset="all"): E[L] = 0, so ATE = 3.5.
+# Transportability (target_subset="target"): E[L|S=0] < 0, so ATE < 3.5.
+# Study ATE: E[L|S=1] > 0, so naive study estimator is upward-biased.
+simulate_mv_transport <- function(n = 6000, seed = 42) {
+  set.seed(seed)
+  L <- rnorm(n)
+  ps_sampling <- plogis(-0.5 + L)
+  S <- rbinom(n, 1, ps_sampling)
+
+  ps_a1 <- plogis(0.2 + 0.3 * L)
+  ps_a2 <- plogis(-0.1 + 0.2 * L)
+  A1 <- ifelse(S == 1L, rbinom(n, 1, ps_a1), NA_integer_)
+  A2 <- ifelse(S == 1L, rbinom(n, 1, ps_a2), NA_integer_)
+
+  Y <- ifelse(
+    S == 1L,
+    1 + 2 * A1 + 1.5 * A2 + L + A1 * L + rnorm(n),
+    NA_real_
+  )
+
+  data.frame(Y = Y, A1 = A1, A2 = A2, L = L, S = S)
+}

@@ -825,7 +825,22 @@ Sampling model `P(S=1 | L)` + sampling-odds weights multiply into IPW Hájek MSM
 | `target=NULL` longitudinal IPW (non-transport): behaviour unchanged | ✅ | test-longitudinal-transport.R |
 | ICE gcomp + longitudinal + transport: NA lag columns filled for target individuals under static interventions | ✅ | test-longitudinal-transport.R |
 
-Remaining chunks (17j–17l): multivariate IPW × transport, IPCW × transport, MTP + transportability. Chunk 17m (documentation) pending. All ❌.
+**Chunk 17j — Multivariate IPW × transport**
+
+| Feature | Status | Test |
+|---|---|---|
+| `fit_rows` restricted to S=1 study rows | ✅ | test-multivariate-ipw-transport.R |
+| mv IPW transport (transportability): recovers target ATE ≈ 3.5 + E[L\|S=0] | ✅ | test-multivariate-ipw-transport.R |
+| Transport corrects study-population bias (naive disagrees by >0.1) | ✅ | test-multivariate-ipw-transport.R |
+| mv IPW transport (generalizability): recovers ATE = 3.5 | ✅ | test-multivariate-ipw-transport.R |
+| Sandwich SE plausible vs bootstrap (ratio in (0.4, 2.5)) | ✅ | test-multivariate-ipw-transport.R |
+| Bootstrap point estimate near truth (within 0.25) | ✅ | test-multivariate-ipw-transport.R |
+| `target=NULL`: behaviour unchanged | ✅ | test-multivariate-ipw-transport.R |
+| `stabilize="marginal"` + transport: recovers target ATE, finite SE | ✅ | test-multivariate-ipw-transport.R |
+
+**Implementation note.** The only source change was removing the early `return()` in the multivariate branch of `variance_if_ipw()` and applying `compute_ipw_sampling_correction()` when `fit$details$transport == TRUE`. Weight multiplication and bootstrap already handled multivariate transport correctly; only the sandwich gamma-block correction was missing.
+
+Remaining chunks (17k–17l): IPCW × transport, MTP + transportability. Chunk 17m (documentation) pending. All ❌.
 
 ### Phase 18 — G-estimation of Structural Nested Mean Models
 Third leg of the Robins triangle. Motivating use case: **correct handling of time-varying effect modification** — SNMs parameterise the per-stage blip $\gamma_k(a_k, \bar{l}_k, \bar{a}_{k-1}; \psi)$ directly and identify it via a moment condition that uses the treatment model as instrument, so time-varying modifiers are supported by design (closes the Phase 6 limitation under MSM-based estimators). Scope: linear-blip additive SNMMs for point + longitudinal, stacked EE sandwich ($K$ treatment blocks + blip block), bootstrap, `gesttools` cross-check. Survival SNMs (SNFTMs/SNCFTMs) out of scope. All ❌.
