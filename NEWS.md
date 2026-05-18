@@ -1,5 +1,19 @@
 # causatr (development version)
 
+## 2026-05-18 — Sampling model predictor-set validation (Phase 17g)
+
+`fit_sampling_model()` now emits a `causatr_transport_predictor_subset` warning
+when a baseline covariate appears in the `confounders` formula only via an
+interaction with treatment (e.g. `~ L1 + L2:A`). In this situation the
+stripping step that removes treatment terms from the sampling formula also
+removes the covariate, so the sampling model silently omits a variable that the
+outcome and treatment models condition on. The transportability identification
+assumption requires the sampling model to control for all baseline confounders;
+a misspecified sampling model breaks the exchangeability-over-populations
+condition (Dahabreh et al. 2020, assumption 3). The fix is to add the missing
+variable as a main effect in `confounders`. The warning fires through
+`causat()` as well as when calling `fit_sampling_model()` directly.
+
 ## 2026-05-17 — Sampling-model diagnostics for transportability (Phase 17f)
 
 `diagnose()` now includes a **sampling-model panel** when the fit uses

@@ -168,6 +168,44 @@ test_that("causat: target column survives in fit$data", {
   expect_true("S" %in% names(fit$data))
 })
 
+test_that("fit_sampling_model: warns when baseline covariate only in treatment interaction", {
+  # confounders = ~ L + L2:A — L2 only in interaction, stripped from sampling.
+  set.seed(1)
+  d <- data.table::as.data.table(simulate_transport(n = 300))
+  d$L2 <- rnorm(300)
+  expect_warning(
+    fit_sampling_model(d, "S", ~ L + L2:A, treatment = "A"),
+    class = "causatr_transport_predictor_subset"
+  )
+})
+
+test_that("fit_sampling_model: no warning when baseline covariate has main effect", {
+  # confounders = ~ L + L2 + L2:A — L2 has a main effect, so it survives.
+  set.seed(2)
+  d <- data.table::as.data.table(simulate_transport(n = 300))
+  d$L2 <- rnorm(300)
+  expect_no_warning(
+    fit_sampling_model(d, "S", ~ L + L2 + L2:A, treatment = "A")
+  )
+})
+
+test_that("causat: warns on predictor-subset when covariate only in treatment interaction", {
+  set.seed(3)
+  d <- simulate_transport(n = 500)
+  d$L2 <- rnorm(500)
+  expect_warning(
+    causat(
+      d,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~ L + L2:A,
+      estimator = "gcomp",
+      target = "S"
+    ),
+    class = "causatr_transport_predictor_subset"
+  )
+})
+
 test_that("causat: matching + target aborts", {
   d <- simulate_transport(n = 500)
   d_study <- d[d$S == 1, ]

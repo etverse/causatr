@@ -793,7 +793,15 @@ Sampling model `P(S=1 | L)` + sampling-odds weights multiply into IPW Hájek MSM
 | Per-intervention panels carry shared sampling panel | ✅ | test-diagnose.R |
 | `print(diagnose(...))` renders sampling panel | ✅ | test-diagnose.R |
 
-Remaining chunks (17g–17i): predictor-set validation, external cross-check, longitudinal transport. Chunk 17m (documentation) pending. All ❌.
+**Chunk 17g — Sampling model predictor-set validation**
+
+| Feature | Status | Test |
+|---|---|---|
+| `fit_sampling_model()` warns when baseline covariate only in treatment interaction | ✅ | test-sampling-model.R |
+| No warning when covariate has a main effect alongside interaction | ✅ | test-sampling-model.R |
+| `causat()` propagates warning end-to-end | ✅ | test-sampling-model.R |
+
+Remaining chunks (17h–17l): external cross-check, longitudinal transport, multivariate IPW × transport, IPCW × transport, MTP + transportability. Chunk 17m (documentation) pending. All ❌.
 
 ### Phase 18 — G-estimation of Structural Nested Mean Models
 Third leg of the Robins triangle. Motivating use case: **correct handling of time-varying effect modification** — SNMs parameterise the per-stage blip $\gamma_k(a_k, \bar{l}_k, \bar{a}_{k-1}; \psi)$ directly and identify it via a moment condition that uses the treatment model as instrument, so time-varying modifiers are supported by design (closes the Phase 6 limitation under MSM-based estimators). Scope: linear-blip additive SNMMs for point + longitudinal, stacked EE sandwich ($K$ treatment blocks + blip block), bootstrap, `gesttools` cross-check. Survival SNMs (SNFTMs/SNCFTMs) out of scope. All ❌.

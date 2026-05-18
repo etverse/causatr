@@ -104,6 +104,44 @@ fit_sampling_model <- function(
     sampling_terms <- "1"
   }
 
+  # Warn when a baseline covariate appears only in treatment-interaction terms
+  # in `confounders` and therefore gets excluded from the sampling formula.
+  # The transportability assumption requires the sampling model to control for
+  # every baseline covariate that the outcome and treatment models condition on
+  # (Dahabreh et al. 2020, assumption 3 — exchangeability over populations).
+  if (!is.null(treatment)) {
+    all_confounder_vars <- setdiff(all.vars(confounders), trt_set)
+    samp_vars <- if (identical(sampling_terms, "1")) {
+      character(0L)
+    } else {
+      unique(unlist(lapply(
+        sampling_terms,
+        function(tm) all.vars(stats::reformulate(tm))
+      )))
+    }
+    missing_from_samp <- setdiff(all_confounder_vars, samp_vars)
+    if (length(missing_from_samp) > 0L) {
+      rlang::warn(
+        c(
+          paste0(
+            "Variable(s) ",
+            paste0("`", missing_from_samp, "`", collapse = ", "),
+            " appear in the outcome and treatment models but not in the ",
+            "sampling model."
+          ),
+          i = paste0(
+            "These variables appear in `confounders` only in interaction ",
+            "with treatment and were removed from the sampling formula. ",
+            "The transportability assumption requires the sampling model to ",
+            "control for all baseline confounders. Consider adding main-",
+            "effect terms for the missing variables to `confounders`."
+          )
+        ),
+        class = "causatr_transport_predictor_subset"
+      )
+    }
+  }
+
   # Fit on all rows (S = 1 and S = 0). Exclude rows with NA in the
   # sampling-model predictors (not treatment, which is NA on target rows
   # by design and has already been stripped above).
