@@ -76,6 +76,9 @@ This tells causatr to:
 3. At contrast time, standardise predictions over target-population
    covariates (not study covariates).
 
+Use `confounders_sampling` to specify a different covariate set for the
+sampling model than for the outcome or treatment models.
+
 ### Contrasting
 
 ```{r}

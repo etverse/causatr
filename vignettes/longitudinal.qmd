@@ -173,6 +173,9 @@ g-computation does below.
 
 With `causat()`, specify `id` and `time` to trigger longitudinal mode. Baseline
 confounders go in `confounders`, time-varying confounders in `confounders_tv`.
+For finer control, use `confounders_tv_outcome` and `confounders_tv_treatment`
+to specify different time-varying covariates for the outcome and treatment
+models.
 
 ```{r}
 fit <- causat(

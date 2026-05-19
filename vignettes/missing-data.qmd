@@ -500,7 +500,10 @@ argument:
 **Custom censoring model.** By default the censoring model uses `stats::glm`.
 Pass `censoring_model_fn = mgcv::gam` (or any function with the standard
 `(formula, data, family, weights, ...)` signature) to use a more flexible
-model for the censoring mechanism.
+model for the censoring mechanism. Use `confounders_censoring` to specify
+a different covariate set for the censoring model than for the outcome or
+treatment models (e.g. when censoring depends on a different subset of
+covariates).
 :::
 
 ## Built-in IPCW (`ipcw = TRUE`)

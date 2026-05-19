@@ -163,6 +163,49 @@ build_outcome_formula <- function(response, treatment, confounders) {
   stats::reformulate(c(treatment, confounder_terms), response = response)
 }
 
+#' Resolve per-component confounders from a causatr_fit object
+#'
+#' Each resolver returns the component-specific formula if set, falling
+#' back to the deprecated \code{confounders} / \code{confounders_tv}
+#' slot for backward compatibility.
+#'
+#' @param fit A \code{causatr_fit} object.
+#' @return A one-sided formula or \code{NULL}.
+#' @noRd
+resolve_confounders_outcome <- function(fit) {
+  fit$confounders_outcome %||% fit$confounders
+}
+
+#' @rdname resolve_confounders_outcome
+#' @noRd
+resolve_confounders_treatment <- function(fit) {
+  fit$confounders_treatment %||% fit$confounders
+}
+
+#' @rdname resolve_confounders_outcome
+#' @noRd
+resolve_confounders_censoring <- function(fit) {
+  fit$confounders_censoring %||% fit$confounders
+}
+
+#' @rdname resolve_confounders_outcome
+#' @noRd
+resolve_confounders_sampling <- function(fit) {
+  fit$confounders_sampling %||% fit$confounders
+}
+
+#' @rdname resolve_confounders_outcome
+#' @noRd
+resolve_confounders_tv_outcome <- function(fit) {
+  fit$confounders_tv_outcome %||% fit$confounders_tv
+}
+
+#' @rdname resolve_confounders_outcome
+#' @noRd
+resolve_confounders_tv_treatment <- function(fit) {
+  fit$confounders_tv_treatment %||% fit$confounders_tv
+}
+
 #' Build lag-prefixed column names
 #'
 #' For every variable in `base_vars` and every lag order `k` in

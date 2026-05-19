@@ -52,6 +52,12 @@ fit_ice <- function(
   id,
   time,
   call,
+  confounders_outcome = NULL,
+  confounders_treatment = NULL,
+  confounders_censoring = NULL,
+  confounders_sampling = NULL,
+  confounders_tv_outcome = NULL,
+  confounders_tv_treatment = NULL,
   ...
 ) {
   # Guard against a silent collision with any causatr-reserved column.
@@ -151,6 +157,12 @@ fit_ice <- function(
     outcome = outcome,
     confounders = confounders,
     confounders_tv = confounders_tv,
+    confounders_outcome = confounders_outcome,
+    confounders_treatment = confounders_treatment,
+    confounders_censoring = confounders_censoring,
+    confounders_sampling = confounders_sampling,
+    confounders_tv_outcome = confounders_tv_outcome,
+    confounders_tv_treatment = confounders_tv_treatment,
     family = family,
     estimator = "gcomp",
     type = "longitudinal",

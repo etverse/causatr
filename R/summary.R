@@ -11,6 +11,43 @@
 #' @seealso [print.causatr_fit()], [causat()]
 #' @export
 summary.causatr_fit <- function(object, ...) {
+  has_overrides <- !is.null(object$confounders_outcome) ||
+    !is.null(object$confounders_treatment) ||
+    !is.null(object$confounders_censoring) ||
+    !is.null(object$confounders_sampling)
+  conf_block <- if (has_overrides) {
+    lines <- c(
+      paste0(
+        "Conf (outcome):   ",
+        deparse(resolve_confounders_outcome(object))
+      ),
+      paste0(
+        "Conf (treatment): ",
+        deparse(resolve_confounders_treatment(object))
+      )
+    )
+    if (!is.null(object$confounders_censoring)) {
+      lines <- c(
+        lines,
+        paste0(
+          "Conf (censoring): ",
+          deparse(resolve_confounders_censoring(object))
+        )
+      )
+    }
+    if (!is.null(object$confounders_sampling)) {
+      lines <- c(
+        lines,
+        paste0(
+          "Conf (sampling):  ",
+          deparse(resolve_confounders_sampling(object))
+        )
+      )
+    }
+    paste(lines, collapse = "\n")
+  } else {
+    paste0("Confounders: ", deparse(object$confounders))
+  }
   cat(
     "causatr fit\n",
     "Estimator:   ",
@@ -27,8 +64,7 @@ summary.causatr_fit <- function(object, ...) {
     "Treatment:   ",
     object$treatment,
     "\n",
-    "Confounders: ",
-    deparse(object$confounders),
+    conf_block,
     "\n",
     "N:           ",
     nrow(object$data),

@@ -32,7 +32,7 @@ compute_balance <- function(fit, stats, thresholds, by = NULL) {
     } else {
       fit$treatment
     }
-    ps_formula <- build_ps_formula(fit$confounders, trt)
+    ps_formula <- build_ps_formula(resolve_confounders_treatment(fit), trt)
     fit_rows <- fit$details$fit_rows
     bal_args <- list(
       x = ps_formula,
@@ -58,7 +58,7 @@ compute_balance <- function(fit, stats, thresholds, by = NULL) {
     }
     do.call(cobalt::bal.tab, bal_args)
   } else {
-    ps_formula <- build_ps_formula(fit$confounders, fit$treatment)
+    ps_formula <- build_ps_formula(resolve_confounders_treatment(fit), fit$treatment)
     fit_rows <- get_fit_rows(fit$data, fit$outcome, fit$censoring)
     bal_args <- list(
       x = ps_formula,
@@ -102,7 +102,7 @@ compute_balance_simple <- function(fit, by = NULL) {
 
   fit_rows <- get_fit_rows(data, outcome, fit$censoring)
   d <- data[fit_rows]
-  confounder_vars <- all.vars(fit$confounders)
+  confounder_vars <- all.vars(resolve_confounders_treatment(fit))
   confounder_vars <- intersect(confounder_vars, names(d))
 
   trt_vals <- unique(stats::na.omit(d[[treatment]]))

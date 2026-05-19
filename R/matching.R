@@ -43,6 +43,13 @@ fit_matching <- function(
   type,
   weights,
   call,
+  confounders_treatment = NULL,
+  confounders_outcome_raw = NULL,
+  confounders_treatment_raw = NULL,
+  confounders_censoring_raw = NULL,
+  confounders_sampling_raw = NULL,
+  confounders_tv_outcome_raw = NULL,
+  confounders_tv_treatment_raw = NULL,
   ...
 ) {
   if (type == "longitudinal") {
@@ -88,7 +95,18 @@ fit_matching <- function(
 
   # Build the treatment model formula: A ~ confounders.
   # MatchIt uses this to estimate propensity scores for matching.
-  ps_formula <- build_ps_formula(confounders, treatment)
+  # When per-component treatment confounders are supplied, the
+  # distance formula uses those; otherwise falls back to the outcome
+  # confounders (= `confounders`).
+  ps_confounders <- confounders_treatment %||% confounders
+  if (!is.null(confounders_treatment)) {
+    check_confounders_treatment(
+      confounders_treatment,
+      treatment,
+      estimator = "matching"
+    )
+  }
+  ps_formula <- build_ps_formula(ps_confounders, treatment)
 
   # Fit rows: exclude missing outcomes before matching.
   fit_rows <- get_fit_rows(data, outcome)
@@ -163,6 +181,12 @@ fit_matching <- function(
     outcome = outcome,
     confounders = confounders,
     confounders_tv = NULL,
+    confounders_outcome = confounders_outcome_raw,
+    confounders_treatment = confounders_treatment_raw,
+    confounders_censoring = confounders_censoring_raw,
+    confounders_sampling = confounders_sampling_raw,
+    confounders_tv_outcome = confounders_tv_outcome_raw,
+    confounders_tv_treatment = confounders_tv_treatment_raw,
     family = family,
     estimator = "matching",
     type = "point",

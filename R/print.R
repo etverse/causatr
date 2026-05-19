@@ -31,10 +31,50 @@ print.causatr_fit <- function(x, ...) {
   cat(" Outcome:    ", x$outcome, " (", family_label, ")\n", sep = "")
   cat(" Treatment:  ", trt_label, "\n", sep = "")
   cat(" Estimand:   ", x$estimand, "\n", sep = "")
-  cat(" Confounders:", deparse(x$confounders), "\n", sep = " ")
+  # Per-component confounder overrides: when any `confounders_*` slot is
+
+  # non-NULL, display the resolved per-component formulas instead of the
+  # legacy single `confounders` slot.
+  has_overrides <- !is.null(x$confounders_outcome) ||
+    !is.null(x$confounders_treatment) ||
+    !is.null(x$confounders_censoring) ||
+    !is.null(x$confounders_sampling)
+  if (has_overrides) {
+    cat(" Conf (outcome):  ", deparse(resolve_confounders_outcome(x)), "\n",
+      sep = " "
+    )
+    cat(" Conf (treatment):", deparse(resolve_confounders_treatment(x)), "\n",
+      sep = " "
+    )
+    if (!is.null(x$confounders_censoring)) {
+      cat(" Conf (censoring):", deparse(resolve_confounders_censoring(x)),
+        "\n",
+        sep = " "
+      )
+    }
+    if (!is.null(x$confounders_sampling)) {
+      cat(" Conf (sampling): ", deparse(resolve_confounders_sampling(x)),
+        "\n",
+        sep = " "
+      )
+    }
+  } else {
+    cat(" Confounders:", deparse(x$confounders), "\n", sep = " ")
+  }
   # TV confounders and id/time are only shown when relevant -- keeping
   # the display compact for point-treatment fits.
-  if (!is.null(x$confounders_tv)) {
+  has_tv_overrides <- !is.null(x$confounders_tv_outcome) ||
+    !is.null(x$confounders_tv_treatment)
+  if (has_tv_overrides) {
+    cat(" TV conf (outcome):  ", deparse(resolve_confounders_tv_outcome(x)),
+      "\n",
+      sep = " "
+    )
+    cat(" TV conf (treatment):", deparse(resolve_confounders_tv_treatment(x)),
+      "\n",
+      sep = " "
+    )
+  } else if (!is.null(x$confounders_tv)) {
     cat(" TV conf.:  ", deparse(x$confounders_tv), "\n", sep = " ")
   }
   if (!is.null(x$id)) {

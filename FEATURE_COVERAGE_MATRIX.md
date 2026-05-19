@@ -370,6 +370,7 @@ remain in this matrix.
 | `dispatch_boot()` — future vs boot MC equivalence | ✅ | test-future-backend.R |
 | `causat_mice()` stub | 🟡 | test-causat-mice.R |
 | Cross-method EM triangulation (gcomp + IPW + matching) | ✅ | test-effect-modification.R |
+| Per-component confounders (`confounders_outcome`, `confounders_treatment`, etc.) — routing, backward compat, validation | ✅ | test-separate-confounders.R |
 
 ### Critical-review regression tests (2026-04-15)
 

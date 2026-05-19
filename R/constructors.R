@@ -5,8 +5,23 @@
 #' @param data data.table of the full dataset.
 #' @param treatment Character treatment column name(s).
 #' @param outcome Character outcome column name.
-#' @param confounders One-sided formula of baseline confounders.
-#' @param confounders_tv One-sided formula of time-varying confounders or `NULL`.
+#' @param confounders One-sided formula of baseline confounders (soft-deprecated
+#'   fallback; prefer the per-component formulas).
+#' @param confounders_tv One-sided formula of time-varying confounders or `NULL`
+#'   (soft-deprecated fallback; prefer the per-component formulas).
+#' @param confounders_outcome One-sided formula of outcome-model confounders, or
+#'   `NULL` to fall back to \code{confounders}.
+#' @param confounders_treatment One-sided formula of treatment-model confounders,
+#'   or `NULL` to fall back to \code{confounders}.
+#' @param confounders_censoring One-sided formula of censoring-model confounders,
+#'   or `NULL` to fall back to \code{confounders}.
+#' @param confounders_sampling One-sided formula of sampling-model confounders,
+#'   or `NULL` to fall back to \code{confounders}.
+#' @param confounders_tv_outcome One-sided formula of time-varying outcome-model
+#'   confounders, or `NULL` to fall back to \code{confounders_tv}.
+#' @param confounders_tv_treatment One-sided formula of time-varying
+#'   treatment-model confounders, or `NULL` to fall back to
+#'   \code{confounders_tv}.
 #' @param family Character or family object describing the outcome distribution.
 #' @param estimator Character causal estimator (`"gcomp"`, `"ipw"`, `"matching"`).
 #' @param type `"point"` or `"longitudinal"`.
@@ -34,6 +49,12 @@ new_causatr_fit <- function(
   outcome,
   confounders,
   confounders_tv,
+  confounders_outcome = NULL,
+  confounders_treatment = NULL,
+  confounders_censoring = NULL,
+  confounders_sampling = NULL,
+  confounders_tv_outcome = NULL,
+  confounders_tv_treatment = NULL,
   family,
   estimator,
   type,
@@ -58,6 +79,12 @@ new_causatr_fit <- function(
       outcome = outcome,
       confounders = confounders,
       confounders_tv = confounders_tv,
+      confounders_outcome = confounders_outcome,
+      confounders_treatment = confounders_treatment,
+      confounders_censoring = confounders_censoring,
+      confounders_sampling = confounders_sampling,
+      confounders_tv_outcome = confounders_tv_outcome,
+      confounders_tv_treatment = confounders_tv_treatment,
       family = family,
       estimator = estimator,
       type = type,

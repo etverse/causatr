@@ -85,7 +85,10 @@ nhefs_complete$sex <- factor(nhefs_complete$sex, levels = 0:1, labels = c("Male"
 
 This replicates the IPW analysis from Chapter 12 of Hernán & Robins: the
 average causal effect of quitting smoking (`qsmk`) on weight change
-(`wt82_71`).
+(`wt82_71`). By default, `confounders` specifies the same covariate
+set for the propensity model. Use `confounders_treatment` to specify
+a different set for the treatment model when needed (e.g. for AIPW
+double robustness).
 
 ### ATE with sandwich SE
 

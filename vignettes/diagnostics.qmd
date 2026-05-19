@@ -42,7 +42,10 @@ nhefs_complete$sex <- factor(
 ## Basic usage: binary IPW
 
 The simplest call takes a `causatr_fit` and returns a `causatr_diag`
-object with positivity, balance, and weight-distribution panels:
+object with positivity, balance, and weight-distribution panels. When
+per-component confounders are used (e.g. `confounders_treatment`),
+diagnostics automatically use the treatment-model confounders for
+balance and positivity checks:
 
 ```{r}
 fit_ipw <- causat(

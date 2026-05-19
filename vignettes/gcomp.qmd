@@ -77,6 +77,9 @@ for the binary outcome examples below.
 
 This is the core example from Chapter 13 of Hernán & Robins: the average
 causal effect of quitting smoking (`qsmk`) on weight change (`wt82_71`).
+By default, `confounders` specifies the same covariate set for all
+model components. Use `confounders_outcome` to specify a different set
+for the outcome model when needed (e.g. for AIPW double robustness).
 
 ### ATE with sandwich SE
 

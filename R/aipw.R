@@ -64,6 +64,14 @@ fit_aipw <- function(
   time = NULL,
   call,
   target = NULL,
+  confounders_treatment = NULL,
+  confounders_tv_treatment = NULL,
+  confounders_outcome_raw = NULL,
+  confounders_treatment_raw = NULL,
+  confounders_censoring_raw = NULL,
+  confounders_sampling_raw = NULL,
+  confounders_tv_outcome_raw = NULL,
+  confounders_tv_treatment_raw = NULL,
   ...
 ) {
   if (type == "longitudinal") {
@@ -84,6 +92,14 @@ fit_aipw <- function(
       id = id,
       time = time,
       call = call,
+      confounders_treatment = confounders_treatment,
+      confounders_tv_treatment = confounders_tv_treatment,
+      confounders_outcome_raw = confounders_outcome_raw,
+      confounders_treatment_raw = confounders_treatment_raw,
+      confounders_censoring_raw = confounders_censoring_raw,
+      confounders_sampling_raw = confounders_sampling_raw,
+      confounders_tv_outcome_raw = confounders_tv_outcome_raw,
+      confounders_tv_treatment_raw = confounders_tv_treatment_raw,
       ...
     ))
   }
@@ -103,6 +119,13 @@ fit_aipw <- function(
     stabilize = stabilize,
     call = call,
     target = target,
+    confounders_treatment = confounders_treatment,
+    confounders_outcome_raw = confounders_outcome_raw,
+    confounders_treatment_raw = confounders_treatment_raw,
+    confounders_censoring_raw = confounders_censoring_raw,
+    confounders_sampling_raw = confounders_sampling_raw,
+    confounders_tv_outcome_raw = confounders_tv_outcome_raw,
+    confounders_tv_treatment_raw = confounders_tv_treatment_raw,
     ...
   )
 }
@@ -150,14 +173,33 @@ fit_aipw_point <- function(
   stabilize = "none",
   call,
   target = NULL,
+  confounders_treatment = NULL,
+  confounders_outcome_raw = NULL,
+  confounders_treatment_raw = NULL,
+  confounders_censoring_raw = NULL,
+  confounders_sampling_raw = NULL,
+  confounders_tv_outcome_raw = NULL,
+  confounders_tv_treatment_raw = NULL,
   ...
 ) {
   # --- Effect modification parsing -----------------------------------------
+  # EM terms (`A:sex`) live in the outcome confounders; validate both
+  # outcome and treatment confounders for bare-treatment rejection.
   em_info <- check_confounders_treatment(
     confounders,
     treatment,
     estimator = "ipw"
   )
+  # Resolve the treatment confounders for the propensity model. Falls
+  # back to the outcome confounders (= `confounders`) when not supplied.
+  ps_confounders <- confounders_treatment %||% confounders
+  if (!is.null(confounders_treatment)) {
+    check_confounders_treatment(
+      confounders_treatment,
+      treatment,
+      estimator = "ipw"
+    )
+  }
 
   is_multivariate <- length(treatment) > 1L
 
@@ -214,7 +256,7 @@ fit_aipw_point <- function(
     tm_args <- list(
       data = fit_data,
       treatment = treatment,
-      confounders = confounders,
+      confounders = ps_confounders,
       model_fn = stats::glm,
       propensity_model_fn = propensity_model_fn,
       propensity_family = propensity_family,
@@ -265,7 +307,7 @@ fit_aipw_point <- function(
     tm_args <- list(
       data = fit_data,
       treatment = treatment,
-      confounders = confounders,
+      confounders = ps_confounders,
       model_fn = prop_model_fn,
       propensity_family = propensity_family
     )
@@ -305,6 +347,12 @@ fit_aipw_point <- function(
     outcome = outcome,
     confounders = confounders,
     confounders_tv = NULL,
+    confounders_outcome = confounders_outcome_raw,
+    confounders_treatment = confounders_treatment_raw,
+    confounders_censoring = confounders_censoring_raw,
+    confounders_sampling = confounders_sampling_raw,
+    confounders_tv_outcome = confounders_tv_outcome_raw,
+    confounders_tv_treatment = confounders_tv_treatment_raw,
     family = family,
     estimator = "aipw",
     type = "point",

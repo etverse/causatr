@@ -452,7 +452,7 @@ variance_bootstrap <- function(
             mc_tm_b <- fit_mc_treatment_model(
               d_b,
               treatment,
-              fit$confounders,
+              resolve_confounders_treatment(fit),
               fit_rows_b
             )
           }
@@ -620,8 +620,8 @@ refit_ipw <- function(fit, d_b, weights = NULL) {
     data = d_b,
     outcome = fit$outcome,
     treatment = fit$treatment,
-    confounders = fit$confounders,
-    confounders_tv = fit$confounders_tv,
+    confounders = resolve_confounders_treatment(fit),
+    confounders_tv = resolve_confounders_tv_treatment(fit),
     family = fit$family,
     estimand = fit$estimand,
     type = fit$type,
@@ -660,7 +660,7 @@ refit_ipw <- function(fit, d_b, weights = NULL) {
     samp_model_b <- fit_sampling_model(
       d_samp_b,
       fit$target,
-      fit$confounders,
+      resolve_confounders_sampling(fit),
       fit$treatment,
       model_fn = fit$details$sampling_model_fn,
       weights = w_samp_b
@@ -702,8 +702,8 @@ refit_aipw <- function(fit, d_b, weights = NULL) {
       data = d_b,
       outcome = fit$outcome,
       treatment = fit$treatment,
-      confounders = fit$confounders,
-      confounders_tv = fit$confounders_tv,
+      confounders = resolve_confounders_outcome(fit),
+      confounders_tv = resolve_confounders_tv_outcome(fit),
       family = fit$family,
       estimand = fit$estimand,
       history = fit$history,
@@ -714,7 +714,9 @@ refit_aipw <- function(fit, d_b, weights = NULL) {
       propensity_family = fit$details$propensity_family,
       id = fit$id,
       time = fit$time,
-      call = NULL
+      call = NULL,
+      confounders_treatment = resolve_confounders_treatment(fit),
+      confounders_tv_treatment = resolve_confounders_tv_treatment(fit)
     )
     fit_b <- do.call(
       fit_aipw_longitudinal,
@@ -728,7 +730,7 @@ refit_aipw <- function(fit, d_b, weights = NULL) {
     data = d_b,
     outcome = fit$outcome,
     treatment = fit$treatment,
-    confounders = fit$confounders,
+    confounders = resolve_confounders_outcome(fit),
     family = fit$family,
     estimand = fit$estimand,
     censoring = fit$censoring,
@@ -738,7 +740,8 @@ refit_aipw <- function(fit, d_b, weights = NULL) {
     propensity_family = fit$details$propensity_family,
     stabilize = fit$details$stabilize %||% "none",
     call = NULL,
-    target = fit$target
+    target = fit$target,
+    confounders_treatment = resolve_confounders_treatment(fit)
   )
   fit_b <- do.call(fit_aipw_point, c(args, fit$details$dots))
   fit_b$call <- fit$call
@@ -748,7 +751,7 @@ refit_aipw <- function(fit, d_b, weights = NULL) {
     samp_model_b <- fit_sampling_model(
       d_b,
       fit$target,
-      fit$confounders,
+      resolve_confounders_sampling(fit),
       fit$treatment,
       model_fn = fit$details$sampling_model_fn,
       weights = weights
@@ -788,7 +791,7 @@ refit_matching <- function(fit, d_b, weights = NULL) {
     }
   }
 
-  ps_formula <- build_ps_formula(fit$confounders, fit$treatment)
+  ps_formula <- build_ps_formula(resolve_confounders_treatment(fit), fit$treatment)
 
   fit_rows_b <- get_fit_rows(d_b, fit$outcome)
   fit_data_b <- as.data.frame(d_b[fit_rows_b])

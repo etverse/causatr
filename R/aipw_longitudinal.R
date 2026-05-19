@@ -30,6 +30,14 @@ fit_aipw_longitudinal <- function(
   id,
   time,
   call,
+  confounders_treatment = NULL,
+  confounders_tv_treatment = NULL,
+  confounders_outcome_raw = NULL,
+  confounders_treatment_raw = NULL,
+  confounders_censoring_raw = NULL,
+  confounders_sampling_raw = NULL,
+  confounders_tv_outcome_raw = NULL,
+  confounders_tv_treatment_raw = NULL,
   ...
 ) {
   if (length(treatment) > 1L) {
@@ -97,14 +105,27 @@ fit_aipw_longitudinal <- function(
   # -- Propensity-side models (same loop as fit_longitudinal_ipw) --
   # EM terms strip from propensity formulas; the confounder_terms
   # slot gives propensity-safe baseline terms (no A:modifier).
+  # When per-component confounders are supplied, use treatment
+  # confounders for propensity formulas.
+  ps_confounders <- confounders_treatment %||% confounders
   em_info_ipw <- check_confounders_treatment(
-    confounders,
+    ps_confounders,
     treatment,
     estimator = "ipw"
   )
   ps_baseline_terms <- em_info_ipw$confounder_terms
   if (length(ps_baseline_terms) == 0L) {
     ps_baseline_terms <- character(0L)
+  }
+
+  # Time-varying confounders for propensity formulas. When
+  # per-component TV confounders are supplied, the propensity side
+  # uses `confounders_tv_treatment`; otherwise falls back to `confounders_tv`.
+  ps_tv <- confounders_tv_treatment %||% confounders_tv
+  ps_tv_vars <- if (!is.null(ps_tv)) {
+    all.vars(ps_tv)
+  } else {
+    character(0)
   }
 
   trt_family_first <- detect_treatment_family(data[[treatment]])
@@ -131,7 +152,7 @@ fit_aipw_longitudinal <- function(
     ps_formula <- build_longitudinal_ps_formula(
       treatment = treatment,
       baseline_terms = ps_baseline_terms,
-      tv_vars = tv_vars,
+      tv_vars = ps_tv_vars,
       available_lags = available_lags,
       data_at_time = data_k
     )
@@ -168,6 +189,12 @@ fit_aipw_longitudinal <- function(
     outcome = outcome,
     confounders = confounders,
     confounders_tv = confounders_tv,
+    confounders_outcome = confounders_outcome_raw,
+    confounders_treatment = confounders_treatment_raw,
+    confounders_censoring = confounders_censoring_raw,
+    confounders_sampling = confounders_sampling_raw,
+    confounders_tv_outcome = confounders_tv_outcome_raw,
+    confounders_tv_treatment = confounders_tv_treatment_raw,
     family = family,
     estimator = "aipw",
     type = "longitudinal",

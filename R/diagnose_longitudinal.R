@@ -116,7 +116,7 @@ compute_positivity_longitudinal <- function(fit, ps_bounds) {
       treatment = fit$treatment,
       estimator = "ipw",
       data = data_k,
-      confounders = fit$confounders,
+      confounders = resolve_confounders_treatment(fit),
       outcome = fit$outcome,
       details = list(
         treatment_model = tm_k,
@@ -159,8 +159,8 @@ compute_balance_longitudinal <- function(fit, stats, thresholds) {
   data <- fit$data
 
   # Confounders for each period: baseline + time-varying.
-  conf_baseline <- fit$confounders
-  conf_tv <- fit$confounders_tv
+  conf_baseline <- resolve_confounders_treatment(fit)
+  conf_tv <- resolve_confounders_tv_treatment(fit)
 
   result <- lapply(as.character(time_points), function(tp) {
     # Subset to this period's rows.

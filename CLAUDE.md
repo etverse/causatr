@@ -31,8 +31,16 @@ This is an R package: `R/` (source), `tests/testthat/` (tests, `test-foo.R` mirr
 ## Two-step API
 
 ```r
+# Simple: same confounders for all models (backward-compatible)
 fit <- causat(data, outcome = "Y", treatment = "A", confounders = ~ L1 + L2,
               estimator = "gcomp", model_fn = stats::glm)
+
+# Explicit: separate confounders for outcome and treatment models
+fit <- causat(data, outcome = "Y", treatment = "A",
+              confounders_outcome = ~ L1 + L2 + I(L1^2),
+              confounders_treatment = ~ L1 + L2,
+              estimator = "aipw", propensity_model_fn = stats::glm)
+
 result <- contrast(fit,
   interventions = list(a1 = static(1), a0 = static(0)),
   type = "difference", ci_method = "sandwich")
@@ -126,3 +134,4 @@ causatr owns g-comp (parametric g-formula + ICE), a self-contained IPW density-r
 - **Transport uses a sampling model** \eqn{P(S=1 \mid L)} fit on combined study+target data; weights are \eqn{(1-\hat{p})/\hat{p}} sampling-odds weights. `target_subset = "target"` (transportability) vs `"all"` (generalizability).
 - **MTP + transport uses MC marginalization** over \eqn{P(A \mid L, S=1)} because target rows lack observed treatment. Exact enumeration for binary, Monte Carlo integration for continuous. Sandwich variance is not supported for this combination (bootstrap only).
 - **Matching + transport is rejected** — matching estimands are fixed at fitting time and cannot incorporate sampling-odds reweighting.
+- **Per-component confounders** — `confounders_outcome`, `confounders_treatment`, `confounders_censoring`, `confounders_sampling` (+ TV variants `confounders_tv_outcome`, `confounders_tv_treatment`) allow separate covariate specifications per model component. The old `confounders` / `confounders_tv` are soft-deprecated but still work as a convenience shorthand. No cross-defaults between new args — each model component resolves independently via `%||%` fallback to the deprecated arg.

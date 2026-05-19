@@ -173,6 +173,11 @@ ice_variance_bootstrap <- function(
   all_ids <- unique(data[[id_col]])
   n_ids <- length(all_ids)
 
+  # Pre-resolve confounders outside the closure so future workers
+  # receive plain formula objects instead of package-internal calls.
+  conf_outcome_resolved <- resolve_confounders_outcome(fit)
+  conf_tv_outcome_resolved <- resolve_confounders_tv_outcome(fit)
+
   # boot_fn: resamples individual IDs (not person-period rows).
   # For each bootstrap sample, reconstructs the person-period data by
   # extracting all rows for the sampled IDs, re-runs fit_ice() +
@@ -238,8 +243,8 @@ ice_variance_bootstrap <- function(
           data = d_b,
           outcome = fit$outcome,
           treatment = treatment,
-          confounders = fit$confounders,
-          confounders_tv = fit$confounders_tv,
+          confounders = conf_outcome_resolved,
+          confounders_tv = conf_tv_outcome_resolved,
           family = fit$family,
           estimand = fit$estimand,
           history = fit$history,
@@ -359,6 +364,13 @@ aipw_longitudinal_variance_bootstrap <- function(
 
   all_ids <- unique(data[[id_col]])
 
+  # Pre-resolve confounders outside the closure so future workers
+  # receive plain formula objects instead of package-internal calls.
+  conf_outcome_resolved <- resolve_confounders_outcome(fit)
+  conf_tv_outcome_resolved <- resolve_confounders_tv_outcome(fit)
+  conf_treatment_resolved <- resolve_confounders_treatment(fit)
+  conf_tv_treatment_resolved <- resolve_confounders_tv_treatment(fit)
+
   orig_weights <- if (isTRUE(fit$details$ipcw)) {
     fit$details$weights_pre_ipcw
   } else {
@@ -417,8 +429,8 @@ aipw_longitudinal_variance_bootstrap <- function(
           data = d_b,
           outcome = fit$outcome,
           treatment = treatment,
-          confounders = fit$confounders,
-          confounders_tv = fit$confounders_tv,
+          confounders = conf_outcome_resolved,
+          confounders_tv = conf_tv_outcome_resolved,
           family = fit$family,
           estimand = fit$estimand,
           history = fit$history,
@@ -429,7 +441,9 @@ aipw_longitudinal_variance_bootstrap <- function(
           propensity_family = fit$details$propensity_family,
           id = id_col,
           time = time_col,
-          call = fit$call
+          call = fit$call,
+          confounders_treatment = conf_treatment_resolved,
+          confounders_tv_treatment = conf_tv_treatment_resolved
         )
       ),
       error = function(e) NULL

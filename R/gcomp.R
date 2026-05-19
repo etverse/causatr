@@ -19,6 +19,18 @@
 #' @param call The original `causat()` call (for error messages).
 #' @param target Character or `NULL`. Name of the sampling indicator column
 #'   for transportability/generalizability.
+#' @param confounders_outcome One-sided formula or `NULL`. User-supplied
+#'   outcome-model confounders (stored on the fit for downstream reference).
+#' @param confounders_treatment One-sided formula or `NULL`. User-supplied
+#'   treatment-model confounders (stored on the fit).
+#' @param confounders_censoring One-sided formula or `NULL`. User-supplied
+#'   censoring-model confounders (stored on the fit).
+#' @param confounders_sampling One-sided formula or `NULL`. User-supplied
+#'   sampling-model confounders (stored on the fit).
+#' @param confounders_tv_outcome One-sided formula or `NULL`. User-supplied
+#'   TV outcome-model confounders (stored on the fit).
+#' @param confounders_tv_treatment One-sided formula or `NULL`. User-supplied
+#'   TV treatment-model confounders (stored on the fit).
 #' @param ... Passed to `model_fn`.
 #'
 #' @return A `causatr_fit` object.
@@ -41,6 +53,12 @@ fit_gcomp <- function(
   time,
   call,
   target = NULL,
+  confounders_outcome = NULL,
+  confounders_treatment = NULL,
+  confounders_censoring = NULL,
+  confounders_sampling = NULL,
+  confounders_tv_outcome = NULL,
+  confounders_tv_treatment = NULL,
   ...
 ) {
   if (type == "longitudinal") {
@@ -59,6 +77,12 @@ fit_gcomp <- function(
       id,
       time,
       call,
+      confounders_outcome = confounders_outcome,
+      confounders_treatment = confounders_treatment,
+      confounders_censoring = confounders_censoring,
+      confounders_sampling = confounders_sampling,
+      confounders_tv_outcome = confounders_tv_outcome,
+      confounders_tv_treatment = confounders_tv_treatment,
       ...
     )
   } else {
@@ -74,6 +98,12 @@ fit_gcomp <- function(
       model_fn,
       call,
       target = target,
+      confounders_outcome = confounders_outcome,
+      confounders_treatment = confounders_treatment,
+      confounders_censoring = confounders_censoring,
+      confounders_sampling = confounders_sampling,
+      confounders_tv_outcome = confounders_tv_outcome,
+      confounders_tv_treatment = confounders_tv_treatment,
       ...
     )
   }
@@ -125,6 +155,12 @@ fit_gcomp_point <- function(
   model_fn,
   call,
   target = NULL,
+  confounders_outcome = NULL,
+  confounders_treatment = NULL,
+  confounders_censoring = NULL,
+  confounders_sampling = NULL,
+  confounders_tv_outcome = NULL,
+  confounders_tv_treatment = NULL,
   ...
 ) {
   # Build outcome model formula: Y ~ A [+ A2 ...] + confounder_terms.
@@ -180,6 +216,12 @@ fit_gcomp_point <- function(
     outcome = outcome,
     confounders = confounders,
     confounders_tv = NULL,
+    confounders_outcome = confounders_outcome,
+    confounders_treatment = confounders_treatment,
+    confounders_censoring = confounders_censoring,
+    confounders_sampling = confounders_sampling,
+    confounders_tv_outcome = confounders_tv_outcome,
+    confounders_tv_treatment = confounders_tv_treatment,
     family = family,
     estimator = "gcomp",
     type = "point",

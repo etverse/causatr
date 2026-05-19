@@ -23,12 +23,38 @@
 #'   confounders, e.g. `~ L1 + L2`. Interactions and transformations are
 #'   allowed, e.g. `~ L1 * L2 + splines::ns(age, 4)`. For longitudinal data,
 #'   these confounders are constant within each individual (measured at
-#'   baseline) and enter every time-step outcome model.
+#'   baseline) and enter every time-step outcome model. **Soft-deprecated:**
+#'   prefer the per-component formulas (`confounders_outcome`,
+#'   `confounders_treatment`, etc.) for finer control. When `NULL` (the new
+#'   default), at least the per-component formulas required by the chosen
+#'   estimator must be supplied.
 #' @param confounders_tv A one-sided formula or `NULL`. Time-varying
 #'   confounders for longitudinal data (e.g. `~ CD4 + viral_load`). These
 #'   change over time within individuals and enter the outcome model at each
 #'   ICE step alongside their lagged values (controlled by `history`). Ignored
 #'   for point treatments. If `NULL`, no time-varying confounders are used.
+#'   **Soft-deprecated:** prefer `confounders_tv_outcome` and
+#'   `confounders_tv_treatment` for finer control.
+#' @param confounders_outcome One-sided formula or `NULL`. Confounders
+#'   for the outcome model only. When non-`NULL`, overrides `confounders`
+#'   for the outcome model (g-comp, AIPW outcome side, ICE backward
+#'   iteration, matching MSM). Falls back to `confounders` when `NULL`.
+#' @param confounders_treatment One-sided formula or `NULL`. Confounders
+#'   for the treatment (propensity) model only. When non-`NULL`, overrides
+#'   `confounders` for the propensity model (IPW, AIPW treatment side,
+#'   matching distance formula). Falls back to `confounders` when `NULL`.
+#' @param confounders_censoring One-sided formula or `NULL`. Confounders
+#'   for the censoring model when `ipcw = TRUE`. Falls back to
+#'   `confounders` when `NULL`.
+#' @param confounders_sampling One-sided formula or `NULL`. Confounders
+#'   for the sampling model \eqn{P(S = 1 \mid L)} when `target` is
+#'   non-`NULL`. Falls back to `confounders` when `NULL`.
+#' @param confounders_tv_outcome One-sided formula or `NULL`. Time-varying
+#'   confounders for the outcome model only (longitudinal data). Falls back
+#'   to `confounders_tv` when `NULL`.
+#' @param confounders_tv_treatment One-sided formula or `NULL`. Time-varying
+#'   confounders for the treatment model only (longitudinal data). Falls
+#'   back to `confounders_tv` when `NULL`.
 #' @param estimator Character. Causal estimator: `"gcomp"` (default), `"ipw"`,
 #'   `"aipw"`, or `"matching"`. IPW uses a self-contained density-ratio engine
 #'   (no runtime dependency on `WeightIt`); AIPW is doubly-robust (outcome
@@ -398,8 +424,14 @@ causat <- function(
   data,
   outcome,
   treatment,
-  confounders,
+  confounders = NULL,
   confounders_tv = NULL,
+  confounders_outcome = NULL,
+  confounders_treatment = NULL,
+  confounders_censoring = NULL,
+  confounders_sampling = NULL,
+  confounders_tv_outcome = NULL,
+  confounders_tv_treatment = NULL,
   estimator = c("gcomp", "ipw", "aipw", "matching"),
   family = "gaussian",
   estimand = c("ATE", "ATT", "ATC"),
@@ -431,6 +463,17 @@ causat <- function(
   # argument name would create an ambiguous named match in do.call().
   estimator <- rlang::arg_match(estimator)
   estimand <- rlang::arg_match(estimand)
+
+  # Resolve per-component confounder formulas. Each per-component
+  # formula falls back to the unified formula when NULL, so callers
+  # that only supply `confounders` / `confounders_tv` get identical
+  # behaviour to before this feature was added.
+  conf_outcome <- confounders_outcome %||% confounders
+  conf_treatment <- confounders_treatment %||% confounders
+  conf_censoring <- confounders_censoring %||% confounders
+  conf_sampling <- confounders_sampling %||% confounders
+  conf_tv_outcome <- confounders_tv_outcome %||% confounders_tv
+  conf_tv_treatment <- confounders_tv_treatment %||% confounders_tv
 
   # Warn when the user relies on silent defaults for model fitters.
   # `missing()` detects whether the argument was supplied at the call site,
@@ -502,6 +545,12 @@ causat <- function(
     treatment = treatment,
     confounders = confounders,
     confounders_tv = confounders_tv,
+    confounders_outcome = confounders_outcome,
+    confounders_treatment = confounders_treatment,
+    confounders_censoring = confounders_censoring,
+    confounders_sampling = confounders_sampling,
+    confounders_tv_outcome = confounders_tv_outcome,
+    confounders_tv_treatment = confounders_tv_treatment,
     estimator = estimator,
     estimand = estimand,
     id = id,
@@ -573,6 +622,12 @@ causat <- function(
     treatment = treatment,
     confounders = confounders,
     confounders_tv = confounders_tv,
+    confounders_outcome = confounders_outcome,
+    confounders_treatment = confounders_treatment,
+    confounders_censoring = confounders_censoring,
+    confounders_sampling = confounders_sampling,
+    confounders_tv_outcome = confounders_tv_outcome,
+    confounders_tv_treatment = confounders_tv_treatment,
     id = id,
     time = time,
     censoring = censoring,
@@ -632,7 +687,7 @@ causat <- function(
     samp_model <- fit_sampling_model(
       data = samp_data,
       target = target,
-      confounders = confounders,
+      confounders = conf_sampling,
       treatment = treatment,
       model_fn = samp_fn,
       weights = samp_weights
@@ -663,7 +718,7 @@ causat <- function(
       data = data,
       censoring = censoring,
       treatment = treatment,
-      confounders = confounders,
+      confounders = conf_censoring,
       model_fn = cens_model_fn,
       weights = weights
     )
@@ -695,8 +750,8 @@ causat <- function(
       data = data,
       censoring = censoring,
       treatment = treatment,
-      confounders = confounders,
-      confounders_tv = confounders_tv,
+      confounders = conf_censoring,
+      confounders_tv = conf_tv_outcome,
       model_fn = cens_model_fn,
       id = id,
       time = time,
@@ -735,8 +790,8 @@ causat <- function(
       data,
       outcome,
       treatment,
-      confounders,
-      confounders_tv,
+      conf_outcome,
+      conf_tv_outcome,
       family,
       estimand,
       type,
@@ -748,14 +803,20 @@ causat <- function(
       time,
       call,
       target = target,
+      confounders_outcome = confounders_outcome,
+      confounders_treatment = confounders_treatment,
+      confounders_censoring = confounders_censoring,
+      confounders_sampling = confounders_sampling,
+      confounders_tv_outcome = confounders_tv_outcome,
+      confounders_tv_treatment = confounders_tv_treatment,
       ...
     ),
     ipw = fit_ipw(
       data,
       outcome,
       treatment,
-      confounders,
-      confounders_tv,
+      conf_treatment,
+      conf_tv_treatment,
       family,
       estimand,
       type,
@@ -770,14 +831,21 @@ causat <- function(
       time = time,
       call = call,
       target = target,
+      confounders_outcome = conf_outcome,
+      confounders_outcome_raw = confounders_outcome,
+      confounders_treatment_raw = confounders_treatment,
+      confounders_censoring_raw = confounders_censoring,
+      confounders_sampling_raw = confounders_sampling,
+      confounders_tv_outcome_raw = confounders_tv_outcome,
+      confounders_tv_treatment_raw = confounders_tv_treatment,
       ...
     ),
     aipw = fit_aipw(
       data,
       outcome,
       treatment,
-      confounders,
-      confounders_tv,
+      conf_outcome,
+      conf_tv_outcome,
       family,
       estimand,
       type,
@@ -792,18 +860,33 @@ causat <- function(
       time = time,
       call = call,
       target = target,
+      confounders_treatment = conf_treatment,
+      confounders_tv_treatment = conf_tv_treatment,
+      confounders_outcome_raw = confounders_outcome,
+      confounders_treatment_raw = confounders_treatment,
+      confounders_censoring_raw = confounders_censoring,
+      confounders_sampling_raw = confounders_sampling,
+      confounders_tv_outcome_raw = confounders_tv_outcome,
+      confounders_tv_treatment_raw = confounders_tv_treatment,
       ...
     ),
     matching = fit_matching(
       data,
       outcome,
       treatment,
-      confounders,
+      conf_outcome,
       family,
       estimand,
       type,
       weights,
       call,
+      confounders_treatment = conf_treatment,
+      confounders_outcome_raw = confounders_outcome,
+      confounders_treatment_raw = confounders_treatment,
+      confounders_censoring_raw = confounders_censoring,
+      confounders_sampling_raw = confounders_sampling,
+      confounders_tv_outcome_raw = confounders_tv_outcome,
+      confounders_tv_treatment_raw = confounders_tv_treatment,
       ...
     ),
     # Defensive default: unreachable under normal use because

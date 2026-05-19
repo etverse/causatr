@@ -8,6 +8,18 @@
 #' @param treatment Character treatment column name(s).
 #' @param confounders One-sided formula of baseline confounders.
 #' @param confounders_tv One-sided formula of time-varying confounders or `NULL`.
+#' @param confounders_outcome One-sided formula of outcome-model confounders, or
+#'   `NULL`.
+#' @param confounders_treatment One-sided formula of treatment-model confounders,
+#'   or `NULL`.
+#' @param confounders_censoring One-sided formula of censoring-model confounders,
+#'   or `NULL`.
+#' @param confounders_sampling One-sided formula of sampling-model confounders,
+#'   or `NULL`.
+#' @param confounders_tv_outcome One-sided formula of time-varying outcome-model
+#'   confounders, or `NULL`.
+#' @param confounders_tv_treatment One-sided formula of time-varying
+#'   treatment-model confounders, or `NULL`.
 #' @param id Character ID column name or `NULL`.
 #' @param time Character time column name or `NULL`.
 #' @param censoring Character censoring column name or `NULL`.
@@ -23,6 +35,12 @@ prepare_data <- function(
   treatment,
   confounders,
   confounders_tv = NULL,
+  confounders_outcome = NULL,
+  confounders_treatment = NULL,
+  confounders_censoring = NULL,
+  confounders_sampling = NULL,
+  confounders_tv_outcome = NULL,
+  confounders_tv_treatment = NULL,
   id = NULL,
   time = NULL,
   censoring = NULL,
@@ -50,6 +68,30 @@ prepare_data <- function(
     character(0)
   }
 
+  # Collect variables from per-component confounder formulas. These may
+  # reference columns not in the unified `confounders` / `confounders_tv`
+  # formulas (the whole point of per-component formulas), so they must be
+  # included in the retention set or the downstream model fit will fail.
+  per_component_vars <- character(0)
+  per_component_tv_vars <- character(0)
+  for (fml in list(
+    confounders_outcome,
+    confounders_treatment,
+    confounders_censoring,
+    confounders_sampling
+  )) {
+    if (!is.null(fml)) {
+      per_component_vars <- c(per_component_vars, all.vars(fml))
+    }
+  }
+  for (fml in list(confounders_tv_outcome, confounders_tv_treatment)) {
+    if (!is.null(fml)) {
+      per_component_tv_vars <- c(per_component_tv_vars, all.vars(fml))
+    }
+  }
+  # Time-varying per-component variables need lags too
+  tv_vars <- unique(c(tv_vars, per_component_tv_vars))
+
   # Strip to only the columns we need. Keeping extra columns is
   # harmless for correctness but wastes memory across bootstrap
   # iterations where data is repeatedly resampled. `intersect`
@@ -59,8 +101,9 @@ prepare_data <- function(
   keep_cols <- unique(c(
     outcome,
     treatment,
-    all.vars(confounders),
+    if (!is.null(confounders)) all.vars(confounders) else character(0),
     tv_vars,
+    per_component_vars,
     id,
     time,
     censoring,

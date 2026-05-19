@@ -1261,7 +1261,7 @@ compute_contrast <- function(
         mc_tm <- fit_mc_treatment_model(
           data,
           fit$treatment,
-          fit$confounders,
+          resolve_confounders_treatment(fit),
           fit$details$fit_rows
         )
         mc_data <- data[mc_rows]

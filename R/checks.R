@@ -375,7 +375,12 @@ check_estimand_intervention_compat <- function(
         "."
       ),
       i = "Use `estimand = 'ATE'` if you want the MTP / shift / IPSI effect on the full population.",
-      i = "Use `estimator = 'gcomp'` if you need ATT/ATC under a non-static intervention -- gcomp handles this via predict-then-average on the outcome model, which works for any estimand x intervention combination."
+      i = paste0(
+        "Use `estimator = 'gcomp'` if you need ATT/ATC under a ",
+        "non-static intervention -- gcomp handles this via ",
+        "predict-then-average on the outcome model, which works ",
+        "for any estimand x intervention combination."
+      )
     ),
     class = "causatr_bad_estimand_intervention",
     call = call
@@ -451,6 +456,18 @@ check_treatment_nas <- function(
 #' @param confounders One-sided formula of baseline confounders.
 #' @param confounders_tv One-sided formula of time-varying confounders, or
 #'   `NULL`.
+#' @param confounders_outcome One-sided formula of outcome-model confounders,
+#'   or `NULL`.
+#' @param confounders_treatment One-sided formula of treatment-model
+#'   confounders, or `NULL`.
+#' @param confounders_censoring One-sided formula of censoring-model
+#'   confounders, or `NULL`.
+#' @param confounders_sampling One-sided formula of sampling-model confounders,
+#'   or `NULL`.
+#' @param confounders_tv_outcome One-sided formula of time-varying outcome-model
+#'   confounders, or `NULL`.
+#' @param confounders_tv_treatment One-sided formula of time-varying
+#'   treatment-model confounders, or `NULL`.
 #' @param estimator Character causal estimator.
 #' @param estimand Character estimand.
 #' @param id Character ID column name, or `NULL`.
@@ -465,6 +482,12 @@ check_causat_inputs <- function(
   treatment,
   confounders,
   confounders_tv,
+  confounders_outcome = NULL,
+  confounders_treatment = NULL,
+  confounders_censoring = NULL,
+  confounders_sampling = NULL,
+  confounders_tv_outcome = NULL,
+  confounders_tv_treatment = NULL,
   estimator,
   estimand,
   id,
@@ -522,7 +545,14 @@ check_causat_inputs <- function(
     )
   }
 
-  check_formula(confounders, call = call)
+  # `confounders` is NULL when the caller uses only per-component
+
+  # formulas. Skip formula + column-existence checks when NULL; the
+  # post-resolution estimator-requirement checks below will catch any
+  # missing confounders.
+  if (!is.null(confounders)) {
+    check_formula(confounders, call = call)
+  }
   check_col_exists(data, outcome, call = call)
 
   for (trt in treatment) {
@@ -533,16 +563,18 @@ check_causat_inputs <- function(
   # variable names from the formula's LHS/RHS, stripping transforms
   # (`I(age^2)` -> `age`), which is what we want for column-name
   # checking.
-  confounder_vars <- all.vars(confounders)
-  missing_vars <- setdiff(confounder_vars, names(data))
-  if (length(missing_vars) > 0) {
-    rlang::abort(
-      paste0(
-        "Confounder variable(s) not found in `data`: ",
-        paste(missing_vars, collapse = ", ")
-      ),
-      call = call
-    )
+  if (!is.null(confounders)) {
+    confounder_vars <- all.vars(confounders)
+    missing_vars <- setdiff(confounder_vars, names(data))
+    if (length(missing_vars) > 0) {
+      rlang::abort(
+        paste0(
+          "Confounder variable(s) not found in `data`: ",
+          paste(missing_vars, collapse = ", ")
+        ),
+        call = call
+      )
+    }
   }
 
   # Outcome and treatment must be distinct. Catches a common typo
@@ -563,6 +595,105 @@ check_causat_inputs <- function(
         paste0(
           "Time-varying confounder variable(s) not found in `data`: ",
           paste(missing_tv, collapse = ", ")
+        ),
+        call = call
+      )
+    }
+  }
+
+  # Per-component confounder formulas: each is optional (NULL = fall back
+  # to the unified `confounders` / `confounders_tv`). When supplied, must
+  # be a formula whose variables all exist in `data`.
+  per_component <- list(
+    confounders_outcome = confounders_outcome,
+    confounders_treatment = confounders_treatment,
+    confounders_censoring = confounders_censoring,
+    confounders_sampling = confounders_sampling,
+    confounders_tv_outcome = confounders_tv_outcome,
+    confounders_tv_treatment = confounders_tv_treatment
+  )
+  for (nm in names(per_component)) {
+    val <- per_component[[nm]]
+    if (!is.null(val)) {
+      check_formula(val, arg = nm, call = call)
+      comp_vars <- all.vars(val)
+      missing_comp <- setdiff(comp_vars, names(data))
+      if (length(missing_comp) > 0) {
+        rlang::abort(
+          paste0(
+            nm,
+            " variable(s) not found in `data`: ",
+            paste(missing_comp, collapse = ", ")
+          ),
+          call = call
+        )
+      }
+    }
+  }
+
+  # Post-resolution: verify that the estimator's required confounders are
+  # available. The resolution logic mirrors causat.R: per-component
+  # formula wins, then unified formula, then NULL. An estimator that
+  # requires a component must have a non-NULL formula after resolution.
+  conf_outcome <- confounders_outcome %||% confounders
+  conf_treatment <- confounders_treatment %||% confounders
+
+  if (estimator == "gcomp" && is.null(conf_outcome)) {
+    rlang::abort(
+      paste0(
+        "`estimator = \"gcomp\"` requires outcome-model confounders. ",
+        "Supply `confounders_outcome` or `confounders`."
+      ),
+      call = call
+    )
+  }
+
+  if (estimator == "ipw" && is.null(conf_treatment)) {
+    rlang::abort(
+      paste0(
+        "`estimator = \"ipw\"` requires treatment-model confounders. ",
+        "Supply `confounders_treatment` or `confounders`."
+      ),
+      call = call
+    )
+  }
+
+  if (estimator == "aipw") {
+    if (is.null(conf_outcome)) {
+      rlang::abort(
+        paste0(
+          "`estimator = \"aipw\"` requires outcome-model confounders. ",
+          "Supply `confounders_outcome` or `confounders`."
+        ),
+        call = call
+      )
+    }
+    if (is.null(conf_treatment)) {
+      rlang::abort(
+        paste0(
+          "`estimator = \"aipw\"` requires treatment-model confounders. ",
+          "Supply `confounders_treatment` or `confounders`."
+        ),
+        call = call
+      )
+    }
+  }
+
+  if (estimator == "matching") {
+    if (is.null(conf_outcome)) {
+      rlang::abort(
+        paste0(
+          "`estimator = \"matching\"` requires outcome-model confounders. ",
+          "Supply `confounders_outcome` or `confounders`."
+        ),
+        call = call
+      )
+    }
+    if (is.null(conf_treatment)) {
+      rlang::abort(
+        paste0(
+          "`estimator = \"matching\"` requires treatment-model confounders. ",
+          "Supply `confounders_treatment` or `confounders`."
         ),
         call = call
       )

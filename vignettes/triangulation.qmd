@@ -330,6 +330,40 @@ For features marked "No", causatr aborts at fit or contrast time with a
 pointer to the planning doc rather than silently returning a wrong answer —
 see `FEATURE_COVERAGE_MATRIX.md` for the full rejection-path inventory.
 
+## Separate confounders for double robustness
+
+AIPW is consistent when *either* the outcome model or the propensity
+model is correctly specified. To exploit this, you can pass different
+covariate sets to each model via `confounders_outcome` and
+`confounders_treatment`:
+
+```{r}
+#| eval: false
+fit_dr <- causat(
+  nhefs_complete,
+  outcome = "wt82_71",
+  treatment = "qsmk",
+  confounders_outcome = ~ sex + age + I(age^2) + race +
+    factor(education) + smokeintensity + I(smokeintensity^2) +
+    smokeyrs + I(smokeyrs^2) + factor(exercise) + factor(active) +
+    wt71 + I(wt71^2),
+  confounders_treatment = ~ sex + age + race + factor(education) +
+    smokeintensity + smokeyrs + factor(exercise) + factor(active) + wt71,
+  estimator = "aipw",
+  propensity_model_fn = stats::glm
+)
+```
+
+The same per-component formulas are available for every estimator (though
+g-comp only uses the outcome side and IPW only uses the treatment side).
+Additional per-component formulas exist for the censoring model
+(`confounders_censoring`), the transportability sampling model
+(`confounders_sampling`), and time-varying confounders
+(`confounders_tv_outcome`, `confounders_tv_treatment`).
+
+The legacy `confounders` argument still works as a shorthand that sets
+all components at once.
+
 ## References
 
 Hernán MA, Robins JM (2025). *Causal Inference: What If*. Chapman & Hall/CRC.

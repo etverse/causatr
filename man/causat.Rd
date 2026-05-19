@@ -8,8 +8,14 @@ causat(
   data,
   outcome,
   treatment,
-  confounders,
+  confounders = NULL,
   confounders_tv = NULL,
+  confounders_outcome = NULL,
+  confounders_treatment = NULL,
+  confounders_censoring = NULL,
+  confounders_sampling = NULL,
+  confounders_tv_outcome = NULL,
+  confounders_tv_treatment = NULL,
   estimator = c("gcomp", "ipw", "aipw", "matching"),
   family = "gaussian",
   estimand = c("ATE", "ATT", "ATC"),
@@ -46,13 +52,45 @@ treatment variable(s). Pass a character vector for multivariate
 confounders, e.g. \code{~ L1 + L2}. Interactions and transformations are
 allowed, e.g. \code{~ L1 * L2 + splines::ns(age, 4)}. For longitudinal data,
 these confounders are constant within each individual (measured at
-baseline) and enter every time-step outcome model.}
+baseline) and enter every time-step outcome model. \strong{Soft-deprecated:}
+prefer the per-component formulas (\code{confounders_outcome},
+\code{confounders_treatment}, etc.) for finer control. When \code{NULL} (the new
+default), at least the per-component formulas required by the chosen
+estimator must be supplied.}
 
 \item{confounders_tv}{A one-sided formula or \code{NULL}. Time-varying
 confounders for longitudinal data (e.g. \code{~ CD4 + viral_load}). These
 change over time within individuals and enter the outcome model at each
 ICE step alongside their lagged values (controlled by \code{history}). Ignored
-for point treatments. If \code{NULL}, no time-varying confounders are used.}
+for point treatments. If \code{NULL}, no time-varying confounders are used.
+\strong{Soft-deprecated:} prefer \code{confounders_tv_outcome} and
+\code{confounders_tv_treatment} for finer control.}
+
+\item{confounders_outcome}{One-sided formula or \code{NULL}. Confounders
+for the outcome model only. When non-\code{NULL}, overrides \code{confounders}
+for the outcome model (g-comp, AIPW outcome side, ICE backward
+iteration, matching MSM). Falls back to \code{confounders} when \code{NULL}.}
+
+\item{confounders_treatment}{One-sided formula or \code{NULL}. Confounders
+for the treatment (propensity) model only. When non-\code{NULL}, overrides
+\code{confounders} for the propensity model (IPW, AIPW treatment side,
+matching distance formula). Falls back to \code{confounders} when \code{NULL}.}
+
+\item{confounders_censoring}{One-sided formula or \code{NULL}. Confounders
+for the censoring model when \code{ipcw = TRUE}. Falls back to
+\code{confounders} when \code{NULL}.}
+
+\item{confounders_sampling}{One-sided formula or \code{NULL}. Confounders
+for the sampling model \eqn{P(S = 1 \mid L)} when \code{target} is
+non-\code{NULL}. Falls back to \code{confounders} when \code{NULL}.}
+
+\item{confounders_tv_outcome}{One-sided formula or \code{NULL}. Time-varying
+confounders for the outcome model only (longitudinal data). Falls back
+to \code{confounders_tv} when \code{NULL}.}
+
+\item{confounders_tv_treatment}{One-sided formula or \code{NULL}. Time-varying
+confounders for the treatment model only (longitudinal data). Falls
+back to \code{confounders_tv} when \code{NULL}.}
 
 \item{estimator}{Character. Causal estimator: \code{"gcomp"} (default), \code{"ipw"},
 \code{"aipw"}, or \code{"matching"}. IPW uses a self-contained density-ratio engine

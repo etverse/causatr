@@ -98,6 +98,13 @@ fit_longitudinal_ipw <- function(
   time,
   call,
   target = NULL,
+  confounders_outcome = NULL,
+  confounders_outcome_raw = NULL,
+  confounders_treatment_raw = NULL,
+  confounders_censoring_raw = NULL,
+  confounders_sampling_raw = NULL,
+  confounders_tv_outcome_raw = NULL,
+  confounders_tv_treatment_raw = NULL,
   ...
 ) {
   # Each abort is a classed error so callers can detect on `class`
@@ -143,11 +150,16 @@ fit_longitudinal_ipw <- function(
   # via mediator + collider paths. We don't enforce baseline-ness at
   # runtime because time-varying status isn't inferable from the data;
   # the constraint is doc-level.
+  # When per-component confounders are supplied, EM terms live in the
+  # outcome confounders; validate treatment confounders separately.
   em_info <- check_confounders_treatment(
-    confounders,
+    confounders_outcome %||% confounders,
     treatment,
     estimator = "ipw"
   )
+  if (!is.null(confounders_outcome)) {
+    check_confounders_treatment(confounders, treatment, estimator = "ipw")
+  }
 
   # Sorted unique time points. Per-period propensity models index into
   # `time_points[k]`; lag columns (`lag1_A`, ...) created by
@@ -390,6 +402,12 @@ fit_longitudinal_ipw <- function(
     outcome = outcome,
     confounders = confounders,
     confounders_tv = confounders_tv,
+    confounders_outcome = confounders_outcome_raw,
+    confounders_treatment = confounders_treatment_raw,
+    confounders_censoring = confounders_censoring_raw,
+    confounders_sampling = confounders_sampling_raw,
+    confounders_tv_outcome = confounders_tv_outcome_raw,
+    confounders_tv_treatment = confounders_tv_treatment_raw,
     family = family,
     estimator = "ipw",
     type = "longitudinal",
@@ -422,7 +440,8 @@ fit_longitudinal_ipw <- function(
       propensity_model_fn = prop_model_fn,
       propensity_family = propensity_family,
       stabilize = stabilize,
-      is_multivariate = FALSE
+      is_multivariate = FALSE,
+      confounders_outcome = confounders_outcome
     )
   )
 }

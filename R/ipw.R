@@ -88,6 +88,13 @@ fit_ipw <- function(
   time = NULL,
   call,
   target = NULL,
+  confounders_outcome = NULL,
+  confounders_outcome_raw = NULL,
+  confounders_treatment_raw = NULL,
+  confounders_censoring_raw = NULL,
+  confounders_sampling_raw = NULL,
+  confounders_tv_outcome_raw = NULL,
+  confounders_tv_treatment_raw = NULL,
   ...
 ) {
   # Longitudinal IPW dispatch. The full point-treatment
@@ -116,6 +123,13 @@ fit_ipw <- function(
       time = time,
       call = call,
       target = target,
+      confounders_outcome = confounders_outcome,
+      confounders_outcome_raw = confounders_outcome_raw,
+      confounders_treatment_raw = confounders_treatment_raw,
+      confounders_censoring_raw = confounders_censoring_raw,
+      confounders_sampling_raw = confounders_sampling_raw,
+      confounders_tv_outcome_raw = confounders_tv_outcome_raw,
+      confounders_tv_treatment_raw = confounders_tv_treatment_raw,
       ...
     ))
   }
@@ -140,11 +154,17 @@ fit_ipw <- function(
   # confounders (`~ L + A`). True EM terms (`A:sex`) are detected
   # and stored for downstream MSM expansion. The propensity formula
   # strips EM terms automatically via `build_ps_formula()`.
+  # When per-component confounders are supplied, EM terms live in the
+  # outcome confounders (where `A:sex` belongs for MSM expansion), and
+  # the treatment confounders are validated for no bare A.
   em_info <- check_confounders_treatment(
-    confounders,
+    confounders_outcome %||% confounders,
     treatment,
     estimator = "ipw"
   )
+  if (!is.null(confounders_outcome)) {
+    check_confounders_treatment(confounders, treatment, estimator = "ipw")
+  }
 
   # Effect modification under multivariate IPW: per-component
   # propensity formulas strip ALL treatment-touching terms (including
@@ -343,6 +363,12 @@ fit_ipw <- function(
     outcome = outcome,
     confounders = confounders,
     confounders_tv = confounders_tv,
+    confounders_outcome = confounders_outcome_raw,
+    confounders_treatment = confounders_treatment_raw,
+    confounders_censoring = confounders_censoring_raw,
+    confounders_sampling = confounders_sampling_raw,
+    confounders_tv_outcome = confounders_tv_outcome_raw,
+    confounders_tv_treatment = confounders_tv_treatment_raw,
     family = family,
     estimator = "ipw",
     type = "point",
@@ -372,7 +398,8 @@ fit_ipw <- function(
       model_fn = model_fn,
       em_info = em_info,
       is_multivariate = is_multivariate,
-      stabilize = stabilize
+      stabilize = stabilize,
+      confounders_outcome = confounders_outcome
     )
   )
 }
