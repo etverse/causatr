@@ -55,18 +55,18 @@ test_that("KS S1: all estimators recover E[Y]=210 with correct models", {
   # E[Y(1)] and E[Y(0)] should both be ~210 (ATE ~0).
   ey1_gc <- res_gc$estimates$estimate[res_gc$estimates$intervention == "a1"]
   ey0_gc <- res_gc$estimates$estimate[res_gc$estimates$intervention == "a0"]
-  expect_equal(ey1_gc, truth, tolerance = 2)
-  expect_equal(ey0_gc, truth, tolerance = 2)
+  expect_equal(ey1_gc, truth, tolerance = 1.5)
+  expect_equal(ey0_gc, truth, tolerance = 1.5)
 
   ey1_ipw <- res_ipw$estimates$estimate[res_ipw$estimates$intervention == "a1"]
   ey0_ipw <- res_ipw$estimates$estimate[res_ipw$estimates$intervention == "a0"]
-  expect_equal(ey1_ipw, truth, tolerance = 2)
-  expect_equal(ey0_ipw, truth, tolerance = 2)
+  expect_equal(ey1_ipw, truth, tolerance = 1.5)
+  expect_equal(ey0_ipw, truth, tolerance = 1.5)
 
   ey1_aipw <- res_aipw$estimates$estimate[res_aipw$estimates$intervention == "a1"]
   ey0_aipw <- res_aipw$estimates$estimate[res_aipw$estimates$intervention == "a0"]
-  expect_equal(ey1_aipw, truth, tolerance = 2)
-  expect_equal(ey0_aipw, truth, tolerance = 2)
+  expect_equal(ey1_aipw, truth, tolerance = 1.5)
+  expect_equal(ey0_aipw, truth, tolerance = 1.5)
 })
 
 

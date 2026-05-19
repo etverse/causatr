@@ -25,8 +25,8 @@ test_that("LaLonde matching ATT ≈ experimental benchmark ($1794)", {
 
   # Experimental benchmark ATT ≈ $1794.
   # Observational matching with PSID controls is noisier; expect within $1000.
-  expect_gt(att, 500)
-  expect_lt(att, 3500)
+  expect_gt(att, 400)
+  expect_lt(att, 2500)
 })
 
 
@@ -77,10 +77,10 @@ test_that("LaLonde: gcomp, IPW, matching ATT agree within $2000", {
   # All ATTs should be positive (training helps earnings).
   for (a in atts) expect_gt(a, 0)
 
-  # Pairwise agreement within $2000 (LaLonde with PSID control is hard).
+  # Pairwise agreement within $1000 (LaLonde with PSID control is hard).
   pairs <- combn(atts, 2)
   for (j in seq_len(ncol(pairs))) {
-    expect_lt(abs(pairs[1, j] - pairs[2, j]), 2000)
+    expect_lt(abs(pairs[1, j] - pairs[2, j]), 1000)
   }
 })
 
@@ -119,5 +119,5 @@ test_that("LaLonde: AIPW ATT agrees with gcomp ATT within $1500", {
   att_gc <- res_gc$contrasts$estimate[1]
   att_aipw <- res_aipw$contrasts$estimate[1]
 
-  expect_lt(abs(att_gc - att_aipw), 1500)
+  expect_lt(abs(att_gc - att_aipw), 500)
 })

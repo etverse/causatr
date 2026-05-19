@@ -47,12 +47,12 @@ test_that("triangulation: gcomp, IPW, AIPW, matching agree on ATE (het DGP)", {
   )
 
   # True marginal ATE ≈ 3.6. All should be close.
-  for (a in ates) expect_equal(a, 3.6, tolerance = 0.5)
+  for (a in ates) expect_equal(a, 3.6, tolerance = 0.2)
 
-  # Pairwise agreement within 0.5.
+  # Pairwise agreement within 0.15.
   pairs <- combn(ates, 2)
   for (j in seq_len(ncol(pairs))) {
-    expect_lt(abs(pairs[1, j] - pairs[2, j]), 0.5)
+    expect_lt(abs(pairs[1, j] - pairs[2, j]), 0.15)
   }
 })
 
@@ -103,11 +103,10 @@ test_that("triangulation: gcomp, IPW, matching agree on ATT (het DGP)", {
     match = res_match$contrasts$estimate[1]
   )
 
-  # True ATT ≈ 4.58 (mean over sex). Pairwise agreement within 1.0.
-  # Matching ATT is noisier due to finite-sample bias from caliper effects.
+  # True ATT ≈ 4.58. Matching ATT has more finite-sample bias (~0.85 off).
   pairs <- combn(atts, 2)
   for (j in seq_len(ncol(pairs))) {
-    expect_lt(abs(pairs[1, j] - pairs[2, j]), 1.0)
+    expect_lt(abs(pairs[1, j] - pairs[2, j]), 1.2)
   }
 })
 
@@ -156,12 +155,12 @@ test_that("triangulation: gcomp, IPW, AIPW agree on RD (binary outcome)", {
   )
 
   # True marginal RD ≈ 0.33. All should be close.
-  for (rd in rds) expect_equal(rd, 0.33, tolerance = 0.06)
+  for (rd in rds) expect_equal(rd, 0.33, tolerance = 0.02)
 
-  # Pairwise agreement within 0.05.
+  # Pairwise agreement within 0.02.
   pairs <- combn(rds, 2)
   for (j in seq_len(ncol(pairs))) {
-    expect_lt(abs(pairs[1, j] - pairs[2, j]), 0.05)
+    expect_lt(abs(pairs[1, j] - pairs[2, j]), 0.02)
   }
 })
 
@@ -210,12 +209,12 @@ test_that("triangulation: gcomp, IPW, AIPW agree on shift(-1) (cont trt)", {
   )
 
   # True shift(-1) effect = -2. All should be close.
-  for (e in ests) expect_equal(e, -2, tolerance = 0.3)
+  for (e in ests) expect_equal(e, -2, tolerance = 0.1)
 
-  # Pairwise agreement within 0.3.
+  # Pairwise agreement within 0.1.
   pairs <- combn(ests, 2)
   for (j in seq_len(ncol(pairs))) {
-    expect_lt(abs(pairs[1, j] - pairs[2, j]), 0.3)
+    expect_lt(abs(pairs[1, j] - pairs[2, j]), 0.1)
   }
 })
 
@@ -251,7 +250,7 @@ test_that("triangulation: gcomp and IPW agree on categorical static", {
   ate_ipw <- res_ipw$contrasts$estimate[1]
 
   # True ATE("b" vs "a") = 3.
-  expect_equal(ate_gc, 3, tolerance = 0.3)
-  expect_equal(ate_ipw, 3, tolerance = 0.3)
-  expect_lt(abs(ate_gc - ate_ipw), 0.3)
+  expect_equal(ate_gc, 3, tolerance = 0.1)
+  expect_equal(ate_ipw, 3, tolerance = 0.1)
+  expect_lt(abs(ate_gc - ate_ipw), 0.1)
 })

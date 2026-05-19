@@ -136,7 +136,7 @@ for (i in seq_len(nrow(combos))) {
     }
 
     # Point estimate check against truth.
-    expect_equal(est_val, info$ate, tolerance = 0.5,
+    expect_equal(est_val, info$ate, tolerance = 0.15,
                  label = paste("truth check:", label))
   })
 }
@@ -367,6 +367,6 @@ test_that("combo: ipw × count (Poisson) × shift × sandwich", {
   )
 
   # True shift(1) vs shift(0) difference = 1.5.
-  expect_equal(res$contrasts$estimate[1], 1.5, tolerance = 0.3)
+  expect_equal(res$contrasts$estimate[1], 1.5, tolerance = 0.1)
   expect_true(is.finite(res$contrasts$se[1]) && res$contrasts$se[1] > 0)
 })
