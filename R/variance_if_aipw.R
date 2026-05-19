@@ -542,10 +542,18 @@ variance_if_aipw <- function(
     }
 
     # --- Assembly ----------------------------------------------------------
+    # All corrections are additive: each propagates nuisance-model
+    # parameter uncertainty through J_k A_k^{-1} psi_{k,i}.  The
+    # Jacobian J_k = d mu / d theta_k already carries the correct sign,
+    # so the correction is added, not subtracted. This follows the
+    # standard M-estimation block-inverse identity (Stefanski & Boos
+    # 2002, eq. 9): B^{-1}[target, nuisance] = -A_{22}^{-1} A_{21}
+    # A_{11}^{-1}, where A_{21} = -d(psi_target)/d(theta_nuisance)
+    # incorporates a sign flip from the bread definition.
     Ch1_i +
-      outcome_res$correction -
-      prop_correction -
-      samp_correction -
+      outcome_res$correction +
+      prop_correction +
+      samp_correction +
       cens_correction
   })
   names(IF_list) <- int_names
@@ -1033,8 +1041,10 @@ variance_if_aipw_long_one <- function(
       if (n_period_k != n) {
         correction_id <- correction_id * (n / n_period_k)
       }
-      # Propensity correction subtracted: block-lower-triangular M-estimation sign.
-      IF_vec <- IF_vec - correction_id
+      # Propensity correction added: J_alpha already carries the correct
+      # sign from d(mu)/d(alpha), matching the standard M-estimation
+      # block-inverse identity (Stefanski & Boos 2002).
+      IF_vec <- IF_vec + correction_id
     }
   }
 

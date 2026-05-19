@@ -74,6 +74,81 @@ test_that("Categorical AIPW SE matches delicatessen — ATE(c vs a)", {
 })
 
 
+# -- Binary IPW: point treatment, ATE(1 vs 0) ---------------------------------
+#
+# DGP: L ~ N(0,1), A ~ Bern(expit(0.5L)), Y = 2 + 3A + 1.5L + N(0,1).
+# True ATE = 3. n = 2000, seed = 42.
+# Propensity: Z = [1, L], standard logistic.
+
+test_that("Binary IPW SE matches delicatessen — ATE", {
+  fixture <- read.csv(
+    test_path("..", "..", "data-raw", "ipw_fixture_binary.csv")
+  )
+
+  # delicatessen reference (data-raw/ipw_binary_reference.py)
+  ref_ate <- 2.9927
+  ref_se_ate <- 0.0473
+
+  fit <- causat(
+    fixture,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw",
+    propensity_model_fn = stats::glm
+  )
+
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    ci_method = "sandwich"
+  )
+
+  expect_equal(res$contrasts$estimate[1], ref_ate, tolerance = 0.01)
+  expect_equal(res$contrasts$se[1], ref_se_ate, tolerance = 0.005)
+})
+
+
+test_that("Binary IPW counterfactual means match delicatessen", {
+  fixture <- read.csv(
+    test_path("..", "..", "data-raw", "ipw_fixture_binary.csv")
+  )
+
+  # delicatessen reference
+  ref_mu1 <- 4.9228
+  ref_se_mu1 <- 0.0496
+  ref_mu0 <- 1.9301
+  ref_se_mu0 <- 0.0472
+
+  fit <- causat(
+    fixture,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw",
+    propensity_model_fn = stats::glm
+  )
+
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    ci_method = "sandwich"
+  )
+
+  mu1 <- res$estimates$estimate[res$estimates$intervention == "a1"]
+  mu0 <- res$estimates$estimate[res$estimates$intervention == "a0"]
+  se1 <- res$estimates$se[res$estimates$intervention == "a1"]
+  se0 <- res$estimates$se[res$estimates$intervention == "a0"]
+
+  expect_equal(mu1, ref_mu1, tolerance = 0.01)
+  expect_equal(mu0, ref_mu0, tolerance = 0.01)
+  expect_equal(se1, ref_se_mu1, tolerance = 0.005)
+  expect_equal(se0, ref_se_mu0, tolerance = 0.005)
+})
+
+
 # -- Longitudinal IPW: 2-period, ATE(always vs never) -------------------------
 #
 # DGP: Naimi-inspired with treatment-confounder feedback (see

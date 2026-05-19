@@ -223,6 +223,132 @@ test_that("gcomp sandwich matches stdReg2 — NHEFS (Hernán & Robins)", {
 })
 
 
+# ── 1b. stdReg2 DR comparison (AIPW) ─────────────────────────────────────────
+
+test_that("AIPW sandwich matches stdReg2 DR — continuous outcome", {
+  df <- simulate_binary_continuous(n = 5000, seed = 123)
+
+  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L,
+                estimator = "aipw", propensity_model_fn = stats::glm)
+  res <- contrast(fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0", ci_method = "sandwich")
+
+  std_fit <- stdReg2::standardize_glm_dr(
+    formula_outcome = Y ~ A + L,
+    formula_exposure = A ~ L,
+    data = df, values = list(A = 0:1),
+    family_outcome = "gaussian", family_exposure = "binomial",
+    contrasts = "difference", reference = 0
+  )
+  std_tidy <- stdReg2::tidy(std_fit)
+  std_diff <- std_tidy[std_tidy$contrast == "difference" & std_tidy$A == 1, ]
+
+  expect_equal(res$contrasts$estimate[1], std_diff$Estimate, tolerance = 1e-4)
+  expect_equal(res$contrasts$se[1], std_diff$Std.Error, tolerance = 0.005)
+})
+
+
+test_that("AIPW sandwich matches stdReg2 DR — binary outcome, RD", {
+  set.seed(42)
+  n <- 5000
+  L <- rnorm(n)
+  A <- rbinom(n, 1, plogis(0.5 * L))
+  Y <- rbinom(n, 1, plogis(-1 + 1.5 * A + 0.8 * L))
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L,
+                estimator = "aipw", family = "binomial",
+                propensity_model_fn = stats::glm)
+  res <- contrast(fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0", ci_method = "sandwich")
+
+  std_fit <- stdReg2::standardize_glm_dr(
+    formula_outcome = Y ~ A + L,
+    formula_exposure = A ~ L,
+    data = df, values = list(A = 0:1),
+    family_outcome = "binomial", family_exposure = "binomial",
+    contrasts = "difference", reference = 0
+  )
+  std_tidy <- stdReg2::tidy(std_fit)
+  std_diff <- std_tidy[std_tidy$contrast == "difference" & std_tidy$A == 1, ]
+
+  expect_equal(res$contrasts$estimate[1], std_diff$Estimate, tolerance = 1e-4)
+  expect_equal(res$contrasts$se[1], std_diff$Std.Error, tolerance = 0.005)
+})
+
+
+test_that("AIPW sandwich matches stdReg2 DR — binary outcome, RR", {
+  set.seed(42)
+  n <- 5000
+  L <- rnorm(n)
+  A <- rbinom(n, 1, plogis(0.5 * L))
+  Y <- rbinom(n, 1, plogis(-1 + 1.5 * A + 0.8 * L))
+  df <- data.frame(Y = Y, A = A, L = L)
+
+  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L,
+                estimator = "aipw", family = "binomial",
+                propensity_model_fn = stats::glm)
+  res <- contrast(fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0", type = "ratio", ci_method = "sandwich")
+
+  std_fit <- stdReg2::standardize_glm_dr(
+    formula_outcome = Y ~ A + L,
+    formula_exposure = A ~ L,
+    data = df, values = list(A = 0:1),
+    family_outcome = "binomial", family_exposure = "binomial",
+    contrasts = "ratio", reference = 0
+  )
+  std_tidy <- stdReg2::tidy(std_fit)
+  std_ratio <- std_tidy[std_tidy$contrast == "ratio" & std_tidy$A == 1, ]
+
+  expect_equal(res$contrasts$estimate[1], std_ratio$Estimate, tolerance = 1e-4)
+})
+
+
+test_that("AIPW sandwich matches stdReg2 DR — NHEFS", {
+  nhefs_cc <- causatr::nhefs[
+    causatr::nhefs$censored == 0 & !is.na(causatr::nhefs$education),
+  ]
+
+  conf_formula <- ~ sex + race + age + I(age^2) +
+    factor(education) + smokeintensity + I(smokeintensity^2) +
+    smokeyrs + I(smokeyrs^2) + factor(exercise) + factor(active) +
+    wt71 + I(wt71^2)
+
+  fit <- causat(nhefs_cc, outcome = "wt82_71", treatment = "qsmk",
+                confounders = conf_formula, estimator = "aipw",
+                propensity_model_fn = stats::glm)
+  res <- contrast(fit,
+    interventions = list(quit = static(1), no_quit = static(0)),
+    reference = "no_quit", ci_method = "sandwich")
+
+  out_fml <- wt82_71 ~ qsmk + sex + race + age + I(age^2) +
+    factor(education) + smokeintensity + I(smokeintensity^2) +
+    smokeyrs + I(smokeyrs^2) + factor(exercise) + factor(active) +
+    wt71 + I(wt71^2)
+  exp_fml <- qsmk ~ sex + race + age + I(age^2) +
+    factor(education) + smokeintensity + I(smokeintensity^2) +
+    smokeyrs + I(smokeyrs^2) + factor(exercise) + factor(active) +
+    wt71 + I(wt71^2)
+
+  std_fit <- stdReg2::standardize_glm_dr(
+    formula_outcome = out_fml,
+    formula_exposure = exp_fml,
+    data = nhefs_cc, values = list(qsmk = 0:1),
+    family_outcome = "gaussian", family_exposure = "binomial",
+    contrasts = "difference", reference = 0
+  )
+  std_tidy <- stdReg2::tidy(std_fit)
+  std_diff <- std_tidy[std_tidy$contrast == "difference" & std_tidy$qsmk == 1, ]
+
+  expect_equal(res$contrasts$estimate[1], std_diff$Estimate, tolerance = 0.01)
+  expect_equal(res$contrasts$se[1], std_diff$Std.Error, tolerance = 0.02)
+})
+
+
 # ── 2. Tightened bootstrap-sandwich agreement ────────────────────────────────
 
 test_that("point gcomp: sandwich ≈ bootstrap within 15% (continuous, large n)", {

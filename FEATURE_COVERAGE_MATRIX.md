@@ -351,6 +351,7 @@ remain in this matrix.
 | Weight validation (NA/Inf/neg/mis-sized) | ✅ | test-causat.R |
 | Intervention constructors | ✅ | test-interventions.R |
 | External reference cross-checks (stdReg2, delicatessen) | ✅ | test-variance-reference.R |
+| delicatessen extended: categorical AIPW + binary IPW + longitudinal IPW | ✅ | test-delicatessen-extended.R |
 | `target_trial()` constructor + S3 print | ✅ | test-target-trial.R |
 | `diagnose()` feasibility (pct_intervened) — static/shift/threshold/ipsi/NULL | ✅ | test-diagnose.R |
 | `diagnose()` feasibility — longitudinal per-period + overall | ✅ | test-diagnose.R |
