@@ -890,6 +890,66 @@ For MTP interventions (shift, scale_by, threshold, dynamic) combined with transp
 
 Remaining chunks: 17m (documentation). Pending.
 
+---
+
+## Cross-validation & stress tests
+
+### NHEFS published-result replication (Hernán & Robins 2025)
+
+| Estimator | Estimand | Published | Status | Test |
+|---|---|---|---|---|
+| G-comp (point) | ATE (wt82_71) | ≈ 3.5 kg | ✅ | test-nhefs-replication.R |
+| IPW (Hájek) | ATE | ≈ 3.44 kg | ✅ | test-nhefs-replication.R |
+| AIPW | ATE | ≈ 3.46 kg | ✅ | test-nhefs-replication.R |
+| Matching | ATT | ballpark 3–4 kg | ✅ | test-nhefs-replication.R |
+| Cross-method agreement | ATE | pairwise < 0.5 kg | ✅ | test-nhefs-replication.R |
+
+### LaLonde / Dehejia-Wahba replication
+
+| Estimator | Estimand | Published | Status | Test |
+|---|---|---|---|---|
+| Matching | ATT (re78) | ≈ $1,794 | ✅ | test-external-replication.R |
+| G-comp + IPW + matching | ATT agreement | pairwise < $2000 | ✅ | test-external-replication.R |
+| AIPW | ATT | agrees with gcomp < $1500 | ✅ | test-external-replication.R |
+
+### Kang-Schafer adversarial DR test (2007)
+
+| Scenario | Models | Expected | Status | Test |
+|---|---|---|---|---|
+| S1 | Both correct (Z) | All recover 210 | ✅ | test-kang-schafer.R |
+| S2 | Outcome wrong (X), PS correct (Z) | IPW recovers; gcomp biased | ✅ | test-kang-schafer.R |
+| S3 | PS wrong (X), outcome correct (Z) | gcomp recovers; IPW biased | ✅ | test-kang-schafer.R |
+| S4 | Both wrong (X) | All biased (neg. control) | ✅ | test-kang-schafer.R |
+| DR property | AIPW(Z) << AIPW(X) | Correct < misspecified bias | ✅ | test-kang-schafer.R |
+
+### Cross-estimator triangulation
+
+| Scenario | Estimators | Status | Test |
+|---|---|---|---|
+| Het. effect DGP — ATE | gcomp, IPW, AIPW, matching | ✅ | test-triangulation.R |
+| Het. effect DGP — ATT | gcomp, IPW, matching | ✅ | test-triangulation.R |
+| Binary outcome — RD | gcomp, IPW, AIPW | ✅ | test-triangulation.R |
+| Continuous trt — shift | gcomp, IPW, AIPW | ✅ | test-triangulation.R |
+| Categorical trt — static | gcomp, IPW | ✅ | test-triangulation.R |
+
+### Naimi longitudinal replication (2017-inspired)
+
+| Estimator | Truth (MC) | Status | Test |
+|---|---|---|---|
+| ICE g-comp | ATE ≈ MC truth | ✅ | test-naimi-replication.R |
+| Longitudinal IPW | ATE ≈ MC truth | ✅ | test-naimi-replication.R |
+| Longitudinal AIPW | ATE ≈ MC truth | ✅ | test-naimi-replication.R |
+| Cross-method | 3-way < 100 | ✅ | test-naimi-replication.R |
+| Naive regression | biased > 30 | ✅ | test-naimi-replication.R |
+
+### Combinatorial stress test
+
+Systematic grid (52 tests): estimator × treatment type × outcome family × intervention × variance method. All valid cells produce finite estimates, positive SEs, and match truth within tolerance.
+
+Test file: test-combinatorial-stress.R
+
+---
+
 ### Phase 18 — G-estimation of Structural Nested Mean Models
 Third leg of the Robins triangle. Motivating use case: **correct handling of time-varying effect modification** — SNMs parameterise the per-stage blip $\gamma_k(a_k, \bar{l}_k, \bar{a}_{k-1}; \psi)$ directly and identify it via a moment condition that uses the treatment model as instrument, so time-varying modifiers are supported by design (closes the Phase 6 limitation under MSM-based estimators). Scope: linear-blip additive SNMMs for point + longitudinal, stacked EE sandwich ($K$ treatment blocks + blip block), bootstrap, `gesttools` cross-check. Survival SNMs (SNFTMs/SNCFTMs) out of scope. All ❌.
 

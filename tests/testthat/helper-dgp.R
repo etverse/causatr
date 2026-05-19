@@ -1013,3 +1013,127 @@ simulate_mtp_transport <- function(n = 5000, seed = 42) {
 
   data.frame(Y = Y, A = A, L = L, S = S)
 }
+
+
+# Kang & Schafer (2007) adversarial DGP for double-robustness testing.
+#
+# True covariates Z1..Z4 ~ iid N(0, 1).
+# Propensity: \pi(Z) = expit(-Z1 + 0.5 Z2 - 0.25 Z3 - 0.1 Z4).
+# Treatment: A ~ Bernoulli(\pi(Z)).
+# Outcome (does not depend on A):
+#   Y = 210 + 27.4 Z1 + 13.7 Z2 + 13.7 Z3 + 13.7 Z4 + \epsilon.
+#
+# The analyst's observable (misspecified) covariates:
+#   X1 = exp(Z1 / 2)
+#   X2 = Z2 / (1 + exp(Z1)) + 10
+#   X3 = (Z1 Z3 / 25 + 0.6)^3
+#   X4 = (Z2 + Z4 + 20)^2
+#
+# True population mean E[Y] = 210 (since E[Z_j] = 0).
+# ATE = 0 (Y does not depend on A).
+#
+# Four scenarios:
+#   S1: outcome ~ Z, PS ~ Z         => all methods recover 210.
+#   S2: outcome ~ X, PS ~ Z         => g-comp biased; IPW/AIPW recover 210.
+#   S3: outcome ~ Z, PS ~ X         => IPW biased; g-comp/AIPW recover 210.
+#   S4: outcome ~ X, PS ~ X         => all biased (negative control).
+#
+# Returns a list:
+#   $data — data.frame with Y, A, Z1..Z4, X1..X4.
+#   $truth — 210.
+simulate_kang_schafer <- function(n = 5000, seed = 42) {
+  set.seed(seed)
+
+  Z1 <- rnorm(n)
+  Z2 <- rnorm(n)
+  Z3 <- rnorm(n)
+  Z4 <- rnorm(n)
+
+  ps <- plogis(-Z1 + 0.5 * Z2 - 0.25 * Z3 - 0.1 * Z4)
+  A <- rbinom(n, 1, ps)
+
+  Y <- 210 + 27.4 * Z1 + 13.7 * Z2 + 13.7 * Z3 + 13.7 * Z4 + rnorm(n)
+
+  # Misspecified covariates (nonlinear transformations of Z).
+  X1 <- exp(Z1 / 2)
+  X2 <- Z2 / (1 + exp(Z1)) + 10
+  X3 <- (Z1 * Z3 / 25 + 0.6)^3
+  X4 <- (Z2 + Z4 + 20)^2
+
+  list(
+    data = data.frame(
+      Y = Y, A = A,
+      Z1 = Z1, Z2 = Z2, Z3 = Z3, Z4 = Z4,
+      X1 = X1, X2 = X2, X3 = X3, X4 = X4
+    ),
+    truth = 210
+  )
+}
+
+
+# Naimi, Cole & Kennedy (2017)-inspired longitudinal DGP.
+#
+# Two time points, binary treatment, binary time-varying confounder,
+# continuous outcome (CD4 count). Treatment-confounder feedback at t=1.
+# A continuous baseline confounder (age) makes the propensity model
+# well-identified at both time points.
+#
+# DGP:
+#   age ~ N(40, 10)                              (baseline, continuous)
+#   L0 ~ Bernoulli(expit(-1 + 0.02 * age))       (TV confounder at t=0)
+#   A0 ~ Bernoulli(expit(-1 + L0 + 0.01 * age))  (ART at t=0)
+#   L1 ~ Bernoulli(expit(-1 + 2*A0 + 3*L0))      (TV confounder at t=1)
+#   A1 ~ Bernoulli(expit(-1 + 2*A0 + L1))         (ART at t=1)
+#   Y = 200*A0 + 200*A1 + 500*L0 + 100*L1 + 2*age + epsilon
+#
+# MC truth (n = 10^6, seed = 1): computed below.
+simulate_naimi_longitudinal <- function(n = 5000, seed = 42) {
+  set.seed(seed)
+
+  age <- rnorm(n, 40, 10)
+  L0 <- rbinom(n, 1, plogis(-1 + 0.02 * age))
+  A0 <- rbinom(n, 1, plogis(-1 + L0 + 0.01 * age))
+  L1 <- rbinom(n, 1, plogis(-1 + 2 * A0 + 3 * L0))
+  A1 <- rbinom(n, 1, plogis(-1 + 2 * A0 + L1))
+  Y <- 200 * A0 + 200 * A1 + 500 * L0 + 100 * L1 + 2 * age + rnorm(n, 0, 50)
+
+  data <- rbind(
+    data.frame(
+      id = seq_len(n),
+      time = 0L,
+      A = A0,
+      Ltv = as.numeric(L0),
+      age = age,
+      Y = NA_real_
+    ),
+    data.frame(
+      id = seq_len(n),
+      time = 1L,
+      A = A1,
+      Ltv = as.numeric(L1),
+      age = age,
+      Y = Y
+    )
+  )
+
+  # MC truth via large-n simulation.
+  set.seed(1)
+  n_mc <- 1e6
+  age_mc <- rnorm(n_mc, 40, 10)
+  L0_mc <- rbinom(n_mc, 1, plogis(-1 + 0.02 * age_mc))
+
+  # Always treated: A0=1, A1=1.
+  L1_always <- rbinom(n_mc, 1, plogis(-1 + 2 * 1 + 3 * L0_mc))
+  Y_always <- 200 + 200 + 500 * L0_mc + 100 * L1_always + 2 * age_mc
+
+  # Never treated: A0=0, A1=0.
+  L1_never <- rbinom(n_mc, 1, plogis(-1 + 2 * 0 + 3 * L0_mc))
+  Y_never <- 500 * L0_mc + 100 * L1_never + 2 * age_mc
+
+  truth_always <- mean(Y_always)
+  truth_never <- mean(Y_never)
+  truth_ate <- truth_always - truth_never
+
+  list(data = data, truth_ate = truth_ate,
+       truth_always = truth_always, truth_never = truth_never)
+}
