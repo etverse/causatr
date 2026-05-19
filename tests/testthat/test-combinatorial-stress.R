@@ -271,6 +271,81 @@ test_that("combo: gcomp × continuous × scale_by × sandwich", {
 })
 
 
+# -- Aliased (collinear) confounders: sandwich must still produce SE ------
+
+test_that("combo: gcomp × aliased confounders × sandwich", {
+  set.seed(42)
+  L1 <- rnorm(2000)
+  L2 <- L1
+  A <- rbinom(2000, 1, plogis(0.5 * L1))
+  Y <- 2 + 3 * A + L1 + rnorm(2000)
+  d <- data.frame(Y = Y, A = A, L1 = L1, L2 = L2)
+
+  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~ L1 + L2)
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    ci_method = "sandwich"
+  )
+
+  expect_equal(res$contrasts$estimate[1], 3, tolerance = 0.3)
+  expect_true(is.finite(res$contrasts$se[1]) && res$contrasts$se[1] > 0)
+})
+
+
+test_that("combo: ipw × aliased confounders × sandwich", {
+  set.seed(42)
+  L1 <- rnorm(2000)
+  L2 <- L1
+  A <- rbinom(2000, 1, plogis(0.5 * L1))
+  Y <- 2 + 3 * A + L1 + rnorm(2000)
+  d <- data.frame(Y = Y, A = A, L1 = L1, L2 = L2)
+
+  expect_warning(
+    fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~ L1 + L2,
+                  estimator = "ipw", propensity_model_fn = stats::glm),
+    "aliased"
+  )
+
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    ci_method = "sandwich"
+  )
+
+  expect_equal(res$contrasts$estimate[1], 3, tolerance = 0.3)
+  expect_true(is.finite(res$contrasts$se[1]) && res$contrasts$se[1] > 0)
+})
+
+
+test_that("combo: aipw × aliased confounders × sandwich", {
+  set.seed(42)
+  L1 <- rnorm(2000)
+  L2 <- L1
+  A <- rbinom(2000, 1, plogis(0.5 * L1))
+  Y <- 2 + 3 * A + L1 + rnorm(2000)
+  d <- data.frame(Y = Y, A = A, L1 = L1, L2 = L2)
+
+  expect_warning(
+    fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~ L1 + L2,
+                  estimator = "aipw", propensity_model_fn = stats::glm),
+    "aliased"
+  )
+
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    ci_method = "sandwich"
+  )
+
+  expect_equal(res$contrasts$estimate[1], 3, tolerance = 0.3)
+  expect_true(is.finite(res$contrasts$se[1]) && res$contrasts$se[1] > 0)
+})
+
+
 # -- Count treatment tests -----------------------------------------------
 
 test_that("combo: ipw × count (Poisson) × shift × sandwich", {

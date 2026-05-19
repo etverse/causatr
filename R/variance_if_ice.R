@@ -176,7 +176,7 @@ variance_if_ice_one <- function(fit, ice_result, target) {
 
       if (is_stoch) {
         n_mc_ice <- get_stochastic_n_mc(intervention)
-        p_coef <- length(stats::coef(model_k))
+        p_coef <- length(coef_clean(model_k))
         g_k_sum <- numeric(p_coef)
         for (m in seq_len(n_mc_ice)) {
           dv_m <- ice_apply_intervention_long(
@@ -188,7 +188,7 @@ variance_if_ice_one <- function(fit, ice_result, target) {
           )
           iv_cur_m <- dv_m[dv_m[[time_col]] == current_time]
           X_m <- iv_design_matrix(model_k, iv_cur_m)
-          eta_m <- as.numeric(X_m %*% stats::coef(model_k))
+          eta_m <- as.numeric(X_m %*% coef_clean(model_k))
           mu_eta_m <- model_k$family$mu.eta(eta_m)
           ids_m <- as.character(iv_cur_m[[id_col]])
           tgt_in_m <- match(all_ids[target], ids_m)
@@ -210,7 +210,7 @@ variance_if_ice_one <- function(fit, ice_result, target) {
       } else {
         X_star_k <- iv_design_matrix(model_k, iv_data_current)
         eta_star <- as.numeric(
-          X_star_k %*% stats::coef(model_k)
+          X_star_k %*% coef_clean(model_k)
         )
         mu_eta_star <- model_k$family$mu.eta(eta_star)
         # g_k = (1/sum_w) X*^T diag(w_target) \mu'(\eta*): the raw gradient
@@ -244,7 +244,7 @@ variance_if_ice_one <- function(fit, ice_result, target) {
 
         if (is_stoch) {
           n_mc_ice <- get_stochastic_n_mc(intervention)
-          p_coef <- length(stats::coef(model_k))
+          p_coef <- length(coef_clean(model_k))
           g_k_sum <- numeric(p_coef)
           for (m in seq_len(n_mc_ice)) {
             dv_m <- ice_apply_intervention_long(
@@ -256,7 +256,7 @@ variance_if_ice_one <- function(fit, ice_result, target) {
             )
             iv_cur_m <- dv_m[dv_m[[time_col]] == current_time]
             X_m <- iv_design_matrix(model_k, iv_cur_m)
-            eta_m <- as.numeric(X_m %*% stats::coef(model_k))
+            eta_m <- as.numeric(X_m %*% coef_clean(model_k))
             mu_eta_m <- model_k$family$mu.eta(eta_m)
             ids_m <- as.character(iv_cur_m[[id_col]])
             riv_m <- match(prev_fit_ids, ids_m)
@@ -282,7 +282,7 @@ variance_if_ice_one <- function(fit, ice_result, target) {
         } else {
           X_star_k <- iv_design_matrix(model_k, iv_data_current)
           eta_star <- as.numeric(
-            X_star_k %*% stats::coef(model_k)
+            X_star_k %*% coef_clean(model_k)
           )
           mu_eta_star <- model_k$family$mu.eta(eta_star)
           weights_g <- w_prev * d_prev * mu_eta_star[rows_in_iv[keep]]
@@ -294,7 +294,7 @@ variance_if_ice_one <- function(fit, ice_result, target) {
           )
         }
       } else {
-        p_coef <- length(stats::coef(model_k))
+        p_coef <- length(coef_clean(model_k))
         g_k <- rep(0, p_coef)
       }
     }

@@ -96,6 +96,20 @@ NULL
 #' @return A `p x p` matrix.
 #'
 #' @noRd
+#' Extract model coefficients, dropping aliased (NA) entries.
+#'
+#' GLM aliases collinear columns by setting their coefficient to NA.
+#' The sandwich engine cannot perturb NAs, so all extraction sites
+#' must use this helper instead of raw `stats::coef()`.
+#'
+#' @param model A fitted model object.
+#' @return Named numeric vector with NA entries removed.
+#' @noRd
+coef_clean <- function(model) {
+  b <- stats::coef(model)
+  b[!is.na(b)]
+}
+
 bread_inv <- function(model, X_fit) {
   if (inherits(model, "gam")) {
     # Properly fitted `mgcv::gam` objects always carry `$Vp` (the
@@ -211,7 +225,13 @@ iv_design_matrix <- function(model, newdata) {
   }
   pred_terms <- stats::delete.response(stats::terms(model))
   xlev <- model$xlevels
-  stats::model.matrix(pred_terms, data = newdata, xlev = xlev)
+  X <- stats::model.matrix(pred_terms, data = newdata, xlev = xlev)
+  # Drop aliased columns to match the cleaned coef vector.
+  aliased <- is.na(stats::coef(model))
+  if (any(aliased)) {
+    X <- X[, !aliased, drop = FALSE]
+  }
+  X
 }
 
 
@@ -287,6 +307,14 @@ resolve_fit_idx <- function(fit, model) {
 #' @noRd
 prepare_model_if <- function(model, fit_idx, n_total) {
   X_fit <- stats::model.matrix(model)
+  # Drop aliased (collinear) columns: GLM's QR pivot sets their
+  # coefficient to NA but keeps them in `model.matrix()`. Leaving
+  # them in makes X'WX singular and corrupts the sandwich.
+  coefs <- stats::coef(model)
+  aliased <- is.na(coefs)
+  if (any(aliased)) {
+    X_fit <- X_fit[, !aliased, drop = FALSE]
+  }
   B_inv <- bread_inv(model, X_fit)
 
   # r^{score}_i = (Y_i - mu_i) * mu'(eta_i) / V(mu_i), the GLM score

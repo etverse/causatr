@@ -112,7 +112,7 @@ variance_if_aipw <- function(
 
   # Outcome model family objects for Jacobian computation
   fam <- outcome_model$family
-  beta_hat <- stats::coef(outcome_model)
+  beta_hat <- coef_clean(outcome_model)
   X_fit <- outcome_prep$X_fit
 
   # Transport: sampling weights and model prep
@@ -393,7 +393,7 @@ variance_if_aipw <- function(
       if (!is.null(dim(alpha_hat_raw))) {
         alpha_hat <- as.vector(t(alpha_hat_raw))
       } else {
-        alpha_hat <- alpha_hat_raw
+        alpha_hat <- alpha_hat_raw[!is.na(alpha_hat_raw)]
       }
 
       J_alpha <- as.numeric(
@@ -740,7 +740,7 @@ variance_if_aipw_long_one <- function(
     obs_ids_current <- as.character(obs_data_current[[id_col]])
 
     fam_k <- model_k$family
-    beta_k <- stats::coef(model_k)
+    beta_k <- coef_clean(model_k)
 
     if (step_i == 1L) {
       # First time step: gradient from target population

@@ -125,7 +125,7 @@ variance_if_ipw <- function(
     data_a_sub <- data_a_full[fit_rows]
     X_star <- iv_design_matrix(msm_model, data_a_sub)
 
-    beta_hat <- stats::coef(msm_model)
+    beta_hat <- coef_clean(msm_model)
     eta_star <- as.numeric(X_star %*% beta_hat)
     mu_eta_star <- msm_model$family$mu.eta(eta_star)
     preds_sub <- msm_model$family$linkinv(eta_star)
@@ -436,7 +436,7 @@ compute_ipw_if_self_contained_one <- function(
   # psi_\beta_i = X_i w_i(\alpha) (Y_i - \mu_i) mu'_i / V(\mu_i);
   # \mu_i, mu'_i, V(\mu_i), Y_i - \mu_i all fixed at \hat\beta.
   # Only w_i(\alpha) varies, so numDeriv re-evaluates only the weight formula.
-  beta_hat <- stats::coef(msm_model)
+  beta_hat <- coef_clean(msm_model)
   X_msm <- msm_prep$X_fit
   y_fit <- stats::model.response(stats::model.frame(msm_model))
   fam <- msm_model$family
@@ -455,11 +455,13 @@ compute_ipw_if_self_contained_one <- function(
   }
   # For multinomial models `coef()` returns a matrix; flatten to match
   # `make_weight_fn()`'s convention (row-major: `as.vector(t(coef_mat))`).
+  # Drop aliased (NA) coefficients — they correspond to collinear columns
+  # already removed from `X_prop` at fit time (see `fit_treatment_model()`).
   alpha_hat_raw <- stats::coef(propensity_model)
   if (!is.null(dim(alpha_hat_raw))) {
     alpha_hat <- as.vector(t(alpha_hat_raw))
   } else {
-    alpha_hat <- alpha_hat_raw
+    alpha_hat <- alpha_hat_raw[!is.na(alpha_hat_raw)]
   }
   # Negative-Hessian convention: A_{beta, alpha} = -(1/n) sum d psi/d alpha.
   # numDeriv::jacobian(phi_bar, alpha) = d phi_bar/d alpha = +(1/n) sum d psi/d alpha.
@@ -604,7 +606,7 @@ compute_ipw_if_self_contained_mv_one <- function(
   # phi_bar(alpha) = (1/n_fit) sum_i psi_beta_i(alpha, beta_hat).
   # Same shape as the univariate case; only `weight_fn` is the
   # stacked product closure here.
-  beta_hat <- stats::coef(msm_model)
+  beta_hat <- coef_clean(msm_model)
   X_msm <- msm_prep$X_fit
   y_fit <- stats::model.response(stats::model.frame(msm_model))
   fam <- msm_model$family
@@ -800,7 +802,7 @@ variance_if_ipw_longitudinal <- function(
     #   J = (1 / sum_w_target) * sum_target (X_star_i * mu_eta_i * w_i)
     # Same shape as `compute_ipw_if_self_contained_one()`.
     X_star <- iv_design_matrix(msm_model, data_final)
-    beta_hat <- stats::coef(msm_model)
+    beta_hat <- coef_clean(msm_model)
     eta_star <- as.numeric(X_star %*% beta_hat)
     mu_eta_star <- msm_model$family$mu.eta(eta_star)
     J <- as.numeric(crossprod(X_star, w_target_vec * mu_eta_star)) /
@@ -954,7 +956,7 @@ compute_ipw_if_self_contained_long_one <- function(
   # Same `phi_bar(alpha)` shape as the univariate / multivariate
   # IPW primitives: psi_beta_i = X * w(alpha) * (Y - mu) * mu_eta /
   # var_mu, averaged over the n_fit MSM rows.
-  beta_hat <- stats::coef(msm_model)
+  beta_hat <- coef_clean(msm_model)
   X_msm <- msm_prep$X_fit
   y_fit <- stats::model.response(stats::model.frame(msm_model))
   fam <- msm_model$family
@@ -1084,7 +1086,7 @@ compute_ipw_sampling_correction <- function(
   msm_res <- apply_model_correction(msm_prep, J)
   h_msm <- n_sub * msm_res$h
 
-  beta_hat <- stats::coef(msm_model)
+  beta_hat <- coef_clean(msm_model)
   X_msm <- msm_prep$X_fit
   fam <- msm_model$family
   eta_msm <- as.numeric(X_msm %*% beta_hat)
@@ -1176,7 +1178,7 @@ compute_ipw_sampling_correction_longitudinal <- function(
   msm_res <- apply_model_correction(msm_prep, J)
   h_msm <- n_final * msm_res$h
 
-  beta_hat <- stats::coef(msm_model)
+  beta_hat <- coef_clean(msm_model)
   X_msm <- msm_prep$X_fit
   fam <- msm_model$family
   eta_msm <- as.numeric(X_msm %*% beta_hat)

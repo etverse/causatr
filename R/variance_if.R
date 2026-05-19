@@ -54,6 +54,15 @@ variance_if_numeric <- function(
   k <- length(int_names)
   n_total <- length(target_idx)
   beta_hat <- stats::coef(model)
+  # Track aliased (NA) coefficients — numDeriv cannot perturb NAs.
+  # `pred_fun` restores them to NA when calling predict, but the
+  # optimisation vector passed to jacobian() is the clean subset.
+  aliased_mask <- is.na(beta_hat)
+  has_aliased <- any(aliased_mask)
+  if (has_aliased) {
+    beta_hat_full <- beta_hat
+    beta_hat <- beta_hat[!aliased_mask]
+  }
 
   # Row-subset each counterfactual frame to the target population.
   # `da[target_idx, , drop = FALSE]` is polymorphic: it does row-selection
@@ -92,6 +101,13 @@ variance_if_numeric <- function(
       n_mean <- length(model$coefficients$mean)
       model_tmp$coefficients$mean <- beta[seq_len(n_mean)]
       model_tmp$coefficients$precision <- beta[(n_mean + 1L):length(beta)]
+    } else if (has_aliased) {
+      # Reconstruct the full coefficient vector with NAs for aliased
+      # terms. predict() internally sets NA coefficients to zero via
+      # the QR pivot, so predictions remain correct.
+      full_beta <- beta_hat_full
+      full_beta[!aliased_mask] <- beta
+      model_tmp$coefficients <- full_beta
     } else {
       model_tmp$coefficients <- beta
     }
@@ -452,7 +468,7 @@ build_point_channel_pieces <- function(
   }
 
   fit_idx <- resolve_fit_idx(fit, model)
-  beta_hat <- stats::coef(model)
+  beta_hat <- coef_clean(model)
 
   # Polymorphic row-subset: works on both data.frame and data.table.
   data_a_frames <- lapply(
@@ -649,7 +665,7 @@ compute_ipcw_if_correction <- function(
   #   psi_{beta,i} = X_i * w_total_i * (y_i - mu_i) * mu'(eta_i) / V(mu_i)
   # where w_total_i = w_ext_i * w_ipcw_i. Varying gamma only changes
   # w_ipcw_i; everything else is fixed at beta_hat.
-  beta_hat <- stats::coef(outcome_model)
+  beta_hat <- coef_clean(outcome_model)
   X_fit <- outcome_prep$X_fit
   fam <- outcome_model$family
   eta_fit <- as.numeric(X_fit %*% beta_hat)
@@ -753,7 +769,7 @@ compute_ipw_ipcw_correction <- function(
   h_msm <- n_sub * msm_res$h
 
   # MSM score ingredients (fixed at beta_hat)
-  beta_hat <- stats::coef(msm_model)
+  beta_hat <- coef_clean(msm_model)
   X_msm <- msm_prep$X_fit
   fam <- msm_model$family
   eta_msm <- as.numeric(X_msm %*% beta_hat)
@@ -937,7 +953,7 @@ variance_if_matching <- function(fit, interventions) {
   sum_w <- sum(match_w)
 
   fit_idx <- seq_len(n_m)
-  beta_hat <- stats::coef(model)
+  beta_hat <- coef_clean(model)
 
   treatment <- fit$treatment
 

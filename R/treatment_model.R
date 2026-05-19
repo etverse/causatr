@@ -254,6 +254,26 @@ fit_treatment_model <- function(
     alpha_hat <- as.vector(t(alpha_hat))
   }
 
+  # GLM aliases perfectly collinear columns by setting their coefficient
+  # to NA while keeping the column in `model.matrix()`. The NA propagates
+  # to `numDeriv::jacobian()` and silently produces SE = NA. Fix: drop
+  # the aliased columns from both `alpha_hat` and `X_prop` — this is
+  # equivalent to reducing the model to its identifiable parameters.
+  # Predictions are unchanged because the aliased column's contribution
+  # is zero (GLM internally pivots it out via QR decomposition).
+  if (family_tag != "categorical" && anyNA(alpha_hat)) {
+    aliased <- is.na(alpha_hat)
+    rlang::warn(
+      paste0(
+        "Treatment model has aliased (collinear) coefficient(s): ",
+        paste(names(alpha_hat)[aliased], collapse = ", "),
+        ". Dropping from the sandwich variance computation."
+      )
+    )
+    alpha_hat <- alpha_hat[!aliased]
+    X_prop <- X_prop[, !aliased, drop = FALSE]
+  }
+
   if (ncol(X_prop) * n_alpha_rows(family_tag, model) != length(alpha_hat)) {
     rlang::abort(
       paste0(
