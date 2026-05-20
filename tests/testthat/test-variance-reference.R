@@ -63,7 +63,11 @@ test_that("gcomp sandwich matches stdReg2 — continuous outcome (DGP 1)", {
   )
 
   expect_equal(res$contrasts$estimate[1], std_diff$Estimate, tolerance = 1e-6)
-  expect_equal(res$contrasts$se[1], std_diff$Std.Error, tolerance = se_tol_simple)
+  expect_equal(
+    res$contrasts$se[1],
+    std_diff$Std.Error,
+    tolerance = se_tol_simple
+  )
 })
 
 
@@ -112,7 +116,11 @@ test_that("gcomp sandwich matches stdReg2 — binary outcome, RD (DGP 2)", {
     std_means$Std.Error[std_means$A == 1],
     tolerance = se_tol_simple
   )
-  expect_equal(res$contrasts$se[1], std_diff$Std.Error, tolerance = se_tol_simple)
+  expect_equal(
+    res$contrasts$se[1],
+    std_diff$Std.Error,
+    tolerance = se_tol_simple
+  )
 })
 
 
@@ -226,7 +234,11 @@ test_that("gcomp sandwich matches stdReg2 — NHEFS (Hernán & Robins)", {
     std_means$Std.Error[std_means$qsmk == 1],
     tolerance = se_tol_nhefs
   )
-  expect_equal(res$contrasts$se[1], std_diff$Std.Error, tolerance = se_tol_nhefs)
+  expect_equal(
+    res$contrasts$se[1],
+    std_diff$Std.Error,
+    tolerance = se_tol_nhefs
+  )
 })
 
 
@@ -264,7 +276,11 @@ test_that("AIPW sandwich matches stdReg2 DR — continuous outcome", {
   std_diff <- std_tidy[std_tidy$contrast == "difference" & std_tidy$A == 1, ]
 
   expect_equal(res$contrasts$estimate[1], std_diff$Estimate, tolerance = 1e-4)
-  expect_equal(res$contrasts$se[1], std_diff$Std.Error, tolerance = se_tol_simple)
+  expect_equal(
+    res$contrasts$se[1],
+    std_diff$Std.Error,
+    tolerance = se_tol_simple
+  )
 })
 
 
@@ -306,7 +322,11 @@ test_that("AIPW sandwich matches stdReg2 DR — binary outcome, RD", {
   std_diff <- std_tidy[std_tidy$contrast == "difference" & std_tidy$A == 1, ]
 
   expect_equal(res$contrasts$estimate[1], std_diff$Estimate, tolerance = 1e-4)
-  expect_equal(res$contrasts$se[1], std_diff$Std.Error, tolerance = se_tol_simple)
+  expect_equal(
+    res$contrasts$se[1],
+    std_diff$Std.Error,
+    tolerance = se_tol_simple
+  )
 })
 
 
@@ -428,7 +448,11 @@ test_that("AIPW sandwich matches stdReg2 DR — NHEFS", {
   std_diff <- std_tidy[std_tidy$contrast == "difference" & std_tidy$qsmk == 1, ]
 
   expect_equal(res$contrasts$estimate[1], std_diff$Estimate, tolerance = 0.01)
-  expect_equal(res$contrasts$se[1], std_diff$Std.Error, tolerance = se_tol_nhefs)
+  expect_equal(
+    res$contrasts$se[1],
+    std_diff$Std.Error,
+    tolerance = se_tol_nhefs
+  )
 })
 
 
@@ -483,7 +507,11 @@ test_that("AIPW split confounders matches stdReg2 DR — different outcome/PS fo
     tolerance = 1e-4
   )
   expect_equal(res$contrasts$estimate[1], std_diff$Estimate, tolerance = 1e-4)
-  expect_equal(res$contrasts$se[1], std_diff$Std.Error, tolerance = se_tol_simple)
+  expect_equal(
+    res$contrasts$se[1],
+    std_diff$Std.Error,
+    tolerance = se_tol_simple
+  )
 })
 
 
@@ -528,7 +556,11 @@ test_that("AIPW split confounders matches stdReg2 DR — binary outcome, split",
   std_diff <- std_tidy[std_tidy$contrast == "difference" & std_tidy$A == 1, ]
 
   expect_equal(res$contrasts$estimate[1], std_diff$Estimate, tolerance = 1e-4)
-  expect_equal(res$contrasts$se[1], std_diff$Std.Error, tolerance = se_tol_simple)
+  expect_equal(
+    res$contrasts$se[1],
+    std_diff$Std.Error,
+    tolerance = se_tol_simple
+  )
 })
 
 
