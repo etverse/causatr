@@ -239,6 +239,18 @@ P(C_k = 0 | A̅_k, L̅_k, C_{k-1} = 0)
 | 14f | `diagnose()` integration: censoring balance, weight distribution summary, positivity warnings | 14b, Phase 11 | ✅ |
 | 14g | Vignette: missing-data handling guide with built-in IPCW examples | 14b, 14c | ✅ |
 
+## SNM integration (Phase 18)
+
+IPCW weights compose with SNM g-estimation for MAR outcome censoring. The g-estimating equation becomes:
+
+$$\sum_i \Delta_i \cdot w_i^C \cdot R_i \cdot m_i \cdot (Y_i - \gamma(A_i, L_i; \psi)) = 0$$
+
+where $\Delta_i = I(C_i = 0)$ is the uncensored indicator and $w_i^C = 1/P(C_i = 0 \mid A_i, L_i)$ are the IPCW weights. This follows Yiu & Su (2022) for censored g-estimation.
+
+The sandwich variance gains a third block (censoring model) in the stacked system: $(\hat\alpha^{\text{trt}}, \hat\alpha^{\text{cens}}, \hat\psi)$. The cross-derivatives $A_{\psi,\alpha^{\text{cens}}}$ are computed via `numDeriv::jacobian()` on the IPCW-weighted g-estimating equation as a function of the censoring model parameters, matching the existing pattern for $A_{\psi,\alpha^{\text{trt}}}$.
+
+**Chunk 18g** in Phase 18 implements this integration. It depends on Phase 14's `fit_censoring_model()` for the censoring model fitting and weight computation.
+
 ## References
 
 - Bang H, Robins JM (2005). Doubly robust estimation in missing data

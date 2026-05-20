@@ -19,6 +19,14 @@ Variance and inference enhancements that harden the existing estimators. Survey 
 - **9b (done)** — `survey::svydesign` object as `weights =`: extract weights via `stats::weights()` and auto-propagate PSU into the fit's cluster slot via `unpack_svydesign()` in `R/causat.R`. User `cluster =` override wins.
 - **9c (done)** — `future` backend: `parallel = "future"` on `contrast()` dispatches bootstrap replicates through `future.apply::future_lapply()` via `dispatch_boot()` in `R/variance_bootstrap.R`. Honours any active `future::plan()`; `future.seed = TRUE` keeps the seed-aware contract of `boot::boot()`.
 
+## SNM integration (Phase 18)
+
+The cluster-robust sandwich and survey weights compose with `estimator = "snm"`:
+
+- **Cluster-robust sandwich:** `variance_if_snm()` returns per-individual IFs for the blip parameters. These IFs thread through `vcov_from_if(cluster = ...)` exactly like gcomp/IPW IFs — sum within cluster, then square. No SNM-specific logic needed in the cluster aggregation layer; the IF is the interface. **Chunk 18f** adds the wiring + tests.
+- **Survey weights:** `causat(weights = svydesign_obj)` extracts sampling weights and auto-propagates PSU as cluster. For SNM, the treatment model uses the survey weights (weighted GLM), and the g-estimating equation uses weighted residuals $R_i = A_i - \hat\mu^w(L_i)$. The sandwich must account for the survey design effect. **Chunk 18f** handles this jointly with clustering.
+- **`future` backend:** Bootstrap for SNM (chunk 18i) will honour `parallel = "future"` via the same `dispatch_boot()` path as other estimators. No new infrastructure needed.
+
 ## Dependencies
 
 Phases 1–5 only. Fully independent of Phases 6–8 and 10. Can run in parallel with any other phase.

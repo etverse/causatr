@@ -1,6 +1,6 @@
 # Phase 18 — G-estimation of Structural Nested Mean Models (SNMMs)
 
-> **Status: PENDING** (design doc)
+> **Status: IN PROGRESS** — chunks 18a–18b shipped (point estimation + sandwich variance)
 >
 > **Depends on:** Phase 2 (point infra), Phase 4 (treatment-model machinery), Phase 5 (longitudinal data shape), Phase 6 (effect-modification parser)
 
@@ -114,19 +114,145 @@ SNMs in Phase 18 support the same treatment types as Phase 4 IPW, with the same 
 
 ## Chunks
 
-| Chunk | Scope | Depends on |
+| Chunk | Scope | Status | Depends on |
+|---|---|---|---|
+| 18a | Route `estimator = "snm"` to `fit_snm()`; validate linear-blip specification; reject non-linear blips with informative error | ✅ | Phase 2 |
+| 18b | Point-treatment SNMM: `compute_snm_blip_point()` solves the linear g-estimating equation; `compute_snm_contrast()` returns blip param table or averaged blip effect; `variance_if_snm()` stacked EE sandwich; validated against delicatessen + DTRreg | ✅ | 18a, Phase 4 |
+| 18b½ | **Treatment-free outcome model for efficiency augmentation.** Optional `treatment_free =` formula argument to `contrast()` or `causat()`. Fits a nuisance model $E[Y \mid L]$ (the treatment-free model) and subtracts its predictions before g-estimation, reducing variance by projecting out the $L \to Y$ association. DTRreg uses the same device (`tf.mod =`). The point estimate is unchanged (both are consistent); only efficiency differs. Adds an extra score block to the sandwich (3-block: treatment model + treatment-free model + blip EE). **Priority: high** — MC simulations show 30–40% RMSE reduction at n=1000 in the binary EM case. Reference: Vansteelandt & Joffe (2014) § 4; Robins (1994) | ❌ | 18b |
+| 18c | Phase-6 parser integration: `parse_effect_mod()` already produces the modifier list; wire its output into the blip parameterisation; both baseline and time-varying modifiers accepted (point case) | ❌ | 18b, Phase 6 |
+| 18d | Longitudinal SNMM: `fit_snm_long()` fits $K$ treatment models; builds $H(\psi)(k)$; solves the stacked linear moment equation; cluster-aggregated sandwich via stacked EE with per-individual IF aggregation | ❌ | 18b, Phase 5 |
+| 18e | Time-varying EM truth-based test: 2-period DGP with time-varying modifier $M_1$ whose blip coefficient is 2 at all $k$; estimator must recover $\psi_M = 2$; parallel IPW-MSM fit (under Phase 6 baseline-only restriction) must be biased, demonstrating the scientific gap | ❌ | 18d |
+| 18f | Triangulation test: SNM longitudinal blip-averaged effect vs Phase 10 IPW-MSM on a DGP with no time-varying EM (both should agree) | ❌ | 18d, Phase 10 |
+| 18g | External cross-check against `gesttools::gestMultiple()` on a shared longitudinal DGP | ❌ | 18d |
+| 18h | Categorical / count treatment extensions (residualisation via multinomial / Poisson / NB treatment models) | ❌ | 18b |
+| 18i | Bootstrap variance: blip estimation wrapped in `boot::boot()`; per-individual cluster aggregation for longitudinal | ❌ | 18b, 18d |
+| 18j | S3 dispatch: `print.causatr_result()` / `plot.causatr_result()` on `fit_type = "snm"` — foreground blip-parameter table + per-modifier-stratum pointrange plot | ❌ | 18b |
+| 18k | Documentation, vignette (`snm-time-varying-em.qmd` — the headline example), `FEATURE_COVERAGE_MATRIX.md` rows, `CLAUDE.md` update | ❌ | 18a–18j |
+
+## Supported combination matrix
+
+Full accounting of which dimensions interact with SNM and their status. This matrix governs what Phase 18 ships vs defers vs rejects.
+
+### Treatment type
+
+| Treatment | SNM support | Chunk | Notes |
+|---|---|---|---|
+| Binary | ✅ shipped | 18b | Logistic propensity via `fit_treatment_model()` |
+| Continuous | ✅ shipped | 18b | Gaussian propensity; canonical SNMM case |
+| Categorical ($k > 2$) | ❌ pending | 18h | Multinomial residualisation via `nnet::multinom` |
+| Count (Poisson/NB) | ❌ pending | 18h | Via `propensity_family` dispatch |
+| Multivariate | ⛔ rejected | — | Out of scope; Phase 8 composition deferred |
+
+### Treatment timing
+
+| Timing | SNM support | Chunk | Notes |
+|---|---|---|---|
+| Point | ✅ shipped | 18b | Closed-form g-estimation |
+| Longitudinal | ❌ pending | 18d | Per-stage blip, backward transformed outcome $H(\psi)(k)$ |
+
+### Outcome family
+
+All outcome families work with the additive-linear blip (the blip enters as $Y - \gamma$ in the moment condition; no link-function interaction). The blip interpretation changes: for non-gaussian outcomes with additive blip, $\psi$ is an **additive mean difference on the response scale**, not a log-odds or log-rate ratio. Multiplicative/log-linear blips for binary/count outcomes are deferred (see Non-scope).
+
+| Family | SNM support | Chunk | Notes |
+|---|---|---|---|
+| Gaussian | ✅ truth-tested | 18b | Design doc DGP; delicatessen cross-check |
+| Binomial | ✅ supported, needs test | 18h or 18b-ext | Additive blip = risk difference; works mechanically but needs truth test |
+| Poisson | 🟡 untested | 18h | Additive blip on count scale; unusual but valid |
+| Gamma | 🟡 untested | 18h | Additive blip; niche use case |
+| Negative binomial | 🟡 untested | 18h | Via `MASS::glm.nb` treatment model |
+| Quasibinomial | 🟡 untested | — | Same as binomial (overdispersion parameter irrelevant for treatment model) |
+| Betareg | 🟡 untested | — | Additive blip on (0,1) scale; works if outcome stays in bounds |
+
+### Estimand
+
+| Estimand | SNM support | Notes |
 |---|---|---|
-| 18a | ✅ Add `estimator = "snm"` to `causat()`; route to `fit_snm()`; validate linear-blip specification; reject non-linear blips with informative error | Phase 2 |
-| 18b | ✅ Point-treatment SNMM: `compute_snm_blip_point()` solves the linear g-estimating equation; `compute_snm_contrast()` returns blip param table or averaged blip effect; `variance_if_snm()` stacked EE sandwich; validated against delicatessen + DTRreg | 18a, Phase 4 |
-| 18c | Phase-6 parser integration: `parse_effect_mod()` already produces the modifier list; wire its output into the blip parameterisation; both baseline and time-varying modifiers accepted (point case) | 18b, Phase 6 |
-| 18d | Longitudinal SNMM: `fit_snm_long()` fits $K$ treatment models; builds $H(\psi)(k)$; solves the stacked linear moment equation; sandwich via stacked EE | 18b, Phase 5 |
-| 18e | Time-varying EM truth-based test: 2-period DGP with time-varying modifier M_k whose blip coefficient is 2 at all k; estimator must recover ψ_M = 2; parallel IPW-MSM fit (under Phase 6 baseline-only restriction) must be biased, demonstrating the scientific gap | 18d |
-| 18f | Triangulation test: SNM longitudinal blip-averaged effect vs Phase 10 IPW-MSM on a DGP with no time-varying EM (both should agree) | 18d, Phase 10 |
-| 18g | External cross-check against `gesttools::gestMultiple()` on a shared longitudinal DGP | 18d |
-| 18h | Categorical / count treatment extensions (residualisation via multinomial / Poisson / NB treatment models) | 18b |
-| 18i | Bootstrap variance | 18b, 18d |
-| 18j | `print.causatr_result()` / `plot.causatr_result()` dispatch on `fit_type = "snm"`: foreground blip-parameter table + per-modifier-stratum pointrange plot | 18b |
-| 18k | Documentation, vignette (`snm-time-varying-em.qmd` — the headline example), `FEATURE_COVERAGE_MATRIX.md` rows, `CLAUDE.md` update | 18a–18j |
+| ATE | ✅ shipped | Default: blip parameter table or averaged blip effect |
+| ATT/ATC | ⛔ rejected | SNMs estimate the blip (conditional on covariates), not marginal means under subpopulations. ATT/ATC do not have natural blip analogs under additive linear parameterisation |
+| `by`-stratified | 🟡 implicit | Per-stratum averaged blip possible via subsetting; no first-class support yet |
+
+### Contrast type
+
+| Contrast | SNM support | Notes |
+|---|---|---|
+| Difference | ✅ shipped | `treatment_values = c(0, 1)` gives $(a_1 - a_0) \cdot (\hat\psi_0 + \sum \hat\psi_j \bar{m}_j)$ |
+| Ratio | ⛔ rejected | Additive-linear blip parameterises a difference, not a ratio. Multiplicative blips deferred |
+| OR | ⛔ rejected | Same reason as ratio |
+
+### Variance method
+
+| Method | SNM support | Chunk | Notes |
+|---|---|---|---|
+| Sandwich (analytic) | ✅ shipped | 18b | Stacked EE, block-triangular bread, cross-derivative via `numDeriv::jacobian` |
+| Sandwich (numeric fallback) | 🟡 pending | 18b-ext | Tier 1/2 fallback for non-standard model classes; wire `variance_if_numeric()` for SNM |
+| Bootstrap | ❌ pending | 18i | Blip re-estimation in `boot::boot()`; currently rejected with classed error |
+| Cluster-robust | 🟡 implicit | 18d | Per-individual IF aggregation for longitudinal; explicit `cluster =` threading pending |
+
+### Model class (treatment model)
+
+| Model | SNM support | Notes |
+|---|---|---|
+| GLM (`stats::glm`) | ✅ shipped | Default via `fit_treatment_model()` |
+| GAM (`mgcv::gam`) | 🟡 untested | Should work via `propensity_model_fn = mgcv::gam`; bread uses `$Vp`; needs smoke test |
+
+### Transportability / generalizability
+
+| Feature | SNM support | Notes |
+|---|---|---|
+| `target =` (sampling model) | ❌ deferred | Requires fitting treatment model on study rows only, averaging blip over target covariate distribution. Conceptually straightforward but needs design work. See Phase 17 cross-reference |
+
+### Censoring / IPCW
+
+| Feature | SNM support | Notes |
+|---|---|---|
+| `censoring =` row filter | ✅ inherited | Outcome NAs excluded via `get_fit_rows()` (same as gcomp) |
+| `ipcw = TRUE` | ❌ deferred | Weight moment condition by cumulative IPCW (Yiu & Su 2022). See Phase 14 cross-reference |
+
+### External / survey weights
+
+| Feature | SNM support | Notes |
+|---|---|---|
+| `weights =` external | 🟡 partial | Propagated to treatment model via `fit_treatment_model(..., weights =)`. Blip EE currently unweighted; should be weighted. Needs testing |
+| Survey design | ❌ deferred | Full survey-weighted SNMs wait for Phase 9 infrastructure |
+
+### Effect modification
+
+| Feature | SNM support | Chunk | Notes |
+|---|---|---|---|
+| Baseline modifier | ✅ shipped | 18b | Via Phase 6 `parse_effect_mod()` |
+| Time-varying modifier (point) | ✅ supported | 18c | Parser wiring; headline feature |
+| Time-varying modifier (long.) | ❌ pending | 18d–18e | Per-stage blip with $\bar{L}_k$ terms; truth test in 18e |
+| Multiple modifiers | ✅ shipped | 18b | Validated with 2-modifier DGP + delicatessen |
+
+### Stabilised weights
+
+Not applicable — SNMs are moment-based, not reweighting estimators.
+
+### Missing data
+
+| Pattern | SNM support | Notes |
+|---|---|---|
+| Outcome NA (MCAR) | ✅ handled | `get_fit_rows()` excludes NAs; same as gcomp |
+| Treatment NA | 🟡 inherited | Via treatment model's `na.action`; not SNM-specific |
+| Covariate NA | 🟡 inherited | Via `prepare_data()` upstream; not SNM-specific |
+| MAR (multiple imputation) | ❌ deferred | Phase 21 `causat_mice()` composes via Rubin pooling |
+
+### Intervention types
+
+SNMs do not use `interventions =` — the blip parameter is the estimand directly. The `treatment_values = c(a0, a1)` path computes averaged blip effects. This is a **structural difference** from gcomp/IPW/AIPW, not a missing feature.
+
+| Intervention | SNM support | Notes |
+|---|---|---|
+| `static()` | ⛔ rejected | `contrast(fit, interventions = ...)` → `causatr_snm_no_interventions` |
+| `shift()` | ⛔ rejected | Same |
+| `treatment_values =` | ✅ shipped | Averaged blip effect with delta-method SE |
+
+### Diagnostics
+
+| Feature | SNM support | Notes |
+|---|---|---|
+| `diagnose()` dispatch | ❌ deferred | SNM diagnostics differ from gcomp/IPW: treatment-residual orthogonality, moment-condition diagnostics, per-modifier blip plots. Phase 11 did not add SNM branch; future chunk |
 
 ## Invariants
 

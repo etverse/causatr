@@ -26,6 +26,18 @@ The distinction is a matter of data structure and interpretation, not a matter o
 6. **Static binary interventions** are the primary target. MTP interventions (shift / scale\_by / ipsi) require observed A on target rows; for transportability (S = 0 has A = NA) these need MC marginalization (chunk 17l). MTP + generalizability works where all target rows have observed A.
 7. **External cross-check** against `TransportHealth` R package (Dahabreh group) on shared DGPs where feasible.
 
+## SNM integration (Phase 18)
+
+SNM g-estimation composes with transportability via a target-standardized blip effect. The key insight: the treatment model is fit on study rows only ($S = 1$), but the blip effect can be standardized to the target population's modifier distribution:
+
+$$\hat\psi_{\text{target}} = \frac{1}{n_{\text{target}}} \sum_{i: \text{target}} \gamma(1, L_i; \hat\psi) = \hat\psi_0 + \sum_j \hat\psi_j \cdot \bar{m}_{j,\text{target}}$$
+
+where $\bar{m}_{j,\text{target}}$ is the target-population mean of modifier $j$. This is analogous to gcomp transport (predict on study, average over target), but the quantity being averaged is the blip function rather than the counterfactual outcome.
+
+The sandwich variance adds the sampling model block to the stacked system, following the same pattern as IPW transport (Phase 17e). **Chunk 18h** in Phase 18 handles this integration.
+
+**SNM + matching transport is rejected** — same as matching + transportability in general (see Non-scope below).
+
 ## Non-scope
 
 - **Matching + transportability.** MatchIt's match-weight path does not compose cleanly with external sampling weights (weighted matching with two weight sources is awkward and rarely published). Hard reject.

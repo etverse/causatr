@@ -361,6 +361,17 @@ rules under uncongeniality. A companion run with Y included in the
 predictor matrix (congenial) should show both methods at nominal
 coverage, confirming the uncongeniality is the cause.
 
+## SNM integration (Phase 18)
+
+`causat_mice()` supports `estimator = "snm"` with the same Rubin's rules pooling as other estimators. Each imputed dataset produces blip parameter estimates $\hat\psi^{(i)}$ and their sandwich variances $V^{(i)}_\psi$ from `contrast(fit)`. Rubin's rules pool per blip parameter:
+
+- $\bar\psi_j = \frac{1}{m} \sum_{i=1}^m \hat\psi_j^{(i)}$
+- Total variance: $T_j = \bar{U}_j + (1 + 1/m) B_j$
+
+The `pool_method = "boot_mi"` path also applies — each bootstrap sample is imputed, an SNM is fit on each imputation, and blip parameters are pooled. This handles the uncongeniality between the imputation model and the blip-function estimand (the g-estimating equation targets a causal parameter that the mice imputation model does not).
+
+**Key consideration:** the mice predictor matrix should include treatment $A$, all confounders $L$, outcome $Y$, and any effect modifiers $M$. Missing effect modifiers are particularly problematic — if $M$ is imputed poorly, the blip function is misspecified.
+
 ## References
 
 - Rubin DB (1987). *Multiple Imputation for Nonresponse in Surveys*.
