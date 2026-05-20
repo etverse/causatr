@@ -352,6 +352,7 @@ remain in this matrix.
 | Intervention constructors | ✅ | test-interventions.R |
 | External reference cross-checks (stdReg2, delicatessen) | ✅ | test-variance-reference.R |
 | delicatessen extended: categorical AIPW + binary IPW + longitudinal IPW | ✅ | test-delicatessen-extended.R |
+| delicatessen NHEFS: g-comp/IPW/AIPW/IPCW/EM SE match + Ross binary + Cole transport | ✅ | test-delicatessen-nhefs.R |
 | `target_trial()` constructor + S3 print | ✅ | test-target-trial.R |
 | `diagnose()` feasibility (pct_intervened) — static/shift/threshold/ipsi/NULL | ✅ | test-diagnose.R |
 | `diagnose()` feasibility — longitudinal per-period + overall | ✅ | test-diagnose.R |

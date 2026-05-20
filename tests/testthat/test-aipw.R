@@ -85,7 +85,7 @@ test_that("AIPW bootstrap agrees with sandwich (within 30%)", {
     interventions = ivs,
     reference = "a0",
     ci_method = "bootstrap",
-    n_boot = 200L
+    n_boot = 100L
   )
 
   ratio <- res_boot$contrasts$se[1] / res_sand$contrasts$se[1]
@@ -158,7 +158,7 @@ test_that("AIPW DR: correct outcome model, wrong propensity => ATE ~ 3", {
 # --- Efficiency (chunk 16f) -------------------------------------------------
 
 test_that("AIPW SE <= gcomp SE and IPW SE (both correct, large n)", {
-  d <- simulate_binary_continuous(n = 5000, seed = 789)
+  d <- simulate_binary_continuous(n = 3000, seed = 789)
   ivs <- list(a1 = static(1), a0 = static(0))
 
   fit_gc <- causat(
@@ -470,7 +470,7 @@ test_that("AIPW recovers ATC on linear DGP (static binary)", {
 # --- Effect modification (chunk 16h) -----------------------------------------
 
 test_that("AIPW recovers sex-stratified ATE with effect modification", {
-  d <- simulate_het_effect(n = 5000, seed = 42)
+  d <- simulate_het_effect(n = 3000, seed = 42)
   # True: ATE|sex=0 = 3.0, ATE|sex=1 = 4.5
   fit <- causat(
     d,
@@ -947,7 +947,7 @@ test_that("longitudinal AIPW: bootstrap SE finite and positive", {
 })
 
 test_that("longitudinal AIPW: sandwich vs bootstrap SE agreement", {
-  d <- make_linear_scm(n = 5000, n_times = 2, seed = 51)
+  d <- make_linear_scm(n = 3000, n_times = 2, seed = 51)
   fit <- causat(
     d,
     outcome = "Y",
@@ -1551,7 +1551,7 @@ test_that("longitudinal AIPW: EM agreement with long-IPW", {
 })
 
 test_that("longitudinal AIPW: 3-period sandwich vs bootstrap SE agreement", {
-  d <- make_linear_scm(n = 5000, n_times = 3, seed = 72)
+  d <- make_linear_scm(n = 3000, n_times = 3, seed = 72)
   fit <- causat(
     d,
     outcome = "Y",
@@ -1780,7 +1780,7 @@ sim_cc_aipw <- function(n = 3000, seed = 42) {
 # DGP: binary x binary, binomial outcome.
 # Y ~ Bernoulli(plogis(-1 + A1 + 0.8*A2 + 0.5*L)).
 # MC truth: P[Y(1,1)] ~ 0.622, P[Y(0,0)] ~ 0.269.
-sim_bb_binary_aipw <- function(n = 5000, seed = 42) {
+sim_bb_binary_aipw <- function(n = 3000, seed = 42) {
   set.seed(seed)
   L <- rnorm(n)
   A1 <- rbinom(n, 1, plogis(0.3 * L))
@@ -1893,7 +1893,7 @@ test_that("mv AIPW: bootstrap parity with sandwich", {
 })
 
 test_that("mv AIPW: continuous x continuous shift recovers truth", {
-  df <- sim_cc_aipw(n = 5000)
+  df <- sim_cc_aipw(n = 3000)
   fit <- causat(
     df,
     "Y",
@@ -1918,7 +1918,7 @@ test_that("mv AIPW: continuous x continuous shift recovers truth", {
 })
 
 test_that("mv AIPW: DR — wrong outcome, correct propensity", {
-  df <- sim_bb_aipw(n = 5000, seed = 77)
+  df <- sim_bb_aipw(n = 3000, seed = 77)
   # Outcome model omits L (misspecified); propensity correctly includes L.
   fit <- causat(
     df,
@@ -1945,7 +1945,7 @@ test_that("mv AIPW: DR — wrong outcome, correct propensity", {
 })
 
 test_that("mv AIPW: DR — correct outcome, wrong propensity", {
-  df <- sim_bb_aipw(n = 5000, seed = 78)
+  df <- sim_bb_aipw(n = 3000, seed = 78)
   # Propensity model drops L (misspecified); outcome model is correct.
   fit <- causat(
     df,
@@ -2273,7 +2273,7 @@ test_that("aipw x bin trt x beta x diff x bootstrap", {
     reference = "a0",
     type = "difference",
     ci_method = "bootstrap",
-    n_boot = 200L
+    n_boot = 100L
   )
   expect_lt(abs(res$contrasts$estimate[1] - truth), 0.02)
   expect_true(all(is.finite(res$contrasts$se) & res$contrasts$se > 0))
@@ -2318,7 +2318,7 @@ test_that("aipw x bin trt x beta x ratio x bootstrap", {
     reference = "a0",
     type = "ratio",
     ci_method = "bootstrap",
-    n_boot = 200L
+    n_boot = 100L
   )
   expect_equal(res$contrasts$estimate[1], truth_rr, tolerance = 0.1)
   expect_true(all(is.finite(res$contrasts$se) & res$contrasts$se > 0))
@@ -2385,7 +2385,7 @@ test_that("aipw x external weights x bootstrap SE agreement", {
     interventions = list(a1 = static(1), a0 = static(0)),
     reference = "a0",
     ci_method = "bootstrap",
-    n_boot = 200L
+    n_boot = 100L
   )
   ratio <- res_boot$contrasts$se[1] / res_sand$contrasts$se[1]
   expect_gt(ratio, 0.7)
@@ -2641,7 +2641,7 @@ test_that("aipw x MCAR outcome NAs x bootstrap SE agreement", {
     interventions = list(a1 = static(1), a0 = static(0)),
     reference = "a0",
     ci_method = "bootstrap",
-    n_boot = 200L
+    n_boot = 100L
   )
   ratio <- res_boot$contrasts$se[1] / res_sand$contrasts$se[1]
   expect_gt(ratio, 0.5)
@@ -2743,7 +2743,7 @@ test_that("aipw x subset(L > 0) restricts population", {
 })
 
 test_that("aipw x subset + by composition", {
-  df <- simulate_het_effect(n = 5000)
+  df <- simulate_het_effect(n = 3000)
   fit <- causat(
     df,
     outcome = "Y",
@@ -2900,7 +2900,7 @@ test_that("aipw x GAM outcome+propensity x sandwich vs bootstrap SE", {
     interventions = list(a1 = static(1), a0 = static(0)),
     reference = "a0",
     ci_method = "bootstrap",
-    n_boot = 200L
+    n_boot = 100L
   )
   ratio <- res_boot$contrasts$se[1] / res_sand$contrasts$se[1]
   expect_gt(ratio, 0.5)

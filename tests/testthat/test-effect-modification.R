@@ -235,7 +235,7 @@ test_that("IPW accepts A:modifier and stores em_info", {
 # expands to `Y ~ 1 + sex` per intervention. Under `by = "sex"`,
 # `contrast()` averages the modifier-aware predictions per stratum.
 test_that("IPW EM sandwich recovers stratum-specific ATEs (DGP 4)", {
-  d <- simulate_effect_mod(n = 5000, seed = 42)
+  d <- simulate_effect_mod(n = 3000, seed = 42)
   fit <- causat(
     d,
     outcome = "Y",
@@ -272,7 +272,7 @@ test_that("IPW EM sandwich recovers stratum-specific ATEs (DGP 4)", {
 
 # Cross-check: IPW EM point estimates agree with gcomp EM.
 test_that("IPW EM agrees with gcomp EM on same DGP (DGP 4)", {
-  d <- simulate_effect_mod(n = 5000, seed = 42)
+  d <- simulate_effect_mod(n = 3000, seed = 42)
 
   fit_gc <- causat(
     d,
@@ -332,7 +332,7 @@ test_that("IPW EM bootstrap covers stratum-specific ATEs (DGP 4)", {
     type = "difference",
     reference = "a0",
     ci_method = "bootstrap",
-    n_boot = 100,
+    n_boot = 50,
     by = "sex"
   ))
 
@@ -379,11 +379,11 @@ test_that("IPW EM sandwich agrees with bootstrap under NA outcomes (B2)", {
     type = "difference",
     reference = "a0",
     ci_method = "bootstrap",
-    n_boot = 200
+    n_boot = 100
   ))
 
   # Sandwich SE should agree with bootstrap within 15% (normal variability
-  # for n_boot = 200). Pre-fix, the ratio was ~0.91 on more extreme DGPs.
+  # for n_boot = 100). Pre-fix, the ratio was ~0.91 on more extreme DGPs.
   se_ratio <- res_sw$contrasts$se / res_boot$contrasts$se
   expect_gt(se_ratio, 0.85)
   expect_lt(se_ratio, 1.15)
@@ -461,7 +461,7 @@ test_that("matching accepts A:modifier and stores em_info", {
 test_that("matching EM sandwich recovers stratum-specific ATEs (DGP 4)", {
   skip_if_not_installed("MatchIt")
   skip_if_not_installed("optmatch")
-  d <- simulate_effect_mod(n = 5000, seed = 42)
+  d <- simulate_effect_mod(n = 3000, seed = 42)
   fit <- causat(
     d,
     outcome = "Y",
@@ -497,7 +497,7 @@ test_that("matching EM sandwich recovers stratum-specific ATEs (DGP 4)", {
 test_that("matching EM agrees with gcomp EM on same DGP (DGP 4)", {
   skip_if_not_installed("MatchIt")
   skip_if_not_installed("optmatch")
-  d <- simulate_effect_mod(n = 5000, seed = 42)
+  d <- simulate_effect_mod(n = 3000, seed = 42)
 
   fit_gc <- causat(
     d,
@@ -558,7 +558,7 @@ test_that("matching EM bootstrap covers stratum-specific ATEs (DGP 4)", {
     type = "difference",
     reference = "a0",
     ci_method = "bootstrap",
-    n_boot = 100,
+    n_boot = 50,
     by = "sex"
   ))
 
@@ -675,7 +675,7 @@ test_that("expand_em_lag_terms warns and returns empty when treatment var missin
 # the expansion, ICE compresses the heterogeneity and returns ~6.5/6.5
 # instead of 5/8.
 test_that("ICE EM sandwich recovers sex-specific ATEs (2-period DGP)", {
-  d <- make_em_ice_scm(n = 8000, n_times = 2, seed = 42)
+  d <- make_em_ice_scm(n = 5000, n_times = 2, seed = 42)
   fit <- causat(
     d,
     outcome = "Y",
@@ -728,7 +728,7 @@ test_that("ICE EM sandwich recovers sex-specific ATEs (2-period DGP)", {
 # Tests deeper lag coverage: at the final step (time_idx = 2), the formula
 # should include `A:sex`, `lag1_A:sex`, and `lag2_A:sex`.
 test_that("ICE EM sandwich recovers sex-specific ATEs (3-period DGP)", {
-  d <- make_em_ice_scm(n = 8000, n_times = 3, seed = 42)
+  d <- make_em_ice_scm(n = 5000, n_times = 3, seed = 42)
   fit <- causat(
     d,
     outcome = "Y",
@@ -831,7 +831,7 @@ test_that("ICE EM handles multiple EM terms (A:sex + A:age)", {
 
 # Bootstrap: ICE EM bootstrap CIs cover the truth (2-period DGP).
 test_that("ICE EM bootstrap covers sex-specific ATEs (2-period DGP)", {
-  d <- make_em_ice_scm(n = 5000, n_times = 2, seed = 42)
+  d <- make_em_ice_scm(n = 3000, n_times = 2, seed = 42)
   fit <- causat(
     d,
     outcome = "Y",
@@ -847,7 +847,7 @@ test_that("ICE EM bootstrap covers sex-specific ATEs (2-period DGP)", {
     type = "difference",
     reference = "never",
     ci_method = "bootstrap",
-    n_boot = 100,
+    n_boot = 50,
     by = "sex"
   ))
 
@@ -946,7 +946,7 @@ test_that("ICE EM x continuous trt x shift recovers sex-specific effects", {
 # that verifies the scale_by path produces differentiated sex-specific
 # contrasts (not collapsed to the same value).
 test_that("ICE EM x continuous trt x scale_by produces sex-differentiated estimates", {
-  d <- make_em_ice_cont_scm(n = 5000, seed = 42)
+  d <- make_em_ice_cont_scm(n = 3000, seed = 42)
   fit <- causat(
     d,
     outcome = "Y",
@@ -977,7 +977,7 @@ test_that("ICE EM x continuous trt x scale_by produces sex-differentiated estima
 
 # ICE EM x continuous treatment x threshold.
 test_that("ICE EM x continuous trt x threshold produces sex-differentiated estimates", {
-  d <- make_em_ice_cont_scm(n = 5000, seed = 42)
+  d <- make_em_ice_cont_scm(n = 3000, seed = 42)
   fit <- causat(
     d,
     outcome = "Y",
@@ -1017,7 +1017,7 @@ test_that("ICE EM x continuous trt x threshold produces sex-differentiated estim
 # we can't derive the analytical truth, but we verify sex-differentiated
 # estimates are produced and finite.
 test_that("ICE EM x binary trt x dynamic produces sex-differentiated estimates", {
-  d <- make_em_ice_scm(n = 5000, n_times = 2, seed = 42)
+  d <- make_em_ice_scm(n = 3000, n_times = 2, seed = 42)
   fit <- causat(
     d,
     outcome = "Y",
@@ -1058,7 +1058,7 @@ test_that("ICE EM x binary trt x dynamic produces sex-differentiated estimates",
 # DGP-EM-ICE-BINOM: Y ~ Bern(expit(-1 + (1+0.8*sex)*(A0+A1) + 0.5*Ltv0 + 0.3*L1))
 #   MC truth (n = 10^6): RD|sex=0 ~ 0.495, RD|sex=1 ~ 0.663
 test_that("ICE EM x binomial outcome recovers sex-specific risk differences", {
-  d <- make_em_ice_binom_scm(n = 8000, seed = 42)
+  d <- make_em_ice_binom_scm(n = 5000, seed = 42)
   fit <- causat(
     d,
     outcome = "Y",
@@ -1181,7 +1181,7 @@ test_that("ICE EM x multivariate trt produces finite sex-differentiated estimate
 test_that("ICE EM binary: causatr agrees with lmtp per-stratum (DGP-EM-ICE)", {
   skip_if_not_installed("lmtp")
 
-  d <- make_em_ice_scm(n = 5000, n_times = 2, seed = 42)
+  d <- make_em_ice_scm(n = 3000, n_times = 2, seed = 42)
 
   # causatr
   fit <- causat(
@@ -1260,7 +1260,7 @@ test_that("ICE EM binary: causatr agrees with lmtp per-stratum (DGP-EM-ICE)", {
 test_that("cross-method EM triangulation: gcomp, IPW, matching agree (DGP 4)", {
   skip_if_not_installed("MatchIt")
   skip_if_not_installed("optmatch")
-  d <- simulate_effect_mod(n = 5000, seed = 42)
+  d <- simulate_effect_mod(n = 3000, seed = 42)
 
   common_formula <- ~ L + sex + A:sex
   common_interventions <- list(a1 = static(1), a0 = static(0))

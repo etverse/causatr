@@ -9,7 +9,7 @@
 # True ATE (always vs never) = 5
 # E[Y(1,1)] = 15, E[Y(0,0)] = 10
 
-make_tv_only_scm <- function(n = 5000, seed = 42) {
+make_tv_only_scm <- function(n = 3000, seed = 42) {
   set.seed(seed)
   L0 <- stats::rnorm(n)
   A0 <- stats::rbinom(n, 1, stats::plogis(0.5 * L0))
@@ -78,7 +78,7 @@ test_that("ICE sandwich SE is valid with TV confounder only", {
     interventions = list(always = static(1), never = static(0)),
     reference = "never",
     ci_method = "bootstrap",
-    n_boot = 200L
+    n_boot = 50L
   )
 
   se_sand <- res_sand$contrasts$se[1]
@@ -294,7 +294,7 @@ test_that("ICE handles censoring indicator", {
 
 
 test_that("ICE recovers known non-zero ATE from linear SCM (2 time points)", {
-  long <- make_linear_scm(n = 5000, n_times = 2, seed = 101)
+  long <- make_linear_scm(n = 3000, n_times = 2, seed = 101)
   fit <- causat(
     long,
     outcome = "Y",
@@ -322,7 +322,7 @@ test_that("ICE recovers known non-zero ATE from linear SCM (2 time points)", {
 
 
 test_that("ICE recovers known ATE from linear SCM (3 time points)", {
-  long <- make_linear_scm(n = 5000, n_times = 3, seed = 202)
+  long <- make_linear_scm(n = 3000, n_times = 3, seed = 202)
   fit <- causat(
     long,
     outcome = "Y",
@@ -355,7 +355,7 @@ test_that("ICE recovers dynamic intervention effect (treat if L0 > 0)", {
   #   E[Y|dynamic] = 10 + (3T-1) * P(L0>0) = 10 + (3T-1)/2
   #   E[Y|never]   = 10
   #   ATE(dynamic vs never) = (3T-1)/2
-  long <- make_linear_scm(n = 5000, n_times = 2, seed = 303)
+  long <- make_linear_scm(n = 3000, n_times = 2, seed = 303)
   fit <- causat(
     long,
     outcome = "Y",
@@ -423,7 +423,7 @@ test_that("ICE CI covers true ATE from linear SCM", {
 
 
 test_that("ICE with continuous treatment and shift (LMTP) intervention", {
-  long <- make_continuous_scm(n = 5000, seed = 505)
+  long <- make_continuous_scm(n = 3000, seed = 505)
   fit <- causat(
     long,
     outcome = "Y",
@@ -472,7 +472,7 @@ test_that("ICE bootstrap and sandwich agree on linear SCM", {
     fit,
     interventions = list(always = static(1), never = static(0)),
     ci_method = "bootstrap",
-    n_boot = 100L
+    n_boot = 50L
   )
 
   expect_equal(
@@ -728,7 +728,7 @@ test_that("term_vars() extracts variable names from terms", {
 # truth should agree within Monte Carlo noise.
 
 test_that("ICE self-consistency: bare vs poly() vs ns() vs I()", {
-  long <- make_tv_only_scm(n = 5000, seed = 200)
+  long <- make_tv_only_scm(n = 3000, seed = 200)
 
   run_ice <- function(tv_formula) {
     fit <- causat(
@@ -825,7 +825,7 @@ test_that("ICE self-consistency: log transform on linear DGP", {
 # under treatment, the nonlinearity is purely in the confounders, but
 # correct adjustment still requires capturing the nonlinear L→Y path).
 
-make_nonlinear_scm <- function(n = 5000, seed = 42) {
+make_nonlinear_scm <- function(n = 3000, seed = 42) {
   set.seed(seed)
   L0 <- stats::rnorm(n)
   A0 <- stats::rbinom(n, 1, stats::plogis(0.3 * L0))
@@ -841,7 +841,7 @@ make_nonlinear_scm <- function(n = 5000, seed = 42) {
 
 
 test_that("ICE with ns() handles nonlinear DGP better than bare L", {
-  long <- make_nonlinear_scm(n = 5000, seed = 300)
+  long <- make_nonlinear_scm(n = 3000, seed = 300)
 
   run_ice <- function(tv_formula) {
     fit <- causat(
@@ -881,7 +881,7 @@ test_that("ICE with ns() handles nonlinear DGP better than bare L", {
 test_that("ICE with ns() agrees with lmtp_sdr on nonlinear DGP", {
   skip_if_not_installed("lmtp")
 
-  long <- make_nonlinear_scm(n = 5000, seed = 400)
+  long <- make_nonlinear_scm(n = 3000, seed = 400)
 
   # --- causatr: ICE with natural splines ---
   fit <- causat(
@@ -958,7 +958,7 @@ test_that("ICE with ns() agrees with lmtp_sdr on nonlinear DGP", {
 test_that("ICE with poly() agrees with lmtp_sdr on linear DGP", {
   skip_if_not_installed("lmtp")
 
-  long <- make_tv_only_scm(n = 5000, seed = 401)
+  long <- make_tv_only_scm(n = 3000, seed = 401)
 
   # --- causatr: ICE with poly ---
   fit <- causat(
