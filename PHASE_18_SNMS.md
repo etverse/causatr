@@ -1,6 +1,6 @@
 # Phase 18 — G-estimation of Structural Nested Mean Models (SNMMs)
 
-> **Status: IN PROGRESS** — chunks 18a–18b shipped (point estimation + sandwich variance)
+> **Status: IN PROGRESS** — chunks 18a–18b½ shipped (point estimation + sandwich variance + treatment-free model)
 >
 > **Depends on:** Phase 2 (point infra), Phase 4 (treatment-model machinery), Phase 5 (longitudinal data shape), Phase 6 (effect-modification parser)
 
@@ -118,7 +118,7 @@ SNMs in Phase 18 support the same treatment types as Phase 4 IPW, with the same 
 |---|---|---|---|
 | 18a | Route `estimator = "snm"` to `fit_snm()`; validate linear-blip specification; reject non-linear blips with informative error | ✅ | Phase 2 |
 | 18b | Point-treatment SNMM: `compute_snm_blip_point()` solves the linear g-estimating equation; `compute_snm_contrast()` returns blip param table or averaged blip effect; `variance_if_snm()` stacked EE sandwich; validated against delicatessen + DTRreg | ✅ | 18a, Phase 4 |
-| 18b½ | **Treatment-free outcome model for efficiency augmentation.** Optional `treatment_free =` formula argument to `contrast()` or `causat()`. Fits a nuisance model $E[Y \mid L]$ (the treatment-free model) and subtracts its predictions before g-estimation, reducing variance by projecting out the $L \to Y$ association. DTRreg uses the same device (`tf.mod =`). The point estimate is unchanged (both are consistent); only efficiency differs. Adds an extra score block to the sandwich (3-block: treatment model + treatment-free model + blip EE). **Priority: high** — MC simulations show 30–40% RMSE reduction at n=1000 in the binary EM case. Reference: Vansteelandt & Joffe (2014) § 4; Robins (1994) | ❌ | 18b |
+| 18b½ | **Treatment-free outcome model for efficiency augmentation.** `causat(..., treatment_free = ~ L)` enables joint estimation of (β, ψ) following Vansteelandt & Joffe (2014) / DTRreg's `tf.mod`. The treatment-free model absorbs L→Y variance, reducing SEs by 30–45%. Stacked sandwich: (α_trt, θ_joint = (β, ψ)). Validated against delicatessen (3 DGPs) and DTRreg (EM case: exact match on point + SE). | ✅ | 18b |
 | 18c | Phase-6 parser integration: `parse_effect_mod()` already produces the modifier list; wire its output into the blip parameterisation; both baseline and time-varying modifiers accepted (point case) | ❌ | 18b, Phase 6 |
 | 18d | Longitudinal SNMM: `fit_snm_long()` fits $K$ treatment models; builds $H(\psi)(k)$; solves the stacked linear moment equation; cluster-aggregated sandwich via stacked EE with per-individual IF aggregation | ❌ | 18b, Phase 5 |
 | 18e | Time-varying EM truth-based test: 2-period DGP with time-varying modifier $M_1$ whose blip coefficient is 2 at all $k$; estimator must recover $\psi_M = 2$; parallel IPW-MSM fit (under Phase 6 baseline-only restriction) must be biased, demonstrating the scientific gap | ❌ | 18d |

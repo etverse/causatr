@@ -140,6 +140,157 @@ def snm_gest_logistic(data, modifier_cols):
             "alpha": params[:p_alpha]}
 
 
+def snm_gest_gaussian_tf(data, modifier_cols, tf_cols):
+    """
+    SNM g-estimation with Gaussian treatment model and treatment-free model.
+
+    Joint EE system (Vansteelandt & Joffe 2014; DTRreg tf.mod):
+      1. Treatment model (OLS): Z_trt'(A - Z_trt alpha), Z_trt = [1, L]
+      2. Treatment-free model: Z_tf'(Y - Z_tf beta - A * M_blip psi)
+      3. Blip g-estimating eq: M_blip * R * (Y - Z_tf beta - A * M_blip psi)
+
+    Parameters
+    ----------
+    data : DataFrame
+        Must contain Y, A, L, and modifier columns.
+    modifier_cols : list of str
+        Column names for blip modifiers (beyond intercept).
+    tf_cols : list of str
+        Column names for treatment-free model (beyond intercept).
+    """
+    n = len(data)
+    Y = data["Y"].values
+    A = data["A"].values
+    L = data["L"].values
+
+    Z_trt = np.column_stack([np.ones(n), L])
+    p_alpha = Z_trt.shape[1]
+
+    tf_terms = [np.ones(n)] + [data[c].values for c in tf_cols]
+    Z_tf = np.column_stack(tf_terms)
+    p_beta = Z_tf.shape[1]
+
+    cols = [np.ones(n)] + [data[c].values for c in modifier_cols]
+    M_blip = np.column_stack(cols)
+    p_psi = M_blip.shape[1]
+
+    def psi(theta):
+        alpha = theta[:p_alpha]
+        beta = theta[p_alpha:p_alpha + p_beta]
+        psi_blip = theta[p_alpha + p_beta:]
+
+        # Treatment model EE
+        mu_a = Z_trt @ alpha
+        ee_alpha = Z_trt.T * (A - mu_a)
+
+        # Joint residual: Y - Z_tf beta - gamma(A, psi)
+        R = A - mu_a
+        gamma = A * (M_blip @ psi_blip)
+        tf_pred = Z_tf @ beta
+        resid = Y - tf_pred - gamma
+
+        # Treatment-free model EE
+        ee_beta = Z_tf.T * resid
+
+        # Blip EE
+        ee_psi = M_blip.T * (R * resid)
+
+        return np.vstack([ee_alpha, ee_beta, ee_psi])
+
+    from numpy.linalg import lstsq
+    init_alpha = lstsq(Z_trt, A, rcond=None)[0]
+    init_beta = lstsq(Z_tf, Y, rcond=None)[0]
+    init_psi = np.zeros(p_psi)
+    init = np.concatenate([init_alpha, init_beta, init_psi])
+
+    mest = MEstimator(psi, init=init)
+    mest.estimate(solver="lm")
+
+    params = mest.theta
+    vcov = mest.variance
+    psi_hat = params[p_alpha + p_beta:]
+    idx_psi = slice(p_alpha + p_beta, p_alpha + p_beta + p_psi)
+    vcov_psi = vcov[idx_psi, idx_psi]
+    se_psi = np.sqrt(np.diag(vcov_psi))
+
+    beta_hat = params[p_alpha:p_alpha + p_beta]
+
+    return {"psi": psi_hat, "se": se_psi, "vcov_psi": vcov_psi,
+            "alpha": params[:p_alpha], "beta": beta_hat}
+
+
+def snm_gest_logistic_tf(data, modifier_cols, tf_cols):
+    """
+    SNM g-estimation with logistic treatment model and treatment-free model.
+
+    Joint EE system for binary treatment:
+      1. Treatment model (logistic): Z_trt'(A - expit(Z_trt alpha))
+      2. Treatment-free model: Z_tf'(Y - Z_tf beta - A * M_blip psi)
+      3. Blip g-estimating eq: M_blip * R * (Y - Z_tf beta - A * M_blip psi)
+    """
+    n = len(data)
+    Y = data["Y"].values
+    A = data["A"].values.astype(float)
+    L = data["L"].values
+
+    Z_trt = np.column_stack([np.ones(n), L])
+    p_alpha = Z_trt.shape[1]
+
+    tf_terms = [np.ones(n)] + [data[c].values for c in tf_cols]
+    Z_tf = np.column_stack(tf_terms)
+    p_beta = Z_tf.shape[1]
+
+    cols = [np.ones(n)] + [data[c].values for c in modifier_cols]
+    M_blip = np.column_stack(cols)
+    p_psi = M_blip.shape[1]
+
+    def psi(theta):
+        alpha = theta[:p_alpha]
+        beta = theta[p_alpha:p_alpha + p_beta]
+        psi_blip = theta[p_alpha + p_beta:]
+
+        pi_hat = expit(Z_trt @ alpha)
+        ee_alpha = Z_trt.T * (A - pi_hat)
+
+        R = A - pi_hat
+        gamma = A * (M_blip @ psi_blip)
+        tf_pred = Z_tf @ beta
+        resid = Y - tf_pred - gamma
+
+        ee_beta = Z_tf.T * resid
+        ee_psi = M_blip.T * (R * resid)
+
+        return np.vstack([ee_alpha, ee_beta, ee_psi])
+
+    from scipy.optimize import minimize
+    def nll(b, Xd, yd):
+        p = expit(Xd @ b)
+        p = np.clip(p, 1e-10, 1 - 1e-10)
+        return -np.sum(yd * np.log(p) + (1 - yd) * np.log(1 - p))
+
+    from numpy.linalg import lstsq
+    res_alpha = minimize(nll, np.zeros(p_alpha), args=(Z_trt, A), method="BFGS")
+    init_alpha = res_alpha.x
+    init_beta = lstsq(Z_tf, Y, rcond=None)[0]
+    init_psi = np.zeros(p_psi)
+    init = np.concatenate([init_alpha, init_beta, init_psi])
+
+    mest = MEstimator(psi, init=init)
+    mest.estimate(solver="lm")
+
+    params = mest.theta
+    vcov = mest.variance
+    psi_hat = params[p_alpha + p_beta:]
+    idx_psi = slice(p_alpha + p_beta, p_alpha + p_beta + p_psi)
+    vcov_psi = vcov[idx_psi, idx_psi]
+    se_psi = np.sqrt(np.diag(vcov_psi))
+
+    beta_hat = params[p_alpha:p_alpha + p_beta]
+
+    return {"psi": psi_hat, "se": se_psi, "vcov_psi": vcov_psi,
+            "alpha": params[:p_alpha], "beta": beta_hat}
+
+
 if __name__ == "__main__":
     import os
 
@@ -187,27 +338,76 @@ if __name__ == "__main__":
     for i, name in enumerate(["psi_intercept", "psi_M1", "psi_M2"]):
         print(f"  {name:20s} = {res3['psi'][i]:.6f}  (SE = {res3['se'][i]:.6f})")
 
+    # --- Scenario 4: Continuous treatment, single modifier, treatment-free model ---
+    print("\n--- 4. Continuous trt, single modifier, treatment-free model ---")
+    print("DGP: same as scenario 1, tf.mod = ~ L")
+    print("Joint EE: (alpha, beta, psi)\n")
+
+    res4 = snm_gest_gaussian_tf(df1, ["M"], ["L"])
+    for i, name in enumerate(["psi_intercept", "psi_M"]):
+        print(f"  {name:20s} = {res4['psi'][i]:.6f}  (SE = {res4['se'][i]:.6f})")
+    print(f"  beta = {res4['beta']}")
+
+    # --- Scenario 5: Binary treatment, single modifier, treatment-free model ---
+    print("\n--- 5. Binary trt, single modifier, treatment-free model ---")
+    print("DGP: same as scenario 2, tf.mod = ~ L")
+    print("Joint EE: (alpha, beta, psi)\n")
+
+    res5 = snm_gest_logistic_tf(df2, ["M"], ["L"])
+    for i, name in enumerate(["psi_intercept", "psi_M"]):
+        print(f"  {name:20s} = {res5['psi'][i]:.6f}  (SE = {res5['se'][i]:.6f})")
+    print(f"  beta = {res5['beta']}")
+
+    # --- Scenario 6: Continuous treatment, two modifiers, treatment-free model ---
+    print("\n--- 6. Continuous trt, two modifiers, treatment-free model ---")
+    print("DGP: same as scenario 3, tf.mod = ~ L\n")
+
+    res6 = snm_gest_gaussian_tf(df3, ["M1", "M2"], ["L"])
+    for i, name in enumerate(["psi_intercept", "psi_M1", "psi_M2"]):
+        print(f"  {name:20s} = {res6['psi'][i]:.6f}  (SE = {res6['se'][i]:.6f})")
+    print(f"  beta = {res6['beta']}")
+
     # --- Summary for test-snm.R ---
     print("\n" + "=" * 60)
     print("Paste into test-snm.R:")
     print("=" * 60)
 
-    print("\n# Scenario 1: continuous trt, single modifier")
+    print("\n# Scenario 1: continuous trt, single modifier (no TF)")
     print(f"ref1_psi_intercept <- {res1['psi'][0]:.4f}")
     print(f"ref1_psi_M         <- {res1['psi'][1]:.4f}")
     print(f"ref1_se_intercept  <- {res1['se'][0]:.4f}")
     print(f"ref1_se_M          <- {res1['se'][1]:.4f}")
 
-    print("\n# Scenario 2: binary trt, single modifier")
+    print("\n# Scenario 2: binary trt, single modifier (no TF)")
     print(f"ref2_psi_intercept <- {res2['psi'][0]:.4f}")
     print(f"ref2_psi_M         <- {res2['psi'][1]:.4f}")
     print(f"ref2_se_intercept  <- {res2['se'][0]:.4f}")
     print(f"ref2_se_M          <- {res2['se'][1]:.4f}")
 
-    print("\n# Scenario 3: continuous trt, two modifiers")
+    print("\n# Scenario 3: continuous trt, two modifiers (no TF)")
     print(f"ref3_psi_intercept <- {res3['psi'][0]:.4f}")
     print(f"ref3_psi_M1        <- {res3['psi'][1]:.4f}")
     print(f"ref3_psi_M2        <- {res3['psi'][2]:.4f}")
     print(f"ref3_se_intercept  <- {res3['se'][0]:.4f}")
     print(f"ref3_se_M1         <- {res3['se'][1]:.4f}")
     print(f"ref3_se_M2         <- {res3['se'][2]:.4f}")
+
+    print("\n# Scenario 4: continuous trt, single modifier, treatment-free model")
+    print(f"ref4_psi_intercept <- {res4['psi'][0]:.4f}")
+    print(f"ref4_psi_M         <- {res4['psi'][1]:.4f}")
+    print(f"ref4_se_intercept  <- {res4['se'][0]:.4f}")
+    print(f"ref4_se_M          <- {res4['se'][1]:.4f}")
+
+    print("\n# Scenario 5: binary trt, single modifier, treatment-free model")
+    print(f"ref5_psi_intercept <- {res5['psi'][0]:.4f}")
+    print(f"ref5_psi_M         <- {res5['psi'][1]:.4f}")
+    print(f"ref5_se_intercept  <- {res5['se'][0]:.4f}")
+    print(f"ref5_se_M          <- {res5['se'][1]:.4f}")
+
+    print("\n# Scenario 6: continuous trt, two modifiers, treatment-free model")
+    print(f"ref6_psi_intercept <- {res6['psi'][0]:.4f}")
+    print(f"ref6_psi_M1        <- {res6['psi'][1]:.4f}")
+    print(f"ref6_psi_M2        <- {res6['psi'][2]:.4f}")
+    print(f"ref6_se_intercept  <- {res6['se'][0]:.4f}")
+    print(f"ref6_se_M1         <- {res6['se'][1]:.4f}")
+    print(f"ref6_se_M2         <- {res6['se'][2]:.4f}")

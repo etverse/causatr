@@ -731,3 +731,423 @@ test_that("SNM vcov matrix has correct dimensions and names", {
   eig <- eigen(result$vcov, symmetric = TRUE, only.values = TRUE)$values
   expect_true(all(eig >= -1e-10))
 })
+
+# --- Chunk 18b½: treatment-free outcome model ---------------------------------
+
+# --- Treatment-free model truth tests -----------------------------------------
+
+test_that("SNM with treatment-free model recovers blip params: continuous trt, EM", {
+  dgp <- simulate_snm_point(n = 5000, seed = 101)
+  fit <- causat(
+    dgp$data,
+    outcome = "Y",
+    treatment = "A",
+    confounders_outcome = ~ L + A:M,
+    confounders_treatment = ~L,
+    estimator = "snm",
+    treatment_free = ~L
+  )
+  result <- contrast(fit, ci_method = "sandwich")
+
+  psi <- result$estimates$estimate
+  names(psi) <- result$estimates$parameter
+  expect_equal(psi[["psi_intercept"]], 3, tolerance = 0.15)
+  expect_equal(psi[["psi_M"]], 2, tolerance = 0.15)
+
+  # SEs should be smaller than without TF model
+  fit_no_tf <- causat(
+    dgp$data,
+    outcome = "Y",
+    treatment = "A",
+    confounders_outcome = ~ L + A:M,
+    confounders_treatment = ~L,
+    estimator = "snm"
+  )
+  r_no_tf <- contrast(fit_no_tf, ci_method = "sandwich")
+  expect_true(all(result$estimates$se < r_no_tf$estimates$se))
+})
+
+test_that("SNM with TF model recovers constant ATE (no EM)", {
+  dgp <- simulate_snm_point_no_em(n = 5000, seed = 202)
+  fit <- suppressMessages(causat(
+    dgp$data,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "snm",
+    treatment_free = ~L
+  ))
+  result <- contrast(fit, ci_method = "sandwich")
+
+  expect_equal(nrow(result$estimates), 1L)
+  expect_equal(result$estimates$estimate, 3, tolerance = 0.1)
+  expect_true(result$estimates$se > 0)
+})
+
+test_that("SNM with TF model recovers blip params: binary trt, EM", {
+  dgp <- simulate_snm_point_binary(n = 5000, seed = 303)
+  fit <- causat(
+    dgp$data,
+    outcome = "Y",
+    treatment = "A",
+    confounders_outcome = ~ L + A:M,
+    confounders_treatment = ~L,
+    estimator = "snm",
+    treatment_free = ~L
+  )
+  result <- contrast(fit, ci_method = "sandwich")
+
+  psi <- result$estimates$estimate
+  names(psi) <- result$estimates$parameter
+  expect_equal(psi[["psi_intercept"]], 3, tolerance = 0.2)
+  expect_equal(psi[["psi_M"]], 2, tolerance = 0.3)
+})
+
+test_that("SNM with TF model + treatment_values returns averaged blip", {
+  dgp <- simulate_snm_point(n = 5000, seed = 404)
+  fit <- causat(
+    dgp$data,
+    outcome = "Y",
+    treatment = "A",
+    confounders_outcome = ~ L + A:M,
+    confounders_treatment = ~L,
+    estimator = "snm",
+    treatment_free = ~L
+  )
+  result <- contrast(fit, treatment_values = c(0, 1))
+
+  expect_equal(nrow(result$estimates), 1L)
+  expect_equal(result$estimates$parameter, "avg_blip_effect")
+  # truth ~ 3 + 2 * 0.5 = 4
+  expect_equal(result$estimates$estimate, 4, tolerance = 0.15)
+  expect_true(result$estimates$se > 0)
+})
+
+# --- DTRreg cross-checks with treatment-free model ----------------------------
+
+test_that("SNM with TF model matches DTRreg (binary trt, EM case)", {
+  skip_if_not_installed("DTRreg")
+  # With the joint estimation approach, causatr and DTRreg should
+  # match exactly even in the EM case (both use treatment-free model).
+  set.seed(707)
+  n <- 5000
+  L <- stats::rnorm(n)
+  M <- as.numeric(L > 0)
+  A <- stats::rbinom(n, 1, stats::plogis(0.5 * L))
+  Y <- 2 + 3 * A + 1.5 * L + 2 * A * M + stats::rnorm(n)
+  d <- data.table::data.table(Y = Y, A = A, L = L, M = M)
+
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders_outcome = ~ L + A:M,
+    confounders_treatment = ~L,
+    estimator = "snm",
+    treatment_free = ~L
+  )
+  result <- contrast(fit, ci_method = "sandwich")
+
+  dtr_fit <- DTRreg::DTRreg(
+    outcome = Y,
+    blip.mod = list(~M),
+    treat.mod = list(A ~ L),
+    tf.mod = list(~L),
+    data = data.frame(Y = Y, A = A, L = L, M = M),
+    method = "gest",
+    treat.type = "bin",
+    var.estim = "sandwich"
+  )
+  psi_dtreg <- stats::coef(dtr_fit)$stage_1
+  se_dtreg <- sqrt(diag(dtr_fit$covmat[[1]]))
+
+  psi_causatr <- result$estimates$estimate
+  se_causatr <- result$estimates$se
+
+  expect_equal(psi_causatr[1], unname(psi_dtreg[1]), tolerance = 0.01)
+  expect_equal(psi_causatr[2], unname(psi_dtreg[2]), tolerance = 0.01)
+  expect_equal(se_causatr[1], unname(se_dtreg[1]), tolerance = 0.01)
+  expect_equal(se_causatr[2], unname(se_dtreg[2]), tolerance = 0.01)
+})
+
+test_that("SNM with TF model matches DTRreg (binary trt, no EM)", {
+  skip_if_not_installed("DTRreg")
+  set.seed(808)
+  n <- 5000
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, stats::plogis(0.5 * L))
+  Y <- 2 + 3 * A + 1.5 * L + stats::rnorm(n)
+  d <- data.table::data.table(Y = Y, A = A, L = L)
+
+  fit <- suppressMessages(causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "snm",
+    treatment_free = ~L
+  ))
+  result <- contrast(fit, ci_method = "sandwich")
+
+  dtr_fit <- DTRreg::DTRreg(
+    outcome = Y,
+    blip.mod = list(~1),
+    treat.mod = list(A ~ L),
+    tf.mod = list(~L),
+    data = data.frame(Y = Y, A = A, L = L),
+    method = "gest",
+    treat.type = "bin",
+    var.estim = "sandwich"
+  )
+  psi_dtreg <- stats::coef(dtr_fit)$stage_1
+  se_dtreg <- sqrt(diag(dtr_fit$covmat[[1]]))
+
+  expect_equal(
+    result$estimates$estimate,
+    unname(psi_dtreg[1]),
+    tolerance = 0.01
+  )
+  expect_equal(result$estimates$se, unname(se_dtreg[1]), tolerance = 0.01)
+})
+
+# --- delicatessen cross-checks with treatment-free model ----------------------
+
+test_that("SNM TF sandwich matches delicatessen — continuous trt, EM", {
+  ref_psi_intercept <- 3.0321
+  ref_psi_M <- 1.9796
+  ref_se_intercept <- 0.0195
+  ref_se_M <- 0.0288
+
+  dgp <- simulate_snm_point(n = 5000, seed = 101)
+  fit <- causat(
+    dgp$data,
+    outcome = "Y",
+    treatment = "A",
+    confounders_outcome = ~ L + A:M,
+    confounders_treatment = ~L,
+    estimator = "snm",
+    treatment_free = ~L
+  )
+  result <- contrast(fit, ci_method = "sandwich")
+
+  psi <- result$estimates$estimate
+  names(psi) <- result$estimates$parameter
+  se <- result$estimates$se
+  names(se) <- result$estimates$parameter
+
+  expect_equal(psi[["psi_intercept"]], ref_psi_intercept, tolerance = 0.01)
+  expect_equal(psi[["psi_M"]], ref_psi_M, tolerance = 0.01)
+  expect_equal(se[["psi_intercept"]], ref_se_intercept, tolerance = 0.01)
+  expect_equal(se[["psi_M"]], ref_se_M, tolerance = 0.01)
+})
+
+test_that("SNM TF sandwich matches delicatessen — binary trt, EM", {
+  ref_psi_intercept <- 2.9441
+  ref_psi_M <- 2.0402
+  ref_se_intercept <- 0.0414
+  ref_se_M <- 0.0579
+
+  dgp <- simulate_snm_point_binary(n = 5000, seed = 303)
+  fit <- causat(
+    dgp$data,
+    outcome = "Y",
+    treatment = "A",
+    confounders_outcome = ~ L + A:M,
+    confounders_treatment = ~L,
+    estimator = "snm",
+    treatment_free = ~L
+  )
+  result <- contrast(fit, ci_method = "sandwich")
+
+  psi <- result$estimates$estimate
+  names(psi) <- result$estimates$parameter
+  se <- result$estimates$se
+  names(se) <- result$estimates$parameter
+
+  expect_equal(psi[["psi_intercept"]], ref_psi_intercept, tolerance = 0.01)
+  expect_equal(psi[["psi_M"]], ref_psi_M, tolerance = 0.01)
+  expect_equal(se[["psi_intercept"]], ref_se_intercept, tolerance = 0.01)
+  expect_equal(se[["psi_M"]], ref_se_M, tolerance = 0.01)
+})
+
+test_that("SNM TF sandwich matches delicatessen — continuous trt, 2 modifiers", {
+  ref_psi_intercept <- 0.9881
+  ref_psi_M1 <- 2.0600
+  ref_psi_M2 <- 0.5013
+  ref_se_intercept <- 0.0212
+  ref_se_M1 <- 0.0291
+  ref_se_M2 <- 0.0143
+
+  set.seed(111)
+  n <- 5000
+  L <- stats::rnorm(n)
+  M1 <- as.numeric(L > 0)
+  M2 <- stats::rnorm(n)
+  A <- stats::rnorm(n, mean = 0.5 * L, sd = 1)
+  Y <- 3 + 1 * A + 2 * A * M1 + 0.5 * A * M2 + 1.5 * L + stats::rnorm(n)
+  d <- data.table::data.table(Y = Y, A = A, L = L, M1 = M1, M2 = M2)
+
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders_outcome = ~ L + A:M1 + A:M2,
+    confounders_treatment = ~L,
+    estimator = "snm",
+    treatment_free = ~L
+  )
+  result <- contrast(fit, ci_method = "sandwich")
+
+  psi <- result$estimates$estimate
+  names(psi) <- result$estimates$parameter
+  se <- result$estimates$se
+  names(se) <- result$estimates$parameter
+
+  expect_equal(psi[["psi_intercept"]], ref_psi_intercept, tolerance = 0.01)
+  expect_equal(psi[["psi_M1"]], ref_psi_M1, tolerance = 0.01)
+  expect_equal(psi[["psi_M2"]], ref_psi_M2, tolerance = 0.01)
+  expect_equal(se[["psi_intercept"]], ref_se_intercept, tolerance = 0.01)
+  expect_equal(se[["psi_M1"]], ref_se_M1, tolerance = 0.01)
+  expect_equal(se[["psi_M2"]], ref_se_M2, tolerance = 0.01)
+})
+
+# --- Treatment-free model SE reduction validation -----------------------------
+
+test_that("TF model reduces SEs across all DGPs", {
+  # Continuous treatment + EM
+  dgp1 <- simulate_snm_point(n = 5000, seed = 101)
+  fit1_no <- causat(
+    dgp1$data,
+    outcome = "Y",
+    treatment = "A",
+    confounders_outcome = ~ L + A:M,
+    confounders_treatment = ~L,
+    estimator = "snm"
+  )
+  fit1_tf <- causat(
+    dgp1$data,
+    outcome = "Y",
+    treatment = "A",
+    confounders_outcome = ~ L + A:M,
+    confounders_treatment = ~L,
+    estimator = "snm",
+    treatment_free = ~L
+  )
+  r1_no <- contrast(fit1_no)
+  r1_tf <- contrast(fit1_tf)
+  expect_true(all(r1_tf$estimates$se < r1_no$estimates$se))
+
+  # Binary treatment + EM
+  dgp2 <- simulate_snm_point_binary(n = 5000, seed = 303)
+  fit2_no <- causat(
+    dgp2$data,
+    outcome = "Y",
+    treatment = "A",
+    confounders_outcome = ~ L + A:M,
+    confounders_treatment = ~L,
+    estimator = "snm"
+  )
+  fit2_tf <- causat(
+    dgp2$data,
+    outcome = "Y",
+    treatment = "A",
+    confounders_outcome = ~ L + A:M,
+    confounders_treatment = ~L,
+    estimator = "snm",
+    treatment_free = ~L
+  )
+  r2_no <- contrast(fit2_no)
+  r2_tf <- contrast(fit2_tf)
+  expect_true(all(r2_tf$estimates$se < r2_no$estimates$se))
+})
+
+# --- Treatment-free model sandwich vs bootstrap consistency -------------------
+
+test_that("TF model sandwich SE matches bootstrap SE", {
+  dgp <- simulate_snm_point_no_em(n = 2000, seed = 505)
+  fit <- suppressMessages(causat(
+    dgp$data,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "snm",
+    treatment_free = ~L
+  ))
+
+  sandwich_result <- contrast(fit, ci_method = "sandwich")
+  sandwich_se <- sandwich_result$estimates$se
+
+  set.seed(606)
+  n_boot <- 200
+  boot_psi <- replicate(n_boot, {
+    idx <- sample.int(nrow(dgp$data), replace = TRUE)
+    boot_data <- dgp$data[idx]
+    tryCatch(
+      {
+        boot_fit <- suppressMessages(causat(
+          boot_data,
+          outcome = "Y",
+          treatment = "A",
+          confounders = ~L,
+          estimator = "snm",
+          treatment_free = ~L
+        ))
+        boot_res <- contrast(boot_fit, ci_method = "sandwich")
+        boot_res$estimates$estimate
+      },
+      error = function(e) NA_real_
+    )
+  })
+  boot_se <- stats::sd(boot_psi[!is.na(boot_psi)])
+
+  expect_equal(sandwich_se, boot_se, tolerance = 0.3)
+})
+
+# --- Treatment-free model rejection and edge cases ----------------------------
+
+test_that("treatment_free rejected for non-SNM estimators", {
+  d <- simulate_binary_continuous(n = 500, seed = 42)
+  expect_error(
+    causat(
+      d,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~L,
+      model_fn = stats::glm,
+      treatment_free = ~L
+    ),
+    class = "causatr_treatment_free_not_snm"
+  )
+})
+
+test_that("treatment_free must be a formula", {
+  d <- simulate_binary_continuous(n = 500, seed = 42)
+  expect_error(
+    causat(
+      d,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~L,
+      estimator = "snm",
+      propensity_model_fn = stats::glm,
+      treatment_free = "L"
+    ),
+    class = "causatr_snm_bad_treatment_free"
+  )
+})
+
+test_that("TF model vcov is positive semi-definite", {
+  dgp <- simulate_snm_point(n = 1000, seed = 42)
+  fit <- causat(
+    dgp$data,
+    outcome = "Y",
+    treatment = "A",
+    confounders_outcome = ~ L + A:M,
+    confounders_treatment = ~L,
+    estimator = "snm",
+    treatment_free = ~L
+  )
+  result <- contrast(fit)
+  eig <- eigen(result$vcov, symmetric = TRUE, only.values = TRUE)$values
+  expect_true(all(eig >= -1e-10))
+})

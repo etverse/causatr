@@ -193,6 +193,15 @@
 #'   to the target population). `"all"` uses all rows S = 0 and S = 1
 #'   (generalizability: the study is a biased subsample of the target).
 #'   Ignored when `target = NULL`.
+#' @param treatment_free One-sided formula or `NULL`. SNM only. Specifies
+#'   the treatment-free outcome model \eqn{E[Y \mid L]}, a nuisance model
+#'   whose predictions are subtracted from Y before g-estimation. This
+#'   projects out the \eqn{L \to Y} association and reduces the variance
+#'   of \eqn{\hat\psi} without changing the point estimate (both approaches
+#'   are consistent). DTRreg calls this the `tf.mod` argument. The formula
+#'   should contain only baseline confounders (no treatment or modifiers).
+#'   Default `NULL` uses the standard residualized-treatment moment condition
+#'   without a treatment-free model. Ignored for non-SNM estimators.
 #' @param ... Additional arguments passed to the underlying estimation
 #'   function. For `estimator = "ipw"`, dots are forwarded into the
 #'   user's `propensity_model_fn` via `fit_treatment_model()` (e.g.
@@ -454,6 +463,7 @@ causat <- function(
   target = NULL,
   sampling_model_fn = NULL,
   target_subset = c("target", "all"),
+  treatment_free = NULL,
   ...
 ) {
   stabilize <- rlang::arg_match(stabilize)
@@ -510,6 +520,22 @@ causat <- function(
         )
       ),
       class = "causatr_propensity_fn_default"
+    )
+  }
+
+  # treatment_free is SNM-only; reject for other estimators.
+  if (!is.null(treatment_free) && estimator != "snm") {
+    rlang::abort(
+      c(
+        "`treatment_free` is only supported for `estimator = \"snm\"`.",
+        i = paste0(
+          "The treatment-free outcome model is an efficiency device ",
+          "specific to g-estimation. For other estimators, variance ",
+          "reduction comes from model specification or doubly-robust ",
+          "augmentation (AIPW)."
+        )
+      ),
+      class = "causatr_treatment_free_not_snm"
     )
   }
 
@@ -917,6 +943,8 @@ causat <- function(
       confounders_sampling_raw = confounders_sampling,
       confounders_tv_outcome_raw = confounders_tv_outcome,
       confounders_tv_treatment_raw = confounders_tv_treatment,
+      treatment_free = treatment_free,
+      model_fn = model_fn,
       ...
     ),
     # Defensive default: unreachable under normal use because

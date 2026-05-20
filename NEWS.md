@@ -1,5 +1,24 @@
 # causatr (development version)
 
+## 2026-05-20 — Treatment-free outcome model for SNM efficiency (Phase 18b½)
+
+`causat(..., treatment_free = ~ L)` enables a treatment-free outcome model that
+reduces blip parameter standard errors by 30–45% without changing point
+estimates. The approach follows Vansteelandt & Joffe (2014) and matches DTRreg's
+`tf.mod` argument: the treatment-free model parameters β and blip parameters ψ
+are solved jointly from a linear system, rather than fitting E[Y | L] separately.
+
+The sandwich variance engine extends to a stacked system
+(α_treatment, θ_joint = (β, ψ)) with the joint bread computed analytically and
+the cross-derivative A_{θ,α} via `numDeriv::jacobian()`. Validated against
+delicatessen on three DGPs (continuous + EM, binary + EM, two modifiers) and
+against DTRreg on the EM case — point estimates and SEs match to 0.01
+tolerance.
+
+Breaking change: none. The `treatment_free` parameter defaults to `NULL`,
+preserving the existing behavior. Non-SNM estimators reject `treatment_free`
+with a `causatr_treatment_free_not_snm` classed error.
+
 ## 2026-05-20 — SNM point estimation and sandwich variance (Phase 18b)
 
 Point-treatment SNM g-estimation is now fully operational. `contrast(fit)`

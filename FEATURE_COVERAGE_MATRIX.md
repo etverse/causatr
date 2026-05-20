@@ -1001,6 +1001,30 @@ Third leg of the Robins triangle. Motivating use case: **correct handling of tim
 | `treatment_values` length ≠ 2 → rejection | ✅ | test-snm.R |
 | Vcov dimensions and PSD | ✅ | test-snm.R |
 
+**Chunk 18b½ — Treatment-free outcome model for efficiency augmentation (shipped)**
+
+Joint estimation of (β, ψ) following Vansteelandt & Joffe (2014) and DTRreg's `tf.mod`. The treatment-free model E[Y | L] absorbs the L→Y variance, reducing SEs by 30–45% with unchanged point estimates.
+
+| Feature | Status | Test file |
+|---|---|---|
+| `treatment_free = ~ L` argument in `causat()` | ✅ | test-snm.R |
+| Joint (β, ψ) estimation in `compute_snm_blip_point()` | ✅ | test-snm.R |
+| 3-block sandwich: (α_trt, θ_joint = (β, ψ)) | ✅ | test-snm.R |
+| Continuous trt + EM + TF — truth | ✅ | test-snm.R |
+| No EM + TF — truth | ✅ | test-snm.R |
+| Binary trt + EM + TF — truth | ✅ | test-snm.R |
+| `treatment_values` + TF — averaged blip | ✅ | test-snm.R |
+| SE reduction across all DGPs (TF < no-TF) | ✅ | test-snm.R |
+| TF sandwich SE vs manual bootstrap consistency | ✅ | test-snm.R |
+| delicatessen cross-check — continuous trt, EM, TF | ✅ | test-snm.R |
+| delicatessen cross-check — binary trt, EM, TF | ✅ | test-snm.R |
+| delicatessen cross-check — continuous trt, 2 mods, TF | ✅ | test-snm.R |
+| DTRreg cross-check — binary trt, EM, TF (point + SE) | ✅ | test-snm.R |
+| DTRreg cross-check — binary trt, no EM, TF (point + SE) | ✅ | test-snm.R |
+| `treatment_free` on non-SNM → rejection (`causatr_treatment_free_not_snm`) | ✅ | test-snm.R |
+| `treatment_free` non-formula → rejection (`causatr_snm_bad_treatment_free`) | ✅ | test-snm.R |
+| Vcov PSD with TF model | ✅ | test-snm.R |
+
 **Remaining chunks (all ❌):** 18c (Phase 6 parser integration), 18d (longitudinal), 18e (TV-EM truth test), 18f (triangulation test), 18g (gesttools cross-check), 18h (categorical/count), 18i (bootstrap), 18j (S3 dispatch), 18k (documentation + vignette).
 
 ### `causat_mice()` — Multiple imputation

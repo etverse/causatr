@@ -36,6 +36,7 @@ causat(
   target = NULL,
   sampling_model_fn = NULL,
   target_subset = c("target", "all"),
+  treatment_free = NULL,
   ...
 )
 }
@@ -249,6 +250,16 @@ the target to S = 0 rows only (transportability: the study is external
 to the target population). \code{"all"} uses all rows S = 0 and S = 1
 (generalizability: the study is a biased subsample of the target).
 Ignored when \code{target = NULL}.}
+
+\item{treatment_free}{One-sided formula or \code{NULL}. SNM only. Specifies
+the treatment-free outcome model \eqn{E[Y \mid L]}, a nuisance model
+whose predictions are subtracted from Y before g-estimation. This
+projects out the \eqn{L \to Y} association and reduces the variance
+of \eqn{\hat\psi} without changing the point estimate (both approaches
+are consistent). DTRreg calls this the \code{tf.mod} argument. The formula
+should contain only baseline confounders (no treatment or modifiers).
+Default \code{NULL} uses the standard residualized-treatment moment condition
+without a treatment-free model. Ignored for non-SNM estimators.}
 
 \item{...}{Additional arguments passed to the underlying estimation
 function. For \code{estimator = "ipw"}, dots are forwarded into the

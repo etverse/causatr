@@ -37,6 +37,13 @@
 #' @param confounders_tv_outcome_raw Raw user-supplied `confounders_tv_outcome`.
 #' @param confounders_tv_treatment_raw Raw user-supplied
 #'   `confounders_tv_treatment`.
+#' @param treatment_free One-sided formula or `NULL`. Specifies the
+#'   treatment-free outcome model \eqn{E[Y \mid L]} for efficiency
+#'   augmentation. When non-`NULL`, the model's predictions are
+#'   subtracted from Y before g-estimation, projecting out the
+#'   \eqn{L \to Y} association and reducing variance.
+#' @param model_fn Model fitting function for the treatment-free model
+#'   (default `stats::glm`).
 #' @param ... Extra arguments forwarded to the treatment model fitter.
 #' @return A `causatr_fit` with `estimator = "snm"`.
 #' @noRd
@@ -64,6 +71,8 @@ fit_snm <- function(
   confounders_sampling_raw = NULL,
   confounders_tv_outcome_raw = NULL,
   confounders_tv_treatment_raw = NULL,
+  treatment_free = NULL,
+  model_fn = stats::glm,
   ...
 ) {
   # --- Rejection: multivariate treatment ---
@@ -141,6 +150,22 @@ fit_snm <- function(
     )
   }
 
+  # --- Treatment-free model specification ---
+  # When treatment_free is specified, store the formula. The actual model
+  # is fit jointly with the blip parameters in compute_snm_blip_point(),
+  # following the joint EE approach of Vansteelandt & Joffe (2014) and
+  # DTRreg: (beta, psi) are solved simultaneously from
+  #   E[Z_i (Y_i - Z_i beta - gamma(A_i, L_i; psi))] = 0
+  #   E[R_i m_i (Y_i - Z_i beta - gamma(A_i, L_i; psi))] = 0
+  if (!is.null(treatment_free)) {
+    if (!inherits(treatment_free, "formula")) {
+      rlang::abort(
+        "`treatment_free` must be a one-sided formula (e.g. `~ L`).",
+        class = "causatr_snm_bad_treatment_free"
+      )
+    }
+  }
+
   # Capture user dots for bootstrap replay
   dots <- list(...)
 
@@ -178,7 +203,9 @@ fit_snm <- function(
       weights = weights,
       dots = dots,
       propensity_model_fn = prop_fn,
-      propensity_family = propensity_family
+      propensity_family = propensity_family,
+      treatment_free = treatment_free,
+      model_fn = model_fn
     ),
     target = target
   )
@@ -196,6 +223,16 @@ fit_snm <- function(
 #' residual from the propensity model and \eqn{\mathbf{m}_i =
 #' (1, m_{1,i}, \ldots)^\top} is the blip design vector.
 #'
+#' When a treatment-free model is present, \eqn{(\hat\beta, \hat\psi)}
+#' are solved jointly from the stacked system (Vansteelandt & Joffe
+#' 2014, DTRreg's `tf.mod`):
+#' \deqn{\sum_i Z_i (Y_i - Z_i \beta - \gamma(A_i, L_i; \psi)) = 0}
+#' \deqn{\sum_i R_i m_i (Y_i - Z_i \beta - \gamma(A_i, L_i; \psi)) = 0}
+#' where \eqn{Z_i} is the treatment-free design matrix. The joint system
+#' is linear in \eqn{(\beta, \psi)} and solved by a single matrix
+#' inversion. This provides better efficiency than the standard approach
+#' because the treatment-free model absorbs the \eqn{L \to Y} variance.
+#'
 #' @param fit A `causatr_fit` with `estimator = "snm"` and
 #'   `type = "point"`.
 #' @return A list with:
@@ -207,11 +244,15 @@ fit_snm <- function(
 #'     \item{Y}{Numeric vector of observed outcomes.}
 #'     \item{n_obs}{Integer number of observations used.}
 #'     \item{fit_rows}{Logical vector of rows used.}
+#'     \item{beta_hat}{Named numeric vector of treatment-free model
+#'       parameters or `NULL`.}
+#'     \item{Z}{Treatment-free design matrix (n x p_beta) or `NULL`.}
 #'   }
 #' @noRd
 compute_snm_blip_point <- function(fit) {
   blip_spec <- fit$details$blip_spec
   trt_model <- fit$details$treatment_model
+  tf_formula <- fit$details$treatment_free
   fit_rows <- fit$details$fit_rows
   data <- fit$data
   fit_data <- data[fit_rows]
@@ -228,31 +269,82 @@ compute_snm_blip_point <- function(fit) {
   # the intercept (corresponds to psi_intercept); subsequent columns
   # are the modifier variables from the blip specification.
   M <- build_blip_design_matrix(fit_data, blip_spec)
+  p_psi <- ncol(M)
 
-  # Solve: psi = (M' diag(R * A) M)^{-1} M' diag(R) Y
-  # The outer product M_i^{otimes 2} * R_i * A_i summed over i is
-  # equivalent to M' diag(R * A) M.
-  RA <- R * A
-  lhs <- crossprod(M, M * RA)
-  rhs <- crossprod(M, R * Y)
+  if (!is.null(tf_formula)) {
+    # Joint estimation: solve (beta, psi) simultaneously.
+    # The stacked system is linear:
+    #   [Z'Z        Z'(A*M)    ] [beta] = [Z'Y ]
+    #   [(R*M)'Z    (R*M)'(A*M)] [psi ] = [(R*M)'Y]
+    # where gamma(A,L;psi) = A * (M %*% psi) and Z beta is the
+    # treatment-free model prediction.
+    Z <- stats::model.matrix(tf_formula, data = fit_data)
+    p_beta <- ncol(Z)
 
-  psi_hat <- tryCatch(
-    as.numeric(solve(lhs, rhs)),
-    error = function(e) {
-      rlang::abort(
-        c(
-          "G-estimating equation is singular (blip design matrix is rank-deficient).",
-          i = paste0(
-            "This can happen when a modifier is constant or collinear ",
-            "with the intercept. Check the effect-modification terms."
-          )
-        ),
-        class = "causatr_snm_singular",
-        parent = e
-      )
-    }
-  )
-  names(psi_hat) <- blip_spec$param_names
+    # Blip design weighted by treatment: B_i = A_i * M_i
+    AM <- A * M
+    # Blip design weighted by treatment residual: W_i = R_i * M_i
+    RM <- R * M
+
+    # Block system: [Z'Z, Z'(AM); (RM)'Z, (RM)'(AM)] [beta; psi] = [Z'Y; (RM)'Y]
+    lhs <- rbind(
+      cbind(crossprod(Z, Z), crossprod(Z, AM)),
+      cbind(crossprod(RM, Z), crossprod(RM, AM))
+    )
+    rhs <- c(
+      as.numeric(crossprod(Z, Y)),
+      as.numeric(crossprod(RM, Y))
+    )
+
+    theta_hat <- tryCatch(
+      as.numeric(solve(lhs, rhs)),
+      error = function(e) {
+        rlang::abort(
+          c(
+            "Joint treatment-free + blip system is singular.",
+            i = paste0(
+              "This can happen when the treatment-free model is ",
+              "collinear with the blip design. Check your ",
+              "`treatment_free` formula."
+            )
+          ),
+          class = "causatr_snm_singular",
+          parent = e
+        )
+      }
+    )
+
+    beta_hat <- theta_hat[seq_len(p_beta)]
+    names(beta_hat) <- colnames(Z)
+    psi_hat <- theta_hat[p_beta + seq_len(p_psi)]
+    names(psi_hat) <- blip_spec$param_names
+  } else {
+    # Standard approach: solve for psi only.
+    # psi = (M' diag(R * A) M)^{-1} M' diag(R) Y
+    RA <- R * A
+    lhs <- crossprod(M, M * RA)
+    rhs <- crossprod(M, R * Y)
+
+    psi_hat <- tryCatch(
+      as.numeric(solve(lhs, rhs)),
+      error = function(e) {
+        rlang::abort(
+          c(
+            "G-estimating equation is singular (blip design matrix is rank-deficient).",
+            i = paste0(
+              "This can happen when a modifier is constant or collinear ",
+              "with the intercept. Check the effect-modification terms."
+            )
+          ),
+          class = "causatr_snm_singular",
+          parent = e
+        )
+      }
+    )
+    names(psi_hat) <- blip_spec$param_names
+    beta_hat <- NULL
+    Z <- NULL
+  }
 
   list(
     psi_hat = psi_hat,
@@ -261,7 +353,9 @@ compute_snm_blip_point <- function(fit) {
     A = A,
     Y = Y,
     n_obs = n,
-    fit_rows = fit_rows
+    fit_rows = fit_rows,
+    beta_hat = beta_hat,
+    Z = Z
   )
 }
 
