@@ -13,7 +13,7 @@
 
 test_that("Categorical AIPW SE matches delicatessen — ATE(b vs a)", {
   fixture <- read.csv(
-    test_path("..", "..", "data-raw", "aipw_fixture_categorical.csv"),
+    test_path("fixtures", "aipw_fixture_categorical.csv"),
     stringsAsFactors = FALSE
   )
   fixture$A <- factor(fixture$A, levels = c("a", "b", "c"))
@@ -44,7 +44,7 @@ test_that("Categorical AIPW SE matches delicatessen — ATE(b vs a)", {
 
 test_that("Categorical AIPW SE matches delicatessen — ATE(c vs a)", {
   fixture <- read.csv(
-    test_path("..", "..", "data-raw", "aipw_fixture_categorical.csv"),
+    test_path("fixtures", "aipw_fixture_categorical.csv"),
     stringsAsFactors = FALSE
   )
   fixture$A <- factor(fixture$A, levels = c("a", "b", "c"))
@@ -81,7 +81,7 @@ test_that("Categorical AIPW SE matches delicatessen — ATE(c vs a)", {
 
 test_that("Binary IPW SE matches delicatessen — ATE", {
   fixture <- read.csv(
-    test_path("..", "..", "data-raw", "ipw_fixture_binary.csv")
+    test_path("fixtures", "ipw_fixture_binary.csv")
   )
 
   # delicatessen reference (data-raw/ipw_binary_reference.py)
@@ -111,7 +111,7 @@ test_that("Binary IPW SE matches delicatessen — ATE", {
 
 test_that("Binary IPW counterfactual means match delicatessen", {
   fixture <- read.csv(
-    test_path("..", "..", "data-raw", "ipw_fixture_binary.csv")
+    test_path("fixtures", "ipw_fixture_binary.csv")
   )
 
   # delicatessen reference
@@ -158,7 +158,7 @@ test_that("Binary IPW counterfactual means match delicatessen", {
 
 test_that("Longitudinal IPW ATE matches delicatessen — always vs never", {
   fixture_wide <- read.csv(
-    test_path("..", "..", "data-raw", "aipw_fixture_longitudinal.csv")
+    test_path("fixtures", "aipw_fixture_longitudinal.csv")
   )
 
   # delicatessen reference (data-raw/ipw_longitudinal_reference.py)
@@ -201,7 +201,7 @@ test_that("Longitudinal IPW ATE matches delicatessen — always vs never", {
 
 test_that("Longitudinal IPW counterfactual means match delicatessen", {
   fixture_wide <- read.csv(
-    test_path("..", "..", "data-raw", "aipw_fixture_longitudinal.csv")
+    test_path("fixtures", "aipw_fixture_longitudinal.csv")
   )
 
   # delicatessen reference (data-raw/ipw_longitudinal_reference.py)

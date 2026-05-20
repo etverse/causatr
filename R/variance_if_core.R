@@ -79,6 +79,20 @@
 NULL
 
 
+#' Extract model coefficients, dropping aliased (NA) entries.
+#'
+#' GLM aliases collinear columns by setting their coefficient to NA.
+#' The sandwich engine cannot perturb NAs, so all extraction sites
+#' must use this helper instead of raw `stats::coef()`.
+#'
+#' @param model A fitted model object.
+#' @return Named numeric vector with NA entries removed.
+#' @noRd
+coef_clean <- function(model) {
+  b <- stats::coef(model)
+  b[!is.na(b)]
+}
+
 #' Inverse of a model's bread matrix
 #'
 #' @description
@@ -96,20 +110,6 @@ NULL
 #' @return A `p x p` matrix.
 #'
 #' @noRd
-#' Extract model coefficients, dropping aliased (NA) entries.
-#'
-#' GLM aliases collinear columns by setting their coefficient to NA.
-#' The sandwich engine cannot perturb NAs, so all extraction sites
-#' must use this helper instead of raw `stats::coef()`.
-#'
-#' @param model A fitted model object.
-#' @return Named numeric vector with NA entries removed.
-#' @noRd
-coef_clean <- function(model) {
-  b <- stats::coef(model)
-  b[!is.na(b)]
-}
-
 bread_inv <- function(model, X_fit) {
   if (inherits(model, "gam")) {
     # Properly fitted `mgcv::gam` objects always carry `$Vp` (the

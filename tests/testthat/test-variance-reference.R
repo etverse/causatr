@@ -12,7 +12,7 @@
 # ── 1. stdReg2 comparison ────────────────────────────────────────────────────
 
 test_that("gcomp sandwich matches stdReg2 — continuous outcome (DGP 1)", {
-  df <- simulate_binary_continuous(n = 3000, seed = 123)
+  df <- simulate_binary_continuous(n = 5000, seed = 123)
 
   fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L)
   res <- contrast(
@@ -61,7 +61,7 @@ test_that("gcomp sandwich matches stdReg2 — continuous outcome (DGP 1)", {
 
 
 test_that("gcomp sandwich matches stdReg2 — binary outcome, RD (DGP 2)", {
-  df <- simulate_binary_binary(n = 3000, seed = 456)
+  df <- simulate_binary_binary(n = 5000, seed = 456)
 
   fit <- causat(
     df,
@@ -110,7 +110,7 @@ test_that("gcomp sandwich matches stdReg2 — binary outcome, RD (DGP 2)", {
 
 
 test_that("gcomp sandwich matches stdReg2 — binary outcome, RR (DGP 2)", {
-  df <- simulate_binary_binary(n = 3000, seed = 456)
+  df <- simulate_binary_binary(n = 5000, seed = 456)
 
   fit <- causat(
     df,
@@ -529,7 +529,7 @@ test_that("AIPW split confounders matches stdReg2 DR — binary outcome, split",
 
 test_that("point gcomp: sandwich ≈ bootstrap within 15% (continuous, large n)", {
   skip_on_os("windows")
-  df <- simulate_binary_continuous(n = 3000, seed = 700)
+  df <- simulate_binary_continuous(n = 5000, seed = 700)
 
   fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L)
 
@@ -565,7 +565,7 @@ test_that("point gcomp: sandwich ≈ bootstrap within 15% (continuous, large n)"
 
 test_that("point gcomp: sandwich ≈ bootstrap within 15% (binary outcome)", {
   skip_on_os("windows")
-  df <- simulate_binary_binary(n = 3000, seed = 701)
+  df <- simulate_binary_binary(n = 5000, seed = 701)
 
   fit <- causat(
     df,
@@ -603,7 +603,7 @@ test_that("point gcomp: sandwich ≈ bootstrap within 15% (binary outcome)", {
 
 test_that("ICE: sandwich ≈ bootstrap within 20% (large n)", {
   skip_on_os("windows")
-  long <- make_linear_scm(n = 3000, n_times = 2, seed = 702)
+  long <- make_linear_scm(n = 5000, n_times = 2, seed = 702)
 
   fit <- causat(
     long,

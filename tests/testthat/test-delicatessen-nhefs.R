@@ -235,7 +235,7 @@ test_that("NHEFS IPW + IPCW matches delicatessen — ATE + SE", {
 
 test_that("Ross binary g-comp matches delicatessen — RD + SE", {
   fixture <- read.csv(
-    test_path("..", "..", "data-raw", "ross_fixture_binary.csv")
+    test_path("fixtures", "ross_fixture_binary.csv")
   )
 
   fit <- causat(
@@ -266,7 +266,7 @@ test_that("Ross binary g-comp matches delicatessen — RD + SE", {
 
 test_that("Ross binary IPW matches delicatessen — RD + SE", {
   fixture <- read.csv(
-    test_path("..", "..", "data-raw", "ross_fixture_binary.csv")
+    test_path("fixtures", "ross_fixture_binary.csv")
   )
 
   fit <- causat(
@@ -300,7 +300,7 @@ test_that("Ross binary IPW matches delicatessen — RD + SE", {
 
 test_that("Cole transport g-comp matches delicatessen — ATE + SE", {
   fixture <- read.csv(
-    test_path("..", "..", "data-raw", "cole_fixture_transport.csv")
+    test_path("fixtures", "cole_fixture_transport.csv")
   )
 
   fit <- causat(
@@ -328,7 +328,7 @@ test_that("Cole transport g-comp matches delicatessen — ATE + SE", {
 
 test_that("Cole transport IPW matches delicatessen — ATE + SE", {
   fixture <- read.csv(
-    test_path("..", "..", "data-raw", "cole_fixture_transport.csv")
+    test_path("fixtures", "cole_fixture_transport.csv")
   )
 
   fit <- causat(

@@ -590,7 +590,7 @@ test_that("IPW + IPCW + transport: delicatessen stacked-EE cross-check", {
   ref_se_ate <- 0.2373
 
   d <- read.csv(
-    test_path("..", "..", "data-raw", "ipcw_transport_fixture.csv")
+    test_path("fixtures", "ipcw_transport_fixture.csv")
   )
 
   fit <- causat(
