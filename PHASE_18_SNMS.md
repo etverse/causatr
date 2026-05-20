@@ -116,7 +116,7 @@ SNMs in Phase 18 support the same treatment types as Phase 4 IPW, with the same 
 
 | Chunk | Scope | Depends on |
 |---|---|---|
-| 18a | Add `estimator = "snm"` to `causat()`; route to `fit_snm()`; validate linear-blip specification; reject non-linear blips with informative error | Phase 2 |
+| 18a | ✅ Add `estimator = "snm"` to `causat()`; route to `fit_snm()`; validate linear-blip specification; reject non-linear blips with informative error | Phase 2 |
 | 18b | Point-treatment SNMM: `fit_snm_point()` fits treatment model via `fit_treatment_model()`; stores the moment-equation specification; `compute_snm_contrast_point()` solves the linear moment equation; sandwich variance with treatment-model cross-derivative | 18a, Phase 4 |
 | 18c | Phase-6 parser integration: `parse_effect_mod()` already produces the modifier list; wire its output into the blip parameterisation; both baseline and time-varying modifiers accepted (point case) | 18b, Phase 6 |
 | 18d | Longitudinal SNMM: `fit_snm_long()` fits $K$ treatment models; builds $H(\psi)(k)$; solves the stacked linear moment equation; sandwich via stacked EE | 18b, Phase 5 |

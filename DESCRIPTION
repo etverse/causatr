@@ -34,6 +34,7 @@ Imports:
 Suggests:
     betareg,
     cobalt,
+    DTRreg,
     forrest,
     future,
     future.apply,

@@ -325,6 +325,27 @@ contrast <- function(
     )
   }
 
+  # SNM estimates blip parameters directly via the g-estimating
+  # equation; the interventions / counterfactual-mean workflow does
+  # not apply. Users should call a future SNM-specific contrast path
+  # with `treatment_values =` instead.
+  if (fit$estimator == "snm") {
+    rlang::abort(
+      c(
+        paste0(
+          "`contrast()` with `interventions` is not supported for ",
+          "`estimator = \"snm\"`."
+        ),
+        i = paste0(
+          "SNM estimates blip parameters directly via the ",
+          "g-estimating equation. SNM contrast support will be ",
+          "added in a future update."
+        )
+      ),
+      class = "causatr_snm_no_interventions"
+    )
+  }
+
   # Validate the interventions list -- names, types, and estimator
   # compatibility (IPW/matching only accept static(), ICE accepts all).
   check_intervention_list(interventions)

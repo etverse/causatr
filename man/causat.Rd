@@ -16,7 +16,7 @@ causat(
   confounders_sampling = NULL,
   confounders_tv_outcome = NULL,
   confounders_tv_treatment = NULL,
-  estimator = c("gcomp", "ipw", "aipw", "matching"),
+  estimator = c("gcomp", "ipw", "aipw", "matching", "snm"),
   family = "gaussian",
   estimand = c("ATE", "ATT", "ATC"),
   id = NULL,
@@ -93,9 +93,11 @@ confounders for the treatment model only (longitudinal data). Falls
 back to \code{confounders_tv} when \code{NULL}.}
 
 \item{estimator}{Character. Causal estimator: \code{"gcomp"} (default), \code{"ipw"},
-\code{"aipw"}, or \code{"matching"}. IPW uses a self-contained density-ratio engine
-(no runtime dependency on \code{WeightIt}); AIPW is doubly-robust (outcome
-model + propensity weights); matching requires the \code{MatchIt} package.
+\code{"aipw"}, \code{"matching"}, or \code{"snm"}. IPW uses a self-contained
+density-ratio engine (no runtime dependency on \code{WeightIt}); AIPW is
+doubly-robust (outcome model + propensity weights); matching requires
+the \code{MatchIt} package; SNM fits a structural nested mean model via
+g-estimation.
 Note: \code{"matching"} is restricted to \strong{binary point treatments}
 (MatchIt does not support multi-category or continuous treatments);
 use \code{"gcomp"} or \code{"ipw"} for those cases.}

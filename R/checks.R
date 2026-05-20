@@ -700,6 +700,16 @@ check_causat_inputs <- function(
     }
   }
 
+  if (estimator == "snm" && is.null(conf_treatment)) {
+    rlang::abort(
+      paste0(
+        "`estimator = \"snm\"` requires treatment-model confounders. ",
+        "Supply `confounders_treatment` or `confounders`."
+      ),
+      call = call
+    )
+  }
+
   if (!is.null(id)) {
     check_string(id, arg = "id", call = call)
     check_col_exists(data, id, arg = "id", call = call)

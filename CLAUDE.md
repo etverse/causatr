@@ -7,7 +7,7 @@ Part of the [etverse](https://github.com/etverse) ecosystem.
 ## Guide files
 
 - `FEATURE_COVERAGE_MATRIX.md` — **single source of truth for "what works".** Every PR that changes a feature MUST update this file.
-- `PHASE_*.md` — per-phase implementation guides in the project root. Completed: 2–6, 8–17. Pending: 18–24 (design docs).
+- `PHASE_*.md` — per-phase implementation guides in the project root. Completed: 2–6, 8–17. In progress: 18 (SNM, chunk 18a shipped). Pending: 19–24 (design docs).
 
 ## Project structure
 
@@ -17,7 +17,7 @@ This is an R package: `R/` (source), `tests/testthat/` (tests, `test-foo.R` mirr
 
 **Core API:** `causat.R` (main fitting), `contrast.R` (causal contrasts), `diagnose.R` (main dispatch + panel helpers) + `diagnose_longitudinal.R` + `diagnose_positivity.R` + `diagnose_balance.R` + `diagnose_weights.R` + `diagnose_censoring.R` + `diagnose_intervention.R` + `diagnose_sampling.R` (sampling-model diagnostics for transport).
 **Interventions:** `interventions.R` — `static()`, `shift()`, `scale_by()`, `threshold()`, `dynamic()`, `ipsi()`, `stochastic()`.
-**Estimation:** `gcomp.R`, `ice.R`, `ipw.R`, `aipw.R` (point AIPW), `aipw_longitudinal.R` (longitudinal AIPW), `longitudinal_ipw.R`, `matching.R`, `censoring.R` (IPCW model fitting + weights).
+**Estimation:** `gcomp.R`, `ice.R`, `ipw.R`, `aipw.R` (point AIPW), `aipw_longitudinal.R` (longitudinal AIPW), `longitudinal_ipw.R`, `matching.R`, `snm.R` (structural nested mean model g-estimation), `censoring.R` (IPCW model fitting + weights).
 **Inference (IF sandwich):** `variance_if_core.R` (model-correction primitives + vcov aggregation), `variance_if.R` (main dispatcher + numeric fallback + point channel + gcomp/matching IF), `variance_if_ice.R`, `variance_if_ipw.R` (point + mv + longitudinal IPW IF), `variance_if_aipw.R` (point + longitudinal AIPW IF).
 **Inference (bootstrap):** `variance_bootstrap.R` (core + refitters), `variance_bootstrap_longitudinal.R` (longitudinal IPW/ICE/AIPW bootstrap).
 **Data:** `to_person_period.R`, `prepare_data.R`, `data.R` (dataset documentation).
@@ -103,6 +103,7 @@ causatr owns g-comp (parametric g-formula + ICE), a self-contained IPW density-r
 | Weight estimation | `WeightIt` | **Suggests** (test oracle only) |
 | GAMs | `mgcv` | **Suggests** |
 | Transport cross-check | `TransportHealth` | **Suggests** (test oracle only) |
+| SNM cross-check | `DTRreg` | **Suggests** (test oracle only) |
 
 ## Supported features
 
@@ -129,7 +130,8 @@ causatr owns g-comp (parametric g-formula + ICE), a self-contained IPW density-r
 - **`censoring =` is a row filter by default.** With `ipcw = TRUE`, an internal censoring model is fit and IPCW weights are computed (Phase 14, shipped).
 - **`na.action = na.exclude` is rejected** — causes silent IF corruption via residual padding mismatch.
 - **ATT/ATC only for static interventions on binary 0/1 treatment.**
-- **Effect modifier must be baseline** under IPW/matching/longitudinal IPW (doc-level constraint, not enforced at runtime).
+- **Effect modifier must be baseline** under IPW/matching/longitudinal IPW (doc-level constraint, not enforced at runtime). **SNM lifts this restriction** — time-varying effect modification is the headline use case for `estimator = "snm"` (Phase 18).
+- **SNM estimates blip parameters, not counterfactual means** — `contrast()` with `interventions =` is rejected for SNM fits. The blip ψ is the estimand directly; no intervention specification is needed.
 - **Stabilized weights** (`stabilize = "marginal"`) supported for multivariate IPW (Phase 8), multivariate AIPW (Phase 16m), and longitudinal IPW (Phase 10). Numerator parameters held fixed in sandwich; bootstrap refits both.
 - **Transport uses a sampling model** \eqn{P(S=1 \mid L)} fit on combined study+target data; weights are \eqn{(1-\hat{p})/\hat{p}} sampling-odds weights. `target_subset = "target"` (transportability) vs `"all"` (generalizability).
 - **MTP + transport uses MC marginalization** over \eqn{P(A \mid L, S=1)} because target rows lack observed treatment. Exact enumeration for binary, Monte Carlo integration for continuous. Sandwich variance is not supported for this combination (bootstrap only).

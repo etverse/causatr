@@ -1,5 +1,24 @@
 # causatr (development version)
 
+## 2026-05-20 — SNM routing and validation (Phase 18a)
+
+Added `estimator = "snm"` to `causat()` for structural nested mean model
+(SNMM) g-estimation — the third leg of the Robins triangle alongside
+g-computation and IPW-MSM. Chunk 18a ships the routing infrastructure:
+`fit_snm()` fits the treatment model via the existing `fit_treatment_model()`
+machinery, parses effect-modification terms (`A:modifier` in confounders)
+into a linear blip specification, and stores the result for downstream
+g-estimation. Supports binary and continuous point treatments.
+
+Rejection paths: multivariate treatment (`causatr_snm_multivariate`),
+longitudinal data (`causatr_snm_longitudinal_pending`), and
+`contrast(interventions = ...)` (`causatr_snm_no_interventions`) — SNM
+estimates blip parameters directly, not counterfactual means.
+
+Point estimation, sandwich variance, and the contrast pathway are deferred
+to chunk 18b. `DTRreg` added to Suggests as the primary R oracle for
+cross-checks.
+
 ## 2026-05-20 — Phase 17 complete: transportability documentation (Phase 17m)
 
 The transportability vignette (`transportability.qmd`) is expanded with

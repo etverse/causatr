@@ -56,9 +56,11 @@
 #'   confounders for the treatment model only (longitudinal data). Falls
 #'   back to `confounders_tv` when `NULL`.
 #' @param estimator Character. Causal estimator: `"gcomp"` (default), `"ipw"`,
-#'   `"aipw"`, or `"matching"`. IPW uses a self-contained density-ratio engine
-#'   (no runtime dependency on `WeightIt`); AIPW is doubly-robust (outcome
-#'   model + propensity weights); matching requires the `MatchIt` package.
+#'   `"aipw"`, `"matching"`, or `"snm"`. IPW uses a self-contained
+#'   density-ratio engine (no runtime dependency on `WeightIt`); AIPW is
+#'   doubly-robust (outcome model + propensity weights); matching requires
+#'   the `MatchIt` package; SNM fits a structural nested mean model via
+#'   g-estimation.
 #'   Note: `"matching"` is restricted to **binary point treatments**
 #'   (MatchIt does not support multi-category or continuous treatments);
 #'   use `"gcomp"` or `"ipw"` for those cases.
@@ -432,7 +434,7 @@ causat <- function(
   confounders_sampling = NULL,
   confounders_tv_outcome = NULL,
   confounders_tv_treatment = NULL,
-  estimator = c("gcomp", "ipw", "aipw", "matching"),
+  estimator = c("gcomp", "ipw", "aipw", "matching", "snm"),
   family = "gaussian",
   estimand = c("ATE", "ATT", "ATC"),
   id = NULL,
@@ -481,7 +483,7 @@ causat <- function(
   # would have chosen. The option gate lets tests suppress globally.
   suppress <- isTRUE(getOption("causatr.suppress_default_warnings"))
 
-  if (!suppress && missing(model_fn) && estimator != "matching") {
+  if (!suppress && missing(model_fn) && !estimator %in% c("matching", "snm")) {
     rlang::warn(
       c(
         "`model_fn` not specified; defaulting to `stats::glm`.",
@@ -495,7 +497,9 @@ causat <- function(
   }
 
   if (
-    !suppress && missing(propensity_model_fn) && estimator %in% c("ipw", "aipw")
+    !suppress &&
+      missing(propensity_model_fn) &&
+      estimator %in% c("ipw", "aipw", "snm")
   ) {
     rlang::warn(
       c(
@@ -889,13 +893,39 @@ causat <- function(
       confounders_tv_treatment_raw = confounders_tv_treatment,
       ...
     ),
+    snm = fit_snm(
+      data,
+      outcome,
+      treatment,
+      conf_treatment,
+      conf_tv_treatment,
+      family,
+      estimand,
+      type,
+      history,
+      weights,
+      propensity_model_fn,
+      propensity_family,
+      id = id,
+      time = time,
+      call = call,
+      target = target,
+      confounders_outcome = conf_outcome,
+      confounders_outcome_raw = confounders_outcome,
+      confounders_treatment_raw = confounders_treatment,
+      confounders_censoring_raw = confounders_censoring,
+      confounders_sampling_raw = confounders_sampling,
+      confounders_tv_outcome_raw = confounders_tv_outcome,
+      confounders_tv_treatment_raw = confounders_tv_treatment,
+      ...
+    ),
     # Defensive default: unreachable under normal use because
     # rlang::arg_match(estimator) above restricts `estimator` to the
     # allowed set. Kept so a future refactor that loosens arg_match
     # cannot silently return NULL from causat().
     rlang::abort(c(
       paste0("Unknown `estimator` '", estimator, "'."),
-      i = "Must be one of: 'gcomp', 'ipw', 'aipw', 'matching'."
+      i = "Must be one of: 'gcomp', 'ipw', 'aipw', 'matching', 'snm'."
     ))
   )
 

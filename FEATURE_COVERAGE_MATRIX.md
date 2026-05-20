@@ -957,7 +957,27 @@ Test file: test-combinatorial-stress.R
 ---
 
 ### Phase 18 — G-estimation of Structural Nested Mean Models
-Third leg of the Robins triangle. Motivating use case: **correct handling of time-varying effect modification** — SNMs parameterise the per-stage blip $\gamma_k(a_k, \bar{l}_k, \bar{a}_{k-1}; \psi)$ directly and identify it via a moment condition that uses the treatment model as instrument, so time-varying modifiers are supported by design (closes the Phase 6 limitation under MSM-based estimators). Scope: linear-blip additive SNMMs for point + longitudinal, stacked EE sandwich ($K$ treatment blocks + blip block), bootstrap, `gesttools` cross-check. Survival SNMs (SNFTMs/SNCFTMs) out of scope. All ❌.
+Third leg of the Robins triangle. Motivating use case: **correct handling of time-varying effect modification** — SNMs parameterise the per-stage blip $\gamma_k(a_k, \bar{l}_k, \bar{a}_{k-1}; \psi)$ directly and identify it via a moment condition that uses the treatment model as instrument, so time-varying modifiers are supported by design (closes the Phase 6 limitation under MSM-based estimators). Scope: linear-blip additive SNMMs for point + longitudinal, stacked EE sandwich ($K$ treatment blocks + blip block), bootstrap, `DTRreg` + `delicatessen` cross-checks. Survival SNMs (SNFTMs/SNCFTMs) out of scope.
+
+**Chunk 18a — Routing and validation (shipped)**
+
+| Feature | Status | Test |
+|---|---|---|
+| `causat(estimator = "snm")` routing to `fit_snm()` | ✅ | test-snm.R |
+| Treatment model fit via `fit_treatment_model()` | ✅ | test-snm.R |
+| Blip spec from EM terms (`A:modifier`) | ✅ | test-snm.R |
+| Per-component confounders (`confounders_outcome`, `confounders_treatment`) | ✅ | test-snm.R |
+| No-EM inform (blip = constant ATE) | ✅ | test-snm.R |
+| Continuous treatment support | ✅ | test-snm.R |
+| Multivariate treatment → rejection (`causatr_snm_multivariate`) | ✅ | test-snm.R |
+| Longitudinal data → rejection (`causatr_snm_longitudinal_pending`) | ✅ | test-snm.R |
+| `contrast(interventions=)` → rejection (`causatr_snm_no_interventions`) | ✅ | test-snm.R |
+| Missing treatment confounders → error | ✅ | test-snm.R |
+| `propensity_model_fn` default warning | ✅ | test-snm.R |
+| No `model_fn` default warning for SNM | ✅ | test-snm.R |
+| `build_blip_spec()` — no EM / single / multiple modifiers | ✅ | test-snm.R |
+
+**Remaining chunks (all ❌):** 18b (point estimation + sandwich), 18c (Phase 6 parser integration), 18d (longitudinal), 18e (TV-EM truth test), 18f (triangulation test), 18g (gesttools cross-check), 18h (categorical/count), 18i (bootstrap), 18j (S3 dispatch), 18k (documentation + vignette).
 
 ### `causat_mice()` — Multiple imputation
 Pool across `mice` imputations via Rubin's rules. All ❌.
