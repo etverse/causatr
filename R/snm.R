@@ -2,7 +2,7 @@
 #'
 #' Internal workhorse called by [causat()] when `estimator = "snm"`.
 #' Fits the treatment model \eqn{\hat{E}[A \mid L]} via
-#' [fit_treatment_model()] and stores the blip parameterisation derived
+#' `fit_treatment_model()` and stores the blip parameterisation derived
 #' from effect-modification terms in the confounders formula. No point
 #' estimation happens here — the g-estimating equation is solved by
 #' [contrast()] (analogous to how ICE defers model fitting).
@@ -123,7 +123,7 @@ fit_snm <- function(
   fit_rows <- get_fit_rows(data, outcome, target = target)
   fit_data <- data[fit_rows]
 
-  # Resolve propensity fitter
+  # Default to GLM for the propensity model if no fitter is supplied
   prop_fn <- propensity_model_fn %||% stats::glm
 
   if (type == "point") {
@@ -140,11 +140,10 @@ fit_snm <- function(
       ...
     )
   } else {
-    # Longitudinal: fit per-period treatment models (deferred to 18d)
     rlang::abort(
       c(
-        "Longitudinal SNMMs are not yet supported.",
-        i = "Longitudinal g-estimation will be added in a future update."
+        "Longitudinal SNMMs require per-period treatment models.",
+        i = "Use `estimator = \"ice\"` or `estimator = \"ipw\"` for longitudinal data."
       ),
       class = "causatr_snm_longitudinal_pending"
     )
@@ -261,7 +260,8 @@ compute_snm_blip_point <- function(fit) {
   A <- fit_data[[fit$treatment]]
   Y <- fit_data[[fit$outcome]]
 
-  # Treatment residual: R_i = A_i - E[A | L_i]
+  # Treatment residual: R_i = A_i - \hat{E}[A | L_i]
+  # e_a is the fitted propensity from the treatment model
   e_a <- stats::predict(trt_model$model, type = "response")
   R <- A - e_a
 
@@ -367,13 +367,15 @@ compute_snm_blip_point <- function(fit) {
 #' modifier variable values for observation i.
 #'
 #' @param data data.table or data.frame of observations.
-#' @param blip_spec A blip specification from [build_blip_spec()].
+#' @param blip_spec A blip specification from `build_blip_spec()`.
 #' @return A numeric matrix with `nrow(data)` rows and
 #'   `blip_spec$n_params` columns.
 #' @noRd
 build_blip_design_matrix <- function(data, blip_spec) {
   n <- nrow(data)
   p <- blip_spec$n_params
+  # Column 1 is the intercept (always 1), so psi_intercept captures
+  # the main blip effect. Subsequent columns are modifier values.
   M <- matrix(1, nrow = n, ncol = p)
   colnames(M) <- blip_spec$param_names
 
@@ -432,8 +434,8 @@ compute_snm_contrast <- function(
   if (ci_method == "bootstrap") {
     rlang::abort(
       c(
-        "Bootstrap variance for `estimator = \"snm\"` is not yet supported.",
-        i = "Use `ci_method = \"sandwich\"` or wait for a future update."
+        "Bootstrap variance is unavailable for `estimator = \"snm\"`.",
+        i = "Use `ci_method = \"sandwich\"`."
       ),
       class = "causatr_snm_bootstrap_pending"
     )
@@ -532,7 +534,7 @@ compute_snm_contrast <- function(
 #' The returned list enumerates modifier columns and names the blip
 #' parameters.
 #'
-#' @param em_info A `causatr_em_info` from [parse_effect_mod()].
+#' @param em_info A `causatr_em_info` from `parse_effect_mod()`.
 #' @param treatment Character scalar treatment column name.
 #' @return A list with:
 #'   \describe{
@@ -544,6 +546,8 @@ compute_snm_contrast <- function(
 #'   }
 #' @noRd
 build_blip_spec <- function(em_info, treatment) {
+  # Extract modifier variables from the EM info (parsed from A:M terms
+  # in the confounders formula by parse_effect_mod())
   modifier_cols <- em_info$modifier_vars
   param_names <- "psi_intercept"
 
