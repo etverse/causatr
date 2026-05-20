@@ -977,7 +977,31 @@ Third leg of the Robins triangle. Motivating use case: **correct handling of tim
 | No `model_fn` default warning for SNM | ✅ | test-snm.R |
 | `build_blip_spec()` — no EM / single / multiple modifiers | ✅ | test-snm.R |
 
-**Remaining chunks (all ❌):** 18b (point estimation + sandwich), 18c (Phase 6 parser integration), 18d (longitudinal), 18e (TV-EM truth test), 18f (triangulation test), 18g (gesttools cross-check), 18h (categorical/count), 18i (bootstrap), 18j (S3 dispatch), 18k (documentation + vignette).
+**Chunk 18b — Point estimation, contrast, and sandwich variance (shipped)**
+
+| Feature | Status | Test |
+|---|---|---|
+| `compute_snm_blip_point()` — closed-form g-estimation | ✅ | test-snm.R |
+| `contrast(fit)` — blip parameter table (Path A) | ✅ | test-snm.R |
+| `contrast(fit, treatment_values = c(0, 1))` — averaged blip (Path B) | ✅ | test-snm.R |
+| `variance_if_snm()` — stacked EE sandwich | ✅ | test-snm.R |
+| Continuous trt + EM (design doc DGP) — truth | ✅ | test-snm.R |
+| Continuous trt + no EM — truth | ✅ | test-snm.R |
+| Binary trt + EM — truth | ✅ | test-snm.R |
+| Multiple modifiers (2 EM terms) — truth | ✅ | test-snm.R |
+| Large-sample convergence (n=20000) | ✅ | test-snm.R |
+| Sandwich SE vs manual bootstrap consistency | ✅ | test-snm.R |
+| delicatessen cross-check — continuous trt, EM | ✅ | test-snm.R |
+| delicatessen cross-check — binary trt, EM | ✅ | test-snm.R |
+| delicatessen cross-check — continuous trt, 2 modifiers | ✅ | test-snm.R |
+| DTRreg cross-check — binary trt, no EM (point + SE) | ✅ | test-snm.R |
+| `contrast(interventions=)` → rejection | ✅ | test-snm.R |
+| `ci_method = "bootstrap"` → rejection (pending 18i) | ✅ | test-snm.R |
+| `treatment_values` on non-SNM → rejection | ✅ | test-snm.R |
+| `treatment_values` length ≠ 2 → rejection | ✅ | test-snm.R |
+| Vcov dimensions and PSD | ✅ | test-snm.R |
+
+**Remaining chunks (all ❌):** 18c (Phase 6 parser integration), 18d (longitudinal), 18e (TV-EM truth test), 18f (triangulation test), 18g (gesttools cross-check), 18h (categorical/count), 18i (bootstrap), 18j (S3 dispatch), 18k (documentation + vignette).
 
 ### `causat_mice()` — Multiple imputation
 Pool across `mice` imputations via Rubin's rules. All ❌.

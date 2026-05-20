@@ -117,7 +117,7 @@ SNMs in Phase 18 support the same treatment types as Phase 4 IPW, with the same 
 | Chunk | Scope | Depends on |
 |---|---|---|
 | 18a | ✅ Add `estimator = "snm"` to `causat()`; route to `fit_snm()`; validate linear-blip specification; reject non-linear blips with informative error | Phase 2 |
-| 18b | Point-treatment SNMM: `fit_snm_point()` fits treatment model via `fit_treatment_model()`; stores the moment-equation specification; `compute_snm_contrast_point()` solves the linear moment equation; sandwich variance with treatment-model cross-derivative | 18a, Phase 4 |
+| 18b | ✅ Point-treatment SNMM: `compute_snm_blip_point()` solves the linear g-estimating equation; `compute_snm_contrast()` returns blip param table or averaged blip effect; `variance_if_snm()` stacked EE sandwich; validated against delicatessen + DTRreg | 18a, Phase 4 |
 | 18c | Phase-6 parser integration: `parse_effect_mod()` already produces the modifier list; wire its output into the blip parameterisation; both baseline and time-varying modifiers accepted (point case) | 18b, Phase 6 |
 | 18d | Longitudinal SNMM: `fit_snm_long()` fits $K$ treatment models; builds $H(\psi)(k)$; solves the stacked linear moment equation; sandwich via stacked EE | 18b, Phase 5 |
 | 18e | Time-varying EM truth-based test: 2-period DGP with time-varying modifier M_k whose blip coefficient is 2 at all k; estimator must recover ψ_M = 2; parallel IPW-MSM fit (under Phase 6 baseline-only restriction) must be biased, demonstrating the scientific gap | 18d |

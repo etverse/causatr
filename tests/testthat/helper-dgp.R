@@ -1148,3 +1148,91 @@ simulate_naimi_longitudinal <- function(n = 5000, seed = 42) {
     truth_never = truth_never
   )
 }
+
+
+# --- SNM DGPs (Phase 18) ---------------------------------------------------
+
+#' Point-treatment SNM DGP with effect modification
+#'
+#' From PHASE_18_SNMS.md design doc:
+#'   L ~ N(0, 1), M = I(L > 0)
+#'   A | L ~ N(0.5 * L, 1)   (continuous treatment)
+#'   Y = 2 + 3*A + 1.5*L + 2*A*M + eps, eps ~ N(0, 1)
+#'
+#' Linear blip: gamma(a, l; psi) = a * (psi_0 + psi_M * m)
+#' Truth: psi_0 = 3, psi_M = 2
+#'
+#' @param n Sample size.
+#' @param seed RNG seed.
+#' @return List with `data`, `truth_psi` (named vector).
+#' @noRd
+simulate_snm_point <- function(n = 2000, seed = 42) {
+  set.seed(seed)
+  L <- stats::rnorm(n)
+  M <- as.numeric(L > 0)
+  A <- stats::rnorm(n, mean = 0.5 * L, sd = 1)
+  eps <- stats::rnorm(n)
+  Y <- 2 + 3 * A + 1.5 * L + 2 * A * M + eps
+
+  data <- data.table::data.table(Y = Y, A = A, L = L, M = M)
+  list(
+    data = data,
+    truth_psi = c(psi_intercept = 3, psi_M = 2)
+  )
+}
+
+
+#' Point-treatment SNM DGP without effect modification (constant ATE)
+#'
+#'   L ~ N(0, 1)
+#'   A | L ~ N(0.5 * L, 1)
+#'   Y = 2 + 3*A + 1.5*L + eps, eps ~ N(0, 1)
+#'
+#' Linear blip: gamma(a; psi) = a * psi_0
+#' Truth: psi_0 = 3
+#'
+#' @param n Sample size.
+#' @param seed RNG seed.
+#' @return List with `data`, `truth_psi`.
+#' @noRd
+simulate_snm_point_no_em <- function(n = 2000, seed = 42) {
+  set.seed(seed)
+  L <- stats::rnorm(n)
+  A <- stats::rnorm(n, mean = 0.5 * L, sd = 1)
+  eps <- stats::rnorm(n)
+  Y <- 2 + 3 * A + 1.5 * L + eps
+
+  data <- data.table::data.table(Y = Y, A = A, L = L)
+  list(
+    data = data,
+    truth_psi = c(psi_intercept = 3)
+  )
+}
+
+
+#' Point-treatment SNM DGP with binary treatment and effect modification
+#'
+#'   L ~ N(0, 1), M = I(L > 0)
+#'   A | L ~ Bernoulli(expit(0.5 * L))
+#'   Y = 2 + 3*A + 1.5*L + 2*A*M + eps, eps ~ N(0, 1)
+#'
+#' Truth: psi_0 = 3, psi_M = 2
+#'
+#' @param n Sample size.
+#' @param seed RNG seed.
+#' @return List with `data`, `truth_psi`.
+#' @noRd
+simulate_snm_point_binary <- function(n = 2000, seed = 42) {
+  set.seed(seed)
+  L <- stats::rnorm(n)
+  M <- as.numeric(L > 0)
+  A <- stats::rbinom(n, 1, stats::plogis(0.5 * L))
+  eps <- stats::rnorm(n)
+  Y <- 2 + 3 * A + 1.5 * L + 2 * A * M + eps
+
+  data <- data.table::data.table(Y = Y, A = A, L = L, M = M)
+  list(
+    data = data,
+    truth_psi = c(psi_intercept = 3, psi_M = 2)
+  )
+}

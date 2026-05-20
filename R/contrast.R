@@ -108,6 +108,13 @@
 #'   first-time-point rows. Cluster is unused when
 #'   `ci_method = "bootstrap"` for point fits; ICE bootstrap already
 #'   resamples entire individual trajectories.
+#' @param treatment_values Numeric vector of length 2 or `NULL`. **Only
+#'   for `estimator = "snm"`.** When supplied, `contrast()` returns the
+#'   population-averaged blip effect
+#'   \eqn{(1/n)\sum_i [\gamma(a_1, L_i; \hat\psi) - \gamma(a_0, L_i;
+#'   \hat\psi)]} at treatment values `c(a0, a1)`, with delta-method SE.
+#'   When `NULL` (the default), returns the raw blip parameter table.
+#'   Rejected for non-SNM estimators.
 #'
 #' @return A `causatr_result` object with slots:
 #'   \describe{
@@ -256,7 +263,8 @@ contrast <- function(
   by = NULL,
   parallel = getOption("boot.parallel", "no"),
   ncpus = getOption("boot.ncpus", 1L),
-  cluster = NULL
+  cluster = NULL,
+  treatment_values = NULL
 ) {
   # `parallel` accepts the same three values as `boot::boot()` and
   # defaults to `getOption("boot.parallel", "no")`, so a session-wide
@@ -327,22 +335,47 @@ contrast <- function(
 
   # SNM estimates blip parameters directly via the g-estimating
   # equation; the interventions / counterfactual-mean workflow does
-  # not apply. Users should call a future SNM-specific contrast path
-  # with `treatment_values =` instead.
+  # not apply. `contrast(fit)` returns the blip parameter table;
+  # `contrast(fit, treatment_values = c(0, 1))` returns the
+  # population-averaged blip effect.
   if (fit$estimator == "snm") {
+    if (!missing(interventions)) {
+      rlang::abort(
+        c(
+          paste0(
+            "`contrast()` with `interventions` is not supported for ",
+            "`estimator = \"snm\"`."
+          ),
+          i = paste0(
+            "SNM estimates blip parameters directly. Use ",
+            "`contrast(fit)` for the blip parameter table, or ",
+            "`contrast(fit, treatment_values = c(0, 1))` for the ",
+            "population-averaged blip effect."
+          )
+        ),
+        class = "causatr_snm_no_interventions"
+      )
+    }
+    return(compute_snm_contrast(
+      fit,
+      treatment_values = treatment_values,
+      ci_method = ci_method,
+      conf_level = conf_level,
+      call = call
+    ))
+  }
+
+  # treatment_values is SNM-only; reject for other estimators.
+  if (!is.null(treatment_values)) {
     rlang::abort(
       c(
-        paste0(
-          "`contrast()` with `interventions` is not supported for ",
-          "`estimator = \"snm\"`."
-        ),
+        "`treatment_values` is only supported for `estimator = \"snm\"`.",
         i = paste0(
-          "SNM estimates blip parameters directly via the ",
-          "g-estimating equation. SNM contrast support will be ",
-          "added in a future update."
+          "For other estimators, specify counterfactual treatment ",
+          "regimes via `interventions = list(...)` instead."
         )
       ),
-      class = "causatr_snm_no_interventions"
+      class = "causatr_treatment_values_not_snm"
     )
   }
 

@@ -1,5 +1,25 @@
 # causatr (development version)
 
+## 2026-05-20 — SNM point estimation and sandwich variance (Phase 18b)
+
+Point-treatment SNM g-estimation is now fully operational. `contrast(fit)`
+returns the blip parameter table (ψ₀, ψ_M, ...) with stacked-EE sandwich
+standard errors and confidence intervals. `contrast(fit, treatment_values =
+c(0, 1))` computes the population-averaged blip effect with delta-method
+variance.
+
+The sandwich variance engine (`variance_if_snm()`) implements the full
+stacked M-estimation system: treatment model score block + blip estimating
+equation block + cross-derivative A_{ψ,α} via `numDeriv::jacobian()`.
+Validated against `delicatessen` (Zivich et al. 2024) on three DGPs
+(continuous treatment + single modifier, binary treatment + single modifier,
+continuous treatment + two modifiers) with point estimate and SE agreement
+to 0.01 tolerance.
+
+New files: `R/variance_if_snm.R` (split from snm.R following the existing
+variance file pattern), `data-raw/snm_reference.py` (delicatessen reference
+script), fixture CSVs.
+
 ## 2026-05-20 — SNM routing and validation (Phase 18a)
 
 Added `estimator = "snm"` to `causat()` for structural nested mean model
