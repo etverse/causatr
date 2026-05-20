@@ -54,6 +54,8 @@ Suggests:
     WeightIt,
     withr,
     testthat (>= 3.0.0)
+Remotes:
+    CoreClinicalSciences/TransportHealth
 VignetteBuilder: quarto
 Config/testthat/edition: 3
 Config/testthat/parallel: true
