@@ -343,18 +343,17 @@ Y <- ifelse(
 
 # Build person-period data
 wide <- data.frame(id = seq_len(n_long), L0 = L0, S = S,
-                   A_0 = A0, L_0 = L0, A_1 = A1, L_1 = L1, Y = Y)
+                   A0 = A0, L_1 = L0, A1 = A1, L_2 = L1, Y = Y)
 long <- to_person_period(
   wide,
   id = "id",
-  treatment = c("A_0", "A_1"),
-  outcome = "Y",
-  time_varying = c("L_0", "L_1"),
-  baseline = c("L0", "S")
+  time_varying = list(L = c("L_1", "L_2"), A = c("A0", "A1")),
+  time_invariant = c("L0", "S", "Y")
 )
 ```
 
 ```{r}
+#| warning: false
 fit_long <- causat(
   long,
   outcome = "Y",
@@ -538,27 +537,27 @@ comb <- data.frame(
     "any"
   ),
   Transport = c(
-    "\\checkmark", "\\checkmark (MC)", "\\checkmark", "\\checkmark",
-    "\\checkmark", "\\checkmark", "\\checkmark", "\\checkmark",
-    "\\checkmark", "\\checkmark (MC)", "\\checkmark",
-    "\\texttimes"
+    "Yes", "Yes (MC)", "Yes", "Yes",
+    "Yes", "Yes", "Yes", "Yes",
+    "Yes", "Yes (MC)", "Yes",
+    "No"
   ),
   Sandwich = c(
-    "\\checkmark", "\\texttimes (bootstrap)", "\\checkmark", "\\checkmark",
-    "\\checkmark", "\\checkmark", "\\checkmark", "\\checkmark",
-    "\\checkmark", "\\texttimes (bootstrap)", "\\checkmark",
+    "Yes", "No (bootstrap)", "Yes", "Yes",
+    "Yes", "Yes", "Yes", "Yes",
+    "Yes", "No (bootstrap)", "Yes",
     "---"
   ),
   IPCW = c(
-    "\\checkmark", "---", "---", "---",
-    "\\checkmark", "---", "---", "\\checkmark",
-    "\\checkmark", "---", "---",
+    "Yes", "---", "---", "---",
+    "Yes", "---", "---", "Yes",
+    "Yes", "---", "---",
     "---"
   ),
   Status = c(
-    "\\checkmark", "\\checkmark", "\\checkmark", "\\checkmark",
-    "\\checkmark", "\\checkmark", "\\checkmark", "\\checkmark",
-    "\\checkmark", "\\checkmark", "\\checkmark",
+    "Yes", "Yes", "Yes", "Yes",
+    "Yes", "Yes", "Yes", "Yes",
+    "Yes", "Yes", "Yes",
     "Rejected"
   )
 )
