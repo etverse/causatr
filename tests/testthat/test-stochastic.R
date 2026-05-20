@@ -151,7 +151,7 @@ test_that("stochastic gcomp: binary treatment, gaussian outcome", {
 
 test_that("stochastic gcomp: binary/gaussian, bootstrap CI covers truth", {
   skip_on_cran()
-  dgp <- simulate_stochastic_binary_gaussian(n = 200, seed = 99)
+  dgp <- simulate_stochastic_binary_gaussian(n = 500, seed = 99)
   fit <- causat(
     dgp$data,
     outcome = "Y",
@@ -166,7 +166,7 @@ test_that("stochastic gcomp: binary/gaussian, bootstrap CI covers truth", {
       interventions = list(g = stochastic(dgp$sampler, n_mc = 5L)),
       type = "difference",
       ci_method = "bootstrap",
-      n_boot = 20
+      n_boot = 50
     )
   )
   ci <- confint(res)
