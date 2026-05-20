@@ -40,20 +40,30 @@ print.causatr_fit <- function(x, ...) {
     !is.null(x$confounders_censoring) ||
     !is.null(x$confounders_sampling)
   if (has_overrides) {
-    cat(" Conf (outcome):  ", deparse(resolve_confounders_outcome(x)), "\n",
+    cat(
+      " Conf (outcome):  ",
+      deparse(resolve_confounders_outcome(x)),
+      "\n",
       sep = " "
     )
-    cat(" Conf (treatment):", deparse(resolve_confounders_treatment(x)), "\n",
+    cat(
+      " Conf (treatment):",
+      deparse(resolve_confounders_treatment(x)),
+      "\n",
       sep = " "
     )
     if (!is.null(x$confounders_censoring)) {
-      cat(" Conf (censoring):", deparse(resolve_confounders_censoring(x)),
+      cat(
+        " Conf (censoring):",
+        deparse(resolve_confounders_censoring(x)),
         "\n",
         sep = " "
       )
     }
     if (!is.null(x$confounders_sampling)) {
-      cat(" Conf (sampling): ", deparse(resolve_confounders_sampling(x)),
+      cat(
+        " Conf (sampling): ",
+        deparse(resolve_confounders_sampling(x)),
         "\n",
         sep = " "
       )
@@ -66,11 +76,15 @@ print.causatr_fit <- function(x, ...) {
   has_tv_overrides <- !is.null(x$confounders_tv_outcome) ||
     !is.null(x$confounders_tv_treatment)
   if (has_tv_overrides) {
-    cat(" TV conf (outcome):  ", deparse(resolve_confounders_tv_outcome(x)),
+    cat(
+      " TV conf (outcome):  ",
+      deparse(resolve_confounders_tv_outcome(x)),
       "\n",
       sep = " "
     )
-    cat(" TV conf (treatment):", deparse(resolve_confounders_tv_treatment(x)),
+    cat(
+      " TV conf (treatment):",
+      deparse(resolve_confounders_tv_treatment(x)),
       "\n",
       sep = " "
     )

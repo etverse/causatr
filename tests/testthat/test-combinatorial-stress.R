@@ -36,9 +36,13 @@ combos <- data.frame(
 for (est in c("gcomp", "ipw", "aipw", "matching")) {
   for (trt in c("binary", "binary_binom", "continuous", "categorical")) {
     # Matching only supports binary treatment.
-    if (est == "matching" && trt %in% c("continuous", "categorical")) next
+    if (est == "matching" && trt %in% c("continuous", "categorical")) {
+      next
+    }
     # Matching doesn't support binary outcome well with our DGP.
-    if (est == "matching" && trt == "binary_binom") next
+    if (est == "matching" && trt == "binary_binom") {
+      next
+    }
 
     families <- if (trt == "binary_binom") "binomial" else "gaussian"
 
@@ -52,14 +56,17 @@ for (est in c("gcomp", "ipw", "aipw", "matching")) {
       )
       for (iv in interventions) {
         for (var in c("sandwich")) {
-          combos <- rbind(combos, data.frame(
-            estimator = est,
-            trt_type = trt,
-            family = fam,
-            intervention = iv,
-            variance = var,
-            stringsAsFactors = FALSE
-          ))
+          combos <- rbind(
+            combos,
+            data.frame(
+              estimator = est,
+              trt_type = trt,
+              family = fam,
+              intervention = iv,
+              variance = var,
+              stringsAsFactors = FALSE
+            )
+          )
         }
       }
     }
@@ -71,8 +78,14 @@ for (est in c("gcomp", "ipw", "aipw", "matching")) {
 
 for (i in seq_len(nrow(combos))) {
   row <- combos[i, ]
-  label <- paste(row$estimator, row$trt_type, row$family,
-                 row$intervention, row$variance, sep = " × ")
+  label <- paste(
+    row$estimator,
+    row$trt_type,
+    row$family,
+    row$intervention,
+    row$variance,
+    sep = " × "
+  )
 
   test_that(paste("combo:", label), {
     d <- dgp_generators[[row$trt_type]]()
@@ -106,8 +119,7 @@ for (i in seq_len(nrow(combos))) {
       fit_args$family <- row$family
     }
 
-    if (row$estimator %in% c("ipw", "aipw") &&
-        row$trt_type != "categorical") {
+    if (row$estimator %in% c("ipw", "aipw") && row$trt_type != "categorical") {
       fit_args$propensity_model_fn <- stats::glm
     }
 
@@ -136,8 +148,12 @@ for (i in seq_len(nrow(combos))) {
     }
 
     # Point estimate check against truth.
-    expect_equal(est_val, info$ate, tolerance = 0.15,
-                 label = paste("truth check:", label))
+    expect_equal(
+      est_val,
+      info$ate,
+      tolerance = 0.15,
+      label = paste("truth check:", label)
+    )
   })
 }
 
@@ -151,8 +167,13 @@ test_that("combo: gcomp × binary × poisson × static × sandwich", {
   Y <- rpois(2000, exp(0.5 + 0.3 * A + 0.2 * L))
   d <- data.frame(Y = Y, A = A, L = L)
 
-  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L,
-                family = "poisson")
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    family = "poisson"
+  )
   res <- contrast(
     fit,
     interventions = list(a1 = static(1), a0 = static(0)),
@@ -173,8 +194,13 @@ test_that("combo: gcomp × binary × Gamma × static × sandwich", {
   Y <- rgamma(2000, shape = 2, rate = 2 / mu)
   d <- data.frame(Y = Y, A = A, L = L)
 
-  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L,
-                family = stats::Gamma(link = "log"))
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    family = stats::Gamma(link = "log")
+  )
   res <- contrast(
     fit,
     interventions = list(a1 = static(1), a0 = static(0)),
@@ -194,8 +220,13 @@ test_that("combo: gcomp × binary × quasibinomial × static × sandwich", {
   Y <- rbinom(2000, 1, plogis(-1 + 1.5 * A + 0.8 * L))
   d <- data.frame(Y = Y, A = A, L = L)
 
-  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L,
-                family = "quasibinomial")
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    family = "quasibinomial"
+  )
   res <- contrast(
     fit,
     interventions = list(a1 = static(1), a0 = static(0)),
@@ -303,8 +334,14 @@ test_that("combo: ipw × aliased confounders × sandwich", {
   d <- data.frame(Y = Y, A = A, L1 = L1, L2 = L2)
 
   expect_warning(
-    fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~ L1 + L2,
-                  estimator = "ipw", propensity_model_fn = stats::glm),
+    fit <- causat(
+      d,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~ L1 + L2,
+      estimator = "ipw",
+      propensity_model_fn = stats::glm
+    ),
     "aliased"
   )
 
@@ -329,8 +366,14 @@ test_that("combo: aipw × aliased confounders × sandwich", {
   d <- data.frame(Y = Y, A = A, L1 = L1, L2 = L2)
 
   expect_warning(
-    fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~ L1 + L2,
-                  estimator = "aipw", propensity_model_fn = stats::glm),
+    fit <- causat(
+      d,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~ L1 + L2,
+      estimator = "aipw",
+      propensity_model_fn = stats::glm
+    ),
     "aliased"
   )
 

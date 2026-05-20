@@ -63,8 +63,12 @@ test_that("KS S1: all estimators recover E[Y]=210 with correct models", {
   expect_equal(ey1_ipw, truth, tolerance = 1.5)
   expect_equal(ey0_ipw, truth, tolerance = 1.5)
 
-  ey1_aipw <- res_aipw$estimates$estimate[res_aipw$estimates$intervention == "a1"]
-  ey0_aipw <- res_aipw$estimates$estimate[res_aipw$estimates$intervention == "a0"]
+  ey1_aipw <- res_aipw$estimates$estimate[
+    res_aipw$estimates$intervention == "a1"
+  ]
+  ey0_aipw <- res_aipw$estimates$estimate[
+    res_aipw$estimates$intervention == "a0"
+  ]
   expect_equal(ey1_aipw, truth, tolerance = 1.5)
   expect_equal(ey0_aipw, truth, tolerance = 1.5)
 })
@@ -227,7 +231,9 @@ test_that("KS S4: all estimators biased with both models wrong", {
     interventions = list(a1 = static(1), a0 = static(0)),
     reference = "a0"
   )
-  ey1_aipw <- res_aipw$estimates$estimate[res_aipw$estimates$intervention == "a1"]
+  ey1_aipw <- res_aipw$estimates$estimate[
+    res_aipw$estimates$intervention == "a1"
+  ]
   # AIPW with both wrong should also be biased, though possibly less so.
   expect_gt(abs(ey1_aipw - truth), 2)
 })
@@ -392,28 +398,43 @@ test_that("KS split DR: S2 and S3 both closer to truth than S4", {
   ivs <- list(a1 = static(1), a0 = static(0))
 
   # S2: wrong outcome, correct PS.
-  fit_s2 <- causat(d, outcome = "Y", treatment = "A",
+  fit_s2 <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
     confounders_outcome = ~ X1 + X2 + X3 + X4,
     confounders_treatment = ~ Z1 + Z2 + Z3 + Z4,
-    estimator = "aipw", propensity_model_fn = stats::glm)
+    estimator = "aipw",
+    propensity_model_fn = stats::glm
+  )
   ey1_s2 <- contrast(fit_s2, ivs, reference = "a0")$estimates$estimate[
     contrast(fit_s2, ivs, reference = "a0")$estimates$intervention == "a1"
   ]
 
   # S3: correct outcome, wrong PS.
-  fit_s3 <- causat(d, outcome = "Y", treatment = "A",
+  fit_s3 <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
     confounders_outcome = ~ Z1 + Z2 + Z3 + Z4,
     confounders_treatment = ~ X1 + X2 + X3 + X4,
-    estimator = "aipw", propensity_model_fn = stats::glm)
+    estimator = "aipw",
+    propensity_model_fn = stats::glm
+  )
   ey1_s3 <- contrast(fit_s3, ivs, reference = "a0")$estimates$estimate[
     contrast(fit_s3, ivs, reference = "a0")$estimates$intervention == "a1"
   ]
 
   # S4: both wrong.
-  fit_s4 <- causat(d, outcome = "Y", treatment = "A",
+  fit_s4 <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
     confounders_outcome = ~ X1 + X2 + X3 + X4,
     confounders_treatment = ~ X1 + X2 + X3 + X4,
-    estimator = "aipw", propensity_model_fn = stats::glm)
+    estimator = "aipw",
+    propensity_model_fn = stats::glm
+  )
   ey1_s4 <- contrast(fit_s4, ivs, reference = "a0")$estimates$estimate[
     contrast(fit_s4, ivs, reference = "a0")$estimates$intervention == "a1"
   ]

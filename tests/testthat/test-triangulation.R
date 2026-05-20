@@ -47,7 +47,9 @@ test_that("triangulation: gcomp, IPW, AIPW, matching agree on ATE (het DGP)", {
   )
 
   # True marginal ATE ≈ 3.6. All should be close.
-  for (a in ates) expect_equal(a, 3.6, tolerance = 0.2)
+  for (a in ates) {
+    expect_equal(a, 3.6, tolerance = 0.2)
+  }
 
   # Pairwise agreement within 0.15.
   pairs <- combn(ates, 2)
@@ -155,7 +157,9 @@ test_that("triangulation: gcomp, IPW, AIPW agree on RD (binary outcome)", {
   )
 
   # True marginal RD ≈ 0.33. All should be close.
-  for (rd in rds) expect_equal(rd, 0.33, tolerance = 0.02)
+  for (rd in rds) {
+    expect_equal(rd, 0.33, tolerance = 0.02)
+  }
 
   # Pairwise agreement within 0.02.
   pairs <- combn(rds, 2)
@@ -209,7 +213,9 @@ test_that("triangulation: gcomp, IPW, AIPW agree on shift(-1) (cont trt)", {
   )
 
   # True shift(-1) effect = -2. All should be close.
-  for (e in ests) expect_equal(e, -2, tolerance = 0.1)
+  for (e in ests) {
+    expect_equal(e, -2, tolerance = 0.1)
+  }
 
   # Pairwise agreement within 0.1.
   pairs <- combn(ests, 2)

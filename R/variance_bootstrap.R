@@ -791,7 +791,10 @@ refit_matching <- function(fit, d_b, weights = NULL) {
     }
   }
 
-  ps_formula <- build_ps_formula(resolve_confounders_treatment(fit), fit$treatment)
+  ps_formula <- build_ps_formula(
+    resolve_confounders_treatment(fit),
+    fit$treatment
+  )
 
   fit_rows_b <- get_fit_rows(d_b, fit$outcome)
   fit_data_b <- as.data.frame(d_b[fit_rows_b])

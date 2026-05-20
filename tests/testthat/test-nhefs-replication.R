@@ -255,6 +255,8 @@ test_that("NHEFS IPW + IPCW ≈ complete-case IPW (within 0.5 kg)", {
   ate_cc <- res_cc$contrasts$estimate[1]
 
   expect_true(is.finite(ate_ipcw))
-  expect_true(is.finite(res_ipcw$contrasts$se[1]) && res_ipcw$contrasts$se[1] > 0)
+  expect_true(
+    is.finite(res_ipcw$contrasts$se[1]) && res_ipcw$contrasts$se[1] > 0
+  )
   expect_lt(abs(ate_ipcw - ate_cc), 0.5)
 })

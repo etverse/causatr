@@ -478,7 +478,10 @@ plot_positivity_binary <- function(x, ...) {
   } else if (!is.null(fit$match_obj) && !is.null(fit$match_obj$distance)) {
     ps <- fit$match_obj$distance
   } else {
-    ps_formula <- build_ps_formula(resolve_confounders_treatment(fit), fit$treatment)
+    ps_formula <- build_ps_formula(
+      resolve_confounders_treatment(fit),
+      fit$treatment
+    )
     ps_model <- stats::glm(
       ps_formula,
       data = fit_data,
@@ -609,7 +612,10 @@ get_cobalt_object <- function(diag) {
     # before weighting), the most universal balance view the engine
     # can surface without committing to one intervention's
     # post-weighting balance.
-    ps_formula <- build_ps_formula(resolve_confounders_treatment(fit), fit$treatment)
+    ps_formula <- build_ps_formula(
+      resolve_confounders_treatment(fit),
+      fit$treatment
+    )
     fit_rows <- fit$details$fit_rows
     return(list(
       formula = ps_formula,

@@ -90,7 +90,10 @@ compute_positivity_binary <- function(fit, ps_bounds) {
     ps <- fit$match_obj$distance
     if (is.null(ps) || length(ps) == 0L) return(NULL)
   } else {
-    ps_formula <- build_ps_formula(resolve_confounders_treatment(fit), treatment)
+    ps_formula <- build_ps_formula(
+      resolve_confounders_treatment(fit),
+      treatment
+    )
     fit_rows <- get_fit_rows(data, fit$outcome, fit$censoring)
     ps_model <- stats::glm(
       ps_formula,

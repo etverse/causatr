@@ -75,7 +75,9 @@ test_that("LaLonde: gcomp, IPW, matching ATT agree within $2000", {
   )
 
   # All ATTs should be positive (training helps earnings).
-  for (a in atts) expect_gt(a, 0)
+  for (a in atts) {
+    expect_gt(a, 0)
+  }
 
   # Pairwise agreement within $1000 (LaLonde with PSID control is hard).
   pairs <- combn(atts, 2)

@@ -5,7 +5,6 @@
 # M-estimation sandwich (Zivich et al. 2024). Fixture CSVs ensure identical
 # data across R and Python.
 
-
 # -- Categorical AIPW: 3-arm treatment, ATE(b-a) and ATE(c-a) ---------------
 #
 # DGP: L ~ N(0,1), A ~ Multinomial(softmax(0, 0.3+0.5L, -0.2+0.3L)),
@@ -239,6 +238,9 @@ test_that("Longitudinal IPW counterfactual means match delicatessen", {
   )
 
   # ATE = mu_always - mu_never
-  expect_equal(res$contrasts$estimate[1], ref_mu_always - ref_mu_never,
-               tolerance = 0.5)
+  expect_equal(
+    res$contrasts$estimate[1],
+    ref_mu_always - ref_mu_never,
+    tolerance = 0.5
+  )
 })

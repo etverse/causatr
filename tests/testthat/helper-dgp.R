@@ -1062,9 +1062,16 @@ simulate_kang_schafer <- function(n = 5000, seed = 42) {
 
   list(
     data = data.frame(
-      Y = Y, A = A,
-      Z1 = Z1, Z2 = Z2, Z3 = Z3, Z4 = Z4,
-      X1 = X1, X2 = X2, X3 = X3, X4 = X4
+      Y = Y,
+      A = A,
+      Z1 = Z1,
+      Z2 = Z2,
+      Z3 = Z3,
+      Z4 = Z4,
+      X1 = X1,
+      X2 = X2,
+      X3 = X3,
+      X4 = X4
     ),
     truth = 210
   )
@@ -1134,6 +1141,10 @@ simulate_naimi_longitudinal <- function(n = 5000, seed = 42) {
   truth_never <- mean(Y_never)
   truth_ate <- truth_always - truth_never
 
-  list(data = data, truth_ate = truth_ate,
-       truth_always = truth_always, truth_never = truth_never)
+  list(
+    data = data,
+    truth_ate = truth_ate,
+    truth_always = truth_always,
+    truth_never = truth_never
+  )
 }

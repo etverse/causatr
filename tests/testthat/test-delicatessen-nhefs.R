@@ -8,7 +8,6 @@
 # Chapters 12-13. All use the bundled causatr::nhefs dataset.
 # Design matrices match R's model.matrix() exactly (factor() dummy coding).
 
-
 # -- Helpers ------------------------------------------------------------------
 
 make_nhefs_cc <- function() {
@@ -308,7 +307,7 @@ test_that("Cole transport g-comp matches delicatessen — ATE + SE", {
     fixture,
     outcome = "Y",
     treatment = "A",
-    confounders = ~L1 + L2,
+    confounders = ~ L1 + L2,
     target = "S"
   )
 
@@ -336,7 +335,7 @@ test_that("Cole transport IPW matches delicatessen — ATE + SE", {
     fixture,
     outcome = "Y",
     treatment = "A",
-    confounders = ~L1 + L2,
+    confounders = ~ L1 + L2,
     estimator = "ipw",
     propensity_model_fn = stats::glm,
     target = "S"

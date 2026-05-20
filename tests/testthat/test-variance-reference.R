@@ -228,18 +228,30 @@ test_that("gcomp sandwich matches stdReg2 — NHEFS (Hernán & Robins)", {
 test_that("AIPW sandwich matches stdReg2 DR — continuous outcome", {
   df <- simulate_binary_continuous(n = 3000, seed = 123)
 
-  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L,
-                estimator = "aipw", propensity_model_fn = stats::glm)
-  res <- contrast(fit,
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "aipw",
+    propensity_model_fn = stats::glm
+  )
+  res <- contrast(
+    fit,
     interventions = list(a1 = static(1), a0 = static(0)),
-    reference = "a0", ci_method = "sandwich")
+    reference = "a0",
+    ci_method = "sandwich"
+  )
 
   std_fit <- stdReg2::standardize_glm_dr(
     formula_outcome = Y ~ A + L,
     formula_exposure = A ~ L,
-    data = df, values = list(A = 0:1),
-    family_outcome = "gaussian", family_exposure = "binomial",
-    contrasts = "difference", reference = 0
+    data = df,
+    values = list(A = 0:1),
+    family_outcome = "gaussian",
+    family_exposure = "binomial",
+    contrasts = "difference",
+    reference = 0
   )
   std_tidy <- stdReg2::tidy(std_fit)
   std_diff <- std_tidy[std_tidy$contrast == "difference" & std_tidy$A == 1, ]
@@ -257,19 +269,31 @@ test_that("AIPW sandwich matches stdReg2 DR — binary outcome, RD", {
   Y <- rbinom(n, 1, plogis(-1 + 1.5 * A + 0.8 * L))
   df <- data.frame(Y = Y, A = A, L = L)
 
-  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L,
-                estimator = "aipw", family = "binomial",
-                propensity_model_fn = stats::glm)
-  res <- contrast(fit,
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "aipw",
+    family = "binomial",
+    propensity_model_fn = stats::glm
+  )
+  res <- contrast(
+    fit,
     interventions = list(a1 = static(1), a0 = static(0)),
-    reference = "a0", ci_method = "sandwich")
+    reference = "a0",
+    ci_method = "sandwich"
+  )
 
   std_fit <- stdReg2::standardize_glm_dr(
     formula_outcome = Y ~ A + L,
     formula_exposure = A ~ L,
-    data = df, values = list(A = 0:1),
-    family_outcome = "binomial", family_exposure = "binomial",
-    contrasts = "difference", reference = 0
+    data = df,
+    values = list(A = 0:1),
+    family_outcome = "binomial",
+    family_exposure = "binomial",
+    contrasts = "difference",
+    reference = 0
   )
   std_tidy <- stdReg2::tidy(std_fit)
   std_diff <- std_tidy[std_tidy$contrast == "difference" & std_tidy$A == 1, ]
@@ -287,19 +311,32 @@ test_that("AIPW sandwich matches stdReg2 DR — binary outcome, RR", {
   Y <- rbinom(n, 1, plogis(-1 + 1.5 * A + 0.8 * L))
   df <- data.frame(Y = Y, A = A, L = L)
 
-  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L,
-                estimator = "aipw", family = "binomial",
-                propensity_model_fn = stats::glm)
-  res <- contrast(fit,
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "aipw",
+    family = "binomial",
+    propensity_model_fn = stats::glm
+  )
+  res <- contrast(
+    fit,
     interventions = list(a1 = static(1), a0 = static(0)),
-    reference = "a0", type = "ratio", ci_method = "sandwich")
+    reference = "a0",
+    type = "ratio",
+    ci_method = "sandwich"
+  )
 
   std_fit <- stdReg2::standardize_glm_dr(
     formula_outcome = Y ~ A + L,
     formula_exposure = A ~ L,
-    data = df, values = list(A = 0:1),
-    family_outcome = "binomial", family_exposure = "binomial",
-    contrasts = "ratio", reference = 0
+    data = df,
+    values = list(A = 0:1),
+    family_outcome = "binomial",
+    family_exposure = "binomial",
+    contrasts = "ratio",
+    reference = 0
   )
   std_tidy <- stdReg2::tidy(std_fit)
   std_ratio <- std_tidy[std_tidy$contrast == "ratio" & std_tidy$A == 1, ]
@@ -313,33 +350,72 @@ test_that("AIPW sandwich matches stdReg2 DR — NHEFS", {
     causatr::nhefs$censored == 0 & !is.na(causatr::nhefs$education),
   ]
 
-  conf_formula <- ~ sex + race + age + I(age^2) +
-    factor(education) + smokeintensity + I(smokeintensity^2) +
-    smokeyrs + I(smokeyrs^2) + factor(exercise) + factor(active) +
-    wt71 + I(wt71^2)
+  conf_formula <- ~ sex +
+    race +
+    age +
+    I(age^2) +
+    factor(education) +
+    smokeintensity +
+    I(smokeintensity^2) +
+    smokeyrs +
+    I(smokeyrs^2) +
+    factor(exercise) +
+    factor(active) +
+    wt71 +
+    I(wt71^2)
 
-  fit <- causat(nhefs_cc, outcome = "wt82_71", treatment = "qsmk",
-                confounders = conf_formula, estimator = "aipw",
-                propensity_model_fn = stats::glm)
-  res <- contrast(fit,
+  fit <- causat(
+    nhefs_cc,
+    outcome = "wt82_71",
+    treatment = "qsmk",
+    confounders = conf_formula,
+    estimator = "aipw",
+    propensity_model_fn = stats::glm
+  )
+  res <- contrast(
+    fit,
     interventions = list(quit = static(1), no_quit = static(0)),
-    reference = "no_quit", ci_method = "sandwich")
+    reference = "no_quit",
+    ci_method = "sandwich"
+  )
 
-  out_fml <- wt82_71 ~ qsmk + sex + race + age + I(age^2) +
-    factor(education) + smokeintensity + I(smokeintensity^2) +
-    smokeyrs + I(smokeyrs^2) + factor(exercise) + factor(active) +
-    wt71 + I(wt71^2)
-  exp_fml <- qsmk ~ sex + race + age + I(age^2) +
-    factor(education) + smokeintensity + I(smokeintensity^2) +
-    smokeyrs + I(smokeyrs^2) + factor(exercise) + factor(active) +
-    wt71 + I(wt71^2)
+  out_fml <- wt82_71 ~ qsmk +
+    sex +
+    race +
+    age +
+    I(age^2) +
+    factor(education) +
+    smokeintensity +
+    I(smokeintensity^2) +
+    smokeyrs +
+    I(smokeyrs^2) +
+    factor(exercise) +
+    factor(active) +
+    wt71 +
+    I(wt71^2)
+  exp_fml <- qsmk ~ sex +
+    race +
+    age +
+    I(age^2) +
+    factor(education) +
+    smokeintensity +
+    I(smokeintensity^2) +
+    smokeyrs +
+    I(smokeyrs^2) +
+    factor(exercise) +
+    factor(active) +
+    wt71 +
+    I(wt71^2)
 
   std_fit <- stdReg2::standardize_glm_dr(
     formula_outcome = out_fml,
     formula_exposure = exp_fml,
-    data = nhefs_cc, values = list(qsmk = 0:1),
-    family_outcome = "gaussian", family_exposure = "binomial",
-    contrasts = "difference", reference = 0
+    data = nhefs_cc,
+    values = list(qsmk = 0:1),
+    family_outcome = "gaussian",
+    family_exposure = "binomial",
+    contrasts = "difference",
+    reference = 0
   )
   std_tidy <- stdReg2::tidy(std_fit)
   std_diff <- std_tidy[std_tidy$contrast == "difference" & std_tidy$qsmk == 1, ]
@@ -359,20 +435,31 @@ test_that("AIPW split confounders matches stdReg2 DR — different outcome/PS fo
   Y <- 1 + 2 * A + 0.5 * L1 + 0.8 * L2 + rnorm(n)
   df <- data.frame(Y = Y, A = A, L1 = L1, L2 = L2, W = W)
 
-  fit <- causat(df, outcome = "Y", treatment = "A",
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
     confounders_outcome = ~ L1 + L2,
     confounders_treatment = ~ L1 + W,
-    estimator = "aipw", propensity_model_fn = stats::glm)
-  res <- contrast(fit,
+    estimator = "aipw",
+    propensity_model_fn = stats::glm
+  )
+  res <- contrast(
+    fit,
     interventions = list(a1 = static(1), a0 = static(0)),
-    reference = "a0", ci_method = "sandwich")
+    reference = "a0",
+    ci_method = "sandwich"
+  )
 
   std_fit <- stdReg2::standardize_glm_dr(
     formula_outcome = Y ~ A + L1 + L2,
     formula_exposure = A ~ L1 + W,
-    data = df, values = list(A = 0:1),
-    family_outcome = "gaussian", family_exposure = "binomial",
-    contrasts = "difference", reference = 0
+    data = df,
+    values = list(A = 0:1),
+    family_outcome = "gaussian",
+    family_exposure = "binomial",
+    contrasts = "difference",
+    reference = 0
   )
   std_tidy <- stdReg2::tidy(std_fit)
   std_means <- std_tidy[std_tidy$contrast == "none", ]
@@ -403,21 +490,32 @@ test_that("AIPW split confounders matches stdReg2 DR — binary outcome, split",
   Y <- rbinom(n, 1, plogis(-1 + 1.5 * A + 0.8 * L1 + 0.6 * L2))
   df <- data.frame(Y = Y, A = A, L1 = L1, L2 = L2, W = W)
 
-  fit <- causat(df, outcome = "Y", treatment = "A",
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
     confounders_outcome = ~ L1 + L2,
     confounders_treatment = ~ L1 + W,
-    estimator = "aipw", family = "binomial",
-    propensity_model_fn = stats::glm)
-  res <- contrast(fit,
+    estimator = "aipw",
+    family = "binomial",
+    propensity_model_fn = stats::glm
+  )
+  res <- contrast(
+    fit,
     interventions = list(a1 = static(1), a0 = static(0)),
-    reference = "a0", ci_method = "sandwich")
+    reference = "a0",
+    ci_method = "sandwich"
+  )
 
   std_fit <- stdReg2::standardize_glm_dr(
     formula_outcome = Y ~ A + L1 + L2,
     formula_exposure = A ~ L1 + W,
-    data = df, values = list(A = 0:1),
-    family_outcome = "binomial", family_exposure = "binomial",
-    contrasts = "difference", reference = 0
+    data = df,
+    values = list(A = 0:1),
+    family_outcome = "binomial",
+    family_exposure = "binomial",
+    contrasts = "difference",
+    reference = 0
   )
   std_tidy <- stdReg2::tidy(std_fit)
   std_diff <- std_tidy[std_tidy$contrast == "difference" & std_tidy$A == 1, ]
@@ -1233,11 +1331,11 @@ test_that("ICE sandwich matches delicatessen — multiple baseline confounders",
 # equivalent but diverge when outcome and PS covariate sets differ.
 
 test_that("AIPW split confounders matches delicatessen — synthetic DGP", {
-  ref_mu1    <- 2.9789
-  ref_se1    <- 0.0245
-  ref_mu0    <- 0.9829
-  ref_se0    <- 0.0247
-  ref_ate    <- 1.9960
+  ref_mu1 <- 2.9789
+  ref_se1 <- 0.0245
+  ref_mu0 <- 0.9829
+  ref_se0 <- 0.0247
+  ref_ate <- 1.9960
   ref_se_ate <- 0.0292
 
   set.seed(99)
@@ -1249,13 +1347,21 @@ test_that("AIPW split confounders matches delicatessen — synthetic DGP", {
   Y <- 1 + 2 * A + 0.5 * L1 + 0.8 * L2 + rnorm(n)
   df <- data.frame(Y = Y, A = A, L1 = L1, L2 = L2, W = W)
 
-  fit <- causat(df, outcome = "Y", treatment = "A",
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
     confounders_outcome = ~ L1 + L2,
     confounders_treatment = ~ L1 + W,
-    estimator = "aipw", propensity_model_fn = stats::glm)
-  res <- contrast(fit,
+    estimator = "aipw",
+    propensity_model_fn = stats::glm
+  )
+  res <- contrast(
+    fit,
     interventions = list(a1 = static(1), a0 = static(0)),
-    reference = "a0", ci_method = "sandwich")
+    reference = "a0",
+    ci_method = "sandwich"
+  )
 
   mu1 <- res$estimates$estimate[res$estimates$intervention == "a1"]
   mu0 <- res$estimates$estimate[res$estimates$intervention == "a0"]
@@ -1274,27 +1380,49 @@ test_that("AIPW split confounders matches delicatessen — synthetic DGP", {
 
 
 test_that("AIPW split confounders matches delicatessen — NHEFS complex", {
-  ref_mu1    <- 5.2836
-  ref_se1    <- 0.4494
-  ref_mu0    <- 1.7626
-  ref_se0    <- 0.2184
-  ref_ate    <- 3.5209
+  ref_mu1 <- 5.2836
+  ref_se1 <- 0.4494
+  ref_mu0 <- 1.7626
+  ref_se0 <- 0.2184
+  ref_ate <- 3.5209
   ref_se_ate <- 0.4886
 
   nhefs_cc <- causatr::nhefs[
     causatr::nhefs$censored == 0 & !is.na(causatr::nhefs$education),
   ]
 
-  fit <- causat(nhefs_cc, outcome = "wt82_71", treatment = "qsmk",
-    confounders_outcome = ~ sex + race + age + I(age^2) +
-      factor(education) + smokeintensity + I(smokeintensity^2) +
-      smokeyrs + I(smokeyrs^2) + factor(exercise) + factor(active) +
-      wt71 + I(wt71^2),
-    confounders_treatment = ~ sex + race + age + smokeintensity + smokeyrs + wt71,
-    estimator = "aipw", propensity_model_fn = stats::glm)
-  res <- contrast(fit,
+  fit <- causat(
+    nhefs_cc,
+    outcome = "wt82_71",
+    treatment = "qsmk",
+    confounders_outcome = ~ sex +
+      race +
+      age +
+      I(age^2) +
+      factor(education) +
+      smokeintensity +
+      I(smokeintensity^2) +
+      smokeyrs +
+      I(smokeyrs^2) +
+      factor(exercise) +
+      factor(active) +
+      wt71 +
+      I(wt71^2),
+    confounders_treatment = ~ sex +
+      race +
+      age +
+      smokeintensity +
+      smokeyrs +
+      wt71,
+    estimator = "aipw",
+    propensity_model_fn = stats::glm
+  )
+  res <- contrast(
+    fit,
     interventions = list(quit = static(1), no_quit = static(0)),
-    reference = "no_quit", ci_method = "sandwich")
+    reference = "no_quit",
+    ci_method = "sandwich"
+  )
 
   mu1 <- res$estimates$estimate[res$estimates$intervention == "quit"]
   mu0 <- res$estimates$estimate[res$estimates$intervention == "no_quit"]

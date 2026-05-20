@@ -58,7 +58,10 @@ compute_balance <- function(fit, stats, thresholds, by = NULL) {
     }
     do.call(cobalt::bal.tab, bal_args)
   } else {
-    ps_formula <- build_ps_formula(resolve_confounders_treatment(fit), fit$treatment)
+    ps_formula <- build_ps_formula(
+      resolve_confounders_treatment(fit),
+      fit$treatment
+    )
     fit_rows <- get_fit_rows(fit$data, fit$outcome, fit$censoring)
     bal_args <- list(
       x = ps_formula,
