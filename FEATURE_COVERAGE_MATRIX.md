@@ -370,7 +370,10 @@ remain in this matrix.
 | `dispatch_boot()` — future vs boot MC equivalence | ✅ | test-future-backend.R |
 | `causat_mice()` stub | 🟡 | test-causat-mice.R |
 | Cross-method EM triangulation (gcomp + IPW + matching) | ✅ | test-effect-modification.R |
-| Per-component confounders (`confounders_outcome`, `confounders_treatment`, etc.) — routing, backward compat, validation | ✅ | test-separate-confounders.R |
+| Per-component confounders (`confounders_outcome`, `confounders_treatment`, etc.) — routing, backward compat, validation, ground truth | ✅ | test-separate-confounders.R |
+| Per-component confounders — Kang-Schafer S2/S3 DR with split formulas | ✅ | test-kang-schafer.R |
+| Per-component confounders — delicatessen cross-check (synthetic + NHEFS) | ✅ | test-variance-reference.R |
+| Per-component confounders — stdReg2 cross-check (synthetic DGPs) | ✅ | test-variance-reference.R |
 
 ### Critical-review regression tests (2026-04-15)
 

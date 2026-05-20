@@ -273,3 +273,147 @@ test_that("G-comp with confounders_outcome matches legacy confounders", {
   expect_equal(res1$contrasts$estimate, res2$contrasts$estimate, tolerance = 1e-10)
   expect_equal(res1$contrasts$se, res2$contrasts$se, tolerance = 1e-10)
 })
+
+
+# ── 8. Ground truth simulation — genuinely different variable sets ──────────
+
+# DGP: outcome depends on Z1 + Z2 + W, PS depends on Z1 + W.
+# Z2 is outcome-only (predictor); W is a confounder (affects both A and Y).
+# Correct outcome model: ~ Z1 + Z2 + W (but Z1 + Z2 suffices for g-comp
+# because Z1 + Z2 blocks backdoor via A ← Z1 → Y; W's direct path is A ← W → Y).
+# Correct PS model: ~ Z1 + W (both confounders of A).
+# For AIPW, the key point: omitting W from the outcome model is OK if PS
+# has W (DR covers it); omitting W from PS is NOT OK unless outcome has it.
+# True ATE = 3.
+make_split_dgp <- function(n = 5000, seed = 101) {
+  set.seed(seed)
+  Z1 <- stats::rnorm(n)
+  Z2 <- stats::rnorm(n)
+  W <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, stats::plogis(0.6 * Z1 + 0.8 * W))
+  Y <- 2 + 3 * A + 1.5 * Z1 + 1.0 * Z2 + 1.2 * W + stats::rnorm(n)
+  data.table::data.table(Y = Y, A = A, Z1 = Z1, Z2 = Z2, W = W)
+}
+
+test_that("Ground truth: AIPW DR — outcome missing W, PS correct → recovers ATE", {
+  d <- make_split_dgp()
+  # Outcome model: ~ Z1 + Z2 (missing W — misspecified).
+  # PS model: ~ Z1 + W (all confounders — correctly specified).
+  # DR: AIPW consistent because PS is correct.
+  fit <- causat(d, outcome = "Y", treatment = "A",
+    confounders_outcome = ~ Z1 + Z2,
+    confounders_treatment = ~ Z1 + W,
+    estimator = "aipw", propensity_model_fn = stats::glm)
+  res <- contrast(fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0")
+  expect_equal(res$contrasts$estimate, 3, tolerance = 0.3)
+  expect_true(is.finite(res$contrasts$se))
+  expect_true(res$contrasts$se > 0)
+})
+
+test_that("Ground truth: AIPW DR — outcome correct, PS missing W → recovers ATE", {
+  d <- make_split_dgp()
+  # Outcome model: ~ Z1 + Z2 + W (all Y predictors — correct).
+  # PS model: ~ Z1 (missing W — misspecified).
+  # DR: AIPW consistent because outcome is correct.
+  fit <- causat(d, outcome = "Y", treatment = "A",
+    confounders_outcome = ~ Z1 + Z2 + W,
+    confounders_treatment = ~ Z1,
+    estimator = "aipw", propensity_model_fn = stats::glm)
+  res <- contrast(fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0")
+  expect_equal(res$contrasts$estimate, 3, tolerance = 0.3)
+})
+
+test_that("Ground truth: G-comp with all outcome confounders recovers ATE = 3", {
+  d <- make_split_dgp()
+  fit <- causat(d, outcome = "Y", treatment = "A",
+    confounders_outcome = ~ Z1 + Z2 + W)
+  res <- contrast(fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0")
+  expect_equal(res$contrasts$estimate, 3, tolerance = 0.3)
+})
+
+test_that("Ground truth: IPW with all treatment confounders recovers ATE = 3", {
+  d <- make_split_dgp()
+  fit <- causat(d, outcome = "Y", treatment = "A",
+    confounders_treatment = ~ Z1 + W,
+    estimator = "ipw", propensity_model_fn = stats::glm)
+  res <- contrast(fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0")
+  expect_equal(res$contrasts$estimate, 3, tolerance = 0.5)
+})
+
+test_that("Ground truth: G-comp missing confounder W is biased", {
+  d <- make_split_dgp()
+  # ~ Z1 + Z2 omits W, which is a confounder (affects both A and Y).
+  fit_wrong <- causat(d, outcome = "Y", treatment = "A",
+    confounders_outcome = ~ Z1 + Z2)
+  res_wrong <- contrast(fit_wrong,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0")
+
+  fit_correct <- causat(d, outcome = "Y", treatment = "A",
+    confounders_outcome = ~ Z1 + Z2 + W)
+  res_correct <- contrast(fit_correct,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0")
+
+  expect_lt(
+    abs(res_correct$contrasts$estimate - 3),
+    abs(res_wrong$contrasts$estimate - 3) + 0.01
+  )
+})
+
+test_that("Ground truth: IPW missing confounder W is biased", {
+  d <- make_split_dgp()
+  # ~ Z1 omits W, which is a strong confounder.
+  fit_wrong <- causat(d, outcome = "Y", treatment = "A",
+    confounders_treatment = ~ Z1,
+    estimator = "ipw", propensity_model_fn = stats::glm)
+  res_wrong <- contrast(fit_wrong,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0")
+
+  fit_correct <- causat(d, outcome = "Y", treatment = "A",
+    confounders_treatment = ~ Z1 + W,
+    estimator = "ipw", propensity_model_fn = stats::glm)
+  res_correct <- contrast(fit_correct,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0")
+
+  expect_lt(
+    abs(res_correct$contrasts$estimate - 3),
+    abs(res_wrong$contrasts$estimate - 3) + 0.01
+  )
+})
+
+test_that("Ground truth: AIPW both models missing W → more biased than correct split", {
+  d <- make_split_dgp()
+  # Both models missing W: outcome ~ Z1+Z2, PS ~ Z1.
+  fit_wrong <- causat(d, outcome = "Y", treatment = "A",
+    confounders_outcome = ~ Z1 + Z2,
+    confounders_treatment = ~ Z1,
+    estimator = "aipw", propensity_model_fn = stats::glm)
+  res_wrong <- contrast(fit_wrong,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0")
+
+  # Correct: outcome ~ Z1+Z2 (missing W but DR), PS ~ Z1+W.
+  fit_correct <- causat(d, outcome = "Y", treatment = "A",
+    confounders_outcome = ~ Z1 + Z2,
+    confounders_treatment = ~ Z1 + W,
+    estimator = "aipw", propensity_model_fn = stats::glm)
+  res_correct <- contrast(fit_correct,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0")
+
+  expect_lt(
+    abs(res_correct$contrasts$estimate - 3),
+    abs(res_wrong$contrasts$estimate - 3) + 0.01
+  )
+})

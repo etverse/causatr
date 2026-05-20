@@ -283,3 +283,141 @@ test_that("KS: AIPW with correct confounders (Z) has smaller bias than misspecif
   # Misspecified AIPW should be further from truth than correct AIPW.
   expect_lt(abs(ey1_correct - truth), abs(ey1_wrong - truth))
 })
+
+
+# -- Split-confounder DR tests (per-component formulas) --------------------
+
+test_that("KS S2 split: AIPW recovers 210 with wrong outcome (X), correct PS (Z)", {
+  ks <- simulate_kang_schafer(n = 5000, seed = 42)
+  d <- ks$data
+  truth <- ks$truth
+
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders_outcome = ~ X1 + X2 + X3 + X4,
+    confounders_treatment = ~ Z1 + Z2 + Z3 + Z4,
+    estimator = "aipw",
+    propensity_model_fn = stats::glm
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0"
+  )
+
+  ey1 <- res$estimates$estimate[res$estimates$intervention == "a1"]
+  ey0 <- res$estimates$estimate[res$estimates$intervention == "a0"]
+  expect_equal(ey1, truth, tolerance = 3)
+  expect_equal(ey0, truth, tolerance = 3)
+
+  # Confirm the outcome model actually used X (misspecified).
+  outcome_vars <- all.vars(stats::formula(fit$model))
+  expect_true("X1" %in% outcome_vars)
+  expect_false("Z1" %in% outcome_vars)
+
+  # Confirm the PS model actually used Z (correct).
+  ps_vars <- all.vars(fit$details$treatment_model$ps_formula)
+  expect_true("Z1" %in% ps_vars)
+  expect_false("X1" %in% ps_vars)
+})
+
+
+test_that("KS S3 split: AIPW recovers 210 with correct outcome (Z), wrong PS (X)", {
+  ks <- simulate_kang_schafer(n = 5000, seed = 42)
+  d <- ks$data
+  truth <- ks$truth
+
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders_outcome = ~ Z1 + Z2 + Z3 + Z4,
+    confounders_treatment = ~ X1 + X2 + X3 + X4,
+    estimator = "aipw",
+    propensity_model_fn = stats::glm
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0"
+  )
+
+  ey1 <- res$estimates$estimate[res$estimates$intervention == "a1"]
+  ey0 <- res$estimates$estimate[res$estimates$intervention == "a0"]
+  expect_equal(ey1, truth, tolerance = 3)
+  expect_equal(ey0, truth, tolerance = 3)
+
+  # Confirm routing.
+  outcome_vars <- all.vars(stats::formula(fit$model))
+  expect_true("Z1" %in% outcome_vars)
+  expect_false("X1" %in% outcome_vars)
+  ps_vars <- all.vars(fit$details$treatment_model$ps_formula)
+  expect_true("X1" %in% ps_vars)
+  expect_false("Z1" %in% ps_vars)
+})
+
+
+test_that("KS S4 split: AIPW biased when both components use X", {
+  ks <- simulate_kang_schafer(n = 5000, seed = 42)
+  d <- ks$data
+  truth <- ks$truth
+
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders_outcome = ~ X1 + X2 + X3 + X4,
+    confounders_treatment = ~ X1 + X2 + X3 + X4,
+    estimator = "aipw",
+    propensity_model_fn = stats::glm
+  )
+  res <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0"
+  )
+
+  ey1 <- res$estimates$estimate[res$estimates$intervention == "a1"]
+  expect_gt(abs(ey1 - truth), 2)
+})
+
+
+test_that("KS split DR: S2 and S3 both closer to truth than S4", {
+  ks <- simulate_kang_schafer(n = 5000, seed = 42)
+  d <- ks$data
+  truth <- ks$truth
+
+  ivs <- list(a1 = static(1), a0 = static(0))
+
+  # S2: wrong outcome, correct PS.
+  fit_s2 <- causat(d, outcome = "Y", treatment = "A",
+    confounders_outcome = ~ X1 + X2 + X3 + X4,
+    confounders_treatment = ~ Z1 + Z2 + Z3 + Z4,
+    estimator = "aipw", propensity_model_fn = stats::glm)
+  ey1_s2 <- contrast(fit_s2, ivs, reference = "a0")$estimates$estimate[
+    contrast(fit_s2, ivs, reference = "a0")$estimates$intervention == "a1"
+  ]
+
+  # S3: correct outcome, wrong PS.
+  fit_s3 <- causat(d, outcome = "Y", treatment = "A",
+    confounders_outcome = ~ Z1 + Z2 + Z3 + Z4,
+    confounders_treatment = ~ X1 + X2 + X3 + X4,
+    estimator = "aipw", propensity_model_fn = stats::glm)
+  ey1_s3 <- contrast(fit_s3, ivs, reference = "a0")$estimates$estimate[
+    contrast(fit_s3, ivs, reference = "a0")$estimates$intervention == "a1"
+  ]
+
+  # S4: both wrong.
+  fit_s4 <- causat(d, outcome = "Y", treatment = "A",
+    confounders_outcome = ~ X1 + X2 + X3 + X4,
+    confounders_treatment = ~ X1 + X2 + X3 + X4,
+    estimator = "aipw", propensity_model_fn = stats::glm)
+  ey1_s4 <- contrast(fit_s4, ivs, reference = "a0")$estimates$estimate[
+    contrast(fit_s4, ivs, reference = "a0")$estimates$intervention == "a1"
+  ]
+
+  expect_lt(abs(ey1_s2 - truth), abs(ey1_s4 - truth))
+  expect_lt(abs(ey1_s3 - truth), abs(ey1_s4 - truth))
+})
