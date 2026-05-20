@@ -1,3 +1,26 @@
+# Test-time parallelism and tier configuration.
+#
+# CAUSATR_TEST_TIER controls which tests run:
+#   "fast"  — skips bootstrap / large-n simulation tests (~30s total)
+#   "full"  — runs everything (~20 min, default for CI / pre-commit)
+#
+# Usage:
+#   CAUSATR_TEST_TIER=fast Rscript -e 'devtools::test()'
+#   devtools::test(filter = "gcomp")  # targeted filter is always fast
+#
+# The four slowest files (effect-modification, aipw, ice, variance-reference)
+# account for ~95% of the total runtime. Within those files, individual
+# bootstrap/large-n blocks call skip_if_fast() to opt out.
+
+#' Skip a test block when CAUSATR_TEST_TIER is "fast".
+#' @noRd
+skip_if_fast <- function(msg = "slow test (CAUSATR_TEST_TIER=fast)") {
+  tier <- Sys.getenv("CAUSATR_TEST_TIER", "full")
+  if (identical(tolower(tier), "fast")) {
+    testthat::skip(msg)
+  }
+}
+
 # Test-time parallelism configuration.
 #
 # 1. testthat 3 reads `Config/testthat/parallel: true` from DESCRIPTION

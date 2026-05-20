@@ -49,7 +49,10 @@ vignettes/*.html
 vignettes/*_files/
 vignettes/*.markdown_strict_files/
 data-raw/zepid_venv/
+data-raw/deli_venv/
 data-raw/ice_fixture_*.csv
+data-raw/nhefs_complete_case.csv
+data-raw/nhefs_full.csv
 
 /.quarto/
 **/*.quarto_ipynb
