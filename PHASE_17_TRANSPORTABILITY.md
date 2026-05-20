@@ -1,6 +1,6 @@
 # Phase 17 — Transportability and Generalizability
 
-> **Status: IN PROGRESS** — 17a–17l shipped; 17m pending.
+> **Status: COMPLETE** — all chunks (17a–17m) shipped.
 >
 > **Depends on:** Phase 2 (point gcomp), Phase 4 (self-contained IPW)
 >
@@ -151,7 +151,7 @@ Each composition is tracked as a concrete chunk below (17i–17l). Summary:
 | 17j | Multivariate IPW × transport (Phase 8 composition): joint treatment density × sampling density; stacked sandwich with multivariate propensity + sampling blocks | Phase 8, 17c | ✅ done |
 | 17k | IPCW × transport (Phase 14 composition): four-way stacked EE (outcome/propensity + censoring + sampling + plug-in); triply-weighted estimator | Phase 14, 17c | ✅ done |
 | 17l | MTP + transportability: MC marginalization $E_{A|L,S=1}[\hat{m}(d(A,L), L) \mid L]$ for shift/scale\_by/ipsi on target rows where $A = \mathrm{NA}$; sequential regression or Monte Carlo integration (Díaz & Hejazi 2020; Hejazi et al. 2024) | 17e | ✅ done |
-| 17m | Documentation, vignette (`transportability.qmd`), `FEATURE_COVERAGE_MATRIX.md` rows, `CLAUDE.md` update | 17a–17l | pending |
+| 17m | Documentation, vignette (`transportability.qmd`), `FEATURE_COVERAGE_MATRIX.md` rows, `CLAUDE.md` update | 17a–17l | ✅ done |
 
 ## Invariants
 

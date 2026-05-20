@@ -318,6 +318,149 @@ treatment-model dependence not captured by the current IF chain. Use
 `ci_method = "bootstrap"` instead. IPW + MTP + transport supports
 sandwich (no MC marginalization needed).
 
+## Longitudinal transport
+
+Transportability composes with longitudinal IPW (`id =`, `time =`).
+The sampling model is fit on first-period rows, and the resulting
+sampling-odds weight is broadcast to all person-period rows for each
+individual. The sampling weight multiplies into the per-period
+treatment density-ratio weight inside the longitudinal Hájek MSM.
+
+```{r}
+set.seed(314)
+n_long <- 1500
+L0 <- rnorm(n_long)
+S <- rbinom(n_long, 1, plogis(-0.3 + 0.8 * L0))
+
+A0 <- ifelse(S == 1L, rbinom(n_long, 1, plogis(0.3 * L0)), NA_integer_)
+L1 <- ifelse(S == 1L, 0.5 * L0 + 0.4 * A0 + rnorm(n_long, sd = 0.5), NA_real_)
+A1 <- ifelse(S == 1L, rbinom(n_long, 1, plogis(0.3 * L1)), NA_integer_)
+Y <- ifelse(
+  S == 1L,
+  2 * A0 + 2 * A1 + L0 + 0.5 * L1 + rnorm(n_long),
+  NA_real_
+)
+
+# Build person-period data
+wide <- data.frame(id = seq_len(n_long), L0 = L0, S = S,
+                   A_0 = A0, L_0 = L0, A_1 = A1, L_1 = L1, Y = Y)
+long <- to_person_period(
+  wide,
+  id = "id",
+  treatment = c("A_0", "A_1"),
+  outcome = "Y",
+  time_varying = c("L_0", "L_1"),
+  baseline = c("L0", "S")
+)
+```
+
+```{r}
+fit_long <- causat(
+  long,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L0,
+  confounders_tv = ~ L,
+  id = "id",
+  time = "time",
+  estimator = "ipw",
+  target = "S"
+)
+
+res_long <- contrast(
+  fit_long,
+  interventions = list(always = static(1), never = static(0)),
+  reference = "never"
+)
+res_long
+```
+
+ICE g-computation also supports longitudinal transport --- the outcome
+model is fit on study rows, and counterfactual predictions are
+averaged over the target population's baseline covariates.
+
+## Multivariate treatment × transport
+
+Joint-treatment IPW (`treatment = c("A1", "A2")`) composes with
+transport. The per-component density-ratio weights from the sequential
+MTP factorisation multiply with the sampling-odds weight:
+
+```{r}
+set.seed(808)
+n_mv <- 2000
+L_mv <- rnorm(n_mv)
+S_mv <- rbinom(n_mv, 1, plogis(-0.5 + 0.8 * L_mv))
+
+A1_mv <- ifelse(S_mv == 1L, rbinom(n_mv, 1, plogis(0.2 + 0.3 * L_mv)), NA_integer_)
+A2_mv <- ifelse(
+  S_mv == 1L,
+  rbinom(n_mv, 1, plogis(0.1 + 0.2 * L_mv + 0.3 * A1_mv)),
+  NA_integer_
+)
+Y_mv <- ifelse(
+  S_mv == 1L,
+  1 + 2 * A1_mv + 1.5 * A2_mv + L_mv + 0.5 * A1_mv * L_mv + rnorm(n_mv),
+  NA_real_
+)
+
+df_mv <- data.frame(Y = Y_mv, A1 = A1_mv, A2 = A2_mv, L = L_mv, S = S_mv)
+```
+
+```{r}
+fit_mv <- causat(
+  df_mv,
+  outcome = "Y",
+  treatment = c("A1", "A2"),
+  confounders = ~ L,
+  estimator = "ipw",
+  target = "S"
+)
+
+res_mv <- contrast(
+  fit_mv,
+  interventions = list(
+    both = list(A1 = static(1), A2 = static(1)),
+    neither = list(A1 = static(0), A2 = static(0))
+  ),
+  reference = "neither"
+)
+res_mv
+```
+
+Sandwich and bootstrap variance both work for multivariate IPW
+transport. Stabilized weights (`stabilize = "marginal"`) also compose
+with transport.
+
+## Separate confounder specifications
+
+Use `confounders_sampling` to control which covariates enter the
+sampling model $P(S = 1 \mid L)$ independently of the outcome or
+treatment model covariates:
+
+```{r}
+fit_sep <- causat(
+  df,
+  outcome = "Y",
+  treatment = "A",
+  confounders_outcome = ~ L + I(L^2),
+  confounders_treatment = ~ L,
+  confounders_sampling = ~ L,
+  estimator = "aipw",
+  target = "S"
+)
+
+res_sep <- contrast(
+  fit_sep,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  reference = "a0"
+)
+res_sep
+```
+
+This is especially useful when the outcome model benefits from
+flexible specifications (splines, polynomials) while the sampling
+model needs only the core set of baseline confounders.
+
 ## Diagnostics
 
 `diagnose()` includes a **sampling model panel** for transport fits,
@@ -376,6 +519,55 @@ causat(
 
 This is by design: MatchIt's match-weight pathway does not compose
 cleanly with external sampling weights.
+
+## Summary of covered combinations
+
+```{r}
+#| echo: false
+comb <- data.frame(
+  Estimator = c(
+    "gcomp", "gcomp", "gcomp", "gcomp",
+    "IPW", "IPW", "IPW", "IPW",
+    "AIPW", "AIPW", "AIPW",
+    "matching"
+  ),
+  Treatment = c(
+    "binary", "continuous (MTP)", "multivariate", "longitudinal (ICE)",
+    "binary", "continuous (MTP)", "multivariate", "longitudinal",
+    "binary", "continuous (MTP)", "multivariate",
+    "any"
+  ),
+  Transport = c(
+    "\\checkmark", "\\checkmark (MC)", "\\checkmark", "\\checkmark",
+    "\\checkmark", "\\checkmark", "\\checkmark", "\\checkmark",
+    "\\checkmark", "\\checkmark (MC)", "\\checkmark",
+    "\\texttimes"
+  ),
+  Sandwich = c(
+    "\\checkmark", "\\texttimes (bootstrap)", "\\checkmark", "\\checkmark",
+    "\\checkmark", "\\checkmark", "\\checkmark", "\\checkmark",
+    "\\checkmark", "\\texttimes (bootstrap)", "\\checkmark",
+    "---"
+  ),
+  IPCW = c(
+    "\\checkmark", "---", "---", "---",
+    "\\checkmark", "---", "---", "\\checkmark",
+    "\\checkmark", "---", "---",
+    "---"
+  ),
+  Status = c(
+    "\\checkmark", "\\checkmark", "\\checkmark", "\\checkmark",
+    "\\checkmark", "\\checkmark", "\\checkmark", "\\checkmark",
+    "\\checkmark", "\\checkmark", "\\checkmark",
+    "Rejected"
+  )
+)
+tinytable::tt(comb) |>
+  tinytable::style_tt(j = 1:6, align = "lllccc")
+```
+
+See [`FEATURE_COVERAGE_MATRIX.md`](https://github.com/etverse/causatr/blob/main/FEATURE_COVERAGE_MATRIX.md)
+for the full test-level coverage breakdown.
 
 ## References
 

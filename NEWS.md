@@ -1,5 +1,19 @@
 # causatr (development version)
 
+## 2026-05-20 — Phase 17 complete: transportability documentation (Phase 17m)
+
+The transportability vignette (`transportability.qmd`) is expanded with
+sections for longitudinal transport (IPW and ICE with `target =` and
+`id =` / `time =`), multivariate treatment transport (joint-treatment
+IPW with sampling weights), separate confounder specifications for the
+sampling model (`confounders_sampling =`), and a summary-of-combinations
+table. All worked examples include full `causat()` + `contrast()` code
+and rendered output.
+
+This completes Phase 17: transportability and generalizability. All
+chunks (17a–17m) are shipped. The `CLAUDE.md` guide files section and
+`PHASE_17_TRANSPORTABILITY.md` status are updated accordingly.
+
 ## 2026-05-18 — MTP + transportability via MC marginalization (Phase 17l)
 
 Modified treatment policy (MTP) interventions (`shift()`, `scale_by()`,

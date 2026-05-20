@@ -894,7 +894,7 @@ For MTP interventions (shift, scale_by, threshold, dynamic) combined with transp
 | gcomp + static + transport: sandwich still works (no MC needed) | ✅ | test-mtp-transport.R |
 | gcomp + dynamic + binary treatment + transport: exact marginalization | ✅ | test-mtp-transport.R |
 
-Remaining chunks: 17m (documentation). Pending.
+**Phase 17 complete.** Chunk 17m (documentation, vignette, coverage matrix) shipped 2026-05-20.
 
 ---
 
