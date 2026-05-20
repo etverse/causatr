@@ -77,7 +77,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-7f8f88aac4f3542376d5c11b86a4c14d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-1fa89b94116c107d6ffe2fb26b06054e.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-b4053f44a9844110384dba2fb4cdf31e.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -922,22 +922,23 @@ A_{\beta\alpha} = -\texttt{numDeriv::jacobian}(\bar\psi_\beta, \hat\alpha).
 <span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> data.table<span class="sc">::</span><span class="fu">data.table</span>(<span class="at">Y =</span> Y, <span class="at">A =</span> A, <span class="at">L =</span> L)</span>
 <span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(dat, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>, <span class="at">confounders =</span> <span class="sc">~</span> L,</span>
-<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>              <span class="at">estimator =</span> <span class="st">"ipw"</span>)</span>
-<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>res <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit, <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
-<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>                <span class="at">reference =</span> <span class="st">"a0"</span>, <span class="at">ci_method =</span> <span class="st">"sandwich"</span>)</span>
-<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>tm <span class="ot">&lt;-</span> fit<span class="sc">$</span>details<span class="sc">$</span>treatment_model</span>
-<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(stats<span class="sc">::</span><span class="fu">predict</span>(tm<span class="sc">$</span>model, <span class="at">type =</span> <span class="st">"response"</span>))</span>
-<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a><span class="co"># Hand-derived dw/dalpha for static(1): -A*(1-p)/p * X_prop</span></span>
-<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>X_prop <span class="ot">&lt;-</span> tm<span class="sc">$</span>X_prop</span>
-<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>dw_dalpha_hand <span class="ot">&lt;-</span> <span class="fu">sweep</span>(X_prop, <span class="dv">1</span>, <span class="sc">-</span>A <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> p) <span class="sc">/</span> p, <span class="st">"*"</span>)</span>
-<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a><span class="co"># Numerical dw/dalpha via the make_weight_fn closure</span></span>
-<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>wfn <span class="ot">&lt;-</span> causatr<span class="sc">:::</span><span class="fu">make_weight_fn</span>(tm, dat, <span class="fu">static</span>(<span class="dv">1</span>))</span>
-<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>dw_dalpha_num <span class="ot">&lt;-</span> numDeriv<span class="sc">::</span><span class="fu">jacobian</span>(wfn, <span class="at">x =</span> tm<span class="sc">$</span>alpha_hat)</span>
-<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a>max_diff <span class="ot">&lt;-</span> <span class="fu">max</span>(<span class="fu">abs</span>(dw_dalpha_hand <span class="sc">-</span> dw_dalpha_num))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>              <span class="at">estimator =</span> <span class="st">"ipw"</span>,</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>              <span class="at">model_fn =</span> stats<span class="sc">::</span>glm, <span class="at">propensity_model_fn =</span> stats<span class="sc">::</span>glm)</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>res <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit, <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>                <span class="at">reference =</span> <span class="st">"a0"</span>, <span class="at">ci_method =</span> <span class="st">"sandwich"</span>)</span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>tm <span class="ot">&lt;-</span> fit<span class="sc">$</span>details<span class="sc">$</span>treatment_model</span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(stats<span class="sc">::</span><span class="fu">predict</span>(tm<span class="sc">$</span>model, <span class="at">type =</span> <span class="st">"response"</span>))</span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a><span class="co"># Hand-derived dw/dalpha for static(1): -A*(1-p)/p * X_prop</span></span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>X_prop <span class="ot">&lt;-</span> tm<span class="sc">$</span>X_prop</span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>dw_dalpha_hand <span class="ot">&lt;-</span> <span class="fu">sweep</span>(X_prop, <span class="dv">1</span>, <span class="sc">-</span>A <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> p) <span class="sc">/</span> p, <span class="st">"*"</span>)</span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a><span class="co"># Numerical dw/dalpha via the make_weight_fn closure</span></span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>wfn <span class="ot">&lt;-</span> causatr<span class="sc">:::</span><span class="fu">make_weight_fn</span>(tm, dat, <span class="fu">static</span>(<span class="dv">1</span>))</span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>dw_dalpha_num <span class="ot">&lt;-</span> numDeriv<span class="sc">::</span><span class="fu">jacobian</span>(wfn, <span class="at">x =</span> tm<span class="sc">$</span>alpha_hat)</span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a>max_diff <span class="ot">&lt;-</span> <span class="fu">max</span>(<span class="fu">abs</span>(dw_dalpha_hand <span class="sc">-</span> dw_dalpha_num))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
 </div>
@@ -1997,171 +1998,172 @@ A_{\alpha\alpha}^{-1} &amp; 0 \\
 <span id="cb11-465"><a href="#cb11-465" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> data.table<span class="sc">::</span><span class="fu">data.table</span>(<span class="at">Y =</span> Y, <span class="at">A =</span> A, <span class="at">L =</span> L)</span>
 <span id="cb11-466"><a href="#cb11-466" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-467"><a href="#cb11-467" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(dat, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>, <span class="at">confounders =</span> <span class="sc">~</span> L,</span>
-<span id="cb11-468"><a href="#cb11-468" aria-hidden="true" tabindex="-1"></a>              <span class="at">estimator =</span> <span class="st">"ipw"</span>)</span>
-<span id="cb11-469"><a href="#cb11-469" aria-hidden="true" tabindex="-1"></a>res <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit, <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
-<span id="cb11-470"><a href="#cb11-470" aria-hidden="true" tabindex="-1"></a>                <span class="at">reference =</span> <span class="st">"a0"</span>, <span class="at">ci_method =</span> <span class="st">"sandwich"</span>)</span>
-<span id="cb11-471"><a href="#cb11-471" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-472"><a href="#cb11-472" aria-hidden="true" tabindex="-1"></a>tm <span class="ot">&lt;-</span> fit<span class="sc">$</span>details<span class="sc">$</span>treatment_model</span>
-<span id="cb11-473"><a href="#cb11-473" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(stats<span class="sc">::</span><span class="fu">predict</span>(tm<span class="sc">$</span>model, <span class="at">type =</span> <span class="st">"response"</span>))</span>
-<span id="cb11-474"><a href="#cb11-474" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-475"><a href="#cb11-475" aria-hidden="true" tabindex="-1"></a><span class="co"># Hand-derived dw/dalpha for static(1): -A*(1-p)/p * X_prop</span></span>
-<span id="cb11-476"><a href="#cb11-476" aria-hidden="true" tabindex="-1"></a>X_prop <span class="ot">&lt;-</span> tm<span class="sc">$</span>X_prop</span>
-<span id="cb11-477"><a href="#cb11-477" aria-hidden="true" tabindex="-1"></a>dw_dalpha_hand <span class="ot">&lt;-</span> <span class="fu">sweep</span>(X_prop, <span class="dv">1</span>, <span class="sc">-</span>A <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> p) <span class="sc">/</span> p, <span class="st">"*"</span>)</span>
-<span id="cb11-478"><a href="#cb11-478" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-479"><a href="#cb11-479" aria-hidden="true" tabindex="-1"></a><span class="co"># Numerical dw/dalpha via the make_weight_fn closure</span></span>
-<span id="cb11-480"><a href="#cb11-480" aria-hidden="true" tabindex="-1"></a>wfn <span class="ot">&lt;-</span> causatr<span class="sc">:::</span><span class="fu">make_weight_fn</span>(tm, dat, <span class="fu">static</span>(<span class="dv">1</span>))</span>
-<span id="cb11-481"><a href="#cb11-481" aria-hidden="true" tabindex="-1"></a>dw_dalpha_num <span class="ot">&lt;-</span> numDeriv<span class="sc">::</span><span class="fu">jacobian</span>(wfn, <span class="at">x =</span> tm<span class="sc">$</span>alpha_hat)</span>
-<span id="cb11-482"><a href="#cb11-482" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-483"><a href="#cb11-483" aria-hidden="true" tabindex="-1"></a>max_diff <span class="ot">&lt;-</span> <span class="fu">max</span>(<span class="fu">abs</span>(dw_dalpha_hand <span class="sc">-</span> dw_dalpha_num))</span>
-<span id="cb11-484"><a href="#cb11-484" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb11-485"><a href="#cb11-485" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-486"><a href="#cb11-486" aria-hidden="true" tabindex="-1"></a><span class="fu">## Result</span></span>
-<span id="cb11-487"><a href="#cb11-487" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-490"><a href="#cb11-490" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb11-491"><a href="#cb11-491" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: verify-cross-deriv-result</span></span>
-<span id="cb11-492"><a href="#cb11-492" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: false</span></span>
-<span id="cb11-493"><a href="#cb11-493" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(</span>
-<span id="cb11-494"><a href="#cb11-494" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Max |hand - numerical| for dw/dalpha under static(1): %.2e</span><span class="sc">\n</span><span class="st">"</span>,</span>
-<span id="cb11-495"><a href="#cb11-495" aria-hidden="true" tabindex="-1"></a>  max_diff</span>
-<span id="cb11-496"><a href="#cb11-496" aria-hidden="true" tabindex="-1"></a>))</span>
-<span id="cb11-497"><a href="#cb11-497" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb11-498"><a href="#cb11-498" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-499"><a href="#cb11-499" aria-hidden="true" tabindex="-1"></a>:::</span>
-<span id="cb11-500"><a href="#cb11-500" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-501"><a href="#cb11-501" aria-hidden="true" tabindex="-1"></a><span class="fu">## 4. Assembly: the full IF for $\hat\mu_a$ under IPW {#sec-assembly}</span></span>
-<span id="cb11-502"><a href="#cb11-502" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-503"><a href="#cb11-503" aria-hidden="true" tabindex="-1"></a><span class="in">`compute_ipw_if_self_contained_one()`</span> assembles the per-individual</span>
-<span id="cb11-504"><a href="#cb11-504" aria-hidden="true" tabindex="-1"></a>influence function for one intervention. The three channels, following</span>
-<span id="cb11-505"><a href="#cb11-505" aria-hidden="true" tabindex="-1"></a>the derivation in <span class="in">`vignette("variance-theory")`</span> @eq-if-ipw, are:</span>
-<span id="cb11-506"><a href="#cb11-506" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-507"><a href="#cb11-507" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb11-508"><a href="#cb11-508" aria-hidden="true" tabindex="-1"></a>\text{IF}_i(\hat\mu_a) =</span>
-<span id="cb11-509"><a href="#cb11-509" aria-hidden="true" tabindex="-1"></a>\underbrace{g^{-1}(X_i^{*T}\hat\beta) - \hat\mu_a}_{\text{Channel 1}}</span>
-<span id="cb11-510"><a href="#cb11-510" aria-hidden="true" tabindex="-1"></a><span class="ss">+ </span>\underbrace{J \, A_{\beta\beta}^{-1} \, \psi_{\beta,i}}_{\text{MSM correction}}</span>
-<span id="cb11-511"><a href="#cb11-511" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>\underbrace{J \, A_{\beta\beta}^{-1} \, A_{\beta\alpha} \,</span>
-<span id="cb11-512"><a href="#cb11-512" aria-hidden="true" tabindex="-1"></a>  A_{\alpha\alpha}^{-1} \, \psi_{\alpha,i}}_{\text{propensity correction}}.</span>
-<span id="cb11-513"><a href="#cb11-513" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb11-514"><a href="#cb11-514" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-515"><a href="#cb11-515" aria-hidden="true" tabindex="-1"></a>Note the **minus** sign on the propensity correction. This comes from</span>
-<span id="cb11-516"><a href="#cb11-516" aria-hidden="true" tabindex="-1"></a>block inversion of the lower-triangular bread:</span>
-<span id="cb11-517"><a href="#cb11-517" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-518"><a href="#cb11-518" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb11-519"><a href="#cb11-519" aria-hidden="true" tabindex="-1"></a>A^{-1} =</span>
-<span id="cb11-520"><a href="#cb11-520" aria-hidden="true" tabindex="-1"></a>\begin{pmatrix}</span>
-<span id="cb11-521"><a href="#cb11-521" aria-hidden="true" tabindex="-1"></a>A_{\alpha\alpha}^{-1} &amp; 0 <span class="sc">\\</span></span>
-<span id="cb11-522"><a href="#cb11-522" aria-hidden="true" tabindex="-1"></a>-A_{\beta\beta}^{-1} A_{\beta\alpha} A_{\alpha\alpha}^{-1} &amp; A_{\beta\beta}^{-1}</span>
-<span id="cb11-523"><a href="#cb11-523" aria-hidden="true" tabindex="-1"></a>\end{pmatrix}.</span>
-<span id="cb11-524"><a href="#cb11-524" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb11-525"><a href="#cb11-525" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-526"><a href="#cb11-526" aria-hidden="true" tabindex="-1"></a>::: {.callout-note}</span>
-<span id="cb11-527"><a href="#cb11-527" aria-hidden="true" tabindex="-1"></a><span class="fu">### Sign convention</span></span>
-<span id="cb11-528"><a href="#cb11-528" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-529"><a href="#cb11-529" aria-hidden="true" tabindex="-1"></a><span class="in">`vignette("variance-theory")`</span> writes the IF with a **plus** sign on the</span>
-<span id="cb11-530"><a href="#cb11-530" aria-hidden="true" tabindex="-1"></a>propensity correction because it uses Wooldridge's convention</span>
-<span id="cb11-531"><a href="#cb11-531" aria-hidden="true" tabindex="-1"></a>$A_{\beta\alpha}^W = +(1/n)\sum \partial\psi_\beta/\partial\alpha$,</span>
-<span id="cb11-532"><a href="#cb11-532" aria-hidden="true" tabindex="-1"></a>whereas the code uses the negative-Hessian convention</span>
-<span id="cb11-533"><a href="#cb11-533" aria-hidden="true" tabindex="-1"></a>$A_{\beta\alpha} = -(1/n)\sum \partial\psi_\beta/\partial\alpha$. The two</span>
-<span id="cb11-534"><a href="#cb11-534" aria-hidden="true" tabindex="-1"></a>differ by a sign on $A_{\beta\alpha}$, which flips the composition sign.</span>
-<span id="cb11-535"><a href="#cb11-535" aria-hidden="true" tabindex="-1"></a>The numerical result is the same.</span>
-<span id="cb11-536"><a href="#cb11-536" aria-hidden="true" tabindex="-1"></a>:::</span>
-<span id="cb11-537"><a href="#cb11-537" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-538"><a href="#cb11-538" aria-hidden="true" tabindex="-1"></a><span class="fu">### Implementation walkthrough</span></span>
-<span id="cb11-539"><a href="#cb11-539" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-540"><a href="#cb11-540" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**MSM correction.** <span class="in">`prepare_model_if(msm_model)`</span> + <span class="in">`apply_model_correction(msm_prep, J)`</span> gives</span>
-<span id="cb11-541"><a href="#cb11-541" aria-hidden="true" tabindex="-1"></a>   $A_{\beta\beta}^{-1}\psi_{\beta,i}$ projected onto the gradient $J$. This is the same primitive used by</span>
-<span id="cb11-542"><a href="#cb11-542" aria-hidden="true" tabindex="-1"></a>   g-comp and matching --- one code path for all estimators.</span>
-<span id="cb11-543"><a href="#cb11-543" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-544"><a href="#cb11-544" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**Cross-derivative.** <span class="in">`numDeriv::jacobian(phi_bar, alpha_hat)`</span> gives</span>
-<span id="cb11-545"><a href="#cb11-545" aria-hidden="true" tabindex="-1"></a>   $A_{\beta\alpha}$ numerically, using the <span class="in">`weight_fn`</span> closure from @sec-closure.</span>
-<span id="cb11-546"><a href="#cb11-546" aria-hidden="true" tabindex="-1"></a>   The per-step cost is $O(n \cdot q)$ for a $q$-parameter propensity model ---</span>
-<span id="cb11-547"><a href="#cb11-547" aria-hidden="true" tabindex="-1"></a>   one matrix multiply per perturbation.</span>
-<span id="cb11-548"><a href="#cb11-548" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-549"><a href="#cb11-549" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**Propensity correction.** Form the gradient</span>
-<span id="cb11-550"><a href="#cb11-550" aria-hidden="true" tabindex="-1"></a>   $g_{\text{prop}} = A_{\beta\alpha}^T \cdot h_{\text{msm}}$ where</span>
-<span id="cb11-551"><a href="#cb11-551" aria-hidden="true" tabindex="-1"></a>   $h_{\text{msm}} = n \cdot A_{\beta\beta}^{-1} J$ (the $n$-scaling</span>
-<span id="cb11-552"><a href="#cb11-552" aria-hidden="true" tabindex="-1"></a>   accounts for <span class="in">`bread_inv()`</span> returning the raw $(X^TWX)^{-1}$). Then</span>
-<span id="cb11-553"><a href="#cb11-553" aria-hidden="true" tabindex="-1"></a>   <span class="in">`apply_model_correction(prop_prep, g_prop)`</span> gives</span>
-<span id="cb11-554"><a href="#cb11-554" aria-hidden="true" tabindex="-1"></a>   $g_{\text{prop}}^T A_{\alpha\alpha}^{-1} \psi_{\alpha,i}$ per</span>
-<span id="cb11-555"><a href="#cb11-555" aria-hidden="true" tabindex="-1"></a>   individual --- the propensity channel.</span>
-<span id="cb11-556"><a href="#cb11-556" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-557"><a href="#cb11-557" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>**Assembly.** <span class="in">`Ch1_i + msm_res$correction - prop_res$correction`</span>.</span>
-<span id="cb11-558"><a href="#cb11-558" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-559"><a href="#cb11-559" aria-hidden="true" tabindex="-1"></a><span class="fu">### When does the propensity correction matter?</span></span>
-<span id="cb11-560"><a href="#cb11-560" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-561"><a href="#cb11-561" aria-hidden="true" tabindex="-1"></a>For static binary ATE, the propensity correction **reduces** the SE</span>
-<span id="cb11-562"><a href="#cb11-562" aria-hidden="true" tabindex="-1"></a>(Lunceford &amp; Davidian 2004; Hirano et al. 2003). Using estimated rather</span>
-<span id="cb11-563"><a href="#cb11-563" aria-hidden="true" tabindex="-1"></a>than known propensity scores is more efficient, so the naive sandwich</span>
-<span id="cb11-564"><a href="#cb11-564" aria-hidden="true" tabindex="-1"></a>(which ignores propensity uncertainty) is conservative.</span>
-<span id="cb11-565"><a href="#cb11-565" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-566"><a href="#cb11-566" aria-hidden="true" tabindex="-1"></a>For non-static interventions the picture is richer:</span>
-<span id="cb11-567"><a href="#cb11-567" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-568"><a href="#cb11-568" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Shift:** the per-intervention SE typically drops 5--8% from the</span>
-<span id="cb11-569"><a href="#cb11-569" aria-hidden="true" tabindex="-1"></a>  propensity correction (the negative cross-term from the stacked</span>
-<span id="cb11-570"><a href="#cb11-570" aria-hidden="true" tabindex="-1"></a>  M-estimation outweighs the added propensity-uncertainty term).</span>
-<span id="cb11-571"><a href="#cb11-571" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**IPSI:** the per-intervention effect on the SE is small, but the</span>
-<span id="cb11-572"><a href="#cb11-572" aria-hidden="true" tabindex="-1"></a>  **contrast** SE can drop dramatically ($\sim$90%) because the shared</span>
-<span id="cb11-573"><a href="#cb11-573" aria-hidden="true" tabindex="-1"></a>  propensity model induces large positive covariance between the IPSI</span>
-<span id="cb11-574"><a href="#cb11-574" aria-hidden="true" tabindex="-1"></a>  and natural-course marginal means. When you subtract two marginal means</span>
-<span id="cb11-575"><a href="#cb11-575" aria-hidden="true" tabindex="-1"></a>  that share the same propensity noise, the noise largely cancels.</span>
-<span id="cb11-576"><a href="#cb11-576" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-577"><a href="#cb11-577" aria-hidden="true" tabindex="-1"></a>Both effects are verified in <span class="in">`test-ipw-variance-regression.R`</span>, which</span>
-<span id="cb11-578"><a href="#cb11-578" aria-hidden="true" tabindex="-1"></a>asserts that the full IF-based SE materially differs from the</span>
-<span id="cb11-579"><a href="#cb11-579" aria-hidden="true" tabindex="-1"></a>$J V_\beta J^T$ shortcut (which omits the propensity correction).</span>
-<span id="cb11-580"><a href="#cb11-580" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-581"><a href="#cb11-581" aria-hidden="true" tabindex="-1"></a><span class="fu">## 5. Intervention × family compatibility matrix</span></span>
-<span id="cb11-582"><a href="#cb11-582" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-583"><a href="#cb11-583" aria-hidden="true" tabindex="-1"></a>Not every combination of intervention type and treatment family is</span>
-<span id="cb11-584"><a href="#cb11-584" aria-hidden="true" tabindex="-1"></a>valid under density-ratio IPW. The compatibility matrix, enforced by</span>
-<span id="cb11-585"><a href="#cb11-585" aria-hidden="true" tabindex="-1"></a><span class="in">`check_intervention_family_compat()`</span>, is:</span>
-<span id="cb11-586"><a href="#cb11-586" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-587"><a href="#cb11-587" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Intervention <span class="pp">|</span> Bernoulli <span class="pp">|</span> Gaussian <span class="pp">|</span> Categorical <span class="pp">|</span></span>
-<span id="cb11-588"><a href="#cb11-588" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|---|</span></span>
-<span id="cb11-589"><a href="#cb11-589" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`static()`</span> <span class="pp">|</span> $\checkmark$ HT <span class="pp">|</span> $\times$ <span class="pp">|</span> $\checkmark$ HT <span class="pp">|</span></span>
-<span id="cb11-590"><a href="#cb11-590" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`shift()`</span> <span class="pp">|</span> $\times$ <span class="pp">|</span> $\checkmark$ pushforward <span class="pp">|</span> $\times$ <span class="pp">|</span></span>
-<span id="cb11-591"><a href="#cb11-591" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`scale_by()`</span> <span class="pp">|</span> $\times$ <span class="pp">|</span> $\checkmark$ pushforward <span class="pp">|</span> $\times$ <span class="pp">|</span></span>
-<span id="cb11-592"><a href="#cb11-592" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`threshold()`</span> <span class="pp">|</span> $\times$ <span class="pp">|</span> $\times$ <span class="pp">|</span> $\times$ <span class="pp">|</span></span>
-<span id="cb11-593"><a href="#cb11-593" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`dynamic()`</span> <span class="pp">|</span> $\checkmark$ HT <span class="pp">|</span> $\times$ <span class="pp">|</span> $\checkmark$ HT <span class="pp">|</span></span>
-<span id="cb11-594"><a href="#cb11-594" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`ipsi()`</span> <span class="pp">|</span> $\checkmark$ Kennedy <span class="pp">|</span> $\times$ <span class="pp">|</span> $\times$ <span class="pp">|</span></span>
-<span id="cb11-595"><a href="#cb11-595" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-596"><a href="#cb11-596" aria-hidden="true" tabindex="-1"></a>Each $\times$ has a specific reason rooted in the density-ratio</span>
-<span id="cb11-597"><a href="#cb11-597" aria-hidden="true" tabindex="-1"></a>framework:</span>
-<span id="cb11-598"><a href="#cb11-598" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-599"><a href="#cb11-599" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**`static(v)` on continuous**: the HT indicator $\mathbb{1}<span class="sc">\{</span>A_i = v<span class="sc">\}</span>$</span>
-<span id="cb11-600"><a href="#cb11-600" aria-hidden="true" tabindex="-1"></a>  is zero almost surely for a continuous treatment.</span>
-<span id="cb11-601"><a href="#cb11-601" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**`shift()` / `scale_by()` on discrete**: factors have no additive or</span>
-<span id="cb11-602"><a href="#cb11-602" aria-hidden="true" tabindex="-1"></a>  multiplicative structure.</span>
-<span id="cb11-603"><a href="#cb11-603" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**`threshold()` on continuous**: pushforward is a mixed measure</span>
-<span id="cb11-604"><a href="#cb11-604" aria-hidden="true" tabindex="-1"></a>  (point masses at the clamp boundaries), so there is no Lebesgue</span>
-<span id="cb11-605"><a href="#cb11-605" aria-hidden="true" tabindex="-1"></a>  density for the ratio.</span>
-<span id="cb11-606"><a href="#cb11-606" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**`dynamic()` on continuous**: a deterministic per-individual rule</span>
-<span id="cb11-607"><a href="#cb11-607" aria-hidden="true" tabindex="-1"></a>  is a Dirac per individual. Same pushforward degeneracy as <span class="in">`threshold()`</span>.</span>
-<span id="cb11-608"><a href="#cb11-608" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**`ipsi()` on non-binary**: Kennedy's (2019) closed-form formula</span>
-<span id="cb11-609"><a href="#cb11-609" aria-hidden="true" tabindex="-1"></a>  (@eq-ipsi-weight) is Bernoulli-specific.</span>
-<span id="cb11-610"><a href="#cb11-610" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-611"><a href="#cb11-611" aria-hidden="true" tabindex="-1"></a>All rejections point the user to the right alternative (typically</span>
-<span id="cb11-612"><a href="#cb11-612" aria-hidden="true" tabindex="-1"></a><span class="in">`estimator = "gcomp"`</span> or a smooth MTP constructor).</span>
-<span id="cb11-613"><a href="#cb11-613" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-614"><a href="#cb11-614" aria-hidden="true" tabindex="-1"></a><span class="fu">## References</span></span>
-<span id="cb11-615"><a href="#cb11-615" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-616"><a href="#cb11-616" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Hernán MA, Robins JM (2025). *Causal Inference: What If.* Chapman &amp;</span>
-<span id="cb11-617"><a href="#cb11-617" aria-hidden="true" tabindex="-1"></a>  Hall/CRC. Ch. 12 (IP weighting).</span>
-<span id="cb11-618"><a href="#cb11-618" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Hirano K, Imbens GW, Ridder G (2003). Efficient estimation of average</span>
-<span id="cb11-619"><a href="#cb11-619" aria-hidden="true" tabindex="-1"></a>  treatment effects using the estimated propensity score. *Econometrica*</span>
-<span id="cb11-620"><a href="#cb11-620" aria-hidden="true" tabindex="-1"></a>  71:1161--1189.</span>
-<span id="cb11-621"><a href="#cb11-621" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Imbens GW (2004). Nonparametric estimation of average treatment</span>
-<span id="cb11-622"><a href="#cb11-622" aria-hidden="true" tabindex="-1"></a>  effects under exogeneity: a review. *Review of Economics and</span>
-<span id="cb11-623"><a href="#cb11-623" aria-hidden="true" tabindex="-1"></a>  Statistics* 86:4--29.</span>
-<span id="cb11-624"><a href="#cb11-624" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Kennedy EH (2019). Nonparametric causal effects based on incremental</span>
-<span id="cb11-625"><a href="#cb11-625" aria-hidden="true" tabindex="-1"></a>  propensity score interventions. *JASA* 114:645--656.</span>
-<span id="cb11-626"><a href="#cb11-626" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Lunceford JK, Davidian M (2004). Stratification and weighting via the</span>
-<span id="cb11-627"><a href="#cb11-627" aria-hidden="true" tabindex="-1"></a>  propensity score in estimation of causal treatment effects: a</span>
-<span id="cb11-628"><a href="#cb11-628" aria-hidden="true" tabindex="-1"></a>  comparative study. *Statistics in Medicine* 23:2937--2960.</span>
-<span id="cb11-629"><a href="#cb11-629" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Díaz I, Williams N, Hoffman KL, Schenck EJ (2023). Non-parametric</span>
-<span id="cb11-630"><a href="#cb11-630" aria-hidden="true" tabindex="-1"></a>  causal effects based on longitudinal modified treatment policies.</span>
-<span id="cb11-631"><a href="#cb11-631" aria-hidden="true" tabindex="-1"></a>  *JASA* 118:846--857.</span>
-<span id="cb11-632"><a href="#cb11-632" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Haneuse S, Rotnitzky A (2013). Estimation of the effect of</span>
-<span id="cb11-633"><a href="#cb11-633" aria-hidden="true" tabindex="-1"></a>  interventions that modify the received treatment. *Statistics in</span>
-<span id="cb11-634"><a href="#cb11-634" aria-hidden="true" tabindex="-1"></a>  Medicine* 32:5260--5277.</span>
+<span id="cb11-468"><a href="#cb11-468" aria-hidden="true" tabindex="-1"></a>              <span class="at">estimator =</span> <span class="st">"ipw"</span>,</span>
+<span id="cb11-469"><a href="#cb11-469" aria-hidden="true" tabindex="-1"></a>              <span class="at">model_fn =</span> stats<span class="sc">::</span>glm, <span class="at">propensity_model_fn =</span> stats<span class="sc">::</span>glm)</span>
+<span id="cb11-470"><a href="#cb11-470" aria-hidden="true" tabindex="-1"></a>res <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit, <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
+<span id="cb11-471"><a href="#cb11-471" aria-hidden="true" tabindex="-1"></a>                <span class="at">reference =</span> <span class="st">"a0"</span>, <span class="at">ci_method =</span> <span class="st">"sandwich"</span>)</span>
+<span id="cb11-472"><a href="#cb11-472" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-473"><a href="#cb11-473" aria-hidden="true" tabindex="-1"></a>tm <span class="ot">&lt;-</span> fit<span class="sc">$</span>details<span class="sc">$</span>treatment_model</span>
+<span id="cb11-474"><a href="#cb11-474" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(stats<span class="sc">::</span><span class="fu">predict</span>(tm<span class="sc">$</span>model, <span class="at">type =</span> <span class="st">"response"</span>))</span>
+<span id="cb11-475"><a href="#cb11-475" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-476"><a href="#cb11-476" aria-hidden="true" tabindex="-1"></a><span class="co"># Hand-derived dw/dalpha for static(1): -A*(1-p)/p * X_prop</span></span>
+<span id="cb11-477"><a href="#cb11-477" aria-hidden="true" tabindex="-1"></a>X_prop <span class="ot">&lt;-</span> tm<span class="sc">$</span>X_prop</span>
+<span id="cb11-478"><a href="#cb11-478" aria-hidden="true" tabindex="-1"></a>dw_dalpha_hand <span class="ot">&lt;-</span> <span class="fu">sweep</span>(X_prop, <span class="dv">1</span>, <span class="sc">-</span>A <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> p) <span class="sc">/</span> p, <span class="st">"*"</span>)</span>
+<span id="cb11-479"><a href="#cb11-479" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-480"><a href="#cb11-480" aria-hidden="true" tabindex="-1"></a><span class="co"># Numerical dw/dalpha via the make_weight_fn closure</span></span>
+<span id="cb11-481"><a href="#cb11-481" aria-hidden="true" tabindex="-1"></a>wfn <span class="ot">&lt;-</span> causatr<span class="sc">:::</span><span class="fu">make_weight_fn</span>(tm, dat, <span class="fu">static</span>(<span class="dv">1</span>))</span>
+<span id="cb11-482"><a href="#cb11-482" aria-hidden="true" tabindex="-1"></a>dw_dalpha_num <span class="ot">&lt;-</span> numDeriv<span class="sc">::</span><span class="fu">jacobian</span>(wfn, <span class="at">x =</span> tm<span class="sc">$</span>alpha_hat)</span>
+<span id="cb11-483"><a href="#cb11-483" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-484"><a href="#cb11-484" aria-hidden="true" tabindex="-1"></a>max_diff <span class="ot">&lt;-</span> <span class="fu">max</span>(<span class="fu">abs</span>(dw_dalpha_hand <span class="sc">-</span> dw_dalpha_num))</span>
+<span id="cb11-485"><a href="#cb11-485" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb11-486"><a href="#cb11-486" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-487"><a href="#cb11-487" aria-hidden="true" tabindex="-1"></a><span class="fu">## Result</span></span>
+<span id="cb11-488"><a href="#cb11-488" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-491"><a href="#cb11-491" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb11-492"><a href="#cb11-492" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: verify-cross-deriv-result</span></span>
+<span id="cb11-493"><a href="#cb11-493" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: false</span></span>
+<span id="cb11-494"><a href="#cb11-494" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(</span>
+<span id="cb11-495"><a href="#cb11-495" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Max |hand - numerical| for dw/dalpha under static(1): %.2e</span><span class="sc">\n</span><span class="st">"</span>,</span>
+<span id="cb11-496"><a href="#cb11-496" aria-hidden="true" tabindex="-1"></a>  max_diff</span>
+<span id="cb11-497"><a href="#cb11-497" aria-hidden="true" tabindex="-1"></a>))</span>
+<span id="cb11-498"><a href="#cb11-498" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb11-499"><a href="#cb11-499" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-500"><a href="#cb11-500" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb11-501"><a href="#cb11-501" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-502"><a href="#cb11-502" aria-hidden="true" tabindex="-1"></a><span class="fu">## 4. Assembly: the full IF for $\hat\mu_a$ under IPW {#sec-assembly}</span></span>
+<span id="cb11-503"><a href="#cb11-503" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-504"><a href="#cb11-504" aria-hidden="true" tabindex="-1"></a><span class="in">`compute_ipw_if_self_contained_one()`</span> assembles the per-individual</span>
+<span id="cb11-505"><a href="#cb11-505" aria-hidden="true" tabindex="-1"></a>influence function for one intervention. The three channels, following</span>
+<span id="cb11-506"><a href="#cb11-506" aria-hidden="true" tabindex="-1"></a>the derivation in <span class="in">`vignette("variance-theory")`</span> @eq-if-ipw, are:</span>
+<span id="cb11-507"><a href="#cb11-507" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-508"><a href="#cb11-508" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb11-509"><a href="#cb11-509" aria-hidden="true" tabindex="-1"></a>\text{IF}_i(\hat\mu_a) =</span>
+<span id="cb11-510"><a href="#cb11-510" aria-hidden="true" tabindex="-1"></a>\underbrace{g^{-1}(X_i^{*T}\hat\beta) - \hat\mu_a}_{\text{Channel 1}}</span>
+<span id="cb11-511"><a href="#cb11-511" aria-hidden="true" tabindex="-1"></a><span class="ss">+ </span>\underbrace{J \, A_{\beta\beta}^{-1} \, \psi_{\beta,i}}_{\text{MSM correction}}</span>
+<span id="cb11-512"><a href="#cb11-512" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>\underbrace{J \, A_{\beta\beta}^{-1} \, A_{\beta\alpha} \,</span>
+<span id="cb11-513"><a href="#cb11-513" aria-hidden="true" tabindex="-1"></a>  A_{\alpha\alpha}^{-1} \, \psi_{\alpha,i}}_{\text{propensity correction}}.</span>
+<span id="cb11-514"><a href="#cb11-514" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb11-515"><a href="#cb11-515" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-516"><a href="#cb11-516" aria-hidden="true" tabindex="-1"></a>Note the **minus** sign on the propensity correction. This comes from</span>
+<span id="cb11-517"><a href="#cb11-517" aria-hidden="true" tabindex="-1"></a>block inversion of the lower-triangular bread:</span>
+<span id="cb11-518"><a href="#cb11-518" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-519"><a href="#cb11-519" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb11-520"><a href="#cb11-520" aria-hidden="true" tabindex="-1"></a>A^{-1} =</span>
+<span id="cb11-521"><a href="#cb11-521" aria-hidden="true" tabindex="-1"></a>\begin{pmatrix}</span>
+<span id="cb11-522"><a href="#cb11-522" aria-hidden="true" tabindex="-1"></a>A_{\alpha\alpha}^{-1} &amp; 0 <span class="sc">\\</span></span>
+<span id="cb11-523"><a href="#cb11-523" aria-hidden="true" tabindex="-1"></a>-A_{\beta\beta}^{-1} A_{\beta\alpha} A_{\alpha\alpha}^{-1} &amp; A_{\beta\beta}^{-1}</span>
+<span id="cb11-524"><a href="#cb11-524" aria-hidden="true" tabindex="-1"></a>\end{pmatrix}.</span>
+<span id="cb11-525"><a href="#cb11-525" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb11-526"><a href="#cb11-526" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-527"><a href="#cb11-527" aria-hidden="true" tabindex="-1"></a>::: {.callout-note}</span>
+<span id="cb11-528"><a href="#cb11-528" aria-hidden="true" tabindex="-1"></a><span class="fu">### Sign convention</span></span>
+<span id="cb11-529"><a href="#cb11-529" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-530"><a href="#cb11-530" aria-hidden="true" tabindex="-1"></a><span class="in">`vignette("variance-theory")`</span> writes the IF with a **plus** sign on the</span>
+<span id="cb11-531"><a href="#cb11-531" aria-hidden="true" tabindex="-1"></a>propensity correction because it uses Wooldridge's convention</span>
+<span id="cb11-532"><a href="#cb11-532" aria-hidden="true" tabindex="-1"></a>$A_{\beta\alpha}^W = +(1/n)\sum \partial\psi_\beta/\partial\alpha$,</span>
+<span id="cb11-533"><a href="#cb11-533" aria-hidden="true" tabindex="-1"></a>whereas the code uses the negative-Hessian convention</span>
+<span id="cb11-534"><a href="#cb11-534" aria-hidden="true" tabindex="-1"></a>$A_{\beta\alpha} = -(1/n)\sum \partial\psi_\beta/\partial\alpha$. The two</span>
+<span id="cb11-535"><a href="#cb11-535" aria-hidden="true" tabindex="-1"></a>differ by a sign on $A_{\beta\alpha}$, which flips the composition sign.</span>
+<span id="cb11-536"><a href="#cb11-536" aria-hidden="true" tabindex="-1"></a>The numerical result is the same.</span>
+<span id="cb11-537"><a href="#cb11-537" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb11-538"><a href="#cb11-538" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-539"><a href="#cb11-539" aria-hidden="true" tabindex="-1"></a><span class="fu">### Implementation walkthrough</span></span>
+<span id="cb11-540"><a href="#cb11-540" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-541"><a href="#cb11-541" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**MSM correction.** <span class="in">`prepare_model_if(msm_model)`</span> + <span class="in">`apply_model_correction(msm_prep, J)`</span> gives</span>
+<span id="cb11-542"><a href="#cb11-542" aria-hidden="true" tabindex="-1"></a>   $A_{\beta\beta}^{-1}\psi_{\beta,i}$ projected onto the gradient $J$. This is the same primitive used by</span>
+<span id="cb11-543"><a href="#cb11-543" aria-hidden="true" tabindex="-1"></a>   g-comp and matching --- one code path for all estimators.</span>
+<span id="cb11-544"><a href="#cb11-544" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-545"><a href="#cb11-545" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**Cross-derivative.** <span class="in">`numDeriv::jacobian(phi_bar, alpha_hat)`</span> gives</span>
+<span id="cb11-546"><a href="#cb11-546" aria-hidden="true" tabindex="-1"></a>   $A_{\beta\alpha}$ numerically, using the <span class="in">`weight_fn`</span> closure from @sec-closure.</span>
+<span id="cb11-547"><a href="#cb11-547" aria-hidden="true" tabindex="-1"></a>   The per-step cost is $O(n \cdot q)$ for a $q$-parameter propensity model ---</span>
+<span id="cb11-548"><a href="#cb11-548" aria-hidden="true" tabindex="-1"></a>   one matrix multiply per perturbation.</span>
+<span id="cb11-549"><a href="#cb11-549" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-550"><a href="#cb11-550" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**Propensity correction.** Form the gradient</span>
+<span id="cb11-551"><a href="#cb11-551" aria-hidden="true" tabindex="-1"></a>   $g_{\text{prop}} = A_{\beta\alpha}^T \cdot h_{\text{msm}}$ where</span>
+<span id="cb11-552"><a href="#cb11-552" aria-hidden="true" tabindex="-1"></a>   $h_{\text{msm}} = n \cdot A_{\beta\beta}^{-1} J$ (the $n$-scaling</span>
+<span id="cb11-553"><a href="#cb11-553" aria-hidden="true" tabindex="-1"></a>   accounts for <span class="in">`bread_inv()`</span> returning the raw $(X^TWX)^{-1}$). Then</span>
+<span id="cb11-554"><a href="#cb11-554" aria-hidden="true" tabindex="-1"></a>   <span class="in">`apply_model_correction(prop_prep, g_prop)`</span> gives</span>
+<span id="cb11-555"><a href="#cb11-555" aria-hidden="true" tabindex="-1"></a>   $g_{\text{prop}}^T A_{\alpha\alpha}^{-1} \psi_{\alpha,i}$ per</span>
+<span id="cb11-556"><a href="#cb11-556" aria-hidden="true" tabindex="-1"></a>   individual --- the propensity channel.</span>
+<span id="cb11-557"><a href="#cb11-557" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-558"><a href="#cb11-558" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>**Assembly.** <span class="in">`Ch1_i + msm_res$correction - prop_res$correction`</span>.</span>
+<span id="cb11-559"><a href="#cb11-559" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-560"><a href="#cb11-560" aria-hidden="true" tabindex="-1"></a><span class="fu">### When does the propensity correction matter?</span></span>
+<span id="cb11-561"><a href="#cb11-561" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-562"><a href="#cb11-562" aria-hidden="true" tabindex="-1"></a>For static binary ATE, the propensity correction **reduces** the SE</span>
+<span id="cb11-563"><a href="#cb11-563" aria-hidden="true" tabindex="-1"></a>(Lunceford &amp; Davidian 2004; Hirano et al. 2003). Using estimated rather</span>
+<span id="cb11-564"><a href="#cb11-564" aria-hidden="true" tabindex="-1"></a>than known propensity scores is more efficient, so the naive sandwich</span>
+<span id="cb11-565"><a href="#cb11-565" aria-hidden="true" tabindex="-1"></a>(which ignores propensity uncertainty) is conservative.</span>
+<span id="cb11-566"><a href="#cb11-566" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-567"><a href="#cb11-567" aria-hidden="true" tabindex="-1"></a>For non-static interventions the picture is richer:</span>
+<span id="cb11-568"><a href="#cb11-568" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-569"><a href="#cb11-569" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Shift:** the per-intervention SE typically drops 5--8% from the</span>
+<span id="cb11-570"><a href="#cb11-570" aria-hidden="true" tabindex="-1"></a>  propensity correction (the negative cross-term from the stacked</span>
+<span id="cb11-571"><a href="#cb11-571" aria-hidden="true" tabindex="-1"></a>  M-estimation outweighs the added propensity-uncertainty term).</span>
+<span id="cb11-572"><a href="#cb11-572" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**IPSI:** the per-intervention effect on the SE is small, but the</span>
+<span id="cb11-573"><a href="#cb11-573" aria-hidden="true" tabindex="-1"></a>  **contrast** SE can drop dramatically ($\sim$90%) because the shared</span>
+<span id="cb11-574"><a href="#cb11-574" aria-hidden="true" tabindex="-1"></a>  propensity model induces large positive covariance between the IPSI</span>
+<span id="cb11-575"><a href="#cb11-575" aria-hidden="true" tabindex="-1"></a>  and natural-course marginal means. When you subtract two marginal means</span>
+<span id="cb11-576"><a href="#cb11-576" aria-hidden="true" tabindex="-1"></a>  that share the same propensity noise, the noise largely cancels.</span>
+<span id="cb11-577"><a href="#cb11-577" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-578"><a href="#cb11-578" aria-hidden="true" tabindex="-1"></a>Both effects are verified in <span class="in">`test-ipw-variance-regression.R`</span>, which</span>
+<span id="cb11-579"><a href="#cb11-579" aria-hidden="true" tabindex="-1"></a>asserts that the full IF-based SE materially differs from the</span>
+<span id="cb11-580"><a href="#cb11-580" aria-hidden="true" tabindex="-1"></a>$J V_\beta J^T$ shortcut (which omits the propensity correction).</span>
+<span id="cb11-581"><a href="#cb11-581" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-582"><a href="#cb11-582" aria-hidden="true" tabindex="-1"></a><span class="fu">## 5. Intervention × family compatibility matrix</span></span>
+<span id="cb11-583"><a href="#cb11-583" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-584"><a href="#cb11-584" aria-hidden="true" tabindex="-1"></a>Not every combination of intervention type and treatment family is</span>
+<span id="cb11-585"><a href="#cb11-585" aria-hidden="true" tabindex="-1"></a>valid under density-ratio IPW. The compatibility matrix, enforced by</span>
+<span id="cb11-586"><a href="#cb11-586" aria-hidden="true" tabindex="-1"></a><span class="in">`check_intervention_family_compat()`</span>, is:</span>
+<span id="cb11-587"><a href="#cb11-587" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-588"><a href="#cb11-588" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Intervention <span class="pp">|</span> Bernoulli <span class="pp">|</span> Gaussian <span class="pp">|</span> Categorical <span class="pp">|</span></span>
+<span id="cb11-589"><a href="#cb11-589" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|---|</span></span>
+<span id="cb11-590"><a href="#cb11-590" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`static()`</span> <span class="pp">|</span> $\checkmark$ HT <span class="pp">|</span> $\times$ <span class="pp">|</span> $\checkmark$ HT <span class="pp">|</span></span>
+<span id="cb11-591"><a href="#cb11-591" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`shift()`</span> <span class="pp">|</span> $\times$ <span class="pp">|</span> $\checkmark$ pushforward <span class="pp">|</span> $\times$ <span class="pp">|</span></span>
+<span id="cb11-592"><a href="#cb11-592" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`scale_by()`</span> <span class="pp">|</span> $\times$ <span class="pp">|</span> $\checkmark$ pushforward <span class="pp">|</span> $\times$ <span class="pp">|</span></span>
+<span id="cb11-593"><a href="#cb11-593" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`threshold()`</span> <span class="pp">|</span> $\times$ <span class="pp">|</span> $\times$ <span class="pp">|</span> $\times$ <span class="pp">|</span></span>
+<span id="cb11-594"><a href="#cb11-594" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`dynamic()`</span> <span class="pp">|</span> $\checkmark$ HT <span class="pp">|</span> $\times$ <span class="pp">|</span> $\checkmark$ HT <span class="pp">|</span></span>
+<span id="cb11-595"><a href="#cb11-595" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`ipsi()`</span> <span class="pp">|</span> $\checkmark$ Kennedy <span class="pp">|</span> $\times$ <span class="pp">|</span> $\times$ <span class="pp">|</span></span>
+<span id="cb11-596"><a href="#cb11-596" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-597"><a href="#cb11-597" aria-hidden="true" tabindex="-1"></a>Each $\times$ has a specific reason rooted in the density-ratio</span>
+<span id="cb11-598"><a href="#cb11-598" aria-hidden="true" tabindex="-1"></a>framework:</span>
+<span id="cb11-599"><a href="#cb11-599" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-600"><a href="#cb11-600" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**`static(v)` on continuous**: the HT indicator $\mathbb{1}<span class="sc">\{</span>A_i = v<span class="sc">\}</span>$</span>
+<span id="cb11-601"><a href="#cb11-601" aria-hidden="true" tabindex="-1"></a>  is zero almost surely for a continuous treatment.</span>
+<span id="cb11-602"><a href="#cb11-602" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**`shift()` / `scale_by()` on discrete**: factors have no additive or</span>
+<span id="cb11-603"><a href="#cb11-603" aria-hidden="true" tabindex="-1"></a>  multiplicative structure.</span>
+<span id="cb11-604"><a href="#cb11-604" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**`threshold()` on continuous**: pushforward is a mixed measure</span>
+<span id="cb11-605"><a href="#cb11-605" aria-hidden="true" tabindex="-1"></a>  (point masses at the clamp boundaries), so there is no Lebesgue</span>
+<span id="cb11-606"><a href="#cb11-606" aria-hidden="true" tabindex="-1"></a>  density for the ratio.</span>
+<span id="cb11-607"><a href="#cb11-607" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**`dynamic()` on continuous**: a deterministic per-individual rule</span>
+<span id="cb11-608"><a href="#cb11-608" aria-hidden="true" tabindex="-1"></a>  is a Dirac per individual. Same pushforward degeneracy as <span class="in">`threshold()`</span>.</span>
+<span id="cb11-609"><a href="#cb11-609" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**`ipsi()` on non-binary**: Kennedy's (2019) closed-form formula</span>
+<span id="cb11-610"><a href="#cb11-610" aria-hidden="true" tabindex="-1"></a>  (@eq-ipsi-weight) is Bernoulli-specific.</span>
+<span id="cb11-611"><a href="#cb11-611" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-612"><a href="#cb11-612" aria-hidden="true" tabindex="-1"></a>All rejections point the user to the right alternative (typically</span>
+<span id="cb11-613"><a href="#cb11-613" aria-hidden="true" tabindex="-1"></a><span class="in">`estimator = "gcomp"`</span> or a smooth MTP constructor).</span>
+<span id="cb11-614"><a href="#cb11-614" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-615"><a href="#cb11-615" aria-hidden="true" tabindex="-1"></a><span class="fu">## References</span></span>
+<span id="cb11-616"><a href="#cb11-616" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-617"><a href="#cb11-617" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Hernán MA, Robins JM (2025). *Causal Inference: What If.* Chapman &amp;</span>
+<span id="cb11-618"><a href="#cb11-618" aria-hidden="true" tabindex="-1"></a>  Hall/CRC. Ch. 12 (IP weighting).</span>
+<span id="cb11-619"><a href="#cb11-619" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Hirano K, Imbens GW, Ridder G (2003). Efficient estimation of average</span>
+<span id="cb11-620"><a href="#cb11-620" aria-hidden="true" tabindex="-1"></a>  treatment effects using the estimated propensity score. *Econometrica*</span>
+<span id="cb11-621"><a href="#cb11-621" aria-hidden="true" tabindex="-1"></a>  71:1161--1189.</span>
+<span id="cb11-622"><a href="#cb11-622" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Imbens GW (2004). Nonparametric estimation of average treatment</span>
+<span id="cb11-623"><a href="#cb11-623" aria-hidden="true" tabindex="-1"></a>  effects under exogeneity: a review. *Review of Economics and</span>
+<span id="cb11-624"><a href="#cb11-624" aria-hidden="true" tabindex="-1"></a>  Statistics* 86:4--29.</span>
+<span id="cb11-625"><a href="#cb11-625" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Kennedy EH (2019). Nonparametric causal effects based on incremental</span>
+<span id="cb11-626"><a href="#cb11-626" aria-hidden="true" tabindex="-1"></a>  propensity score interventions. *JASA* 114:645--656.</span>
+<span id="cb11-627"><a href="#cb11-627" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Lunceford JK, Davidian M (2004). Stratification and weighting via the</span>
+<span id="cb11-628"><a href="#cb11-628" aria-hidden="true" tabindex="-1"></a>  propensity score in estimation of causal treatment effects: a</span>
+<span id="cb11-629"><a href="#cb11-629" aria-hidden="true" tabindex="-1"></a>  comparative study. *Statistics in Medicine* 23:2937--2960.</span>
+<span id="cb11-630"><a href="#cb11-630" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Díaz I, Williams N, Hoffman KL, Schenck EJ (2023). Non-parametric</span>
+<span id="cb11-631"><a href="#cb11-631" aria-hidden="true" tabindex="-1"></a>  causal effects based on longitudinal modified treatment policies.</span>
+<span id="cb11-632"><a href="#cb11-632" aria-hidden="true" tabindex="-1"></a>  *JASA* 118:846--857.</span>
+<span id="cb11-633"><a href="#cb11-633" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Haneuse S, Rotnitzky A (2013). Estimation of the effect of</span>
+<span id="cb11-634"><a href="#cb11-634" aria-hidden="true" tabindex="-1"></a>  interventions that modify the received treatment. *Statistics in</span>
+<span id="cb11-635"><a href="#cb11-635" aria-hidden="true" tabindex="-1"></a>  Medicine* 32:5260--5277.</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->
