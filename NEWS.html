@@ -513,6 +513,7 @@ window.Quarto = {
   <ul>
   <li><a href="#causatr-development-version" id="toc-causatr-development-version" class="nav-link active" data-scroll-target="#causatr-development-version">causatr (development version)</a>
   <ul class="collapse">
+  <li><a href="#snm-routing-and-validation-phase-18a" id="toc-snm-routing-and-validation-phase-18a" class="nav-link" data-scroll-target="#snm-routing-and-validation-phase-18a">2026-05-20 — SNM routing and validation (Phase 18a)</a></li>
   <li><a href="#phase-17-complete-transportability-documentation-phase-17m" id="toc-phase-17-complete-transportability-documentation-phase-17m" class="nav-link" data-scroll-target="#phase-17-complete-transportability-documentation-phase-17m">2026-05-20 — Phase 17 complete: transportability documentation (Phase 17m)</a></li>
   <li><a href="#mtp-transportability-via-mc-marginalization-phase-17l" id="toc-mtp-transportability-via-mc-marginalization-phase-17l" class="nav-link" data-scroll-target="#mtp-transportability-via-mc-marginalization-phase-17l">2026-05-18 — MTP + transportability via MC marginalization (Phase 17l)</a></li>
   <li><a href="#ipcw-transportability-phase-17k" id="toc-ipcw-transportability-phase-17k" class="nav-link" data-scroll-target="#ipcw-transportability-phase-17k">2026-05-18 — IPCW × transportability (Phase 17k)</a></li>
@@ -610,6 +611,12 @@ window.Quarto = {
 
 <section id="causatr-development-version" class="level1">
 <h1>causatr (development version)</h1>
+<section id="snm-routing-and-validation-phase-18a" class="level2">
+<h2 class="anchored" data-anchor-id="snm-routing-and-validation-phase-18a">2026-05-20 — SNM routing and validation (Phase 18a)</h2>
+<p>Added <code>estimator = "snm"</code> to <code>causat()</code> for structural nested mean model (SNMM) g-estimation — the third leg of the Robins triangle alongside g-computation and IPW-MSM. Chunk 18a ships the routing infrastructure: <code>fit_snm()</code> fits the treatment model via the existing <code>fit_treatment_model()</code> machinery, parses effect-modification terms (<code>A:modifier</code> in confounders) into a linear blip specification, and stores the result for downstream g-estimation. Supports binary and continuous point treatments.</p>
+<p>Rejection paths: multivariate treatment (<code>causatr_snm_multivariate</code>), longitudinal data (<code>causatr_snm_longitudinal_pending</code>), and <code>contrast(interventions = ...)</code> (<code>causatr_snm_no_interventions</code>) — SNM estimates blip parameters directly, not counterfactual means.</p>
+<p>Point estimation, sandwich variance, and the contrast pathway are deferred to chunk 18b. <code>DTRreg</code> added to Suggests as the primary R oracle for cross-checks.</p>
+</section>
 <section id="phase-17-complete-transportability-documentation-phase-17m" class="level2">
 <h2 class="anchored" data-anchor-id="phase-17-complete-transportability-documentation-phase-17m">2026-05-20 — Phase 17 complete: transportability documentation (Phase 17m)</h2>
 <p>The transportability vignette (<code>transportability.qmd</code>) is expanded with sections for longitudinal transport (IPW and ICE with <code>target =</code> and <code>id =</code> / <code>time =</code>), multivariate treatment transport (joint-treatment IPW with sampling weights), separate confounder specifications for the sampling model (<code>confounders_sampling =</code>), and a summary-of-combinations table. All worked examples include full <code>causat()</code> + <code>contrast()</code> code and rendered output.</p>

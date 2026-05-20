@@ -552,7 +552,7 @@ window.Quarto = {
   confounders_sampling = NULL,
   confounders_tv_outcome = NULL,
   confounders_tv_treatment = NULL,
-  estimator = c("gcomp", "ipw", "aipw", "matching"),
+  estimator = c("gcomp", "ipw", "aipw", "matching", "snm"),
   family = "gaussian",
   estimand = c("ATE", "ATT", "ATC"),
   id = NULL,
@@ -672,7 +672,7 @@ One-sided formula or <code>NULL</code>. Time-varying confounders for the treatme
 <code id="estimator">estimator</code>
 </td>
 <td>
-Character. Causal estimator: <code>“gcomp”</code> (default), <code>“ipw”</code>, <code>“aipw”</code>, or <code>“matching”</code>. IPW uses a self-contained density-ratio engine (no runtime dependency on <code>WeightIt</code>); AIPW is doubly-robust (outcome model + propensity weights); matching requires the <code>MatchIt</code> package. Note: <code>“matching”</code> is restricted to <strong>binary point treatments</strong> (MatchIt does not support multi-category or continuous treatments); use <code>“gcomp”</code> or <code>“ipw”</code> for those cases.
+Character. Causal estimator: <code>“gcomp”</code> (default), <code>“ipw”</code>, <code>“aipw”</code>, <code>“matching”</code>, or <code>“snm”</code>. IPW uses a self-contained density-ratio engine (no runtime dependency on <code>WeightIt</code>); AIPW is doubly-robust (outcome model + propensity weights); matching requires the <code>MatchIt</code> package; SNM fits a structural nested mean model via g-estimation. Note: <code>“matching”</code> is restricted to <strong>binary point treatments</strong> (MatchIt does not support multi-category or continuous treatments); use <code>“gcomp”</code> or <code>“ipw”</code> for those cases.
 </td>
 </tr>
 <tr>
