@@ -274,19 +274,23 @@ compute_weights_longitudinal <- function(
 
     if (is_default_obs) {
       # Default "observed" view: HT weights for binary, unit for rest.
+      # Subset to fit_rows to match the alignment at line `period_ids <-
+      # ids_k[tm_k$fit_rows]` below; predict() on NA-confounder rows
+      # returns NA, corrupting the cumulative product.
+      fr <- tm_k$fit_rows
       if (tm_k$family == "bernoulli") {
-        a_obs <- data_k[[fit$treatment[1]]]
+        a_obs <- data_k[[fit$treatment[1]]][fr]
         p <- as.numeric(stats::predict(
           tm_k$model,
-          newdata = data_k,
+          newdata = data_k[fr, ],
           type = "response"
         ))
         w_k <- ifelse(a_obs == 1, 1 / p, 1 / (1 - p))
       } else {
-        w_k <- rep(1, nrow(data_k))
+        w_k <- rep(1, sum(fr))
       }
     } else if (is.null(intervention)) {
-      w_k <- rep(1, nrow(data_k))
+      w_k <- rep(1, sum(tm_k$fit_rows))
     } else {
       if (stabilize) {
         tm_num_k <- fit$details$numerator_models_by_time[[tp]]

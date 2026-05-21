@@ -256,7 +256,7 @@ expand_em_lag_terms <- function(em_term, available_lags) {
     seq_len(available_lags),
     function(k) {
       lag_components <- components
-      lag_components[trt_idx] <- paste0("lag", k, "_", trt_var)
+      lag_components[trt_idx] <- paste0("lag", k, "_", components[trt_idx])
       paste(lag_components, collapse = ":")
     },
     character(1L)

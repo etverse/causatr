@@ -461,7 +461,9 @@ variance_if_aipw <- function(
       # (ii) Outcome cross-block: the outcome model was fit with IPCW
       # weights, so its score psi_beta depends on gamma through the
       # fitting weights.
-      h_outcome <- outcome_res$h
+      # h = A_{bb}^{-1} J in M-estimation scaling: A_{bb} = (1/n)X'WX,
+      # so A_{bb}^{-1} = n(X'WX)^{-1} = n * res$h.
+      h_outcome <- n_sub * outcome_res$h
       out_score_factor <- mu_eta_obs * resid_obs / fam$variance(preds_obs)
       phi_bar_out_cens <- function(gamma_c) {
         w_ipcw_c <- cens_wfn(gamma_c)[fit_rows]
@@ -484,7 +486,7 @@ variance_if_aipw <- function(
             (stats::model.response(stats::model.frame(propensity_model)) -
               mu_ps) /
             fam_ps$variance(mu_ps)
-          h_prop <- prop_res$h
+          h_prop <- n_sub * prop_res$h
 
           phi_bar_ps_cens <- function(gamma_c) {
             w_ipcw_c <- cens_wfn(gamma_c)[fit_rows]
@@ -519,7 +521,7 @@ variance_if_aipw <- function(
               n_total
             )
             prop_res_kk <- apply_model_correction(prop_prep_kk, J_alpha[idx_k])
-            h_prop_k <- prop_res_kk$h
+            h_prop_k <- n_sub * prop_res_kk$h
 
             phi_bar_ps_k <- function(gamma_c) {
               w_ipcw_c <- cens_wfn(gamma_c)[fit_rows]

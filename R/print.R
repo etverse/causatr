@@ -18,7 +18,9 @@ print.causatr_fit <- function(x, ...) {
     x$estimator,
     gcomp = "G-computation",
     ipw = "IPW",
+    aipw = "AIPW (doubly-robust)",
     matching = "Matching (MatchIt)",
+    snm = "SNM (g-estimation)",
     x$estimator
   )
   family_label <- format_family(x$family)
@@ -149,7 +151,9 @@ print.causatr_result <- function(x, ...) {
     x$estimator,
     gcomp = "G-computation",
     ipw = "IPW",
+    aipw = "AIPW (doubly-robust)",
     matching = "Matching",
+    snm = "SNM (g-estimation)",
     x$estimator
   )
   type_label <- switch(
