@@ -151,11 +151,11 @@ for the censoring model when \code{ipcw = TRUE}. Must accept
 \verb{(formula, data, family, weights, ...)}. Default \code{NULL} uses
 \code{stats::glm}. Ignored when \code{ipcw = FALSE}.}
 
-\item{history}{Positive integer or \code{Inf}. Markov order for longitudinal
-models: how many lagged time points of treatment and time-varying
-confounders to include in each ICE outcome model. Default \code{Inf}
-(full history). Set to a finite integer for a Markov restriction
-(e.g. \code{1} for first-order). Ignored for point treatments.}
+\item{history}{Non-negative integer or \code{Inf}. Markov lag order for
+longitudinal models: how many lagged time points of treatment and
+time-varying confounders to include in each per-period model.
+Default \code{Inf} (full history). \code{0} means no lags (current-period
+TV covariates only). Ignored for point treatments.}
 
 \item{numerator}{A one-sided formula or \code{NULL}. Numerator formula for
 stabilized IPW weights in longitudinal models. Defaults to baseline

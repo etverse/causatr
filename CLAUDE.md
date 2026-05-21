@@ -7,7 +7,7 @@ Part of the [etverse](https://github.com/etverse) ecosystem.
 ## Guide files
 
 - `FEATURE_COVERAGE_MATRIX.md` — **single source of truth for "what works".** Every PR that changes a feature MUST update this file.
-- `PHASE_*.md` — per-phase implementation guides in the project root. Completed: 2–6, 8–17. In progress: 18 (SNM, chunks 18a–18e shipped). Pending: 19–24 (design docs).
+- `PHASE_*.md` — per-phase implementation guides in the project root. Completed: 2–6, 8–17. In progress: 18 (SNM, chunks 18a–18f shipped). Pending: 19–24 (design docs).
 
 ## Project structure
 
@@ -78,6 +78,7 @@ Shell: `air format .` (format all R files).
 ## Cost discipline
 
 - **Targeted tests**: Use `devtools::test(filter = "foo")` during development. Only run the full `devtools::test()` suite before committing. A hook blocks unfiltered test runs.
+- **Foreground tests**: Run all test and check commands in **foreground** with `timeout: 600000` (10 min). Never use `run_in_background` for `devtools::test()`, `testthat::test_file()`, `devtools::check()`, or `R CMD check`. A hook enforces this. Output comes back directly — no polling needed.
 - **Batch R scripts**: Combine multiple diagnostic/validation checks into a single `Rscript -e '...'` call instead of running them one at a time. Each R process startup costs 10-30 seconds of idle context.
 - **Model awareness**: For routine work (formatting, simple edits, running tests, git operations), Sonnet is 5x cheaper than Opus. Suggest `/model sonnet` to the user when entering a routine-work phase, and `/model opus` when hard reasoning is needed (debugging subtle bugs, designing new features, variance derivations).
 

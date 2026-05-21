@@ -58,18 +58,34 @@ variance_if_snm_longitudinal <- function(fit, snm_result) {
 
   if (has_tf) {
     variance_if_snm_longitudinal_tf(
-      psi_hat, psi_by_stage, beta_by_stage, Z_list,
-      per_period, H_by_stage,
-      n_id, ids, na_mask, id_to_idx,
-      n_times, p_psi_per_stage, p_total_psi,
+      psi_hat,
+      psi_by_stage,
+      beta_by_stage,
+      Z_list,
+      per_period,
+      H_by_stage,
+      n_id,
+      ids,
+      na_mask,
+      id_to_idx,
+      n_times,
+      p_psi_per_stage,
+      p_total_psi,
       fit
     )
   } else {
     variance_if_snm_longitudinal_notf(
-      psi_hat, psi_by_stage,
-      per_period, H_by_stage,
-      n_id, ids, na_mask, id_to_idx,
-      n_times, p_psi_per_stage, p_total_psi,
+      psi_hat,
+      psi_by_stage,
+      per_period,
+      H_by_stage,
+      n_id,
+      ids,
+      na_mask,
+      id_to_idx,
+      n_times,
+      p_psi_per_stage,
+      p_total_psi,
       fit
     )
   }
@@ -354,7 +370,8 @@ variance_if_snm_longitudinal_tf <- function(
     A_bread[theta_idx(k), theta_idx(k)] <- -rbind(
       cbind(crossprod(Z_k, Z_k), crossprod(Z_k, AM_k_mat)),
       cbind(crossprod(RM_k, Z_k), crossprod(RM_k, AM_k_mat))
-    ) / n_id
+    ) /
+      n_id
 
     # Cross-stage: d theta_k / d psi_j for j > k (through H_k).
     # H_k = Y - sum_{l>k} gamma_l, dH_k/dpsi_j = -A_j M_j.
@@ -369,7 +386,8 @@ variance_if_snm_longitudinal_tf <- function(
         cross_block <- rbind(
           crossprod(Z_k, AM_j_valid),
           crossprod(RM_k, AM_j_valid)
-        ) / n_id
+        ) /
+          n_id
         # Map: rows = theta_k, cols = psi_j within theta_j
         j_psi_cols <- theta_idx(j)[psi_in_theta]
         A_bread[theta_idx(k), j_psi_cols] <- cross_block

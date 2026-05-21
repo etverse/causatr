@@ -2623,8 +2623,10 @@ test_that("to_person_period() aborts on missing id column", {
 test_that("to_person_period() aborts on missing time_invariant column", {
   wide <- data.table::data.table(id = 1:3, A0 = c(1, 0, 1), A1 = c(0, 1, 0))
   expect_error(
-    to_person_period(wide,
-      id = "id", time_varying = list(A = c("A0", "A1")),
+    to_person_period(
+      wide,
+      id = "id",
+      time_varying = list(A = c("A0", "A1")),
       time_invariant = "sex"
     ),
     class = "causatr_missing_column"
@@ -2633,12 +2635,18 @@ test_that("to_person_period() aborts on missing time_invariant column", {
 
 test_that("to_person_period() aborts on time_name collision", {
   wide <- data.table::data.table(
-    id = 1:3, A0 = c(1, 0, 1), A1 = c(0, 1, 0), time = 5:7
+    id = 1:3,
+    A0 = c(1, 0, 1),
+    A1 = c(0, 1, 0),
+    time = 5:7
   )
   expect_error(
-    to_person_period(wide,
-      id = "id", time_varying = list(A = c("A0", "A1")),
-      time_invariant = "time", time_name = "time"
+    to_person_period(
+      wide,
+      id = "id",
+      time_varying = list(A = c("A0", "A1")),
+      time_invariant = "time",
+      time_name = "time"
     ),
     class = "causatr_column_collision"
   )

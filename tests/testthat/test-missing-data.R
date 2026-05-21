@@ -529,12 +529,12 @@ test_that("ICE: MCAR outcome NAs at final time (DGP-M4, bootstrap)", {
 test_that("gcomp: MCAR covariate NAs (DGP-M3)", {
   d <- simulate_mcar_covariate(n = 3000, p_miss = 0.10, seed = 60)
   fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L)
-  result <- suppressMessages(contrast(
+  result <- contrast(
     fit,
     interventions = list(a1 = static(1), a0 = static(0)),
     reference = "a0",
     ci_method = "sandwich"
-  ))
+  )
   expect_equal(result$contrasts$estimate[1], 3.0, tolerance = 0.3)
 })
 
@@ -543,12 +543,12 @@ test_that("gcomp: MCAR outcome + covariate NAs simultaneously", {
   d <- inject_na(d, "Y", prop = 0.10, seed = 61)
   d <- inject_na(d, "L", prop = 0.10, seed = 62)
   fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L)
-  result <- suppressMessages(contrast(
+  result <- contrast(
     fit,
     interventions = list(a1 = static(1), a0 = static(0)),
     reference = "a0",
     ci_method = "sandwich"
-  ))
+  )
   expect_equal(result$contrasts$estimate[1], 3.0, tolerance = 0.35)
 })
 
@@ -556,12 +556,12 @@ test_that("gcomp: MCAR covariate NAs, continuous shift", {
   d <- simulate_continuous_continuous(n = 3000, seed = 63)
   d <- inject_na(d, "L", prop = 0.10, seed = 63)
   fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L)
-  result <- suppressMessages(contrast(
+  result <- contrast(
     fit,
     interventions = list(shifted = shift(-1), obs = NULL),
     reference = "obs",
     ci_method = "sandwich"
-  ))
+  )
   expect_equal(result$contrasts$estimate[1], -2.0, tolerance = 0.3)
 })
 

@@ -56,12 +56,12 @@ test_that("T-long-ipw1: longitudinal IPW shift agrees with ICE g-comp on linear-
     time = "time",
     estimator = "gcomp"
   )
-  res_ice <- suppressMessages(contrast(
+  res_ice <- contrast(
     fit_ice,
     interventions = list(shifted = shift(0.5), nat = NULL),
     type = "difference",
     reference = "nat"
-  ))
+  )
 
   # Cross-method agreement on the contrast point estimate. IPW SE is
   # typically larger than ICE SE under correct outcome-model
@@ -125,12 +125,12 @@ test_that("T-long-ipw2: longitudinal IPW static recovers ICE on binary DGP", {
     time = "time",
     estimator = "gcomp"
   )
-  res_ice <- suppressMessages(contrast(
+  res_ice <- contrast(
     fit_ice,
     interventions = list(always = static(1), never = static(0)),
     type = "difference",
     reference = "never"
-  ))
+  )
 
   est_ipw <- res_ipw$contrasts$estimate[1]
   est_ice <- res_ice$contrasts$estimate[1]
@@ -670,11 +670,11 @@ test_that("T-long-ipw-stab3: stabilized shift contrast recovers ICE point on bas
     time = "time",
     estimator = "gcomp"
   )
-  res_ice <- suppressMessages(contrast(
+  res_ice <- contrast(
     fit_ice,
     interventions = list(s = shift(0.5), n = NULL),
     reference = "n"
-  ))
+  )
 
   # Cross-method agreement on the contrast point estimate. Tolerance
   # widened relative to T-long-ipw1 because stabilized IPW has a
@@ -914,12 +914,12 @@ test_that("T-long-ipw-em3: longitudinal IPW EM agrees with ICE EM cross-method",
     time = "time",
     estimator = "gcomp"
   )
-  res_ice <- suppressMessages(contrast(
+  res_ice <- contrast(
     fit_ice,
     interventions = list(a = static(1), z = static(0)),
     reference = "z",
     by = "sex"
-  ))
+  )
 
   ipw_dt <- as.data.frame(res_ipw$contrasts)
   ice_dt <- as.data.frame(res_ice$contrasts)

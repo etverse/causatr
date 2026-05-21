@@ -1,6 +1,6 @@
 # Phase 18 — G-estimation of Structural Nested Mean Models (SNMMs)
 
-> **Status: IN PROGRESS** — chunks 18a–18e shipped (point estimation + sandwich variance + treatment-free model + time-varying EM + longitudinal SNMM + longitudinal TV-EM truth test)
+> **Status: IN PROGRESS** — chunks 18a–18f shipped (point estimation + sandwich variance + treatment-free model + time-varying EM + longitudinal SNMM + longitudinal TV-EM truth test + triangulation + delicatessen cross-check + history=0)
 >
 > **Depends on:** Phase 2 (point infra), Phase 4 (treatment-model machinery), Phase 5 (longitudinal data shape), Phase 6 (effect-modification parser)
 

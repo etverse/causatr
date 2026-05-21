@@ -54,8 +54,11 @@ to_person_period <- function(
   if (!id %in% names(data)) {
     rlang::abort(
       paste0(
-        "`id` column '", id, "' not found in data. ",
-        "Available columns: ", paste(names(data), collapse = ", ")
+        "`id` column '",
+        id,
+        "' not found in data. ",
+        "Available columns: ",
+        paste(names(data), collapse = ", ")
       ),
       class = "causatr_missing_column"
     )
@@ -89,7 +92,9 @@ to_person_period <- function(
   if (time_name %in% reserved) {
     rlang::abort(
       paste0(
-        "`time_name` '", time_name, "' collides with an existing column ",
+        "`time_name` '",
+        time_name,
+        "' collides with an existing column ",
         "(id, time_invariant, or time_varying output name). ",
         "Choose a different `time_name`."
       ),

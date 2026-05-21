@@ -171,10 +171,15 @@ fit_snm <- function(
 
     # Parse baseline confounder terms (strip A:modifier interactions so
     # the propensity model is A ~ L, matching the point-treatment path).
-    em_conf_trt <- confounders
-    em_info_trt <- parse_effect_mod(em_conf_trt, treatment)
-    baseline_terms <- em_info_trt$confounder_terms
-    if (length(baseline_terms) == 0L) {
+    # When confounders is NULL (user supplied only confounders_tv), there
+    # are no baseline terms — the PS formula is built from tv_vars only.
+    if (!is.null(confounders)) {
+      em_info_trt <- parse_effect_mod(confounders, treatment)
+      baseline_terms <- em_info_trt$confounder_terms
+      if (length(baseline_terms) == 0L) {
+        baseline_terms <- character(0L)
+      }
+    } else {
       baseline_terms <- character(0L)
     }
 

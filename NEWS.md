@@ -1,5 +1,31 @@
 # causatr (development version)
 
+## 2026-05-21 — Triangulation tests, delicatessen cross-check, history=0 support (Phase 18f)
+
+Adds the Robins triangle invariant tests: under correct specification and
+no time-varying effect modification, the SNM blip sum, longitudinal
+IPW-MSM ATE, and ICE g-comp ATE must agree on binary static interventions.
+Three pairwise comparisons (SNM vs IPW, SNM vs ICE, 3-way) plus a negative
+control where IPW is biased by collider conditioning on a post-treatment
+modifier but SNM recovers the correct blip.
+
+Cross-language validation against Python's delicatessen package (Zivich
+2022) using stacked M-estimation on shared fixture data
+(data-raw/snm_longitudinal_fixture.csv). Both R and Python operate on
+the exact same dataset, enabling tight tolerances: 1e-4 for point
+estimates, 0.3% for sandwich SEs.
+
+The `history` parameter now accepts 0 (no-lag Markov model) for all
+longitudinal estimators (SNM, IPW, ICE). Previously history < 1 was
+rejected. The validator error message updated from "positive integer"
+to "non-negative integer." Tests added for all three estimators with
+history=0.
+
+Removed 18 suppressMessages/suppressWarnings wrappers around causatr
+calls in the test suite (test-snm.R, test-missing-data.R,
+test-longitudinal-ipw.R). All underlying messages were either eliminated
+at the source or are expected informational output.
+
 ## 2026-05-21 — Longitudinal TV-EM truth test + formula dedup fix (Phase 18e)
 
 Adds the headline truth-based test for longitudinal SNMs with time-varying

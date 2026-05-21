@@ -315,8 +315,11 @@ test_that("tidy.causatr_result returns data frame", {
 test_that("tidy() conf.level adjusts difference contrast CIs", {
   df <- data.frame(Y = rnorm(200), A = rbinom(200, 1, 0.5), L = rnorm(200))
   fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L)
-  res <- contrast(fit, list(a1 = static(1), a0 = static(0)),
-    reference = "a0", ci_method = "sandwich"
+  res <- contrast(
+    fit,
+    list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    ci_method = "sandwich"
   )
   t95 <- tidy(res, which = "contrasts", conf.level = 0.95)
   t90 <- tidy(res, which = "contrasts", conf.level = 0.90)
@@ -335,12 +338,19 @@ test_that("tidy() conf.level adjusts ratio/OR contrast CIs on log scale", {
     A = rbinom(500, 1, 0.5),
     L = rnorm(500)
   )
-  fit <- causat(df,
-    outcome = "Y", treatment = "A",
-    confounders = ~L, family = "binomial"
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    family = "binomial"
   )
-  res_r <- contrast(fit, list(a1 = static(1), a0 = static(0)),
-    reference = "a0", type = "ratio", ci_method = "sandwich"
+  res_r <- contrast(
+    fit,
+    list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "ratio",
+    ci_method = "sandwich"
   )
   t95 <- tidy(res_r, which = "contrasts", conf.level = 0.95)
   t90 <- tidy(res_r, which = "contrasts", conf.level = 0.90)
@@ -349,8 +359,12 @@ test_that("tidy() conf.level adjusts ratio/OR contrast CIs on log scale", {
   expect_true(t90$conf.low > t95$conf.low)
   expect_true(t90$conf.high < t95$conf.high)
 
-  res_or <- contrast(fit, list(a1 = static(1), a0 = static(0)),
-    reference = "a0", type = "or", ci_method = "sandwich"
+  res_or <- contrast(
+    fit,
+    list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "or",
+    ci_method = "sandwich"
   )
   t95or <- tidy(res_or, which = "contrasts", conf.level = 0.95)
   t90or <- tidy(res_or, which = "contrasts", conf.level = 0.90)
@@ -360,7 +374,11 @@ test_that("tidy() conf.level adjusts ratio/OR contrast CIs on log scale", {
 
 test_that("print labels include AIPW and SNM", {
   df <- data.frame(Y = rnorm(50), A = rbinom(50, 1, 0.5), L = rnorm(50))
-  fit_aipw <- causat(df, "Y", "A", ~L,
+  fit_aipw <- causat(
+    df,
+    "Y",
+    "A",
+    ~L,
     estimator = "aipw",
     propensity_model_fn = stats::glm
   )

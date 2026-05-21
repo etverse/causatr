@@ -105,11 +105,11 @@
 #'   for the censoring model when `ipcw = TRUE`. Must accept
 #'   `(formula, data, family, weights, ...)`. Default `NULL` uses
 #'   `stats::glm`. Ignored when `ipcw = FALSE`.
-#' @param history Positive integer or `Inf`. Markov order for longitudinal
-#'   models: how many lagged time points of treatment and time-varying
-#'   confounders to include in each ICE outcome model. Default `Inf`
-#'   (full history). Set to a finite integer for a Markov restriction
-#'   (e.g. `1` for first-order). Ignored for point treatments.
+#' @param history Non-negative integer or `Inf`. Markov lag order for
+#'   longitudinal models: how many lagged time points of treatment and
+#'   time-varying confounders to include in each per-period model.
+#'   Default `Inf` (full history). `0` means no lags (current-period
+#'   TV covariates only). Ignored for point treatments.
 #' @param numerator A one-sided formula or `NULL`. Numerator formula for
 #'   stabilized IPW weights in longitudinal models. Defaults to baseline
 #'   confounders only (no time-varying confounders), which gives the standard

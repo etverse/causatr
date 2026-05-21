@@ -47,8 +47,8 @@
 #' @param family Character or family object for the final-period MSM.
 #' @param estimand Character. Must be `"ATE"` for longitudinal data
 #'   (`check_estimand_trt_compat()` already enforces this).
-#' @param history Positive integer or `Inf`. Markov order for lag
-#'   inclusion in the per-period propensity formula.
+#' @param history Non-negative integer or `Inf`. Markov lag order for
+#'   the per-period propensity formula (`0` = no lags).
 #' @param numerator One-sided formula or `NULL`. Reserved for chunk
 #'   10b (stabilized weights); rejected here when non-`NULL`.
 #' @param weights Numeric vector or `NULL`. External observation
