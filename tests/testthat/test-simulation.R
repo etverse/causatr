@@ -674,7 +674,7 @@ test_that("gcomp × binary trt × subset estimand (L > 0)", {
   )
 
   # Subgroup effect should still be ≈ 3 (constant treatment effect in DGP).
-  expect_equal(result$contrasts$estimate[1], 3, tolerance = 0.3)
+  expect_equal(result$contrasts$estimate[1], 3, tolerance = 0.05)
   expect_equal(result$estimand, "subset")
 })
 
@@ -727,7 +727,7 @@ test_that("gcomp × GAM via model_fn = mgcv::gam", {
     ci_method = "sandwich"
   )
 
-  expect_equal(result$contrasts$estimate[1], 3, tolerance = 0.3)
+  expect_equal(result$contrasts$estimate[1], 3, tolerance = 0.05)
 
   # Pin the GAM lpmatrix path in iv_design_matrix(): the GAM branch
   # (R/variance_if.R:184-200) calls predict.gam(..., type = "lpmatrix")
@@ -769,7 +769,7 @@ test_that("gcomp × binary trt × continuous outcome × censoring", {
   )
 
   # ATE should still be ≈ 3 (censoring is random, not informative).
-  expect_equal(result$contrasts$estimate[1], 3, tolerance = 0.3)
+  expect_equal(result$contrasts$estimate[1], 3, tolerance = 0.05)
 })
 
 
@@ -796,7 +796,8 @@ test_that("matching × binary trt × continuous outcome × difference × sandwic
   )
 
   att <- result$contrasts$estimate[1]
-  expect_equal(att, 3, tolerance = 0.3)
+  # 1:1 NN matching ATT has O(n^{-1/p}) bias on continuous confounders
+  expect_equal(att, 3, tolerance = 0.25)
 })
 
 test_that("matching × binary trt × continuous outcome × difference × bootstrap: SE finite", {
@@ -845,7 +846,7 @@ test_that("ipw × binary trt × continuous outcome × difference × sandwich: AT
   )
 
   ate <- result$contrasts$estimate[1]
-  expect_equal(ate, 3, tolerance = 0.3)
+  expect_equal(ate, 3, tolerance = 0.05)
 })
 
 test_that("ipw × binary trt × continuous outcome × difference × bootstrap: SE finite", {
@@ -923,8 +924,9 @@ test_that("triangulation × binary trt × continuous outcome: all methods ≈ AT
 
   # All should be close to 3 (true ATE = ATT = 3 in this DGP).
   expect_equal(ate_gc, 3, tolerance = 0.15)
-  expect_equal(ate_ipw, 3, tolerance = 0.3)
-  expect_equal(att_m, 3, tolerance = 0.3)
+  expect_equal(ate_ipw, 3, tolerance = 0.05)
+  # 1:1 NN matching ATT has O(n^{-1/p}) bias on continuous confounders
+  expect_equal(att_m, 3, tolerance = 0.25)
 
   # They should agree with each other within 1 unit.
   expect_lt(abs(ate_gc - ate_ipw), 1)
@@ -1106,7 +1108,7 @@ test_that("ipw × continuous outcome × gaussian family (default) recovers ATE",
     type = "difference",
     ci_method = "sandwich"
   )
-  expect_equal(result$contrasts$estimate[1], 3.0, tolerance = 0.3)
+  expect_equal(result$contrasts$estimate[1], 3.0, tolerance = 0.05)
 })
 
 test_that("ipw × continuous trt × shift recovers the linear MTP contrast", {
@@ -1158,10 +1160,10 @@ test_that("ipw × categorical × static × ATE × sandwich recovers truth", {
   est <- res$estimates
   ctr <- res$contrasts
   # Point estimate within 0.3 of truth (large-sample tolerance).
-  expect_equal(est[est$intervention == "b", ]$estimate, 5, tolerance = 0.3)
-  expect_equal(est[est$intervention == "a", ]$estimate, 2, tolerance = 0.3)
+  expect_equal(est[est$intervention == "b", ]$estimate, 5, tolerance = 0.05)
+  expect_equal(est[est$intervention == "a", ]$estimate, 2, tolerance = 0.05)
   # Contrast is "a vs b" = E[Y(a)] - E[Y(b)] = 2 - 5 = -3
-  expect_equal(ctr$estimate, -3, tolerance = 0.3)
+  expect_equal(ctr$estimate, -3, tolerance = 0.05)
   # SE is finite and positive
   expect_true(ctr$se > 0 && is.finite(ctr$se))
   # CI covers the truth
@@ -1249,7 +1251,8 @@ test_that("matching × continuous outcome × gaussian family recovers ATE", {
     type = "difference",
     ci_method = "sandwich"
   )
-  expect_equal(result$contrasts$estimate[1], 3.0, tolerance = 0.3)
+  # Default matching (ATT): O(n^{-1/p}) bias on continuous confounders
+  expect_equal(result$contrasts$estimate[1], 3.0, tolerance = 0.25)
 })
 
 
@@ -1307,7 +1310,7 @@ test_that("ipw × ATT estimand ≈ 3", {
     reference = "a0",
     ci_method = "sandwich"
   )
-  expect_equal(result$contrasts$estimate[1], 3, tolerance = 0.3)
+  expect_equal(result$contrasts$estimate[1], 3, tolerance = 0.05)
 })
 
 
@@ -1435,7 +1438,7 @@ test_that("gcomp × ATC estimand ≈ 3", {
     estimand = "ATC",
     ci_method = "sandwich"
   )
-  expect_equal(result$contrasts$estimate[1], 3, tolerance = 0.3)
+  expect_equal(result$contrasts$estimate[1], 3, tolerance = 0.05)
   expect_equal(result$estimand, "ATC")
 })
 
@@ -1541,7 +1544,7 @@ test_that("matching × binary trt × continuous outcome × ATE × sandwich ≈ 3
     reference = "a0",
     ci_method = "sandwich"
   )
-  expect_equal(result$contrasts$estimate[1], 3, tolerance = 0.3)
+  expect_equal(result$contrasts$estimate[1], 3, tolerance = 0.05)
   expect_equal(result$estimand, "ATE")
 })
 
@@ -1587,7 +1590,8 @@ test_that("matching × binary trt × continuous outcome × ATC × sandwich ≈ 3
     reference = "a0",
     ci_method = "sandwich"
   )
-  expect_equal(result$contrasts$estimate[1], 3, tolerance = 0.3)
+  # 1:1 NN matching ATC has O(n^{-1/p}) bias on continuous confounders
+  expect_equal(result$contrasts$estimate[1], 3, tolerance = 0.30)
   expect_equal(result$estimand, "ATC")
 })
 
@@ -1612,7 +1616,7 @@ test_that("ipw × binary trt × continuous outcome × ATC × sandwich ≈ 3", {
     reference = "a0",
     ci_method = "sandwich"
   )
-  expect_equal(result$contrasts$estimate[1], 3, tolerance = 0.3)
+  expect_equal(result$contrasts$estimate[1], 3, tolerance = 0.05)
   expect_equal(result$estimand, "ATC")
 })
 

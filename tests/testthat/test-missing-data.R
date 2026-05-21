@@ -131,7 +131,7 @@ test_that("gcomp: MCAR outcome NAs, censoring= pathway (DGP-M1)", {
     reference = "a0",
     ci_method = "sandwich"
   )
-  expect_equal(result$contrasts$estimate[1], 3.0, tolerance = 0.3)
+  expect_equal(result$contrasts$estimate[1], 3.0, tolerance = 0.05)
   expect_true(is.finite(result$contrasts$se[1]) && result$contrasts$se[1] > 0)
 })
 
@@ -171,7 +171,7 @@ test_that("gcomp: MCAR outcome NAs, bootstrap", {
     ci_method = "bootstrap",
     n_boot = 100L
   )
-  expect_equal(result$contrasts$estimate[1], 3.0, tolerance = 0.5)
+  expect_equal(result$contrasts$estimate[1], 3.0, tolerance = 0.05)
   expect_true(is.finite(result$contrasts$se[1]) && result$contrasts$se[1] > 0)
 })
 
@@ -192,7 +192,7 @@ test_that("gcomp: MCAR outcome NAs, ATT/ATC estimands", {
     ci_method = "sandwich"
   )
   # True ATT = 3 (constant treatment effect)
-  expect_equal(result_att$contrasts$estimate[1], 3.0, tolerance = 0.3)
+  expect_equal(result_att$contrasts$estimate[1], 3.0, tolerance = 0.05)
 
   fit_atc <- causat(
     d,
@@ -208,7 +208,7 @@ test_that("gcomp: MCAR outcome NAs, ATT/ATC estimands", {
     reference = "a0",
     ci_method = "sandwich"
   )
-  expect_equal(result_atc$contrasts$estimate[1], 3.0, tolerance = 0.3)
+  expect_equal(result_atc$contrasts$estimate[1], 3.0, tolerance = 0.05)
 })
 
 test_that("gcomp: MCAR outcome NAs, by-stratification", {
@@ -229,8 +229,8 @@ test_that("gcomp: MCAR outcome NAs, by-stratification", {
   )
   ests <- result$contrasts
   # True ATE|sex=0 = 3, ATE|sex=1 = 4.2
-  expect_equal(ests[by == 0]$estimate, 3.0, tolerance = 0.4)
-  expect_equal(ests[by == 1]$estimate, 4.2, tolerance = 0.4)
+  expect_equal(ests[by == 0]$estimate, 3.0, tolerance = 0.05)
+  expect_equal(ests[by == 1]$estimate, 4.2, tolerance = 0.05)
 })
 
 test_that("gcomp: MCAR outcome NAs, ratio and OR contrasts", {
@@ -284,7 +284,7 @@ test_that("gcomp: MCAR outcome NAs, multivariate treatment", {
     ci_method = "sandwich"
   )
   # True ATE(both vs none) = 2 + 1.5 = 3.5
-  expect_equal(result$contrasts$estimate[1], 3.5, tolerance = 0.4)
+  expect_equal(result$contrasts$estimate[1], 3.5, tolerance = 0.05)
 })
 
 test_that("gcomp: MCAR outcome NAs, categorical treatment", {
@@ -298,7 +298,7 @@ test_that("gcomp: MCAR outcome NAs, categorical treatment", {
     ci_method = "sandwich"
   )
   # True ATE("b" vs "a") = 5 - 2 = 3
-  expect_equal(result$contrasts$estimate[1], 3.0, tolerance = 0.3)
+  expect_equal(result$contrasts$estimate[1], 3.0, tolerance = 0.05)
 })
 
 test_that("gcomp: MCAR outcome NAs, GAM model", {
@@ -318,7 +318,7 @@ test_that("gcomp: MCAR outcome NAs, GAM model", {
     reference = "a0",
     ci_method = "sandwich"
   )
-  expect_equal(result$contrasts$estimate[1], 3.0, tolerance = 0.4)
+  expect_equal(result$contrasts$estimate[1], 3.0, tolerance = 0.05)
 })
 
 test_that("gcomp: MCAR outcome NAs, poisson outcome", {
@@ -367,7 +367,7 @@ test_that("gcomp: MCAR outcome NAs with external weights", {
     reference = "a0",
     ci_method = "sandwich"
   )
-  expect_equal(result$contrasts$estimate[1], 3.0, tolerance = 0.5)
+  expect_equal(result$contrasts$estimate[1], 3.0, tolerance = 0.05)
 })
 
 # --- 2b. IPW ---
@@ -388,7 +388,7 @@ test_that("IPW: MCAR outcome NAs (binary/gaussian)", {
     reference = "a0",
     ci_method = "sandwich"
   )
-  expect_equal(result$contrasts$estimate[1], 3.0, tolerance = 0.5)
+  expect_equal(result$contrasts$estimate[1], 3.0, tolerance = 0.05)
   expect_true(is.finite(result$contrasts$se[1]))
 })
 
@@ -410,7 +410,7 @@ test_that("IPW: MCAR outcome NAs, covariate NAs on same rows", {
     reference = "a0",
     ci_method = "sandwich"
   )
-  expect_equal(result$contrasts$estimate[1], 3.0, tolerance = 0.5)
+  expect_equal(result$contrasts$estimate[1], 3.0, tolerance = 0.05)
 })
 
 test_that("IPW: MCAR outcome NAs, continuous shift", {
@@ -430,7 +430,7 @@ test_that("IPW: MCAR outcome NAs, continuous shift", {
     ci_method = "sandwich"
   )
   # True shift(-1) difference = -2
-  expect_equal(result$contrasts$estimate[1], -2.0, tolerance = 0.5)
+  expect_equal(result$contrasts$estimate[1], -2.0, tolerance = 0.05)
 })
 
 test_that("IPW: MCAR outcome NAs, categorical treatment", {
@@ -449,7 +449,7 @@ test_that("IPW: MCAR outcome NAs, categorical treatment", {
     reference = "a",
     ci_method = "sandwich"
   )
-  expect_equal(result$contrasts$estimate[1], 3.0, tolerance = 0.6)
+  expect_equal(result$contrasts$estimate[1], 3.0, tolerance = 0.05)
 })
 
 # --- 2c. Matching ---
@@ -469,8 +469,8 @@ test_that("matching: MCAR outcome NAs", {
     reference = "a0",
     ci_method = "sandwich"
   )
-  # ATT ≈ 3 (constant effect)
-  expect_equal(result$contrasts$estimate[1], 3.0, tolerance = 0.5)
+  # ATT ≈ 3 (constant effect); 1:1 NN matching has O(n^{-1/p}) bias
+  expect_equal(result$contrasts$estimate[1], 3.0, tolerance = 0.25)
 })
 
 # --- 2d. ICE (longitudinal) ---
@@ -494,7 +494,7 @@ test_that("ICE: MCAR outcome NAs at final time (DGP-M4, sandwich)", {
     ci_method = "sandwich"
   )
   # True ATE = 5
-  expect_equal(result$contrasts$estimate[1], 5.0, tolerance = 1.0)
+  expect_equal(result$contrasts$estimate[1], 5.0, tolerance = 0.05)
   expect_true(is.finite(result$contrasts$se[1]))
 })
 
@@ -517,7 +517,7 @@ test_that("ICE: MCAR outcome NAs at final time (DGP-M4, bootstrap)", {
     ci_method = "bootstrap",
     n_boot = 80L
   )
-  expect_equal(result$contrasts$estimate[1], 5.0, tolerance = 1.5)
+  expect_equal(result$contrasts$estimate[1], 5.0, tolerance = 0.05)
   expect_true(is.finite(result$contrasts$se[1]))
 })
 
@@ -535,7 +535,7 @@ test_that("gcomp: MCAR covariate NAs (DGP-M3)", {
     reference = "a0",
     ci_method = "sandwich"
   )
-  expect_equal(result$contrasts$estimate[1], 3.0, tolerance = 0.3)
+  expect_equal(result$contrasts$estimate[1], 3.0, tolerance = 0.05)
 })
 
 test_that("gcomp: MCAR outcome + covariate NAs simultaneously", {
@@ -549,7 +549,7 @@ test_that("gcomp: MCAR outcome + covariate NAs simultaneously", {
     reference = "a0",
     ci_method = "sandwich"
   )
-  expect_equal(result$contrasts$estimate[1], 3.0, tolerance = 0.35)
+  expect_equal(result$contrasts$estimate[1], 3.0, tolerance = 0.05)
 })
 
 test_that("gcomp: MCAR covariate NAs, continuous shift", {
@@ -562,7 +562,7 @@ test_that("gcomp: MCAR covariate NAs, continuous shift", {
     reference = "obs",
     ci_method = "sandwich"
   )
-  expect_equal(result$contrasts$estimate[1], -2.0, tolerance = 0.3)
+  expect_equal(result$contrasts$estimate[1], -2.0, tolerance = 0.05)
 })
 
 test_that("matching: covariate NAs handled by MatchIt", {
@@ -583,7 +583,8 @@ test_that("matching: covariate NAs handled by MatchIt", {
         reference = "a0",
         ci_method = "sandwich"
       )
-      expect_equal(result$contrasts$estimate[1], 3.0, tolerance = 0.6)
+      # 1:1 NN matching ATT has O(n^{-1/p}) bias on continuous confounders
+      expect_equal(result$contrasts$estimate[1], 3.0, tolerance = 0.25)
     },
     error = function(e) {
       expect_true(
@@ -622,7 +623,7 @@ test_that("ICE: MCAR time-varying covariate NAs (bootstrap)", {
     ci_method = "bootstrap",
     n_boot = 80L
   )
-  expect_equal(result$contrasts$estimate[1], 5.0, tolerance = 1.5)
+  expect_equal(result$contrasts$estimate[1], 5.0, tolerance = 0.05)
 })
 
 
@@ -683,7 +684,7 @@ test_that("MAR outcome: IPCW-weighted gcomp via weights= (doubly robust)", {
     reference = "a0",
     ci_method = "sandwich"
   )
-  expect_equal(result$contrasts$estimate[1], 3.0, tolerance = 0.3)
+  expect_equal(result$contrasts$estimate[1], 3.0, tolerance = 0.05)
 })
 
 test_that("MAR outcome (longitudinal): manual IPCW via weights= recovers truth", {
@@ -715,5 +716,5 @@ test_that("MAR outcome (longitudinal): manual IPCW via weights= recovers truth",
     ci_method = "sandwich"
   )
   # True ATE = 5
-  expect_equal(result$contrasts$estimate[1], 5.0, tolerance = 0.8)
+  expect_equal(result$contrasts$estimate[1], 5.0, tolerance = 0.05)
 })

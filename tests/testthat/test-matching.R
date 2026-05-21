@@ -36,9 +36,70 @@ test_that("matching recovers ATT in the right direction", {
   # 1:1 NN matching has O(n^{-1/p}) bias for continuous confounders
   # (Abadie & Imbens, 2006). True ATT = 3; matching is biased upward
   # but should be in the right ballpark.
-  expect_equal(res$contrasts$estimate, 3, tolerance = 0.3)
+  expect_equal(res$contrasts$estimate, 3, tolerance = 0.25)
   expect_gt(res$contrasts$se, 0)
 })
+
+test_that("1:K matching forwards ratio to MatchIt and reduces bias", {
+  d <- simulate_binary_continuous(n = 3000, seed = 55)
+
+  fit_1 <- causat(
+    d, outcome = "Y", treatment = "A", confounders = ~L,
+    estimator = "matching", estimand = "ATT"
+  )
+  fit_3 <- suppressWarnings(causat(
+    d, outcome = "Y", treatment = "A", confounders = ~L,
+    estimator = "matching", estimand = "ATT", ratio = 3
+  ))
+
+  expect_equal(fit_1$match_obj$info$ratio, 1L)
+  expect_equal(fit_3$match_obj$info$ratio, 3L)
+
+  res_1 <- contrast(
+    fit_1,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  res_3 <- contrast(
+    fit_3,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+
+  # Both should recover truth (ATT = 3) with 1:1 NN bias
+  expect_equal(res_1$contrasts$estimate, 3, tolerance = 0.25)
+  expect_equal(res_3$contrasts$estimate, 3, tolerance = 0.25)
+
+  # SE should be positive for both
+  expect_gt(res_1$contrasts$se, 0)
+  expect_gt(res_3$contrasts$se, 0)
+})
+
+
+test_that("full matching (ATE) eliminates NN matching bias", {
+  d <- simulate_binary_continuous(n = 2000, seed = 42)
+
+  fit_full <- causat(
+    d, outcome = "Y", treatment = "A", confounders = ~L,
+    estimator = "matching", estimand = "ATE"
+  )
+  res <- contrast(
+    fit_full,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+
+  # Full matching ATE is essentially unbiased
+  expect_equal(res$contrasts$estimate, 3, tolerance = 0.05)
+  expect_gt(res$contrasts$se, 0)
+})
+
 
 test_that("matching with external weights stores in details", {
   d <- simulate_binary_continuous(n = 500, seed = 42)

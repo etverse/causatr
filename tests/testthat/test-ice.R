@@ -132,11 +132,12 @@ test_that("ICE recovers ATE = 0 from Table 20.1 (always vs never)", {
   expect_s3_class(result, "causatr_result")
 
   # Both marginal means should be 60 (book value).
-  expect_equal(result$estimates$estimate[1], 60, tolerance = 0.5)
-  expect_equal(result$estimates$estimate[2], 60, tolerance = 0.5)
+  # Deterministic Table 2.01 DGP — exact up to floating point.
+  expect_equal(result$estimates$estimate[1], 60, tolerance = 1e-6)
+  expect_equal(result$estimates$estimate[2], 60, tolerance = 1e-6)
 
   # ATE should be 0 (true causal effect is null).
-  expect_equal(result$contrasts$estimate[1], 0, tolerance = 0.5)
+  expect_equal(result$contrasts$estimate[1], 0, tolerance = 1e-6)
 })
 
 
@@ -315,7 +316,7 @@ test_that("ICE recovers known non-zero ATE from linear SCM (2 time points)", {
 
   true_ate <- 3 * 2 - 1 # = 5
 
-  expect_equal(result$contrasts$estimate[1], true_ate, tolerance = 0.5)
+  expect_equal(result$contrasts$estimate[1], true_ate, tolerance = 0.02)
   expect_true(result$estimates$se[1] > 0)
   expect_true(result$estimates$se[2] > 0)
 })
@@ -344,7 +345,7 @@ test_that("ICE recovers known ATE from linear SCM (3 time points)", {
 
   true_ate <- 3 * 3 - 1 # = 8
 
-  expect_equal(result$contrasts$estimate[1], true_ate, tolerance = 0.75)
+  expect_equal(result$contrasts$estimate[1], true_ate, tolerance = 0.02)
 })
 
 
@@ -381,7 +382,7 @@ test_that("ICE recovers dynamic intervention effect (treat if L0 > 0)", {
 
   true_ate <- (3 * 2 - 1) / 2 # = 2.5
 
-  expect_equal(result$contrasts$estimate[1], true_ate, tolerance = 0.5)
+  expect_equal(result$contrasts$estimate[1], true_ate, tolerance = 0.1)
 })
 
 

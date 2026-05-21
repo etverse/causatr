@@ -357,7 +357,7 @@ test_that("longitudinal IPW works with history = 0 (no lags)", {
   # IPW should still recover a reasonable ATE even without lags.
   # The model is slightly misspecified (A1 depends on A0 in truth),
   # but the bias is small.
-  expect_equal(res$contrasts$estimate, 6.15, tolerance = 0.3)
+  expect_equal(res$contrasts$estimate, 6.15, tolerance = 0.05)
 })
 
 

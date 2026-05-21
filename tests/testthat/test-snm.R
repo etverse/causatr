@@ -291,7 +291,7 @@ test_that("SNM recovers blip params: continuous trt, EM (design doc DGP)", {
   psi <- result$estimates$estimate
   names(psi) <- result$estimates$parameter
   expect_equal(psi[["psi_intercept"]], 3, tolerance = 0.1)
-  expect_equal(psi[["psi_M"]], 2, tolerance = 0.15)
+  expect_equal(psi[["psi_M"]], 2, tolerance = 0.05)
 
   # SEs should be finite and positive
 
@@ -336,8 +336,8 @@ test_that("SNM recovers blip params: binary treatment, EM", {
 
   psi <- result$estimates$estimate
   names(psi) <- result$estimates$parameter
-  expect_equal(psi[["psi_intercept"]], 3, tolerance = 0.2)
-  expect_equal(psi[["psi_M"]], 2, tolerance = 0.3)
+  expect_equal(psi[["psi_intercept"]], 3, tolerance = 0.05)
+  expect_equal(psi[["psi_M"]], 2, tolerance = 0.05)
 })
 
 test_that("SNM treatment_values returns averaged blip effect", {
@@ -357,7 +357,7 @@ test_that("SNM treatment_values returns averaged blip effect", {
   # For a = 1 vs a = 0: effect = psi_0 + psi_M * mean(M)
   # mean(M) ≈ 0.5 (M = I(L > 0) where L ~ N(0,1))
   # truth ≈ 3 + 2 * 0.5 = 4
-  expect_equal(result$estimates$estimate, 4, tolerance = 0.15)
+  expect_equal(result$estimates$estimate, 4, tolerance = 0.05)
   expect_true(result$estimates$se > 0)
 
   # Contrasts table should have the comparison
@@ -635,8 +635,8 @@ test_that("SNM recovers blip params with two modifiers", {
   psi <- result$estimates$estimate
   names(psi) <- result$estimates$parameter
 
-  expect_equal(psi[["psi_intercept"]], 1, tolerance = 0.15)
-  expect_equal(psi[["psi_M1"]], 2, tolerance = 0.2)
+  expect_equal(psi[["psi_intercept"]], 1, tolerance = 0.05)
+  expect_equal(psi[["psi_M1"]], 2, tolerance = 0.05)
   expect_equal(psi[["psi_M2"]], 0.5, tolerance = 0.1)
   expect_equal(nrow(result$vcov), 3L)
 })
@@ -751,8 +751,8 @@ test_that("SNM with treatment-free model recovers blip params: continuous trt, E
 
   psi <- result$estimates$estimate
   names(psi) <- result$estimates$parameter
-  expect_equal(psi[["psi_intercept"]], 3, tolerance = 0.15)
-  expect_equal(psi[["psi_M"]], 2, tolerance = 0.15)
+  expect_equal(psi[["psi_intercept"]], 3, tolerance = 0.05)
+  expect_equal(psi[["psi_M"]], 2, tolerance = 0.05)
 
   # SEs should be smaller than without TF model
   fit_no_tf <- causat(
@@ -799,8 +799,8 @@ test_that("SNM with TF model recovers blip params: binary trt, EM", {
 
   psi <- result$estimates$estimate
   names(psi) <- result$estimates$parameter
-  expect_equal(psi[["psi_intercept"]], 3, tolerance = 0.2)
-  expect_equal(psi[["psi_M"]], 2, tolerance = 0.3)
+  expect_equal(psi[["psi_intercept"]], 3, tolerance = 0.05)
+  expect_equal(psi[["psi_M"]], 2, tolerance = 0.05)
 })
 
 test_that("SNM with TF model + treatment_values returns averaged blip", {
@@ -819,7 +819,7 @@ test_that("SNM with TF model + treatment_values returns averaged blip", {
   expect_equal(nrow(result$estimates), 1L)
   expect_equal(result$estimates$parameter, "avg_blip_effect")
   # truth ~ 3 + 2 * 0.5 = 4
-  expect_equal(result$estimates$estimate, 4, tolerance = 0.15)
+  expect_equal(result$estimates$estimate, 4, tolerance = 0.05)
   expect_true(result$estimates$se > 0)
 })
 
@@ -1200,8 +1200,8 @@ test_that("SNM with TF recovers blip params: binary trt, TV modifier", {
 
   psi <- result$estimates$estimate
   names(psi) <- result$estimates$parameter
-  expect_equal(psi[["psi_intercept"]], 3, tolerance = 0.2)
-  expect_equal(psi[["psi_M"]], 2, tolerance = 0.2)
+  expect_equal(psi[["psi_intercept"]], 3, tolerance = 0.05)
+  expect_equal(psi[["psi_M"]], 2, tolerance = 0.05)
 })
 
 test_that("SNM without TF runs on TV modifier (different blip quantity)", {
@@ -1452,7 +1452,7 @@ test_that("IPW is biased when modifier is post-treatment (SNM is not)", {
   # truth: psi_0 + psi_M * mean(M) = 3 + 2 * mean(M)
   mean_M <- mean(dgp$data$M)
   truth_avg <- 3 + 2 * mean_M
-  expect_equal(r_snm$estimates$estimate, truth_avg, tolerance = 0.15)
+  expect_equal(r_snm$estimates$estimate, truth_avg, tolerance = 0.05)
 
   # IPW should be substantially biased (>1 unit off from truth)
   expect_true(abs(r_ipw$contrasts$estimate - truth_avg) > 1)
@@ -1566,7 +1566,7 @@ test_that("Longitudinal SNM: continuous treatment, per-stage estimation", {
     expect_equal(
       result$estimates$estimate[i],
       unname(truth[i]),
-      tolerance = 0.25
+      tolerance = 0.05
     )
   }
 })
@@ -1680,7 +1680,7 @@ test_that("Longitudinal SNM: history = 0 produces no lag terms", {
   expect_true(all(res_h0$estimates$se > 0))
 
   # Should still recover truth (3.15 + 3 = 6.15) within tolerance
-  expect_equal(sum(res_h0$estimates$estimate), 6.15, tolerance = 0.2)
+  expect_equal(sum(res_h0$estimates$estimate), 6.15, tolerance = 0.05)
 })
 
 
@@ -2152,8 +2152,9 @@ test_that("Longitudinal SNM with TV-EM: DTRreg cross-check (history=0)", {
   # stage 0 with history=0 uses a different TF intercept estimation path,
   # producing a wider discrepancy (~0.35 on intercept). Both are close to
   # truth (causatr: 1.13, DTRreg: 1.48, truth: 1.15) — causatr is closer.
-  expect_equal(res$estimates$estimate[1], dtr_psi_0[1], tolerance = 0.4)
-  expect_equal(res$estimates$estimate[2], dtr_psi_0[2], tolerance = 0.15)
+  # Wider tolerance reflects known cross-package divergence, not imprecision.
+  expect_equal(res$estimates$estimate[1], dtr_psi_0[1], tolerance = 0.3)
+  expect_equal(res$estimates$estimate[2], dtr_psi_0[2], tolerance = 0.05)
 })
 
 
@@ -2184,7 +2185,7 @@ test_that("IPW is biased with post-treatment modifier; SNM is not", {
   snm_psi10 <- res_snm$estimates$estimate[
     res_snm$estimates$parameter == "stage1_psi_intercept"
   ]
-  expect_equal(snm_psi10, 2, tolerance = 0.2)
+  expect_equal(snm_psi10, 2, tolerance = 0.06)
 
   # IPW on the same data: point-treatment at the final period with
   # M as a post-treatment covariate in confounders. The MSM conditions
@@ -2215,7 +2216,7 @@ test_that("IPW is biased with post-treatment modifier; SNM is not", {
   # SNM averaged blip should be close to truth
   snm_avg <- res_snm$estimates$estimate[3] +
     res_snm$estimates$estimate[4] * mean(dgp$data[time == 1]$M)
-  expect_equal(snm_avg, true_avg, tolerance = 0.3)
+  expect_equal(snm_avg, true_avg, tolerance = 0.05)
 
   # IPW should be detectably biased (off by > 1 from truth)
   expect_true(abs(ipw_ate - true_avg) > 1)

@@ -261,7 +261,7 @@ test_that("Hajek mean from shift(delta) on continuous matches analytic target", 
 
   expect_equal(mu_shift, 1, tolerance = 0.25)
   expect_equal(mu_none, 3, tolerance = 0.15)
-  expect_equal(mu_shift - mu_none, -2, tolerance = 0.3)
+  expect_equal(mu_shift - mu_none, -2, tolerance = 0.05)
 })
 
 test_that("Hajek mean from scale_by on continuous matches analytic target", {
@@ -274,7 +274,7 @@ test_that("Hajek mean from scale_by on continuous matches analytic target", {
 
   w_half <- compute_density_ratio_weights(s$tm, s$data, scale_by(0.5))
   mu_half <- hajek(w_half, y)
-  expect_equal(mu_half, 2, tolerance = 0.4)
+  expect_equal(mu_half, 2, tolerance = 0.05)
 })
 
 # ---- make_weight_fn() closure consistency ---------------------------

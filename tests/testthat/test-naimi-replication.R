@@ -30,7 +30,7 @@ test_that("Naimi DGP: ICE recovers ATE(always vs never) ≈ MC truth", {
   )
 
   ate <- res$contrasts$estimate[1]
-  expect_equal(ate, truth, tolerance = 5)
+  expect_equal(ate, truth, tolerance = 0.02)
   expect_true(is.finite(res$contrasts$se[1]) && res$contrasts$se[1] > 0)
 })
 
@@ -61,7 +61,7 @@ test_that("Naimi DGP: longitudinal IPW recovers ATE ≈ MC truth", {
   )
 
   ate <- res$contrasts$estimate[1]
-  expect_equal(ate, truth, tolerance = 8)
+  expect_equal(ate, truth, tolerance = 0.02)
   expect_true(is.finite(res$contrasts$se[1]) && res$contrasts$se[1] > 0)
 })
 
@@ -93,14 +93,14 @@ test_that("Naimi DGP: longitudinal AIPW recovers ATE ≈ MC truth", {
   )
 
   ate <- res$contrasts$estimate[1]
-  expect_equal(ate, truth, tolerance = 5)
+  expect_equal(ate, truth, tolerance = 0.02)
   expect_true(is.finite(res$contrasts$se[1]) && res$contrasts$se[1] > 0)
 })
 
 
 # -- Cross-method agreement on Naimi DGP ----------------------------------
 
-test_that("Naimi DGP: ICE, IPW, AIPW agree within 5", {
+test_that("Naimi DGP: ICE, IPW, AIPW agree within 2", {
   sim <- simulate_naimi_longitudinal(n = 5000, seed = 42)
   d <- sim$data
 
@@ -149,7 +149,7 @@ test_that("Naimi DGP: ICE, IPW, AIPW agree within 5", {
 
   pairs <- combn(ates, 2)
   for (j in seq_len(ncol(pairs))) {
-    expect_lt(abs(pairs[1, j] - pairs[2, j]), 5)
+    expect_lt(abs(pairs[1, j] - pairs[2, j]), 2)
   }
 })
 
