@@ -110,7 +110,8 @@ causatr owns g-comp (parametric g-formula + ICE), a self-contained IPW density-r
 
 | Dimension | Values |
 |---|---|
-| **Treatment timing** | point, longitudinal (ICE + longitudinal IPW + longitudinal AIPW), transportability (`target =`) |
+| **Estimator** | gcomp, ipw, aipw, matching, snm |
+| **Treatment timing** | point, longitudinal (ICE + longitudinal IPW + longitudinal AIPW + longitudinal SNM), transportability (`target =`) |
 | **Treatment type** | binary, continuous, categorical k>2, count (IPW: Poisson/NB), multivariate (gcomp + IPW + AIPW) |
 | **Outcome family** | gaussian, binomial, quasibinomial, poisson, Gamma, any GLM family, `MASS::glm.nb`, `betareg::betareg` (beta regression) |
 | **Interventions** | `static`, `shift`, `scale_by`, `threshold` (gcomp only), `dynamic`, `ipsi` (IPW only), `stochastic` (gcomp only; IPW/AIPW when `density` supplied — Phase 24) |
@@ -126,7 +127,7 @@ causatr owns g-comp (parametric g-formula + ICE), a self-contained IPW density-r
 - **`dynamic()` = deterministic rules**, not MTPs. MTPs use `shift()` / `scale_by()` / `ipsi()`.
 - **Multivariate IPW = sequential MTP** (Díaz et al. 2023); multivariate gcomp = deterministic joint transformation. They coincide for static interventions, diverge otherwise by design.
 - **ICE applies intervention to current-time treatment only** — lag columns hold observed values. Recomputing lags double-counts interventions.
-- **Single IF engine** — `variance_if()` in `R/variance_if.R` serves all four methods via Channel 1 (sampling) + Channel 2 (nuisance correction).
+- **Single IF engine** — `variance_if()` in `R/variance_if.R` serves all five estimators via Channel 1 (sampling) + Channel 2 (nuisance correction).
 - **ICE defers model fitting to `contrast()`** — sequential outcome models are intervention-dependent.
 - **`censoring =` is a row filter by default.** With `ipcw = TRUE`, an internal censoring model is fit and IPCW weights are computed (Phase 14, shipped).
 - **`na.action = na.exclude` is rejected** — causes silent IF corruption via residual padding mismatch.
@@ -138,3 +139,4 @@ causatr owns g-comp (parametric g-formula + ICE), a self-contained IPW density-r
 - **MTP + transport uses MC marginalization** over \eqn{P(A \mid L, S=1)} because target rows lack observed treatment. Exact enumeration for binary, Monte Carlo integration for continuous. Sandwich variance is not supported for this combination (bootstrap only).
 - **Matching + transport is rejected** — matching estimands are fixed at fitting time and cannot incorporate sampling-odds reweighting.
 - **Per-component confounders** — `confounders_outcome`, `confounders_treatment`, `confounders_censoring`, `confounders_sampling` (+ TV variants `confounders_tv_outcome`, `confounders_tv_treatment`) allow separate covariate specifications per model component. The old `confounders` / `confounders_tv` are soft-deprecated but still work as a convenience shorthand. No cross-defaults between new args — each model component resolves independently via `%||%` fallback to the deprecated arg.
+- **Treatment-free model** (`treatment_free = ~ L`) — SNM efficiency augmentation following Vansteelandt & Joffe (2014). Joint estimation of (β, ψ) absorbs L→Y variance, reducing SEs by 30–45%. Does not change point estimates under correct blip specification.

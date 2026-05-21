@@ -20,11 +20,12 @@ knitr::opts_chunk$set(
 [![Codecov test coverage](https://codecov.io/gh/etverse/causatr/graph/badge.svg)](https://app.codecov.io/gh/etverse/causatr)
 <!-- badges: end -->
 
-**causatr** provides a unified interface for causal effect estimation via four
+**causatr** provides a unified interface for causal effect estimation via five
 complementary methods: g-computation (parametric g-formula + ICE), inverse
 probability weighting (IPW with a self-contained density-ratio engine),
-augmented IPW (AIPW — doubly robust), and propensity score matching (via
-[MatchIt](https://kosukeimai.github.io/MatchIt/)).
+augmented IPW (AIPW — doubly robust), structural nested mean models (SNM —
+g-estimation for time-varying effect modification), and propensity score
+matching (via [MatchIt](https://kosukeimai.github.io/MatchIt/)).
 When multiple methods agree, you can be more confident in your findings — this
 is called **methodological triangulation**.
 
@@ -145,15 +146,18 @@ plot(diag)    # Love plot (requires cobalt)
 
 ## Features
 
-- **Four estimation methods**: g-computation (parametric g-formula),
+- **Five estimation methods**: g-computation (parametric g-formula),
   IPW (self-contained density-ratio engine — no runtime dependency on
   WeightIt), AIPW (doubly robust — consistent if either outcome or
-  treatment model is correct), and matching (via
+  treatment model is correct), SNM (structural nested mean models —
+  g-estimation for time-varying effect modification via blip
+  parameters), and matching (via
   [MatchIt](https://kosukeimai.github.io/MatchIt/)). Matching is
   binary-only; continuous, categorical, count, and multivariate
-  treatments use g-comp, IPW, or AIPW.
+  treatments use g-comp, IPW, AIPW, or SNM.
 - **Longitudinal support**: ICE g-computation (Zivich et al. 2024),
-  longitudinal IPW, and longitudinal AIPW for time-varying treatments.
+  longitudinal IPW, longitudinal AIPW, and longitudinal SNM
+  (backward-sequential g-estimation) for time-varying treatments.
   Sandwich variance via stacked estimating equations, plus parallel
   bootstrap via `boot::boot()` (with optional
   [future](https://future.futureverse.org/) backend).

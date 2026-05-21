@@ -907,7 +907,8 @@ estimand via mediator and collider paths. causatr does not enforce
 baseline-ness at runtime (time-varying status isn't inferable from
 data); the constraint is documented only. The scientifically
 correct tool for time-varying effect modification is a structural
-nested model (Phase 18; `etverse/snmestr`).
+nested model — use `estimator = "snm"` with `id =` and `time =`
+(see `vignette("snm")`).
 
 **What's not yet supported.** Multivariate longitudinal treatment
 and per-period `ipsi()` are rejected with `_pending` classed errors.

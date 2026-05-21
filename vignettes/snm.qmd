@@ -207,6 +207,58 @@ distribution.
 | `interventions =` | Yes | Yes | No (`treatment_values =` instead) |
 | Near-positivity | Extrapolation risk | Weight explosion | Degrades gracefully |
 
+## Longitudinal SNM
+
+SNMs extend naturally to time-varying treatments. The backward-sequential
+g-estimation algorithm (Robins 1994) estimates per-stage blip parameters
+$\psi_k$ by iterating from the last time point backward:
+
+1. At stage $K$, solve the blip equation for $\psi_K$ using the observed
+   outcome $Y$.
+2. At stage $k < K$, replace $Y$ with the **backward-transformed outcome**
+   $H_k = Y - \sum_{j > k} \gamma_j(A_j, \bar{L}_j; \hat\psi_j)$ — the
+   hypothetical outcome under no treatment from $k+1$ onward.
+
+### Two-period DGP with time-varying effect modification
+
+This is the headline use case: the modifier $M_1 = \mathbf{1}\{L_1 > 0\}$
+is post-treatment (it depends on $A_0$), so IPW-MSM cannot include it
+without collider bias. The SNM identifies the per-stage blip correctly.
+
+```{r}
+#| label: longitudinal-snm
+set.seed(18)
+n <- 5000
+
+L0 <- rnorm(n)
+A0 <- rbinom(n, 1, plogis(0.3 * L0))
+L1 <- 0.5 * L0 + 0.3 * A0 + rnorm(n, sd = sqrt(0.5))
+M1 <- as.numeric(L1 > 0)
+A1 <- rbinom(n, 1, plogis(0.3 * L1 + 0.2 * A0))
+Y <- 2 + 1 * A0 + 2 * A1 + 2 * A1 * M1 + 1.5 * L0 + 0.5 * L1 + rnorm(n)
+
+d_long <- data.table::rbindlist(list(
+  data.table::data.table(id = seq_len(n), time = 0L,
+    A = A0, L = L0, M = as.numeric(L0 > 0), Y = NA_real_),
+  data.table::data.table(id = seq_len(n), time = 1L,
+    A = A1, L = L1, M = M1, Y = Y)
+))
+
+fit_long <- causat(d_long, outcome = "Y", treatment = "A",
+  confounders_outcome = ~ A:M,
+  confounders_tv = ~ L,
+  id = "id", time = "time", type = "longitudinal",
+  estimator = "snm",
+  treatment_free = ~ L)
+
+result_long <- contrast(fit_long, ci_method = "sandwich")
+result_long$estimates
+```
+
+The truth is $\psi_{0,\text{intercept}} = 1$, $\psi_{1,\text{intercept}} = 2$,
+$\psi_{1,M} = 2$. The SNM recovers these per-stage blip parameters with
+backward-sequential g-estimation and cluster-robust sandwich standard errors.
+
 ## References
 
 - Robins JM (1994). Correcting for non-compliance using structural nested mean
