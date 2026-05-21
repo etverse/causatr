@@ -507,6 +507,11 @@ build_blip_design_matrix <- function(data, blip_spec) {
 #'   = (a_1 - a_0)\bigl(\hat\psi_0 + \sum_j \hat\psi_j \bar{m}_j\bigr)}
 #' with delta-method variance from the blip vcov.
 #'
+#' @references
+#' Robins JM (1994). Correcting for non-compliance in randomized trials
+#' using structural nested mean models. *Comm Stat Theory Methods*,
+#' 23(8), 2379–2412.
+#'
 #' @param fit A `causatr_fit` with `estimator = "snm"`.
 #' @param treatment_values Numeric vector of length 2 or `NULL`.
 #' @param ci_method `"sandwich"` only for now.

@@ -13,6 +13,17 @@
 #' where \eqn{\omega_{\psi,i}} is the blip estimating equation
 #' score and \eqn{s_{\alpha,i}} is the treatment model score.
 #'
+#' @references
+#' Robins JM (1994). Correcting for non-compliance in randomized trials
+#' using structural nested mean models. *Communications in Statistics —
+#' Theory and Methods*, 23(8), 2379–2412.
+#'
+#' Vansteelandt S, Joffe M (2014). Structural nested models and G-estimation:
+#' a survey. *Statistical Science*, 29(2), 220–238.
+#'
+#' Stefanski LA, Boos DD (2002). The calculus of M-estimation.
+#' *The American Statistician*, 56(1), 29–38.
+#'
 #' When a treatment-free model is present, \eqn{(\hat\beta, \hat\psi)}
 #' are solved jointly from a linear system. The stacked EE system
 #' becomes \eqn{(\hat\alpha, \hat\theta)} where
@@ -218,6 +229,16 @@ variance_if_snm <- function(fit, snm_result) {
 #' Per-individual influence functions are accumulated across stages
 #' and the cluster-robust sandwich (one cluster = one individual)
 #' gives the final \eqn{V(\hat\psi)}.
+#'
+#' When a treatment-free model is present, delegates to the joint
+#' \eqn{(\beta_k, \psi_k)} system in
+#' \code{variance_if_snm_longitudinal_tf()}; otherwise uses the
+#' psi-only system in \code{variance_if_snm_longitudinal_notf()}.
+#'
+#' @references
+#' Robins JM (1994). Correcting for non-compliance in randomized trials
+#' using structural nested mean models. *Communications in Statistics —
+#' Theory and Methods*, 23(8), 2379–2412.
 #'
 #' @param fit A `causatr_fit` with `estimator = "snm"` and
 #'   `type = "longitudinal"`.
