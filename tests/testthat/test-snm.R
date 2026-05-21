@@ -1751,54 +1751,101 @@ test_that("Longitudinal SNM: continuous treatment truth-based check", {
 })
 
 
-test_that("Longitudinal SNM: treatment-free model changes SEs", {
+test_that("Longitudinal SNM: TF model produces consistent point estimates", {
   dgp <- simulate_snm_longitudinal(n = 3000, seed = 42)
 
-  # Without TF
   suppressMessages(
     fit_no_tf <- causat(
       dgp$data,
-      outcome = "Y",
-      treatment = "A",
-      confounders = ~1,
-      confounders_tv = ~L,
-      id = "id",
-      time = "time",
-      type = "longitudinal",
-      family = "gaussian",
+      outcome = "Y", treatment = "A",
+      confounders = ~1, confounders_tv = ~L,
+      id = "id", time = "time",
+      type = "longitudinal", family = "gaussian",
       estimator = "snm"
     )
   )
   res_no_tf <- contrast(fit_no_tf, ci_method = "sandwich")
 
-  # With TF
   suppressMessages(
     fit_tf <- causat(
       dgp$data,
-      outcome = "Y",
-      treatment = "A",
-      confounders = ~1,
-      confounders_tv = ~L,
-      id = "id",
-      time = "time",
-      type = "longitudinal",
-      family = "gaussian",
-      estimator = "snm",
-      treatment_free = ~L
+      outcome = "Y", treatment = "A",
+      confounders = ~1, confounders_tv = ~L,
+      id = "id", time = "time",
+      type = "longitudinal", family = "gaussian",
+      estimator = "snm", treatment_free = ~L
     )
   )
   res_tf <- contrast(fit_tf, ci_method = "sandwich")
 
-  # Point estimates should be consistent (both close to truth)
   expect_equal(
     res_no_tf$estimates$estimate,
     res_tf$estimates$estimate,
     tolerance = 0.01
   )
-
-  # Both should have finite positive SEs
   expect_true(all(res_tf$estimates$se > 0))
   expect_true(all(is.finite(res_tf$estimates$se)))
+})
+
+
+test_that("Longitudinal SNM: TF model improves efficiency when E[R*Z] != 0", {
+  # DGP with L^2 in the outcome but not the treatment model, so
+  # E[R * L^2] != 0 and the TF model absorbs non-orthogonal variance.
+  set.seed(1901)
+  n <- 3000
+
+  L0 <- stats::rnorm(n)
+  A0 <- stats::rbinom(n, 1, stats::plogis(0.3 * L0))
+  L1 <- 0.5 * L0 + 0.3 * A0 + stats::rnorm(n, sd = 0.7)
+  A1 <- stats::rbinom(n, 1, stats::plogis(0.3 * L1 + 0.2 * A0))
+  # Outcome has quadratic L terms not in treatment model
+  Y <- 2 + 3 * A0 + 3 * A1 + 1.5 * L0 + 0.8 * L0^2 +
+    0.5 * L1 + 0.4 * L1^2 + stats::rnorm(n)
+
+  data <- data.table::data.table(
+    id = rep(seq_len(n), each = 2L),
+    time = rep(0:1, n),
+    Y = as.numeric(rbind(NA, Y)),
+    A = as.numeric(rbind(A0, A1)),
+    L = as.numeric(rbind(L0, L1))
+  )
+
+  suppressMessages(
+    fit_notf <- causat(
+      data, outcome = "Y", treatment = "A",
+      confounders = ~1, confounders_tv = ~L,
+      id = "id", time = "time",
+      type = "longitudinal", family = "gaussian",
+      estimator = "snm"
+    )
+  )
+  suppressMessages(
+    fit_tf <- causat(
+      data, outcome = "Y", treatment = "A",
+      confounders = ~1, confounders_tv = ~L,
+      id = "id", time = "time",
+      type = "longitudinal", family = "gaussian",
+      estimator = "snm", treatment_free = ~ L + I(L^2)
+    )
+  )
+
+  res_notf <- contrast(fit_notf, ci_method = "sandwich")
+  res_tf <- contrast(fit_tf, ci_method = "sandwich")
+
+  # Point estimates should agree (g-estimation is CAN under correct PS)
+  expect_equal(
+    res_notf$estimates$estimate,
+    res_tf$estimates$estimate,
+    tolerance = 0.15
+  )
+
+  # TF model should strictly reduce at least one SE when E[R*Z] != 0
+  ratio <- res_tf$estimates$se / res_notf$estimates$se
+  expect_true(any(ratio < 0.95))
+
+  # Vcov should be PSD
+  eig <- eigen(res_tf$vcov, symmetric = TRUE, only.values = TRUE)$values
+  expect_true(all(eig >= -1e-10))
 })
 
 

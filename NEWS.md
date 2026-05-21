@@ -1,5 +1,19 @@
 # causatr (development version)
 
+## 2026-05-21 — Fix longitudinal SNM variance with treatment-free model
+
+The sandwich variance for longitudinal `estimator = "snm"` with
+`treatment_free` now correctly accounts for the joint (beta, psi) system
+at each stage. Previously, the variance engine used the psi-only
+estimating equation scores and bread, ignoring the treatment-free nuisance
+parameters. When E[R * Z] ≈ 0 (correctly specified treatment model, TF
+covariates subset of PS covariates), the error cancelled exactly. When
+E[R * Z] ≠ 0 (TF formula includes covariates absent from the treatment
+model), the sandwich SEs were inflated by the unabsorbed TF prediction.
+The fix implements the full joint system with per-stage (beta_k, psi_k)
+blocks, cross-stage derivatives, and psi-marginal extraction — mirroring
+the point-treatment TF variance that was already correct.
+
 ## 2026-05-21 — Longitudinal SNMM with per-stage blip estimation (Phase 18d)
 
 `estimator = "snm"` now supports `type = "longitudinal"` for multi-period
