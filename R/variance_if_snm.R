@@ -292,7 +292,25 @@ variance_if_snm_longitudinal <- function(fit, snm_result) {
 
 #' Longitudinal SNM sandwich: psi-only system (no treatment-free model)
 #'
-#' @inheritParams variance_if_snm_longitudinal
+#' @param psi_hat Named numeric vector of all per-stage blip parameters
+#'   (concatenated: stage 0, ..., stage K-1).
+#' @param psi_by_stage List of per-stage psi vectors (index 1 = stage 0).
+#' @param per_period List of per-period data (A, R, M, ids, data,
+#'   trt_model) from `compute_snm_blip_longitudinal()`.
+#' @param H_by_stage List of backward-transformed outcome vectors,
+#'   one per stage, aligned to individual index.
+#' @param n_id Integer number of unique individuals.
+#' @param ids Character vector of unique individual IDs.
+#' @param na_mask Logical vector: `TRUE` where the final-period outcome
+#'   is non-missing.
+#' @param id_to_idx Named integer vector mapping ID strings to row
+#'   indices in the individual-level matrices.
+#' @param n_times Integer number of time points.
+#' @param p_psi_per_stage Integer number of blip parameters per stage.
+#' @param p_total_psi Integer total number of psi parameters across
+#'   all stages (`n_times * p_psi_per_stage`).
+#' @param fit The original `causatr_fit` object (needed for treatment
+#'   model access via `prepare_model_if()`).
 #' @noRd
 variance_if_snm_longitudinal_notf <- function(
   psi_hat,
@@ -440,7 +458,28 @@ variance_if_snm_longitudinal_notf <- function(
 #' The \eqn{\beta} parameters are nuisance; the final vcov is for \eqn{\psi}
 #' only, obtained by marginalizing over \eqn{\beta} through the joint system.
 #'
-#' @inheritParams variance_if_snm_longitudinal
+#' @param psi_hat Named numeric vector of all per-stage blip parameters
+#'   (concatenated: stage 0, ..., stage K-1).
+#' @param psi_by_stage List of per-stage psi vectors (index 1 = stage 0).
+#' @param beta_by_stage List of per-stage treatment-free parameter vectors.
+#' @param Z_list List of per-period treatment-free design matrices
+#'   (full data, not validity-filtered).
+#' @param per_period List of per-period data (A, R, M, ids, data,
+#'   trt_model) from `compute_snm_blip_longitudinal()`.
+#' @param H_by_stage List of backward-transformed outcome vectors,
+#'   one per stage, aligned to individual index.
+#' @param n_id Integer number of unique individuals.
+#' @param ids Character vector of unique individual IDs.
+#' @param na_mask Logical vector: `TRUE` where the final-period outcome
+#'   is non-missing.
+#' @param id_to_idx Named integer vector mapping ID strings to row
+#'   indices in the individual-level matrices.
+#' @param n_times Integer number of time points.
+#' @param p_psi_per_stage Integer number of blip parameters per stage.
+#' @param p_total_psi Integer total number of psi parameters across
+#'   all stages (`n_times * p_psi_per_stage`).
+#' @param fit The original `causatr_fit` object (needed for treatment
+#'   model access via `prepare_model_if()`).
 #' @noRd
 variance_if_snm_longitudinal_tf <- function(
   psi_hat,

@@ -19,6 +19,14 @@
 #' When a treatment-free model is present, \eqn{(\beta_k, \psi_k)}
 #' are solved jointly at each stage from the combined system.
 #'
+#' @references
+#' Robins JM (1994). Correcting for non-compliance in randomized trials
+#' using structural nested mean models. *Communications in Statistics —
+#' Theory and Methods*, 23(8), 2379–2412.
+#'
+#' Vansteelandt S, Joffe M (2014). Structural nested models and G-estimation:
+#' a survey. *Statistical Science*, 29(2), 220–238.
+#'
 #' @param fit A `causatr_fit` with `estimator = "snm"` and
 #'   `type = "longitudinal"`.
 #' @return A list with:

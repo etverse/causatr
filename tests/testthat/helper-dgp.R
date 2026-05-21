@@ -1306,24 +1306,6 @@ simulate_snm_point_tv_modifier_binary <- function(n = 2000, seed = 42) {
 
 #' Longitudinal SNM DGP: 2-period, binary treatment, no EM
 #'
-#' Rectangular person-period data with shared blip psi across periods.
-#'
-#'   L_0 ~ N(0, 1)
-#'   A_0 | L_0 ~ Bernoulli(expit(0.3 * L_0))
-#'   L_1 = 0.5 * L_0 + 0.3 * A_0 + eps_L,  eps_L ~ N(0, 0.5)
-#'   A_1 | L_1, A_0 ~ Bernoulli(expit(0.3 * L_1 + 0.2 * A_0))
-#'   Y = 2 + psi * A_0 + psi * A_1 + 1.5 * L_0 + 0.5 * L_1 + eps_Y
-#'
-#' Per-stage blip \eqn{\gamma_k(a_k; \psi) = a_k \cdot \psi}
-#' Truth: \eqn{\psi_0 = 3}
-#'
-#' @param n Number of individuals.
-#' @param seed RNG seed.
-#' @return List with `data` (person-period data.table with id, time),
-#'   `truth_psi`.
-#' @noRd
-#' Longitudinal SNM DGP: 2-period, binary treatment, no EM
-#'
 #' Per-stage backward-sequential estimation (Robins 1994). Each
 #' stage has its own blip parameter estimated via backward induction.
 #'

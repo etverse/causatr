@@ -1896,3 +1896,63 @@ test_that("Longitudinal SNM: bootstrap is rejected", {
     class = "causatr_snm_bootstrap_pending"
   )
 })
+
+
+test_that("Longitudinal SNM: sandwich SE matches cluster bootstrap SE", {
+  dgp <- simulate_snm_longitudinal(n = 2000, seed = 42)
+  suppressMessages(
+    fit <- causat(
+      dgp$data,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~1,
+      confounders_tv = ~L,
+      id = "id",
+      time = "time",
+      type = "longitudinal",
+      family = "gaussian",
+      estimator = "snm"
+    )
+  )
+  res <- contrast(fit, ci_method = "sandwich")
+  sandwich_se <- res$estimates$se
+
+  set.seed(1234)
+  n_boot <- 200
+  unique_ids <- unique(dgp$data$id)
+  n_ids <- length(unique_ids)
+
+  boot_psi <- replicate(n_boot, {
+    boot_ids <- sample(unique_ids, n_ids, replace = TRUE)
+    boot_data <- data.table::rbindlist(lapply(seq_along(boot_ids), function(i) {
+      rows <- dgp$data[id == boot_ids[i]]
+      rows <- data.table::copy(rows)
+      rows[, id := i]
+      rows
+    }))
+    tryCatch(
+      {
+        suppressMessages(
+          boot_fit <- causat(
+            boot_data,
+            outcome = "Y",
+            treatment = "A",
+            confounders = ~1,
+            confounders_tv = ~L,
+            id = "id",
+            time = "time",
+            type = "longitudinal",
+            family = "gaussian",
+            estimator = "snm"
+          )
+        )
+        boot_res <- contrast(boot_fit, ci_method = "sandwich")
+        boot_res$estimates$estimate
+      },
+      error = function(e) rep(NA_real_, 2)
+    )
+  })
+
+  boot_se <- apply(boot_psi, 1, sd, na.rm = TRUE)
+  expect_equal(sandwich_se, boot_se, tolerance = 0.3)
+})

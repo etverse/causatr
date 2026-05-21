@@ -469,3 +469,36 @@ if __name__ == "__main__":
     print(f"ref8b_psi_M         <- {res8b['psi'][1]:.4f}")
     print(f"ref8b_se_intercept  <- {res8b['se'][0]:.4f}")
     print(f"ref8b_se_M          <- {res8b['se'][1]:.4f}")
+
+    # --- Write reference output CSV to tests/testthat/fixtures/ ---
+    out_dir = os.path.join(
+        os.path.dirname(fixture_dir), "tests", "testthat", "fixtures"
+    )
+    os.makedirs(out_dir, exist_ok=True)
+
+    rows = []
+    for scen, res, mods, tf in [
+        ("1_cont_em", res1, ["M"], False),
+        ("2_bin_em", res2, ["M"], False),
+        ("3_cont_2mod", res3, ["M1", "M2"], False),
+        ("4_cont_em_tf", res4, ["M"], True),
+        ("5_bin_em_tf", res5, ["M"], True),
+        ("6_cont_2mod_tf", res6, ["M1", "M2"], True),
+        ("7_cont_tv", res7, ["M"], False),
+        ("7b_cont_tv_tf", res7b, ["M"], True),
+        ("8_bin_tv", res8, ["M"], False),
+        ("8b_bin_tv_tf", res8b, ["M"], True),
+    ]:
+        param_names = ["psi_intercept"] + [f"psi_{m}" for m in mods]
+        for j, pname in enumerate(param_names):
+            rows.append({
+                "scenario": scen,
+                "parameter": pname,
+                "estimate": float(res["psi"][j]),
+                "se": float(res["se"][j]),
+            })
+
+    ref_df = pd.DataFrame(rows)
+    ref_path = os.path.join(out_dir, "snm_delicatessen_reference.csv")
+    ref_df.to_csv(ref_path, index=False)
+    print(f"\nWrote reference CSV to {ref_path}")
