@@ -1059,6 +1059,8 @@ Backward sequential g-estimation (Robins 1994): per-stage blip parameters estima
 | Vcov dimensions (K×p_psi × K×p_psi) and PSD | ✅ | test-snm.R |
 | DTRreg cross-check — binary trt, 2-period | ✅ | test-snm.R |
 | Treatment-free model accepted (point estimates consistent) | ✅ | test-snm.R |
+| TF joint (β,ψ) variance — psi marginal extraction | ✅ | test-snm.R |
+| TF variance efficiency gain when E[R·Z] ≠ 0 | ✅ | test-snm.R |
 | `treatment_values` rejected for longitudinal | ✅ | test-snm.R |
 | Bootstrap rejected (pending 18i) | ✅ | test-snm.R |
 | `< 2 time points` → rejection | ✅ | test-snm.R |
