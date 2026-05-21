@@ -1236,3 +1236,69 @@ simulate_snm_point_binary <- function(n = 2000, seed = 42) {
     truth_psi = c(psi_intercept = 3, psi_M = 2)
   )
 }
+
+
+#' Point-treatment SNM DGP with time-varying (post-treatment) modifier
+#'
+#' The modifier M depends on treatment A, making it genuinely
+#' post-treatment. SNMs identify the blip under treatment-model
+#' correctness alone — M can be post-treatment. IPW-MSM with M as
+#' a modifier would condition on a descendant of A (biased).
+#'
+#'   L ~ N(0, 1)
+#'   A | L ~ N(0.5 * L, 1)
+#'   M = 0.3 * A + 0.5 * L + eps_M, eps_M ~ N(0, 0.5)
+#'   Y = 2 + 3*A + 1.5*L + 2*A*M + eps_Y, eps_Y ~ N(0, 1)
+#'
+#' Linear blip: gamma(a, m; psi) = a * (psi_0 + psi_M * m)
+#' With treatment-free model ~L: psi_0 = 3, psi_M = 2.
+#' Without treatment-free model, moment-condition estimates differ
+#' because the blip absorbs the A -> M -> Y indirect path.
+#'
+#' @param n Sample size.
+#' @param seed RNG seed.
+#' @return List with `data`, `truth_psi_with_tf` (under TF model).
+#' @noRd
+simulate_snm_point_tv_modifier <- function(n = 2000, seed = 42) {
+  set.seed(seed)
+  L <- stats::rnorm(n)
+  A <- stats::rnorm(n, mean = 0.5 * L, sd = 1)
+  M <- 0.3 * A + 0.5 * L + stats::rnorm(n, sd = sqrt(0.5))
+  eps <- stats::rnorm(n)
+  Y <- 2 + 3 * A + 1.5 * L + 2 * A * M + eps
+
+  data <- data.table::data.table(Y = Y, A = A, L = L, M = M)
+  list(
+    data = data,
+    truth_psi_with_tf = c(psi_intercept = 3, psi_M = 2)
+  )
+}
+
+
+#' Point-treatment SNM DGP with binary treatment and TV modifier
+#'
+#'   L ~ N(0, 1)
+#'   A | L ~ Bernoulli(expit(0.5 * L))
+#'   M = 0.5 * A + 0.5 * L + eps_M, eps_M ~ N(0, 0.5)
+#'   Y = 2 + 3*A + 1.5*L + 2*A*M + eps_Y, eps_Y ~ N(0, 1)
+#'
+#' With treatment-free model ~L: psi_0 = 3, psi_M = 2.
+#'
+#' @param n Sample size.
+#' @param seed RNG seed.
+#' @return List with `data`, `truth_psi_with_tf`.
+#' @noRd
+simulate_snm_point_tv_modifier_binary <- function(n = 2000, seed = 42) {
+  set.seed(seed)
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, stats::plogis(0.5 * L))
+  M <- 0.5 * A + 0.5 * L + stats::rnorm(n, sd = sqrt(0.5))
+  eps <- stats::rnorm(n)
+  Y <- 2 + 3 * A + 1.5 * L + 2 * A * M + eps
+
+  data <- data.table::data.table(Y = Y, A = A, L = L, M = M)
+  list(
+    data = data,
+    truth_psi_with_tf = c(psi_intercept = 3, psi_M = 2)
+  )
+}

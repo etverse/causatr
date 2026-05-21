@@ -1,5 +1,23 @@
 # causatr (development version)
 
+## 2026-05-21 — Time-varying effect modification for SNMs (Phase 18c)
+
+SNMs now explicitly support **time-varying (post-treatment) modifiers** — the
+headline feature motivating the addition of SNMMs to causatr. The modifier M
+can depend on treatment A, unlike IPW-MSM where this opens collider paths
+(Robins 2000). With `treatment_free = ~ L`, the blip parameters recover the
+structural truth; without it, the moment-condition estimates capture a
+different (still valid) quantity that absorbs the A → M → Y indirect path.
+
+Documentation: updated `parse_effect_mod()` to clarify the SNM exception
+to the baseline-only modifier constraint. New vignette `snm.qmd` with a
+worked example demonstrating IPW bias with post-treatment modifiers and
+correct SNM identification.
+
+Testing: truth-based tests on DGPs where M = f(A, L), delicatessen
+cross-checks (4 scenarios: continuous/binary × no-TF/TF), DTRreg cross-check,
+IPW bias demonstration, vcov PSD checks.
+
 ## 2026-05-20 — Treatment-free outcome model for SNM efficiency (Phase 18b½)
 
 `causat(..., treatment_free = ~ L)` enables a treatment-free outcome model that

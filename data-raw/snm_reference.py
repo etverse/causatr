@@ -411,3 +411,61 @@ if __name__ == "__main__":
     print(f"ref6_se_intercept  <- {res6['se'][0]:.4f}")
     print(f"ref6_se_M1         <- {res6['se'][1]:.4f}")
     print(f"ref6_se_M2         <- {res6['se'][2]:.4f}")
+
+    # --- Scenario 7: Continuous trt, time-varying (post-treatment) modifier ---
+    print("\n--- 7. Continuous trt, time-varying modifier (post-treatment M) ---")
+    print("DGP: L~N(0,1), A|L~N(0.5L,1), M=0.3A+0.5L+eps_M,")
+    print("     Y = 2 + 3A + 1.5L + 2AM + eps_Y")
+    print("True: psi_intercept = 3, psi_M = 2, n = 5000, seed = 1801\n")
+
+    df7 = pd.read_csv(os.path.join(fixture_dir, "snm_fixture_tv_modifier.csv"))
+    res7 = snm_gest_gaussian(df7, ["M"])
+    for i, name in enumerate(["psi_intercept", "psi_M"]):
+        print(f"  {name:20s} = {res7['psi'][i]:.6f}  (SE = {res7['se'][i]:.6f})")
+
+    # --- Scenario 7b: with treatment-free model ---
+    print("\n--- 7b. Continuous trt, TV modifier, treatment-free model ---")
+    res7b = snm_gest_gaussian_tf(df7, ["M"], ["L"])
+    for i, name in enumerate(["psi_intercept", "psi_M"]):
+        print(f"  {name:20s} = {res7b['psi'][i]:.6f}  (SE = {res7b['se'][i]:.6f})")
+
+    # --- Scenario 8: Binary trt, time-varying (post-treatment) modifier ---
+    print("\n--- 8. Binary trt, time-varying modifier (post-treatment M) ---")
+    print("DGP: L~N(0,1), A|L~Bern(expit(0.5L)), M=0.5A+0.5L+eps_M,")
+    print("     Y = 2 + 3A + 1.5L + 2AM + eps_Y")
+    print("True: psi_intercept = 3, psi_M = 2, n = 5000, seed = 1802\n")
+
+    df8 = pd.read_csv(os.path.join(fixture_dir, "snm_fixture_tv_modifier_binary.csv"))
+    res8 = snm_gest_logistic(df8, ["M"])
+    for i, name in enumerate(["psi_intercept", "psi_M"]):
+        print(f"  {name:20s} = {res8['psi'][i]:.6f}  (SE = {res8['se'][i]:.6f})")
+
+    # --- Scenario 8b: with treatment-free model ---
+    print("\n--- 8b. Binary trt, TV modifier, treatment-free model ---")
+    res8b = snm_gest_logistic_tf(df8, ["M"], ["L"])
+    for i, name in enumerate(["psi_intercept", "psi_M"]):
+        print(f"  {name:20s} = {res8b['psi'][i]:.6f}  (SE = {res8b['se'][i]:.6f})")
+
+    print("\n# Scenario 7: continuous trt, TV modifier (no TF)")
+    print(f"ref7_psi_intercept <- {res7['psi'][0]:.4f}")
+    print(f"ref7_psi_M         <- {res7['psi'][1]:.4f}")
+    print(f"ref7_se_intercept  <- {res7['se'][0]:.4f}")
+    print(f"ref7_se_M          <- {res7['se'][1]:.4f}")
+
+    print("\n# Scenario 7b: continuous trt, TV modifier, treatment-free model")
+    print(f"ref7b_psi_intercept <- {res7b['psi'][0]:.4f}")
+    print(f"ref7b_psi_M         <- {res7b['psi'][1]:.4f}")
+    print(f"ref7b_se_intercept  <- {res7b['se'][0]:.4f}")
+    print(f"ref7b_se_M          <- {res7b['se'][1]:.4f}")
+
+    print("\n# Scenario 8: binary trt, TV modifier (no TF)")
+    print(f"ref8_psi_intercept <- {res8['psi'][0]:.4f}")
+    print(f"ref8_psi_M         <- {res8['psi'][1]:.4f}")
+    print(f"ref8_se_intercept  <- {res8['se'][0]:.4f}")
+    print(f"ref8_se_M          <- {res8['se'][1]:.4f}")
+
+    print("\n# Scenario 8b: binary trt, TV modifier, treatment-free model")
+    print(f"ref8b_psi_intercept <- {res8b['psi'][0]:.4f}")
+    print(f"ref8b_psi_M         <- {res8b['psi'][1]:.4f}")
+    print(f"ref8b_se_intercept  <- {res8b['se'][0]:.4f}")
+    print(f"ref8b_se_M          <- {res8b['se'][1]:.4f}")

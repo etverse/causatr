@@ -1,0 +1,217 @@
+---
+title: "Structural nested mean models with causatr"
+code-fold: show
+code-tools: true
+vignette: >
+  %\VignetteIndexEntry{Structural nested mean models with causatr}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r}
+#| include: false
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+Structural nested mean models (SNMMs) are the third leg of the Robins
+triangle — alongside g-formula (gcomp/ICE) and inverse probability weighting
+(IPW-MSM). They estimate **blip parameters** that describe how treatment at
+each time point causally shifts the outcome, conditional on covariates.
+
+The headline feature: SNMMs correctly handle **time-varying effect
+modification** — modifiers that are themselves affected by treatment. IPW-MSM
+and matching require modifiers to be baseline (pre-treatment) variables;
+conditioning on a post-treatment modifier in an MSM opens collider paths and
+biases the estimand (Robins 2000). SNMMs identify the blip under
+treatment-model correctness alone, so post-treatment modifiers are valid
+(Vansteelandt & Joffe 2014).
+
+## When must you use SNMs?
+
+When your research question involves **effect modification by a variable
+that is itself affected by treatment**, the standard estimators produce biased
+results. This section demonstrates the problem with a simulated DGP and shows
+that SNM g-estimation recovers the truth.
+
+### The DGP
+
+```{r}
+#| label: dgp-tv-modifier
+library(causatr)
+
+set.seed(1801)
+n <- 5000
+L <- rnorm(n)
+A <- rnorm(n, mean = 0.5 * L, sd = 1)
+
+# M is post-treatment: it depends on A
+M <- 0.3 * A + 0.5 * L + rnorm(n, sd = sqrt(0.5))
+
+# Y depends on A, L, and the A*M interaction
+Y <- 2 + 3 * A + 1.5 * L + 2 * A * M + rnorm(n)
+d <- data.table::data.table(Y = Y, A = A, L = L, M = M)
+```
+
+The structural blip is $\gamma(a, m; \psi) = a \cdot (\psi_0 + \psi_M \cdot m)$
+with truth $\psi_0 = 3$ and $\psi_M = 2$.
+
+### IPW-MSM: biased
+
+When we include M as an effect modifier in an IPW-MSM, the estimator
+conditions on a descendant of A. This opens a non-causal path and produces
+severely biased estimates:
+
+```{r}
+#| label: ipw-biased
+fit_ipw <- causat(d, outcome = "Y", treatment = "A",
+                  confounders = ~ L + A:M, estimator = "ipw")
+r_ipw <- contrast(fit_ipw,
+                  interventions = list(a1 = shift(1), a0 = shift(0)),
+                  type = "difference")
+r_ipw$contrasts
+```
+
+The IPW estimate is far from the truth (the averaged structural blip is
+approximately $3 + 2 \times \bar{M} \approx 3 + 2 \times 0.25 = 3.5$).
+
+### SNM g-estimation: correct
+
+The SNM identifies the blip using the treatment residual as an instrument.
+With a treatment-free model to absorb the $L \to Y$ pathway, the structural
+blip parameters are recovered:
+
+```{r}
+#| label: snm-correct
+fit_snm <- causat(d, outcome = "Y", treatment = "A",
+                  confounders_outcome = ~ L + A:M,
+                  confounders_treatment = ~ L,
+                  estimator = "snm",
+                  treatment_free = ~ L)
+
+# Blip parameter table
+r_blip <- contrast(fit_snm, ci_method = "sandwich")
+r_blip$estimates
+```
+
+The estimated $\hat\psi_0 \approx 3$ and $\hat\psi_M \approx 2$ match the
+truth closely, with tight standard errors.
+
+### Averaged blip effect
+
+To get a single summary number (like an ATE), use `treatment_values`:
+
+```{r}
+#| label: snm-averaged
+r_avg <- contrast(fit_snm, treatment_values = c(0, 1))
+r_avg$estimates
+```
+
+## Basic usage
+
+### Point treatment with effect modification
+
+```{r}
+#| label: basic-em
+set.seed(42)
+n <- 2000
+L <- rnorm(n)
+sex <- rbinom(n, 1, 0.5)
+A <- rbinom(n, 1, plogis(0.3 * L + 0.2 * sex))
+Y <- 1 + 2 * A + L + 1.5 * A * sex + rnorm(n)
+d <- data.table::data.table(Y = Y, A = A, L = L, sex = sex)
+
+fit <- causat(d, outcome = "Y", treatment = "A",
+              confounders_outcome = ~ L + sex + A:sex,
+              confounders_treatment = ~ L + sex,
+              estimator = "snm",
+              treatment_free = ~ L + sex)
+
+contrast(fit, ci_method = "sandwich")
+```
+
+The blip parameters are: $\psi_{\text{intercept}}$ (treatment effect when
+`sex = 0`) and $\psi_{\text{sex}}$ (additional effect when `sex = 1`).
+
+### Continuous treatment
+
+SNMs work naturally with continuous treatments — the canonical SNMM case.
+The treatment model is a Gaussian GLM by default:
+
+```{r}
+#| label: continuous-treatment
+set.seed(101)
+n <- 2000
+L <- rnorm(n)
+A <- rnorm(n, mean = 0.5 * L, sd = 1)
+M <- as.numeric(L > 0)
+Y <- 2 + 3 * A + 1.5 * L + 2 * A * M + rnorm(n)
+d <- data.table::data.table(Y = Y, A = A, L = L, M = M)
+
+fit <- causat(d, outcome = "Y", treatment = "A",
+              confounders_outcome = ~ L + A:M,
+              confounders_treatment = ~ L,
+              estimator = "snm")
+
+contrast(fit, ci_method = "sandwich")
+```
+
+### Treatment-free model for efficiency
+
+The `treatment_free` argument specifies an outcome model $E[Y \mid L]$ that
+absorbs the $L \to Y$ variance, improving efficiency (Vansteelandt & Joffe
+2014). It does not change the point estimates when the blip is correctly
+specified — only the standard errors shrink:
+
+```{r}
+#| label: tf-efficiency
+# Without treatment-free model
+r_no_tf <- contrast(fit, ci_method = "sandwich")
+
+# With treatment-free model
+fit_tf <- causat(d, outcome = "Y", treatment = "A",
+                 confounders_outcome = ~ L + A:M,
+                 confounders_treatment = ~ L,
+                 estimator = "snm",
+                 treatment_free = ~ L)
+r_tf <- contrast(fit_tf, ci_method = "sandwich")
+
+# Compare SEs
+data.table::data.table(
+  parameter = r_no_tf$estimates$parameter,
+  se_without_tf = r_no_tf$estimates$se,
+  se_with_tf = r_tf$estimates$se,
+  reduction_pct = round(100 * (1 - r_tf$estimates$se / r_no_tf$estimates$se), 1)
+)
+```
+
+## Interpretation
+
+SNM blip parameters have a direct causal interpretation:
+
+- **$\psi_{\text{intercept}}$**: the causal effect of a one-unit treatment
+  increase in the reference stratum (all modifiers = 0).
+- **$\psi_{\text{modifier}}$**: the additional causal effect per unit of the
+  modifier. This is the effect modification parameter.
+
+The averaged blip effect $\Delta = (a_1 - a_0) \cdot (\hat\psi_0 + \sum_j \hat\psi_j \bar{m}_j)$
+is an ATE-like summary that averages the blip over the observed modifier
+distribution.
+
+## Key differences from other estimators
+
+| Feature | gcomp | IPW-MSM | SNM |
+|---|---|---|---|
+| Time-varying EM | Requires correct high-dimensional outcome model | Biased (conditions on post-treatment) | Correct (headline use case) |
+| Identification | Outcome model | Treatment model | Treatment model |
+| Output | Counterfactual means | Counterfactual means | Blip parameters |
+| `interventions =` | Yes | Yes | No (`treatment_values =` instead) |
+| Near-positivity | Extrapolation risk | Weight explosion | Degrades gracefully |
+
+## References
+
+- Robins JM (1994). Correcting for non-compliance using structural nested mean
+  models. *Comm Stat Theory Methods* 23:2379--2412.
+- Vansteelandt S, Joffe MM (2014). Structural nested models and g-estimation:
+  The partially realized promise. *Stat Sci* 29:707--731.
+- Robins JM (2000). Marginal structural models versus structural nested models
+  as tools for causal inference. In *Statistical Models in Epidemiology*.

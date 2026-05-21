@@ -1025,7 +1025,26 @@ Joint estimation of (β, ψ) following Vansteelandt & Joffe (2014) and DTRreg's 
 | `treatment_free` non-formula → rejection (`causatr_snm_bad_treatment_free`) | ✅ | test-snm.R |
 | Vcov PSD with TF model | ✅ | test-snm.R |
 
-**Remaining chunks (all ❌):** 18c (Phase 6 parser integration), 18d (longitudinal), 18e (TV-EM truth test), 18f (triangulation test), 18g (gesttools cross-check), 18h (categorical/count), 18i (bootstrap), 18j (S3 dispatch), 18k (documentation + vignette).
+**Chunk 18c — Time-varying (post-treatment) effect modification (shipped)**
+
+SNMs identify the blip under treatment-model correctness alone, so modifiers that depend on treatment (post-treatment) are valid — unlike IPW-MSM, which conditions on a descendant of A (collider bias; Robins 2000). This chunk adds truth-based tests, delicatessen cross-checks, DTRreg cross-checks, and an IPW bias demonstration on DGPs with genuinely post-treatment modifiers.
+
+| Feature | Status | Test file |
+|---|---|---|
+| Continuous trt + TV modifier + TF — truth (ψ₀ = 3, ψ_M = 2) | ✅ | test-snm.R |
+| Binary trt + TV modifier + TF — truth | ✅ | test-snm.R |
+| TV modifier without TF — runs, different blip quantity | ✅ | test-snm.R |
+| TF model reduces SEs on TV modifier DGP | ✅ | test-snm.R |
+| delicatessen cross-check — continuous trt, TV modifier, no TF | ✅ | test-snm.R |
+| delicatessen cross-check — continuous trt, TV modifier, TF | ✅ | test-snm.R |
+| delicatessen cross-check — binary trt, TV modifier, no TF | ✅ | test-snm.R |
+| delicatessen cross-check — binary trt, TV modifier, TF | ✅ | test-snm.R |
+| DTRreg cross-check — binary trt, TV modifier, TF | ✅ | test-snm.R |
+| IPW biased with post-treatment modifier (SNM is not) | ✅ | test-snm.R |
+| Vcov PSD for TV modifier (no TF) | ✅ | test-snm.R |
+| Vcov PSD for TV modifier (with TF) | ✅ | test-snm.R |
+
+**Remaining chunks (all ❌):** 18d (longitudinal), 18e (TV-EM truth test), 18f (triangulation test), 18g (gesttools cross-check), 18h (categorical/count), 18i (bootstrap), 18j (S3 dispatch), 18k (documentation + vignette).
 
 ### `causat_mice()` — Multiple imputation
 Pool across `mice` imputations via Rubin's rules. All ❌.

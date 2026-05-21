@@ -1,6 +1,6 @@
 # Phase 18 — G-estimation of Structural Nested Mean Models (SNMMs)
 
-> **Status: IN PROGRESS** — chunks 18a–18b½ shipped (point estimation + sandwich variance + treatment-free model)
+> **Status: IN PROGRESS** — chunks 18a–18c shipped (point estimation + sandwich variance + treatment-free model + time-varying EM)
 >
 > **Depends on:** Phase 2 (point infra), Phase 4 (treatment-model machinery), Phase 5 (longitudinal data shape), Phase 6 (effect-modification parser)
 
@@ -119,7 +119,7 @@ SNMs in Phase 18 support the same treatment types as Phase 4 IPW, with the same 
 | 18a | Route `estimator = "snm"` to `fit_snm()`; validate linear-blip specification; reject non-linear blips with informative error | ✅ | Phase 2 |
 | 18b | Point-treatment SNMM: `compute_snm_blip_point()` solves the linear g-estimating equation; `compute_snm_contrast()` returns blip param table or averaged blip effect; `variance_if_snm()` stacked EE sandwich; validated against delicatessen + DTRreg | ✅ | 18a, Phase 4 |
 | 18b½ | **Treatment-free outcome model for efficiency augmentation.** `causat(..., treatment_free = ~ L)` enables joint estimation of (β, ψ) following Vansteelandt & Joffe (2014) / DTRreg's `tf.mod`. The treatment-free model absorbs L→Y variance, reducing SEs by 30–45%. Stacked sandwich: (α_trt, θ_joint = (β, ψ)). Validated against delicatessen (3 DGPs) and DTRreg (EM case: exact match on point + SE). | ✅ | 18b |
-| 18c | Phase-6 parser integration: `parse_effect_mod()` already produces the modifier list; wire its output into the blip parameterisation; both baseline and time-varying modifiers accepted (point case) | ❌ | 18b, Phase 6 |
+| 18c | Phase-6 parser integration: `parse_effect_mod()` already produces the modifier list; wire its output into the blip parameterisation; both baseline and time-varying modifiers accepted (point case) | ✅ | 18b, Phase 6 |
 | 18d | Longitudinal SNMM: `fit_snm_long()` fits $K$ treatment models; builds $H(\psi)(k)$; solves the stacked linear moment equation; cluster-aggregated sandwich via stacked EE with per-individual IF aggregation | ❌ | 18b, Phase 5 |
 | 18e | Time-varying EM truth-based test: 2-period DGP with time-varying modifier $M_1$ whose blip coefficient is 2 at all $k$; estimator must recover $\psi_M = 2$; parallel IPW-MSM fit (under Phase 6 baseline-only restriction) must be biased, demonstrating the scientific gap | ❌ | 18d |
 | 18f | Triangulation test: SNM longitudinal blip-averaged effect vs Phase 10 IPW-MSM on a DGP with no time-varying EM (both should agree) | ❌ | 18d, Phase 10 |
@@ -221,7 +221,7 @@ All outcome families work with the additive-linear blip (the blip enters as $Y -
 | Feature | SNM support | Chunk | Notes |
 |---|---|---|---|
 | Baseline modifier | ✅ shipped | 18b | Via Phase 6 `parse_effect_mod()` |
-| Time-varying modifier (point) | ✅ supported | 18c | Parser wiring; headline feature |
+| Time-varying modifier (point) | ✅ shipped | 18c | Parser wiring; headline feature. Truth-based tests + delicatessen + DTRreg cross-checks; IPW bias demonstration |
 | Time-varying modifier (long.) | ❌ pending | 18d–18e | Per-stage blip with $\bar{L}_k$ terms; truth test in 18e |
 | Multiple modifiers | ✅ shipped | 18b | Validated with 2-modifier DGP + delicatessen |
 

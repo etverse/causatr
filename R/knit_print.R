@@ -56,7 +56,8 @@ knit_print.causatr_result <- function(x, ...) {
     x$n
   )
 
-  t_est <- tinytable::tt(est_df, caption = "Intervention means")
+  est_caption <- if (x$estimator == "snm") "Blip parameters" else "Intervention means"
+  t_est <- tinytable::tt(est_df, caption = est_caption)
   if (length(num_est) > 0L) {
     t_est <- tinytable::format_tt(
       t_est,
@@ -66,23 +67,27 @@ knit_print.causatr_result <- function(x, ...) {
     )
   }
 
-  t_con <- tinytable::tt(con_df, caption = "Contrasts")
-  if (length(num_con) > 0L) {
-    t_con <- tinytable::format_tt(
-      t_con,
-      j = num_con,
-      digits = 3,
-      num_fmt = "decimal"
-    )
+  # SNM Path A returns an empty contrasts table (the blip parameters
+  # are the estimand directly). Skip the contrasts table when empty.
+  if (nrow(con_df) > 0L) {
+    t_con <- tinytable::tt(con_df, caption = "Contrasts")
+    if (length(num_con) > 0L) {
+      t_con <- tinytable::format_tt(
+        t_con,
+        j = num_con,
+        digits = 3,
+        num_fmt = "decimal"
+      )
+    }
+    con_block <- paste0("\n\n", knitr::knit_print(t_con))
+  } else {
+    con_block <- ""
   }
 
-  # Glue the header + both tables together as a single asis block so
-  # knitr doesn't wrap them in a verbatim fence.
   knitr::asis_output(paste0(
     header,
     "\n\n",
     knitr::knit_print(t_est),
-    "\n\n",
-    knitr::knit_print(t_con)
+    con_block
   ))
 }

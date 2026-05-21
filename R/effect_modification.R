@@ -38,13 +38,14 @@ parse_effect_mod <- function(confounders, treatment) {
 
     if (length(trt_hit) > 0L) {
       # At least one treatment variable appears in this term. The modifier
-      # is the non-treatment part of the interaction. The package requires
-      # the modifier to be a baseline (pre-treatment) variable: a
-      # post-treatment or time-varying modifier in the MSM conditions on a
-      # descendant of A, which either opens a collider path (collider bias)
-      # or conditions on a mediator (mediation, not effect modification).
-      # This constraint is documented but not enforced at runtime; callers
-      # are responsible for supplying baseline modifiers.
+      # is the non-treatment part of the interaction. Under IPW-MSM and
+      # matching, the modifier must be a baseline (pre-treatment) variable:
+      # a post-treatment modifier in the MSM conditions on a descendant of
+      # A, which opens a collider path or conditions on a mediator (Robins
+      # 2000). This constraint is documented but not enforced at runtime.
+      # SNMs lift this restriction: the g-estimating equation identifies the
+      # blip under treatment-model correctness alone, so time-varying
+      # (post-treatment) modifiers are valid (Vansteelandt & Joffe 2014).
       modifier_vars <- setdiff(vars, treatment)
       em_terms <- c(
         em_terms,
