@@ -456,6 +456,12 @@ compute_snm_blip_point <- function(fit) {
 #' \eqn{(1, m_{1,i}, m_{2,i}, \ldots)} — the intercept followed by the
 #' modifier variable values for observation i.
 #'
+#' @details
+#' The linear blip function is
+#' \eqn{\gamma(a, l; \psi) = a \cdot (\psi_0 + \sum_j \psi_j m_j(l))}.
+#' \eqn{\mathbf{M}} is the design matrix such that the blip for
+#' individual i is \eqn{A_i (\mathbf{M}_i \psi)}.
+#'
 #' @param data data.table or data.frame of observations.
 #' @param blip_spec A blip specification from `build_blip_spec()`.
 #' @return A numeric matrix with `nrow(data)` rows and
