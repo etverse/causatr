@@ -56,7 +56,11 @@ knit_print.causatr_result <- function(x, ...) {
     x$n
   )
 
-  est_caption <- if (x$estimator == "snm") "Blip parameters" else "Intervention means"
+  est_caption <- if (x$estimator == "snm") {
+    "Blip parameters"
+  } else {
+    "Intervention means"
+  }
   t_est <- tinytable::tt(est_df, caption = est_caption)
   if (length(num_est) > 0L) {
     t_est <- tinytable::format_tt(

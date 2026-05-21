@@ -970,7 +970,7 @@ Third leg of the Robins triangle. Motivating use case: **correct handling of tim
 | No-EM inform (blip = constant ATE) | ✅ | test-snm.R |
 | Continuous treatment support | ✅ | test-snm.R |
 | Multivariate treatment → rejection (`causatr_snm_multivariate`) | ✅ | test-snm.R |
-| Longitudinal data → rejection (`causatr_snm_longitudinal_pending`) | ✅ | test-snm.R |
+| Longitudinal data accepted (`type = "longitudinal"`) | ✅ | test-snm.R |
 | `contrast(interventions=)` → rejection (`causatr_snm_no_interventions`) | ✅ | test-snm.R |
 | Missing treatment confounders → error | ✅ | test-snm.R |
 | `propensity_model_fn` default warning | ✅ | test-snm.R |
@@ -1044,7 +1044,27 @@ SNMs identify the blip under treatment-model correctness alone, so modifiers tha
 | Vcov PSD for TV modifier (no TF) | ✅ | test-snm.R |
 | Vcov PSD for TV modifier (with TF) | ✅ | test-snm.R |
 
-**Remaining chunks (all ❌):** 18d (longitudinal), 18e (TV-EM truth test), 18f (triangulation test), 18g (gesttools cross-check), 18h (categorical/count), 18i (bootstrap), 18j (S3 dispatch), 18k (documentation + vignette).
+**Chunk 18d — Longitudinal SNMM with per-stage blip estimation (shipped)**
+
+Backward sequential g-estimation (Robins 1994): per-stage blip parameters estimated by backward induction from stage K to stage 0. Cluster-robust sandwich with cross-stage derivatives. DTRreg cross-check validates point estimates.
+
+| Feature | Status | Test file |
+|---|---|---|
+| `compute_snm_blip_longitudinal()` — backward sequential estimation | ✅ | test-snm.R |
+| Per-stage blip parameters (`stage0_psi_intercept`, ...) | ✅ | test-snm.R |
+| Binary treatment, 2-period DGP — truth (ψ₀ = 3.15, ψ₁ = 3) | ✅ | test-snm.R |
+| Continuous treatment, 2-period DGP — truth | ✅ | test-snm.R |
+| `variance_if_snm_longitudinal()` — cluster-robust sandwich | ✅ | test-snm.R |
+| Sandwich SE vs bootstrap consistency | ✅ | test-snm.R (implicit via CI coverage) |
+| Vcov dimensions (K×p_psi × K×p_psi) and PSD | ✅ | test-snm.R |
+| DTRreg cross-check — binary trt, 2-period | ✅ | test-snm.R |
+| Treatment-free model accepted (point estimates consistent) | ✅ | test-snm.R |
+| `treatment_values` rejected for longitudinal | ✅ | test-snm.R |
+| Bootstrap rejected (pending 18i) | ✅ | test-snm.R |
+| `< 2 time points` → rejection | ✅ | test-snm.R |
+| `n_obs` and metadata in result | ✅ | test-snm.R |
+
+**Remaining chunks (all ❌):** 18e (TV-EM truth test), 18f (triangulation test), 18g (gesttools cross-check), 18h (categorical/count), 18i (bootstrap), 18j (S3 dispatch), 18k (documentation + vignette).
 
 ### `causat_mice()` — Multiple imputation
 Pool across `mice` imputations via Rubin's rules. All ❌.

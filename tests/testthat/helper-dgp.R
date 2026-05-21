@@ -1302,3 +1302,128 @@ simulate_snm_point_tv_modifier_binary <- function(n = 2000, seed = 42) {
     truth_psi_with_tf = c(psi_intercept = 3, psi_M = 2)
   )
 }
+
+
+#' Longitudinal SNM DGP: 2-period, binary treatment, no EM
+#'
+#' Rectangular person-period data with shared blip psi across periods.
+#'
+#'   L_0 ~ N(0, 1)
+#'   A_0 | L_0 ~ Bernoulli(expit(0.3 * L_0))
+#'   L_1 = 0.5 * L_0 + 0.3 * A_0 + eps_L,  eps_L ~ N(0, 0.5)
+#'   A_1 | L_1, A_0 ~ Bernoulli(expit(0.3 * L_1 + 0.2 * A_0))
+#'   Y = 2 + psi * A_0 + psi * A_1 + 1.5 * L_0 + 0.5 * L_1 + eps_Y
+#'
+#' Per-stage blip \eqn{\gamma_k(a_k; \psi) = a_k \cdot \psi}
+#' Truth: \eqn{\psi_0 = 3}
+#'
+#' @param n Number of individuals.
+#' @param seed RNG seed.
+#' @return List with `data` (person-period data.table with id, time),
+#'   `truth_psi`.
+#' @noRd
+#' Longitudinal SNM DGP: 2-period, binary treatment, no EM
+#'
+#' Per-stage backward-sequential estimation (Robins 1994). Each
+#' stage has its own blip parameter estimated via backward induction.
+#'
+#'   L_0 ~ N(0, 1)
+#'   A_0 | L_0 ~ Bernoulli(expit(0.3 * L_0))
+#'   L_1 = 0.5 * L_0 + 0.3 * A_0 + eps_L,  eps_L ~ N(0, sqrt(0.5))
+#'   A_1 | L_1, A_0 ~ Bernoulli(expit(0.3 * L_1 + 0.2 * A_0))
+#'   Y = 2 + 3 * A_0 + 3 * A_1 + 1.5 * L_0 + 0.5 * L_1 + eps_Y
+#'
+#' The stage-0 blip captures the total causal effect of \eqn{A_0} on
+#' \eqn{Y} holding \eqn{A_1} fixed, which includes the mediated path
+#' \eqn{A_0 \to L_1 \to Y} (coefficient \eqn{0.3 \times 0.5 = 0.15}).
+#' DTRreg confirms convergence to these values at n = 500k.
+#'
+#' Truth (per-stage): stage0_psi_intercept = 3.15,
+#'   stage1_psi_intercept = 3
+#'
+#' @param n Number of individuals.
+#' @param seed RNG seed.
+#' @return List with `data`, `truth_psi` (named vector of per-stage
+#'   blip parameters).
+#' @noRd
+simulate_snm_longitudinal <- function(n = 2000, seed = 42) {
+  set.seed(seed)
+
+  L0 <- stats::rnorm(n)
+  A0 <- stats::rbinom(n, 1, stats::plogis(0.3 * L0))
+
+  # A_0 -> L_1 coefficient = 0.3; L_1 -> Y coefficient = 0.5
+  # So the mediated A_0 -> L_1 -> Y path contributes 0.3 * 0.5 = 0.15
+  L1 <- 0.5 * L0 + 0.3 * A0 + stats::rnorm(n, sd = sqrt(0.5))
+  A1 <- stats::rbinom(n, 1, stats::plogis(0.3 * L1 + 0.2 * A0))
+
+  Y <- 2 + 3 * A0 + 3 * A1 + 1.5 * L0 + 0.5 * L1 + stats::rnorm(n)
+
+  # Interleave per-individual rows: (time 0, time 1) pairs
+  data <- data.table::data.table(
+    id = rep(seq_len(n), each = 2L),
+    time = rep(0:1, n),
+    Y = as.numeric(rbind(NA, Y)),
+    A = as.numeric(rbind(A0, A1)),
+    L = as.numeric(rbind(L0, L1))
+  )
+
+  # Stage-1 blip = 3 (direct A_1 -> Y)
+  # Stage-0 blip = 3 + 0.3 * 0.5 = 3.15 (direct + mediated A_0 -> L_1 -> Y)
+  list(
+    data = data,
+    truth_psi = c(
+      stage0_psi_intercept = 3.15,
+      stage1_psi_intercept = 3
+    )
+  )
+}
+
+
+#' Longitudinal SNM DGP: 2-period, continuous treatment, no EM
+#'
+#' Same structure as `simulate_snm_longitudinal()` but with Gaussian
+#' treatment models. Same mediation channel applies: the stage-0 blip
+#' includes the \eqn{A_0 \to L_1 \to Y} path.
+#'
+#'   L_0 ~ N(0, 1)
+#'   A_0 | L_0 ~ N(0.5 * L_0, 1)
+#'   L_1 = 0.5 * L_0 + 0.3 * A_0 + eps_L
+#'   A_1 | L_1, A_0 ~ N(0.3 * L_1 + 0.2 * A_0, 1)
+#'   Y = 2 + 3 * A_0 + 3 * A_1 + 1.5 * L_0 + 0.5 * L_1 + eps_Y
+#'
+#' Truth (per-stage): stage0_psi_intercept = 3.15,
+#'   stage1_psi_intercept = 3
+#'
+#' @param n Number of individuals.
+#' @param seed RNG seed.
+#' @return List with `data`, `truth_psi`.
+#' @noRd
+simulate_snm_longitudinal_continuous <- function(n = 2000, seed = 42) {
+  set.seed(seed)
+
+  L0 <- stats::rnorm(n)
+  A0 <- stats::rnorm(n, mean = 0.5 * L0, sd = 1)
+
+  L1 <- 0.5 * L0 + 0.3 * A0 + stats::rnorm(n, sd = sqrt(0.5))
+  A1 <- stats::rnorm(n, mean = 0.3 * L1 + 0.2 * A0, sd = 1)
+
+  Y <- 2 + 3 * A0 + 3 * A1 + 1.5 * L0 + 0.5 * L1 + stats::rnorm(n)
+
+  # Interleave per-individual rows: (time 0, time 1) pairs
+  data <- data.table::data.table(
+    id = rep(seq_len(n), each = 2L),
+    time = rep(0:1, n),
+    Y = as.numeric(rbind(NA, Y)),
+    A = as.numeric(rbind(A0, A1)),
+    L = as.numeric(rbind(L0, L1))
+  )
+
+  list(
+    data = data,
+    truth_psi = c(
+      stage0_psi_intercept = 3.15,
+      stage1_psi_intercept = 3
+    )
+  )
+}

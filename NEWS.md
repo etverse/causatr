@@ -1,5 +1,26 @@
 # causatr (development version)
 
+## 2026-05-21 — Longitudinal SNMM with per-stage blip estimation (Phase 18d)
+
+`estimator = "snm"` now supports `type = "longitudinal"` for multi-period
+panel data. The implementation uses backward sequential g-estimation (Robins
+1994): starting at the final stage K, each stage's blip parameters are
+estimated using the backward-transformed outcome H_k, yielding per-stage
+parameters (e.g. `stage0_psi_intercept`, `stage1_psi_intercept`). Each stage
+gets its own treatment model fit via the existing longitudinal propensity
+infrastructure.
+
+The cluster-robust sandwich variance accounts for cross-stage dependencies:
+earlier-stage blip parameters depend on later-stage estimates through the
+backward-transformed outcome, creating off-diagonal blocks in the bread
+matrix. Treatment-model corrections are applied per-stage via the standard
+numDeriv::jacobian approach.
+
+Testing: truth-based tests on binary and continuous treatment DGPs, DTRreg
+cross-checks (binary treatment), vcov PSD checks, rejection tests for
+treatment_values and bootstrap. DGP truth values account for the mediated
+A_0 -> L_1 -> Y path correctly (validated against DTRreg at n = 500k).
+
 ## 2026-05-21 — Time-varying effect modification for SNMs (Phase 18c)
 
 SNMs now explicitly support **time-varying (post-treatment) modifiers** — the

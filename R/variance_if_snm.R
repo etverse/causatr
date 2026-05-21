@@ -199,3 +199,213 @@ variance_if_snm <- function(fit, snm_result) {
   colnames(vcov_psi) <- names(psi_hat)
   vcov_psi
 }
+
+
+#' Cluster-aggregated sandwich variance for longitudinal SNM blip parameters
+#'
+#' Extends the point-treatment sandwich to the backward-sequential
+#' estimation case. Each stage \eqn{k} has its own blip parameters
+#' \eqn{\psi_k} and treatment-model parameters \eqn{\alpha_k}. The
+#' full parameter vector is \eqn{(\alpha_K, \psi_K, \alpha_{K-1},
+#' \psi_{K-1}, \ldots, \alpha_0, \psi_0)}, estimated backward.
+#'
+#' The key complication: \eqn{\hat\psi_{k-1}} depends on
+#' \eqn{\hat\psi_k} through the backward-transformed outcome
+#' \eqn{H_{k-1} = H_k - \gamma_k(\hat\psi_k)}. This creates cross-
+#' stage derivatives: the stage-\eqn{(k-1)} bread row has off-diagonal
+#' blocks \eqn{\partial\phi_{k-1}/\partial\psi_j} for all \eqn{j > k-1}.
+#'
+#' Per-individual influence functions are accumulated across stages
+#' and the cluster-robust sandwich (one cluster = one individual)
+#' gives the final \eqn{V(\hat\psi)}.
+#'
+#' @param fit A `causatr_fit` with `estimator = "snm"` and
+#'   `type = "longitudinal"`.
+#' @param snm_result Output of `compute_snm_blip_longitudinal()`.
+#' @return A named \eqn{p_{total} \times p_{total}} variance-covariance
+#'   matrix for the concatenated \eqn{\hat\psi} vector (all stages).
+#' @noRd
+variance_if_snm_longitudinal <- function(fit, snm_result) {
+  psi_hat <- snm_result$psi_hat
+  psi_by_stage <- snm_result$psi_by_stage
+  per_period <- snm_result$per_period
+  H_by_stage <- snm_result$H_by_stage
+  n_id <- snm_result$n_id
+  ids <- snm_result$ids
+  na_mask <- snm_result$na_mask
+  Y_final <- snm_result$Y_final
+  id_to_idx <- snm_result$id_to_idx
+  n_times <- snm_result$n_times
+  p_psi_per_stage <- snm_result$p_psi_per_stage
+  beta_by_stage <- snm_result$beta_by_stage
+  Z_list <- snm_result$Z_list
+  has_tf <- !is.null(beta_by_stage)
+  details <- fit$details
+  time_points <- details$time_points
+
+  p_total <- n_times * p_psi_per_stage
+
+  # Outcome vector aligned to individual index
+  Y_vec <- rep(NA_real_, n_id)
+  Y_vec[id_to_idx[ids[na_mask]]] <- Y_final[na_mask]
+
+  # --- Per-stage bread and scores ---
+  # At each stage k, the EE is:
+  #   phi_k(psi_k) = (1/n) sum_i R_{k,i} M_{k,i} (H_k - A_{k,i} M_{k,i} psi_k) = 0
+  # Bread at stage k: A_{psi_k,psi_k} = -(1/n) sum_i R_{k,i} A_{k,i} M_{k,i} M_{k,i}'
+  # Cross-stage derivative: d phi_k / d psi_j for j > k captures how H_k
+  # depends on psi_j. Since H_k = Y - sum_{j>k} gamma_j, we have
+  # d H_k / d psi_j = -A_j M_j for j > k, so
+  # d phi_k / d psi_j = -(1/n) sum_i R_{k,i} M_{k,i} (-A_{j,i} M_{j,i}')
+  #                   = (1/n) sum_i R_{k,i} M_{k,i} A_{j,i} M_{j,i}'
+
+  # Compute the full bread matrix and per-individual scores for psi.
+  # psi is ordered: [psi_0, psi_1, ..., psi_{K-1}] (n_times blocks)
+  A_bread <- matrix(0, p_total, p_total)
+  omega_psi <- matrix(0, n_id, p_total)
+
+  # Index ranges for each stage in the concatenated psi vector
+  stage_idx <- function(k) {
+    start <- (k - 1L) * p_psi_per_stage + 1L
+    start:(start + p_psi_per_stage - 1L)
+  }
+
+  # Precompute per-individual A_j * M_j for each stage (n_id x p_psi),
+  # needed for cross-stage derivatives
+  AM_by_stage <- vector("list", n_times)
+  for (k in seq_len(n_times)) {
+    pp <- per_period[[k]]
+    AM_k <- matrix(0, n_id, p_psi_per_stage)
+    idx_k <- id_to_idx[pp$ids]
+    AM_k[idx_k, ] <- pp$A * pp$M
+    AM_by_stage[[k]] <- AM_k
+  }
+
+  for (k in seq_len(n_times)) {
+    pp <- per_period[[k]]
+    idx_k <- id_to_idx[pp$ids]
+    valid <- na_mask[match(pp$ids, ids)]
+    n_valid <- sum(valid)
+    if (n_valid == 0L) {
+      next
+    }
+
+    psi_k <- psi_by_stage[[k]]
+    # Strip stage prefix for matrix multiply
+    psi_k_raw <- psi_k[seq_len(p_psi_per_stage)]
+
+    M_k <- pp$M[valid, , drop = FALSE]
+    R_k <- pp$R[valid]
+    A_k <- pp$A[valid]
+    H_k <- H_by_stage[[k]][idx_k[valid]]
+
+    # Residual at stage k: H_k - gamma_k
+    gamma_k <- A_k * as.numeric(M_k %*% psi_k_raw)
+    resid_k <- H_k - gamma_k
+
+    # Per-obs blip score at stage k: R_k * M_k * resid_k
+    omega_k <- M_k * (R_k * resid_k)
+    idx_valid <- idx_k[valid]
+    for (j in seq_len(n_valid)) {
+      omega_psi[idx_valid[j], stage_idx(k)] <-
+        omega_psi[idx_valid[j], stage_idx(k)] + omega_k[j, ]
+    }
+
+    # Bread diagonal block: A_{psi_k,psi_k}
+    RA_k <- R_k * A_k
+    A_bread[stage_idx(k), stage_idx(k)] <-
+      -crossprod(M_k, M_k * RA_k) / n_id
+
+    # Cross-stage derivatives: d phi_k / d psi_j for j > k.
+    # d phi_k / d psi_j = (1/n) sum_i R_{k,i} M_{k,i} (A_{j,i} M_{j,i})'
+    # Because dH_k/dpsi_j = -A_j M_j (gamma_j increases => H_k decreases).
+    if (k < n_times) {
+      for (j in (k + 1L):n_times) {
+        AM_j_valid <- AM_by_stage[[j]][idx_k[valid], , drop = FALSE]
+        # d phi_k / d psi_j = -(1/n) * (R_k M_k)' * (-A_j M_j)
+        #                   = (1/n) * (R_k M_k)' * (A_j M_j)
+        # But in the bread convention A = -d phi / d theta, so:
+        # A_{psi_k, psi_j} = -(1/n) * d phi_k / d psi_j
+        #                   = -(1/n) * (R_k M_k)' (A_j M_j)
+        # Wait — phi_k depends on psi_j through H_k. H_k = Y - sum_{l>k} A_l M_l psi_l.
+        # d phi_k / d psi_j = (1/n) sum_i R_{k,i} M_{k,i} * d(H_k - A_k M_k psi_k)/d psi_j
+        #                   = (1/n) sum_i R_{k,i} M_{k,i} * dH_k/dpsi_j
+        #                   = (1/n) sum_i R_{k,i} M_{k,i} * (-A_{j,i} M_{j,i}')
+        # So A_{psi_k,psi_j} = -d phi_k/d psi_j = (1/n)(R_k M_k)'(A_j M_j)
+        RM_k <- M_k * R_k
+        A_bread[stage_idx(k), stage_idx(j)] <-
+          crossprod(RM_k, AM_j_valid) / n_id
+      }
+    }
+  }
+
+  A_bread_inv <- tryCatch(
+    solve(A_bread),
+    error = function(e) {
+      rlang::abort(
+        "Longitudinal SNM bread matrix is singular.",
+        class = "causatr_snm_singular",
+        parent = e
+      )
+    }
+  )
+
+  # --- Treatment model corrections ---
+  # At each stage k, the blip EE depends on alpha_k through R_k.
+  # The cross-derivative d phi_k / d alpha_k and the treatment model
+  # IF at stage k together produce a correction to the per-individual IF.
+  IF_correction <- matrix(0, n_id, p_total)
+
+  for (k in seq_len(n_times)) {
+    pp <- per_period[[k]]
+    tm_k <- pp$trt_model
+    alpha_k <- tm_k$alpha_hat
+    X_prop_k <- tm_k$X_prop
+    trt_family_k <- tm_k$model$family
+    n_k <- length(pp$A)
+
+    trt_fit_idx_k <- which(tm_k$fit_rows)
+    trt_prep_k <- prepare_model_if(tm_k$model, trt_fit_idx_k, n_k)
+    trt_score_k <- trt_prep_k$X_fit * trt_prep_k$r_score
+    IF_alpha_k <- trt_score_k %*% trt_prep_k$B_inv
+
+    # Cross-derivative: d phi_k / d alpha_k
+    # phi_k depends on alpha_k through R_k = A_k - mu_k(alpha_k)
+    valid_full <- na_mask[match(pp$ids, ids)]
+    psi_k <- psi_by_stage[[k]]
+    psi_k_raw <- psi_k[seq_len(p_psi_per_stage)]
+    H_k_full <- H_by_stage[[k]][id_to_idx[pp$ids]]
+    gamma_k_full <- pp$A * as.numeric(pp$M %*% psi_k_raw)
+    resid_k_full <- H_k_full - gamma_k_full
+
+    phi_psi_k_alpha <- function(alpha) {
+      eta <- as.numeric(X_prop_k %*% alpha)
+      mu <- trt_family_k$linkinv(eta)
+      R_alpha <- pp$A - mu
+      vals <- pp$M * (R_alpha * resid_k_full)
+      vals[!valid_full, ] <- 0
+      colMeans(vals)
+    }
+    A_psi_k_alpha_k <- -numDeriv::jacobian(phi_psi_k_alpha, x = alpha_k)
+
+    # The correction affects only the psi_k block of the IF
+    # A_{psi_k, alpha_k} is p_psi_per_stage x p_alpha_k
+    correction_k <- n_k * IF_alpha_k %*% t(A_psi_k_alpha_k)
+
+    # Scatter to individual-level correction
+    idx_k <- id_to_idx[pp$ids]
+    for (j in seq_len(n_k)) {
+      IF_correction[idx_k[j], stage_idx(k)] <-
+        IF_correction[idx_k[j], stage_idx(k)] + correction_k[j, ]
+    }
+  }
+
+  # Total per-individual IF: (omega - correction) * A_bread_inv'
+  IF_psi <- (omega_psi - IF_correction) %*% t(A_bread_inv)
+
+  # Cluster-robust sandwich: one row per individual
+  vcov_psi <- crossprod(IF_psi) / n_id^2
+  rownames(vcov_psi) <- names(psi_hat)
+  colnames(vcov_psi) <- names(psi_hat)
+  vcov_psi
+}

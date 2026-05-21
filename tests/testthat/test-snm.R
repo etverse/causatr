@@ -153,29 +153,30 @@ test_that("SNM rejects multivariate treatment", {
   )
 })
 
-test_that("SNM rejects longitudinal data (pending 18d)", {
+test_that("SNM accepts longitudinal data with id and time", {
   d <- data.frame(
     id = rep(1:50, each = 2),
     time = rep(0:1, 50),
-    Y = rnorm(100),
+    Y = c(rep(NA, 50), rnorm(50)),
     A = rbinom(100, 1, 0.5),
     L = rnorm(100)
   )
-  suppressWarnings(
-    expect_error(
-      causat(
-        d,
-        outcome = "Y",
-        treatment = "A",
-        confounders = ~L,
-        estimator = "snm",
-        id = "id",
-        time = "time",
-        propensity_model_fn = stats::glm
-      ),
-      class = "causatr_snm_longitudinal_pending"
+  suppressMessages(
+    fit <- causat(
+      d,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~1,
+      confounders_tv = ~L,
+      estimator = "snm",
+      id = "id",
+      time = "time",
+      type = "longitudinal",
+      propensity_model_fn = stats::glm
     )
   )
+  expect_equal(fit$type, "longitudinal")
+  expect_equal(fit$estimator, "snm")
 })
 
 test_that("contrast() rejects interventions for SNM fit", {
@@ -1489,4 +1490,362 @@ test_that("Vcov is PSD for TV modifier DGP (with TF)", {
   result <- contrast(fit)
   eig <- eigen(result$vcov, symmetric = TRUE, only.values = TRUE)$values
   expect_true(all(eig >= -1e-10))
+})
+
+
+# --- Chunk 18d: longitudinal SNMM -------------------------------------------
+
+test_that("Longitudinal SNM: binary treatment, per-stage estimation", {
+  dgp <- simulate_snm_longitudinal(n = 10000, seed = 123)
+  suppressMessages(
+    fit <- causat(
+      dgp$data,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~1,
+      confounders_tv = ~L,
+      id = "id",
+      time = "time",
+      type = "longitudinal",
+      family = "gaussian",
+      estimator = "snm"
+    )
+  )
+
+  expect_equal(fit$type, "longitudinal")
+  expect_equal(fit$estimator, "snm")
+
+  result <- contrast(fit, ci_method = "sandwich")
+
+  # Per-stage parameter names
+  expect_equal(
+    result$estimates$parameter,
+    c("stage0_psi_intercept", "stage1_psi_intercept")
+  )
+
+  # Truth: psi = 3 at both stages
+  truth <- dgp$truth_psi
+  for (i in seq_along(truth)) {
+    expect_equal(
+      result$estimates$estimate[i],
+      unname(truth[i]),
+      tolerance = 0.15
+    )
+  }
+
+  # SEs should be positive and finite
+  expect_true(all(result$estimates$se > 0))
+  expect_true(all(is.finite(result$estimates$se)))
+
+  # CIs should cover the truth (at 95% level)
+  for (i in seq_along(truth)) {
+    expect_true(result$estimates$ci_lower[i] < unname(truth[i]))
+    expect_true(result$estimates$ci_upper[i] > unname(truth[i]))
+  }
+})
+
+
+test_that("Longitudinal SNM: continuous treatment, per-stage estimation", {
+  dgp <- simulate_snm_longitudinal_continuous(n = 5000, seed = 42)
+  suppressMessages(
+    fit <- causat(
+      dgp$data,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~1,
+      confounders_tv = ~L,
+      id = "id",
+      time = "time",
+      type = "longitudinal",
+      family = "gaussian",
+      estimator = "snm"
+    )
+  )
+
+  result <- contrast(fit, ci_method = "sandwich")
+
+  truth <- dgp$truth_psi
+  for (i in seq_along(truth)) {
+    expect_equal(
+      result$estimates$estimate[i],
+      unname(truth[i]),
+      tolerance = 0.25
+    )
+  }
+})
+
+
+test_that("Longitudinal SNM: vcov is PSD and correctly sized", {
+  dgp <- simulate_snm_longitudinal(n = 2000, seed = 42)
+  suppressMessages(
+    fit <- causat(
+      dgp$data,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~1,
+      confounders_tv = ~L,
+      id = "id",
+      time = "time",
+      type = "longitudinal",
+      family = "gaussian",
+      estimator = "snm"
+    )
+  )
+
+  result <- contrast(fit, ci_method = "sandwich")
+
+  # Vcov should be 2x2 (one psi per stage)
+  expect_equal(nrow(result$vcov), 2L)
+  expect_equal(ncol(result$vcov), 2L)
+
+  # PSD check
+  eig <- eigen(result$vcov, symmetric = TRUE, only.values = TRUE)$values
+  expect_true(all(eig >= -1e-10))
+
+  # Row/col names match parameter names
+  expect_equal(rownames(result$vcov), result$estimates$parameter)
+})
+
+
+test_that("Longitudinal SNM rejects treatment_values", {
+  dgp <- simulate_snm_longitudinal(n = 500, seed = 42)
+  suppressMessages(
+    fit <- causat(
+      dgp$data,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~1,
+      confounders_tv = ~L,
+      id = "id",
+      time = "time",
+      type = "longitudinal",
+      family = "gaussian",
+      estimator = "snm"
+    )
+  )
+
+  expect_error(
+    contrast(fit, treatment_values = c(0, 1), ci_method = "sandwich"),
+    class = "causatr_snm_long_no_treatment_values"
+  )
+})
+
+
+test_that("Longitudinal SNM rejects fewer than 2 time points", {
+  d <- data.table::data.table(
+    id = 1:10,
+    time = rep(0, 10),
+    Y = rnorm(10),
+    A = rbinom(10, 1, 0.5),
+    L = rnorm(10)
+  )
+  expect_error(
+    suppressMessages(
+      causat(
+        d,
+        outcome = "Y",
+        treatment = "A",
+        confounders = ~1,
+        confounders_tv = ~L,
+        id = "id",
+        time = "time",
+        type = "longitudinal",
+        family = "gaussian",
+        estimator = "snm"
+      )
+    ),
+    class = "causatr_longitudinal_too_few_times"
+  )
+})
+
+
+test_that("Longitudinal SNM: DTRreg cross-check, binary treatment", {
+  skip_if_not_installed("DTRreg")
+
+  dgp <- simulate_snm_longitudinal(n = 5000, seed = 42)
+  d <- dgp$data
+
+  # causatr
+  suppressMessages(
+    fit <- causat(
+      d,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~1,
+      confounders_tv = ~L,
+      id = "id",
+      time = "time",
+      type = "longitudinal",
+      family = "gaussian",
+      estimator = "snm"
+    )
+  )
+  res <- contrast(fit, ci_method = "sandwich")
+
+  # DTRreg: wide format, matching treatment model specification
+  wide <- data.table::dcast(d, id ~ time, value.var = c("A", "L", "Y"))
+  wide[, Y := Y_1]
+  data.table::setnames(
+    wide,
+    c("A_0", "A_1", "L_0", "L_1"),
+    c("A0", "A1", "L_tv0", "L_tv1")
+  )
+
+  dtr <- DTRreg::DTRreg(
+    outcome = wide$Y,
+    blip.mod = list(~1, ~1),
+    treat.mod = list(A0 ~ L_tv0, A1 ~ L_tv1 + A0),
+    tf.mod = list(~1, ~1),
+    method = "gest",
+    treat.type = "bin",
+    data = as.data.frame(wide),
+    var.estim = "none"
+  )
+
+  # Point estimates should be close (not exact due to slightly different
+  # treatment model specs — causatr includes lag features)
+  dtr_psi_0 <- unname(coef(dtr)[[1]])
+  dtr_psi_1 <- unname(coef(dtr)[[2]])
+
+  expect_equal(res$estimates$estimate[1], dtr_psi_0, tolerance = 0.05)
+  expect_equal(res$estimates$estimate[2], dtr_psi_1, tolerance = 0.05)
+})
+
+
+test_that("Longitudinal SNM: continuous treatment truth-based check", {
+  # DTRreg does not support continuous treatment with multi-stage linear
+
+  # blip, so we validate against analytical truth directly.
+  dgp <- simulate_snm_longitudinal_continuous(n = 10000, seed = 123)
+
+  suppressMessages(
+    fit <- causat(
+      dgp$data,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~1,
+      confounders_tv = ~L,
+      id = "id",
+      time = "time",
+      type = "longitudinal",
+      family = "gaussian",
+      estimator = "snm"
+    )
+  )
+  res <- contrast(fit, ci_method = "sandwich")
+
+  truth <- dgp$truth_psi
+  for (i in seq_along(truth)) {
+    expect_equal(
+      res$estimates$estimate[i],
+      unname(truth[i]),
+      tolerance = 0.1
+    )
+  }
+
+  # CIs should cover truth
+  for (i in seq_along(truth)) {
+    expect_true(res$estimates$ci_lower[i] < unname(truth[i]))
+    expect_true(res$estimates$ci_upper[i] > unname(truth[i]))
+  }
+})
+
+
+test_that("Longitudinal SNM: treatment-free model changes SEs", {
+  dgp <- simulate_snm_longitudinal(n = 3000, seed = 42)
+
+  # Without TF
+  suppressMessages(
+    fit_no_tf <- causat(
+      dgp$data,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~1,
+      confounders_tv = ~L,
+      id = "id",
+      time = "time",
+      type = "longitudinal",
+      family = "gaussian",
+      estimator = "snm"
+    )
+  )
+  res_no_tf <- contrast(fit_no_tf, ci_method = "sandwich")
+
+  # With TF
+  suppressMessages(
+    fit_tf <- causat(
+      dgp$data,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~1,
+      confounders_tv = ~L,
+      id = "id",
+      time = "time",
+      type = "longitudinal",
+      family = "gaussian",
+      estimator = "snm",
+      treatment_free = ~L
+    )
+  )
+  res_tf <- contrast(fit_tf, ci_method = "sandwich")
+
+  # Point estimates should be consistent (both close to truth)
+  expect_equal(
+    res_no_tf$estimates$estimate,
+    res_tf$estimates$estimate,
+    tolerance = 0.01
+  )
+
+  # Both should have finite positive SEs
+  expect_true(all(res_tf$estimates$se > 0))
+  expect_true(all(is.finite(res_tf$estimates$se)))
+})
+
+
+test_that("Longitudinal SNM: n_obs and fit metadata", {
+  dgp <- simulate_snm_longitudinal(n = 500, seed = 42)
+  suppressMessages(
+    fit <- causat(
+      dgp$data,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~1,
+      confounders_tv = ~L,
+      id = "id",
+      time = "time",
+      type = "longitudinal",
+      family = "gaussian",
+      estimator = "snm"
+    )
+  )
+
+  result <- contrast(fit, ci_method = "sandwich")
+
+  expect_equal(result$n, 500L)
+  expect_equal(result$estimator, "snm")
+  expect_equal(result$fit_type, "longitudinal")
+})
+
+
+test_that("Longitudinal SNM: bootstrap is rejected", {
+  dgp <- simulate_snm_longitudinal(n = 500, seed = 42)
+  suppressMessages(
+    fit <- causat(
+      dgp$data,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~1,
+      confounders_tv = ~L,
+      id = "id",
+      time = "time",
+      type = "longitudinal",
+      family = "gaussian",
+      estimator = "snm"
+    )
+  )
+
+  expect_error(
+    contrast(fit, ci_method = "bootstrap"),
+    class = "causatr_snm_bootstrap_pending"
+  )
 })
