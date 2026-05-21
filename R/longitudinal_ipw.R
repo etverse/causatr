@@ -507,7 +507,11 @@ build_longitudinal_ps_formula <- function(
   )
   rhs_dynamic <- rhs_dynamic[valid]
 
-  rhs_terms <- c(rhs_dynamic, baseline_terms)
+  # Baseline terms that overlap with TV vars are already represented
+  # by the current-time TV entry; including them twice produces a
+  # cosmetically wrong formula (R silently deduplicates, but the
+  # formula object misleads anyone who inspects it).
+  rhs_terms <- c(rhs_dynamic, setdiff(baseline_terms, rhs_dynamic))
   if (length(rhs_terms) == 0L) {
     # Intercept-only propensity at the first period when neither
     # baseline confounders nor TV confounders are supplied. Rare in

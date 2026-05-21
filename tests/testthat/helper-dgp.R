@@ -1409,3 +1409,76 @@ simulate_snm_longitudinal_continuous <- function(n = 2000, seed = 42) {
     )
   )
 }
+
+
+#' Longitudinal SNM DGP: 2-period, binary treatment, time-varying EM
+#'
+#' Headline Phase 18 demonstration: the stage-1 blip includes a
+#' time-varying modifier \eqn{M_1 = 1\{L_1 > 0\}} that is
+#' post-treatment (L_1 depends on A_0). SNMs handle this correctly;
+#' IPW-MSM conditioning on M_1 introduces collider bias.
+#'
+#' M_0 = 1{L_0 > 0} is baseline (not affected by treatment).
+#' Both stages share the same blip specification (intercept + M),
+#' so the `build_blip_design_matrix()` applies uniformly.
+#'
+#'   L_0 ~ N(0, 1),  M_0 = 1{L_0 > 0}
+#'   A_0 | L_0 ~ Bernoulli(expit(0.3 * L_0))
+#'   L_1 = 0.5 * L_0 + 0.3 * A_0 + eps_L,  eps_L ~ N(0, sqrt(0.5))
+#'   M_1 = 1{L_1 > 0}                       (post-treatment!)
+#'   A_1 | L_1, A_0 ~ Bernoulli(expit(0.3 * L_1 + 0.2 * A_0))
+#'   Y = 2 + 1*A_0 + 2*A_0*M_0 + 2*A_1 + 2*A_1*M_1
+#'       + 1.5*L_0 + 0.5*L_1 + eps_Y
+#'
+#' Stage-0 blip: gamma_0 = a_0 * (psi_00 + psi_0M * M_0)
+#'   psi_00 = 1 + 0.3*0.5 = 1.15 (direct + mediated A_0 -> L_1 -> Y)
+#'   psi_0M = 2 (direct A_0*M_0 coefficient; M_0 is baseline,
+#'     no mediation through it)
+#'
+#' Stage-1 blip: gamma_1 = a_1 * (psi_10 + psi_1M * M_1)
+#'   psi_10 = 2, psi_1M = 2  (direct coefficients)
+#'
+#' @param n Number of individuals.
+#' @param seed RNG seed.
+#' @return List with `data` (person-period data.table with columns
+#'   id, time, Y, A, L, M) and `truth_psi` (named numeric vector).
+#' @noRd
+simulate_snm_longitudinal_tv_em <- function(n = 2000, seed = 42) {
+  set.seed(seed)
+
+  L0 <- stats::rnorm(n)
+  M0 <- as.numeric(L0 > 0)
+  A0 <- stats::rbinom(n, 1, stats::plogis(0.3 * L0))
+
+  L1 <- 0.5 * L0 + 0.3 * A0 + stats::rnorm(n, sd = sqrt(0.5))
+  M1 <- as.numeric(L1 > 0)
+  A1 <- stats::rbinom(n, 1, stats::plogis(0.3 * L1 + 0.2 * A0))
+
+  Y <- 2 +
+    1 * A0 +
+    2 * A0 * M0 +
+    2 * A1 +
+    2 * A1 * M1 +
+    1.5 * L0 +
+    0.5 * L1 +
+    stats::rnorm(n)
+
+  data <- data.table::data.table(
+    id = rep(seq_len(n), each = 2L),
+    time = rep(0:1, n),
+    Y = as.numeric(rbind(NA, Y)),
+    A = as.numeric(rbind(A0, A1)),
+    L = as.numeric(rbind(L0, L1)),
+    M = as.numeric(rbind(M0, M1))
+  )
+
+  list(
+    data = data,
+    truth_psi = c(
+      stage0_psi_intercept = 1.15,
+      stage0_psi_M = 2,
+      stage1_psi_intercept = 2,
+      stage1_psi_M = 2
+    )
+  )
+}

@@ -1757,10 +1757,14 @@ test_that("Longitudinal SNM: TF model produces consistent point estimates", {
   suppressMessages(
     fit_no_tf <- causat(
       dgp$data,
-      outcome = "Y", treatment = "A",
-      confounders = ~1, confounders_tv = ~L,
-      id = "id", time = "time",
-      type = "longitudinal", family = "gaussian",
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~1,
+      confounders_tv = ~L,
+      id = "id",
+      time = "time",
+      type = "longitudinal",
+      family = "gaussian",
       estimator = "snm"
     )
   )
@@ -1769,11 +1773,16 @@ test_that("Longitudinal SNM: TF model produces consistent point estimates", {
   suppressMessages(
     fit_tf <- causat(
       dgp$data,
-      outcome = "Y", treatment = "A",
-      confounders = ~1, confounders_tv = ~L,
-      id = "id", time = "time",
-      type = "longitudinal", family = "gaussian",
-      estimator = "snm", treatment_free = ~L
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~1,
+      confounders_tv = ~L,
+      id = "id",
+      time = "time",
+      type = "longitudinal",
+      family = "gaussian",
+      estimator = "snm",
+      treatment_free = ~L
     )
   )
   res_tf <- contrast(fit_tf, ci_method = "sandwich")
@@ -1799,8 +1808,14 @@ test_that("Longitudinal SNM: TF model improves efficiency when E[R*Z] != 0", {
   L1 <- 0.5 * L0 + 0.3 * A0 + stats::rnorm(n, sd = 0.7)
   A1 <- stats::rbinom(n, 1, stats::plogis(0.3 * L1 + 0.2 * A0))
   # Outcome has quadratic L terms not in treatment model
-  Y <- 2 + 3 * A0 + 3 * A1 + 1.5 * L0 + 0.8 * L0^2 +
-    0.5 * L1 + 0.4 * L1^2 + stats::rnorm(n)
+  Y <- 2 +
+    3 * A0 +
+    3 * A1 +
+    1.5 * L0 +
+    0.8 * L0^2 +
+    0.5 * L1 +
+    0.4 * L1^2 +
+    stats::rnorm(n)
 
   data <- data.table::data.table(
     id = rep(seq_len(n), each = 2L),
@@ -1812,20 +1827,31 @@ test_that("Longitudinal SNM: TF model improves efficiency when E[R*Z] != 0", {
 
   suppressMessages(
     fit_notf <- causat(
-      data, outcome = "Y", treatment = "A",
-      confounders = ~1, confounders_tv = ~L,
-      id = "id", time = "time",
-      type = "longitudinal", family = "gaussian",
+      data,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~1,
+      confounders_tv = ~L,
+      id = "id",
+      time = "time",
+      type = "longitudinal",
+      family = "gaussian",
       estimator = "snm"
     )
   )
   suppressMessages(
     fit_tf <- causat(
-      data, outcome = "Y", treatment = "A",
-      confounders = ~1, confounders_tv = ~L,
-      id = "id", time = "time",
-      type = "longitudinal", family = "gaussian",
-      estimator = "snm", treatment_free = ~ L + I(L^2)
+      data,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~1,
+      confounders_tv = ~L,
+      id = "id",
+      time = "time",
+      type = "longitudinal",
+      family = "gaussian",
+      estimator = "snm",
+      treatment_free = ~ L + I(L^2)
     )
   )
 
@@ -1955,4 +1981,326 @@ test_that("Longitudinal SNM: sandwich SE matches cluster bootstrap SE", {
 
   boot_se <- apply(boot_psi, 1, sd, na.rm = TRUE)
   expect_equal(sandwich_se, boot_se, tolerance = 0.3)
+})
+
+
+# --- Chunk 18e: longitudinal TV-EM truth-based test ----------------------------
+# Headline scientific demonstration: SNMs correctly handle time-varying
+# effect modification (M_1 = 1{L_1 > 0}, post-treatment because L_1
+# depends on A_0), while IPW-MSM conditioning on M_1 is biased.
+# DGP: simulate_snm_longitudinal_tv_em() in helper-dgp.R.
+# Truth: stage0 = (psi_intercept=1.15, psi_M=2),
+#         stage1 = (psi_intercept=2, psi_M=2).
+
+test_that("Longitudinal SNM with TV-EM: recovers per-stage blip parameters", {
+  dgp <- simulate_snm_longitudinal_tv_em(n = 10000, seed = 123)
+
+  suppressMessages(
+    fit <- causat(
+      dgp$data,
+      outcome = "Y",
+      treatment = "A",
+      confounders_outcome = ~ A:M,
+      confounders_tv = ~ L + M,
+      id = "id",
+      time = "time",
+      type = "longitudinal",
+      family = "gaussian",
+      estimator = "snm"
+    )
+  )
+
+  res <- contrast(fit, ci_method = "sandwich")
+
+  expect_equal(
+    res$estimates$parameter,
+    c(
+      "stage0_psi_intercept",
+      "stage0_psi_M",
+      "stage1_psi_intercept",
+      "stage1_psi_M"
+    )
+  )
+
+  truth <- dgp$truth_psi
+  for (i in seq_along(truth)) {
+    expect_equal(
+      res$estimates$estimate[i],
+      unname(truth[i]),
+      tolerance = 0.15
+    )
+  }
+
+  # CIs should cover truth
+  for (i in seq_along(truth)) {
+    expect_true(res$estimates$ci_lower[i] < unname(truth[i]))
+    expect_true(res$estimates$ci_upper[i] > unname(truth[i]))
+  }
+
+  # SEs should be positive and finite
+  expect_true(all(res$estimates$se > 0))
+  expect_true(all(is.finite(res$estimates$se)))
+})
+
+
+test_that("Longitudinal SNM with TV-EM + TF: same truth, tighter SEs", {
+  dgp <- simulate_snm_longitudinal_tv_em(n = 10000, seed = 123)
+
+  suppressMessages(
+    fit_no_tf <- causat(
+      dgp$data,
+      outcome = "Y",
+      treatment = "A",
+      confounders_outcome = ~ A:M,
+      confounders_tv = ~ L + M,
+      id = "id",
+      time = "time",
+      type = "longitudinal",
+      family = "gaussian",
+      estimator = "snm"
+    )
+  )
+  res_no_tf <- contrast(fit_no_tf, ci_method = "sandwich")
+
+  suppressMessages(
+    fit_tf <- causat(
+      dgp$data,
+      outcome = "Y",
+      treatment = "A",
+      confounders_outcome = ~ A:M,
+      confounders_tv = ~ L + M,
+      id = "id",
+      time = "time",
+      type = "longitudinal",
+      family = "gaussian",
+      estimator = "snm",
+      treatment_free = ~L
+    )
+  )
+  res_tf <- contrast(fit_tf, ci_method = "sandwich")
+
+  truth <- dgp$truth_psi
+  for (i in seq_along(truth)) {
+    expect_equal(
+      res_tf$estimates$estimate[i],
+      unname(truth[i]),
+      tolerance = 0.15
+    )
+  }
+
+  # TF model should reduce SEs
+  ratio <- res_tf$estimates$se / res_no_tf$estimates$se
+  expect_true(any(ratio < 0.95))
+})
+
+
+test_that("Longitudinal SNM with TV-EM: DTRreg cross-check (history=0)", {
+  skip_if_not_installed("DTRreg")
+
+  # Use history=0 to match DTRreg's per-stage treatment model exactly:
+  # DTRreg fits A0 ~ L0 + M0 and A1 ~ L1 + M1 (no lag terms).
+  dgp <- simulate_snm_longitudinal_tv_em(n = 5000, seed = 42)
+  d <- dgp$data
+
+  suppressMessages(
+    fit <- causat(
+      d,
+      outcome = "Y",
+      treatment = "A",
+      confounders_outcome = ~ A:M,
+      confounders_tv = ~ L + M,
+      id = "id",
+      time = "time",
+      type = "longitudinal",
+      family = "gaussian",
+      estimator = "snm",
+      history = 0
+    )
+  )
+  res <- contrast(fit, ci_method = "sandwich")
+
+  # DTRreg: wide format
+  wide <- data.table::dcast(d, id ~ time, value.var = c("A", "L", "M", "Y"))
+  wide[, Y := Y_1]
+  data.table::setnames(
+    wide,
+    c("A_0", "A_1", "L_0", "L_1", "M_0", "M_1"),
+    c("A0", "A1", "L_tv0", "L_tv1", "M_tv0", "M_tv1")
+  )
+
+  dtr <- DTRreg::DTRreg(
+    outcome = wide$Y,
+    blip.mod = list(~M_tv0, ~M_tv1),
+    treat.mod = list(A0 ~ L_tv0 + M_tv0, A1 ~ L_tv1 + M_tv1),
+    tf.mod = list(~1, ~1),
+    method = "gest",
+    treat.type = "bin",
+    data = as.data.frame(wide),
+    var.estim = "none"
+  )
+
+  dtr_psi_0 <- unname(coef(dtr)[[1]])
+  dtr_psi_1 <- unname(coef(dtr)[[2]])
+
+  expect_equal(res$estimates$estimate[1], dtr_psi_0[1], tolerance = 0.05)
+  expect_equal(res$estimates$estimate[2], dtr_psi_0[2], tolerance = 0.05)
+  expect_equal(res$estimates$estimate[3], dtr_psi_1[1], tolerance = 0.05)
+  expect_equal(res$estimates$estimate[4], dtr_psi_1[2], tolerance = 0.05)
+})
+
+
+test_that("IPW is biased with post-treatment modifier; SNM is not", {
+  # The headline scientific result: conditioning on M_1 (post-treatment)
+  # in an IPW MSM introduces collider bias because M_1 = 1{L_1 > 0}
+  # and L_1 depends on A_0. The SNM's moment condition sidesteps this
+  # because it uses the treatment residual as an instrument.
+  dgp <- simulate_snm_longitudinal_tv_em(n = 10000, seed = 321)
+
+  # SNM: recovers truth
+  suppressMessages(
+    fit_snm <- causat(
+      dgp$data,
+      outcome = "Y",
+      treatment = "A",
+      confounders_outcome = ~ A:M,
+      confounders_tv = ~ L + M,
+      id = "id",
+      time = "time",
+      type = "longitudinal",
+      family = "gaussian",
+      estimator = "snm"
+    )
+  )
+  res_snm <- contrast(fit_snm, ci_method = "sandwich")
+
+  # SNM stage-1 blip intercept should be near 2
+  snm_psi10 <- res_snm$estimates$estimate[
+    res_snm$estimates$parameter == "stage1_psi_intercept"
+  ]
+  expect_equal(snm_psi10, 2, tolerance = 0.2)
+
+  # IPW on the same data: point-treatment at the final period with
+  # M as a post-treatment covariate in confounders. The MSM conditions
+  # on M, which opens a collider path A_0 -> L_1 -> M_1 <- ... -> Y.
+  d_final <- dgp$data[time == 1]
+  d_final[, L0 := dgp$data[time == 0]$L]
+  d_final[, A0 := dgp$data[time == 0]$A]
+
+  fit_ipw <- causat(
+    d_final,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L0 + L + M + A:M,
+    family = "gaussian",
+    estimator = "ipw"
+  )
+  res_ipw <- contrast(
+    fit_ipw,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  ipw_ate <- res_ipw$contrasts$estimate
+
+  # True average stage-1 effect: E[2 + 2*M_1] ~ 3.1 (M_1 has ~55% prevalence)
+  true_avg <- 2 + 2 * mean(dgp$data[time == 1]$M)
+
+  # SNM averaged blip should be close to truth
+  snm_avg <- res_snm$estimates$estimate[3] +
+    res_snm$estimates$estimate[4] * mean(dgp$data[time == 1]$M)
+  expect_equal(snm_avg, true_avg, tolerance = 0.3)
+
+  # IPW should be detectably biased (off by > 1 from truth)
+  expect_true(abs(ipw_ate - true_avg) > 1)
+})
+
+
+test_that("Longitudinal SNM with TV-EM: vcov is PSD and correctly sized", {
+  dgp <- simulate_snm_longitudinal_tv_em(n = 2000, seed = 42)
+
+  suppressMessages(
+    fit <- causat(
+      dgp$data,
+      outcome = "Y",
+      treatment = "A",
+      confounders_outcome = ~ A:M,
+      confounders_tv = ~ L + M,
+      id = "id",
+      time = "time",
+      type = "longitudinal",
+      family = "gaussian",
+      estimator = "snm"
+    )
+  )
+  res <- contrast(fit, ci_method = "sandwich")
+
+  # 4x4 vcov: 2 stages x 2 blip params
+  expect_equal(nrow(res$vcov), 4L)
+  expect_equal(ncol(res$vcov), 4L)
+
+  eig <- eigen(res$vcov, symmetric = TRUE, only.values = TRUE)$values
+  expect_true(all(eig >= -1e-10))
+
+  expect_equal(rownames(res$vcov), res$estimates$parameter)
+})
+
+
+test_that("Longitudinal SNM with TV-EM: sandwich SE matches cluster bootstrap", {
+  dgp <- simulate_snm_longitudinal_tv_em(n = 2000, seed = 42)
+
+  suppressMessages(
+    fit <- causat(
+      dgp$data,
+      outcome = "Y",
+      treatment = "A",
+      confounders_outcome = ~ A:M,
+      confounders_tv = ~ L + M,
+      id = "id",
+      time = "time",
+      type = "longitudinal",
+      family = "gaussian",
+      estimator = "snm"
+    )
+  )
+  res <- contrast(fit, ci_method = "sandwich")
+  sandwich_se <- res$estimates$se
+
+  set.seed(1234)
+  n_boot <- 200
+  unique_ids <- unique(dgp$data$id)
+  n_ids <- length(unique_ids)
+
+  boot_psi <- replicate(n_boot, {
+    boot_ids <- sample(unique_ids, n_ids, replace = TRUE)
+    boot_data <- data.table::rbindlist(lapply(seq_along(boot_ids), function(i) {
+      rows <- dgp$data[id == boot_ids[i]]
+      rows <- data.table::copy(rows)
+      rows[, id := i]
+      rows
+    }))
+    tryCatch(
+      {
+        suppressMessages(
+          boot_fit <- causat(
+            boot_data,
+            outcome = "Y",
+            treatment = "A",
+            confounders_outcome = ~ A:M,
+            confounders_tv = ~ L + M,
+            id = "id",
+            time = "time",
+            type = "longitudinal",
+            family = "gaussian",
+            estimator = "snm"
+          )
+        )
+        boot_res <- contrast(boot_fit, ci_method = "sandwich")
+        boot_res$estimates$estimate
+      },
+      error = function(e) rep(NA_real_, 4)
+    )
+  })
+
+  boot_se <- apply(boot_psi, 1, sd, na.rm = TRUE)
+  expect_equal(sandwich_se, boot_se, tolerance = 0.35)
 })

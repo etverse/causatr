@@ -1,5 +1,23 @@
 # causatr (development version)
 
+## 2026-05-21 — Longitudinal TV-EM truth test + formula dedup fix (Phase 18e)
+
+Adds the headline truth-based test for longitudinal SNMs with time-varying
+effect modification. The 2-period DGP has a post-treatment modifier
+M_1 = 1{L_1 > 0} (where L_1 depends on A_0) at both stages, with known
+blip parameters (psi_00 = 1.15, psi_0M = 2, psi_10 = 2, psi_1M = 2).
+Validates that the SNM correctly recovers all four parameters, while
+point-treatment IPW conditioning on M_1 is detectably biased due to
+collider bias (A_0 -> L_1 -> M_1).
+
+DTRreg cross-check uses `history = 0` for exact treatment-model match.
+Cluster bootstrap consistency check and TF-model efficiency test included.
+
+Also fixes `build_longitudinal_ps_formula()` to deduplicate baseline terms
+that overlap with time-varying terms. R formulas silently dropped the
+duplicate, so the fitted model was unaffected, but the formula object was
+misleading to anyone who inspected it.
+
 ## 2026-05-21 — Fix longitudinal SNM variance with treatment-free model
 
 The sandwich variance for longitudinal `estimator = "snm"` with
