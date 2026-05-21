@@ -55,6 +55,7 @@ fit_matching <- function(
   if (type == "longitudinal") {
     rlang::abort(
       "Matching is only supported for point treatments.",
+      class = "causatr_matching_longitudinal",
       .call = FALSE
     )
   }
@@ -79,6 +80,7 @@ fit_matching <- function(
         " levels. Use `estimator = \"gcomp\"` or `estimator = \"ipw\"` ",
         "for categorical treatments."
       ),
+      class = "causatr_matching_non_binary",
       .call = FALSE
     )
   }
@@ -276,6 +278,7 @@ combine_match_and_external_weights <- function(
         length(fit_w),
         "). This indicates a row-name invariant violation in `fit_data`."
       ),
+      class = "causatr_match_weight_alignment",
       .call = FALSE
     )
   }

@@ -748,6 +748,7 @@ ice_iterate <- function(fit, intervention) {
           current_time,
           " for ICE backward iteration."
         ),
+        class = "causatr_ice_internal",
         .call = FALSE
       )
     }

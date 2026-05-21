@@ -510,7 +510,8 @@ compute_ipw_if_self_contained_one <- function(
         "). The IPW sandwich engine assumes the MSM fits on the same ",
         "row set as the full data. Drop NA rows in `causat()` before ",
         "the IPW path builds the MSM."
-      )
+      ),
+      class = "causatr_variance_row_mismatch"
     )
   }
   if (nrow(prop_prep$X_fit) != n_total) {
@@ -521,7 +522,8 @@ compute_ipw_if_self_contained_one <- function(
         ") != n_total (",
         n_total,
         "). Same row-alignment invariant as the MSM above."
-      )
+      ),
+      class = "causatr_variance_row_mismatch"
     )
   }
 
@@ -664,7 +666,8 @@ compute_ipw_if_self_contained_mv_one <- function(
         ") != n_total (",
         n_total,
         "). Multivariate IPW assumes the MSM and every propensity model fit on the same rows."
-      )
+      ),
+      class = "causatr_variance_row_mismatch"
     )
   }
 

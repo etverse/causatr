@@ -32,7 +32,10 @@ static <- function(value) {
     length(value) == 1L &&
     !is.na(value)
   if (!ok) {
-    rlang::abort("`value` must be a single non-NA number or character string.")
+    rlang::abort(
+      "`value` must be a single non-NA number or character string.",
+      class = "causatr_bad_intervention_arg"
+    )
   }
   # `new_causatr_intervention()` is a thin S3 constructor -- just tags
   # the list with the right class. Keeping constructors light means
@@ -73,7 +76,10 @@ static <- function(value) {
 #' @export
 shift <- function(delta) {
   if (!(is.numeric(delta) && length(delta) == 1L && !is.na(delta))) {
-    rlang::abort("`delta` must be a single non-NA number.")
+    rlang::abort(
+      "`delta` must be a single non-NA number.",
+      class = "causatr_bad_intervention_arg"
+    )
   }
   # The object stores only the scalar `delta`; the density-ratio
   # formula g(a|L) = f(a - delta|L) is applied in `make_weight_fn()`.
@@ -109,7 +115,10 @@ shift <- function(delta) {
 #' @export
 scale_by <- function(factor) {
   if (!(is.numeric(factor) && length(factor) == 1L && !is.na(factor))) {
-    rlang::abort("`factor` must be a single non-NA number.")
+    rlang::abort(
+      "`factor` must be a single non-NA number.",
+      class = "causatr_bad_intervention_arg"
+    )
   }
   # For a multiplicative MTP d(a) = a * factor, the density ratio is
   #   g(a|L) / f(a|L) = f(a/factor|L) / (factor * f(a|L))
@@ -146,13 +155,22 @@ scale_by <- function(factor) {
 #' @export
 threshold <- function(lower = -Inf, upper = Inf) {
   if (!(is.numeric(lower) && length(lower) == 1L && !is.na(lower))) {
-    rlang::abort("`lower` must be a single non-NA number.")
+    rlang::abort(
+      "`lower` must be a single non-NA number.",
+      class = "causatr_bad_intervention_arg"
+    )
   }
   if (!(is.numeric(upper) && length(upper) == 1L && !is.na(upper))) {
-    rlang::abort("`upper` must be a single non-NA number.")
+    rlang::abort(
+      "`upper` must be a single non-NA number.",
+      class = "causatr_bad_intervention_arg"
+    )
   }
   if (lower > upper) {
-    rlang::abort("`lower` must be <= `upper`.")
+    rlang::abort(
+      "`lower` must be <= `upper`.",
+      class = "causatr_bad_intervention_arg"
+    )
   }
   # Threshold has no tractable closed-form density ratio: the clamping
   # operation maps a positive-measure set of pre-intervention values
@@ -209,7 +227,8 @@ threshold <- function(lower = -Inf, upper = Inf) {
 dynamic <- function(rule) {
   if (!is.function(rule)) {
     rlang::abort(
-      "`rule` must be a function with signature function(data, treatment)."
+      "`rule` must be a function with signature function(data, treatment).",
+      class = "causatr_bad_intervention_arg"
     )
   }
   new_causatr_intervention("dynamic", list(rule = rule))
@@ -277,13 +296,22 @@ ipsi <- function(delta) {
   # checks in `shift()` / `scale_by()` / `threshold()`. 2026-04-15
   # fourth-round critical review Issue #9.
   if (!rlang::is_scalar_double(delta) && !rlang::is_scalar_integer(delta)) {
-    rlang::abort("`delta` must be a single positive number.")
+    rlang::abort(
+      "`delta` must be a single positive number.",
+      class = "causatr_bad_intervention_arg"
+    )
   }
   if (is.na(delta)) {
-    rlang::abort("`delta` must be a single non-NA positive number.")
+    rlang::abort(
+      "`delta` must be a single non-NA positive number.",
+      class = "causatr_bad_intervention_arg"
+    )
   }
   if (delta <= 0) {
-    rlang::abort("`delta` must be positive.")
+    rlang::abort(
+      "`delta` must be positive.",
+      class = "causatr_bad_intervention_arg"
+    )
   }
   new_causatr_intervention("ipsi", list(delta = delta))
 }
@@ -333,7 +361,8 @@ ipsi <- function(delta) {
 stochastic <- function(sampler, n_mc = 100L) {
   if (!is.function(sampler)) {
     rlang::abort(
-      "`sampler` must be a function with signature function(data, treatment)."
+      "`sampler` must be a function with signature function(data, treatment).",
+      class = "causatr_bad_intervention_arg"
     )
   }
   # Stochastic interventions require Monte Carlo integration over the
@@ -347,7 +376,10 @@ stochastic <- function(sampler, n_mc = 100L) {
       !is.na(n_mc) &&
       n_mc >= 1L)
   ) {
-    rlang::abort("`n_mc` must be a positive integer.")
+    rlang::abort(
+      "`n_mc` must be a positive integer.",
+      class = "causatr_bad_intervention_arg"
+    )
   }
   n_mc <- as.integer(n_mc)
   if (n_mc < 10L) {
@@ -463,6 +495,7 @@ apply_intervention <- function(data, treatment, iv) {
           paste(shQuote(treatment), collapse = ", "),
           "."
         ),
+        class = "causatr_intervention_apply",
         .call = FALSE
       )
     }
@@ -515,6 +548,7 @@ validate_intervention_return <- function(
           trt_col,
           "` is numeric."
         ),
+        class = "causatr_intervention_apply",
         .call = FALSE
       )
     }
@@ -533,6 +567,7 @@ validate_intervention_return <- function(
             paste(shQuote(unknown), collapse = ", "),
             "."
           ),
+          class = "causatr_intervention_apply",
           .call = FALSE
         )
       }
@@ -548,6 +583,7 @@ validate_intervention_return <- function(
             trt_col,
             "`."
           ),
+          class = "causatr_intervention_apply",
           .call = FALSE
         )
       }
@@ -562,6 +598,7 @@ validate_intervention_return <- function(
           trt_col,
           "` is a factor -- return a character or factor vector."
         ),
+        class = "causatr_intervention_apply",
         .call = FALSE
       )
     }
@@ -577,6 +614,7 @@ validate_intervention_return <- function(
           trt_col,
           "` is character."
         ),
+        class = "causatr_intervention_apply",
         .call = FALSE
       )
     }
@@ -589,6 +627,7 @@ validate_intervention_return <- function(
         typeof(orig_trt),
         "."
       ),
+      class = "causatr_intervention_apply",
       .call = FALSE
     )
   }
@@ -603,6 +642,7 @@ validate_intervention_return <- function(
         length(new_trt),
         ")."
       ),
+      class = "causatr_intervention_apply",
       .call = FALSE
     )
   }
@@ -678,14 +718,24 @@ apply_single_intervention <- function(data, trt_col, iv) {
       rlang::abort(
         c(
           "`ipsi()` interventions are only supported under `estimator = 'ipw'`.",
-          i = "The intervention shifts the propensity, not the treatment value, so there is no counterfactual treatment to predict at under g-computation or matching.",
-          i = "Use `causat(..., estimator = 'ipw')` with an IPSI intervention, or rewrite the intervention as a `shift()` / `scale_by()` / `static()` for g-comp / matching."
+          i = paste(
+            "The intervention shifts the propensity, not the treatment",
+            "value, so there is no counterfactual treatment to predict",
+            "at under g-computation or matching."
+          ),
+          i = paste(
+            "Use `causat(..., estimator = 'ipw')` with an IPSI",
+            "intervention, or rewrite as `shift()` / `scale_by()` /",
+            "`static()` for g-comp / matching."
+          )
         ),
+        class = "causatr_intervention_apply",
         .call = FALSE
       )
     },
     rlang::abort(
       paste0("Unknown intervention type: '", iv$type, "'."),
+      class = "causatr_unknown_intervention",
       .call = FALSE
     )
   )

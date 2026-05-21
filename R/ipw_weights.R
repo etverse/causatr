@@ -122,7 +122,8 @@ compute_density_ratio_weights <- function(
 ) {
   if (!inherits(treatment_model, "causatr_treatment_model")) {
     rlang::abort(
-      "`treatment_model` must be a `causatr_treatment_model`."
+      "`treatment_model` must be a `causatr_treatment_model`.",
+      class = "causatr_density_error"
     )
   }
 
@@ -250,7 +251,8 @@ compute_density_ratio_weights <- function(
     fct <- intervention$factor
     if (fct == 0) {
       rlang::abort(
-        "`scale_by(0)` collapses the treatment support; not a valid MTP."
+        "`scale_by(0)` collapses the treatment support; not a valid MTP.",
+        class = "causatr_density_error"
       )
     }
     # scale_by(c): d(a) = c * a, d^{-1}(y) = y / c, |Jac| = 1 / |c|.
@@ -276,7 +278,8 @@ compute_density_ratio_weights <- function(
       "', family = '",
       family_tag,
       "'). This should have been caught by check_intervention_family_compat()."
-    )
+    ),
+    class = "causatr_density_error"
   )
 }
 
@@ -310,7 +313,8 @@ check_density_positivity <- function(f, context) {
       "). This is a positivity violation -- widen the treatment model ",
       "(add confounders, use a more flexible `propensity_model_fn`, or ",
       "truncate the treatment range) before refitting."
-    )
+    ),
+    class = "causatr_density_error"
   )
 }
 
@@ -407,7 +411,8 @@ make_weight_fn <- function(
 ) {
   if (!inherits(treatment_model, "causatr_treatment_model")) {
     rlang::abort(
-      "`treatment_model` must be a `causatr_treatment_model`."
+      "`treatment_model` must be a `causatr_treatment_model`.",
+      class = "causatr_density_error"
     )
   }
 
@@ -480,7 +485,8 @@ make_weight_fn <- function(
         ATT = function(p) p,
         ATC = function(p) 1 - p,
         rlang::abort(
-          paste0("Internal error: unknown estimand '", estimand, "'.")
+          paste0("Internal error: unknown estimand '", estimand, "'."),
+          class = "causatr_density_error"
         )
       )
       return(function(alpha) {
@@ -545,7 +551,8 @@ make_weight_fn <- function(
       fct <- intervention$factor
       if (fct == 0) {
         rlang::abort(
-          "`scale_by(0)` collapses the treatment support; not a valid MTP."
+          "`scale_by(0)` collapses the treatment support; not a valid MTP.",
+          class = "causatr_density_error"
         )
       }
       a_eval <- a_obs / fct
@@ -556,7 +563,8 @@ make_weight_fn <- function(
           "Internal error: `make_weight_fn()` has no gaussian branch for '",
           iv_type,
           "'. check_intervention_family_compat() should have rejected this."
-        )
+        ),
+        class = "causatr_density_error"
       )
     }
 
@@ -594,7 +602,8 @@ make_weight_fn <- function(
       fct <- intervention$factor
       if (fct == 0) {
         rlang::abort(
-          "`scale_by(0)` collapses the treatment support; not a valid MTP."
+          "`scale_by(0)` collapses the treatment support; not a valid MTP.",
+          class = "causatr_density_error"
         )
       }
       a_eval <- a_obs / fct
@@ -605,7 +614,8 @@ make_weight_fn <- function(
           "Internal error: `make_weight_fn()` has no count branch for '",
           iv_type,
           "'. check_intervention_family_compat() should have rejected this."
-        )
+        ),
+        class = "causatr_density_error"
       )
     }
 
@@ -637,6 +647,7 @@ make_weight_fn <- function(
       "', family = '",
       family_tag,
       "')."
-    )
+    ),
+    class = "causatr_density_error"
   )
 }

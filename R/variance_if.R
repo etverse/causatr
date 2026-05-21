@@ -390,7 +390,10 @@ variance_if <- function(
     ))
   }
 
-  rlang::abort(paste0("Unknown estimator '", estimator, "' in variance_if()."))
+  rlang::abort(
+    paste0("Unknown estimator '", estimator, "' in variance_if()."),
+    class = "causatr_unknown_estimator"
+  )
 }
 
 

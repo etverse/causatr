@@ -312,6 +312,84 @@ test_that("tidy.causatr_result returns data frame", {
   expect_equal(nrow(td_all), 3L)
 })
 
+test_that("tidy() conf.level adjusts difference contrast CIs", {
+  df <- data.frame(Y = rnorm(200), A = rbinom(200, 1, 0.5), L = rnorm(200))
+  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L)
+  res <- contrast(fit, list(a1 = static(1), a0 = static(0)),
+    reference = "a0", ci_method = "sandwich"
+  )
+  t95 <- tidy(res, which = "contrasts", conf.level = 0.95)
+  t90 <- tidy(res, which = "contrasts", conf.level = 0.90)
+  w95 <- t95$conf.high - t95$conf.low
+  w90 <- t90$conf.high - t90$conf.low
+  expect_true(w95 > w90)
+  z95 <- stats::qnorm(0.975)
+  z90 <- stats::qnorm(0.95)
+  expect_equal(w95 / w90, z95 / z90, tolerance = 1e-10)
+})
+
+test_that("tidy() conf.level adjusts ratio/OR contrast CIs on log scale", {
+  set.seed(99)
+  df <- data.frame(
+    Y = rbinom(500, 1, 0.5),
+    A = rbinom(500, 1, 0.5),
+    L = rnorm(500)
+  )
+  fit <- causat(df,
+    outcome = "Y", treatment = "A",
+    confounders = ~L, family = "binomial"
+  )
+  res_r <- contrast(fit, list(a1 = static(1), a0 = static(0)),
+    reference = "a0", type = "ratio", ci_method = "sandwich"
+  )
+  t95 <- tidy(res_r, which = "contrasts", conf.level = 0.95)
+  t90 <- tidy(res_r, which = "contrasts", conf.level = 0.90)
+  expect_equal(t95$conf.low, res_r$contrasts$ci_lower, tolerance = 1e-10)
+  expect_equal(t95$conf.high, res_r$contrasts$ci_upper, tolerance = 1e-10)
+  expect_true(t90$conf.low > t95$conf.low)
+  expect_true(t90$conf.high < t95$conf.high)
+
+  res_or <- contrast(fit, list(a1 = static(1), a0 = static(0)),
+    reference = "a0", type = "or", ci_method = "sandwich"
+  )
+  t95or <- tidy(res_or, which = "contrasts", conf.level = 0.95)
+  t90or <- tidy(res_or, which = "contrasts", conf.level = 0.90)
+  expect_equal(t95or$conf.low, res_or$contrasts$ci_lower, tolerance = 1e-10)
+  expect_true(t90or$conf.low > t95or$conf.low)
+})
+
+test_that("print labels include AIPW and SNM", {
+  df <- data.frame(Y = rnorm(50), A = rbinom(50, 1, 0.5), L = rnorm(50))
+  fit_aipw <- causat(df, "Y", "A", ~L,
+    estimator = "aipw",
+    propensity_model_fn = stats::glm
+  )
+  out <- capture.output(print(fit_aipw))
+  expect_true(any(grepl("AIPW", out)))
+})
+
+test_that("summary handles family objects and multivariate treatment", {
+  set.seed(1)
+  df <- data.frame(
+    Y = rbinom(50, 1, 0.5),
+    A = rbinom(50, 1, 0.5),
+    L = rnorm(50)
+  )
+  fit <- causat(df, "Y", "A", ~L, family = stats::binomial())
+  out <- capture.output(summary(fit))
+  expect_true(any(grepl("binomial", out)))
+
+  df2 <- data.frame(
+    Y = rnorm(50),
+    A1 = rbinom(50, 1, 0.5),
+    A2 = rbinom(50, 1, 0.5),
+    L = rnorm(50)
+  )
+  fit_mv <- causat(df2, "Y", c("A1", "A2"), ~L)
+  out_mv <- capture.output(summary(fit_mv))
+  expect_true(any(grepl("A1, A2", out_mv)))
+})
+
 test_that("glance.causatr_result returns one-row data frame", {
   df <- data.frame(
     Y = rnorm(100),

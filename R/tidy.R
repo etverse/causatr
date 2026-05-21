@@ -73,8 +73,11 @@ tidy.causatr_result <- function(
       contrasts_df$conf.low <- x$contrasts$estimate - z * x$contrasts$se
       contrasts_df$conf.high <- x$contrasts$estimate + z * x$contrasts$se
     } else {
-      contrasts_df$conf.low <- x$contrasts$ci_lower
-      contrasts_df$conf.high <- x$contrasts$ci_upper
+      # Ratio/OR: log-scale delta method CI.
+      # se_log = se_linear / estimate (derivable from stored fields).
+      se_log <- x$contrasts$se / x$contrasts$estimate
+      contrasts_df$conf.low <- exp(log(x$contrasts$estimate) - z * se_log)
+      contrasts_df$conf.high <- exp(log(x$contrasts$estimate) + z * se_log)
     }
   }
 

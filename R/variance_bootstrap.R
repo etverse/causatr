@@ -536,6 +536,7 @@ refit_model <- function(fit, d_b, weights = NULL) {
         fit$estimator,
         "'."
       ),
+      class = "causatr_unknown_estimator",
       .call = FALSE
     )
   }
