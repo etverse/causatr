@@ -638,7 +638,7 @@ test_that("stochastic ICE: binary/gaussian, bootstrap CI covers truth", {
 
 test_that("stochastic ICE: continuous treatment, gaussian, 2 periods", {
   skip_on_cran()
-  dgp <- simulate_stochastic_ice_continuous_gaussian(n = 500, seed = 42)
+  dgp <- simulate_stochastic_ice_continuous_gaussian(n = 1000, seed = 42)
   fit <- causat(
     dgp$data,
     outcome = "Y",
