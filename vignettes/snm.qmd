@@ -259,6 +259,123 @@ The truth is $\psi_{0,\text{intercept}} = 1$, $\psi_{1,\text{intercept}} = 2$,
 $\psi_{1,M} = 2$. The SNM recovers these per-stage blip parameters with
 backward-sequential g-estimation and cluster-robust sandwich standard errors.
 
+## Categorical treatment
+
+SNMs work with categorical treatments ($k > 2$ levels). The treatment model is
+a multinomial logistic regression via `nnet::multinom()`. The blip expands to
+$(K-1)$ level-specific parameters (relative to the reference level):
+
+```{r}
+#| label: categorical-treatment
+set.seed(1803)
+n <- 3000
+L <- rnorm(n)
+
+# Multinomial probabilities from softmax
+eta1 <- 0.2 + 0.5 * L
+eta2 <- -0.3 + 0.3 * L
+denom <- 1 + exp(eta1) + exp(eta2)
+A_num <- sapply(seq_len(n), function(i) {
+  sample(0:2, 1, prob = c(1 / denom[i], exp(eta1[i]) / denom[i],
+                           exp(eta2[i]) / denom[i]))
+})
+A <- factor(A_num, levels = c("0", "1", "2"))
+Y <- 2 + 0.8 * (A_num == 1) + 1.5 * (A_num == 2) + L + rnorm(n)
+d <- data.table::data.table(Y = Y, A = A, L = L)
+
+fit_cat <- causat(d, outcome = "Y", treatment = "A",
+                  confounders = ~ L,
+                  estimator = "snm",
+                  propensity_model_fn = nnet::multinom)
+
+contrast(fit_cat, ci_method = "sandwich")
+```
+
+The truth is $\psi_1 = 0.8$ (level 1 vs 0) and $\psi_2 = 1.5$ (level 2 vs 0).
+Note that `treatment_values` is not available for categorical SNMs — the
+per-level blip parameters are the estimand.
+
+## Count treatment
+
+Poisson or negative-binomial treatments use the appropriate propensity model.
+The residual $R = A - \hat\lambda$ is used in the g-estimating equation:
+
+```{r}
+#| label: count-treatment
+set.seed(1804)
+n <- 3000
+L <- rnorm(n)
+A <- rpois(n, lambda = exp(0.5 + 0.3 * L))
+M <- as.numeric(L > 0)
+Y <- 2 + 0.5 * A + 0.3 * A * M + L + rnorm(n)
+d <- data.table::data.table(Y = Y, A = A, L = L, M = M)
+
+fit_count <- causat(d, outcome = "Y", treatment = "A",
+                    confounders_outcome = ~ L + A:M,
+                    confounders_treatment = ~ L,
+                    estimator = "snm",
+                    propensity_family = "poisson")
+
+contrast(fit_count, ci_method = "sandwich")
+```
+
+The truth is $\psi_0 = 0.5$ and $\psi_M = 0.3$.
+
+## Bootstrap confidence intervals
+
+All SNM variants support bootstrap inference via `ci_method = "bootstrap"`.
+For longitudinal SNMs, the bootstrap uses ID-clustered resampling:
+
+```{r}
+#| label: bootstrap-ci
+set.seed(1805)
+n <- 2000
+L <- rnorm(n)
+A <- rnorm(n, mean = 0.5 * L, sd = 1)
+M <- 0.3 * A + 0.5 * L + rnorm(n, sd = sqrt(0.5))
+Y <- 2 + 3 * A + 1.5 * L + 2 * A * M + rnorm(n)
+d <- data.table::data.table(Y = Y, A = A, L = L, M = M)
+
+fit <- causat(d, outcome = "Y", treatment = "A",
+              confounders_outcome = ~ L + A:M,
+              confounders_treatment = ~ L,
+              estimator = "snm",
+              treatment_free = ~ L)
+
+r_boot <- contrast(fit, ci_method = "bootstrap", n_boot = 500)
+r_boot$estimates
+```
+
+## Inspecting results
+
+The standard S3 methods work with SNM results. `print()` displays a
+"Blip parameters" header, `summary()` shows the blip variance-covariance
+matrix, and `plot()` produces a forest plot with a zero reference line
+(blip = 0 means no treatment effect):
+
+```{r}
+#| label: s3-methods
+#| fig-width: 7
+#| fig-height: 4
+fit_demo <- causat(d, outcome = "Y", treatment = "A",
+                   confounders_outcome = ~ L + A:M,
+                   confounders_treatment = ~ L,
+                   estimator = "snm",
+                   treatment_free = ~ L)
+r_demo <- contrast(fit_demo, ci_method = "sandwich")
+
+# Forest plot: reference line at 0
+plot(r_demo)
+```
+
+The `tidy()` method returns a tidy data frame compatible with `broom`:
+
+```{r}
+#| label: tidy-method
+# Use which = "means" for blip parameters (SNM Path A has no contrasts)
+tidy(r_demo, which = "means")
+```
+
 ## References
 
 - Robins JM (1994). Correcting for non-compliance using structural nested mean

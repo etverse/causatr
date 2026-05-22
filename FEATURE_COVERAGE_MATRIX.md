@@ -1151,7 +1151,7 @@ Extends SNM g-estimation to categorical (k>2, multinomial residualisation via `n
 | `plot.causatr_result()` — forest plot with "Parameter" header + ref_line = 0 | ✅ | test-s3-methods.R |
 | `plot.causatr_result()` — longitudinal SNM title variation | ✅ | test-s3-methods.R |
 
-**Remaining chunks (all ❌):** 18k (documentation + vignette). 18g dropped (gesttools archived).
+**Phase 18 COMPLETE.** All chunks shipped (18a–18f, 18h–18k). 18g dropped (gesttools archived).
 
 ### `causat_mice()` — Multiple imputation
 Pool across `mice` imputations via Rubin's rules. All ❌.

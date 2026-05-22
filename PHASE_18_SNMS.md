@@ -1,6 +1,6 @@
 # Phase 18 — G-estimation of Structural Nested Mean Models (SNMMs)
 
-> **Status: IN PROGRESS** — chunks 18a–18f + 18h–18j shipped; 18g dropped (gesttools archived/broken, delicatessen used instead)
+> **Status: COMPLETE** — all chunks shipped (18a–18f, 18h–18k); 18g dropped (gesttools archived/broken, delicatessen used instead)
 >
 > **Depends on:** Phase 2 (point infra), Phase 4 (treatment-model machinery), Phase 5 (longitudinal data shape), Phase 6 (effect-modification parser)
 
@@ -127,7 +127,7 @@ SNMs in Phase 18 support the same treatment types as Phase 4 IPW, with the same 
 | 18h | Categorical / count treatment extensions (residualisation via multinomial / Poisson / NB treatment models) | ✅ | 18b |
 | 18i | Bootstrap variance: blip estimation wrapped in `boot::boot()`; per-individual cluster aggregation for longitudinal | ✅ | 18b, 18d |
 | 18j | S3 dispatch: `print.causatr_result()` / `plot.causatr_result()` / `summary` / `tidy` / `coef` on `estimator = "snm"` — foreground blip-parameter table + per-modifier-stratum pointrange plot | ✅ | 18b |
-| 18k | Documentation, vignette (`snm-time-varying-em.qmd` — the headline example), `FEATURE_COVERAGE_MATRIX.md` rows, `CLAUDE.md` update | ❌ | 18a–18j |
+| 18k | Documentation, vignette (`snm.qmd` — categorical/count/bootstrap/S3 sections), `FEATURE_COVERAGE_MATRIX.md` update, `CLAUDE.md` update | ✅ | 18a–18j |
 
 ## Supported combination matrix
 

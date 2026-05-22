@@ -1,5 +1,14 @@
 # causatr (development version)
 
+## 2026-05-22 — Phase 18 complete: Structural Nested Mean Models
+
+Phase 18 is complete. The `snm.qmd` vignette now covers all shipped
+features: categorical and count treatment extensions (18h), bootstrap
+confidence intervals (18i), and S3 method output (18j), in addition to
+the existing coverage of point and longitudinal SNMs with time-varying
+effect modification, treatment-free efficiency augmentation, and
+sandwich inference.
+
 ## 2026-05-22 — SNM-aware S3 dispatch (Phase 18j)
 
 All user-facing S3 methods now recognize SNM results and display
