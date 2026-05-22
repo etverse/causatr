@@ -54,6 +54,36 @@ distribution of $L$ among the study rows). Because the sampling model
 shifts the $L$-distribution, the target-population ATE differs from the
 study ATE.
 
+The covariate shift is visible in the density of $L$ by selection status.
+The study ($S = 1$) overrepresents high values of $L$, while the target
+($S = 0$) is shifted left:
+
+```{r}
+#| label: fig-covariate-shift
+#| fig-width: 7
+#| fig-height: 4
+#| fig-alt: "Density plot of confounder L stratified by selection status S. The study population (S = 1) is shifted right compared to the target population (S = 0), illustrating the covariate shift that motivates transportability."
+dens_df <- data.frame(
+  L = df$L,
+  Population = ifelse(df$S == 1L, "Study (S = 1)", "Target (S = 0)")
+)
+
+tinyplot::tinyplot(
+  ~ L | Population,
+  data = dens_df,
+  type = "density",
+  lwd = 2,
+  xlab = "Confounder L",
+  ylab = "Density",
+  main = "Covariate shift between study and target",
+  palette = "dark2"
+)
+```
+
+This shift is exactly what the sampling model $P(S = 1 \mid L)$ captures.
+Without transport weights, causal estimates reflect the study's skewed
+$L$-distribution rather than the target's.
+
 ## The `target =` argument
 
 Pass the name of the binary selection indicator ($S$) to `target =`:
@@ -109,7 +139,34 @@ res_study
 ```
 
 The two estimates differ because the target population has a different
-distribution of $L$ than the study sample.
+distribution of $L$ than the study sample:
+
+```{r}
+#| label: fig-study-vs-transport
+#| fig-width: 7
+#| fig-height: 4
+#| fig-alt: "Pointrange plot comparing the study-only ATE with the transported ATE. The two estimates differ because the target population has a different distribution of the confounder L."
+study_transport_df <- data.frame(
+  Target = c("Study only", "Transport (S = 0)"),
+  Estimate = c(res_study$contrasts$estimate[1],
+               res_gc$contrasts$estimate[1]),
+  CI_lower = c(res_study$contrasts$ci_lower[1],
+               res_gc$contrasts$ci_lower[1]),
+  CI_upper = c(res_study$contrasts$ci_upper[1],
+               res_gc$contrasts$ci_upper[1])
+)
+
+tinyplot::tinyplot(
+  Estimate ~ Target,
+  data = study_transport_df,
+  type = "pointrange",
+  ymin = study_transport_df$CI_lower,
+  ymax = study_transport_df$CI_upper,
+  pch = 19,
+  ylab = "ATE estimate (95% CI)",
+  main = "Study-population vs target-population ATE"
+)
+```
 
 ## Transportability vs generalizability
 

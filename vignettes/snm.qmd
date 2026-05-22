@@ -26,6 +26,218 @@ biases the estimand (Robins 2000). SNMMs identify the blip under
 treatment-model correctness alone, so post-treatment modifiers are valid
 (Vansteelandt & Joffe 2014).
 
+## What SNMs estimate vs what MSMs estimate
+
+Before diving into settings where only SNMs work, it helps to see what makes
+them *different* — even in settings where both estimators are perfectly valid.
+
+The core distinction (Robins 2000):
+
+- **MSMs** answer: "What would the population mean outcome be if everyone
+  received treatment $a$?" The estimand is $E[Y(a)]$, a marginal
+  counterfactual mean.
+- **SNMs** answer: "What is the causal effect of the treatment actually
+  received, as a function of covariates?" The estimand is the **blip function**
+  $\gamma(a, \ell; \psi) = E[Y(a) - Y(0) \mid A = a, L = \ell]$, a
+  conditional treatment effect structure.
+
+Both encode the same underlying causal truth, but through different lenses.
+MSMs give you summary-level potential outcomes under hypothetical regimes.
+SNMs give you the *architecture* of the treatment effect — how it varies
+across covariate strata.
+
+### A shared DGP
+
+Consider a simple point treatment with a baseline binary modifier $M$:
+
+```{r}
+#| label: dgp-shared
+library(causatr)
+
+set.seed(1800)
+n <- 5000
+L <- rnorm(n)
+M <- rbinom(n, 1, 0.5)
+A <- rbinom(n, 1, plogis(0.3 * L + 0.2 * M))
+Y <- 1 + 2 * A + 3 * A * M + 0.5 * L + 0.8 * M + rnorm(n)
+d <- data.table::data.table(Y = Y, A = A, L = L, M = M)
+```
+
+The structural truth:
+
+- Blip: $\gamma(A, M; \psi) = A \cdot (\psi_0 + \psi_M \cdot M)$ with
+  $\psi_0 = 2$ and $\psi_M = 3$.
+- When $M = 0$: the treatment effect is $2$.
+- When $M = 1$: the treatment effect is $2 + 3 = 5$.
+- Marginal ATE: $\psi_0 + \psi_M \cdot P(M = 1) = 2 + 3 \times 0.5 = 3.5$.
+
+All three numbers are correct descriptions of the same DGP. The question is
+which framing you want.
+
+### The MSM question: what happens under an intervention?
+
+G-computation and IPW-MSM both compute counterfactual means $\hat{E}[Y(a)]$
+for each intervention regime, then contrast them. The output is an ATE — a
+single summary number:
+
+```{r}
+#| label: gcomp-ate
+fit_gc <- causat(d, outcome = "Y", treatment = "A",
+                 confounders = ~ L + M + A:M, estimator = "gcomp",
+                 model_fn = stats::glm)
+r_gc <- contrast(fit_gc,
+                 interventions = list(a1 = static(1), a0 = static(0)),
+                 type = "difference", ci_method = "sandwich")
+r_gc$contrasts
+```
+
+The g-comp estimate gives $\widehat{\text{ATE}} \approx 3.5$, the correct
+marginal treatment effect. This answers: "On average, how much does treatment
+help?"
+
+To uncover subgroup-specific effects, the MSM/g-comp approach can be
+stratified with `by`:
+
+```{r}
+#| label: gcomp-by
+r_gc_by <- contrast(fit_gc,
+                    interventions = list(a1 = static(1), a0 = static(0)),
+                    type = "difference", ci_method = "sandwich",
+                    by = "M")
+r_gc_by$contrasts
+```
+
+Now we see the subgroup-specific ATEs: $\approx 2$ when $M = 0$ and $\approx
+5$ when $M = 1$. But these are still counterfactual mean differences — the
+MSM framework has no single parameter that directly represents the
+modification effect. You need to run the estimator twice (or use `by`) and
+then compare the subgroup estimates by eye. The effect modification itself is
+a *derived* quantity, not a model parameter.
+
+### The SNM question: what is the structure of the treatment effect?
+
+The SNM directly estimates the blip parameters $\psi$ that describe how
+treatment modifies the outcome as a function of covariates:
+
+```{r}
+#| label: snm-blip
+fit_snm <- causat(d, outcome = "Y", treatment = "A",
+                  confounders_outcome = ~ L + M + A:M,
+                  confounders_treatment = ~ L + M,
+                  estimator = "snm",
+                  treatment_free = ~ L + M)
+r_snm <- contrast(fit_snm, ci_method = "sandwich")
+r_snm$estimates
+```
+
+The SNM output is not a counterfactual mean or a contrast between regimes.
+It is the **effect modification structure itself**: $\hat\psi_0 \approx 2$
+(effect when $M = 0$) and $\hat\psi_M \approx 3$ (additional effect when
+$M = 1$). These are directly interpretable:
+
+- The treatment helps everyone ($\psi_0 > 0$), but it helps much more when
+  $M = 1$ ($\psi_M > 0$, and the $z$-test on $\psi_M$ is the direct test of
+  effect modification).
+- No post-hoc stratification or subgroup comparisons are needed — the blip
+  parameters *are* the effect modification estimates.
+
+### Connecting the two
+
+The MSM's marginal ATE and the SNM's blip parameters encode the same causal
+truth. The averaged blip, $\Delta = (a_1 - a_0) \cdot (\hat\psi_0 + \hat\psi_M
+\cdot \bar{M})$, recovers the MSM's ATE:
+
+```{r}
+#| label: averaged-blip
+r_avg <- contrast(fit_snm, treatment_values = c(0, 1))
+r_avg$estimates
+```
+
+The averaged blip estimate ($\approx 3.5$) matches the g-comp estimate. The
+SNM decomposes this average into its components; the MSM reports the
+composite directly.
+
+The following figure shows all six estimates side by side. The g-comp
+(MSM) panel reports counterfactual mean differences at three levels of
+aggregation; the SNM (blip) panel reports the structural effect parameters.
+Both recover the truth (dashed lines), but through different lenses:
+
+```{r}
+#| label: fig-msm-vs-snm
+#| fig-width: 8
+#| fig-height: 5
+#| fig-alt: "Pointrange plot comparing g-comp (MSM) and SNM estimates from the same DGP. The MSM panel shows marginal ATE and subgroup-specific ATEs; the SNM panel shows blip parameters and the averaged blip. All estimates bracket the true values."
+comp_df <- data.frame(
+  estimator = factor(
+    rep(c("G-comp (MSM)", "SNM (blip)"), each = 3),
+    levels = c("G-comp (MSM)", "SNM (blip)")
+  ),
+  parameter = factor(
+    c("Marginal ATE", "ATE | M = 0", "ATE | M = 1",
+      "Averaged blip", "psi_0 (intercept)", "psi_M (modifier)"),
+    levels = c("psi_M (modifier)", "psi_0 (intercept)", "Averaged blip",
+               "ATE | M = 1", "ATE | M = 0", "Marginal ATE")
+  ),
+  estimate = c(-r_gc$contrasts$estimate[1],
+               -r_gc_by$contrasts$estimate[1],
+               -r_gc_by$contrasts$estimate[2],
+               r_avg$estimates$estimate[1],
+               r_snm$estimates$estimate[1],
+               r_snm$estimates$estimate[2]),
+  ci_lower = c(-r_gc$contrasts$ci_upper[1],
+               -r_gc_by$contrasts$ci_upper[1],
+               -r_gc_by$contrasts$ci_upper[2],
+               r_avg$estimates$ci_lower[1],
+               r_snm$estimates$ci_lower[1],
+               r_snm$estimates$ci_lower[2]),
+  ci_upper = c(-r_gc$contrasts$ci_lower[1],
+               -r_gc_by$contrasts$ci_lower[1],
+               -r_gc_by$contrasts$ci_lower[2],
+               r_avg$estimates$ci_upper[1],
+               r_snm$estimates$ci_upper[1],
+               r_snm$estimates$ci_upper[2]),
+  truth = c(3.5, 2, 5, 3.5, 2, 3)
+)
+
+tinyplot::tinyplot(
+  estimate ~ parameter | estimator,
+  data = comp_df,
+  type = "pointrange",
+  ymin = comp_df$ci_lower,
+  ymax = comp_df$ci_upper,
+  pch = 19,
+  ylab = "Estimate (95% CI)",
+  xlab = "",
+  main = "Same DGP, different questions",
+  palette = "dark2",
+  axes = "l"
+)
+```
+
+The subgroup-specific MSM estimates ($\text{ATE} \mid M = 0$ and $\text{ATE}
+\mid M = 1$) correspond to the blip evaluated at each modifier level. But the
+mapping is one-directional: you can always aggregate blip parameters into
+an ATE, but you cannot decompose an ATE into blip parameters without
+specifying a blip model.
+
+### When does framing matter?
+
+In this simple baseline-modifier setting, both estimators work and the choice
+is about what you want to report:
+
+| Goal | Better tool |
+|---|---|
+| Population-level treatment policy decision | MSM (counterfactual means under regimes) |
+| Understanding *who benefits most* from treatment | SNM (blip parameters directly quantify heterogeneity) |
+| Formal test of effect modification | SNM ($z$-test on $\psi_M$) |
+| Dose-response under a specific intervention | MSM with `shift()` or `scale_by()` |
+| Optimal treatment rule (DTR) estimation | SNM (blip sign determines optimal assignment) |
+
+The next section shows where the SNM is not just convenient but
+**necessary**: when the modifier is itself affected by treatment. There, the
+MSM cannot include $M$ without introducing collider bias, while the SNM
+handles it natively.
+
 ## When must you use SNMs?
 
 When your research question involves **effect modification by a variable
@@ -37,8 +249,6 @@ that SNM g-estimation recovers the truth.
 
 ```{r}
 #| label: dgp-tv-modifier
-library(causatr)
-
 set.seed(1801)
 n <- 5000
 L <- rnorm(n)
@@ -104,6 +314,46 @@ To get a single summary number (like an ATE), use `treatment_values`:
 #| label: snm-averaged
 r_avg <- contrast(fit_snm, treatment_values = c(0, 1))
 r_avg$estimates
+```
+
+### Visualizing the bias
+
+The contrast between the two approaches is clearest in a figure. The IPW-MSM
+estimate ($\approx 6.5$) is far from the true averaged blip ($\approx 3.5$,
+dashed line), while the SNM recovers the truth:
+
+```{r}
+#| label: fig-bias-comparison
+#| fig-width: 6
+#| fig-height: 4
+#| fig-alt: "Pointrange plot showing the IPW-MSM estimate (severely biased at ~6.5) versus the SNM averaged blip (correct at ~3.5). A dashed line marks the true value."
+bias_df <- data.frame(
+  Method = factor(
+    c("IPW-MSM (biased)", "SNM (correct)"),
+    levels = c("IPW-MSM (biased)", "SNM (correct)")
+  ),
+  estimate = c(-r_ipw$contrasts$estimate[1],
+               r_avg$estimates$estimate[1]),
+  ci_lower = c(-r_ipw$contrasts$ci_upper[1],
+               r_avg$estimates$ci_lower[1]),
+  ci_upper = c(-r_ipw$contrasts$ci_lower[1],
+               r_avg$estimates$ci_upper[1])
+)
+
+# Approximate truth: 3 + 2 * mean(M) where M = 0.3*A + 0.5*L + noise
+avg_blip_truth <- 3 + 2 * mean(d$M)
+
+tinyplot::tinyplot(
+  estimate ~ Method,
+  data = bias_df,
+  type = "pointrange",
+  ymin = bias_df$ci_lower,
+  ymax = bias_df$ci_upper,
+  pch = 19,
+  ylab = "Effect estimate (95% CI)",
+  main = "Post-treatment effect modification:\nIPW-MSM vs SNM"
+)
+abline(h = avg_blip_truth, lty = 2, col = "grey40")
 ```
 
 ## Basic usage
@@ -258,6 +508,16 @@ result_long$estimates
 The truth is $\psi_{0,\text{intercept}} = 1$, $\psi_{1,\text{intercept}} = 2$,
 $\psi_{1,M} = 2$. The SNM recovers these per-stage blip parameters with
 backward-sequential g-estimation and cluster-robust sandwich standard errors.
+
+The forest plot shows all per-stage blip parameters with 95% CIs:
+
+```{r}
+#| label: fig-longitudinal-blip
+#| fig-width: 7
+#| fig-height: 4
+#| fig-alt: "Forest plot of longitudinal SNM blip parameters. Three parameters are shown: psi_0 intercept near 1, psi_1 intercept near 2, and psi_1_M near 2, all with tight confidence intervals around the true values."
+plot(result_long)
+```
 
 ## Categorical treatment
 
