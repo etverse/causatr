@@ -44,12 +44,21 @@ test_that("1:K matching forwards ratio to MatchIt and reduces bias", {
   d <- simulate_binary_continuous(n = 3000, seed = 55)
 
   fit_1 <- causat(
-    d, outcome = "Y", treatment = "A", confounders = ~L,
-    estimator = "matching", estimand = "ATT"
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "matching",
+    estimand = "ATT"
   )
   fit_3 <- suppressWarnings(causat(
-    d, outcome = "Y", treatment = "A", confounders = ~L,
-    estimator = "matching", estimand = "ATT", ratio = 3
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "matching",
+    estimand = "ATT",
+    ratio = 3
   ))
 
   expect_equal(fit_1$match_obj$info$ratio, 1L)
@@ -84,8 +93,12 @@ test_that("full matching (ATE) eliminates NN matching bias", {
   d <- simulate_binary_continuous(n = 2000, seed = 42)
 
   fit_full <- causat(
-    d, outcome = "Y", treatment = "A", confounders = ~L,
-    estimator = "matching", estimand = "ATE"
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "matching",
+    estimand = "ATE"
   )
   res <- contrast(
     fit_full,

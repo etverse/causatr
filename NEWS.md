@@ -1,5 +1,30 @@
 # causatr (development version)
 
+## 2026-05-22 — Categorical and count treatment extensions for SNM (Phase 18h)
+
+Extends SNM g-estimation to categorical (k>2) and count (Poisson/NB)
+treatment types. The new `snm_treatment_design()` helper abstracts the
+construction of treatment-action (AM) and treatment-residual (RM)
+matrices so the g-estimating equation solve, variance engine, and
+bootstrap are uniform across all treatment types.
+
+**Categorical treatments** use multinomial residualisation via
+`nnet::multinom`. The per-level indicators D_j = 1{A=j} and residuals
+R_j = D_j - P(A=j|L) produce (K−1) × p_mod blip parameters, one set
+per non-reference treatment level. The sandwich variance uses
+`prepare_model_if_multinom()` for the multinomial treatment model IF
+and a softmax-based cross-derivative closure. `treatment_values` is
+rejected for categorical SNM — the per-level blip parameters are the
+estimand directly.
+
+**Count treatments** work with zero code changes: the existing scalar
+residual path R = A − E[A|L] handles Poisson and negative binomial
+treatment models via `propensity_family = "poisson"` or `"negbin"`.
+
+13 new truth-based tests covering point estimation, sandwich variance,
+bootstrap consistency, treatment-free model, and longitudinal backward
+sequential estimation for both categorical and count treatments.
+
 ## 2026-05-22 — Bootstrap variance for SNM (Phase 18i)
 
 Adds bootstrap variance estimation for both point and longitudinal SNM

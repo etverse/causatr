@@ -1,6 +1,6 @@
 # Phase 18 — G-estimation of Structural Nested Mean Models (SNMMs)
 
-> **Status: IN PROGRESS** — chunks 18a–18f shipped (point estimation + sandwich variance + treatment-free model + time-varying EM + longitudinal SNMM + longitudinal TV-EM truth test + triangulation + delicatessen cross-check + history=0)
+> **Status: IN PROGRESS** — chunks 18a–18f + 18h–18i shipped; 18g dropped (gesttools archived/broken, delicatessen used instead)
 >
 > **Depends on:** Phase 2 (point infra), Phase 4 (treatment-model machinery), Phase 5 (longitudinal data shape), Phase 6 (effect-modification parser)
 
@@ -123,8 +123,8 @@ SNMs in Phase 18 support the same treatment types as Phase 4 IPW, with the same 
 | 18d | Longitudinal SNMM: `fit_snm()` fits $K$ per-period treatment models; `compute_snm_blip_longitudinal()` uses backward sequential g-estimation (Robins 1994) with per-stage blip parameters $\psi_k$; cluster-aggregated sandwich via stacked EE with cross-stage derivatives and per-individual IF aggregation; validated against DTRreg | ✅ | 18b, Phase 5 |
 | 18e | Time-varying EM truth-based test: 2-period DGP with $M_0 = 1\{L_0 > 0\}$ (baseline) and $M_1 = 1\{L_1 > 0\}$ (post-treatment); both stages have modifier in blip; truth $(\psi_{00}, \psi_{0M}, \psi_{10}, \psi_{1M}) = (1.15, 2, 2, 2)$; DTRreg cross-check with `history=0`; IPW-MSM bias demonstration | ✅ | 18d |
 | 18f | Triangulation test: SNM longitudinal blip-averaged effect vs Phase 10 IPW-MSM + ICE g-comp on a shared DGP; three pairwise checks + collider-bias negative control; delicatessen cross-check via shared fixture data; `history=0` (no-lag Markov model) support for all longitudinal estimators | ✅ | 18d, Phase 10 |
-| 18g | External cross-check against `gesttools::gestMultiple()` on a shared longitudinal DGP | ❌ | 18d |
-| 18h | Categorical / count treatment extensions (residualisation via multinomial / Poisson / NB treatment models) | ❌ | 18b |
+| 18g | ~~External cross-check against `gesttools::gestMultiple()`~~ — **DROPPED**: `gesttools` archived from CRAN (2025-04-26), broken `NAMESPACE` on GitHub, `DataCombine` dependency also archived. `delicatessen` cross-checks in 18b/18f serve as the primary external oracle instead | ⛔ dropped | 18d |
+| 18h | Categorical / count treatment extensions (residualisation via multinomial / Poisson / NB treatment models) | ✅ | 18b |
 | 18i | Bootstrap variance: blip estimation wrapped in `boot::boot()`; per-individual cluster aggregation for longitudinal | ✅ | 18b, 18d |
 | 18j | S3 dispatch: `print.causatr_result()` / `plot.causatr_result()` on `fit_type = "snm"` — foreground blip-parameter table + per-modifier-stratum pointrange plot | ❌ | 18b |
 | 18k | Documentation, vignette (`snm-time-varying-em.qmd` — the headline example), `FEATURE_COVERAGE_MATRIX.md` rows, `CLAUDE.md` update | ❌ | 18a–18j |
@@ -139,8 +139,8 @@ Full accounting of which dimensions interact with SNM and their status. This mat
 |---|---|---|---|
 | Binary | ✅ shipped | 18b | Logistic propensity via `fit_treatment_model()` |
 | Continuous | ✅ shipped | 18b | Gaussian propensity; canonical SNMM case |
-| Categorical ($k > 2$) | ❌ pending | 18h | Multinomial residualisation via `nnet::multinom` |
-| Count (Poisson/NB) | ❌ pending | 18h | Via `propensity_family` dispatch |
+| Categorical ($k > 2$) | ✅ shipped | 18h | Multinomial residualisation via `nnet::multinom`; per-level blip parameters |
+| Count (Poisson/NB) | ✅ shipped | 18h | Via `propensity_family` dispatch; scalar residual R = A − λ̂ |
 | Multivariate | ⛔ rejected | — | Out of scope; Phase 8 composition deferred |
 
 ### Treatment timing

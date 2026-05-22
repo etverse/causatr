@@ -58,7 +58,6 @@ compute_snm_blip_longitudinal <- function(fit) {
   treatment <- fit$treatment
   tf_formula <- details$treatment_free
   data <- fit$data
-  p_psi_per_stage <- blip_spec$n_params
 
   # Final-period rows carry the outcome
   last_time <- time_points[n_times]
@@ -71,7 +70,7 @@ compute_snm_blip_longitudinal <- function(fit) {
   Y_final <- data_final[[outcome]]
   na_mask <- !is.na(Y_final)
 
-  # Per-period data extraction: treatment residual R_k, blip design M_k
+  # Per-period data extraction: treatment design via snm_treatment_design()
   per_period <- vector("list", n_times)
   for (k in seq_len(n_times)) {
     tp <- as.character(time_points[k])
@@ -79,21 +78,18 @@ compute_snm_blip_longitudinal <- function(fit) {
     tm_k <- treatment_models[[tp]]
     ids_k <- as.character(data_k[[id_col]])
 
-    A_k <- data_k[[treatment]]
-    e_k <- stats::predict(tm_k$model, type = "response")
-    R_k <- A_k - e_k
-
-    M_k <- build_blip_design_matrix(data_k, blip_spec)
+    td_k <- snm_treatment_design(data_k, treatment, blip_spec, tm_k)
 
     per_period[[k]] <- list(
-      A = A_k,
-      R = R_k,
-      M = M_k,
+      td = td_k,
       ids = ids_k,
       data = data_k,
       trt_model = tm_k
     )
   }
+
+  # Per-stage psi dimension: for categorical, (K-1) * p_mod; else p_mod
+  p_psi_per_stage <- per_period[[1]]$td$p_psi
 
   has_tf <- !is.null(tf_formula)
 
@@ -102,39 +98,29 @@ compute_snm_blip_longitudinal <- function(fit) {
   Y_vec[id_to_idx[ids_all[na_mask]]] <- Y_final[na_mask]
 
   # --- Backward sequential estimation ---
-  # H_K = Y (the final outcome), then H_{k-1} = H_k - gamma_k(psi_k).
-  # At each stage k, solve the point-treatment g-estimating equation
-  # using H_k as the pseudo-outcome.
   H_current <- Y_vec
   psi_by_stage <- vector("list", n_times)
   beta_by_stage <- if (has_tf) vector("list", n_times) else NULL
   H_by_stage <- vector("list", n_times)
   Z_list <- if (has_tf) vector("list", n_times) else NULL
 
-  # Iterate backward: k = K, K-1, ..., 1 (1-indexed: n_times, ..., 1)
   for (k in n_times:1L) {
     pp <- per_period[[k]]
+    td_k <- pp$td
     idx_k <- id_to_idx[pp$ids]
     valid <- na_mask[match(pp$ids, ids_all)]
     n_valid <- sum(valid)
 
-    M_k <- pp$M[valid, , drop = FALSE]
-    R_k <- pp$R[valid]
-    A_k <- pp$A[valid]
+    AM_k <- td_k$AM[valid, , drop = FALSE]
+    RM_k <- td_k$RM[valid, , drop = FALSE]
     H_k <- H_current[idx_k[valid]]
 
     H_by_stage[[k]] <- H_current
 
     if (has_tf) {
-      # Joint (beta_k, psi_k) estimation at this stage.
-      # System: Z_k'(H_k - Z_k beta_k - A_k M_k psi_k) = 0
-      #         (R_k M_k)'(H_k - Z_k beta_k - A_k M_k psi_k) = 0
       Z_k <- stats::model.matrix(tf_formula, data = pp$data[valid, ])
       Z_list[[k]] <- stats::model.matrix(tf_formula, data = pp$data)
       p_beta <- ncol(Z_k)
-
-      AM_k <- A_k * M_k
-      RM_k <- R_k * M_k
 
       lhs <- rbind(
         cbind(crossprod(Z_k, Z_k), crossprod(Z_k, AM_k)),
@@ -168,10 +154,9 @@ compute_snm_blip_longitudinal <- function(fit) {
       psi_k <- theta_k[p_beta + seq_len(p_psi_per_stage)]
       beta_by_stage[[k]] <- beta_k
     } else {
-      # Standard per-stage solve: (M' diag(R*A) M)^{-1} M' diag(R) H_k
-      RA_k <- R_k * A_k
-      lhs <- crossprod(M_k, M_k * RA_k)
-      rhs <- crossprod(M_k, R_k * H_k)
+      # psi_k = (RM_k' AM_k)^{-1} RM_k' H_k
+      lhs <- crossprod(RM_k, AM_k)
+      rhs <- crossprod(RM_k, H_k)
 
       psi_k <- tryCatch(
         as.numeric(solve(lhs, rhs)),
@@ -193,20 +178,16 @@ compute_snm_blip_longitudinal <- function(fit) {
     }
 
     stage_label <- paste0("stage", k - 1L, "_")
-    names(psi_k) <- paste0(stage_label, blip_spec$param_names)
+    names(psi_k) <- paste0(stage_label, td_k$param_names)
     psi_by_stage[[k]] <- psi_k
 
-    # Update H for the next (earlier) stage:
-    # H_{k-1} = H_k - gamma_k(A_k, M_k; psi_k)
-    # gamma_k = A_k * (M_k %*% psi_k) for each individual at stage k
+    # Update H: H_{k-1} = H_k - gamma_k where gamma_k = AM_k %*% psi_k
     gamma_k_vec <- rep(0, n_id)
-    gamma_k_vals <- pp$A * as.numeric(pp$M %*% psi_k[seq_len(p_psi_per_stage)])
+    gamma_k_vals <- as.numeric(td_k$AM %*% psi_k[seq_len(p_psi_per_stage)])
     gamma_k_vec[id_to_idx[pp$ids]] <- gamma_k_vals
     H_current <- H_current - gamma_k_vec
   }
 
-  # Concatenate per-stage psi into a single named vector.
-  # Order: stage 0 first, then stage 1, ..., stage K-1
   psi_hat <- unlist(psi_by_stage)
 
   list(

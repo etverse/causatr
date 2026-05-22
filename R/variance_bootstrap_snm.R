@@ -81,10 +81,22 @@ snm_point_variance_bootstrap <- function(
   orig_weights <- fit$details$weights
   target <- fit$target
 
+  # Determine psi dimension from a trial treatment design — for
+  # categorical treatments, p_psi = (K-1) * p_mod, not blip_spec$n_params
+  fit_rows_orig <- get_fit_rows(data, outcome, target = target)
+  fit_data_orig <- data[fit_rows_orig]
+  trt_model_orig <- fit$details$treatment_model
+  td_orig <- snm_treatment_design(
+    fit_data_orig,
+    treatment,
+    blip_spec,
+    trt_model_orig
+  )
+
   if (!is.null(treatment_values)) {
     stat_names <- "avg_blip_effect"
   } else {
-    stat_names <- blip_spec$param_names
+    stat_names <- td_orig$param_names
   }
 
   boot_fn <- function(d, indices) {
@@ -111,16 +123,19 @@ snm_point_variance_bootstrap <- function(
           c(tm_args, dots)
         )
 
-        A_b <- fit_data_b[[treatment]]
         Y_b <- fit_data_b[[outcome]]
-        e_b <- stats::predict(trt_model_b$model, type = "response")
-        R_b <- A_b - e_b
-        M_b <- build_blip_design_matrix(fit_data_b, blip_spec)
+        td_b <- snm_treatment_design(
+          fit_data_b,
+          treatment,
+          blip_spec,
+          trt_model_b
+        )
+        AM_b <- td_b$AM
+        RM_b <- td_b$RM
+        p_psi_b <- td_b$p_psi
 
         if (!is.null(tf_formula)) {
           Z_b <- stats::model.matrix(tf_formula, data = fit_data_b)
-          AM_b <- A_b * M_b
-          RM_b <- R_b * M_b
           lhs <- rbind(
             cbind(crossprod(Z_b, Z_b), crossprod(Z_b, AM_b)),
             cbind(crossprod(RM_b, Z_b), crossprod(RM_b, AM_b))
@@ -131,17 +146,16 @@ snm_point_variance_bootstrap <- function(
           )
           theta_b <- as.numeric(solve(lhs, rhs))
           p_beta <- ncol(Z_b)
-          psi_b <- theta_b[p_beta + seq_len(blip_spec$n_params)]
+          psi_b <- theta_b[p_beta + seq_len(p_psi_b)]
         } else {
-          RA_b <- R_b * A_b
-          lhs <- crossprod(M_b, M_b * RA_b)
-          rhs <- crossprod(M_b, R_b * Y_b)
+          lhs <- crossprod(RM_b, AM_b)
+          rhs <- crossprod(RM_b, Y_b)
           psi_b <- as.numeric(solve(lhs, rhs))
         }
 
         if (!is.null(treatment_values)) {
           delta_a <- treatment_values[2] - treatment_values[1]
-          m_bar_b <- colMeans(M_b)
+          m_bar_b <- colMeans(td_b$M)
           return(delta_a * sum(psi_b * m_bar_b))
         }
 
@@ -206,14 +220,12 @@ snm_longitudinal_variance_bootstrap <- function(
   all_ids <- unique(data[[id_col]])
 
   n_times <- fit$details$n_times
-  stat_names <- character(0)
-  for (k in seq_len(n_times)) {
-    stage_label <- paste0("stage", k - 1L, "_")
-    stat_names <- c(
-      stat_names,
-      paste0(stage_label, blip_spec$param_names)
-    )
-  }
+
+  # Derive stat_names from a trial longitudinal solve — for categorical
+  # treatments, per-stage psi dimension is (K-1) * p_mod, and the
+  # param_names include level prefixes.
+  trial_result <- compute_snm_blip_longitudinal(fit)
+  stat_names <- names(trial_result$psi_hat)
 
   boot_fn <- function(ids, indices) {
     sampled_ids <- ids[indices]

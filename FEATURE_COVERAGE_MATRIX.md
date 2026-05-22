@@ -1116,7 +1116,27 @@ Bootstrap variance for point and longitudinal SNM estimators. Point bootstrap re
 | Longitudinal bootstrap with TV-EM (`confounders_outcome`) | ✅ | test-snm-bootstrap.R |
 | Bootstrap accepted (previously rejected) smoke test | ✅ | test-snm-bootstrap.R |
 
-**Remaining chunks (all ❌):** 18g (gesttools cross-check), 18h (categorical/count), 18j (S3 dispatch), 18k (documentation + vignette).
+**Chunk 18h — Categorical and count treatment extensions (shipped)**
+
+Extends SNM g-estimation to categorical (k>2, multinomial residualisation via `nnet::multinom`) and count (Poisson/NB, scalar residual R = A − λ̂) treatment types. `snm_treatment_design()` abstracts treatment design matrices (AM, RM) uniformly across all treatment types. For categorical, psi expands to (K−1) blocks with per-level indicators and multinomial residuals. `treatment_values` is rejected for categorical SNM (per-level blip parameters are the estimand).
+
+| Test | Status | File |
+|---|---|---|
+| Poisson count trt, no EM — truth (ψ = 0.5) | ✅ | test-snm.R |
+| Poisson count trt + EM — truth (ψ₀ = 0.5, ψ_M = 0.3) | ✅ | test-snm.R |
+| Poisson sandwich SE vs bootstrap consistency | ✅ | test-snm.R |
+| Poisson + TF model — truth | ✅ | test-snm.R |
+| Poisson + `treatment_values` — averaged blip | ✅ | test-snm.R |
+| Longitudinal Poisson — per-stage truth | ✅ | test-snm.R |
+| 3-level categorical, no EM — truth (ψ₁ = 0.8, ψ₂ = 1.5) | ✅ | test-snm.R |
+| Categorical + EM — 4 blip params (per-level × per-modifier) | ✅ | test-snm.R |
+| Categorical sandwich SE vs bootstrap consistency | ✅ | test-snm.R |
+| Categorical + TF model — truth | ✅ | test-snm.R |
+| Categorical vcov PSD and correct dimensions | ✅ | test-snm.R |
+| `treatment_values` rejected for categorical (`causatr_snm_cat_no_treatment_values`) | ✅ | test-snm.R |
+| Longitudinal categorical — per-stage per-level truth | ✅ | test-snm.R |
+
+**Remaining chunks (all ❌):** 18j (S3 dispatch), 18k (documentation + vignette). 18g dropped (gesttools archived).
 
 ### `causat_mice()` — Multiple imputation
 Pool across `mice` imputations via Rubin's rules. All ❌.

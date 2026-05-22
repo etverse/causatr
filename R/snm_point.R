@@ -44,36 +44,24 @@ compute_snm_blip_point <- function(fit) {
   fit_data <- data[fit_rows]
   n <- nrow(fit_data)
 
-  A <- fit_data[[fit$treatment]]
   Y <- fit_data[[fit$outcome]]
 
-  # Treatment residual: R_i = A_i - \hat{E}[A | L_i]
-  # e_a is the fitted propensity from the treatment model
-  e_a <- stats::predict(trt_model$model, type = "response")
-  R <- A - e_a
-
-  # Build the blip design matrix M (n x p_psi). Column 1 is always
-  # the intercept (corresponds to psi_intercept); subsequent columns
-  # are the modifier variables from the blip specification.
-  M <- build_blip_design_matrix(fit_data, blip_spec)
-  p_psi <- ncol(M)
+  # Build treatment design matrices AM and RM. For scalar treatments
+  # (binary/continuous/count), AM = A*M and RM = R*M. For categorical
+  # (K levels), expands to (K-1) blocks with per-level indicators and
+  # multinomial residuals.
+  td <- snm_treatment_design(fit_data, fit$treatment, blip_spec, trt_model)
+  AM <- td$AM
+  RM <- td$RM
+  p_psi <- td$p_psi
 
   if (!is.null(tf_formula)) {
     # Joint estimation: solve (beta, psi) simultaneously.
-    # The stacked system is linear:
-    #   [Z'Z        Z'(A*M)    ] [beta] = [Z'Y ]
-    #   [(R*M)'Z    (R*M)'(A*M)] [psi ] = [(R*M)'Y]
-    # where gamma(A,L;psi) = A * (M %*% psi) and Z beta is the
-    # treatment-free model prediction.
+    # [Z'Z,    Z'AM  ] [beta] = [Z'Y  ]
+    # [RM'Z,   RM'AM ] [psi ] = [RM'Y ]
     Z <- stats::model.matrix(tf_formula, data = fit_data)
     p_beta <- ncol(Z)
 
-    # Blip design weighted by treatment: B_i = A_i * M_i
-    AM <- A * M
-    # Blip design weighted by treatment residual: W_i = R_i * M_i
-    RM <- R * M
-
-    # Block system: [Z'Z, Z'(AM); (RM)'Z, (RM)'(AM)] [beta; psi] = [Z'Y; (RM)'Y]
     lhs <- rbind(
       cbind(crossprod(Z, Z), crossprod(Z, AM)),
       cbind(crossprod(RM, Z), crossprod(RM, AM))
@@ -104,13 +92,11 @@ compute_snm_blip_point <- function(fit) {
     beta_hat <- theta_hat[seq_len(p_beta)]
     names(beta_hat) <- colnames(Z)
     psi_hat <- theta_hat[p_beta + seq_len(p_psi)]
-    names(psi_hat) <- blip_spec$param_names
+    names(psi_hat) <- td$param_names
   } else {
-    # Standard approach: solve for psi only.
-    # psi = (M' diag(R * A) M)^{-1} M' diag(R) Y
-    RA <- R * A
-    lhs <- crossprod(M, M * RA)
-    rhs <- crossprod(M, R * Y)
+    # psi = (RM' AM)^{-1} RM' Y
+    lhs <- crossprod(RM, AM)
+    rhs <- crossprod(RM, Y)
 
     psi_hat <- tryCatch(
       as.numeric(solve(lhs, rhs)),
@@ -128,21 +114,22 @@ compute_snm_blip_point <- function(fit) {
         )
       }
     )
-    names(psi_hat) <- blip_spec$param_names
+    names(psi_hat) <- td$param_names
     beta_hat <- NULL
     Z <- NULL
   }
 
   list(
     psi_hat = psi_hat,
-    M = M,
-    R = R,
-    A = A,
+    M = td$M,
+    R = td$R_raw,
+    A = td$A_raw,
     Y = Y,
     n_obs = n,
     fit_rows = fit_rows,
     beta_hat = beta_hat,
-    Z = Z
+    Z = Z,
+    td = td
   )
 }
 
@@ -192,6 +179,122 @@ build_blip_design_matrix <- function(data, blip_spec) {
   }
 
   M
+}
+
+
+#' Build the SNM treatment design matrices for g-estimation
+#'
+#' Computes the treatment-action matrix \eqn{AM} and treatment-residual
+#' matrix \eqn{RM} that enter the g-estimating equation. For scalar
+#' treatments (binary, continuous, count), these are element-wise
+#' products \eqn{A \cdot M} and \eqn{R \cdot M} where
+#' \eqn{R_i = A_i - \hat{E}[A \mid L_i]}. For categorical treatments
+#' with \eqn{K} levels, the matrices expand to \eqn{(K-1)} blocks —
+#' one per non-reference level — with level-specific indicators
+#' \eqn{D_{i,j} = 1\{A_i = j\}} and multinomial residuals
+#' \eqn{R_{i,j} = D_{i,j} - P(A = j \mid L_i)}.
+#'
+#' The g-estimating equation is then uniformly:
+#' \deqn{\sum_i RM_i \cdot (Y_i - AM_i \cdot \psi) = 0,}
+#' solved by \eqn{\hat\psi = (RM' AM)^{-1} RM' Y}.
+#'
+#' @param data data.table of fitted observations.
+#' @param treatment Character treatment column name.
+#' @param blip_spec A blip specification from `build_blip_spec()`.
+#' @param trt_model A `causatr_treatment_model`.
+#' @return A list with:
+#'   \describe{
+#'     \item{AM}{Matrix (n x p_psi): treatment-action times blip design.}
+#'     \item{RM}{Matrix (n x p_psi): treatment-residual times blip design.}
+#'     \item{M}{Matrix (n x p_mod): raw blip design (modifiers only).}
+#'     \item{A_raw}{Treatment values (numeric or factor).}
+#'     \item{R_raw}{Numeric residual vector for scalar treatments;
+#'       `NULL` for categorical.}
+#'     \item{p_psi}{Integer total number of psi parameters.}
+#'     \item{param_names}{Character vector of parameter names.}
+#'     \item{is_categorical}{Logical.}
+#'     \item{trt_levels}{Character vector of treatment levels
+#'       (categorical only; `NULL` otherwise).}
+#'     \item{non_ref_levels}{Non-reference levels (categorical only).}
+#'     \item{Km1}{Integer number of non-reference levels (1 for scalar).}
+#'     \item{p_mod}{Integer number of per-level blip parameters.}
+#'   }
+#' @noRd
+snm_treatment_design <- function(data, treatment, blip_spec, trt_model) {
+  n <- nrow(data)
+  M <- build_blip_design_matrix(data, blip_spec)
+  p_mod <- ncol(M)
+  A_raw <- data[[treatment]]
+
+  if (trt_model$family == "categorical") {
+    trt_levels <- trt_model$levels
+    K <- length(trt_levels)
+    Km1 <- K - 1L
+    non_ref <- trt_levels[-1]
+
+    prob_raw <- stats::predict(trt_model$model, newdata = data, type = "probs")
+    if (is.null(dim(prob_raw))) {
+      prob_mat <- cbind(1 - prob_raw, prob_raw)
+      colnames(prob_mat) <- trt_levels
+    } else {
+      prob_mat <- prob_raw
+    }
+
+    A_char <- as.character(A_raw)
+    p_total <- Km1 * p_mod
+    AM <- matrix(0, nrow = n, ncol = p_total)
+    RM <- matrix(0, nrow = n, ncol = p_total)
+    param_names <- character(p_total)
+
+    for (j in seq_len(Km1)) {
+      cols <- ((j - 1L) * p_mod + 1L):(j * p_mod)
+      lev <- non_ref[j]
+      D_j <- as.numeric(A_char == lev)
+      R_j <- D_j - prob_mat[, lev]
+      AM[, cols] <- D_j * M
+      RM[, cols] <- R_j * M
+      param_names[cols] <- paste0("level_", lev, "_", blip_spec$param_names)
+    }
+    colnames(AM) <- param_names
+    colnames(RM) <- param_names
+
+    list(
+      AM = AM,
+      RM = RM,
+      M = M,
+      A_raw = A_raw,
+      R_raw = NULL,
+      p_psi = p_total,
+      param_names = param_names,
+      is_categorical = TRUE,
+      trt_levels = trt_levels,
+      non_ref_levels = non_ref,
+      Km1 = Km1,
+      p_mod = p_mod
+    )
+  } else {
+    e_a <- stats::predict(trt_model$model, type = "response")
+    R <- A_raw - e_a
+    AM <- A_raw * M
+    RM <- R * M
+    colnames(AM) <- blip_spec$param_names
+    colnames(RM) <- blip_spec$param_names
+
+    list(
+      AM = AM,
+      RM = RM,
+      M = M,
+      A_raw = A_raw,
+      R_raw = R,
+      p_psi = p_mod,
+      param_names = blip_spec$param_names,
+      is_categorical = FALSE,
+      trt_levels = NULL,
+      non_ref_levels = NULL,
+      Km1 = 1L,
+      p_mod = p_mod
+    )
+  }
 }
 
 
@@ -300,6 +403,26 @@ compute_snm_contrast <- function(
           )
         ),
         class = "causatr_snm_long_no_treatment_values"
+      )
+    }
+
+    # Categorical treatments have per-level blip parameters — the
+    # population-averaged blip effect via treatment_values only applies
+    # to scalar (binary/continuous/count) treatments.
+    if (snm_result$td$is_categorical) {
+      rlang::abort(
+        c(
+          paste0(
+            "`treatment_values` is not supported for categorical ",
+            "treatment SNM fits."
+          ),
+          i = paste0(
+            "Categorical SNMs estimate per-level blip parameters ",
+            "(one set per non-reference level). Use `contrast(fit)` ",
+            "without `treatment_values` to see them."
+          )
+        ),
+        class = "causatr_snm_cat_no_treatment_values"
       )
     }
 

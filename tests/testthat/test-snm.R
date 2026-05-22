@@ -2308,3 +2308,514 @@ test_that("Longitudinal SNM with TV-EM: sandwich SE matches cluster bootstrap", 
   boot_se <- apply(boot_psi, 1, sd, na.rm = TRUE)
   expect_equal(sandwich_se, boot_se, tolerance = 0.35)
 })
+
+
+# ── Count treatment (Poisson) ──────────────────────────────────────────
+
+test_that("SNM recovers blip params: Poisson count treatment, no EM", {
+  # DGP: L ~ N(0,1), A|L ~ Poisson(exp(0.3 + 0.4*L)),
+  # Y = 1 + 0.5*A + 0.8*L + eps, eps ~ N(0, 0.5)
+  # True psi_intercept = 0.5
+  set.seed(717)
+  n <- 3000
+  L <- rnorm(n)
+  A <- rpois(n, lambda = exp(0.3 + 0.4 * L))
+  Y <- 1 + 0.5 * A + 0.8 * L + rnorm(n, sd = 0.5)
+  dt <- data.table::data.table(L = L, A = A, Y = Y)
+
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "snm",
+    propensity_model_fn = stats::glm,
+    propensity_family = "poisson"
+  )
+  res <- contrast(fit, ci_method = "sandwich")
+  expect_equal(res$estimates$estimate, 0.5, tolerance = 0.05)
+})
+
+
+test_that("SNM recovers blip params: Poisson count treatment, with EM", {
+  # DGP: L ~ N(0,1), M ~ Bernoulli(0.5),
+  # A|L ~ Poisson(exp(0.3 + 0.4*L)),
+  # Y = 1 + 0.5*A + 0.3*A*M + 0.8*L + eps
+  # True: psi_intercept = 0.5, psi_M = 0.3
+  set.seed(718)
+  n <- 15000
+  L <- rnorm(n)
+  M <- rbinom(n, 1, 0.5)
+  A <- rpois(n, lambda = exp(0.3 + 0.4 * L))
+  Y <- 1 + 0.5 * A + 0.3 * A * M + 0.8 * L + rnorm(n, sd = 0.5)
+  dt <- data.table::data.table(L = L, M = M, A = A, Y = Y)
+
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders_treatment = ~L,
+    confounders_outcome = ~ A:M,
+    estimator = "snm",
+    propensity_model_fn = stats::glm,
+    propensity_family = "poisson"
+  )
+  res <- contrast(fit, ci_method = "sandwich")
+  expect_equal(res$estimates$estimate[1], 0.5, tolerance = 0.05)
+  expect_equal(res$estimates$estimate[2], 0.3, tolerance = 0.1)
+})
+
+
+test_that("SNM Poisson sandwich SE matches bootstrap SE", {
+  set.seed(719)
+  n <- 800
+  L <- rnorm(n)
+  A <- rpois(n, lambda = exp(0.3 + 0.4 * L))
+  Y <- 1 + 0.5 * A + 0.8 * L + rnorm(n, sd = 0.5)
+  dt <- data.table::data.table(L = L, A = A, Y = Y)
+
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "snm",
+    propensity_model_fn = stats::glm,
+    propensity_family = "poisson"
+  )
+  sand_res <- contrast(fit, ci_method = "sandwich")
+  boot_res <- contrast(fit, ci_method = "bootstrap", n_boot = 300)
+  expect_equal(sand_res$estimates$se, boot_res$estimates$se, tolerance = 0.3)
+})
+
+
+test_that("SNM with TF model: Poisson count treatment recovers blip params", {
+  set.seed(720)
+  n <- 3000
+  L <- rnorm(n)
+  A <- rpois(n, lambda = exp(0.3 + 0.4 * L))
+  Y <- 1 + 0.5 * A + 0.8 * L + rnorm(n, sd = 0.5)
+  dt <- data.table::data.table(L = L, A = A, Y = Y)
+
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "snm",
+    propensity_model_fn = stats::glm,
+    propensity_family = "poisson",
+    treatment_free = ~L
+  )
+  res <- contrast(fit, ci_method = "sandwich")
+  expect_equal(res$estimates$estimate, 0.5, tolerance = 0.05)
+})
+
+
+test_that("SNM treatment_values works with Poisson count treatment", {
+  set.seed(721)
+  n <- 2000
+  L <- rnorm(n)
+  A <- rpois(n, lambda = exp(0.3 + 0.4 * L))
+  Y <- 1 + 0.5 * A + 0.8 * L + rnorm(n, sd = 0.5)
+  dt <- data.table::data.table(L = L, A = A, Y = Y)
+
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "snm",
+    propensity_model_fn = stats::glm,
+    propensity_family = "poisson"
+  )
+  res <- contrast(fit, treatment_values = c(0, 2), ci_method = "sandwich")
+  # avg_blip_effect for (a1=2, a0=0) with linear blip gamma = a*psi
+  # = (2-0) * psi ≈ 2 * 0.5 = 1.0
+  expect_equal(res$estimates$estimate, 1.0, tolerance = 0.1)
+})
+
+
+test_that("Longitudinal SNM: Poisson count treatment, per-stage estimation", {
+  # Two periods: stage 0 and stage 1
+  # L_0 ~ N(0,1), A_0|L_0 ~ Poisson(exp(0.3 + 0.3*L_0))
+  # L_1 = 0.5*L_0 + 0.3*A_0 + eps, A_1|L_1 ~ Poisson(exp(0.3 + 0.3*L_1))
+  # Y = 1 + 0.4*A_0 + 0.6*A_1 + 0.5*L_0 + 0.3*L_1 + eps
+  #
+  # True psi_1 = 0.6 (direct only, last stage)
+  # True psi_0 = 0.4 + 0.3*0.3 = 0.49: direct effect of A0 (0.4) plus
+  # the A0 -> L1 -> Y mediated path (coeff_L1_on_A0 * coeff_Y_on_L1 = 0.3*0.3)
+  set.seed(722)
+  n_id <- 2000
+  L0 <- rnorm(n_id)
+  A0 <- rpois(n_id, lambda = exp(0.3 + 0.3 * L0))
+  L1 <- 0.5 * L0 + 0.3 * A0 + rnorm(n_id, sd = 0.5)
+  A1 <- rpois(n_id, lambda = exp(0.3 + 0.3 * L1))
+  Y <- 1 + 0.4 * A0 + 0.6 * A1 + 0.5 * L0 + 0.3 * L1 + rnorm(n_id, sd = 0.5)
+
+  dt <- data.table::data.table(
+    id = rep(seq_len(n_id), each = 2),
+    time = rep(0:1, n_id),
+    L = c(rbind(L0, L1)),
+    A = c(rbind(A0, A1)),
+    Y = rep(Y, each = 2)
+  )
+
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~1,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    type = "longitudinal",
+    estimator = "snm",
+    propensity_model_fn = stats::glm,
+    propensity_family = "poisson"
+  )
+  res <- contrast(fit, ci_method = "sandwich")
+  psi <- res$estimates$estimate
+  names(psi) <- res$estimates$parameter
+
+  expect_equal(psi[["stage1_psi_intercept"]], 0.6, tolerance = 0.1)
+  expect_equal(psi[["stage0_psi_intercept"]], 0.49, tolerance = 0.05)
+})
+
+
+# ── Categorical treatment (multinomial) ────────────────────────────────
+
+test_that("SNM recovers blip params: 3-level categorical treatment, no EM", {
+  # DGP: L ~ N(0,1), A ~ Multinomial(ref=0, 1, 2 | L)
+  # Y = 1 + 0.8*1{A=1} + 1.5*1{A=2} + 0.6*L + eps
+  # Blip: gamma(a,l;psi) = sum_j 1{a=j} * psi_j for non-ref j
+  # True: psi for level 1 = 0.8, psi for level 2 = 1.5
+  set.seed(730)
+  n <- 4000
+  L <- rnorm(n)
+
+  eta1 <- 0.2 + 0.5 * L
+  eta2 <- -0.3 + 0.3 * L
+  denom <- 1 + exp(eta1) + exp(eta2)
+  p0 <- 1 / denom
+  p1 <- exp(eta1) / denom
+  p2 <- exp(eta2) / denom
+
+  A_num <- sapply(seq_len(n), function(i) {
+    sample(0:2, 1, prob = c(p0[i], p1[i], p2[i]))
+  })
+  A <- factor(A_num, levels = c("0", "1", "2"))
+  Y <- 1 +
+    0.8 * (A_num == 1) +
+    1.5 * (A_num == 2) +
+    0.6 * L +
+    rnorm(n, sd = 0.5)
+  dt <- data.table::data.table(L = L, A = A, Y = Y)
+
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "snm",
+    propensity_model_fn = nnet::multinom
+  )
+  res <- contrast(fit, ci_method = "sandwich")
+
+  expect_equal(nrow(res$estimates), 2)
+  psi <- res$estimates$estimate
+  names(psi) <- res$estimates$parameter
+
+  expect_equal(psi[["level_1_psi_intercept"]], 0.8, tolerance = 0.1)
+  expect_equal(psi[["level_2_psi_intercept"]], 1.5, tolerance = 0.1)
+})
+
+
+test_that("SNM recovers blip params: categorical treatment with EM", {
+  # DGP: L ~ N(0,1), M ~ Bernoulli(0.5),
+  # A ~ Multinomial(ref=0, 1, 2 | L)
+  # Y = 1 + 0.8*1{A=1} + 1.5*1{A=2} + 0.4*M*1{A=1} + 0.7*M*1{A=2}
+  #     + 0.6*L + eps
+  # True: level_1: psi_intercept=0.8, psi_M=0.4
+  #        level_2: psi_intercept=1.5, psi_M=0.7
+  set.seed(731)
+  n <- 30000
+  L <- rnorm(n)
+  M <- rbinom(n, 1, 0.5)
+
+  eta1 <- 0.2 + 0.5 * L
+  eta2 <- -0.3 + 0.3 * L
+  denom <- 1 + exp(eta1) + exp(eta2)
+  p0 <- 1 / denom
+  p1 <- exp(eta1) / denom
+  p2 <- exp(eta2) / denom
+
+  A_num <- sapply(seq_len(n), function(i) {
+    sample(0:2, 1, prob = c(p0[i], p1[i], p2[i]))
+  })
+  A <- factor(A_num, levels = c("0", "1", "2"))
+  Y <- 1 +
+    0.8 * (A_num == 1) +
+    1.5 * (A_num == 2) +
+    0.4 * M * (A_num == 1) +
+    0.7 * M * (A_num == 2) +
+    0.6 * L +
+    rnorm(n, sd = 0.5)
+  dt <- data.table::data.table(L = L, M = M, A = A, Y = Y)
+
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders_treatment = ~L,
+    confounders_outcome = ~ A:M,
+    estimator = "snm",
+    propensity_model_fn = nnet::multinom
+  )
+  res <- contrast(fit, ci_method = "sandwich")
+
+  expect_equal(nrow(res$estimates), 4)
+  psi <- res$estimates$estimate
+  names(psi) <- res$estimates$parameter
+
+  expect_equal(psi[["level_1_psi_intercept"]], 0.8, tolerance = 0.1)
+  expect_equal(psi[["level_1_psi_M"]], 0.4, tolerance = 0.15)
+  expect_equal(psi[["level_2_psi_intercept"]], 1.5, tolerance = 0.1)
+  expect_equal(psi[["level_2_psi_M"]], 0.7, tolerance = 0.15)
+})
+
+
+test_that("SNM categorical sandwich SE matches bootstrap SE", {
+  set.seed(732)
+  n <- 1000
+  L <- rnorm(n)
+
+  eta1 <- 0.2 + 0.5 * L
+  eta2 <- -0.3 + 0.3 * L
+  denom <- 1 + exp(eta1) + exp(eta2)
+  A_num <- sapply(seq_len(n), function(i) {
+    sample(
+      0:2,
+      1,
+      prob = c(1 / denom[i], exp(eta1[i]) / denom[i], exp(eta2[i]) / denom[i])
+    )
+  })
+  A <- factor(A_num, levels = c("0", "1", "2"))
+  Y <- 1 +
+    0.8 * (A_num == 1) +
+    1.5 * (A_num == 2) +
+    0.6 * L +
+    rnorm(n, sd = 0.5)
+  dt <- data.table::data.table(L = L, A = A, Y = Y)
+
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "snm",
+    propensity_model_fn = nnet::multinom
+  )
+  sand_res <- contrast(fit, ci_method = "sandwich")
+  boot_res <- contrast(fit, ci_method = "bootstrap", n_boot = 300)
+  expect_equal(sand_res$estimates$se, boot_res$estimates$se, tolerance = 0.35)
+})
+
+
+test_that("SNM categorical with TF model recovers blip params", {
+  set.seed(733)
+  n <- 4000
+  L <- rnorm(n)
+
+  eta1 <- 0.2 + 0.5 * L
+  eta2 <- -0.3 + 0.3 * L
+  denom <- 1 + exp(eta1) + exp(eta2)
+  A_num <- sapply(seq_len(n), function(i) {
+    sample(
+      0:2,
+      1,
+      prob = c(1 / denom[i], exp(eta1[i]) / denom[i], exp(eta2[i]) / denom[i])
+    )
+  })
+  A <- factor(A_num, levels = c("0", "1", "2"))
+  Y <- 1 +
+    0.8 * (A_num == 1) +
+    1.5 * (A_num == 2) +
+    0.6 * L +
+    rnorm(n, sd = 0.5)
+  dt <- data.table::data.table(L = L, A = A, Y = Y)
+
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "snm",
+    propensity_model_fn = nnet::multinom,
+    treatment_free = ~L
+  )
+  res <- contrast(fit, ci_method = "sandwich")
+
+  psi <- res$estimates$estimate
+  names(psi) <- res$estimates$parameter
+
+  expect_equal(psi[["level_1_psi_intercept"]], 0.8, tolerance = 0.1)
+  expect_equal(psi[["level_2_psi_intercept"]], 1.5, tolerance = 0.1)
+})
+
+
+test_that("SNM categorical vcov is PSD and correctly dimensioned", {
+  set.seed(734)
+  n <- 2000
+  L <- rnorm(n)
+
+  eta1 <- 0.2 + 0.5 * L
+  eta2 <- -0.3 + 0.3 * L
+  denom <- 1 + exp(eta1) + exp(eta2)
+  A_num <- sapply(seq_len(n), function(i) {
+    sample(
+      0:2,
+      1,
+      prob = c(1 / denom[i], exp(eta1[i]) / denom[i], exp(eta2[i]) / denom[i])
+    )
+  })
+  A <- factor(A_num, levels = c("0", "1", "2"))
+  Y <- 1 +
+    0.8 * (A_num == 1) +
+    1.5 * (A_num == 2) +
+    0.6 * L +
+    rnorm(n, sd = 0.5)
+  dt <- data.table::data.table(L = L, A = A, Y = Y)
+
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "snm",
+    propensity_model_fn = nnet::multinom
+  )
+  res <- contrast(fit, ci_method = "sandwich")
+
+  V <- res$vcov
+  expect_equal(nrow(V), 2)
+  expect_equal(ncol(V), 2)
+  eig <- eigen(V, symmetric = TRUE, only.values = TRUE)$values
+  expect_true(all(eig >= -1e-10))
+})
+
+
+test_that("treatment_values rejected for categorical SNM", {
+  set.seed(735)
+  n <- 500
+  L <- rnorm(n)
+  A <- factor(sample(0:2, n, replace = TRUE), levels = c("0", "1", "2"))
+  Y <- rnorm(n)
+  dt <- data.table::data.table(L = L, A = A, Y = Y)
+
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "snm",
+    propensity_model_fn = nnet::multinom
+  )
+  expect_error(
+    contrast(fit, treatment_values = c(0, 1), ci_method = "sandwich"),
+    class = "causatr_snm_cat_no_treatment_values"
+  )
+})
+
+
+test_that("Longitudinal SNM: categorical treatment, per-stage estimation", {
+  # Two-period DGP with 3-level categorical treatment
+  # Y = 1 + 0.5*1{A0=1} + 0.9*1{A0=2} + 0.7*1{A1=1} + 1.2*1{A1=2}
+  #     + 0.4*L0 + 0.3*L1 + eps
+  set.seed(740)
+  n_id <- 800
+
+  L0 <- rnorm(n_id)
+  eta10 <- 0.2 + 0.4 * L0
+  eta20 <- -0.2 + 0.2 * L0
+  denom0 <- 1 + exp(eta10) + exp(eta20)
+  A0_num <- sapply(seq_len(n_id), function(i) {
+    sample(
+      0:2,
+      1,
+      prob = c(
+        1 / denom0[i],
+        exp(eta10[i]) / denom0[i],
+        exp(eta20[i]) / denom0[i]
+      )
+    )
+  })
+
+  L1 <- 0.5 *
+    L0 +
+    0.3 * (A0_num == 1) +
+    0.5 * (A0_num == 2) +
+    rnorm(n_id, sd = 0.5)
+  eta11 <- 0.2 + 0.4 * L1
+  eta21 <- -0.2 + 0.2 * L1
+  denom1 <- 1 + exp(eta11) + exp(eta21)
+  A1_num <- sapply(seq_len(n_id), function(i) {
+    sample(
+      0:2,
+      1,
+      prob = c(
+        1 / denom1[i],
+        exp(eta11[i]) / denom1[i],
+        exp(eta21[i]) / denom1[i]
+      )
+    )
+  })
+
+  Y <- 1 +
+    0.5 * (A0_num == 1) +
+    0.9 * (A0_num == 2) +
+    0.7 * (A1_num == 1) +
+    1.2 * (A1_num == 2) +
+    0.4 * L0 +
+    0.3 * L1 +
+    rnorm(n_id, sd = 0.5)
+
+  dt <- data.table::data.table(
+    id = rep(seq_len(n_id), each = 2),
+    time = rep(0:1, n_id),
+    L = c(rbind(L0, L1)),
+    A = factor(c(rbind(A0_num, A1_num)), levels = c("0", "1", "2")),
+    Y = rep(Y, each = 2)
+  )
+
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~1,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    type = "longitudinal",
+    estimator = "snm",
+    propensity_model_fn = nnet::multinom
+  )
+  res <- contrast(fit, ci_method = "sandwich")
+
+  psi <- res$estimates$estimate
+  names(psi) <- res$estimates$parameter
+
+  # Stage 1 (final period, estimated first): level_1 = 0.7, level_2 = 1.2
+  expect_equal(psi[["stage1_level_1_psi_intercept"]], 0.7, tolerance = 0.15)
+  expect_equal(psi[["stage1_level_2_psi_intercept"]], 1.2, tolerance = 0.15)
+
+  # Stage 0 (estimated second): level_1 = 0.5, level_2 = 0.9
+  expect_equal(psi[["stage0_level_1_psi_intercept"]], 0.5, tolerance = 0.15)
+  expect_equal(psi[["stage0_level_2_psi_intercept"]], 0.9, tolerance = 0.15)
+
+  # Vcov should be 4x4, PSD
+  V <- res$vcov
+  expect_equal(nrow(V), 4)
+  eig <- eigen(V, symmetric = TRUE, only.values = TRUE)$values
+  expect_true(all(eig >= -1e-10))
+})
