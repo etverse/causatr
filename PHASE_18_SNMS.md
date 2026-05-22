@@ -125,7 +125,7 @@ SNMs in Phase 18 support the same treatment types as Phase 4 IPW, with the same 
 | 18f | Triangulation test: SNM longitudinal blip-averaged effect vs Phase 10 IPW-MSM + ICE g-comp on a shared DGP; three pairwise checks + collider-bias negative control; delicatessen cross-check via shared fixture data; `history=0` (no-lag Markov model) support for all longitudinal estimators | ✅ | 18d, Phase 10 |
 | 18g | External cross-check against `gesttools::gestMultiple()` on a shared longitudinal DGP | ❌ | 18d |
 | 18h | Categorical / count treatment extensions (residualisation via multinomial / Poisson / NB treatment models) | ❌ | 18b |
-| 18i | Bootstrap variance: blip estimation wrapped in `boot::boot()`; per-individual cluster aggregation for longitudinal | ❌ | 18b, 18d |
+| 18i | Bootstrap variance: blip estimation wrapped in `boot::boot()`; per-individual cluster aggregation for longitudinal | ✅ | 18b, 18d |
 | 18j | S3 dispatch: `print.causatr_result()` / `plot.causatr_result()` on `fit_type = "snm"` — foreground blip-parameter table + per-modifier-stratum pointrange plot | ❌ | 18b |
 | 18k | Documentation, vignette (`snm-time-varying-em.qmd` — the headline example), `FEATURE_COVERAGE_MATRIX.md` rows, `CLAUDE.md` update | ❌ | 18a–18j |
 
@@ -186,7 +186,7 @@ All outcome families work with the additive-linear blip (the blip enters as $Y -
 |---|---|---|---|
 | Sandwich (analytic) | ✅ shipped | 18b | Stacked EE, block-triangular bread, cross-derivative via `numDeriv::jacobian` |
 | Sandwich (numeric fallback) | 🟡 pending | 18b-ext | Tier 1/2 fallback for non-standard model classes; wire `variance_if_numeric()` for SNM |
-| Bootstrap | ❌ pending | 18i | Blip re-estimation in `boot::boot()`; currently rejected with classed error |
+| Bootstrap | ✅ shipped | 18i | Blip re-estimation in `boot::boot()`; point row-resampling + longitudinal ID-cluster resampling |
 | Cluster-robust | 🟡 implicit | 18d | Per-individual IF aggregation for longitudinal; explicit `cluster =` threading pending |
 
 ### Model class (treatment model)

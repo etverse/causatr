@@ -1,5 +1,31 @@
 # causatr (development version)
 
+## 2026-05-22 — Bootstrap variance for SNM (Phase 18i)
+
+Adds bootstrap variance estimation for both point and longitudinal SNM
+estimators, completing the dual inference path (sandwich + bootstrap)
+that all other estimators already support.
+
+**Point bootstrap** resamples rows and re-solves the g-estimating equation
+on each replicate, handling all three paths: standard (no effect
+modification), with `A:modifier` interactions, and with `treatment_free`
+joint (β, ψ) estimation. When `treatment_values` is supplied, the
+bootstrap statistic is the scalar averaged blip effect directly — no
+delta-method transformation needed on the bootstrap vcov.
+
+**Longitudinal bootstrap** uses ID-clustered resampling (resample entire
+individual trajectories with clone-and-reassign for duplicates) and
+re-runs the full backward sequential g-estimation on each replicate.
+Forwards per-component confounders (`confounders_outcome`,
+`confounders_tv_outcome`, etc.) to ensure the blip specification is
+correctly reconstructed on bootstrap replicates even when outcome and
+treatment confounders are specified separately.
+
+All bootstrap SE estimates agree with sandwich SEs within a factor of 2
+across 9 test configurations (point ± EM ± treatment-free ±
+treatment_values ± binary/continuous treatment; longitudinal ± TF ±
+TV-EM).
+
 ## 2026-05-21 — Triangulation tests, delicatessen cross-check, history=0 support (Phase 18f)
 
 Adds the Robins triangle invariant tests: under correct specification and

@@ -662,7 +662,7 @@ test_that("contrast() rejects interventions for SNM fit (updated message)", {
   )
 })
 
-test_that("contrast() rejects bootstrap for SNM (pending)", {
+test_that("SNM bootstrap produces valid result (point)", {
   dgp <- simulate_snm_point_no_em(n = 500, seed = 42)
   fit <- causat(
     dgp$data,
@@ -671,10 +671,11 @@ test_that("contrast() rejects bootstrap for SNM (pending)", {
     confounders = ~L,
     estimator = "snm"
   )
-  expect_error(
-    contrast(fit, ci_method = "bootstrap"),
-    class = "causatr_snm_bootstrap_pending"
-  )
+  set.seed(1)
+  res <- contrast(fit, ci_method = "bootstrap", n_boot = 50)
+  expect_s3_class(res, "causatr_result")
+  expect_equal(res$ci_method, "bootstrap")
+  expect_true(all(is.finite(res$estimates$se)))
 })
 
 test_that("treatment_values rejected for non-SNM estimators", {
@@ -1914,7 +1915,7 @@ test_that("Longitudinal SNM: n_obs and fit metadata", {
 })
 
 
-test_that("Longitudinal SNM: bootstrap is rejected", {
+test_that("Longitudinal SNM: bootstrap produces valid result", {
   dgp <- simulate_snm_longitudinal(n = 500, seed = 42)
 
   fit <- causat(
@@ -1930,10 +1931,11 @@ test_that("Longitudinal SNM: bootstrap is rejected", {
     estimator = "snm"
   )
 
-  expect_error(
-    contrast(fit, ci_method = "bootstrap"),
-    class = "causatr_snm_bootstrap_pending"
-  )
+  set.seed(1)
+  res <- contrast(fit, ci_method = "bootstrap", n_boot = 50)
+  expect_s3_class(res, "causatr_result")
+  expect_equal(res$ci_method, "bootstrap")
+  expect_true(all(is.finite(res$estimates$se)))
 })
 
 

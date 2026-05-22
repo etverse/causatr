@@ -361,6 +361,9 @@ contrast <- function(
       treatment_values = treatment_values,
       ci_method = ci_method,
       conf_level = conf_level,
+      n_boot = n_boot,
+      parallel = parallel,
+      ncpus = ncpus,
       call = call
     ))
   }

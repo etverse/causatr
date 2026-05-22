@@ -7,7 +7,7 @@ Part of the [etverse](https://github.com/etverse) ecosystem.
 ## Guide files
 
 - `FEATURE_COVERAGE_MATRIX.md` — **single source of truth for "what works".** Every PR that changes a feature MUST update this file.
-- `PHASE_*.md` — per-phase implementation guides in the project root. Completed: 2–6, 8–17. In progress: 18 (SNM, chunks 18a–18f shipped). Pending: 19–24 (design docs).
+- `PHASE_*.md` — per-phase implementation guides in the project root. Completed: 2–6, 8–17. In progress: 18 (SNM, chunks 18a–18f + 18i shipped). Pending: 19–24 (design docs).
 
 ## Project structure
 
@@ -19,7 +19,7 @@ This is an R package: `R/` (source), `tests/testthat/` (tests, `test-foo.R` mirr
 **Interventions:** `interventions.R` — `static()`, `shift()`, `scale_by()`, `threshold()`, `dynamic()`, `ipsi()`, `stochastic()`.
 **Estimation:** `gcomp.R`, `ice.R`, `ipw.R`, `aipw.R` (point AIPW), `aipw_longitudinal.R` (longitudinal AIPW), `longitudinal_ipw.R`, `matching.R`, `snm.R` (SNM fitter + blip spec), `snm_point.R` (point g-estimation + blip design matrix + contrast), `snm_longitudinal.R` (longitudinal backward-sequential g-estimation), `censoring.R` (IPCW model fitting + weights).
 **Inference (IF sandwich):** `variance_if_core.R` (model-correction primitives + vcov aggregation), `variance_if.R` (main dispatcher + numeric fallback + point channel + gcomp/matching IF), `variance_if_ice.R`, `variance_if_ipw.R` (point + mv + longitudinal IPW IF), `variance_if_aipw.R` (point + longitudinal AIPW IF), `variance_if_snm.R` (point SNM sandwich), `variance_if_snm_longitudinal.R` (longitudinal SNM cluster sandwich).
-**Inference (bootstrap):** `variance_bootstrap.R` (core + refitters), `variance_bootstrap_longitudinal.R` (longitudinal IPW/ICE/AIPW bootstrap).
+**Inference (bootstrap):** `variance_bootstrap.R` (core + refitters), `variance_bootstrap_longitudinal.R` (longitudinal IPW/ICE/AIPW bootstrap), `variance_bootstrap_snm.R` (point + longitudinal SNM bootstrap).
 **Data:** `to_person_period.R`, `prepare_data.R`, `data.R` (dataset documentation).
 **S3:** `print.R`, `summary.R`, `plot.R`, `coef.R`, `confint.R`, `tidy.R`, `knit_print.R`.
 **Support:** `effect_modification.R`, `ipw_weights.R` (point weights), `ipw_weights_mv.R` (mv weights + shared helpers), `ipw_weights_longitudinal.R`, `treatment_model.R`, `sampling_model.R` (sampling model for transport), `constructors.R` (`new_causatr_*` S3 constructors), `family.R` (GLM family helpers), `utils.R` (misc helpers), `checks.R`, `target_trial.R` (target trial protocol), `causat_mice.R` (MI workflow placeholder), `causatr-package.R` (package-level doc), `zzz.R`.

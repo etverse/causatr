@@ -227,30 +227,42 @@ compute_snm_contrast <- function(
   treatment_values,
   ci_method,
   conf_level,
+  n_boot = 500L,
+  parallel = "no",
+  ncpus = 1L,
   call
 ) {
-  if (ci_method == "bootstrap") {
-    rlang::abort(
-      c(
-        "Bootstrap variance is unavailable for `estimator = \"snm\"`.",
-        i = "Use `ci_method = \"sandwich\"`."
-      ),
-      class = "causatr_snm_bootstrap_pending"
-    )
-  }
+  # Compute point estimates regardless of ci_method — sandwich and
 
+  # bootstrap share the same psi_hat from the g-estimating equation.
   if (fit$type == "longitudinal") {
     snm_result <- compute_snm_blip_longitudinal(fit)
-    vcov_psi <- variance_if_snm_longitudinal(fit, snm_result)
   } else {
     snm_result <- compute_snm_blip_point(fit)
-    vcov_psi <- variance_if_snm(fit, snm_result)
   }
   psi_hat <- snm_result$psi_hat
   p_psi <- length(psi_hat)
   z <- stats::qnorm((1 + conf_level) / 2)
-
   n_target <- snm_result$n_obs
+
+  # Variance: sandwich or bootstrap
+  if (ci_method == "sandwich") {
+    if (fit$type == "longitudinal") {
+      vcov_psi <- variance_if_snm_longitudinal(fit, snm_result)
+    } else {
+      vcov_psi <- variance_if_snm(fit, snm_result)
+    }
+  } else {
+    # Bootstrap: resample and re-estimate blip parameters
+    boot_res <- snm_variance_bootstrap(
+      fit,
+      treatment_values = treatment_values,
+      n_boot = n_boot,
+      parallel = parallel,
+      ncpus = ncpus
+    )
+    vcov_psi <- boot_res$vcov
+  }
 
   if (is.null(treatment_values)) {
     # Path A: blip parameter table — one row per parameter.
@@ -307,10 +319,15 @@ compute_snm_contrast <- function(
     m_bar <- colMeans(M)
     avg_effect <- delta_a * sum(psi_hat * m_bar)
 
-    # Delta method: grad_j = delta_a * mean(m_j)
-    grad <- delta_a * m_bar
-    var_effect <- as.numeric(t(grad) %*% vcov_psi %*% grad)
-    se_effect <- sqrt(max(var_effect, 0))
+    if (ci_method == "bootstrap") {
+      # Bootstrap vcov is already for the averaged blip effect (scalar)
+      se_effect <- sqrt(max(vcov_psi[1, 1], 0))
+    } else {
+      # Delta method: grad_j = delta_a * mean(m_j)
+      grad <- delta_a * m_bar
+      var_effect <- as.numeric(t(grad) %*% vcov_psi %*% grad)
+      se_effect <- sqrt(max(var_effect, 0))
+    }
 
     comparison_label <- paste0("a=", a1, " vs a=", a0)
     estimates_dt <- data.table::data.table(
