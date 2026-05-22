@@ -1,5 +1,22 @@
 # causatr (development version)
 
+## 2026-05-22 — SNM-aware S3 dispatch (Phase 18j)
+
+All user-facing S3 methods now recognize SNM results and display
+blip-parameter-specific output instead of the intervention-mean layout
+used by gcomp/IPW/AIPW/matching.
+
+`print.causatr_result()` shows "Blip parameters:" (point), "Per-stage
+blip parameters:" (longitudinal), or "Averaged blip effect:" (Path B
+with `treatment_values`), and suppresses the empty contrasts table for
+Path A. `summary.causatr_result()` skips the "Intervention details"
+section for SNM and labels the vcov as "blip parameters".
+`plot.causatr_result()` produces a forest plot with parameter names as
+row labels, a zero reference line, and an SNM-specific title.
+`coef()` and `tidy()` correctly use the `parameter` column (instead of
+`intervention`) present in SNM result objects, and `tidy()` tags rows
+with `type = "parameter"`.
+
 ## 2026-05-22 — Categorical and count treatment extensions for SNM (Phase 18h)
 
 Extends SNM g-estimation to categorical (k>2) and count (Poisson/NB)

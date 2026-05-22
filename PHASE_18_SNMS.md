@@ -1,6 +1,6 @@
 # Phase 18 — G-estimation of Structural Nested Mean Models (SNMMs)
 
-> **Status: IN PROGRESS** — chunks 18a–18f + 18h–18i shipped; 18g dropped (gesttools archived/broken, delicatessen used instead)
+> **Status: IN PROGRESS** — chunks 18a–18f + 18h–18j shipped; 18g dropped (gesttools archived/broken, delicatessen used instead)
 >
 > **Depends on:** Phase 2 (point infra), Phase 4 (treatment-model machinery), Phase 5 (longitudinal data shape), Phase 6 (effect-modification parser)
 
@@ -126,7 +126,7 @@ SNMs in Phase 18 support the same treatment types as Phase 4 IPW, with the same 
 | 18g | ~~External cross-check against `gesttools::gestMultiple()`~~ — **DROPPED**: `gesttools` archived from CRAN (2025-04-26), broken `NAMESPACE` on GitHub, `DataCombine` dependency also archived. `delicatessen` cross-checks in 18b/18f serve as the primary external oracle instead | ⛔ dropped | 18d |
 | 18h | Categorical / count treatment extensions (residualisation via multinomial / Poisson / NB treatment models) | ✅ | 18b |
 | 18i | Bootstrap variance: blip estimation wrapped in `boot::boot()`; per-individual cluster aggregation for longitudinal | ✅ | 18b, 18d |
-| 18j | S3 dispatch: `print.causatr_result()` / `plot.causatr_result()` on `fit_type = "snm"` — foreground blip-parameter table + per-modifier-stratum pointrange plot | ❌ | 18b |
+| 18j | S3 dispatch: `print.causatr_result()` / `plot.causatr_result()` / `summary` / `tidy` / `coef` on `estimator = "snm"` — foreground blip-parameter table + per-modifier-stratum pointrange plot | ✅ | 18b |
 | 18k | Documentation, vignette (`snm-time-varying-em.qmd` — the headline example), `FEATURE_COVERAGE_MATRIX.md` rows, `CLAUDE.md` update | ❌ | 18a–18j |
 
 ## Supported combination matrix

@@ -1136,7 +1136,22 @@ Extends SNM g-estimation to categorical (k>2, multinomial residualisation via `n
 | `treatment_values` rejected for categorical (`causatr_snm_cat_no_treatment_values`) | ✅ | test-snm.R |
 | Longitudinal categorical — per-stage per-level truth | ✅ | test-snm.R |
 
-**Remaining chunks (all ❌):** 18j (S3 dispatch), 18k (documentation + vignette). 18g dropped (gesttools archived).
+**Chunk 18j — S3 dispatch for SNM results (shipped)**
+
+| Feature | Status | Test |
+|---|---|---|
+| `print.causatr_result()` — "Blip parameters" header for SNM Path A | ✅ | test-s3-methods.R |
+| `print.causatr_result()` — "Averaged blip effect" for SNM Path B | ✅ | test-s3-methods.R |
+| `print.causatr_result()` — "Per-stage blip parameters" for longitudinal SNM | ✅ | test-s3-methods.R |
+| `summary.causatr_result()` — skips intervention details for SNM + blip vcov label | ✅ | test-s3-methods.R |
+| `coef.causatr_result()` — returns named blip parameter vector | ✅ | test-s3-methods.R |
+| `tidy.causatr_result()` — handles `parameter` column, type = "parameter" | ✅ | test-s3-methods.R |
+| `tidy.causatr_result()` — SNM Path B (averaged blip) | ✅ | test-s3-methods.R |
+| `glance.causatr_result()` — works for SNM | ✅ | test-s3-methods.R |
+| `plot.causatr_result()` — forest plot with "Parameter" header + ref_line = 0 | ✅ | test-s3-methods.R |
+| `plot.causatr_result()` — longitudinal SNM title variation | ✅ | test-s3-methods.R |
+
+**Remaining chunks (all ❌):** 18k (documentation + vignette). 18g dropped (gesttools archived).
 
 ### `causat_mice()` — Multiple imputation
 Pool across `mice` imputations via Rubin's rules. All ❌.

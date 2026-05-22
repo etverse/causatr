@@ -41,15 +41,24 @@ tidy.causatr_result <- function(
   # `contrast()` originally used.
   z <- stats::qnorm((1 + conf.level) / 2)
 
-  # Mean row per intervention. `std.error` is the broom-convention
-  # name for SE; our internal table uses `se`. `type` labels each
-  # row so a consumer can filter `means` vs `contrasts` after the
-  # `all` rbind below.
+  # SNM results have a "parameter" column; other estimators use
+  # "intervention". Pick whichever is present.
+  term_col <- if ("parameter" %in% names(x$estimates)) {
+    x$estimates$parameter
+  } else {
+    x$estimates$intervention
+  }
+  row_type <- if (identical(x$estimator, "snm")) "parameter" else "mean"
+
+  # Mean (or blip parameter) row per entry. `std.error` is the
+  # broom-convention name for SE; our internal table uses `se`.
+  # `type` labels each row so a consumer can filter `means` vs
+  # `contrasts` vs `parameter` after the `all` rbind below.
   means_df <- data.frame(
-    term = x$estimates$intervention,
+    term = term_col,
     estimate = x$estimates$estimate,
     std.error = x$estimates$se,
-    type = "mean",
+    type = row_type,
     stringsAsFactors = FALSE
   )
   if (conf.int) {
@@ -61,11 +70,12 @@ tidy.causatr_result <- function(
   # conf.level (symmetric Wald). For ratio/OR, the stored CIs came
   # through the log-scale delta method in contrast(), which symmetric
   # Wald cannot reproduce — keep the original CIs.
+  n_contrasts <- nrow(x$contrasts)
   contrasts_df <- data.frame(
     term = x$contrasts$comparison,
     estimate = x$contrasts$estimate,
     std.error = x$contrasts$se,
-    type = "contrast",
+    type = rep("contrast", n_contrasts),
     stringsAsFactors = FALSE
   )
   if (conf.int) {
