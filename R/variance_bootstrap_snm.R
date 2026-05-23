@@ -272,9 +272,10 @@ snm_longitudinal_variance_bootstrap <- function(
             time = time_col,
             call = fit$call,
             confounders_outcome = confounders_outcome_raw,
+            confounders_outcome_raw = confounders_outcome_raw,
+            confounders_treatment_raw = confounders_treatment_raw,
             confounders_tv_outcome_raw = confounders_tv_outcome_raw,
             confounders_tv_treatment_raw = confounders_tv_treatment_raw,
-            confounders_treatment_raw = confounders_treatment_raw,
             treatment_free = tf_formula,
             model_fn = model_fn
           )

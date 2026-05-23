@@ -113,6 +113,8 @@ variance_if_snm_longitudinal <- function(fit, snm_result) {
 #'   all stages (`n_times * p_psi_per_stage`).
 #' @param fit The original `causatr_fit` object (needed for treatment
 #'   model access via `prepare_model_if()`).
+#' @return A named \eqn{p_{total} \times p_{total}} variance-covariance
+#'   matrix for the concatenated \eqn{\hat\psi} vector (all stages).
 #' @noRd
 variance_if_snm_longitudinal_notf <- function(
   psi_hat,
@@ -291,6 +293,8 @@ variance_if_snm_longitudinal_notf <- function(
 #'   all stages (`n_times * p_psi_per_stage`).
 #' @param fit The original `causatr_fit` object (needed for treatment
 #'   model access via `prepare_model_if()`).
+#' @return A named \eqn{p_{total} \times p_{total}} variance-covariance
+#'   matrix for the concatenated \eqn{\hat\psi} vector (all stages).
 #' @noRd
 variance_if_snm_longitudinal_tf <- function(
   psi_hat,
