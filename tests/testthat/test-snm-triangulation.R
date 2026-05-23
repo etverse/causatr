@@ -329,6 +329,129 @@ test_that("longitudinal SNM matches delicatessen (binary, no EM)", {
 })
 
 
+test_that("longitudinal SNM + TF matches delicatessen (binary, no EM)", {
+  ref <- read.csv(test_path(
+    "fixtures", "snm_longitudinal_tf_delicatessen.csv"
+  ))
+
+  wide <- read.csv(test_path(
+    "fixtures", "snm_longitudinal_fixture.csv"
+  ))
+  d <- data.table::rbindlist(lapply(seq_len(nrow(wide)), function(i) {
+    data.table::data.table(
+      id = c(wide$id[i], wide$id[i]),
+      time = c(0L, 1L),
+      Y = c(NA_real_, wide$Y[i]),
+      A = c(wide$A0[i], wide$A1[i]),
+      L = c(wide$L0[i], wide$L1[i])
+    )
+  }))
+
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~1,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    type = "longitudinal",
+    family = "gaussian",
+    estimator = "snm",
+    propensity_model_fn = stats::glm,
+    treatment_free = ~L
+  )
+  res <- contrast(fit, ci_method = "sandwich")
+  psi <- res$estimates$estimate
+  names(psi) <- res$estimates$parameter
+  se <- res$estimates$se
+  names(se) <- res$estimates$parameter
+
+  ref_s0 <- ref[ref$parameter == "stage0_psi_intercept", ]
+  ref_s1 <- ref[ref$parameter == "stage1_psi_intercept", ]
+
+  expect_equal(psi[["stage0_psi_intercept"]], ref_s0$estimate, tolerance = 1e-4)
+  expect_equal(psi[["stage1_psi_intercept"]], ref_s1$estimate, tolerance = 1e-4)
+  expect_equal(se[["stage0_psi_intercept"]], ref_s0$se, tolerance = 0.003)
+  expect_equal(se[["stage1_psi_intercept"]], ref_s1$se, tolerance = 0.003)
+})
+
+
+test_that("longitudinal SNM + TV-EM + TF matches delicatessen", {
+  ref <- read.csv(test_path(
+    "fixtures", "snm_longitudinal_tv_em_delicatessen.csv"
+  ))
+
+  wide <- read.csv(test_path(
+    "fixtures", "snm_longitudinal_tv_em_fixture.csv"
+  ))
+  d <- data.table::rbindlist(lapply(seq_len(nrow(wide)), function(i) {
+    data.table::data.table(
+      id = c(wide$id[i], wide$id[i]),
+      time = c(0L, 1L),
+      Y = c(NA_real_, wide$Y[i]),
+      A = c(wide$A0[i], wide$A1[i]),
+      L = c(wide$L0[i], wide$L1[i]),
+      M = c(wide$M0[i], wide$M1[i])
+    )
+  }))
+
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders_outcome = ~ A:M,
+    confounders_tv = ~ L + M,
+    id = "id",
+    time = "time",
+    type = "longitudinal",
+    family = "gaussian",
+    estimator = "snm",
+    propensity_model_fn = stats::glm,
+    treatment_free = ~L
+  )
+  res <- contrast(fit, ci_method = "sandwich")
+  psi <- res$estimates$estimate
+  names(psi) <- res$estimates$parameter
+  se <- res$estimates$se
+  names(se) <- res$estimates$parameter
+
+  ref_s1_int <- ref[ref$parameter == "stage1_psi_intercept", ]
+  ref_s1_M <- ref[ref$parameter == "stage1_psi_M", ]
+  ref_s0_int <- ref[ref$parameter == "stage0_psi_intercept", ]
+  ref_s0_M <- ref[ref$parameter == "stage0_psi_M", ]
+
+  expect_equal(
+    psi[["stage1_psi_intercept"]], ref_s1_int$estimate, tolerance = 1e-4
+  )
+  expect_equal(
+    psi[["stage1_psi_M"]], ref_s1_M$estimate, tolerance = 1e-4
+  )
+  expect_equal(
+    psi[["stage0_psi_intercept"]], ref_s0_int$estimate, tolerance = 1e-4
+  )
+  expect_equal(
+    psi[["stage0_psi_M"]], ref_s0_M$estimate, tolerance = 1e-4
+  )
+
+  # SE tolerance wider (1%) for TV-EM + TF because the backward-transform
+  # chain amplifies the bread/meat aggregation difference between R's
+  # cluster-robust sandwich and delicatessen's stacked sandwich
+  expect_equal(
+    se[["stage1_psi_intercept"]], ref_s1_int$se, tolerance = 0.01
+  )
+  expect_equal(
+    se[["stage1_psi_M"]], ref_s1_M$se, tolerance = 0.01
+  )
+  expect_equal(
+    se[["stage0_psi_intercept"]], ref_s0_int$se, tolerance = 0.01
+  )
+  expect_equal(
+    se[["stage0_psi_M"]], ref_s0_M$se, tolerance = 0.01
+  )
+})
+
+
 # --- history = 0 tests -------------------------------------------------------
 # history = 0 means no lag columns in the per-period treatment model.
 

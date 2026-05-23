@@ -1,5 +1,27 @@
 # causatr (development version)
 
+## 2026-05-22 — Phase 18 critical review fixes
+
+3rd-round critical review of Phase 18 (SNM implementation):
+
+* **Bootstrap metadata fix**: longitudinal SNM bootstrap now correctly
+  forwards `confounders_outcome_raw` to replicated fits, ensuring
+  metadata consistency on the bootstrap `causatr_fit` objects.
+* **Predict consistency**: `snm_treatment_design()` now uses
+  `newdata = data` in `predict()` for scalar treatments, matching the
+  categorical branch and guarding against future data-vs-model mismatch.
+* **File split**: extracted `compute_snm_contrast()` from `snm_point.R`
+  (488 lines) into `snm_contrast.R` (191 lines), bringing both files
+  under the 300-line guideline.
+* **Roxygen**: added missing `@return` tags to
+  `variance_if_snm_longitudinal_notf()` and
+  `variance_if_snm_longitudinal_tf()`.
+* **delicatessen cross-checks**: added two new cross-language oracle
+  tests for longitudinal SNM — treatment-free model (TF, no EM) and
+  time-varying effect modification with TF (TV-EM + TF). Both use
+  Python delicatessen stacked M-estimation as the reference, with
+  tight point-estimate tolerances (1e-4) and SE tolerances (0.3–1%).
+
 ## 2026-05-22 — Phase 18 complete: Structural Nested Mean Models
 
 Phase 18 is complete. The `snm.qmd` vignette now covers all shipped
