@@ -838,6 +838,19 @@ test_that("apply_intervention_to_values() rejects an unknown intervention type",
 
 # ---- Weight truncation (Phase 19-trim) ---------------------------------
 
+test_that("contrast() rejects invalid trim values", {
+  d <- data.table::data.table(
+    Y = rnorm(50), A = rbinom(50, 1, 0.5), L = rnorm(50)
+  )
+  fit <- causat(d, "Y", "A", ~L, estimator = "ipw")
+  ivs <- list(a1 = static(1), a0 = static(0))
+  expect_error(contrast(fit, ivs, trim = 0), class = "causatr_bad_trim")
+  expect_error(contrast(fit, ivs, trim = -1), class = "causatr_bad_trim")
+  expect_error(contrast(fit, ivs, trim = 2), class = "causatr_bad_trim")
+  expect_error(contrast(fit, ivs, trim = "a"), class = "causatr_bad_trim")
+  expect_error(contrast(fit, ivs, trim = c(0.9, 0.95)), class = "causatr_bad_trim")
+})
+
 test_that("truncate_weights: trim=1 returns weights unchanged", {
   w <- c(1, 2, 5, 10, 100)
   expect_identical(truncate_weights(w, trim = 1), w)

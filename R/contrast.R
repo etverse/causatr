@@ -304,6 +304,17 @@ contrast <- function(
   type <- rlang::arg_match(type)
   ci_method <- rlang::arg_match(ci_method)
 
+  if (!is.numeric(trim) || length(trim) != 1L || trim <= 0 || trim > 1) {
+    rlang::abort(
+      paste0(
+        "`trim` must be a numeric scalar in (0, 1]. Got: ",
+        deparse1(trim),
+        "."
+      ),
+      class = "causatr_bad_trim"
+    )
+  }
+
   # `subset` must be a *quoted* expression, not a logical vector. We
   # accept language objects so the expression can be evaluated against
   # the data inside `compute_contrast()` -- this is how Hernan/Robins-
