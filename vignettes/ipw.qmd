@@ -923,13 +923,13 @@ res_trim <- contrast(
 
 ```{r}
 #| echo: false
-tibble::tibble(
+data.frame(
   Truncation = c("None (trim = 1)", "trim = 0.999"),
   Estimate = c(res_raw$contrasts$estimate, res_trim$contrasts$estimate),
   SE = c(res_raw$contrasts$se, res_trim$contrasts$se)
 ) |>
   tinytable::tt(digits = 4) |>
-  tinytable::format_tt(j = 2:3, fn = scales::label_number(accuracy = 0.001))
+  tinytable::format_tt(j = 2:3, digits = 3)
 ```
 
 Truncation clips individual density ratios at their `trim`-th quantile
