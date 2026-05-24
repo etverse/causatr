@@ -289,8 +289,7 @@ make_weight_fn_mv <- function(
   data,
   interventions,
   estimand = "ATE",
-  trim = 1,
-  trim_threshold = NULL
+  trim = 1
 ) {
   if (!inherits(treatment_models, "causatr_treatment_models")) {
     rlang::abort(
@@ -318,19 +317,30 @@ make_weight_fn_mv <- function(
 
   interventions <- interventions[iv_names]
 
-  # Precompute the joint-weight truncation threshold at alpha_hat.
-  # Fixing the threshold at the original fit avoids recomputing
-  # quantiles under numDeriv perturbation, so the sandwich SE
-  # reflects the truncated weight surface at a fixed cutoff.
-  if (trim < 1 && is.null(trim_threshold)) {
-    w_hat <- compute_density_ratio_weights_mv(
-      treatment_models,
-      data,
-      interventions,
-      estimand,
-      trim = 1
-    )
-    trim_threshold <- stats::quantile(w_hat, trim, names = FALSE)
+  # Precompute per-component truncation thresholds at alpha_hat.
+  # Per-component truncation before the cross-component product matches
+  # the semantics of compute_density_ratio_weights_mv(), which
+  # truncates each component's density ratio via truncate_weights()
+  # before multiplying across k. Fixing each threshold under numDeriv
+  # perturbation ensures the sandwich SE reflects the truncated weight
+  # surface, not a shifting truncation boundary.
+  comp_thresholds <- vector("list", K)
+  if (trim < 1) {
+    for (kk in seq_len(K)) {
+      iv_kk <- interventions[[kk]]
+      tm_kk <- treatment_models[[kk]]
+      if (is.null(iv_kk)) {
+        next
+      }
+      w_kk <- compute_density_ratio_weights(
+        treatment_model = tm_kk,
+        data = data,
+        intervention = iv_kk,
+        estimand = estimand,
+        trim = 1
+      )
+      comp_thresholds[[kk]] <- stats::quantile(w_kk, trim, names = FALSE)
+    }
   }
 
   # Per-component sub-closures + alpha block lengths. Each sub-closure
@@ -528,6 +538,14 @@ make_weight_fn_mv <- function(
     alpha_k <- tm_k$alpha_hat
     alpha_blocks[[k]] <- alpha_k
     block_lens[k] <- length(alpha_k)
+
+    # Wrap the sub-closure with per-component truncation at the
+    # precomputed threshold. Matches compute_density_ratio_weights_mv()
+    # semantics: each component's density ratio is truncated before
+    # the cross-component product.
+    if (trim < 1 && !is.null(comp_thresholds[[k]])) {
+      sub_fns[[k]] <- wrap_closure_with_trim(sub_fns[[k]], comp_thresholds[[k]])
+    }
   }
 
   # offsets[k]:offsets[k+1]-1 slices the stacked alpha for component k.
@@ -535,26 +553,19 @@ make_weight_fn_mv <- function(
   offsets <- c(1L, cumsum(block_lens) + 1L)
   alpha_hat <- unlist(alpha_blocks, use.names = FALSE)
 
-  # Build the maybe_trim wrapper: clips joint weights at the
-  # precomputed threshold. Identity when trim >= 1.
-  maybe_trim_mv <- if (trim < 1) {
-    thr <- trim_threshold
-    function(w) pmin(w, thr)
-  } else {
-    function(w) w
-  }
-
   weight_fn <- function(alpha) {
     # Joint weight = prod_k w_k(alpha_k). Each sub-closure captures its own
     # X_prop and data, so they evaluate independently and the joint weight
     # is correct even though alpha is perturbed as a whole by numDeriv.
+    # Per-component truncation is baked into each sub-closure (via
+    # wrap_closure_with_trim), so no post-product truncation is needed.
     w <- 1
     for (k in seq_len(K)) {
       idx <- offsets[k]:(offsets[k + 1L] - 1L)
       alpha_k <- alpha[idx]
       w <- w * sub_fns[[k]](alpha_k)
     }
-    maybe_trim_mv(w)
+    w
   }
 
   list(

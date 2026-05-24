@@ -965,6 +965,42 @@ test_that("longitudinal IPW: trim reduces cumulative max weight", {
   expect_true(is.finite(r2$contrasts$se))
 })
 
+test_that("longitudinal IPW: sandwich and bootstrap agree under trim", {
+  # Regression test for the per-period vs post-product truncation fix.
+  # Before the fix, sandwich used post-product truncation (on the
+  # cumulative weight) while bootstrap used per-period truncation
+  # (via compute_longitudinal_weights), causing a ~10% SE discrepancy.
+  d <- data.table::as.data.table(make_continuous_scm(n = 800, seed = 7205))
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    estimator = "ipw",
+    id = "id",
+    time = "time"
+  )
+  r_sand <- contrast(
+    fit,
+    interventions = list(shifted = shift(0.5), nat = NULL),
+    ci_method = "sandwich",
+    trim = 0.95
+  )
+  set.seed(123)
+  r_boot <- contrast(
+    fit,
+    interventions = list(shifted = shift(0.5), nat = NULL),
+    ci_method = "bootstrap",
+    n_boot = 150L,
+    trim = 0.95
+  )
+  ratio <- r_sand$contrasts$se / r_boot$contrasts$se
+  expect_gt(ratio, 0.7)
+  expect_lt(ratio, 1.5)
+  expect_equal(r_sand$contrasts$estimate, r_boot$contrasts$estimate)
+})
+
 test_that("longitudinal IPW: trim + bootstrap works", {
   d <- data.table::as.data.table(make_continuous_scm(n = 300, seed = 7201))
   fit <- causat(

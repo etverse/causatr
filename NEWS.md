@@ -22,6 +22,18 @@ longitudinal cross-period), following the approach of Cole & Hernan
 * Cross-validated against `lmtp::lmtp_sdr()` with matching `.trim` values
   for both multivariate point IPW and longitudinal IPW.
 
+## 2026-05-24 — Phase 19-trim critical review fix
+
+* **Sandwich/bootstrap truncation semantics mismatch**: the variance-engine
+  closures (`make_weight_fn_longitudinal`, `make_weight_fn_mv`) applied
+  truncation to the post-product cumulative weight, while the
+  weight-computation path (`compute_longitudinal_weights`,
+  `compute_density_ratio_weights_mv`) applied per-component/per-period
+  truncation before the product. This caused sandwich and bootstrap SEs to
+  disagree by ~10% under aggressive trim values. Fixed by distributing
+  per-component/per-period truncation thresholds to each sub-closure,
+  matching the per-component semantics throughout.
+
 ## 2026-05-22 — Phase 18 critical review fixes
 
 3rd-round critical review of Phase 18 (SNM implementation):

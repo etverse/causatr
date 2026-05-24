@@ -404,8 +404,7 @@ make_weight_fn_longitudinal <- function(
   intervention,
   estimand = "ATE",
   numerator_models_by_time = NULL,
-  trim = 1,
-  trim_threshold = NULL
+  trim = 1
 ) {
   if (estimand != "ATE") {
     rlang::abort(
@@ -436,22 +435,37 @@ make_weight_fn_longitudinal <- function(
     ))
   }
 
-  # Precompute the cumulative-product truncation threshold at alpha_hat.
-  # Fixed under numDeriv perturbation so the sandwich SE reflects the
-  # truncated weight surface at a fixed cutoff.
-  if (trim < 1 && is.null(trim_threshold)) {
-    w_hat <- compute_longitudinal_weights(
-      treatment_models_by_time,
-      fit_data_by_time,
-      ids_first,
-      id_col,
-      intervention,
-      estimand,
-      positivity_threshold = Inf,
-      numerator_models_by_time = numerator_models_by_time,
-      trim = 1
-    )
-    trim_threshold <- stats::quantile(w_hat, trim, names = FALSE)
+  # Precompute per-period truncation thresholds at alpha_hat.
+  # Per-period truncation before the cumulative product matches the
+  # semantics of compute_longitudinal_weights(), which truncates each
+  # period's density ratio via compute_density_ratio_weights(trim=).
+  # Fixing the threshold under numDeriv perturbation ensures the
+  # sandwich SE reflects the truncated weight surface, not a shifting
+  # truncation boundary.
+  period_thresholds <- vector("list", K)
+  if (trim < 1) {
+    for (kk in seq_len(K)) {
+      tm_kk <- treatment_models_by_time[[kk]]
+      data_kk <- fit_data_by_time[[kk]]
+      if (stabilize) {
+        w_kk <- compute_stabilized_period_weight(
+          tm_denom = tm_kk,
+          tm_num = numerator_models_by_time[[kk]],
+          data = data_kk,
+          intervention = intervention,
+          trim = 1
+        )
+      } else {
+        w_kk <- compute_density_ratio_weights(
+          treatment_model = tm_kk,
+          data = data_kk,
+          intervention = intervention,
+          estimand = estimand,
+          trim = 1
+        )
+      }
+      period_thresholds[[kk]] <- stats::quantile(w_kk, trim, names = FALSE)
+    }
   }
 
   # Per-period sub-closures + alpha block lengths + alignment maps
@@ -472,21 +486,29 @@ make_weight_fn_longitudinal <- function(
       # perturbation; same nuisance-fixed convention as multivariate IPW).
       # Only the denominator f_k(A | ..., L; alpha) varies with alpha.
       tm_num_k <- numerator_models_by_time[[k]]
-      sub_fn_k <- make_long_stabilized_period_closure(
+      raw_fn_k <- make_long_stabilized_period_closure(
         tm_denom = tm_k,
         tm_num = tm_num_k,
         data = data_k,
         intervention = intervention
       )
+      # Wrap with per-period truncation at the precomputed threshold.
+      if (trim < 1) {
+        sub_fn_k <- wrap_closure_with_trim(raw_fn_k, period_thresholds[[k]])
+      } else {
+        sub_fn_k <- raw_fn_k
+      }
     } else {
       # Unstabilized: reuse the existing per-period closure builder.
-      # Per-period truncation is NOT applied here — truncation acts on
-      # the cumulative product via maybe_trim_long below.
+      # Per-period truncation applied here via trim + precomputed
+      # threshold — matches compute_longitudinal_weights() semantics.
       sub_fn_k <- make_weight_fn(
         treatment_model = tm_k,
         data = data_k,
         intervention = intervention,
-        estimand = estimand
+        estimand = estimand,
+        trim = trim,
+        trim_threshold = period_thresholds[[k]]
       )
     }
 
@@ -504,19 +526,12 @@ make_weight_fn_longitudinal <- function(
   offsets <- c(1L, cumsum(block_lens) + 1L)
   alpha_hat <- unlist(alpha_blocks, use.names = FALSE)
 
-  # Truncation wrapper for the cumulative product weight. Clips at
-  # the precomputed threshold; identity when trim >= 1.
-  maybe_trim_long <- if (trim < 1) {
-    thr <- trim_threshold
-    function(w) pmin(w, thr)
-  } else {
-    function(w) w
-  }
-
   weight_fn <- function(alpha) {
     # Cumulative product W_i = prod_k w_{ik}(alpha_k). Each sub-closure
     # evaluates independently (period-k data is disjoint from period-k' data),
-    # so numDeriv can perturb the full stacked alpha safely.
+    # so numDeriv can perturb the full stacked alpha safely. Per-period
+    # truncation is baked into each sub-closure (via make_weight_fn's
+    # maybe_trim wrapper), so no post-product truncation is needed.
     W <- rep(1, n_id)
     for (k in seq_len(K)) {
       idx <- offsets[k]:(offsets[k + 1L] - 1L)
@@ -533,7 +548,7 @@ make_weight_fn_longitudinal <- function(
       w_aligned[align_idx[[k]]] <- w_period
       W <- W * w_aligned
     }
-    maybe_trim_long(W)
+    W
   }
 
   list(

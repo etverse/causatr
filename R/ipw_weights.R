@@ -315,6 +315,24 @@ truncate_weights <- function(w, trim = 1) {
 }
 
 
+#' Wrap an alpha-closure with upper truncation at a fixed threshold
+#'
+#' @description
+#' Factory that returns a new closure `function(alpha) pmin(fn(alpha), thr)`.
+#' `force()` on both `fn` and `thr` prevents late-binding bugs when called
+#' inside a loop over periods or components.
+#'
+#' @param fn `function(alpha)` returning a numeric weight vector.
+#' @param threshold Numeric scalar. Upper truncation bound.
+#' @return `function(alpha)` returning the truncated weight vector.
+#' @noRd
+wrap_closure_with_trim <- function(fn, threshold) {
+  force(fn)
+  force(threshold)
+  function(alpha) pmin(fn(alpha), threshold)
+}
+
+
 #' Guard against zero or non-finite fitted density values
 #'
 #' @description
