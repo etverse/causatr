@@ -136,7 +136,7 @@ test_that("gcomp+IPCW agrees with lmtp_sdr on DGP-M2b", {
   d_lmtp$C_lmtp <- 1L - d_lmtp$C
 
   lmtp_1 <- tryCatch(
-    suppressWarnings(suppressMessages(lmtp::lmtp_sdr(
+    lmtp::lmtp_sdr(
       data = d_lmtp,
       trt = "A",
       outcome = "Y",
@@ -148,11 +148,11 @@ test_that("gcomp+IPCW agrees with lmtp_sdr on DGP-M2b", {
       learners_outcome = "SL.glm",
       learners_trt = "SL.glm",
       folds = 1
-    ))),
+    ),
     error = function(e) NULL
   )
   lmtp_0 <- tryCatch(
-    suppressWarnings(suppressMessages(lmtp::lmtp_sdr(
+    lmtp::lmtp_sdr(
       data = d_lmtp,
       trt = "A",
       outcome = "Y",
@@ -164,7 +164,7 @@ test_that("gcomp+IPCW agrees with lmtp_sdr on DGP-M2b", {
       learners_outcome = "SL.glm",
       learners_trt = "SL.glm",
       folds = 1
-    ))),
+    ),
     error = function(e) NULL
   )
 
@@ -211,7 +211,7 @@ test_that("IPW+IPCW agrees with lmtp_sdr on DGP-M2b", {
   d_lmtp$C_lmtp <- 1L - d_lmtp$C
 
   lmtp_1 <- tryCatch(
-    suppressWarnings(suppressMessages(lmtp::lmtp_sdr(
+    lmtp::lmtp_sdr(
       data = d_lmtp,
       trt = "A",
       outcome = "Y",
@@ -223,11 +223,11 @@ test_that("IPW+IPCW agrees with lmtp_sdr on DGP-M2b", {
       learners_outcome = "SL.glm",
       learners_trt = "SL.glm",
       folds = 1
-    ))),
+    ),
     error = function(e) NULL
   )
   lmtp_0 <- tryCatch(
-    suppressWarnings(suppressMessages(lmtp::lmtp_sdr(
+    lmtp::lmtp_sdr(
       data = d_lmtp,
       trt = "A",
       outcome = "Y",
@@ -239,7 +239,7 @@ test_that("IPW+IPCW agrees with lmtp_sdr on DGP-M2b", {
       learners_outcome = "SL.glm",
       learners_trt = "SL.glm",
       folds = 1
-    ))),
+    ),
     error = function(e) NULL
   )
 
@@ -414,7 +414,7 @@ test_that("longitudinal lmtp cross-check: ICE+IPCW agrees with lmtp_sdr", {
   # lmtp SDR with censoring
   df <- dgp_m5_to_lmtp_wide(d)
   lmtp_1 <- tryCatch(
-    suppressWarnings(suppressMessages(lmtp::lmtp_sdr(
+    lmtp::lmtp_sdr(
       data = df,
       trt = c("A_0", "A_1"),
       outcome = "Y",
@@ -426,11 +426,11 @@ test_that("longitudinal lmtp cross-check: ICE+IPCW agrees with lmtp_sdr", {
       learners_outcome = "SL.glm",
       learners_trt = "SL.glm",
       folds = 1
-    ))),
+    ),
     error = function(e) NULL
   )
   lmtp_0 <- tryCatch(
-    suppressWarnings(suppressMessages(lmtp::lmtp_sdr(
+    lmtp::lmtp_sdr(
       data = df,
       trt = c("A_0", "A_1"),
       outcome = "Y",
@@ -442,7 +442,7 @@ test_that("longitudinal lmtp cross-check: ICE+IPCW agrees with lmtp_sdr", {
       learners_outcome = "SL.glm",
       learners_trt = "SL.glm",
       folds = 1
-    ))),
+    ),
     error = function(e) NULL
   )
 
@@ -490,7 +490,7 @@ test_that("longitudinal lmtp cross-check: IPW+IPCW agrees with lmtp_sdr", {
   # lmtp SDR with censoring
   df <- dgp_m5_to_lmtp_wide(d)
   lmtp_1 <- tryCatch(
-    suppressWarnings(suppressMessages(lmtp::lmtp_sdr(
+    lmtp::lmtp_sdr(
       data = df,
       trt = c("A_0", "A_1"),
       outcome = "Y",
@@ -502,11 +502,11 @@ test_that("longitudinal lmtp cross-check: IPW+IPCW agrees with lmtp_sdr", {
       learners_outcome = "SL.glm",
       learners_trt = "SL.glm",
       folds = 1
-    ))),
+    ),
     error = function(e) NULL
   )
   lmtp_0 <- tryCatch(
-    suppressWarnings(suppressMessages(lmtp::lmtp_sdr(
+    lmtp::lmtp_sdr(
       data = df,
       trt = c("A_0", "A_1"),
       outcome = "Y",
@@ -518,7 +518,7 @@ test_that("longitudinal lmtp cross-check: IPW+IPCW agrees with lmtp_sdr", {
       learners_outcome = "SL.glm",
       learners_trt = "SL.glm",
       folds = 1
-    ))),
+    ),
     error = function(e) NULL
   )
 

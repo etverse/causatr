@@ -46,7 +46,8 @@ compute_density_ratio_weights_mv <- function(
   treatment_models,
   data,
   interventions,
-  estimand = "ATE"
+  estimand = "ATE",
+  trim = 1
 ) {
   if (!inherits(treatment_models, "causatr_treatment_models")) {
     rlang::abort(
@@ -229,6 +230,11 @@ compute_density_ratio_weights_mv <- function(
       }
     }
 
+    # Per-component truncation before the cross-component product.
+    # Truncating individual density ratios at the source prevents a
+    # single extreme component from dominating the joint weight
+    # (Cole & Hernán 2008; lmtp uses per-component 0.999 by default).
+    w_k <- truncate_weights(w_k, trim)
     joint_w <- joint_w * w_k
   }
 
@@ -282,7 +288,9 @@ make_weight_fn_mv <- function(
   treatment_models,
   data,
   interventions,
-  estimand = "ATE"
+  estimand = "ATE",
+  trim = 1,
+  trim_threshold = NULL
 ) {
   if (!inherits(treatment_models, "causatr_treatment_models")) {
     rlang::abort(
@@ -309,6 +317,21 @@ make_weight_fn_mv <- function(
   }
 
   interventions <- interventions[iv_names]
+
+  # Precompute the joint-weight truncation threshold at alpha_hat.
+  # Fixing the threshold at the original fit avoids recomputing
+  # quantiles under numDeriv perturbation, so the sandwich SE
+  # reflects the truncated weight surface at a fixed cutoff.
+  if (trim < 1 && is.null(trim_threshold)) {
+    w_hat <- compute_density_ratio_weights_mv(
+      treatment_models,
+      data,
+      interventions,
+      estimand,
+      trim = 1
+    )
+    trim_threshold <- stats::quantile(w_hat, trim, names = FALSE)
+  }
 
   # Per-component sub-closures + alpha block lengths. Each sub-closure
   # produces the per-component MV weight
@@ -512,6 +535,15 @@ make_weight_fn_mv <- function(
   offsets <- c(1L, cumsum(block_lens) + 1L)
   alpha_hat <- unlist(alpha_blocks, use.names = FALSE)
 
+  # Build the maybe_trim wrapper: clips joint weights at the
+  # precomputed threshold. Identity when trim >= 1.
+  maybe_trim_mv <- if (trim < 1) {
+    thr <- trim_threshold
+    function(w) pmin(w, thr)
+  } else {
+    function(w) w
+  }
+
   weight_fn <- function(alpha) {
     # Joint weight = prod_k w_k(alpha_k). Each sub-closure captures its own
     # X_prop and data, so they evaluate independently and the joint weight
@@ -522,7 +554,7 @@ make_weight_fn_mv <- function(
       alpha_k <- alpha[idx]
       w <- w * sub_fns[[k]](alpha_k)
     }
-    w
+    maybe_trim_mv(w)
   }
 
   list(

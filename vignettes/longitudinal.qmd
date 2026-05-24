@@ -914,6 +914,31 @@ nested model — use `estimator = "snm"` with `id =` and `time =`
 and per-period `ipsi()` are rejected with `_pending` classed errors.
 Use `estimator = "gcomp"` (ICE) for those scenarios today.
 
+### Weight truncation
+
+With $T$ time periods, the cumulative product $\prod_{t=1}^{T} w_t$ of
+per-period density ratios can develop heavy tails. The `trim` argument on
+`contrast()` winsorizes density ratios at a given quantile *before* the
+cumulative product (Cole & Hernán 2008). `trim = 0.999` clips each
+per-period ratio at its 99.9th percentile --- the default in
+[`lmtp`](https://cran.r-project.org/package=lmtp).
+
+```{r}
+res_ipw_trim <- contrast(
+  fit_ipw_long,
+  interventions = list(shift_m1 = shift(-1), observed = NULL),
+  reference     = "observed",
+  type          = "difference",
+  ci_method     = "sandwich",
+  trim          = 0.999
+)
+res_ipw_trim
+```
+
+The default `trim = 1` applies no truncation. With `stabilize = "marginal"`,
+stabilization and truncation compose: stabilized per-period ratios are
+truncated at the quantile threshold before the cumulative product.
+
 ## Multivariate time-varying treatment
 
 When multiple treatments vary over time (e.g. two drugs dosed jointly),

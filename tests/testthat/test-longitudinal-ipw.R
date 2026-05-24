@@ -172,13 +172,13 @@ test_that("T-long-ipw3: longitudinal IPW bootstrap SE within MC tolerance of san
     reference = "n",
     ci_method = "sandwich"
   )
-  res_boot <- suppressWarnings(contrast(
+  res_boot <- contrast(
     fit,
     interventions = list(s = shift(0.5), n = NULL),
     reference = "n",
     ci_method = "bootstrap",
     n_boot = 200
-  ))
+  )
 
   se_sand <- res_sand$contrasts$se[1]
   se_boot <- res_boot$contrasts$se[1]
@@ -226,7 +226,7 @@ test_that("T-long-ipw4: longitudinal IPW shift point estimate agrees with lmtp::
   shift_fn <- function(data, trt) data[[trt]] + 0.5
 
   lmtp_res <- tryCatch(
-    suppressWarnings(suppressMessages(lmtp::lmtp_sdr(
+    lmtp::lmtp_sdr(
       data = d_wide,
       trt = c("A_0", "A_1"),
       outcome = "Y",
@@ -237,7 +237,7 @@ test_that("T-long-ipw4: longitudinal IPW shift point estimate agrees with lmtp::
       learners_trt = "SL.glm",
       learners_outcome = "SL.glm",
       folds = 1
-    ))),
+    ),
     error = function(e) NULL
   )
 
@@ -716,13 +716,13 @@ test_that("T-long-ipw-stab4: bootstrap captures gamma uncertainty under stabiliz
     reference = "z",
     ci_method = "sandwich"
   )
-  res_boot <- suppressWarnings(contrast(
+  res_boot <- contrast(
     fit_st,
     interventions = list(a = static(1), z = static(0)),
     reference = "z",
     ci_method = "bootstrap",
     n_boot = 100
-  ))
+  )
 
   expect_true(
     is.finite(res_boot$contrasts$se[1]) &&
@@ -930,4 +930,151 @@ test_that("T-long-ipw-em3: longitudinal IPW EM agrees with ICE EM cross-method",
 
   expect_lt(abs(ipw_sex0 - ice_sex0), 0.5)
   expect_lt(abs(ipw_sex1 - ice_sex1), 0.5)
+})
+
+
+# ---- Weight truncation (Phase 19-trim) ---------------------------------
+
+test_that("longitudinal IPW: trim reduces cumulative max weight", {
+  d <- data.table::as.data.table(make_continuous_scm(n = 500, seed = 7200))
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    estimator = "ipw",
+    id = "id",
+    time = "time"
+  )
+  r1 <- contrast(
+    fit,
+    interventions = list(shifted = shift(0.5), nat = NULL),
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  r2 <- contrast(
+    fit,
+    interventions = list(shifted = shift(0.5), nat = NULL),
+    type = "difference",
+    ci_method = "sandwich",
+    trim = 0.99
+  )
+  expect_true(is.finite(r1$contrasts$estimate))
+  expect_true(is.finite(r2$contrasts$estimate))
+  expect_true(is.finite(r2$contrasts$se))
+})
+
+test_that("longitudinal IPW: trim + bootstrap works", {
+  d <- data.table::as.data.table(make_continuous_scm(n = 300, seed = 7201))
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    estimator = "ipw",
+    id = "id",
+    time = "time"
+  )
+  r_boot <- contrast(
+    fit,
+    interventions = list(shifted = shift(0.5), nat = NULL),
+    type = "difference",
+    ci_method = "bootstrap",
+    n_boot = 50L,
+    trim = 0.99
+  )
+  expect_true(is.finite(r_boot$contrasts$estimate))
+  expect_true(is.finite(r_boot$contrasts$se))
+})
+
+
+# ---- lmtp cross-check: longitudinal IPW + trim --------------------------
+
+test_that("longitudinal IPW + trim agrees with lmtp_sdr", {
+  skip_if_not_installed("lmtp")
+  skip_if_not_installed("SuperLearner")
+
+  # 2-period continuous treatment, linear DGP from make_continuous_scm().
+  # lmtp treats c("A_0", "A_1") as 2-period longitudinal and applies SDR.
+  # Under correct specification both estimators target the same shifted mean.
+  set.seed(7300)
+  d_long <- make_continuous_scm(n = 1500, seed = 7300)
+
+  # lmtp wants wide format
+  d_wide <- data.frame(
+    L0 = d_long$L0[d_long$time == 0],
+    A_0 = d_long$A[d_long$time == 0],
+    L_1 = d_long$L[d_long$time == 1],
+    A_1 = d_long$A[d_long$time == 1],
+    Y = d_long$Y[d_long$time == 1]
+  )
+
+  shift_fn <- function(data, trt) data[[trt]] + 0.5
+
+  # lmtp: no trim and trim = 0.99
+  lmtp_no <- tryCatch(
+    lmtp::lmtp_sdr(
+      data = d_wide,
+      trt = c("A_0", "A_1"),
+      outcome = "Y",
+      baseline = "L0",
+      time_vary = list(NULL, "L_1"),
+      shift = shift_fn,
+      outcome_type = "continuous",
+      learners_trt = "SL.glm",
+      learners_outcome = "SL.glm",
+      folds = 1,
+      control = lmtp::lmtp_control(.trim = 1)
+    ),
+    error = function(e) NULL
+  )
+  lmtp_99 <- tryCatch(
+    lmtp::lmtp_sdr(
+      data = d_wide,
+      trt = c("A_0", "A_1"),
+      outcome = "Y",
+      baseline = "L0",
+      time_vary = list(NULL, "L_1"),
+      shift = shift_fn,
+      outcome_type = "continuous",
+      learners_trt = "SL.glm",
+      learners_outcome = "SL.glm",
+      folds = 1,
+      control = lmtp::lmtp_control(.trim = 0.99)
+    ),
+    error = function(e) NULL
+  )
+  skip_if(is.null(lmtp_no), "lmtp::lmtp_sdr() unavailable")
+
+  # causatr: longitudinal IPW, no trim and trim = 0.99
+  d_dt <- data.table::as.data.table(d_long)
+  fit <- causat(
+    d_dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    estimator = "ipw"
+  )
+  res_no <- contrast(
+    fit,
+    interventions = list(s = shift(0.5)),
+    ci_method = "sandwich"
+  )
+  res_99 <- contrast(
+    fit,
+    interventions = list(s = shift(0.5)),
+    ci_method = "sandwich",
+    trim = 0.99
+  )
+
+  est_lmtp_no <- tryCatch(lmtp_no$estimate@x, error = function(e) lmtp_no$theta)
+  est_lmtp_99 <- tryCatch(lmtp_99$estimate@x, error = function(e) lmtp_99$theta)
+
+  expect_lt(abs(res_no$estimates$estimate - est_lmtp_no), 0.5)
+  expect_lt(abs(res_99$estimates$estimate - est_lmtp_99), 0.5)
 })

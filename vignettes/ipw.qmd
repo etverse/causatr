@@ -896,6 +896,60 @@ influential weights.
 diag$weights
 ```
 
+## Weight truncation
+
+When propensity models yield extreme density ratios --- due to near-positivity
+violations, heavy confounding, or the cumulative product over many components or
+time periods --- the resulting IPW estimator can be unstable with inflated
+variance. The `trim` argument on `contrast()` winsorizes density-ratio weights
+at a given quantile (Cole & Hernán 2008; Spreafico et al. 2025). This is a
+per-density-ratio operation applied *before* any multivariate or longitudinal
+product, following the approach used internally by
+[`lmtp`](https://cran.r-project.org/package=lmtp) (default 0.999).
+
+```{r}
+# Without truncation
+res_raw <- contrast(
+  fit_ipw, interventions = list(a1 = static(1), a0 = static(0)),
+  ci_method = "sandwich"
+)
+
+# With truncation at the 99.9th percentile of the density ratio
+res_trim <- contrast(
+  fit_ipw, interventions = list(a1 = static(1), a0 = static(0)),
+  ci_method = "sandwich", trim = 0.999
+)
+```
+
+```{r}
+#| echo: false
+tibble::tibble(
+  Truncation = c("None (trim = 1)", "trim = 0.999"),
+  Estimate = c(res_raw$contrasts$estimate, res_trim$contrasts$estimate),
+  SE = c(res_raw$contrasts$se, res_trim$contrasts$se)
+) |>
+  tinytable::tt(digits = 4) |>
+  tinytable::format_tt(j = 2:3, fn = scales::label_number(accuracy = 0.001))
+```
+
+Truncation clips individual density ratios at their `trim`-th quantile
+(upper-tail only). Key design choices:
+
+- **Per-component, pre-product:** for multivariate IPW, each of the $K$
+  per-component ratios is truncated before the $\prod_k$ product. For
+  longitudinal IPW, per-period ratios are truncated before the cumulative
+  $\prod_t$ product.
+- **Not applied to** sampling weights (transport) or IPCW weights (censoring)
+  --- those define the target population, not causal reweighting.
+- **Sandwich SE** reflects the truncated weights: the threshold is held fixed at
+  the point estimate, so `numDeriv` perturbations evaluate the IF on the
+  truncated weight surface.
+- **Bootstrap** recomputes the truncation threshold on each replicate, capturing
+  the full variance including the effect of truncation.
+
+The default `trim = 1` applies no truncation and reproduces the standard IPW
+estimator.
+
 ## Multivariate (joint) treatment
 
 `estimator = "ipw"` accepts multiple treatment columns
@@ -1037,6 +1091,24 @@ tt(tidy(res_mix))
 
 The `A2` shift is applied uniformly under both arms, so the contrast
 recovers the marginal `A1` effect (truth = 2).
+
+### Multivariate + truncation
+
+With $K$ components, the product weight $\prod_k w_k$ can grow rapidly.
+`trim` truncates each per-component ratio *before* the product:
+
+```{r}
+res_mv_trim <- contrast(
+  fit_mv,
+  interventions = list(
+    both    = list(A1 = static(1), A2 = static(1)),
+    neither = list(A1 = static(0), A2 = static(0))
+  ),
+  reference = "neither",
+  trim = 0.99
+)
+tt(tidy(res_mv_trim))
+```
 
 ## Summary of covered combinations
 

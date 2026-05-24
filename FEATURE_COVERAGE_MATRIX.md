@@ -1154,6 +1154,28 @@ Extends SNM g-estimation to categorical (k>2, multinomial residualisation via `n
 
 **Phase 18 COMPLETE.** All chunks shipped (18a–18f, 18h–18k). 18g dropped (gesttools archived).
 
+### Phase 19-trim — Cross-cutting weight truncation (shipped)
+
+`trim =` argument on `contrast()`. Winsorizes per-component density ratios at the `trim`-th quantile before products (Cole & Hernan 2008; lmtp default 0.999).
+
+| Feature | Status | Test |
+|---|---|---|
+| `truncate_weights()` helper: trim=1 no-op | ✅ | test-ipw-weights.R |
+| `truncate_weights()` helper: clips at quantile | ✅ | test-ipw-weights.R |
+| Point IPW + trim: max weight reduced | ✅ | test-ipw-weights.R |
+| Continuous IPW shift + trim | ✅ | test-ipw-weights.R |
+| IPSI + trim | ✅ | test-ipw-weights.R |
+| `make_weight_fn` closure agrees at alpha_hat with trim | ✅ | test-ipw-weights.R |
+| Multivariate IPW + trim | ✅ | test-ipw-weights.R |
+| Sandwich SE agrees with bootstrap under trim | ✅ | test-ipw-weights.R |
+| Monotonic max-weight reduction (0.999 > 0.99 > 0.95) | ✅ | test-ipw-weights.R |
+| Near-positivity DGP: trim stabilizes extreme weights | ✅ | test-ipw-weights.R |
+| AIPW + trim: doubly-robust property preserved | ✅ | test-ipw-weights.R |
+| Longitudinal IPW + trim | ✅ | test-longitudinal-ipw.R |
+| Longitudinal IPW + trim + bootstrap | ✅ | test-longitudinal-ipw.R |
+| MV IPW + trim: lmtp_sdr cross-check | ✅ | test-ipw-weights.R |
+| Long IPW + trim: lmtp_sdr cross-check | ✅ | test-longitudinal-ipw.R |
+
 ### `causat_mice()` — Multiple imputation
 Pool across `mice` imputations via Rubin's rules. All ❌.
 

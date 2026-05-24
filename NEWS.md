@@ -1,5 +1,27 @@
 # causatr (development version)
 
+## 2026-05-23 — Phase 19-trim: Cross-cutting weight truncation
+
+New `trim` argument on `contrast()` for density-ratio weight truncation
+(winsorization). Clips per-component density ratios at the `trim`-th
+quantile before they enter any product (multivariate cross-component or
+longitudinal cross-period), following the approach of Cole & Hernan
+(2008) and the lmtp default of 0.999. Recommended values: `0.999`
+(mild) or `0.99` (moderate, per Spreafico et al. 2025).
+
+* `trim = 1` (default): no truncation, all existing behavior unchanged.
+* Applied to all weight-computing paths: point IPW, multivariate IPW,
+  longitudinal IPW, point AIPW, longitudinal AIPW.
+* Sandwich variance: truncation threshold is fixed at the original data's
+  quantile and held constant under numDeriv perturbation, so the SE
+  reflects the truncated weight surface at a fixed cutoff.
+* Bootstrap: each replicate recomputes its own quantile threshold on the
+  resampled data, capturing the full variance including truncation.
+* NOT applied to sampling weights (transport) or IPCW weights (censoring),
+  which define the target population rather than causal reweighting.
+* Cross-validated against `lmtp::lmtp_sdr()` with matching `.trim` values
+  for both multivariate point IPW and longitudinal IPW.
+
 ## 2026-05-22 — Phase 18 critical review fixes
 
 3rd-round critical review of Phase 18 (SNM implementation):

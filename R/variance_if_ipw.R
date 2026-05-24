@@ -39,7 +39,8 @@ variance_if_ipw <- function(
   mu_hat,
   fit_idx_full,
   n_total,
-  cluster_vec = NULL
+  cluster_vec = NULL,
+  trim = 1
 ) {
   int_names <- names(bundles)
   data <- fit$data
@@ -167,7 +168,8 @@ variance_if_ipw <- function(
         treatment_models = tms_local,
         data = fit_data_local,
         interventions = b$intervention,
-        estimand = "ATE"
+        estimand = "ATE",
+        trim = trim
       )
       wfn <- mv_closure$weight_fn
 
@@ -211,7 +213,8 @@ variance_if_ipw <- function(
       tm,
       fit_data_local,
       b$intervention,
-      estimand = estimand
+      estimand = estimand,
+      trim = trim
     )
 
     # The base weight closure covers only the density-ratio piece.
@@ -713,7 +716,8 @@ variance_if_ipw_longitudinal <- function(
   fit,
   bundles,
   target_within_first,
-  cluster_vec = NULL
+  cluster_vec = NULL,
+  trim = 1
 ) {
   int_names <- names(bundles)
   details <- fit$details
@@ -819,7 +823,8 @@ variance_if_ipw_longitudinal <- function(
       id_col = id_col,
       intervention = intervention,
       estimand = "ATE",
-      numerator_models_by_time = numerator_models_by_time
+      numerator_models_by_time = numerator_models_by_time,
+      trim = trim
     )
 
     # The longitudinal weight closure operates at id-level (length n_id),

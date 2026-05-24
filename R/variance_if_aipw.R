@@ -40,7 +40,8 @@ variance_if_aipw <- function(
   mu_hat,
   aipw_fit_idx,
   aipw_n_total,
-  cluster_vec = NULL
+  cluster_vec = NULL,
+  trim = 1
 ) {
   data <- fit$data
   outcome_model <- fit$model
@@ -322,7 +323,8 @@ variance_if_aipw <- function(
         treatment_models = tms_local,
         data = fit_data,
         interventions = b$intervention,
-        estimand = "ATE"
+        estimand = "ATE",
+        trim = trim
       )
       mv_weight_fn <- mv_closure$weight_fn
 
@@ -369,7 +371,8 @@ variance_if_aipw <- function(
         tm,
         fit_data,
         b$intervention,
-        estimand = estimand
+        estimand = estimand,
+        trim = trim
       )
 
       if (is_transport) {
@@ -594,7 +597,8 @@ variance_if_aipw_longitudinal <- function(
   fit,
   ice_aipw_results,
   target_within_first,
-  cluster_vec = NULL
+  cluster_vec = NULL,
+  trim = 1
 ) {
   data <- fit$data
   details <- fit$details
@@ -628,7 +632,8 @@ variance_if_aipw_longitudinal <- function(
       all_ids,
       n,
       id_to_idx,
-      rows_first
+      rows_first,
+      trim = trim
     )
   })
   names(IF_list) <- int_names
@@ -669,7 +674,8 @@ variance_if_aipw_long_one <- function(
   all_ids,
   n,
   id_to_idx,
-  rows_first
+  rows_first,
+  trim = 1
 ) {
   data <- fit$data
   details <- fit$details
@@ -910,7 +916,8 @@ variance_if_aipw_long_one <- function(
       treatment_model = tm_k,
       data = data_k,
       intervention = intervention,
-      estimand = "ATE"
+      estimand = "ATE",
+      trim = trim
     )
 
     period_ids <- ids_k[tm_k$fit_rows]

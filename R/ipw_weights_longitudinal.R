@@ -61,7 +61,8 @@ compute_longitudinal_weights <- function(
   intervention,
   estimand = "ATE",
   positivity_threshold = 100,
-  numerator_models_by_time = NULL
+  numerator_models_by_time = NULL,
+  trim = 1
 ) {
   if (estimand != "ATE") {
     rlang::abort(
@@ -105,14 +106,16 @@ compute_longitudinal_weights <- function(
         tm_denom = tm_k,
         tm_num = tm_num_k,
         data = data_k,
-        intervention = intervention
+        intervention = intervention,
+        trim = trim
       )
     } else {
       w_k <- compute_density_ratio_weights(
         treatment_model = tm_k,
         data = data_k,
         intervention = intervention,
-        estimand = estimand
+        estimand = estimand,
+        trim = trim
       )
     }
 
@@ -183,7 +186,8 @@ compute_stabilized_period_weight <- function(
   tm_denom,
   tm_num,
   data,
-  intervention
+  intervention,
+  trim = 1
 ) {
   fit_rows <- tm_denom$fit_rows
   fit_data <- data[fit_rows]
@@ -201,7 +205,7 @@ compute_stabilized_period_weight <- function(
   if (is.null(intervention)) {
     # Stabilized natural course: g_k(A_obs | ...) / f_k(A_obs | ..., L).
     f_num <- evaluate_density(tm_num, a_obs, fit_data)
-    return(f_num / f_obs)
+    return(truncate_weights(f_num / f_obs, trim))
   }
 
   check_intervention_family_compat(intervention, tm_denom)
@@ -230,7 +234,7 @@ compute_stabilized_period_weight <- function(
     target <- apply_intervention_to_values(intervention, fit_data, a_obs)
     ind <- as.numeric(a_obs == target)
     f_num <- evaluate_density(tm_num, a_obs, fit_data)
-    return(ind * f_num / f_obs)
+    return(truncate_weights(ind * f_num / f_obs, trim))
   }
 
   # Smooth pushforward branch (shift / scale_by on Gaussian / count).
@@ -243,7 +247,7 @@ compute_stabilized_period_weight <- function(
       f_num,
       "stabilized longitudinal shift"
     )
-    return(f_num / f_obs)
+    return(truncate_weights(f_num / f_obs, trim))
   }
   if (iv_type == "scale") {
     fct <- intervention$factor
@@ -259,7 +263,7 @@ compute_stabilized_period_weight <- function(
       f_num,
       "stabilized longitudinal scale"
     )
-    return((f_num / f_obs) / abs(fct))
+    return(truncate_weights((f_num / f_obs) / abs(fct), trim))
   }
 
   rlang::abort(
@@ -399,7 +403,9 @@ make_weight_fn_longitudinal <- function(
   id_col,
   intervention,
   estimand = "ATE",
-  numerator_models_by_time = NULL
+  numerator_models_by_time = NULL,
+  trim = 1,
+  trim_threshold = NULL
 ) {
   if (estimand != "ATE") {
     rlang::abort(
@@ -430,6 +436,24 @@ make_weight_fn_longitudinal <- function(
     ))
   }
 
+  # Precompute the cumulative-product truncation threshold at alpha_hat.
+  # Fixed under numDeriv perturbation so the sandwich SE reflects the
+  # truncated weight surface at a fixed cutoff.
+  if (trim < 1 && is.null(trim_threshold)) {
+    w_hat <- compute_longitudinal_weights(
+      treatment_models_by_time,
+      fit_data_by_time,
+      ids_first,
+      id_col,
+      intervention,
+      estimand,
+      positivity_threshold = Inf,
+      numerator_models_by_time = numerator_models_by_time,
+      trim = 1
+    )
+    trim_threshold <- stats::quantile(w_hat, trim, names = FALSE)
+  }
+
   # Per-period sub-closures + alpha block lengths + alignment maps
   # back to the canonical id ordering.
   sub_fns <- vector("list", K)
@@ -456,6 +480,8 @@ make_weight_fn_longitudinal <- function(
       )
     } else {
       # Unstabilized: reuse the existing per-period closure builder.
+      # Per-period truncation is NOT applied here — truncation acts on
+      # the cumulative product via maybe_trim_long below.
       sub_fn_k <- make_weight_fn(
         treatment_model = tm_k,
         data = data_k,
@@ -478,6 +504,15 @@ make_weight_fn_longitudinal <- function(
   offsets <- c(1L, cumsum(block_lens) + 1L)
   alpha_hat <- unlist(alpha_blocks, use.names = FALSE)
 
+  # Truncation wrapper for the cumulative product weight. Clips at
+  # the precomputed threshold; identity when trim >= 1.
+  maybe_trim_long <- if (trim < 1) {
+    thr <- trim_threshold
+    function(w) pmin(w, thr)
+  } else {
+    function(w) w
+  }
+
   weight_fn <- function(alpha) {
     # Cumulative product W_i = prod_k w_{ik}(alpha_k). Each sub-closure
     # evaluates independently (period-k data is disjoint from period-k' data),
@@ -498,7 +533,7 @@ make_weight_fn_longitudinal <- function(
       w_aligned[align_idx[[k]]] <- w_period
       W <- W * w_aligned
     }
-    W
+    maybe_trim_long(W)
   }
 
   list(

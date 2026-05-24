@@ -1,6 +1,6 @@
 # Phase 19 — Longitudinal Multivariate IPW
 
-> **Status: PENDING (design doc).**
+> **Status: IN PROGRESS — 19-trim shipped, 19a next.**
 >
 > **Depends on:** Phase 8 (multivariate IPW), Phase 10 (longitudinal IPW).
 
@@ -85,6 +85,15 @@ via the chunk 10c wiring. MSM expands to `Y ~ 1 + modifier` via
 `build_ipw_msm_formula()` (one MSM total, not per period or per component).
 
 ## Items
+
+### 19-trim — cross-cutting weight truncation ✅
+
+- [x] `truncate_weights()` helper in `R/ipw_weights.R`.
+- [x] `trim =` parameter on `contrast()`, threaded through all weight paths: point IPW, multivariate IPW, longitudinal IPW, point AIPW, longitudinal AIPW.
+- [x] Sandwich variance: truncation threshold fixed at alpha_hat under numDeriv perturbation.
+- [x] Bootstrap: each replicate recomputes its own quantile threshold.
+- [x] lmtp cross-checks for multivariate and longitudinal with matching `.trim` values.
+- [x] Vignette updates (ipw.qmd, longitudinal.qmd, diagnostics.qmd).
 
 ### 19a — core engine
 

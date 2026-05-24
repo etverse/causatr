@@ -115,6 +115,14 @@
 #'   \hat\psi)]} at treatment values `c(a0, a1)`, with delta-method SE.
 #'   When `NULL` (the default), returns the raw blip parameter table.
 #'   Rejected for non-SNM estimators.
+#' @param trim Numeric scalar in `(0, 1]`. Density-ratio weight
+#'   truncation quantile. Per-component density ratios above the
+#'   `trim`-th quantile of the fitted weight distribution are
+#'   winsorized (capped) before entering the Hajek estimator.
+#'   Default `1` (no truncation). Recommended values: `0.999`
+#'   (lmtp default) or `0.99` (Spreafico et al. 2025). Only
+#'   affects IPW and AIPW estimators; ignored for gcomp, matching,
+#'   and SNM. Reference: Cole & Hernan (2008).
 #'
 #' @return A `causatr_result` object with slots:
 #'   \describe{
@@ -264,7 +272,8 @@ contrast <- function(
   parallel = getOption("boot.parallel", "no"),
   ncpus = getOption("boot.ncpus", 1L),
   cluster = NULL,
-  treatment_values = NULL
+  treatment_values = NULL,
+  trim = 1
 ) {
   # `parallel` accepts the same three values as `boot::boot()` and
   # defaults to `getOption("boot.parallel", "no")`, so a session-wide
@@ -462,7 +471,8 @@ contrast <- function(
     ncpus,
     call,
     subset_env,
-    cluster_vec = cluster_vec
+    cluster_vec = cluster_vec,
+    trim = trim
   )
 }
 
@@ -787,7 +797,8 @@ compute_contrast <- function(
   ncpus,
   call,
   subset_env = parent.frame(),
-  cluster_vec = NULL
+  cluster_vec = NULL,
+  trim = 1
 ) {
   data <- fit$data
   int_names <- names(interventions)
@@ -879,7 +890,8 @@ compute_contrast <- function(
           ncpus,
           call,
           subset_env = subset_env,
-          cluster_vec = cluster_vec
+          cluster_vec = cluster_vec,
+          trim = trim
         ),
         error = function(e) {
           # Match on the classed abort from build_point_channel_pieces()
@@ -1008,7 +1020,8 @@ compute_contrast <- function(
       ipw_long <- compute_ipw_contrast_longitudinal(
         fit,
         interventions,
-        target_within_first
+        target_within_first,
+        trim = trim
       )
       mu_hat <- ipw_long$mu_hat
 
@@ -1017,7 +1030,8 @@ compute_contrast <- function(
           fit,
           ipw_bundles = ipw_long$bundles,
           target_within_first = target_within_first,
-          cluster_vec = cluster_vec
+          cluster_vec = cluster_vec,
+          trim = trim
         )
       } else {
         boot_res <- ipw_longitudinal_variance_bootstrap(
@@ -1029,7 +1043,8 @@ compute_contrast <- function(
           subset,
           parallel,
           ncpus,
-          subset_env = subset_env
+          subset_env = subset_env,
+          trim = trim
         )
         vcov_mat <- boot_res$vcov
         boot_t <- boot_res$boot_t
@@ -1042,7 +1057,8 @@ compute_contrast <- function(
       aipw_long <- compute_aipw_contrast_longitudinal(
         fit,
         interventions,
-        target_within_first
+        target_within_first,
+        trim = trim
       )
       ice_aipw_results <- aipw_long$ice_aipw_results
       mu_hat <- aipw_long$mu_hat
@@ -1052,7 +1068,8 @@ compute_contrast <- function(
           fit,
           ice_aipw_results = ice_aipw_results,
           target_within_first = target_within_first,
-          cluster_vec = cluster_vec
+          cluster_vec = cluster_vec,
+          trim = trim
         )
       } else {
         boot_res <- aipw_longitudinal_variance_bootstrap(
@@ -1064,7 +1081,8 @@ compute_contrast <- function(
           subset,
           parallel,
           ncpus,
-          subset_env = subset_env
+          subset_env = subset_env,
+          trim = trim
         )
         vcov_mat <- boot_res$vcov
         boot_t <- boot_res$boot_t
@@ -1163,7 +1181,12 @@ compute_contrast <- function(
       )
     }
 
-    ipw_point <- compute_ipw_contrast_point(fit, interventions, target_idx)
+    ipw_point <- compute_ipw_contrast_point(
+      fit,
+      interventions,
+      target_idx,
+      trim = trim
+    )
     mu_hat <- ipw_point$mu_hat
 
     boot_t <- NULL
@@ -1176,7 +1199,8 @@ compute_contrast <- function(
         ipw_bundles = ipw_point$bundles,
         ipw_fit_idx = ipw_point$fit_idx,
         ipw_n_total = ipw_point$n_total,
-        cluster_vec = cluster_vec
+        cluster_vec = cluster_vec,
+        trim = trim
       )
     } else {
       boot_res <- variance_bootstrap(
@@ -1188,7 +1212,8 @@ compute_contrast <- function(
         subset,
         parallel,
         ncpus,
-        subset_env = subset_env
+        subset_env = subset_env,
+        trim = trim
       )
       vcov_mat <- boot_res$vcov
       boot_t <- boot_res$boot_t
@@ -1211,7 +1236,12 @@ compute_contrast <- function(
       )
     }
 
-    aipw_point <- compute_aipw_contrast_point(fit, interventions, target_idx)
+    aipw_point <- compute_aipw_contrast_point(
+      fit,
+      interventions,
+      target_idx,
+      trim = trim
+    )
     mu_hat <- aipw_point$mu_hat
 
     boot_t <- NULL
@@ -1253,7 +1283,8 @@ compute_contrast <- function(
         aipw_bundles = aipw_point$bundles,
         aipw_fit_idx = aipw_point$fit_idx,
         aipw_n_total = aipw_point$n_total,
-        cluster_vec = cluster_vec
+        cluster_vec = cluster_vec,
+        trim = trim
       )
     } else {
       boot_res <- variance_bootstrap(
@@ -1265,7 +1296,8 @@ compute_contrast <- function(
         subset,
         parallel,
         ncpus,
-        subset_env = subset_env
+        subset_env = subset_env,
+        trim = trim
       )
       vcov_mat <- boot_res$vcov
       boot_t <- boot_res$boot_t

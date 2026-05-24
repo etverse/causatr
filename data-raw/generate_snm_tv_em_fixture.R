@@ -25,12 +25,20 @@ Y <- 2 +
 
 wide <- data.frame(
   id = seq_len(n),
-  A0 = A0, L0 = L0, M0 = M0,
-  A1 = A1, L1 = L1, M1 = M1,
+  A0 = A0,
+  L0 = L0,
+  M0 = M0,
+  A1 = A1,
+  L1 = L1,
+  M1 = M1,
   Y = Y
 )
 
-write.csv(wide, "data-raw/snm_longitudinal_tv_em_fixture.csv", row.names = FALSE)
+write.csv(
+  wide,
+  "data-raw/snm_longitudinal_tv_em_fixture.csv",
+  row.names = FALSE
+)
 write.csv(
   wide,
   "tests/testthat/fixtures/snm_longitudinal_tv_em_fixture.csv",

@@ -18,7 +18,8 @@ contrast(
   parallel = getOption("boot.parallel", "no"),
   ncpus = getOption("boot.ncpus", 1L),
   cluster = NULL,
-  treatment_values = NULL
+  treatment_values = NULL,
+  trim = 1
 )
 }
 \arguments{
@@ -125,6 +126,15 @@ population-averaged blip effect
   \hat\psi)]} at treatment values \code{c(a0, a1)}, with delta-method SE.
 When \code{NULL} (the default), returns the raw blip parameter table.
 Rejected for non-SNM estimators.}
+
+\item{trim}{Numeric scalar in \verb{(0, 1]}. Density-ratio weight
+truncation quantile. Per-component density ratios above the
+\code{trim}-th quantile of the fitted weight distribution are
+winsorized (capped) before entering the Hajek estimator.
+Default \code{1} (no truncation). Recommended values: \code{0.999}
+(lmtp default) or \code{0.99} (Spreafico et al. 2025). Only
+affects IPW and AIPW estimators; ignored for gcomp, matching,
+and SNM. Reference: Cole & Hernan (2008).}
 }
 \value{
 A \code{causatr_result} object with slots:

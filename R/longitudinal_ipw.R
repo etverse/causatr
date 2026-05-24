@@ -642,7 +642,8 @@ remove_response <- function(ps_formula) {
 compute_ipw_contrast_longitudinal <- function(
   fit,
   interventions,
-  target_within_first
+  target_within_first,
+  trim = 1
 ) {
   data <- fit$data
   treatment <- fit$treatment
@@ -742,7 +743,8 @@ compute_ipw_contrast_longitudinal <- function(
       ids_first = ids_first,
       id_col = id_col,
       intervention = iv,
-      numerator_models_by_time = numerator_models_by_time
+      numerator_models_by_time = numerator_models_by_time,
+      trim = trim
     )
 
     # Project per-id weights onto the final-period row order.

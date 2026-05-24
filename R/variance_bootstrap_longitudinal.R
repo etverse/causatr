@@ -23,7 +23,8 @@ ipw_longitudinal_variance_bootstrap <- function(
   subset,
   parallel = "no",
   ncpus = 1L,
-  subset_env = parent.frame()
+  subset_env = parent.frame(),
+  trim = 1
 ) {
   data <- fit$data
   int_names <- names(interventions)
@@ -104,7 +105,8 @@ ipw_longitudinal_variance_bootstrap <- function(
       compute_ipw_contrast_longitudinal(
         fit_b,
         interventions,
-        target_b_within
+        target_b_within,
+        trim = trim
       ),
       error = function(e) NULL
     )
@@ -353,7 +355,8 @@ aipw_longitudinal_variance_bootstrap <- function(
   subset,
   parallel = "no",
   ncpus = 1L,
-  subset_env = parent.frame()
+  subset_env = parent.frame(),
+  trim = 1
 ) {
   data <- fit$data
   int_names <- names(interventions)
@@ -477,7 +480,7 @@ aipw_longitudinal_variance_bootstrap <- function(
       interventions,
       function(iv) {
         res_b <- tryCatch(
-          ice_aipw_iterate(fit_b, iv),
+          ice_aipw_iterate(fit_b, iv, trim = trim),
           error = function(e) NULL
         )
         if (is.null(res_b)) {

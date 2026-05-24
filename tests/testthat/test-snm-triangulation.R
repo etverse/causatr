@@ -331,11 +331,13 @@ test_that("longitudinal SNM matches delicatessen (binary, no EM)", {
 
 test_that("longitudinal SNM + TF matches delicatessen (binary, no EM)", {
   ref <- read.csv(test_path(
-    "fixtures", "snm_longitudinal_tf_delicatessen.csv"
+    "fixtures",
+    "snm_longitudinal_tf_delicatessen.csv"
   ))
 
   wide <- read.csv(test_path(
-    "fixtures", "snm_longitudinal_fixture.csv"
+    "fixtures",
+    "snm_longitudinal_fixture.csv"
   ))
   d <- data.table::rbindlist(lapply(seq_len(nrow(wide)), function(i) {
     data.table::data.table(
@@ -379,11 +381,13 @@ test_that("longitudinal SNM + TF matches delicatessen (binary, no EM)", {
 
 test_that("longitudinal SNM + TV-EM + TF matches delicatessen", {
   ref <- read.csv(test_path(
-    "fixtures", "snm_longitudinal_tv_em_delicatessen.csv"
+    "fixtures",
+    "snm_longitudinal_tv_em_delicatessen.csv"
   ))
 
   wide <- read.csv(test_path(
-    "fixtures", "snm_longitudinal_tv_em_fixture.csv"
+    "fixtures",
+    "snm_longitudinal_tv_em_fixture.csv"
   ))
   d <- data.table::rbindlist(lapply(seq_len(nrow(wide)), function(i) {
     data.table::data.table(
@@ -422,32 +426,48 @@ test_that("longitudinal SNM + TV-EM + TF matches delicatessen", {
   ref_s0_M <- ref[ref$parameter == "stage0_psi_M", ]
 
   expect_equal(
-    psi[["stage1_psi_intercept"]], ref_s1_int$estimate, tolerance = 1e-4
+    psi[["stage1_psi_intercept"]],
+    ref_s1_int$estimate,
+    tolerance = 1e-4
   )
   expect_equal(
-    psi[["stage1_psi_M"]], ref_s1_M$estimate, tolerance = 1e-4
+    psi[["stage1_psi_M"]],
+    ref_s1_M$estimate,
+    tolerance = 1e-4
   )
   expect_equal(
-    psi[["stage0_psi_intercept"]], ref_s0_int$estimate, tolerance = 1e-4
+    psi[["stage0_psi_intercept"]],
+    ref_s0_int$estimate,
+    tolerance = 1e-4
   )
   expect_equal(
-    psi[["stage0_psi_M"]], ref_s0_M$estimate, tolerance = 1e-4
+    psi[["stage0_psi_M"]],
+    ref_s0_M$estimate,
+    tolerance = 1e-4
   )
 
   # SE tolerance wider (1%) for TV-EM + TF because the backward-transform
   # chain amplifies the bread/meat aggregation difference between R's
   # cluster-robust sandwich and delicatessen's stacked sandwich
   expect_equal(
-    se[["stage1_psi_intercept"]], ref_s1_int$se, tolerance = 0.01
+    se[["stage1_psi_intercept"]],
+    ref_s1_int$se,
+    tolerance = 0.01
   )
   expect_equal(
-    se[["stage1_psi_M"]], ref_s1_M$se, tolerance = 0.01
+    se[["stage1_psi_M"]],
+    ref_s1_M$se,
+    tolerance = 0.01
   )
   expect_equal(
-    se[["stage0_psi_intercept"]], ref_s0_int$se, tolerance = 0.01
+    se[["stage0_psi_intercept"]],
+    ref_s0_int$se,
+    tolerance = 0.01
   )
   expect_equal(
-    se[["stage0_psi_M"]], ref_s0_M$se, tolerance = 0.01
+    se[["stage0_psi_M"]],
+    ref_s0_M$se,
+    tolerance = 0.01
   )
 })
 
