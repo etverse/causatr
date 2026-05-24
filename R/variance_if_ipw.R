@@ -607,6 +607,15 @@ compute_ipw_if_self_contained_mv_one <- function(
   msm_res <- apply_model_correction(msm_prep, J)
   n_fit <- nrow(msm_prep$X_fit)
 
+  # Natural course (NULL) for all K components: weight function is
+
+  # constant (all ones), so no propensity parameters exist and the
+  # cross-derivative A_{beta,alpha} is vacuous. Skip the jacobian
+  # and return only the MSM correction + Ch1 (sampling channel).
+  if (length(alpha_hat_stacked) == 0L) {
+    return(Ch1_i + msm_res$correction)
+  }
+
   # ---- Stacked cross-derivative via numDeriv ---------------------
   # phi_bar(alpha) = (1/n_fit) sum_i psi_beta_i(alpha, beta_hat).
   # Same shape as the univariate case; only `weight_fn` is the

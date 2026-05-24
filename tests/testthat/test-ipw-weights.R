@@ -1178,3 +1178,53 @@ test_that("multivariate IPW + trim: point estimates agree with lmtp_sdr", {
   expect_lt(abs(res_no$estimates$estimate - est_lmtp_no), 0.3)
   expect_lt(abs(res_99$estimates$estimate - est_lmtp_99), 0.3)
 })
+
+
+# ---- MV continuous sandwich with natural course (NULL) -----------------
+
+test_that("MV continuous IPW sandwich works with NULL intervention", {
+  set.seed(42)
+  n <- 300
+  L <- rnorm(n)
+  A1 <- rnorm(n, 0.5 * L)
+  A2 <- rnorm(n, 0.3 * A1 + 0.3 * L)
+  Y <- 10 + 0.5 * A1 + 0.4 * A2 + L + rnorm(n)
+  d <- data.table::data.table(Y = Y, A1 = A1, A2 = A2, L = L)
+
+  fit <- causat(d,
+    outcome = "Y", treatment = c("A1", "A2"),
+    confounders = ~ L, estimator = "ipw"
+  )
+
+  # NULL as one of two interventions
+  res <- contrast(fit,
+    interventions = list(
+      shifted = list(A1 = shift(1), A2 = shift(0.5)),
+      nc = NULL
+    ),
+    type = "difference", ci_method = "sandwich"
+  )
+  expect_s3_class(res, "causatr_result")
+  expect_true(all(is.finite(res$estimates$se)))
+  expect_true(all(res$estimates$se > 0))
+
+  # NULL for both interventions: trivial but must not crash
+  res_both <- contrast(fit,
+    interventions = list(nc1 = NULL, nc2 = NULL),
+    type = "difference", ci_method = "sandwich"
+  )
+  expect_equal(res_both$contrasts$estimate, 0)
+  expect_equal(res_both$contrasts$se, 0)
+
+  # Sandwich vs bootstrap SE agreement
+  set.seed(99)
+  res_boot <- contrast(fit,
+    interventions = list(
+      shifted = list(A1 = shift(1), A2 = shift(0.5)),
+      nc = NULL
+    ),
+    type = "difference", ci_method = "bootstrap", n_boot = 200
+  )
+  ratios <- res$estimates$se / res_boot$estimates$se
+  expect_true(all(ratios > 0.5 & ratios < 2))
+})

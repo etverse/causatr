@@ -22,6 +22,19 @@ longitudinal cross-period), following the approach of Cole & Hernan
 * Cross-validated against `lmtp::lmtp_sdr()` with matching `.trim` values
   for both multivariate point IPW and longitudinal IPW.
 
+## 2026-05-24 — Fix: MV IPW sandwich crash with natural-course intervention
+
+* **numDeriv::jacobian crash**: multivariate continuous IPW sandwich
+  variance crashed with "subscript out of bounds" when any intervention
+  was `NULL` (natural course). Root cause: `make_weight_fn_mv()` returns
+  `alpha_hat = numeric(0)` for natural course (no propensity parameters
+  to optimize), and `numDeriv::jacobian(fn, x = numeric(0))` cannot
+  handle zero-length input. Fixed by adding an early return in
+  `compute_ipw_if_self_contained_mv_one()` that skips the
+  cross-derivative computation when no propensity parameters exist —
+  the propensity correction is zero in this case since the weight
+  function is constant (all ones).
+
 ## 2026-05-24 — Phase 19-trim critical review fix
 
 * **Sandwich/bootstrap truncation semantics mismatch**: the variance-engine
