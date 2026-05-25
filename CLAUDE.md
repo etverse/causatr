@@ -112,7 +112,7 @@ causatr owns g-comp (parametric g-formula + ICE), a self-contained IPW density-r
 |---|---|
 | **Estimator** | gcomp, ipw, aipw, matching, snm |
 | **Treatment timing** | point, longitudinal (ICE + longitudinal IPW + longitudinal AIPW + longitudinal SNM), transportability (`target =`) |
-| **Treatment type** | binary, continuous, categorical k>2, count (IPW: Poisson/NB), multivariate (gcomp + IPW + AIPW) |
+| **Treatment type** | binary, continuous, categorical k>2, count (IPW: Poisson/NB), multivariate (gcomp + IPW + AIPW + longitudinal IPW) |
 | **Outcome family** | gaussian, binomial, quasibinomial, poisson, Gamma, any GLM family, `MASS::glm.nb`, `betareg::betareg` (beta regression) |
 | **Interventions** | `static`, `shift`, `scale_by`, `threshold` (gcomp only), `dynamic`, `ipsi` (IPW only), `stochastic` (gcomp only; IPW/AIPW when `density` supplied — Phase 24) |
 | **Estimand** | ATE, ATT, ATC, `by`-stratified |

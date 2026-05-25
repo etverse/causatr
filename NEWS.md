@@ -1,5 +1,32 @@
 # causatr (development version)
 
+## 2026-05-24 — Phase 19a: Multivariate longitudinal IPW
+
+New support for joint time-varying treatments (`treatment = c("A1", "A2")`)
+under `estimator = "ipw"` with `type = "longitudinal"`. Composes Phase 8
+(multivariate point IPW, K components) with Phase 10 (longitudinal IPW, T
+periods) to produce the T × K propensity factorisation:
+
+    W_i = ∏_t ∏_k w_{t,k,i}
+
+* **Per-period multivariate fitting**: each time period fits K per-component
+  propensity models via `fit_treatment_models()` with sequential conditioning
+  (A_k ~ A_{1..k-1} + confounders + lags). The resulting per-period models are
+  `causatr_treatment_models` objects.
+* **Weight computation**: `compute_longitudinal_weights()` detects multivariate
+  models and dispatches to `compute_density_ratio_weights_mv()` per period,
+  then takes the row-product across periods.
+* **Sandwich variance**: `make_weight_fn_longitudinal()` delegates to
+  `make_weight_fn_mv()` per period, producing a T×K block-diagonal stacked
+  alpha. The variance engine (`compute_ipw_if_self_contained_long_one()`)
+  iterates over periods, then over components within each period, for the
+  per-model corrections.
+* **Bootstrap**: works automatically via `refit_ipw()` → `fit_longitudinal_ipw()`.
+* **Deferred**: stabilized weights (`stabilize = "marginal"`) and effect
+  modification (`A:modifier`) with multivariate longitudinal IPW are rejected
+  with classed errors (`causatr_longitudinal_mv_stabilize_pending`,
+  `causatr_longitudinal_mv_em_pending`).
+
 ## 2026-05-23 — Phase 19-trim: Cross-cutting weight truncation
 
 New `trim` argument on `contrast()` for density-ratio weight truncation

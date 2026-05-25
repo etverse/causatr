@@ -1,6 +1,6 @@
 # Phase 19 — Longitudinal Multivariate IPW
 
-> **Status: IN PROGRESS — 19-trim shipped, 19a next.**
+> **Status: IN PROGRESS — 19-trim shipped, 19a shipped, 19b next.**
 >
 > **Depends on:** Phase 8 (multivariate IPW), Phase 10 (longitudinal IPW).
 
@@ -95,14 +95,16 @@ via the chunk 10c wiring. MSM expands to `Y ~ 1 + modifier` via
 - [x] lmtp cross-checks for multivariate and longitudinal with matching `.trim` values.
 - [x] Vignette updates (ipw.qmd, longitudinal.qmd, diagnostics.qmd).
 
-### 19a — core engine
+### 19a — core engine ✅
 
-- [ ] Lift the `causatr_longitudinal_multivariate_pending` rejection in `fit_longitudinal_ipw()`.
-- [ ] Refactor `fit_longitudinal_ipw()` to dispatch on `length(treatment)`: univariate path (chunk 10a) vs. multivariate path. Multivariate path nests `fit_treatment_models()` (Phase 8) inside the per-period loop so each period gets a list of K models.
-- [ ] Extend `compute_longitudinal_weights()` to call `compute_density_ratio_weights_mv()` per period and multiply across both axes.
-- [ ] Extend `make_weight_fn_longitudinal()` to build a stacked-α closure with $T \times K$ blocks (delegate the within-period part to `make_weight_fn_mv()`).
-- [ ] Extend `variance_if_ipw_longitudinal()` / `compute_ipw_if_self_contained_long_one()` to sum $T \times K$ single-model corrections (loop nests on top of the per-period structure).
-- [ ] Bootstrap unchanged: id-clustered resampling already preserves both axes.
+- [x] Lift the `causatr_longitudinal_multivariate_pending` rejection in `fit_longitudinal_ipw()`. Replaced with conditional rejections for stabilize+MV and EM+MV.
+- [x] Refactor `fit_longitudinal_ipw()` to dispatch on `length(treatment)`: univariate path (chunk 10a) vs. multivariate path. Multivariate path nests `fit_treatment_models()` (Phase 8) inside the per-period loop so each period gets a list of K models.
+- [x] Extend `compute_longitudinal_weights()` to call `compute_density_ratio_weights_mv()` per period and multiply across both axes.
+- [x] Extend `make_weight_fn_longitudinal()` to build a stacked-α closure with $T \times K$ blocks (delegate the within-period part to `make_weight_fn_mv()`).
+- [x] Extend `compute_ipw_if_self_contained_long_one()` to sum $T \times K$ single-model corrections (period-loop nests component-loop).
+- [x] Bootstrap unchanged: id-clustered resampling already preserves both axes.
+- [x] IPSI check in `compute_ipw_contrast_longitudinal()` handles MV (per-component check).
+- [x] `build_longitudinal_ps_formula()` handles vector `treatment` (placeholder response for MV).
 
 ### 19b — stabilization
 
