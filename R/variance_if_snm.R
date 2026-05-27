@@ -79,13 +79,40 @@ variance_if_snm <- function(fit, snm_result, cluster_vec = NULL) {
   RM_w <- if (!is.null(w)) RM * w else RM
 
   # --- Treatment model IF ---
+  # prepare_model_if() requires sandwich::estfun() and sandwich::bread()
+  # methods for the treatment model class. Standard GLMs and GAMs always
+  # provide these. For exotic model classes, the call fails. Wrap in
+  # tryCatch and re-throw with an actionable error pointing to bootstrap.
   trt_fit_idx <- which(trt_model$fit_rows)
   n_total <- nrow(fit$data)
-  if (is_cat) {
-    trt_prep <- prepare_model_if_multinom(trt_model$model, trt_fit_idx, n_total)
-  } else {
-    trt_prep <- prepare_model_if(trt_model$model, trt_fit_idx, n_total)
-  }
+  trt_prep <- tryCatch(
+    {
+      if (is_cat) {
+        prepare_model_if_multinom(trt_model$model, trt_fit_idx, n_total)
+      } else {
+        prepare_model_if(trt_model$model, trt_fit_idx, n_total)
+      }
+    },
+    error = function(e) {
+      rlang::abort(
+        c(
+          paste0(
+            "The analytic sandwich requires `sandwich::estfun()` and ",
+            "`sandwich::bread()` methods for the treatment model class (",
+            paste(class(trt_model$model), collapse = "/"),
+            ")."
+          ),
+          i = paste0(
+            "Switch to `ci_method = \"bootstrap\"` for this model class, ",
+            "or use a standard GLM or GAM propensity model that supports ",
+            "the sandwich package."
+          )
+        ),
+        class = "causatr_snm_no_estfun",
+        parent = e
+      )
+    }
+  )
 
   alpha_hat <- trt_model$alpha_hat
   X_prop <- trt_model$X_prop

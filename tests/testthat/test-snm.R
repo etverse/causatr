@@ -3204,3 +3204,25 @@ test_that("SNM weighted EE: unit weights (w=1) recovers unweighted estimate exac
   expect_equal(res_w1$estimates$estimate, res_u$estimates$estimate, tolerance = 1e-10)
   expect_equal(res_w1$estimates$se, res_u$estimates$se, tolerance = 1e-10)
 })
+
+# ── Sandwich numeric fallback (Group 6) ───────────────────────────────────────
+
+test_that("variance_if_snm() gives actionable error when treatment model lacks estfun()", {
+  # Create a valid SNM fit, then swap the treatment model for a fake object
+  # of a class with no sandwich::estfun() method. variance_if_snm() should
+  # catch the dispatch failure and re-throw with causatr_snm_no_estfun class.
+  d <- simulate_snm_point_no_em(n = 500, seed = 42)$data
+  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~ L,
+    estimator = "snm", propensity_model_fn = stats::glm)
+
+  # Replace the treatment model object with a fake class that has no estfun()
+  fake_trt_model <- structure(list(), class = "causatr_fake_no_estfun_model")
+  fit_bad <- fit
+  fit_bad$details$treatment_model$model <- fake_trt_model
+
+  snm_r <- compute_snm_blip_point(fit)  # still valid (uses original fit)
+  expect_error(
+    variance_if_snm(fit_bad, snm_r),
+    class = "causatr_snm_no_estfun"
+  )
+})
