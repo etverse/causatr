@@ -1,22 +1,32 @@
 #' Compute SNM contrast: blip parameters or averaged blip effect
 #'
 #' @description
-#' Two paths depending on whether `treatment_values` is supplied:
+#' Three paths depending on whether `treatment_values` and `by` are supplied:
 #'
 #' **Path A** (`treatment_values = NULL`): Returns the blip parameter
 #' table directly — each \eqn{\psi_j} is its own estimand with SE and CI.
 #'
-#' **Path B** (`treatment_values = c(a0, a1)`): Computes the
+#' **Path B** (`treatment_values = c(a0, a1)`, `by = NULL`): Computes the
 #' population-averaged blip effect
-#' \deqn{\Delta = \frac{1}{n}\sum_i \bigl[\gamma(a_1, L_i; \hat\psi)
-#'   - \gamma(a_0, L_i; \hat\psi)\bigr]
-#'   = (a_1 - a_0)\bigl(\hat\psi_0 + \sum_j \hat\psi_j \bar{m}_j\bigr)}
+#' \deqn{\Delta = (a_1 - a_0)\bigl(\hat\psi_0 + \sum_j \hat\psi_j
+#'   \bar{m}_j\bigr)}
 #' with delta-method variance from the blip vcov.
+#'
+#' **Path C** (`treatment_values = c(a0, a1)`, `by = "col"`): Computes
+#' per-stratum averaged blip effects. \eqn{\hat\psi} is estimated globally
+#' on all fit rows; per-stratum means \eqn{\bar{m}_s = \mathrm{mean}(M_s)}
+#' are averaged over the stratum-specific covariate distribution. This
+#' implements the stratum-conditional averaged blip without re-estimating
+#' \eqn{\hat\psi} per stratum — the delta-method SE uses the global vcov
+#' with stratum-specific gradient \eqn{g_s = (a_1 - a_0)\,\bar{m}_s}.
 #'
 #' @references
 #' Robins JM (1994). Correcting for non-compliance in randomized trials
 #' using structural nested mean models. *Comm Stat Theory Methods*,
 #' 23(8), 2379–2412.
+#'
+#' Vansteelandt S, Joffe M (2014). Structural nested models and G-estimation:
+#' a survey. *Statistical Science*, 29(2), 220–238.
 #'
 #' @param fit A `causatr_fit` with `estimator = "snm"`.
 #' @param treatment_values Numeric vector of length 2 or `NULL`.
@@ -26,11 +36,12 @@
 #' @param parallel Character. `"no"`, `"multicore"`, `"snow"`, or
 #'   `"future"`.
 #' @param ncpus Integer. Number of CPU cores for parallel backends.
-#' @param cluster_vec Character or integer vector of cluster IDs (length
-#'   = n_obs) or `NULL` for i.i.d. aggregation. When non-`NULL`, the
-#'   Liang-Zeger cluster-robust sandwich is used.
-#' @param by Character column name for stratified averaged blip, or
-#'   `NULL`. Requires `treatment_values` to be set; ignored otherwise.
+#' @param cluster_vec Character, integer, or factor vector of cluster IDs
+#'   (length = `nrow(fit$data)`) or `NULL` for i.i.d. aggregation. When
+#'   non-`NULL`, the Liang-Zeger cluster-robust sandwich is used.
+#' @param by Character column name for per-stratum averaged blip, or
+#'   `NULL`. Requires `treatment_values`. Not supported for longitudinal
+#'   or categorical-treatment SNM fits.
 #' @param call The original `contrast()` call.
 #' @return A `causatr_result` object.
 #' @noRd
@@ -46,17 +57,31 @@ compute_snm_contrast <- function(
   by = NULL,
   call
 ) {
-  # `by`-stratified averaged blip is Group 4 (not yet implemented). Reject
-  # non-NULL `by` early so callers get a clear error instead of silently
-  # ignoring the argument.
-  if (!is.null(by)) {
+  # `by` requires treatment_values: the blip parameter table (Path A) is
+  # already a complete per-parameter breakdown; stratifying it is undefined.
+  if (!is.null(by) && is.null(treatment_values)) {
     rlang::abort(
       c(
-        "`by`-stratified averaged blip is not yet implemented for SNM.",
-        i = "Use `contrast(fit)` for the full blip parameter table."
+        "`by` requires `treatment_values` for SNM fits.",
+        i = paste0(
+          "Specify `treatment_values = c(a0, a1)` to average the blip ",
+          "over the stratum-specific covariate distribution."
+        )
       ),
-      class = "causatr_snm_by_not_implemented"
+      class = "causatr_snm_by_needs_treatment_values"
     )
+  }
+
+  # Validate by: must be a scalar string naming a column in fit$data.
+  # Do this before the expensive blip computation.
+  if (!is.null(by)) {
+    check_string(by)
+    if (!by %in% names(fit$data)) {
+      rlang::abort(
+        paste0("`by` column '", by, "' not found in fitted data."),
+        class = "causatr_snm_by_not_found"
+      )
+    }
   }
 
   # Compute point estimates regardless of ci_method — sandwich and
@@ -160,38 +185,94 @@ compute_snm_contrast <- function(
     a1 <- treatment_values[2]
     delta_a <- a1 - a0
 
-    # For linear blip: gamma(a, l; psi) = a * (psi_0 + sum psi_j m_j)
-    # Average effect = (a1 - a0) * (psi_0 + sum psi_j * mean(m_j))
     M <- snm_result$M
-    m_bar <- colMeans(M)
-    avg_effect <- delta_a * sum(psi_hat * m_bar)
 
-    if (ci_method == "bootstrap") {
-      # Bootstrap vcov is already for the averaged blip effect (scalar)
-      se_effect <- sqrt(max(vcov_psi[1, 1], 0))
-    } else {
-      # Delta method: grad_j = delta_a * mean(m_j)
-      grad <- delta_a * m_bar
-      var_effect <- as.numeric(t(grad) %*% vcov_psi %*% grad)
-      se_effect <- sqrt(max(var_effect, 0))
+    # Helper to compute the averaged blip and its SE for one covariate mean.
+    # g = (a1 - a0) * m_bar — the gradient of the averaged blip w.r.t. psi.
+    # Delta-method variance: g' vcov g. Bootstrap: scalar vcov[1,1].
+    compute_avg_blip <- function(m_bar) {
+      avg <- delta_a * sum(psi_hat * m_bar)
+      if (ci_method == "bootstrap") {
+        se <- sqrt(max(vcov_psi[1, 1], 0))
+      } else {
+        grad <- delta_a * m_bar
+        se <- sqrt(max(as.numeric(t(grad) %*% vcov_psi %*% grad), 0))
+      }
+      list(avg = avg, se = se)
     }
 
     comparison_label <- paste0("a=", a1, " vs a=", a0)
-    estimates_dt <- data.table::data.table(
-      parameter = "avg_blip_effect",
-      estimate = avg_effect,
-      se = se_effect,
-      ci_lower = avg_effect - z * se_effect,
-      ci_upper = avg_effect + z * se_effect
-    )
-    contrasts_dt <- data.table::data.table(
-      comparison = comparison_label,
-      estimate = avg_effect,
-      se = se_effect,
-      ci_lower = avg_effect - z * se_effect,
-      ci_upper = avg_effect + z * se_effect
-    )
-    vcov_out <- vcov_psi
+
+    if (is.null(by)) {
+      # Path B: pooled averaged blip over all fit rows.
+      # gamma_avg = (a1 - a0) * (psi_0 + sum psi_j * mean(m_j))
+      m_bar <- colMeans(M)
+      out <- compute_avg_blip(m_bar)
+      avg_effect <- out$avg
+      se_effect <- out$se
+
+      estimates_dt <- data.table::data.table(
+        parameter = "avg_blip_effect",
+        estimate = avg_effect,
+        se = se_effect,
+        ci_lower = avg_effect - z * se_effect,
+        ci_upper = avg_effect + z * se_effect
+      )
+      contrasts_dt <- data.table::data.table(
+        comparison = comparison_label,
+        estimate = avg_effect,
+        se = se_effect,
+        ci_lower = avg_effect - z * se_effect,
+        ci_upper = avg_effect + z * se_effect
+      )
+      vcov_out <- vcov_psi
+    } else {
+      # Path C: by-stratified averaged blip.
+      # psi_hat is estimated globally on all fit rows; per-stratum gradient
+      # g_s = (a1 - a0) * colMeans(M[in stratum s, ]) captures the
+      # stratum-specific covariate distribution. Delta-method SE uses the
+      # global vcov — no re-estimation per stratum.
+      fit_rows_lv <- snm_result$fit_rows
+      by_vec <- fit$data[[by]][fit_rows_lv]
+      by_levels <- sort(unique(stats::na.omit(by_vec)))
+
+      est_rows <- lapply(by_levels, function(lv) {
+        idx <- which(by_vec == lv)
+        m_bar_s <- colMeans(M[idx, , drop = FALSE])
+        out_s <- compute_avg_blip(m_bar_s)
+        n_s <- length(idx)
+        data.table::data.table(
+          parameter = paste0("avg_blip_", by, "_", lv),
+          estimate = out_s$avg,
+          se = out_s$se,
+          ci_lower = out_s$avg - z * out_s$se,
+          ci_upper = out_s$avg + z * out_s$se,
+          by = as.character(lv),
+          n_by = n_s
+        )
+      })
+      estimates_dt <- data.table::rbindlist(est_rows)
+
+      con_rows <- lapply(by_levels, function(lv) {
+        idx <- which(by_vec == lv)
+        m_bar_s <- colMeans(M[idx, , drop = FALSE])
+        out_s <- compute_avg_blip(m_bar_s)
+        n_s <- length(idx)
+        data.table::data.table(
+          comparison = comparison_label,
+          estimate = out_s$avg,
+          se = out_s$se,
+          ci_lower = out_s$avg - z * out_s$se,
+          ci_upper = out_s$avg + z * out_s$se,
+          by = as.character(lv),
+          n_by = n_s
+        )
+      })
+      contrasts_dt <- data.table::rbindlist(con_rows)
+
+      # vcov_out is the full psi vcov (shared across strata)
+      vcov_out <- vcov_psi
+    }
   }
 
   new_causatr_result(

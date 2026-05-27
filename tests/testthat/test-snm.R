@@ -3032,16 +3032,91 @@ test_that("SNM cluster-robust SE: singleton cluster equals i.i.d. sandwich exact
   expect_true(all(res_cl$estimates$se > 0))
 })
 
-test_that("SNM cluster-robust SE: by= rejects with informative error (not yet implemented)", {
-  # Group 4 will implement by-stratified averaged blip. Until then, a non-NULL
-  # `by` must fail cleanly so callers know the feature is coming.
+test_that("SNM by= rejects without treatment_values", {
   d <- simulate_snm_point_no_em(n = 200, seed = 42)$data
   fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~ L,
     estimator = "snm", propensity_model_fn = stats::glm)
   expect_error(
     contrast(fit, by = "L"),
-    class = "causatr_snm_by_not_implemented"
+    class = "causatr_snm_by_needs_treatment_values"
   )
+})
+
+test_that("SNM by= rejects when column not in data", {
+  d <- simulate_snm_point_no_em(n = 200, seed = 42)$data
+  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~ L,
+    estimator = "snm", propensity_model_fn = stats::glm)
+  expect_error(
+    contrast(fit, treatment_values = c(0, 1), by = "not_a_column"),
+    class = "causatr_snm_by_not_found"
+  )
+})
+
+test_that("SNM by-stratified averaged blip: per-stratum truth matches manual formula", {
+  # DGP: blip gamma(a, L; psi) = a * (psi_0 + psi_M * M), M = 1(L > 0)
+  # Truth: psi_0 = 3, psi_M = 2
+  # Per-stratum averaged blip (a1=1, a0=0):
+  #   M=0: (1-0) * psi_0       = 3
+  #   M=1: (1-0) * (psi_0 + psi_M) = 5
+  # m_bar for stratum M=s is colMeans(M_design[in s, ]) = (1, s) since
+  # M_design = [1, M_i] and all obs in stratum s have M_i = s.
+  dgp <- simulate_snm_point(n = 5000, seed = 101)
+  fit <- causat(
+    dgp$data,
+    outcome = "Y",
+    treatment = "A",
+    confounders_outcome = ~ L + A:M,
+    confounders_treatment = ~ L,
+    estimator = "snm"
+  )
+
+  res <- contrast(fit, treatment_values = c(0, 1), by = "M", ci_method = "sandwich")
+
+  est <- res$estimates
+  expect_true("by" %in% names(est))
+  expect_true("n_by" %in% names(est))
+  expect_setequal(est$by, c("0", "1"))
+
+  m0 <- est[est$by == "0", ]
+  m1 <- est[est$by == "1", ]
+
+  # Per-stratum truth
+  expect_equal(m0$estimate, 3, tolerance = 0.1)
+  expect_equal(m1$estimate, 5, tolerance = 0.1)
+
+  # SEs finite and positive
+  expect_true(all(is.finite(est$se)))
+  expect_true(all(est$se > 0))
+
+  # n_by are positive integers summing to n
+  expect_true(all(est$n_by > 0))
+  expect_equal(sum(est$n_by), nrow(dgp$data))
+})
+
+test_that("SNM by-stratified averaged blip: pooled equals colMeans of per-stratum", {
+  # When all strata weights are equal (balanced binary modifier), the
+  # pooled averaged blip equals the simple average of stratum-specific blips.
+  # More importantly: the pooled result must equal what Path B returns when
+  # no `by` is specified and we manually compute colMeans(M_full).
+  dgp <- simulate_snm_point(n = 5000, seed = 101)
+  fit <- causat(
+    dgp$data,
+    outcome = "Y",
+    treatment = "A",
+    confounders_outcome = ~ L + A:M,
+    confounders_treatment = ~ L,
+    estimator = "snm"
+  )
+
+  res_pooled <- contrast(fit, treatment_values = c(0, 1), ci_method = "sandwich")
+  res_by <- contrast(fit, treatment_values = c(0, 1), by = "M", ci_method = "sandwich")
+
+  # Pooled m_bar = colMeans(M_full). Per-stratum: M=0 → (1,0), M=1 → (1,1).
+  # Weighted average (by n_by / n) must equal the pooled estimate.
+  n_s <- res_by$estimates$n_by
+  w_s <- n_s / sum(n_s)
+  weighted_avg <- sum(w_s * res_by$estimates$estimate)
+  expect_equal(weighted_avg, res_pooled$estimates$estimate, tolerance = 1e-10)
 })
 
 test_that("SNM cluster-robust SE: fit-time cluster propagates to contrast()", {
