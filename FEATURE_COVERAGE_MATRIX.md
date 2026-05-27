@@ -1158,7 +1158,36 @@ Extends SNM g-estimation to categorical (k>2, multinomial residualisation via `n
 | `plot.causatr_result()` — forest plot with "Parameter" header + ref_line = 0 | ✅ | test-s3-methods.R |
 | `plot.causatr_result()` — longitudinal SNM title variation | ✅ | test-s3-methods.R |
 
-**Phase 18 COMPLETE.** All chunks shipped (18a–18f, 18h–18k). 18g dropped (gesttools archived).
+**Chunk 18b-ext — Combination matrix follow-ups (shipped 2026-05-27)**
+
+Groups 1–6 from the Phase 18 combination matrix audit. Addresses all 🟡 items deferred from the initial shipping.
+
+| Feature | Status | Test |
+|---|---|---|
+| Binomial outcome truth test (linear probability DGP, n=3000) | ✅ | test-snm.R |
+| Quasibinomial outcome truth test | ✅ | test-snm.R |
+| Poisson outcome truth test | ✅ | test-snm.R |
+| Gamma outcome truth test | ✅ | test-snm.R |
+| Negative binomial outcome truth test | ✅ | test-snm.R |
+| Betareg outcome truth test | ✅ | test-snm.R |
+| GAM propensity smoke test (`mgcv::gam`, finite estimates+SEs) | ✅ | test-snm.R |
+| `predict.gam()` 1-D array bug fix (`as.numeric()` wrap) | ✅ | test-snm.R |
+| Cluster-robust SE: `cluster =` threading via `vcov_from_if()` | ✅ | test-snm.R |
+| Cluster-robust SE: singleton cluster = i.i.d. exactly | ✅ | test-snm.R |
+| Cluster-robust SE: fit-time propagation (`causat(cluster=)` → `contrast()`) | ✅ | test-snm.R |
+| Cluster-robust SE: dimension-safe subsetting to fit rows | ✅ | test-snm.R |
+| `by =`-stratified averaged blip: Path C in `compute_snm_contrast()` | ✅ | test-snm.R |
+| `by =` per-stratum truth (M=0 → 3, M=1 → 5 for simulate_snm_point DGP) | ✅ | test-snm.R |
+| `by =` weighted average of strata = pooled exactly | ✅ | test-snm.R |
+| `by =` rejection without `treatment_values` (`causatr_snm_by_needs_treatment_values`) | ✅ | test-snm.R |
+| `by =` rejection: column not in data (`causatr_snm_by_not_found`) | ✅ | test-snm.R |
+| `weights =` propagation to blip EE (RM_w = RM * w) | ✅ | test-snm.R |
+| `weights =` propagation to sandwich bread and score | ✅ | test-snm.R |
+| `weights =` manual WLS formula match (`sum(w*R*Y)/sum(w*R*A)`) | ✅ | test-snm.R |
+| `weights = rep(1, n)` recovers unweighted exactly | ✅ | test-snm.R |
+| Sandwich fallback: `causatr_snm_no_estfun` for unsupported model class | ✅ | test-snm.R |
+
+**Phase 18 COMPLETE.** All chunks shipped (18a–18f, 18h–18k, 18b-ext). 18g dropped (gesttools archived).
 
 ### Phase 19-trim — Cross-cutting weight truncation (shipped)
 

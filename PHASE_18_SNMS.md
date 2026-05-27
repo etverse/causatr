@@ -157,12 +157,12 @@ All outcome families work with the additive-linear blip (the blip enters as $Y -
 | Family | SNM support | Chunk | Notes |
 |---|---|---|---|
 | Gaussian | ✅ truth-tested | 18b | Design doc DGP; delicatessen cross-check |
-| Binomial | ✅ supported, needs test | 18h or 18b-ext | Additive blip = risk difference; works mechanically but needs truth test |
-| Poisson | 🟡 untested | 18h | Additive blip on count scale; unusual but valid |
-| Gamma | 🟡 untested | 18h | Additive blip; niche use case |
-| Negative binomial | 🟡 untested | 18h | Via `MASS::glm.nb` treatment model |
-| Quasibinomial | 🟡 untested | — | Same as binomial (overdispersion parameter irrelevant for treatment model) |
-| Betareg | 🟡 untested | — | Additive blip on (0,1) scale; works if outcome stays in bounds |
+| Binomial | ✅ truth-tested | 18b-ext | Additive blip = risk difference; linear probability DGP at n=3000 |
+| Poisson | ✅ truth-tested | 18b-ext | Additive blip on count scale; linear-in-A DGP |
+| Gamma | ✅ truth-tested | 18b-ext | Additive blip on mean scale |
+| Negative binomial | ✅ truth-tested | 18b-ext | Via `MASS::negative.binomial(theta)` family |
+| Quasibinomial | ✅ truth-tested | 18b-ext | Same DGP as binomial; overdispersion parameter irrelevant for blip EE |
+| Betareg | ✅ truth-tested | 18b-ext | Via `betareg::betareg`; additive blip on (0,1) scale |
 
 ### Estimand
 
@@ -170,7 +170,7 @@ All outcome families work with the additive-linear blip (the blip enters as $Y -
 |---|---|---|
 | ATE | ✅ shipped | Default: blip parameter table or averaged blip effect |
 | ATT/ATC | ⛔ rejected | SNMs estimate the blip (conditional on covariates), not marginal means under subpopulations. ATT/ATC do not have natural blip analogs under additive linear parameterisation |
-| `by`-stratified | 🟡 implicit | Per-stratum averaged blip possible via subsetting; no first-class support yet |
+| `by`-stratified | ✅ shipped | Per-stratum averaged blip: global ψ̂ with stratum-specific `colMeans(M_s)`; delta-method SE from global vcov |
 
 ### Contrast type
 
@@ -185,16 +185,16 @@ All outcome families work with the additive-linear blip (the blip enters as $Y -
 | Method | SNM support | Chunk | Notes |
 |---|---|---|---|
 | Sandwich (analytic) | ✅ shipped | 18b | Stacked EE, block-triangular bread, cross-derivative via `numDeriv::jacobian` |
-| Sandwich (numeric fallback) | 🟡 pending | 18b-ext | Tier 1/2 fallback for non-standard model classes; wire `variance_if_numeric()` for SNM |
+| Sandwich (numeric fallback) | ✅ shipped | 18b-ext | Defensive `tryCatch` in `variance_if_snm()`: catches models without `model.matrix`/`coef`/`residuals` support; re-throws as `causatr_snm_no_estfun` with pointer to bootstrap |
 | Bootstrap | ✅ shipped | 18i | Blip re-estimation in `boot::boot()`; point row-resampling + longitudinal ID-cluster resampling |
-| Cluster-robust | 🟡 implicit | 18d | Per-individual IF aggregation for longitudinal; explicit `cluster =` threading pending |
+| Cluster-robust | ✅ shipped | 18b-ext | Explicit `cluster =` threading via `vcov_from_if()`; fit-time propagation; dimension-safe subsetting to fit rows |
 
 ### Model class (treatment model)
 
 | Model | SNM support | Notes |
 |---|---|---|
 | GLM (`stats::glm`) | ✅ shipped | Default via `fit_treatment_model()` |
-| GAM (`mgcv::gam`) | 🟡 untested | Should work via `propensity_model_fn = mgcv::gam`; bread uses `$Vp`; needs smoke test |
+| GAM (`mgcv::gam`) | ✅ smoke-tested | Via `propensity_model_fn = mgcv::gam`; bread uses `$Vp`; `as.numeric()` wrap for `predict.gam()` 1-D array bug |
 
 ### Transportability / generalizability
 
@@ -213,7 +213,7 @@ All outcome families work with the additive-linear blip (the blip enters as $Y -
 
 | Feature | SNM support | Notes |
 |---|---|---|
-| `weights =` external | 🟡 partial | Propagated to treatment model via `fit_treatment_model(..., weights =)`. Blip EE currently unweighted; should be weighted. Needs testing |
+| `weights =` external | ✅ shipped | Propagated to both treatment model and blip EE (RM_w = RM * w); sandwich bread and score also weighted; matches manual WLS formula sum(w*R*Y)/sum(w*R*A) |
 | Survey design | ❌ deferred | Full survey-weighted SNMs wait for Phase 9 infrastructure |
 
 ### Effect modification
