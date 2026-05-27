@@ -3144,3 +3144,63 @@ test_that("SNM cluster-robust SE: fit-time cluster propagates to contrast()", {
   # Fit-time cluster is stored
   expect_equal(fit_cl$details$cluster, "cluster_id")
 })
+
+# ── Weights propagation (Group 5) ─────────────────────────────────────────────
+
+test_that("SNM weighted EE: estimate matches manual weighted g-estimation", {
+  # DGP: linear blip gamma(a; psi) = a * psi, truth psi = 0.5
+  # Weights w_i = 1 + A_i (treated obs upweighted). The weighted EE is:
+  #   psi_w = sum(w * R * Y) / sum(w * R * A)
+  # where R = A - fitted treatment probability.
+  set.seed(77)
+  n <- 2000
+  L <- rnorm(n)
+  A <- rbinom(n, 1, plogis(0.5 * L))
+  Y <- 0.5 * A + 0.3 * L + rnorm(n, sd = 0.5)
+  w <- 1 + A  # integer weights: treated=2, control=1
+  d <- data.table::data.table(Y = Y, A = A, L = L)
+
+  fit_w <- causat(d, outcome = "Y", treatment = "A", confounders = ~ L,
+    estimator = "snm", propensity_model_fn = stats::glm, weights = w)
+  res_w <- contrast(fit_w, ci_method = "sandwich")
+
+  # Manual weighted EE: use the fitted propensity from the treatment model
+  trt_model <- fit_w$details$treatment_model$model
+  e_a <- as.numeric(predict(trt_model, type = "response"))
+  R_manual <- A - e_a
+  psi_manual <- sum(w * R_manual * Y) / sum(w * R_manual * A)
+
+  expect_equal(res_w$estimates$estimate, psi_manual, tolerance = 1e-6)
+
+  # Compare to unweighted: estimates should differ when w != constant
+  fit_u <- causat(d, outcome = "Y", treatment = "A", confounders = ~ L,
+    estimator = "snm", propensity_model_fn = stats::glm)
+  res_u <- contrast(fit_u, ci_method = "sandwich")
+
+  expect_false(isTRUE(all.equal(res_w$estimates$estimate,
+    res_u$estimates$estimate, tolerance = 1e-3)))
+
+  # SE finite and positive
+  expect_true(is.finite(res_w$estimates$se))
+  expect_gt(res_w$estimates$se, 0)
+})
+
+test_that("SNM weighted EE: unit weights (w=1) recovers unweighted estimate exactly", {
+  set.seed(78)
+  n <- 500
+  L <- rnorm(n)
+  A <- rbinom(n, 1, plogis(0.5 * L))
+  Y <- 0.5 * A + 0.3 * L + rnorm(n, sd = 0.5)
+  d <- data.table::data.table(Y = Y, A = A, L = L)
+
+  fit_u <- causat(d, outcome = "Y", treatment = "A", confounders = ~ L,
+    estimator = "snm", propensity_model_fn = stats::glm)
+  fit_w1 <- causat(d, outcome = "Y", treatment = "A", confounders = ~ L,
+    estimator = "snm", propensity_model_fn = stats::glm, weights = rep(1, n))
+
+  res_u <- contrast(fit_u, ci_method = "sandwich")
+  res_w1 <- contrast(fit_w1, ci_method = "sandwich")
+
+  expect_equal(res_w1$estimates$estimate, res_u$estimates$estimate, tolerance = 1e-10)
+  expect_equal(res_w1$estimates$se, res_u$estimates$se, tolerance = 1e-10)
+})

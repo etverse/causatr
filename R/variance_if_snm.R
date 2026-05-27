@@ -63,11 +63,20 @@ variance_if_snm <- function(fit, snm_result, cluster_vec = NULL) {
     cluster_vec <- cluster_vec[fit_rows]
   }
 
+  # Observation weights (already subsetted to fit rows by compute_snm_blip_point).
+  # When present, the weighted bread A_psi_psi = -(1/n) RM_w' AM where
+  # RM_w = RM * w, and the per-obs score omega_i = w_i * R_i * m_i * resid_i.
+  w <- snm_result$w
+
   # Treatment design matrices from the point estimator
   td <- snm_result$td
   AM <- td$AM
   RM <- td$RM
   is_cat <- td$is_categorical
+
+  # Pre-multiply test-function matrices by weights (same convention as
+  # compute_snm_blip_point): RM_w enters bread and score; AM stays unweighted.
+  RM_w <- if (!is.null(w)) RM * w else RM
 
   # --- Treatment model IF ---
   trt_fit_idx <- which(trt_model$fit_rows)
@@ -100,11 +109,13 @@ variance_if_snm <- function(fit, snm_result, cluster_vec = NULL) {
 
   if (has_tf) {
     p_beta <- length(beta_hat)
+    Z_w <- if (!is.null(w)) Z * w else Z
 
-    # A_{theta,theta} = -(1/n) [Z'Z, Z'AM; RM'Z, RM'AM]
+    # A_{theta,theta} = -(1/n) [Z_w'Z, Z_w'AM; RM_w'Z, RM_w'AM]
+    # Weighted bread for the joint (beta, psi) system.
     A_theta_theta <- -rbind(
-      cbind(crossprod(Z, Z), crossprod(Z, AM)),
-      cbind(crossprod(RM, Z), crossprod(RM, AM))
+      cbind(crossprod(Z_w, Z), crossprod(Z_w, AM)),
+      cbind(crossprod(RM_w, Z), crossprod(RM_w, AM))
     ) /
       n
 
@@ -119,22 +130,25 @@ variance_if_snm <- function(fit, snm_result, cluster_vec = NULL) {
       }
     )
 
-    # Joint score: (phi_beta, phi_psi) per observation
+    # Weighted joint score: omega_beta = w * Z * resid, omega_psi = w * RM * resid
     gamma_hat <- as.numeric(AM %*% psi_hat)
     tf_pred <- as.numeric(Z %*% beta_hat)
     resid_joint <- Y - tf_pred - gamma_hat
-    omega_beta <- Z * resid_joint
-    omega_psi <- RM * resid_joint
+    omega_beta <- Z_w * resid_joint
+    omega_psi <- RM_w * resid_joint
     omega_theta <- cbind(omega_beta, omega_psi)
 
-    # Cross-derivative: only phi_psi depends on alpha
+    # Cross-derivative: only phi_psi depends on alpha (phi_beta does not
+    # depend on treatment model parameters). Pass w so the closure uses
+    # the weighted mean matching the weighted EE.
     valid_full <- rep(TRUE, n)
     phi_bar_alpha <- build_snm_phi_alpha_closure(
       td,
       trt_model,
       X_prop,
       resid_joint,
-      valid_full
+      valid_full,
+      w = w
     )
     A_psi_alpha <- -numDeriv::jacobian(phi_bar_alpha, x = alpha_hat)
 
@@ -148,8 +162,8 @@ variance_if_snm <- function(fit, snm_result, cluster_vec = NULL) {
     IF_theta <- adjusted_score_theta %*% t(A_theta_theta_inv)
     IF_psi <- IF_theta[, p_beta + seq_len(p_psi), drop = FALSE]
   } else {
-    # Bread: -(1/n) RM' AM
-    A_psi_psi <- -crossprod(RM, AM) / n
+    # Weighted bread: -(1/n) RM_w' AM
+    A_psi_psi <- -crossprod(RM_w, AM) / n
 
     A_psi_psi_inv <- tryCatch(
       solve(A_psi_psi),
@@ -162,19 +176,20 @@ variance_if_snm <- function(fit, snm_result, cluster_vec = NULL) {
       }
     )
 
-    # Blip score: RM * (Y - AM psi)
+    # Weighted blip score: w_i * R_i * m_i * (Y_i - AM_i psi)
     gamma_hat <- as.numeric(AM %*% psi_hat)
     resid_blip <- Y - gamma_hat
-    omega_psi <- RM * resid_blip
+    omega_psi <- RM_w * resid_blip
 
-    # Cross-derivative closure
+    # Cross-derivative closure — use weighted mean to match the weighted EE.
     valid_full <- rep(TRUE, n)
     phi_bar_alpha <- build_snm_phi_alpha_closure(
       td,
       trt_model,
       X_prop,
       resid_blip,
-      valid_full
+      valid_full,
+      w = w
     )
     A_psi_alpha <- -numDeriv::jacobian(phi_bar_alpha, x = alpha_hat)
 
@@ -211,6 +226,9 @@ variance_if_snm <- function(fit, snm_result, cluster_vec = NULL) {
 #' @param resid_blip Numeric vector of blip residuals
 #'   \eqn{Y_i - \gamma(A_i, L_i; \hat\psi)}.
 #' @param valid_full Logical vector indicating valid (non-NA) rows.
+#' @param w Numeric vector of observation weights (length = n_obs) or
+#'   `NULL`. When non-`NULL`, the closure computes the weighted mean
+#'   `colMeans(w * vals)` to match the weighted g-estimating equation.
 #' @return A function `phi(alpha)` -> numeric vector of length p_psi.
 #' @noRd
 build_snm_phi_alpha_closure <- function(
@@ -218,7 +236,8 @@ build_snm_phi_alpha_closure <- function(
   trt_model,
   X_prop,
   resid_blip,
-  valid_full
+  valid_full,
+  w = NULL
 ) {
   if (td$is_categorical) {
     M <- td$M
@@ -246,6 +265,7 @@ build_snm_phi_alpha_closure <- function(
       }
       vals <- RM_alpha * resid_blip
       vals[!valid_full, ] <- 0
+      if (!is.null(w)) vals <- vals * w
       colMeans(vals)
     }
   } else {
@@ -259,6 +279,7 @@ build_snm_phi_alpha_closure <- function(
       R_alpha <- A_raw - mu
       vals <- M * (R_alpha * resid_blip)
       vals[!valid_full, ] <- 0
+      if (!is.null(w)) vals <- vals * w
       colMeans(vals)
     }
   }

@@ -46,6 +46,13 @@ compute_snm_blip_point <- function(fit) {
 
   Y <- fit_data[[fit$outcome]]
 
+  # Observation weights subsetted to fit rows. When weights are supplied,
+  # the g-estimating equation becomes Σ_i w_i R_i m_i (Y_i - A_i m_i' ψ) = 0,
+  # solved by (RM_w' AM)^{-1} RM_w' Y where RM_w = RM * w. The test-function
+  # matrices (RM_w, Z_w) are multiplied by w; the response matrices (AM, Z,
+  # Y) remain unweighted — this avoids squaring the weights in the bread.
+  w <- if (is.null(fit$details$weights)) NULL else fit$details$weights[fit_rows]
+
   # Build treatment design matrices AM and RM. For scalar treatments
   # (binary/continuous/count), AM = A*M and RM = R*M. For categorical
   # (K levels), expands to (K-1) blocks with per-level indicators and
@@ -55,20 +62,25 @@ compute_snm_blip_point <- function(fit) {
   RM <- td$RM
   p_psi <- td$p_psi
 
+  # Pre-multiply test-function matrices by observation weights.
+  RM_w <- if (!is.null(w)) RM * w else RM
+
   if (!is.null(tf_formula)) {
-    # Joint estimation: solve (beta, psi) simultaneously.
-    # [Z'Z,    Z'AM  ] [beta] = [Z'Y  ]
-    # [RM'Z,   RM'AM ] [psi ] = [RM'Y ]
+    # Weighted joint estimation: solve (beta, psi) simultaneously.
+    # [Z_w'Z,    Z_w'AM  ] [beta] = [Z_w'Y  ]
+    # [RM_w'Z,   RM_w'AM ] [psi ] = [RM_w'Y ]
+    # Z_w = Z * w weights the test-function side only.
     Z <- stats::model.matrix(tf_formula, data = fit_data)
     p_beta <- ncol(Z)
+    Z_w <- if (!is.null(w)) Z * w else Z
 
     lhs <- rbind(
-      cbind(crossprod(Z, Z), crossprod(Z, AM)),
-      cbind(crossprod(RM, Z), crossprod(RM, AM))
+      cbind(crossprod(Z_w, Z), crossprod(Z_w, AM)),
+      cbind(crossprod(RM_w, Z), crossprod(RM_w, AM))
     )
     rhs <- c(
-      as.numeric(crossprod(Z, Y)),
-      as.numeric(crossprod(RM, Y))
+      as.numeric(crossprod(Z_w, Y)),
+      as.numeric(crossprod(RM_w, Y))
     )
 
     theta_hat <- tryCatch(
@@ -94,9 +106,9 @@ compute_snm_blip_point <- function(fit) {
     psi_hat <- theta_hat[p_beta + seq_len(p_psi)]
     names(psi_hat) <- td$param_names
   } else {
-    # psi = (RM' AM)^{-1} RM' Y
-    lhs <- crossprod(RM, AM)
-    rhs <- crossprod(RM, Y)
+    # Weighted: ψ = (RM_w' AM)^{-1} RM_w' Y
+    lhs <- crossprod(RM_w, AM)
+    rhs <- crossprod(RM_w, Y)
 
     psi_hat <- tryCatch(
       as.numeric(solve(lhs, rhs)),
@@ -129,7 +141,8 @@ compute_snm_blip_point <- function(fit) {
     fit_rows = fit_rows,
     beta_hat = beta_hat,
     Z = Z,
-    td = td
+    td = td,
+    w = w
   )
 }
 
