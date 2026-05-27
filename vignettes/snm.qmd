@@ -327,7 +327,7 @@ dashed line), while the SNM recovers the truth:
 #| label: fig-bias-comparison
 #| fig-width: 6
 #| fig-height: 4
-#| fig-alt: "Pointrange plot showing the IPW-MSM estimate (severely biased at ~6.5) versus the SNM averaged blip (correct at ~3.5). A dashed line marks the true value."
+#| fig-alt: "Pointrange plot showing the IPW-MSM estimate (biased downward) versus the SNM averaged blip (correct at approximately 3). A dashed horizontal line marks the true averaged blip value."
 bias_df <- data.frame(
   Method = factor(
     c("IPW-MSM (biased)", "SNM (correct)"),
