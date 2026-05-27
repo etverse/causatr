@@ -59,7 +59,11 @@ data("nhefs")
 
 nhefs_complete <- nhefs[complete.cases(nhefs), ]
 nhefs_complete$gained_weight <- as.integer(nhefs_complete$wt82_71 > 0)
-nhefs_complete$sex <- factor(nhefs_complete$sex, levels = 0:1, labels = c("Male", "Female"))
+nhefs_complete$sex <- factor(
+  nhefs_complete$sex,
+  levels = 0:1,
+  labels = c("Male", "Female")
+)
 
 confounders <- ~ sex + age + I(age^2) + race + factor(education) +
   smokeintensity + I(smokeintensity^2) + smokeyrs + I(smokeyrs^2) +
@@ -71,20 +75,43 @@ confounders <- ~ sex + age + I(age^2) + race + factor(education) +
 ### Fitting all four methods
 
 ```{r}
-fit_gc <- causat(nhefs, outcome = "wt82_71", treatment = "qsmk",
-  confounders = confounders, censoring = "censored",
-  model_fn = stats::glm)
+fit_gc <- causat(
+  nhefs,
+  outcome = "wt82_71",
+  treatment = "qsmk",
+  confounders = confounders,
+  censoring = "censored",
+  model_fn = stats::glm
+)
 
-fit_ipw <- causat(nhefs_complete, outcome = "wt82_71", treatment = "qsmk",
-  confounders = confounders, estimator = "ipw",
-  model_fn = stats::glm, propensity_model_fn = stats::glm)
+fit_ipw <- causat(
+  nhefs_complete,
+  outcome = "wt82_71",
+  treatment = "qsmk",
+  confounders = confounders,
+  estimator = "ipw",
+  model_fn = stats::glm,
+  propensity_model_fn = stats::glm
+)
 
-fit_aipw <- causat(nhefs_complete, outcome = "wt82_71", treatment = "qsmk",
-  confounders = confounders, estimator = "aipw",
-  model_fn = stats::glm, propensity_model_fn = stats::glm)
+fit_aipw <- causat(
+  nhefs_complete,
+  outcome = "wt82_71",
+  treatment = "qsmk",
+  confounders = confounders,
+  estimator = "aipw",
+  model_fn = stats::glm,
+  propensity_model_fn = stats::glm
+)
 
-fit_m <- causat(nhefs_complete, outcome = "wt82_71", treatment = "qsmk",
-  confounders = confounders, estimator = "matching", estimand = "ATT")
+fit_m <- causat(
+  nhefs_complete,
+  outcome = "wt82_71",
+  treatment = "qsmk",
+  confounders = confounders,
+  estimator = "matching",
+  estimand = "ATT"
+)
 ```
 
 ### Contrasts
@@ -137,22 +164,44 @@ abline(h = 0, lty = 2, col = "grey40")
 ## Binary outcome: gained weight
 
 ```{r}
-fit_gc_bin <- causat(nhefs_complete, outcome = "gained_weight",
-  treatment = "qsmk", confounders = confounders, family = "binomial",
-  model_fn = stats::glm)
+fit_gc_bin <- causat(
+  nhefs_complete,
+  outcome = "gained_weight",
+  treatment = "qsmk",
+  confounders = confounders,
+  family = "binomial",
+  model_fn = stats::glm
+)
 
-fit_ipw_bin <- causat(nhefs_complete, outcome = "gained_weight",
-  treatment = "qsmk", confounders = confounders, estimator = "ipw",
-  model_fn = stats::glm, propensity_model_fn = stats::glm)
+fit_ipw_bin <- causat(
+  nhefs_complete,
+  outcome = "gained_weight",
+  treatment = "qsmk",
+  confounders = confounders,
+  estimator = "ipw",
+  model_fn = stats::glm,
+  propensity_model_fn = stats::glm
+)
 
-fit_aipw_bin <- causat(nhefs_complete, outcome = "gained_weight",
-  treatment = "qsmk", confounders = confounders,
-  estimator = "aipw", family = "binomial",
-  model_fn = stats::glm, propensity_model_fn = stats::glm)
+fit_aipw_bin <- causat(
+  nhefs_complete,
+  outcome = "gained_weight",
+  treatment = "qsmk",
+  confounders = confounders,
+  estimator = "aipw",
+  family = "binomial",
+  model_fn = stats::glm,
+  propensity_model_fn = stats::glm
+)
 
-fit_m_bin <- causat(nhefs_complete, outcome = "gained_weight",
-  treatment = "qsmk", confounders = confounders,
-  estimator = "matching", estimand = "ATT")
+fit_m_bin <- causat(
+  nhefs_complete,
+  outcome = "gained_weight",
+  treatment = "qsmk",
+  confounders = confounders,
+  estimator = "matching",
+  estimand = "ATT"
+)
 
 res_gc_bin   <- contrast(fit_gc_bin,   ivs, reference = "continue")
 res_ipw_bin  <- contrast(fit_ipw_bin,  ivs, reference = "continue")
@@ -234,26 +283,63 @@ confounders_em <- ~ sex + age + I(age^2) + race + factor(education) +
   factor(exercise) + factor(active) + wt71 + I(wt71^2) +
   qsmk:sex
 
-fit_gc_em   <- causat(nhefs_complete, outcome = "wt82_71",
-  treatment = "qsmk", confounders = confounders_em,
-  model_fn = stats::glm)
-fit_ipw_em  <- causat(nhefs_complete, outcome = "wt82_71",
-  treatment = "qsmk", confounders = confounders_em, estimator = "ipw",
-  model_fn = stats::glm, propensity_model_fn = stats::glm)
-fit_aipw_em <- causat(nhefs_complete, outcome = "wt82_71",
-  treatment = "qsmk", confounders = confounders_em, estimator = "aipw",
-  model_fn = stats::glm, propensity_model_fn = stats::glm)
-fit_m_em    <- causat(nhefs_complete, outcome = "wt82_71",
-  treatment = "qsmk", confounders = confounders_em, estimator = "matching")
+fit_gc_em <- causat(
+  nhefs_complete,
+  outcome = "wt82_71",
+  treatment = "qsmk",
+  confounders = confounders_em,
+  model_fn = stats::glm
+)
+fit_ipw_em <- causat(
+  nhefs_complete,
+  outcome = "wt82_71",
+  treatment = "qsmk",
+  confounders = confounders_em,
+  estimator = "ipw",
+  model_fn = stats::glm,
+  propensity_model_fn = stats::glm
+)
+fit_aipw_em <- causat(
+  nhefs_complete,
+  outcome = "wt82_71",
+  treatment = "qsmk",
+  confounders = confounders_em,
+  estimator = "aipw",
+  model_fn = stats::glm,
+  propensity_model_fn = stats::glm
+)
+fit_m_em <- causat(
+  nhefs_complete,
+  outcome = "wt82_71",
+  treatment = "qsmk",
+  confounders = confounders_em,
+  estimator = "matching"
+)
 
-res_gc_em   <- contrast(fit_gc_em,   ivs, reference = "continue",
-  ci_method = "sandwich", by = "sex")
-res_ipw_em  <- contrast(fit_ipw_em,  ivs, reference = "continue",
-  ci_method = "sandwich", by = "sex")
-res_aipw_em <- contrast(fit_aipw_em, ivs, reference = "continue",
-  ci_method = "sandwich", by = "sex")
-res_m_em    <- contrast(fit_m_em,    ivs, reference = "continue",
-  ci_method = "sandwich", by = "sex")
+res_gc_em <- contrast(
+  fit_gc_em, ivs,
+  reference = "continue",
+  ci_method = "sandwich",
+  by = "sex"
+)
+res_ipw_em <- contrast(
+  fit_ipw_em, ivs,
+  reference = "continue",
+  ci_method = "sandwich",
+  by = "sex"
+)
+res_aipw_em <- contrast(
+  fit_aipw_em, ivs,
+  reference = "continue",
+  ci_method = "sandwich",
+  by = "sex"
+)
+res_m_em <- contrast(
+  fit_m_em, ivs,
+  reference = "continue",
+  ci_method = "sandwich",
+  by = "sex"
+)
 
 results_em <- rbind(
   cbind(method = "G-computation", res_gc_em$contrasts),

@@ -67,7 +67,11 @@ nhefs_complete <- nhefs[!is.na(nhefs$wt82_71), ]
 nhefs_complete$gained_weight <- as.integer(nhefs_complete$wt82_71 > 0)
 
 nhefs$sex <- factor(nhefs$sex, levels = 0:1, labels = c("Male", "Female"))
-nhefs_complete$sex <- factor(nhefs_complete$sex, levels = 0:1, labels = c("Male", "Female"))
+nhefs_complete$sex <- factor(
+  nhefs_complete$sex,
+  levels = 0:1,
+  labels = c("Male", "Female")
+)
 ```
 
 We create a binary outcome `gained_weight` (1 if weight increased, 0 otherwise)
@@ -562,8 +566,13 @@ A <- sample(c("A", "B", "C"), n, replace = TRUE, prob = c(0.4, 0.35, 0.25))
 Y <- 2 + (A == "B") * 1.5 + (A == "C") * -0.8 + 0.5 * L + rnorm(n)
 cat_df <- data.frame(Y = Y, A = factor(A, levels = c("A", "B", "C")), L = L)
 
-fit_cat <- causat(cat_df, outcome = "Y", treatment = "A", confounders = ~ L,
-  model_fn = stats::glm)
+fit_cat <- causat(
+  cat_df,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L,
+  model_fn = stats::glm
+)
 
 res_cat <- contrast(
   fit_cat,

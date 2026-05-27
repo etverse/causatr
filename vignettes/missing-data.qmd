@@ -90,8 +90,13 @@ The estimate remains close to 3 despite 15% missing outcomes.
 ### Comparison: complete data vs missing-outcome data
 
 ```{r}
-fit_complete <- causat(df, outcome = "Y", treatment = "A", confounders = ~ L1 + L2,
-  model_fn = stats::glm)
+fit_complete <- causat(
+  df,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L1 + L2,
+  model_fn = stats::glm
+)
 res_complete <- contrast(
   fit_complete,
   interventions = list(a1 = static(1), a0 = static(0)),
@@ -358,9 +363,13 @@ $E[Y^{B}] - E[Y^{A}] = 1$ and $E[Y^{C}] - E[Y^{A}] = 2$.
 
 ```{r}
 set.seed(44)
-A_cat <- factor(sample(c("A", "B", "C"), n, replace = TRUE, prob = c(0.3, 0.4, 0.3)))
+A_cat <- factor(
+  sample(c("A", "B", "C"), n, replace = TRUE, prob = c(0.3, 0.4, 0.3))
+)
 L <- rnorm(n)
-Y_cat <- 1 + ifelse(A_cat == "B", 1, ifelse(A_cat == "C", 2, 0)) + 0.5 * L + rnorm(n)
+Y_cat <- 1 +
+  ifelse(A_cat == "B", 1, ifelse(A_cat == "C", 2, 0)) +
+  0.5 * L + rnorm(n)
 df_cat <- data.frame(Y = Y_cat, A = A_cat, L = L)
 df_cat$Y[sample(n, round(0.10 * n))] <- NA
 
@@ -374,7 +383,11 @@ fit_cat <- causat(
 
 res_cat <- contrast(
   fit_cat,
-  interventions = list(arm_a = static("A"), arm_b = static("B"), arm_c = static("C")),
+  interventions = list(
+    arm_a = static("A"),
+    arm_b = static("B"),
+    arm_c = static("C")
+  ),
   reference = "arm_a",
   type = "difference",
   ci_method = "sandwich"
@@ -420,7 +433,9 @@ for (i in seq_len(n_id)) {
   Y_long[rows[2]] <- 2 + 1.5 * sum(A_tv[rows]) + 0.5 * L0[rows[1]] + rnorm(1)
 }
 
-long_df <- data.frame(id = ids, time = times, Y = Y_long, A = A_tv, L0 = L0, L = L_tv)
+long_df <- data.frame(
+  id = ids, time = times, Y = Y_long, A = A_tv, L0 = L0, L = L_tv
+)
 long_df$Y[sample(which(!is.na(long_df$Y)), round(0.10 * n_id))] <- NA
 
 fit_ice_miss <- causat(
@@ -468,10 +483,16 @@ res_boot_miss
 ```{r}
 boot_comp <- data.frame(
   Inference = c("Sandwich", "Bootstrap"),
-  Estimate = c(res_y$contrasts$estimate[1], res_boot_miss$contrasts$estimate[1]),
+  Estimate = c(
+    res_y$contrasts$estimate[1], res_boot_miss$contrasts$estimate[1]
+  ),
   SE = c(res_y$contrasts$se[1], res_boot_miss$contrasts$se[1]),
-  CI_lower = c(res_y$contrasts$ci_lower[1], res_boot_miss$contrasts$ci_lower[1]),
-  CI_upper = c(res_y$contrasts$ci_upper[1], res_boot_miss$contrasts$ci_upper[1])
+  CI_lower = c(
+    res_y$contrasts$ci_lower[1], res_boot_miss$contrasts$ci_lower[1]
+  ),
+  CI_upper = c(
+    res_y$contrasts$ci_upper[1], res_boot_miss$contrasts$ci_upper[1]
+  )
 )
 tt(boot_comp, digits = 3)
 ```

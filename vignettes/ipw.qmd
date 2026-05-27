@@ -78,7 +78,11 @@ nhefs_complete <- nhefs[!is.na(nhefs$wt82_71) & !is.na(nhefs$education), ]
 
 nhefs_complete$gained_weight <- as.integer(nhefs_complete$wt82_71 > 0)
 
-nhefs_complete$sex <- factor(nhefs_complete$sex, levels = 0:1, labels = c("Male", "Female"))
+nhefs_complete$sex <- factor(
+  nhefs_complete$sex,
+  levels = 0:1,
+  labels = c("Male", "Female")
+)
 ```
 
 ## Binary treatment, continuous outcome
@@ -998,8 +1002,12 @@ A2 <- rbinom(n, 1, plogis(-0.3 * L))
 Y  <- 2 + 1.5 * A1 + 1.0 * A2 - 0.5 * L + rnorm(n)
 df_mv <- data.frame(L = L, A1 = A1, A2 = A2, Y = Y)
 
-fit_mv <- causat(df_mv, "Y", c("A1", "A2"), ~ L, estimator = "ipw",
-  model_fn = stats::glm, propensity_model_fn = stats::glm)
+fit_mv <- causat(
+  df_mv, "Y", c("A1", "A2"), ~ L,
+  estimator = "ipw",
+  model_fn = stats::glm,
+  propensity_model_fn = stats::glm
+)
 res_mv <- contrast(
   fit_mv,
   interventions = list(
@@ -1076,8 +1084,12 @@ A2 <- 5 + 0.5 * L + rnorm(n)
 Y  <- 1 + 2 * A1 + 0.3 * A2 - 0.5 * L + rnorm(n)
 df_mix <- data.frame(L = L, A1 = A1, A2 = A2, Y = Y)
 
-fit_mix <- causat(df_mix, "Y", c("A1", "A2"), ~ L, estimator = "ipw",
-  model_fn = stats::glm, propensity_model_fn = stats::glm)
+fit_mix <- causat(
+  df_mix, "Y", c("A1", "A2"), ~ L,
+  estimator = "ipw",
+  model_fn = stats::glm,
+  propensity_model_fn = stats::glm
+)
 res_mix <- contrast(
   fit_mix,
   interventions = list(

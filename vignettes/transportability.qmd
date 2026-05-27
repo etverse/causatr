@@ -457,7 +457,9 @@ n_mv <- 2000
 L_mv <- rnorm(n_mv)
 S_mv <- rbinom(n_mv, 1, plogis(-0.5 + 0.8 * L_mv))
 
-A1_mv <- ifelse(S_mv == 1L, rbinom(n_mv, 1, plogis(0.2 + 0.3 * L_mv)), NA_integer_)
+A1_mv <- ifelse(
+  S_mv == 1L, rbinom(n_mv, 1, plogis(0.2 + 0.3 * L_mv)), NA_integer_
+)
 A2_mv <- ifelse(
   S_mv == 1L,
   rbinom(n_mv, 1, plogis(0.1 + 0.2 * L_mv + 0.3 * A1_mv)),

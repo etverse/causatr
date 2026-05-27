@@ -113,12 +113,19 @@ groups <- data.frame(
 rows <- lapply(seq_len(nrow(groups)), function(i) {
   g <- groups[i, ]
   off <- sum(groups$N[seq_len(i - 1)])
-  data.frame(id = seq_len(g$N) + off, A0 = g$A0, L1 = g$L1, A1 = g$A1, Y = g$Y)
+  data.frame(
+    id = seq_len(g$N) + off,
+    A0 = g$A0, L1 = g$L1, A1 = g$A1, Y = g$Y
+  )
 })
 wide <- do.call(rbind, rows)
 
-t0 <- data.frame(id = wide$id, time = 0L, A = wide$A0, L = NA_real_, Y = NA_real_)
-t1 <- data.frame(id = wide$id, time = 1L, A = wide$A1, L = wide$L1, Y = wide$Y)
+t0 <- data.frame(
+  id = wide$id, time = 0L, A = wide$A0, L = NA_real_, Y = NA_real_
+)
+t1 <- data.frame(
+  id = wide$id, time = 1L, A = wide$A1, L = wide$L1, Y = wide$Y
+)
 long <- rbind(t0, t1)
 head(long, 4)
 ```
@@ -223,9 +230,15 @@ as expected from the data generating process.
 naive_ci <- confint(naive_fit)
 est_df <- data.frame(
   method = c("Naive (A0)", "Naive (A1)", "ICE"),
-  estimate = c(naive_coefs["A0"], naive_coefs["A1"], result$contrasts$estimate[1]),
-  ci_lower = c(naive_ci["A0", 1], naive_ci["A1", 1], result$contrasts$ci_lower[1]),
-  ci_upper = c(naive_ci["A0", 2], naive_ci["A1", 2], result$contrasts$ci_upper[1])
+  estimate = c(
+    naive_coefs["A0"], naive_coefs["A1"], result$contrasts$estimate[1]
+  ),
+  ci_lower = c(
+    naive_ci["A0", 1], naive_ci["A1", 1], result$contrasts$ci_lower[1]
+  ),
+  ci_upper = c(
+    naive_ci["A0", 2], naive_ci["A1", 2], result$contrasts$ci_upper[1]
+  )
 )
 tinyplot(
   estimate ~ method,
@@ -339,7 +352,9 @@ confounder is present):
 result_dyn <- contrast(
   fit,
   interventions = list(
-    adaptive = dynamic(\(data, trt) ifelse(!is.na(data$L) & data$L > 0, 1L, 0L)),
+    adaptive = dynamic(
+      \(data, trt) ifelse(!is.na(data$L) & data$L > 0, 1L, 0L)
+    ),
     always   = static(1),
     never    = static(0)
   ),
