@@ -47,7 +47,7 @@ Suggests:
     mice,
     optmatch,
     quarto,
-    stdReg2,
+    stdReg2 (>= 1.0.3),
     survey,
     tinyplot,
     tinytable,

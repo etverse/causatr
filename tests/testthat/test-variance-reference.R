@@ -162,6 +162,9 @@ test_that("gcomp sandwich matches stdReg2 — binary outcome, RR (DGP 2)", {
 
 
 test_that("gcomp sandwich matches stdReg2 — NHEFS (Hernán & Robins)", {
+  # stdReg2 < 1.0.3 uses a different SE formula for complex NHEFS model
+  # (factor(), I(), interactions) that diverges by ~13% from causatr's IF.
+  skip_if_not_installed("stdReg2", minimum_version = "1.0.3")
   data("nhefs", package = "causatr")
 
   nhefs_cc <- nhefs[!is.na(nhefs$wt82_71) & !is.na(nhefs$education), ]
@@ -373,6 +376,8 @@ test_that("AIPW sandwich matches stdReg2 DR — binary outcome, RR", {
 
 
 test_that("AIPW sandwich matches stdReg2 DR — NHEFS", {
+  # stdReg2 < 1.0.3 uses a different SE formula for complex NHEFS model
+  skip_if_not_installed("stdReg2", minimum_version = "1.0.3")
   nhefs_cc <- causatr::nhefs[
     causatr::nhefs$censored == 0 & !is.na(causatr::nhefs$education),
   ]
