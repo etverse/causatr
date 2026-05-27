@@ -840,7 +840,9 @@ test_that("apply_intervention_to_values() rejects an unknown intervention type",
 
 test_that("contrast() rejects invalid trim values", {
   d <- data.table::data.table(
-    Y = rnorm(50), A = rbinom(50, 1, 0.5), L = rnorm(50)
+    Y = rnorm(50),
+    A = rbinom(50, 1, 0.5),
+    L = rnorm(50)
   )
   fit <- causat(d, "Y", "A", ~L, estimator = "ipw")
   ivs <- list(a1 = static(1), a0 = static(0))
@@ -848,7 +850,10 @@ test_that("contrast() rejects invalid trim values", {
   expect_error(contrast(fit, ivs, trim = -1), class = "causatr_bad_trim")
   expect_error(contrast(fit, ivs, trim = 2), class = "causatr_bad_trim")
   expect_error(contrast(fit, ivs, trim = "a"), class = "causatr_bad_trim")
-  expect_error(contrast(fit, ivs, trim = c(0.9, 0.95)), class = "causatr_bad_trim")
+  expect_error(
+    contrast(fit, ivs, trim = c(0.9, 0.95)),
+    class = "causatr_bad_trim"
+  )
 })
 
 test_that("truncate_weights: trim=1 returns weights unchanged", {
@@ -1191,39 +1196,49 @@ test_that("MV continuous IPW sandwich works with NULL intervention", {
   Y <- 10 + 0.5 * A1 + 0.4 * A2 + L + rnorm(n)
   d <- data.table::data.table(Y = Y, A1 = A1, A2 = A2, L = L)
 
-  fit <- causat(d,
-    outcome = "Y", treatment = c("A1", "A2"),
-    confounders = ~ L, estimator = "ipw"
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = c("A1", "A2"),
+    confounders = ~L,
+    estimator = "ipw"
   )
 
   # NULL as one of two interventions
-  res <- contrast(fit,
+  res <- contrast(
+    fit,
     interventions = list(
       shifted = list(A1 = shift(1), A2 = shift(0.5)),
       nc = NULL
     ),
-    type = "difference", ci_method = "sandwich"
+    type = "difference",
+    ci_method = "sandwich"
   )
   expect_s3_class(res, "causatr_result")
   expect_true(all(is.finite(res$estimates$se)))
   expect_true(all(res$estimates$se > 0))
 
   # NULL for both interventions: trivial but must not crash
-  res_both <- contrast(fit,
+  res_both <- contrast(
+    fit,
     interventions = list(nc1 = NULL, nc2 = NULL),
-    type = "difference", ci_method = "sandwich"
+    type = "difference",
+    ci_method = "sandwich"
   )
   expect_equal(res_both$contrasts$estimate, 0)
   expect_equal(res_both$contrasts$se, 0)
 
   # Sandwich vs bootstrap SE agreement
   set.seed(99)
-  res_boot <- contrast(fit,
+  res_boot <- contrast(
+    fit,
     interventions = list(
       shifted = list(A1 = shift(1), A2 = shift(0.5)),
       nc = NULL
     ),
-    type = "difference", ci_method = "bootstrap", n_boot = 200
+    type = "difference",
+    ci_method = "bootstrap",
+    n_boot = 200
   )
   ratios <- res$estimates$se / res_boot$estimates$se
   expect_true(all(ratios > 0.5 & ratios < 2))
