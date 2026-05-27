@@ -24,6 +24,18 @@
 #'   }
 #' @noRd
 parse_effect_mod <- function(confounders, treatment) {
+  # Defensive: NULL confounders means no EM terms are possible.
+  if (is.null(confounders)) {
+    return(structure(
+      list(
+        em_terms = list(),
+        confounder_terms = character(0L),
+        modifier_vars = character(0L),
+        has_em = FALSE
+      ),
+      class = "causatr_em_info"
+    ))
+  }
   term_labels <- attr(stats::terms(confounders), "term.labels")
 
   em_terms <- list()

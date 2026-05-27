@@ -94,7 +94,11 @@ fit_snm <- function(
   # contributes a modifier column whose coefficient in the blip
   # function is estimated by the g-estimating equation. Pure confounder
   # terms enter the treatment model only.
-  em_conf <- confounders_outcome %||% confounders
+  # Fall back to confounders_tv when both outcome-specific and general
+  # confounders are NULL — this handles the longitudinal case where the
+  # user supplies only confounders_tv with no EM terms (blip reduces to
+  # a constant-effect ATE parameter).
+  em_conf <- confounders_outcome %||% confounders %||% confounders_tv
   em_info <- parse_effect_mod(em_conf, treatment)
 
   # Inform when no EM terms are present — the SNMM reduces to a single
