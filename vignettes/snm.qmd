@@ -281,8 +281,9 @@ r_ipw <- contrast(fit_ipw,
 r_ipw$contrasts
 ```
 
-The IPW estimate is far from the truth (the averaged structural blip is
-approximately $3 + 2 \times \bar{M} \approx 3 + 2 \times 0.25 = 3.5$).
+Since $M = 0.3A + 0.5L + \epsilon$ with $A$ and $L$ both mean-zero, $\bar{M}
+\approx 0$ and the true averaged blip is $\approx 3 + 2 \times 0 = 3$. The
+IPW estimate is substantially biased away from this value.
 
 ### SNM g-estimation: correct
 
@@ -319,7 +320,7 @@ r_avg$estimates
 ### Visualizing the bias
 
 The contrast between the two approaches is clearest in a figure. The IPW-MSM
-estimate ($\approx 6.5$) is far from the true averaged blip ($\approx 3.5$,
+estimate (biased downward) is far from the true averaged blip ($\approx 3$,
 dashed line), while the SNM recovers the truth:
 
 ```{r}
@@ -640,7 +641,7 @@ tidy(r_demo, which = "means")
 
 - Robins JM (1994). Correcting for non-compliance using structural nested mean
   models. *Comm Stat Theory Methods* 23:2379--2412.
-- Vansteelandt S, Joffe MM (2014). Structural nested models and g-estimation:
-  The partially realized promise. *Stat Sci* 29:707--731.
+- Vansteelandt S, Joffe M (2014). Structural nested models and G-estimation:
+  the partially realized promise. *Stat Sci* 29(4):707--731.
 - Robins JM (2000). Marginal structural models versus structural nested models
   as tools for causal inference. In *Statistical Models in Epidemiology*.
