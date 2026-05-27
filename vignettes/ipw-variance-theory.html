@@ -971,7 +971,7 @@ A_{\beta\alpha} = -\texttt{numDeriv::jacobian}(\bar\psi_\beta, \hat\alpha).
 </section>
 <section id="sec-assembly" class="level2">
 <h2 class="anchored" data-anchor-id="sec-assembly">4. Assembly: the full IF for <span class="math inline">\(\hat\mu_a\)</span> under IPW</h2>
-<p><code>compute_ipw_if_self_contained_one()</code> assembles the per-individual influence function for one intervention. The three channels, following the derivation in <code>vignette("variance-theory")</code> <strong>?@eq-if-ipw</strong>, are:</p>
+<p><code>compute_ipw_if_self_contained_one()</code> assembles the per-individual influence function for one intervention. The three channels, following the derivation in <code>vignette("variance-theory")</code>, are:</p>
 <p><span class="math display">\[
 \text{IF}_i(\hat\mu_a) =
 \underbrace{g^{-1}(X_i^{*T}\hat\beta) - \hat\mu_a}_{\text{Channel 1}}
@@ -2052,7 +2052,7 @@ A_{\alpha\alpha}^{-1} &amp; 0 \\
 <span id="cb11-503"><a href="#cb11-503" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-504"><a href="#cb11-504" aria-hidden="true" tabindex="-1"></a><span class="in">`compute_ipw_if_self_contained_one()`</span> assembles the per-individual</span>
 <span id="cb11-505"><a href="#cb11-505" aria-hidden="true" tabindex="-1"></a>influence function for one intervention. The three channels, following</span>
-<span id="cb11-506"><a href="#cb11-506" aria-hidden="true" tabindex="-1"></a>the derivation in <span class="in">`vignette("variance-theory")`</span> @eq-if-ipw, are:</span>
+<span id="cb11-506"><a href="#cb11-506" aria-hidden="true" tabindex="-1"></a>the derivation in <span class="in">`vignette("variance-theory")`</span>, are:</span>
 <span id="cb11-507"><a href="#cb11-507" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-508"><a href="#cb11-508" aria-hidden="true" tabindex="-1"></a>$$</span>
 <span id="cb11-509"><a href="#cb11-509" aria-hidden="true" tabindex="-1"></a>\text{IF}_i(\hat\mu_a) =</span>
