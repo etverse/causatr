@@ -51,6 +51,30 @@ to_person_period <- function(
     data <- data.table::as.data.table(data)
   }
 
+  if (!id %in% names(data)) {
+    rlang::abort(
+      paste0(
+        "`id` column '",
+        id,
+        "' not found in data. ",
+        "Available columns: ",
+        paste(names(data), collapse = ", ")
+      ),
+      class = "causatr_missing_column"
+    )
+  }
+
+  missing_ti <- setdiff(time_invariant, names(data))
+  if (length(missing_ti) > 0L) {
+    rlang::abort(
+      paste0(
+        "`time_invariant` column(s) not found in data: ",
+        paste(missing_ti, collapse = ", ")
+      ),
+      class = "causatr_missing_column"
+    )
+  }
+
   all_tv_cols <- unlist(time_varying, use.names = FALSE)
   missing_cols <- setdiff(all_tv_cols, names(data))
   if (length(missing_cols) > 0L) {
@@ -58,7 +82,23 @@ to_person_period <- function(
       paste0(
         "Column(s) not found in data: ",
         paste(missing_cols, collapse = ", ")
-      )
+      ),
+      class = "causatr_missing_column"
+    )
+  }
+
+  # R8: time_name must not collide with id, time_invariant, or TV output names
+  reserved <- c(id, time_invariant, names(time_varying))
+  if (time_name %in% reserved) {
+    rlang::abort(
+      paste0(
+        "`time_name` '",
+        time_name,
+        "' collides with an existing column ",
+        "(id, time_invariant, or time_varying output name). ",
+        "Choose a different `time_name`."
+      ),
+      class = "causatr_column_collision"
     )
   }
 

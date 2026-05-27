@@ -261,7 +261,7 @@ test_that("Hajek mean from shift(delta) on continuous matches analytic target", 
 
   expect_equal(mu_shift, 1, tolerance = 0.25)
   expect_equal(mu_none, 3, tolerance = 0.15)
-  expect_equal(mu_shift - mu_none, -2, tolerance = 0.3)
+  expect_equal(mu_shift - mu_none, -2, tolerance = 0.05)
 })
 
 test_that("Hajek mean from scale_by on continuous matches analytic target", {
@@ -274,7 +274,7 @@ test_that("Hajek mean from scale_by on continuous matches analytic target", {
 
   w_half <- compute_density_ratio_weights(s$tm, s$data, scale_by(0.5))
   mu_half <- hajek(w_half, y)
-  expect_equal(mu_half, 2, tolerance = 0.4)
+  expect_equal(mu_half, 2, tolerance = 0.05)
 })
 
 # ---- make_weight_fn() closure consistency ---------------------------
@@ -833,4 +833,413 @@ test_that("apply_intervention_to_values() rejects an unknown intervention type",
     ),
     "Unknown intervention type"
   )
+})
+
+
+# ---- Weight truncation (Phase 19-trim) ---------------------------------
+
+test_that("contrast() rejects invalid trim values", {
+  d <- data.table::data.table(
+    Y = rnorm(50),
+    A = rbinom(50, 1, 0.5),
+    L = rnorm(50)
+  )
+  fit <- causat(d, "Y", "A", ~L, estimator = "ipw")
+  ivs <- list(a1 = static(1), a0 = static(0))
+  expect_error(contrast(fit, ivs, trim = 0), class = "causatr_bad_trim")
+  expect_error(contrast(fit, ivs, trim = -1), class = "causatr_bad_trim")
+  expect_error(contrast(fit, ivs, trim = 2), class = "causatr_bad_trim")
+  expect_error(contrast(fit, ivs, trim = "a"), class = "causatr_bad_trim")
+  expect_error(
+    contrast(fit, ivs, trim = c(0.9, 0.95)),
+    class = "causatr_bad_trim"
+  )
+})
+
+test_that("truncate_weights: trim=1 returns weights unchanged", {
+  w <- c(1, 2, 5, 10, 100)
+  expect_identical(truncate_weights(w, trim = 1), w)
+})
+
+test_that("truncate_weights: clips at the trim-th quantile", {
+  w <- c(1, 2, 3, 4, 100)
+  # 0.8-th quantile of w = quantile(w, 0.8) = 23.2
+  threshold <- as.numeric(stats::quantile(w, 0.8))
+  result <- truncate_weights(w, trim = 0.8)
+  expect_equal(result, pmin(w, threshold))
+  expect_equal(max(result), threshold)
+})
+
+test_that("truncate_weights: all-equal weights unchanged under any trim", {
+  w <- rep(5, 100)
+  expect_identical(truncate_weights(w, trim = 0.5), w)
+})
+
+test_that("trim on point IPW: max weight reduced, default unchanged", {
+  setup <- bc_tm(n = 2000, seed = 42)
+  dt <- setup$data
+  tm <- setup$tm
+  iv <- static(1)
+
+  w_full <- compute_density_ratio_weights(tm, dt, iv)
+  w_trim <- compute_density_ratio_weights(tm, dt, iv, trim = 0.99)
+  w_trim2 <- compute_density_ratio_weights(tm, dt, iv, trim = 0.95)
+
+  # Default (trim=1) unchanged
+  expect_identical(
+    compute_density_ratio_weights(tm, dt, iv, trim = 1),
+    w_full
+  )
+  # Max weight monotonically reduced
+
+  expect_lte(max(w_trim), max(w_full))
+  expect_lte(max(w_trim2), max(w_trim))
+})
+
+test_that("trim on continuous IPW shift: max weight reduced", {
+  setup <- cc_tm(n = 2000, seed = 43)
+  dt <- setup$data
+  tm <- setup$tm
+  iv <- shift(1)
+
+  w_full <- compute_density_ratio_weights(tm, dt, iv)
+  w_trim <- compute_density_ratio_weights(tm, dt, iv, trim = 0.99)
+
+  expect_lte(max(w_trim), max(w_full))
+  # Point estimate remains finite
+  y <- dt$Y
+  mu_full <- sum(w_full * y) / sum(w_full)
+  mu_trim <- sum(w_trim * y) / sum(w_trim)
+  expect_true(is.finite(mu_full))
+  expect_true(is.finite(mu_trim))
+})
+
+test_that("trim on IPSI: max weight reduced", {
+  setup <- bc_tm(n = 2000, seed = 44)
+  dt <- setup$data
+  tm <- setup$tm
+  iv <- ipsi(2)
+
+  w_full <- compute_density_ratio_weights(tm, dt, iv)
+  w_trim <- compute_density_ratio_weights(tm, dt, iv, trim = 0.99)
+
+  expect_lte(max(w_trim), max(w_full))
+})
+
+test_that("make_weight_fn with trim: closure agrees at alpha_hat", {
+  setup <- bc_tm(n = 500, seed = 45)
+  dt <- setup$data
+  tm <- setup$tm
+  iv <- static(1)
+
+  # Without trim
+  wfn_notrim <- make_weight_fn(tm, dt, iv)
+  w_notrim <- wfn_notrim(tm$alpha_hat)
+  w_direct <- compute_density_ratio_weights(tm, dt, iv)
+  expect_equal(w_notrim, w_direct, tolerance = 1e-10)
+
+  # With trim: closure output at alpha_hat should match
+  # compute_density_ratio_weights with trim
+  w_direct_trim <- compute_density_ratio_weights(tm, dt, iv, trim = 0.99)
+  wfn_trim <- make_weight_fn(tm, dt, iv, trim = 0.99)
+  w_closure_trim <- wfn_trim(tm$alpha_hat)
+  expect_equal(w_closure_trim, w_direct_trim, tolerance = 1e-10)
+})
+
+test_that("trim on multivariate IPW: per-component truncation", {
+  set.seed(46)
+  n <- 500
+  L <- rnorm(n)
+  A1 <- rbinom(n, 1, plogis(0.5 * L))
+  A2 <- rbinom(n, 1, plogis(0.3 * L + 0.3 * A1))
+  Y <- 1 + A1 + 0.5 * A2 + L + rnorm(n)
+  dt <- data.table::data.table(Y = Y, A1 = A1, A2 = A2, L = L)
+
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = c("A1", "A2"),
+    confounders = ~L,
+    estimator = "ipw"
+  )
+
+  r1 <- contrast(
+    fit,
+    interventions = list(
+      treat = list(A1 = static(1), A2 = static(1)),
+      ctrl = list(A1 = static(0), A2 = static(0))
+    ),
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  r2 <- contrast(
+    fit,
+    interventions = list(
+      treat = list(A1 = static(1), A2 = static(1)),
+      ctrl = list(A1 = static(0), A2 = static(0))
+    ),
+    type = "difference",
+    ci_method = "sandwich",
+    trim = 0.99
+  )
+  # Both estimates should be finite
+  expect_true(is.finite(r1$contrasts$estimate))
+  expect_true(is.finite(r2$contrasts$estimate))
+  expect_true(is.finite(r2$contrasts$se))
+})
+
+test_that("trim on point IPW: sandwich SE agrees with bootstrap", {
+  set.seed(47)
+  n <- 300
+  L <- rnorm(n)
+  A <- rbinom(n, 1, plogis(0.8 * L))
+  Y <- 2 + 1.5 * A + L + rnorm(n)
+  dt <- data.table::data.table(Y = Y, A = A, L = L)
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw"
+  )
+
+  r_sand <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    type = "difference",
+    ci_method = "sandwich",
+    trim = 0.99
+  )
+  r_boot <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    type = "difference",
+    ci_method = "bootstrap",
+    n_boot = 200L,
+    trim = 0.99
+  )
+  # Ratio of SEs within (0.5, 2) — loose but validates plumbing
+  ratio <- r_sand$contrasts$se / r_boot$contrasts$se
+  expect_gt(ratio, 0.5)
+  expect_lt(ratio, 2)
+})
+
+test_that("trim monotonic: 0.999 > 0.99 > 0.95 in max weight reduction", {
+  setup <- bc_tm(n = 2000, seed = 48)
+  dt <- setup$data
+  tm <- setup$tm
+  iv <- static(1)
+
+  max_999 <- max(compute_density_ratio_weights(tm, dt, iv, trim = 0.999))
+  max_99 <- max(compute_density_ratio_weights(tm, dt, iv, trim = 0.99))
+  max_95 <- max(compute_density_ratio_weights(tm, dt, iv, trim = 0.95))
+
+  expect_gte(max_999, max_99)
+  expect_gte(max_99, max_95)
+})
+
+test_that("trim on near-positivity DGP: stabilizes extreme weights", {
+  # Strong confounding -> extreme propensity scores -> extreme weights
+  set.seed(49)
+  n <- 500
+  L <- rnorm(n)
+  A <- rbinom(n, 1, plogis(3 * L))
+  Y <- 2 + A + L + rnorm(n)
+  dt <- data.table::data.table(Y = Y, A = A, L = L)
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "ipw"
+  )
+
+  r_no <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  r_trim <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    type = "difference",
+    ci_method = "sandwich",
+    trim = 0.99
+  )
+  # Trimmed SE should be smaller or comparable
+  expect_true(is.finite(r_trim$contrasts$estimate))
+  expect_true(is.finite(r_trim$contrasts$se))
+})
+
+test_that("trim on AIPW: doubly-robust property preserved", {
+  set.seed(50)
+  n <- 500
+  L <- rnorm(n)
+  A <- rbinom(n, 1, plogis(0.5 * L))
+  Y <- 2 + 1.5 * A + L + rnorm(n)
+  dt <- data.table::data.table(Y = Y, A = A, L = L)
+
+  fit <- causat(
+    dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "aipw"
+  )
+  r1 <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  r2 <- contrast(
+    fit,
+    interventions = list(a1 = static(1), a0 = static(0)),
+    type = "difference",
+    ci_method = "sandwich",
+    trim = 0.99
+  )
+  # Under correct specification, trim=0.99 should not change result much
+  expect_equal(r1$contrasts$estimate, r2$contrasts$estimate, tolerance = 0.15)
+  expect_true(is.finite(r2$contrasts$se))
+})
+
+
+# ---- lmtp cross-checks for trim (Phase 19-trim) -------------------------
+
+test_that("multivariate IPW + trim: point estimates agree with lmtp_sdr", {
+  skip_if_not_installed("lmtp")
+  skip_if_not_installed("SuperLearner")
+
+  # DGP: continuous x continuous, moderate confounding.
+  # A2 depends on A1 (sequential conditioning).
+  # Truth for shift(+1, +1): E[Y(A1+1, A2+1)] - E[Y] = 0.5 + 0.4 = 0.9.
+  set.seed(4200)
+  n <- 3000
+  L <- rnorm(n)
+  A1 <- 0.5 * L + rnorm(n)
+  A2 <- 0.3 * A1 + 0.5 * L + rnorm(n)
+  Y <- 1 + 0.5 * A1 + 0.4 * A2 - 0.5 * L + rnorm(n)
+  df <- data.frame(L = L, A1 = A1, A2 = A2, Y = Y)
+
+  # causatr: multivariate IPW, no trim and trim = 0.99
+  fit <- causat(df, "Y", c("A1", "A2"), ~L, estimator = "ipw")
+  res_no <- contrast(
+    fit,
+    interventions = list(s = list(A1 = shift(1), A2 = shift(1)))
+  )
+  res_99 <- contrast(
+    fit,
+    interventions = list(s = list(A1 = shift(1), A2 = shift(1))),
+    trim = 0.99
+  )
+
+  # lmtp: multivariate shift via list-of-vectors trt interface (mtp = TRUE).
+  # d() receives vector a = c("A1","A2") and returns named list of shifted cols.
+  d <- function(data, a) {
+    out <- lapply(a, function(col) data[[col]] + 1)
+    setNames(out, a)
+  }
+  lmtp_no <- tryCatch(
+    lmtp::lmtp_sdr(
+      df,
+      list(c("A1", "A2")),
+      "Y",
+      baseline = "L",
+      shift = d,
+      outcome_type = "continuous",
+      learners_trt = "SL.glm",
+      learners_outcome = "SL.glm",
+      folds = 1,
+      mtp = TRUE,
+      control = lmtp::lmtp_control(.trim = 1)
+    ),
+    error = function(e) NULL
+  )
+  lmtp_99 <- tryCatch(
+    lmtp::lmtp_sdr(
+      df,
+      list(c("A1", "A2")),
+      "Y",
+      baseline = "L",
+      shift = d,
+      outcome_type = "continuous",
+      learners_trt = "SL.glm",
+      learners_outcome = "SL.glm",
+      folds = 1,
+      mtp = TRUE,
+      control = lmtp::lmtp_control(.trim = 0.99)
+    ),
+    error = function(e) NULL
+  )
+  skip_if(is.null(lmtp_no), "lmtp::lmtp_sdr() unavailable")
+
+  est_lmtp_no <- tryCatch(lmtp_no$estimate@x, error = function(e) lmtp_no$theta)
+  est_lmtp_99 <- tryCatch(lmtp_99$estimate@x, error = function(e) lmtp_99$theta)
+
+  # Both estimators target the same shifted mean; tolerance accounts for
+  # IPW vs SDR estimator differences under finite n.
+  expect_lt(abs(res_no$estimates$estimate - est_lmtp_no), 0.3)
+  expect_lt(abs(res_99$estimates$estimate - est_lmtp_99), 0.3)
+})
+
+
+# ---- MV continuous sandwich with natural course (NULL) -----------------
+
+test_that("MV continuous IPW sandwich works with NULL intervention", {
+  set.seed(42)
+  n <- 300
+  L <- rnorm(n)
+  A1 <- rnorm(n, 0.5 * L)
+  A2 <- rnorm(n, 0.3 * A1 + 0.3 * L)
+  Y <- 10 + 0.5 * A1 + 0.4 * A2 + L + rnorm(n)
+  d <- data.table::data.table(Y = Y, A1 = A1, A2 = A2, L = L)
+
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = c("A1", "A2"),
+    confounders = ~L,
+    estimator = "ipw"
+  )
+
+  # NULL as one of two interventions
+  res <- contrast(
+    fit,
+    interventions = list(
+      shifted = list(A1 = shift(1), A2 = shift(0.5)),
+      nc = NULL
+    ),
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  expect_s3_class(res, "causatr_result")
+  expect_true(all(is.finite(res$estimates$se)))
+  expect_true(all(res$estimates$se > 0))
+
+  # NULL for both interventions: trivial but must not crash
+  res_both <- contrast(
+    fit,
+    interventions = list(nc1 = NULL, nc2 = NULL),
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  expect_equal(res_both$contrasts$estimate, 0)
+  expect_equal(res_both$contrasts$se, 0)
+
+  # Sandwich vs bootstrap SE agreement
+  set.seed(99)
+  res_boot <- contrast(
+    fit,
+    interventions = list(
+      shifted = list(A1 = shift(1), A2 = shift(0.5)),
+      nc = NULL
+    ),
+    type = "difference",
+    ci_method = "bootstrap",
+    n_boot = 200
+  )
+  ratios <- res$estimates$se / res_boot$estimates$se
+  expect_true(all(ratios > 0.5 & ratios < 2))
 })

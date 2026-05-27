@@ -269,7 +269,8 @@ resolve_fit_idx <- function(fit, model) {
         ") exceeds `sum(fit$details$fit_rows)` (",
         length(fit_idx),
         "); upstream fit pipeline is not pre-subsetting data."
-      )
+      ),
+      class = "causatr_variance_row_mismatch"
     )
   }
   fit_idx[-na_action]
@@ -508,13 +509,16 @@ prepare_model_if_multinom <- function(model, fit_idx, n_total) {
 #' @noRd
 apply_model_correction <- function(prep, gradient) {
   if (length(prep$fit_idx) != nrow(prep$X_fit)) {
-    rlang::abort(paste0(
-      "apply_model_correction(): fit_idx length (",
-      length(prep$fit_idx),
-      ") != model rows (",
-      nrow(prep$X_fit),
-      "). Caller passed misaligned indices."
-    ))
+    rlang::abort(
+      paste0(
+        "apply_model_correction(): fit_idx length (",
+        length(prep$fit_idx),
+        ") != model rows (",
+        nrow(prep$X_fit),
+        "). Caller passed misaligned indices."
+      ),
+      class = "causatr_variance_row_mismatch"
+    )
   }
   # h = A^{-1} g: bread-projected gradient. A^{-1} = (X'WX)^{-1} is the
   # model's inverse bread; g = \partial\hat{mu}/\partial\beta is the
@@ -608,7 +612,8 @@ vcov_from_if <- function(IF_list, n, int_names, cluster = NULL) {
   if (!is.null(cluster)) {
     if (length(cluster) != nrow(IF_mat)) {
       rlang::abort(
-        "`cluster` length must match the IF vector length in `vcov_from_if()`."
+        "`cluster` length must match the IF vector length in `vcov_from_if()`.",
+        class = "causatr_variance_cluster_mismatch"
       )
     }
     # R8 (2026-04-15 review): `as.factor(cluster)` would reorder the

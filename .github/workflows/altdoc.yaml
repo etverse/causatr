@@ -1,6 +1,11 @@
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, feat/snm-point-estimation]
+    paths:
+      - "altdoc/**"
+      - "vignettes/**"
+      - "R/**"
+      - "man/**"
   workflow_dispatch:
 
 name: altdoc

@@ -25,6 +25,53 @@ plot.causatr_result <- function(x, which = c("contrasts", "means"), ...) {
   check_pkg("forrest")
   which <- rlang::arg_match(which)
 
+  # SNM results have a "parameter" column instead of "intervention" /
+  # "comparison". The blip parameter table is the natural display,
+  # and the reference line is always 0 (additive blip).
+  is_snm <- identical(x$estimator, "snm")
+
+  if (is_snm) {
+    dt <- as.data.frame(x$estimates)
+    label_col <- "parameter"
+    xlab <- "Blip parameter estimate (95% CI)"
+    ref_line <- 0
+    log_scale <- FALSE
+    header <- "Parameter"
+
+    if (nrow(dt) == 0L) {
+      rlang::warn("No data to plot.")
+      return(invisible(x))
+    }
+
+    dt$ci_label <- format_ci(dt$estimate, dt$ci_lower, dt$ci_upper)
+    type_label <- if (!is.null(x$fit_type) && x$fit_type == "longitudinal") {
+      " (longitudinal)"
+    } else {
+      ""
+    }
+    default_title <- paste0("SNM (g-estimation)", type_label)
+
+    forrest_args <- list(
+      data = dt,
+      estimate = "estimate",
+      lower = "ci_lower",
+      upper = "ci_upper",
+      label = label_col,
+      xlab = xlab,
+      log_scale = log_scale,
+      header = header,
+      title = default_title,
+      ref_line = ref_line,
+      cols = stats::setNames("ci_label", "Est (95% CI)"),
+      stripe = nrow(dt) > 1L
+    )
+
+    dots <- list(...)
+    forrest_args[names(dots)] <- dots
+    do.call(forrest::forrest, forrest_args)
+    return(invisible(x))
+  }
+
   # Three contextual choices drive the plot:
   #   (a) `by` column present -> section the forest plot by subgroup
   #   (b) binary outcome      -> label axes "Risk" instead of "Mean"

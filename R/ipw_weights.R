@@ -96,6 +96,11 @@
 #'   all other branches (IPSI, shift/scale pushforward) are ATE-only
 #'   and `check_estimand_intervention_compat()` has already rejected
 #'   non-ATE requests by the time we get here.
+#' @param trim Numeric scalar in (0, 1]. Density-ratio weight
+#'   truncation quantile. Weights above the `trim`-th quantile are
+#'   winsorized to that quantile (Cole & Hernán 2008). Applied to
+#'   per-component density ratios before any product (multivariate
+#'   or longitudinal). Default `1` (no truncation).
 #'
 #' @return Numeric vector of weights, length equal to the number of
 #'   rows used by the treatment-density fit.
@@ -118,11 +123,13 @@ compute_density_ratio_weights <- function(
   treatment_model,
   data,
   intervention,
-  estimand = "ATE"
+  estimand = "ATE",
+  trim = 1
 ) {
   if (!inherits(treatment_model, "causatr_treatment_model")) {
     rlang::abort(
-      "`treatment_model` must be a `causatr_treatment_model`."
+      "`treatment_model` must be a `causatr_treatment_model`.",
+      class = "causatr_density_error"
     )
   }
 
@@ -160,7 +167,7 @@ compute_density_ratio_weights <- function(
       type = "response"
     ))
     delta <- intervention$delta
-    return(ipsi_weight_formula(a_obs, p, delta))
+    return(truncate_weights(ipsi_weight_formula(a_obs, p, delta), trim))
   }
 
   # Horvitz-Thompson indicator branch. Covers point-mass
@@ -208,7 +215,7 @@ compute_density_ratio_weights <- function(
       fit_data,
       family_tag
     )
-    return(ind * f_star / f_obs)
+    return(truncate_weights(ind * f_star / f_obs, trim))
   }
 
   # Pushforward branch. Covers `shift()` and `scale_by()` on
@@ -243,14 +250,15 @@ compute_density_ratio_weights <- function(
     f_int <- evaluate_density(treatment_model, a_eval, fit_data)
     check_density_positivity(f_obs, "shift density ratio")
     warn_intervened_density_near_zero(f_int, "shift")
-    return(f_int / f_obs)
+    return(truncate_weights(f_int / f_obs, trim))
   }
 
   if (iv_type == "scale") {
     fct <- intervention$factor
     if (fct == 0) {
       rlang::abort(
-        "`scale_by(0)` collapses the treatment support; not a valid MTP."
+        "`scale_by(0)` collapses the treatment support; not a valid MTP.",
+        class = "causatr_density_error"
       )
     }
     # scale_by(c): d(a) = c * a, d^{-1}(y) = y / c, |Jac| = 1 / |c|.
@@ -262,7 +270,7 @@ compute_density_ratio_weights <- function(
     f_int <- evaluate_density(treatment_model, a_eval, fit_data)
     check_density_positivity(f_obs, "scale_by density ratio")
     warn_intervened_density_near_zero(f_int, "scale_by")
-    return((f_int / f_obs) / abs(fct))
+    return(truncate_weights((f_int / f_obs) / abs(fct), trim))
   }
 
   # `threshold()` and continuous `dynamic()` would land here but
@@ -276,8 +284,52 @@ compute_density_ratio_weights <- function(
       "', family = '",
       family_tag,
       "'). This should have been caught by check_intervention_family_compat()."
-    )
+    ),
+    class = "causatr_density_error"
   )
+}
+
+
+#' Winsorize density-ratio weights at a quantile threshold
+#'
+#' @description
+#' Upper-truncates a weight vector at the `trim`-th quantile.
+#' Truncation reduces variance at the cost of a small bias
+#' (Cole & Hernán 2008). Applied to per-component / per-period
+#' density ratios **before** any product (multivariate or longitudinal)
+#' so that individual extreme factors are clipped before they compound.
+#'
+#' @param w Numeric weight vector.
+#' @param trim Numeric scalar in (0, 1]. `1` means no truncation.
+#'
+#' @return Numeric vector of same length as `w`, with values above the
+#'   `trim`-th quantile capped at that quantile.
+#'
+#' @noRd
+truncate_weights <- function(w, trim = 1) {
+  if (trim >= 1) {
+    return(w)
+  }
+  threshold <- stats::quantile(w, trim, names = FALSE)
+  pmin(w, threshold)
+}
+
+
+#' Wrap an alpha-closure with upper truncation at a fixed threshold
+#'
+#' @description
+#' Factory that returns a new closure `function(alpha) pmin(fn(alpha), thr)`.
+#' `force()` on both `fn` and `thr` prevents late-binding bugs when called
+#' inside a loop over periods or components.
+#'
+#' @param fn `function(alpha)` returning a numeric weight vector.
+#' @param threshold Numeric scalar. Upper truncation bound.
+#' @return `function(alpha)` returning the truncated weight vector.
+#' @noRd
+wrap_closure_with_trim <- function(fn, threshold) {
+  force(fn)
+  force(threshold)
+  function(alpha) pmin(fn(alpha), threshold)
 }
 
 
@@ -310,7 +362,8 @@ check_density_positivity <- function(f, context) {
       "). This is a positivity violation -- widen the treatment model ",
       "(add confounders, use a more flexible `propensity_model_fn`, or ",
       "truncate the treatment range) before refitting."
-    )
+    ),
+    class = "causatr_density_error"
   )
 }
 
@@ -403,11 +456,14 @@ make_weight_fn <- function(
   treatment_model,
   data,
   intervention,
-  estimand = "ATE"
+  estimand = "ATE",
+  trim = 1,
+  trim_threshold = NULL
 ) {
   if (!inherits(treatment_model, "causatr_treatment_model")) {
     rlang::abort(
-      "`treatment_model` must be a `causatr_treatment_model`."
+      "`treatment_model` must be a `causatr_treatment_model`.",
+      class = "causatr_density_error"
     )
   }
 
@@ -428,6 +484,32 @@ make_weight_fn <- function(
 
   check_intervention_family_compat(intervention, treatment_model)
 
+  # Precompute the truncation threshold from the original weights at
+  # alpha_hat. The threshold is fixed under numDeriv perturbation so
+  # the Jacobian reflects the truncated weight surface, not a
+  # shifting truncation boundary. When the caller already computed
+  # weights (e.g. from compute_density_ratio_weights()), it can pass
+  # the threshold directly via `trim_threshold` to avoid redundant work.
+  if (trim < 1 && is.null(trim_threshold)) {
+    w_hat <- compute_density_ratio_weights(
+      treatment_model,
+      data,
+      intervention,
+      estimand,
+      trim = 1
+    )
+    trim_threshold <- stats::quantile(w_hat, trim, names = FALSE)
+  }
+
+  # Wrap a raw weight closure with upper-truncation at the fixed
+  # threshold. When trim >= 1 the wrapper is the identity.
+  maybe_trim <- if (trim < 1) {
+    thr <- trim_threshold
+    function(fn) function(alpha) pmin(fn(alpha), thr)
+  } else {
+    function(fn) fn
+  }
+
   X_prop <- treatment_model$X_prop
   sigma <- treatment_model$sigma
   family_tag <- treatment_model$family
@@ -437,7 +519,7 @@ make_weight_fn <- function(
   # Closed form; no density evaluation at an intervened value.
   if (iv_type == "ipsi") {
     delta <- intervention$delta
-    return(function(alpha) {
+    return(maybe_trim(function(alpha) {
       # eta = X %*% alpha, p = plogis(eta). The matrix multiply is the
       # hot path inside the numDeriv::jacobian loop -- ~p_alpha extra
       # perturbations per jacobian step, each costing one O(n * p_alpha)
@@ -445,7 +527,7 @@ make_weight_fn <- function(
       eta <- as.numeric(X_prop %*% alpha)
       p <- stats::plogis(eta)
       ipsi_weight_formula(a_obs, p, delta)
-    })
+    }))
   }
 
   # ---- Horvitz-Thompson indicator branch ---------------------------
@@ -480,16 +562,17 @@ make_weight_fn <- function(
         ATT = function(p) p,
         ATC = function(p) 1 - p,
         rlang::abort(
-          paste0("Internal error: unknown estimand '", estimand, "'.")
+          paste0("Internal error: unknown estimand '", estimand, "'."),
+          class = "causatr_density_error"
         )
       )
-      return(function(alpha) {
+      return(maybe_trim(function(alpha) {
         eta <- as.numeric(X_prop %*% alpha)
         p <- stats::plogis(eta)
         # f_obs for a Bernoulli(p) at observed 0/1 value A_obs.
         f_obs <- ifelse(a_obs == 1, p, 1 - p)
         ind * f_star_fn(p) / f_obs
-      })
+      }))
     }
 
     if (family_tag == "categorical") {
@@ -509,7 +592,7 @@ make_weight_fn <- function(
       a_obs_char <- as.character(a_obs)
       col_idx <- match(a_obs_char, trt_levels)
 
-      return(function(alpha) {
+      return(maybe_trim(function(alpha) {
         alpha_mat <- matrix(alpha, nrow = Km1, ncol = p_cols, byrow = TRUE)
         # eta: n x (K-1) matrix of log-odds vs reference level.
         eta <- X_prop %*% t(alpha_mat)
@@ -523,7 +606,7 @@ make_weight_fn <- function(
         f_obs <- prob_mat[cbind(seq_len(n_fit), col_idx)]
         # ATE-only for categorical: f_star = 1.
         ind / f_obs
-      })
+      }))
     }
   }
 
@@ -545,7 +628,8 @@ make_weight_fn <- function(
       fct <- intervention$factor
       if (fct == 0) {
         rlang::abort(
-          "`scale_by(0)` collapses the treatment support; not a valid MTP."
+          "`scale_by(0)` collapses the treatment support; not a valid MTP.",
+          class = "causatr_density_error"
         )
       }
       a_eval <- a_obs / fct
@@ -556,7 +640,8 @@ make_weight_fn <- function(
           "Internal error: `make_weight_fn()` has no gaussian branch for '",
           iv_type,
           "'. check_intervention_family_compat() should have rejected this."
-        )
+        ),
+        class = "causatr_density_error"
       )
     }
 
@@ -568,13 +653,13 @@ make_weight_fn <- function(
     # `a_eval` and `jac_abs` are captured at closure-creation time (they
     # depend only on data and the intervention, not on alpha) so the
     # numDeriv loop pays no re-computation cost for them.
-    return(function(alpha) {
+    return(maybe_trim(function(alpha) {
       mu <- as.numeric(X_prop %*% alpha)
       f_obs <- stats::dnorm(a_obs, mean = mu, sd = sigma)
       f_eval <- stats::dnorm(a_eval, mean = mu, sd = sigma)
       # w_i = f(d^{-1}(A_obs_i) | L_i) * |Jac d^{-1}| / f(A_obs_i | L_i)
       (f_eval / f_obs) * jac_abs
-    })
+    }))
   }
 
   # ---- Count pushforward branch (Poisson / negative binomial) ------
@@ -594,7 +679,8 @@ make_weight_fn <- function(
       fct <- intervention$factor
       if (fct == 0) {
         rlang::abort(
-          "`scale_by(0)` collapses the treatment support; not a valid MTP."
+          "`scale_by(0)` collapses the treatment support; not a valid MTP.",
+          class = "causatr_density_error"
         )
       }
       a_eval <- a_obs / fct
@@ -605,29 +691,30 @@ make_weight_fn <- function(
           "Internal error: `make_weight_fn()` has no count branch for '",
           iv_type,
           "'. check_intervention_family_compat() should have rejected this."
-        )
+        ),
+        class = "causatr_density_error"
       )
     }
 
     if (family_tag == "poisson") {
-      return(function(alpha) {
+      return(maybe_trim(function(alpha) {
         # Log link: lambda = exp(X %*% alpha). `a_eval` and `jac_abs`
         # are fixed (captured at closure-creation); `theta` is not used here.
         lambda <- as.numeric(exp(X_prop %*% alpha))
         f_obs <- stats::dpois(a_obs, lambda)
         f_eval <- stats::dpois(a_eval, lambda)
         (f_eval / f_obs) * jac_abs
-      })
+      }))
     }
     # negbin: same log-link structure; `theta` (NB dispersion) is held
     # fixed under alpha perturbation, consistent with the Gaussian sigma
     # convention above.
-    return(function(alpha) {
+    return(maybe_trim(function(alpha) {
       lambda <- as.numeric(exp(X_prop %*% alpha))
       f_obs <- stats::dnbinom(a_obs, mu = lambda, size = theta)
       f_eval <- stats::dnbinom(a_eval, mu = lambda, size = theta)
       (f_eval / f_obs) * jac_abs
-    })
+    }))
   }
 
   rlang::abort(
@@ -637,6 +724,7 @@ make_weight_fn <- function(
       "', family = '",
       family_tag,
       "')."
-    )
+    ),
+    class = "causatr_density_error"
   )
 }

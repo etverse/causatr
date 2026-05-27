@@ -194,7 +194,7 @@ test_that("Longitudinal IPW ATE matches delicatessen — always vs never", {
     ci_method = "sandwich"
   )
 
-  expect_equal(res$contrasts$estimate[1], ref_ate, tolerance = 0.5)
+  expect_equal(res$contrasts$estimate[1], ref_ate, tolerance = 0.05)
   expect_equal(res$contrasts$se[1], ref_se_ate, tolerance = 0.2)
 })
 
@@ -241,6 +241,6 @@ test_that("Longitudinal IPW counterfactual means match delicatessen", {
   expect_equal(
     res$contrasts$estimate[1],
     ref_mu_always - ref_mu_never,
-    tolerance = 0.5
+    tolerance = 0.05
   )
 })

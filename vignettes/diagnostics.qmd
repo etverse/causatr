@@ -91,6 +91,10 @@ indicates that a few individuals carry disproportionate weight:
 diag$weights
 ```
 
+When extreme weights are detected, `contrast(trim = )` can winsorize
+density-ratio weights at a specified quantile (e.g. `trim = 0.999`).
+See `vignette("ipw")` for details.
+
 ## Per-intervention diagnostics
 
 By default, `diagnose(fit)` produces a single `obs` panel using the

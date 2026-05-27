@@ -20,8 +20,8 @@
 #'   `NULL`.
 #' @param family Character or family object for the final outcome model.
 #' @param estimand Character. Must be `"ATE"` for longitudinal data.
-#' @param history Positive integer or `Inf`. Markov order for lagged
-#'   predictors.
+#' @param history Non-negative integer or `Inf`. Markov lag order for
+#'   lagged predictors (`0` = no lags).
 #' @param censoring Character or `NULL`. Name of the censoring indicator
 #'   column (1 = censored, 0 = uncensored).
 #' @param weights Numeric vector or `NULL`. External observation weights
@@ -748,6 +748,7 @@ ice_iterate <- function(fit, intervention) {
           current_time,
           " for ICE backward iteration."
         ),
+        class = "causatr_ice_internal",
         .call = FALSE
       )
     }

@@ -322,8 +322,8 @@ test_that("AIPW with split confounders produces finite estimates and SE", {
   expect_true(is.finite(res$contrasts$estimate))
   expect_true(is.finite(res$contrasts$se))
   expect_true(res$contrasts$se > 0)
-  # ATE should be near 2 (true value)
-  expect_equal(res$contrasts$estimate, 2, tolerance = 0.5)
+  # ATE should be near 2 (true value); n=300 → wider tolerance
+  expect_equal(res$contrasts$estimate, 2, tolerance = 0.15)
 })
 
 test_that("G-comp with confounders_outcome matches legacy confounders", {
@@ -387,7 +387,7 @@ test_that("Ground truth: AIPW DR — outcome missing W, PS correct → recovers 
     interventions = list(a1 = static(1), a0 = static(0)),
     reference = "a0"
   )
-  expect_equal(res$contrasts$estimate, 3, tolerance = 0.3)
+  expect_equal(res$contrasts$estimate, 3, tolerance = 0.05)
   expect_true(is.finite(res$contrasts$se))
   expect_true(res$contrasts$se > 0)
 })
@@ -411,7 +411,7 @@ test_that("Ground truth: AIPW DR — outcome correct, PS missing W → recovers 
     interventions = list(a1 = static(1), a0 = static(0)),
     reference = "a0"
   )
-  expect_equal(res$contrasts$estimate, 3, tolerance = 0.3)
+  expect_equal(res$contrasts$estimate, 3, tolerance = 0.05)
 })
 
 test_that("Ground truth: G-comp with all outcome confounders recovers ATE = 3", {
@@ -427,7 +427,7 @@ test_that("Ground truth: G-comp with all outcome confounders recovers ATE = 3", 
     interventions = list(a1 = static(1), a0 = static(0)),
     reference = "a0"
   )
-  expect_equal(res$contrasts$estimate, 3, tolerance = 0.3)
+  expect_equal(res$contrasts$estimate, 3, tolerance = 0.05)
 })
 
 test_that("Ground truth: IPW with all treatment confounders recovers ATE = 3", {
@@ -445,7 +445,7 @@ test_that("Ground truth: IPW with all treatment confounders recovers ATE = 3", {
     interventions = list(a1 = static(1), a0 = static(0)),
     reference = "a0"
   )
-  expect_equal(res$contrasts$estimate, 3, tolerance = 0.5)
+  expect_equal(res$contrasts$estimate, 3, tolerance = 0.05)
 })
 
 test_that("Ground truth: G-comp missing confounder W is biased", {

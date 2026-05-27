@@ -40,7 +40,8 @@ variance_if_aipw <- function(
   mu_hat,
   aipw_fit_idx,
   aipw_n_total,
-  cluster_vec = NULL
+  cluster_vec = NULL,
+  trim = 1
 ) {
   data <- fit$data
   outcome_model <- fit$model
@@ -322,7 +323,8 @@ variance_if_aipw <- function(
         treatment_models = tms_local,
         data = fit_data,
         interventions = b$intervention,
-        estimand = "ATE"
+        estimand = "ATE",
+        trim = trim
       )
       mv_weight_fn <- mv_closure$weight_fn
 
@@ -369,7 +371,8 @@ variance_if_aipw <- function(
         tm,
         fit_data,
         b$intervention,
-        estimand = estimand
+        estimand = estimand,
+        trim = trim
       )
 
       if (is_transport) {
@@ -461,7 +464,9 @@ variance_if_aipw <- function(
       # (ii) Outcome cross-block: the outcome model was fit with IPCW
       # weights, so its score psi_beta depends on gamma through the
       # fitting weights.
-      h_outcome <- outcome_res$h
+      # h = A_{bb}^{-1} J in M-estimation scaling: A_{bb} = (1/n)X'WX,
+      # so A_{bb}^{-1} = n(X'WX)^{-1} = n * res$h.
+      h_outcome <- n_sub * outcome_res$h
       out_score_factor <- mu_eta_obs * resid_obs / fam$variance(preds_obs)
       phi_bar_out_cens <- function(gamma_c) {
         w_ipcw_c <- cens_wfn(gamma_c)[fit_rows]
@@ -484,7 +489,7 @@ variance_if_aipw <- function(
             (stats::model.response(stats::model.frame(propensity_model)) -
               mu_ps) /
             fam_ps$variance(mu_ps)
-          h_prop <- prop_res$h
+          h_prop <- n_sub * prop_res$h
 
           phi_bar_ps_cens <- function(gamma_c) {
             w_ipcw_c <- cens_wfn(gamma_c)[fit_rows]
@@ -519,7 +524,7 @@ variance_if_aipw <- function(
               n_total
             )
             prop_res_kk <- apply_model_correction(prop_prep_kk, J_alpha[idx_k])
-            h_prop_k <- prop_res_kk$h
+            h_prop_k <- n_sub * prop_res_kk$h
 
             phi_bar_ps_k <- function(gamma_c) {
               w_ipcw_c <- cens_wfn(gamma_c)[fit_rows]
@@ -592,7 +597,8 @@ variance_if_aipw_longitudinal <- function(
   fit,
   ice_aipw_results,
   target_within_first,
-  cluster_vec = NULL
+  cluster_vec = NULL,
+  trim = 1
 ) {
   data <- fit$data
   details <- fit$details
@@ -626,7 +632,8 @@ variance_if_aipw_longitudinal <- function(
       all_ids,
       n,
       id_to_idx,
-      rows_first
+      rows_first,
+      trim = trim
     )
   })
   names(IF_list) <- int_names
@@ -667,7 +674,8 @@ variance_if_aipw_long_one <- function(
   all_ids,
   n,
   id_to_idx,
-  rows_first
+  rows_first,
+  trim = 1
 ) {
   data <- fit$data
   details <- fit$details
@@ -908,7 +916,8 @@ variance_if_aipw_long_one <- function(
       treatment_model = tm_k,
       data = data_k,
       intervention = intervention,
-      estimand = "ATE"
+      estimand = "ATE",
+      trim = trim
     )
 
     period_ids <- ids_k[tm_k$fit_rows]

@@ -252,7 +252,7 @@ fit_aipw_longitudinal <- function(
 #'   `intervention`, and `cumulative_weights`.
 #'
 #' @noRd
-ice_aipw_iterate <- function(fit, intervention) {
+ice_aipw_iterate <- function(fit, intervention, trim = 1) {
   data <- fit$data
   details <- fit$details
   outcome <- fit$outcome
@@ -344,7 +344,8 @@ ice_aipw_iterate <- function(fit, intervention) {
       tm_k,
       data_k,
       intervention,
-      estimand = "ATE"
+      estimand = "ATE",
+      trim = trim
     )
 
     idx_k <- id_to_idx[ids_k]
@@ -582,7 +583,8 @@ ice_aipw_iterate <- function(fit, intervention) {
 compute_aipw_contrast_longitudinal <- function(
   fit,
   interventions,
-  target_within_first
+  target_within_first,
+  trim = 1
 ) {
   int_names <- names(interventions)
   ext_w <- fit$details$weights
@@ -591,7 +593,9 @@ compute_aipw_contrast_longitudinal <- function(
   rows_first <- fit$data[[time_col]] == first_time
 
   ice_aipw_results <- stats::setNames(
-    lapply(interventions, function(iv) ice_aipw_iterate(fit, iv)),
+    lapply(interventions, function(iv) {
+      ice_aipw_iterate(fit, iv, trim = trim)
+    }),
     int_names
   )
 

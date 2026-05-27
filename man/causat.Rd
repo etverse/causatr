@@ -36,6 +36,7 @@ causat(
   target = NULL,
   sampling_model_fn = NULL,
   target_subset = c("target", "all"),
+  treatment_free = NULL,
   ...
 )
 }
@@ -150,11 +151,11 @@ for the censoring model when \code{ipcw = TRUE}. Must accept
 \verb{(formula, data, family, weights, ...)}. Default \code{NULL} uses
 \code{stats::glm}. Ignored when \code{ipcw = FALSE}.}
 
-\item{history}{Positive integer or \code{Inf}. Markov order for longitudinal
-models: how many lagged time points of treatment and time-varying
-confounders to include in each ICE outcome model. Default \code{Inf}
-(full history). Set to a finite integer for a Markov restriction
-(e.g. \code{1} for first-order). Ignored for point treatments.}
+\item{history}{Non-negative integer or \code{Inf}. Markov lag order for
+longitudinal models: how many lagged time points of treatment and
+time-varying confounders to include in each per-period model.
+Default \code{Inf} (full history). \code{0} means no lags (current-period
+TV covariates only). Ignored for point treatments.}
 
 \item{numerator}{A one-sided formula or \code{NULL}. Numerator formula for
 stabilized IPW weights in longitudinal models. Defaults to baseline
@@ -249,6 +250,16 @@ the target to S = 0 rows only (transportability: the study is external
 to the target population). \code{"all"} uses all rows S = 0 and S = 1
 (generalizability: the study is a biased subsample of the target).
 Ignored when \code{target = NULL}.}
+
+\item{treatment_free}{One-sided formula or \code{NULL}. SNM only. Specifies
+the treatment-free outcome model \eqn{E[Y \mid L]}, a nuisance model
+whose predictions are subtracted from Y before g-estimation. This
+projects out the \eqn{L \to Y} association and reduces the variance
+of \eqn{\hat\psi} without changing the point estimate (both approaches
+are consistent). DTRreg calls this the \code{tf.mod} argument. The formula
+should contain only baseline confounders (no treatment or modifiers).
+Default \code{NULL} uses the standard residualized-treatment moment condition
+without a treatment-free model. Ignored for non-SNM estimators.}
 
 \item{...}{Additional arguments passed to the underlying estimation
 function. For \code{estimator = "ipw"}, dots are forwarded into the

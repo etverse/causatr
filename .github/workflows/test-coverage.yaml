@@ -2,7 +2,13 @@
 on:
   push:
     branches: [main, master]
+    paths-ignore:
+      - "altdoc/**"
+      - "docs/**"
   pull_request:
+    paths-ignore:
+      - "altdoc/**"
+      - "docs/**"
 
 name: test-coverage.yaml
 

@@ -233,7 +233,7 @@ test_that("matching + IPCW recovers ATE on DGP-M2b", {
     ci_method = "sandwich"
   )
 
-  expect_equal(result$contrasts$estimate, -3, tolerance = 0.5)
+  expect_equal(result$contrasts$estimate, -3, tolerance = 0.05)
 })
 
 

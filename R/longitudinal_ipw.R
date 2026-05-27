@@ -47,8 +47,8 @@
 #' @param family Character or family object for the final-period MSM.
 #' @param estimand Character. Must be `"ATE"` for longitudinal data
 #'   (`check_estimand_trt_compat()` already enforces this).
-#' @param history Positive integer or `Inf`. Markov order for lag
-#'   inclusion in the per-period propensity formula.
+#' @param history Non-negative integer or `Inf`. Markov lag order for
+#'   the per-period propensity formula (`0` = no lags).
 #' @param numerator One-sided formula or `NULL`. Reserved for chunk
 #'   10b (stabilized weights); rejected here when non-`NULL`.
 #' @param weights Numeric vector or `NULL`. External observation
@@ -107,15 +107,16 @@ fit_longitudinal_ipw <- function(
   confounders_tv_treatment_raw = NULL,
   ...
 ) {
-  # Each abort is a classed error so callers can detect on `class`
-  # rather than parsing error text.
-  if (length(treatment) > 1L) {
+  is_multivariate <- length(treatment) > 1L
+
+  # Stabilization + multivariate longitudinal not yet implemented.
+  if (is_multivariate && stabilize == "marginal") {
     rlang::abort(
       c(
-        "Multivariate longitudinal IPW is not supported.",
-        i = "Use a single-treatment longitudinal IPW or `estimator = 'gcomp'` for joint interventions."
+        "Stabilized weights are not yet supported for multivariate longitudinal IPW.",
+        i = "Use `stabilize = 'none'` or switch to a single treatment."
       ),
-      class = "causatr_longitudinal_multivariate_pending"
+      class = "causatr_longitudinal_mv_stabilize_pending"
     )
   }
 
@@ -159,6 +160,17 @@ fit_longitudinal_ipw <- function(
   )
   if (!is.null(confounders_outcome)) {
     check_confounders_treatment(confounders, treatment, estimator = "ipw")
+  }
+
+  # EM + multivariate longitudinal not yet implemented.
+  if (is_multivariate && em_info$has_em) {
+    rlang::abort(
+      c(
+        "Effect modification is not yet supported for multivariate longitudinal IPW.",
+        i = "Remove `A:modifier` terms from confounders, or switch to a single treatment."
+      ),
+      class = "causatr_longitudinal_mv_em_pending"
+    )
   }
 
   # Sorted unique time points. Per-period propensity models index into
@@ -217,31 +229,30 @@ fit_longitudinal_ipw <- function(
   # Resolve the propensity fitter. For univariate longitudinal IPW the
   # default fitter is `model_fn` (typically `stats::glm`); a user can
   # override with `propensity_model_fn` (e.g. `mgcv::gam`). NB / count
-  # families opt in via `propensity_family`.
-  trt_family_first <- detect_treatment_family(data[[treatment]])
-  prop_model_fn <- if (!is.null(propensity_model_fn)) {
-    propensity_model_fn
-  } else if (trt_family_first == "categorical") {
-    nnet::multinom
-  } else if (identical(propensity_family, "negbin")) {
-    check_pkg("MASS")
-    MASS::glm.nb
+  # families opt in via `propensity_family`. For multivariate,
+  # `fit_treatment_models()` handles per-component dispatch internally.
+  if (!is_multivariate) {
+    trt_family_first <- detect_treatment_family(data[[treatment]])
+    prop_model_fn <- if (!is.null(propensity_model_fn)) {
+      propensity_model_fn
+    } else if (trt_family_first == "categorical") {
+      nnet::multinom
+    } else if (identical(propensity_family, "negbin")) {
+      check_pkg("MASS")
+      MASS::glm.nb
+    } else {
+      model_fn
+    }
   } else {
-    model_fn
+    prop_model_fn <- propensity_model_fn %||% model_fn
   }
 
-  # Per-period propensity fits. At each `time_points[k]`:
-  #   1. Subset rows where `time == time_points[k]` (one row per id).
-  #   2. Build the conditioning formula with available lags (`min(k-1,
-  #      max_lag)`).
-  #   3. Fit `f(A_k | A_{1..k-1}, L_{1..k}, baseline)` via
-  #      `fit_treatment_model()`.
+  # Per-period propensity fits.
   #
-  # The k-th model's `fit_rows` slot is local to its period subset --
-  # so `compute_density_ratio_weights()` aligns its weight vector to
-  # the period subset, not the full person-period data. Downstream we
-  # carry the per-period subsets explicitly so the variance engine can
-  # rebuild propensity-side design matrices.
+  # Univariate: `fit_treatment_model()` per period.
+  # Multivariate: `fit_treatment_models()` per period — returns a
+  #   `causatr_treatment_models` list of K component models with
+  #   sequential conditioning (A_k ~ A_{1..k-1} + confounders).
   #
   # `treatment_models_by_time` is named by the string representation
   # of each time point (e.g. "0", "1", "2") so callers can retrieve
@@ -254,11 +265,13 @@ fit_longitudinal_ipw <- function(
     rows_k <- data[[time]] == time_points[k]
     data_k <- data[rows_k]
 
-    # Available lag depth at time_idx (k - 1) following the ICE
-    # convention -- `time_idx = 0` at the first period (no lags),
-    # `time_idx = K` at the last (capped at max_lag).
     available_lags <- min(k - 1L, max_lag)
 
+    # Build the confounders formula with baseline + TV + lags.
+    # For multivariate, `build_longitudinal_ps_formula()` creates a
+    # formula with all treatment lags in the RHS; the response is
+    # stripped by `remove_response()` and `fit_treatment_models()`
+    # builds per-component formulas with sequential conditioning.
     ps_formula <- build_longitudinal_ps_formula(
       treatment = treatment,
       baseline_terms = baseline_terms,
@@ -267,27 +280,34 @@ fit_longitudinal_ipw <- function(
       data_at_time = data_k
     )
 
-    # `fit_treatment_model()` handles its own NA dropping and
-    # `propensity_family` dispatch. The returned object exposes
-    # `fit_rows` relative to `data_k`, `alpha_hat`, `X_prop`, etc.
-    # Lag columns used here (e.g. `lag1_A`, `lag1_L`) are pre-computed
-    # by `prepare_data()` / `create_lag_vars()`; referencing them by
-    # name in the formula is safe because `build_longitudinal_ps_formula()`
-    # drops any columns that are all-NA at this period.
-    tm_args <- list(
-      data = data_k,
-      treatment = treatment,
-      confounders = remove_response(ps_formula),
-      model_fn = prop_model_fn,
-      propensity_family = propensity_family
-    )
-    if (!is.null(weights)) {
-      tm_args$weights <- weights[rows_k]
+    if (is_multivariate) {
+      # `fit_treatment_models()` handles sequential conditioning:
+      # A_k ~ A_{1..k-1} + confounders, stripping EM terms.
+      # The confounders formula includes baseline + TV + lag terms.
+      tm_args <- list(
+        data = data_k,
+        treatment = treatment,
+        confounders = remove_response(ps_formula),
+        model_fn = prop_model_fn,
+        propensity_family = propensity_family
+      )
+      if (!is.null(weights)) {
+        tm_args$weights <- weights[rows_k]
+      }
+      tm_k <- do.call(fit_treatment_models, c(tm_args, dots))
+    } else {
+      tm_args <- list(
+        data = data_k,
+        treatment = treatment,
+        confounders = remove_response(ps_formula),
+        model_fn = prop_model_fn,
+        propensity_family = propensity_family
+      )
+      if (!is.null(weights)) {
+        tm_args$weights <- weights[rows_k]
+      }
+      tm_k <- do.call(fit_treatment_model, c(tm_args, dots))
     }
-    tm_k <- do.call(
-      fit_treatment_model,
-      c(tm_args, dots)
-    )
 
     treatment_models_by_time[[k]] <- tm_k
     fit_data_by_time[[k]] <- data_k
@@ -440,7 +460,7 @@ fit_longitudinal_ipw <- function(
       propensity_model_fn = prop_model_fn,
       propensity_family = propensity_family,
       stabilize = stabilize,
-      is_multivariate = FALSE,
+      is_multivariate = is_multivariate,
       confounders_outcome = confounders_outcome
     )
   )
@@ -507,7 +527,11 @@ build_longitudinal_ps_formula <- function(
   )
   rhs_dynamic <- rhs_dynamic[valid]
 
-  rhs_terms <- c(rhs_dynamic, baseline_terms)
+  # Baseline terms that overlap with TV vars are already represented
+  # by the current-time TV entry; including them twice produces a
+  # cosmetically wrong formula (R silently deduplicates, but the
+  # formula object misleads anyone who inspects it).
+  rhs_terms <- c(rhs_dynamic, setdiff(baseline_terms, rhs_dynamic))
   if (length(rhs_terms) == 0L) {
     # Intercept-only propensity at the first period when neither
     # baseline confounders nor TV confounders are supplied. Rare in
@@ -515,7 +539,11 @@ build_longitudinal_ps_formula <- function(
     rhs_terms <- "1"
   }
 
-  stats::reformulate(rhs_terms, response = treatment)
+  # For multivariate treatment, use the first component as a placeholder
+  # response — callers immediately strip via remove_response() before
+  # passing to fit_treatment_models().
+  resp <- if (length(treatment) > 1L) treatment[1L] else treatment
+  stats::reformulate(rhs_terms, response = resp)
 }
 
 
@@ -583,7 +611,8 @@ build_longitudinal_numerator_ps_formula <- function(
     rhs_terms <- "1"
   }
 
-  stats::reformulate(rhs_terms, response = treatment)
+  resp <- if (length(treatment) > 1L) treatment[1L] else treatment
+  stats::reformulate(rhs_terms, response = resp)
 }
 
 
@@ -638,7 +667,8 @@ remove_response <- function(ps_formula) {
 compute_ipw_contrast_longitudinal <- function(
   fit,
   interventions,
-  target_within_first
+  target_within_first,
+  trim = 1
 ) {
   data <- fit$data
   treatment <- fit$treatment
@@ -709,11 +739,35 @@ compute_ipw_contrast_longitudinal <- function(
 
   # `ipsi()` is not supported under longitudinal IPW. Surface a clear
   # error rather than silently producing an untested result.
+  # For multivariate treatment, each intervention is a named list of
+  # per-component interventions — check each sub-intervention.
   for (nm in int_names) {
     iv <- interventions[[nm]]
-    if (
-      !is.null(iv) && inherits(iv, "causatr_intervention") && iv$type == "ipsi"
-    ) {
+    if (is.null(iv)) {
+      next
+    }
+    # Multivariate: iv is a plain list of per-component interventions
+    if (is.list(iv) && !inherits(iv, "causatr_intervention")) {
+      for (comp_nm in names(iv)) {
+        sub_iv <- iv[[comp_nm]]
+        if (!is.null(sub_iv) && sub_iv$type == "ipsi") {
+          rlang::abort(
+            c(
+              "`ipsi()` is not supported under longitudinal IPW.",
+              i = paste0(
+                "Intervention `",
+                nm,
+                "`, component `",
+                comp_nm,
+                "` is `ipsi()`."
+              ),
+              i = "Use `static()` / `shift()` / `scale_by()` / `dynamic()` per component, or switch to point IPW."
+            ),
+            class = "causatr_longitudinal_ipsi_pending"
+          )
+        }
+      }
+    } else if (inherits(iv, "causatr_intervention") && iv$type == "ipsi") {
       rlang::abort(
         c(
           "`ipsi()` is not supported under longitudinal IPW.",
@@ -738,7 +792,8 @@ compute_ipw_contrast_longitudinal <- function(
       ids_first = ids_first,
       id_col = id_col,
       intervention = iv,
-      numerator_models_by_time = numerator_models_by_time
+      numerator_models_by_time = numerator_models_by_time,
+      trim = trim
     )
 
     # Project per-id weights onto the final-period row order.

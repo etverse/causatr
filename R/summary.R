@@ -59,10 +59,10 @@ summary.causatr_fit <- function(object, ...) {
     "Outcome:     ",
     object$outcome,
     " (",
-    object$family,
+    format_family(object$family),
     ")\n",
     "Treatment:   ",
-    object$treatment,
+    paste(object$treatment, collapse = ", "),
     "\n",
     conf_block,
     "\n",
@@ -102,37 +102,42 @@ summary.causatr_result <- function(object, ...) {
   # Start with the standard print() header + estimates/contrasts tables.
   print(object)
 
-  # Then append per-intervention detail lines. Three shapes to
-  # handle, matching the constructors in R/interventions.R:
-  #   - NULL                 -> "natural course (NULL)"
-  #   - causatr_intervention -> "type, p1 = v1, p2 = v2, ..."
-  # Multivariate treatment interventions (named list of sub-interventions)
-  # are not expanded here -- they'd clutter the output; users can
-  # inspect `object$interventions` directly for that detail.
-  cat("\nIntervention details:\n")
-  for (nm in names(object$interventions)) {
-    iv <- object$interventions[[nm]]
-    if (is.null(iv)) {
-      cat("  ", nm, ": natural course (NULL)\n", sep = "")
-    } else if (inherits(iv, "causatr_intervention")) {
-      cat("  ", nm, ": ", iv$type, sep = "")
-      # Drop the type slot (already printed) and list remaining
-      # params. Function-valued params (dynamic rule closures) get
-      # a placeholder rather than a cryptic environment dump.
-      params <- iv[names(iv) != "type"]
-      for (p in names(params)) {
-        if (!is.function(params[[p]])) {
-          cat(", ", p, " = ", params[[p]], sep = "")
-        } else {
-          cat(", ", p, " = <function>", sep = "")
+  is_snm <- identical(object$estimator, "snm")
+
+  if (!is_snm) {
+    # Per-intervention detail lines. Three shapes to handle, matching
+    # the constructors in R/interventions.R:
+    #   - NULL                 -> "natural course (NULL)"
+    #   - causatr_intervention -> "type, p1 = v1, p2 = v2, ..."
+    # Multivariate treatment interventions (named list of sub-interventions)
+    # are not expanded here -- they'd clutter the output; users can
+    # inspect `object$interventions` directly for that detail.
+    cat("\nIntervention details:\n")
+    for (nm in names(object$interventions)) {
+      iv <- object$interventions[[nm]]
+      if (is.null(iv)) {
+        cat("  ", nm, ": natural course (NULL)\n", sep = "")
+      } else if (inherits(iv, "causatr_intervention")) {
+        cat("  ", nm, ": ", iv$type, sep = "")
+        params <- iv[names(iv) != "type"]
+        for (p in names(params)) {
+          if (!is.function(params[[p]])) {
+            cat(", ", p, " = ", params[[p]], sep = "")
+          } else {
+            cat(", ", p, " = <function>", sep = "")
+          }
         }
+        cat("\n")
       }
-      cat("\n")
     }
   }
-  # Finally, the full vcov matrix -- useful for hand-computing custom
-  # linear contrasts beyond the pairwise ones in `object$contrasts`.
-  cat("\nVariance-covariance matrix of marginal means:\n")
+
+  vcov_label <- if (is_snm) {
+    "\nVariance-covariance matrix of blip parameters:\n"
+  } else {
+    "\nVariance-covariance matrix of marginal means:\n"
+  }
+  cat(vcov_label)
   print(object$vcov, digits = 6)
   invisible(object)
 }

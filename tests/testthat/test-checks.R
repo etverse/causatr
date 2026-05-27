@@ -235,10 +235,8 @@ test_that("is_binary_family() returns FALSE when resolve_family() errors", {
   expect_false(is_binary_family(list(garbage = TRUE)))
 })
 
-test_that("check_causat_inputs() rejects history that isn't a positive integer or Inf", {
+test_that("check_causat_inputs() rejects history that isn't a non-negative integer or Inf", {
   d <- data.frame(Y = 1, A = 1, L = 1, id = 1, t = 0)
-  # First branch: not scalar double / integer / Inf at all -- pass
-  # a character to trip the type check.
   expect_error(
     check_causat_inputs(
       data = d,
@@ -248,11 +246,26 @@ test_that("check_causat_inputs() rejects history that isn't a positive integer o
       confounders_tv = ~L,
       id = "id",
       time = "t",
-      history = "k", # bad type
+      history = "k",
       estimator = "gcomp",
       estimand = "ATE"
     ),
-    "must be a positive integer or `Inf`"
+    "must be a non-negative integer or `Inf`"
+  )
+  expect_error(
+    check_causat_inputs(
+      data = d,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~L,
+      confounders_tv = ~L,
+      id = "id",
+      time = "t",
+      history = -1,
+      estimator = "gcomp",
+      estimand = "ATE"
+    ),
+    "must be a non-negative integer or `Inf`"
   )
 })
 

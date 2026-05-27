@@ -123,8 +123,8 @@
 
     Code
       causat(df, outcome = "Y", treatment = "A", confounders = ~L, id = "id", time = "time",
-        history = 0)
+        history = -1)
     Condition
       Error in `causat()`:
-      ! `history` must be a positive integer or `Inf`.
+      ! `history` must be a non-negative integer or `Inf`.
 

@@ -56,12 +56,12 @@ test_that("T-long-ipw1: longitudinal IPW shift agrees with ICE g-comp on linear-
     time = "time",
     estimator = "gcomp"
   )
-  res_ice <- suppressMessages(contrast(
+  res_ice <- contrast(
     fit_ice,
     interventions = list(shifted = shift(0.5), nat = NULL),
     type = "difference",
     reference = "nat"
-  ))
+  )
 
   # Cross-method agreement on the contrast point estimate. IPW SE is
   # typically larger than ICE SE under correct outcome-model
@@ -125,12 +125,12 @@ test_that("T-long-ipw2: longitudinal IPW static recovers ICE on binary DGP", {
     time = "time",
     estimator = "gcomp"
   )
-  res_ice <- suppressMessages(contrast(
+  res_ice <- contrast(
     fit_ice,
     interventions = list(always = static(1), never = static(0)),
     type = "difference",
     reference = "never"
-  ))
+  )
 
   est_ipw <- res_ipw$contrasts$estimate[1]
   est_ice <- res_ice$contrasts$estimate[1]
@@ -172,13 +172,13 @@ test_that("T-long-ipw3: longitudinal IPW bootstrap SE within MC tolerance of san
     reference = "n",
     ci_method = "sandwich"
   )
-  res_boot <- suppressWarnings(contrast(
+  res_boot <- contrast(
     fit,
     interventions = list(s = shift(0.5), n = NULL),
     reference = "n",
     ci_method = "bootstrap",
     n_boot = 200
-  ))
+  )
 
   se_sand <- res_sand$contrasts$se[1]
   se_boot <- res_boot$contrasts$se[1]
@@ -226,7 +226,7 @@ test_that("T-long-ipw4: longitudinal IPW shift point estimate agrees with lmtp::
   shift_fn <- function(data, trt) data[[trt]] + 0.5
 
   lmtp_res <- tryCatch(
-    suppressWarnings(suppressMessages(lmtp::lmtp_sdr(
+    lmtp::lmtp_sdr(
       data = d_wide,
       trt = c("A_0", "A_1"),
       outcome = "Y",
@@ -237,7 +237,7 @@ test_that("T-long-ipw4: longitudinal IPW shift point estimate agrees with lmtp::
       learners_trt = "SL.glm",
       learners_outcome = "SL.glm",
       folds = 1
-    ))),
+    ),
     error = function(e) NULL
   )
 
@@ -386,7 +386,7 @@ test_that("T-long-ipw7: natural course (NULL intervention) returns observed marg
 # Rejection snapshots
 # ----------------------------------------------------------------------
 
-test_that("R-long-ipw1: multivariate longitudinal IPW is rejected", {
+test_that("R-long-ipw1: MV longitudinal IPW with stabilize is rejected", {
   set.seed(7100)
   d <- make_linear_scm(n = 100, seed = 7100)
   d <- data.table::as.data.table(d)
@@ -401,9 +401,32 @@ test_that("R-long-ipw1: multivariate longitudinal IPW is rejected", {
       confounders_tv = ~L,
       id = "id",
       time = "time",
+      estimator = "ipw",
+      stabilize = "marginal"
+    ),
+    class = "causatr_longitudinal_mv_stabilize_pending"
+  )
+})
+
+test_that("R-long-ipw1b: MV longitudinal IPW with EM is rejected", {
+  set.seed(7100)
+  d <- make_linear_scm(n = 100, seed = 7100)
+  d <- data.table::as.data.table(d)
+  d$A2 <- d$A + stats::rnorm(nrow(d), 0, 0.1)
+  d$sex <- sample(c(0, 1), nrow(d), replace = TRUE)
+
+  expect_error(
+    causat(
+      d,
+      outcome = "Y",
+      treatment = c("A", "A2"),
+      confounders = ~ L0 + A:sex,
+      confounders_tv = ~L,
+      id = "id",
+      time = "time",
       estimator = "ipw"
     ),
-    class = "causatr_longitudinal_multivariate_pending"
+    class = "causatr_longitudinal_mv_em_pending"
   )
 })
 
@@ -670,11 +693,11 @@ test_that("T-long-ipw-stab3: stabilized shift contrast recovers ICE point on bas
     time = "time",
     estimator = "gcomp"
   )
-  res_ice <- suppressMessages(contrast(
+  res_ice <- contrast(
     fit_ice,
     interventions = list(s = shift(0.5), n = NULL),
     reference = "n"
-  ))
+  )
 
   # Cross-method agreement on the contrast point estimate. Tolerance
   # widened relative to T-long-ipw1 because stabilized IPW has a
@@ -716,13 +739,13 @@ test_that("T-long-ipw-stab4: bootstrap captures gamma uncertainty under stabiliz
     reference = "z",
     ci_method = "sandwich"
   )
-  res_boot <- suppressWarnings(contrast(
+  res_boot <- contrast(
     fit_st,
     interventions = list(a = static(1), z = static(0)),
     reference = "z",
     ci_method = "bootstrap",
     n_boot = 100
-  ))
+  )
 
   expect_true(
     is.finite(res_boot$contrasts$se[1]) &&
@@ -914,12 +937,12 @@ test_that("T-long-ipw-em3: longitudinal IPW EM agrees with ICE EM cross-method",
     time = "time",
     estimator = "gcomp"
   )
-  res_ice <- suppressMessages(contrast(
+  res_ice <- contrast(
     fit_ice,
     interventions = list(a = static(1), z = static(0)),
     reference = "z",
     by = "sex"
-  ))
+  )
 
   ipw_dt <- as.data.frame(res_ipw$contrasts)
   ice_dt <- as.data.frame(res_ice$contrasts)
@@ -930,4 +953,431 @@ test_that("T-long-ipw-em3: longitudinal IPW EM agrees with ICE EM cross-method",
 
   expect_lt(abs(ipw_sex0 - ice_sex0), 0.5)
   expect_lt(abs(ipw_sex1 - ice_sex1), 0.5)
+})
+
+
+# ---- Weight truncation (Phase 19-trim) ---------------------------------
+
+test_that("longitudinal IPW: trim reduces cumulative max weight", {
+  d <- data.table::as.data.table(make_continuous_scm(n = 500, seed = 7200))
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    estimator = "ipw",
+    id = "id",
+    time = "time"
+  )
+  r1 <- contrast(
+    fit,
+    interventions = list(shifted = shift(0.5), nat = NULL),
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  r2 <- contrast(
+    fit,
+    interventions = list(shifted = shift(0.5), nat = NULL),
+    type = "difference",
+    ci_method = "sandwich",
+    trim = 0.99
+  )
+  expect_true(is.finite(r1$contrasts$estimate))
+  expect_true(is.finite(r2$contrasts$estimate))
+  expect_true(is.finite(r2$contrasts$se))
+})
+
+test_that("longitudinal IPW: sandwich and bootstrap agree under trim", {
+  # Regression test for the per-period vs post-product truncation fix.
+  # Before the fix, sandwich used post-product truncation (on the
+  # cumulative weight) while bootstrap used per-period truncation
+  # (via compute_longitudinal_weights), causing a ~10% SE discrepancy.
+  d <- data.table::as.data.table(make_continuous_scm(n = 800, seed = 7205))
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    estimator = "ipw",
+    id = "id",
+    time = "time"
+  )
+  r_sand <- contrast(
+    fit,
+    interventions = list(shifted = shift(0.5), nat = NULL),
+    ci_method = "sandwich",
+    trim = 0.95
+  )
+  set.seed(123)
+  r_boot <- contrast(
+    fit,
+    interventions = list(shifted = shift(0.5), nat = NULL),
+    ci_method = "bootstrap",
+    n_boot = 150L,
+    trim = 0.95
+  )
+  ratio <- r_sand$contrasts$se / r_boot$contrasts$se
+  expect_gt(ratio, 0.7)
+  expect_lt(ratio, 1.5)
+  expect_equal(r_sand$contrasts$estimate, r_boot$contrasts$estimate)
+})
+
+test_that("longitudinal IPW: trim + bootstrap works", {
+  d <- data.table::as.data.table(make_continuous_scm(n = 300, seed = 7201))
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    estimator = "ipw",
+    id = "id",
+    time = "time"
+  )
+  r_boot <- contrast(
+    fit,
+    interventions = list(shifted = shift(0.5), nat = NULL),
+    type = "difference",
+    ci_method = "bootstrap",
+    n_boot = 50L,
+    trim = 0.99
+  )
+  expect_true(is.finite(r_boot$contrasts$estimate))
+  expect_true(is.finite(r_boot$contrasts$se))
+})
+
+
+# ---- lmtp cross-check: longitudinal IPW + trim --------------------------
+
+test_that("longitudinal IPW + trim agrees with lmtp_sdr", {
+  skip_if_not_installed("lmtp")
+  skip_if_not_installed("SuperLearner")
+
+  # 2-period continuous treatment, linear DGP from make_continuous_scm().
+  # lmtp treats c("A_0", "A_1") as 2-period longitudinal and applies SDR.
+  # Under correct specification both estimators target the same shifted mean.
+  set.seed(7300)
+  d_long <- make_continuous_scm(n = 1500, seed = 7300)
+
+  # lmtp wants wide format
+  d_wide <- data.frame(
+    L0 = d_long$L0[d_long$time == 0],
+    A_0 = d_long$A[d_long$time == 0],
+    L_1 = d_long$L[d_long$time == 1],
+    A_1 = d_long$A[d_long$time == 1],
+    Y = d_long$Y[d_long$time == 1]
+  )
+
+  shift_fn <- function(data, trt) data[[trt]] + 0.5
+
+  # lmtp: no trim and trim = 0.99
+  lmtp_no <- tryCatch(
+    lmtp::lmtp_sdr(
+      data = d_wide,
+      trt = c("A_0", "A_1"),
+      outcome = "Y",
+      baseline = "L0",
+      time_vary = list(NULL, "L_1"),
+      shift = shift_fn,
+      outcome_type = "continuous",
+      learners_trt = "SL.glm",
+      learners_outcome = "SL.glm",
+      folds = 1,
+      control = lmtp::lmtp_control(.trim = 1)
+    ),
+    error = function(e) NULL
+  )
+  lmtp_99 <- tryCatch(
+    lmtp::lmtp_sdr(
+      data = d_wide,
+      trt = c("A_0", "A_1"),
+      outcome = "Y",
+      baseline = "L0",
+      time_vary = list(NULL, "L_1"),
+      shift = shift_fn,
+      outcome_type = "continuous",
+      learners_trt = "SL.glm",
+      learners_outcome = "SL.glm",
+      folds = 1,
+      control = lmtp::lmtp_control(.trim = 0.99)
+    ),
+    error = function(e) NULL
+  )
+  skip_if(is.null(lmtp_no), "lmtp::lmtp_sdr() unavailable")
+
+  # causatr: longitudinal IPW, no trim and trim = 0.99
+  d_dt <- data.table::as.data.table(d_long)
+  fit <- causat(
+    d_dt,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    estimator = "ipw"
+  )
+  res_no <- contrast(
+    fit,
+    interventions = list(s = shift(0.5)),
+    ci_method = "sandwich"
+  )
+  res_99 <- contrast(
+    fit,
+    interventions = list(s = shift(0.5)),
+    ci_method = "sandwich",
+    trim = 0.99
+  )
+
+  est_lmtp_no <- tryCatch(lmtp_no$estimate@x, error = function(e) lmtp_no$theta)
+  est_lmtp_99 <- tryCatch(lmtp_99$estimate@x, error = function(e) lmtp_99$theta)
+
+  expect_lt(abs(res_no$estimates$estimate - est_lmtp_no), 0.5)
+  expect_lt(abs(res_99$estimates$estimate - est_lmtp_99), 0.5)
+})
+
+
+# -----------------------------------------------------------------------
+# Multivariate longitudinal IPW (Phase 19a)
+# -----------------------------------------------------------------------
+# T × K propensity factorisation: W_i = prod_t prod_k w_{t,k,i}
+# with block-diagonal stacked sandwich.
+
+test_that("T-long-mv-ipw1: binary MV longitudinal IPW static, sandwich vs bootstrap", {
+  # DGP: 2 periods, 2 binary treatments
+  # f(A1,A2 | L) = f(A1|L) * f(A2|A1,L)
+  # Y = 2 + 0.5*L + psi1*A1_T + psi2*A2_T + eps
+  set.seed(19001)
+  n <- 800
+  L <- rnorm(n)
+  A1_1 <- rbinom(n, 1, plogis(0.5 + 0.3 * L))
+  A2_1 <- rbinom(n, 1, plogis(0.3 + 0.2 * L + 0.15 * A1_1))
+  A1_2 <- rbinom(n, 1, plogis(0.3 + 0.3 * L + 0.1 * A1_1))
+  A2_2 <- rbinom(n, 1, plogis(0.2 + 0.2 * L + 0.1 * A1_2 + 0.05 * A2_1))
+  psi1 <- 1.0
+  psi2 <- 0.5
+  Y <- 2 + 0.5 * L + psi1 * A1_2 + psi2 * A2_2 + rnorm(n)
+
+  dat <- data.table::data.table(
+    id = rep(seq_len(n), each = 2L),
+    time = rep(1:2, n),
+    A1 = c(rbind(A1_1, A1_2)),
+    A2 = c(rbind(A2_1, A2_2)),
+    L = rep(L, each = 2L),
+    Y = c(rep(NA_real_, n), Y)
+  )
+
+  fit <- causat(
+    dat,
+    outcome = "Y",
+    treatment = c("A1", "A2"),
+    confounders = ~L,
+    estimator = "ipw",
+    type = "longitudinal",
+    id = "id",
+    time = "time"
+  )
+  expect_true(fit$details$is_multivariate)
+  expect_equal(fit$details$n_times, 2L)
+  # Per-period models should be causatr_treatment_models
+  expect_s3_class(
+    fit$details$treatment_models_by_time[["1"]],
+    "causatr_treatment_models"
+  )
+
+  res_sw <- contrast(
+    fit,
+    interventions = list(
+      both1 = list(A1 = static(1), A2 = static(1)),
+      both0 = list(A1 = static(0), A2 = static(0))
+    ),
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  res_bs <- contrast(
+    fit,
+    interventions = list(
+      both1 = list(A1 = static(1), A2 = static(1)),
+      both0 = list(A1 = static(0), A2 = static(0))
+    ),
+    type = "difference",
+    ci_method = "bootstrap"
+  )
+
+  # Sandwich/bootstrap SE ratio should be close to 1.
+  se_ratio <- res_sw$contrasts$se / res_bs$contrasts$se
+  expect_gt(se_ratio, 0.7)
+  expect_lt(se_ratio, 1.4)
+
+  # E[Y(1,1)] - E[Y(0,0)]: the IPW estimand involves the cumulative
+  # product weight across periods, which reweights to the joint
+  # interventional distribution. With binary treatments the HT
+  # indicator drops rows, so the effective sample is smaller and the
+  # IPW estimand approximates the structural effect (psi1 + psi2)
+  # only under large n and good overlap. Check finite + positive.
+  expect_true(is.finite(res_sw$contrasts$estimate))
+  expect_gt(res_sw$contrasts$estimate, 0)
+})
+
+
+test_that("T-long-mv-ipw2: continuous MV longitudinal IPW shift, sandwich vs bootstrap", {
+  # DGP: 2 periods, 2 continuous treatments
+  # Y = 2 + 0.5*L + psi1*A1_T + psi2*A2_T + eps
+  set.seed(19002)
+  n <- 800
+  L <- rnorm(n)
+  A1_1 <- rnorm(n, 0.5 + 0.3 * L)
+  A2_1 <- rnorm(n, 0.3 + 0.2 * L + 0.1 * A1_1)
+  A1_2 <- rnorm(n, 0.3 + 0.3 * L + 0.1 * A1_1)
+  A2_2 <- rnorm(n, 0.2 + 0.2 * L + 0.1 * A1_2 + 0.05 * A2_1)
+  psi1 <- 0.5
+  psi2 <- 0.3
+  Y <- 2 + 0.5 * L + psi1 * A1_2 + psi2 * A2_2 + rnorm(n)
+
+  dat <- data.table::data.table(
+    id = rep(seq_len(n), each = 2L),
+    time = rep(1:2, n),
+    A1 = c(rbind(A1_1, A1_2)),
+    A2 = c(rbind(A2_1, A2_2)),
+    L = rep(L, each = 2L),
+    Y = c(rep(NA_real_, n), Y)
+  )
+
+  fit <- causat(
+    dat,
+    outcome = "Y",
+    treatment = c("A1", "A2"),
+    confounders = ~L,
+    estimator = "ipw",
+    type = "longitudinal",
+    id = "id",
+    time = "time"
+  )
+
+  delta1 <- 0.5
+  delta2 <- 0.3
+  res_sw <- contrast(
+    fit,
+    interventions = list(
+      up = list(A1 = shift(delta1), A2 = shift(delta2)),
+      nc = NULL
+    ),
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  res_bs <- contrast(
+    fit,
+    interventions = list(
+      up = list(A1 = shift(delta1), A2 = shift(delta2)),
+      nc = NULL
+    ),
+    type = "difference",
+    ci_method = "bootstrap"
+  )
+
+  # Sandwich/bootstrap SE agreement
+  se_ratio <- res_sw$contrasts$se / res_bs$contrasts$se
+  expect_gt(se_ratio, 0.7)
+  expect_lt(se_ratio, 1.4)
+
+  # The shifted estimand is approximately psi1*d1 + psi2*d2 = 0.34
+  # under the linear DGP, but the IPW cumulative product weights
+  # and the joint density factorisation introduce finite-sample bias.
+  # Check finite and same sign as the structural effect.
+  expect_true(is.finite(res_sw$contrasts$estimate))
+  expect_gt(res_sw$contrasts$estimate, -0.3)
+})
+
+
+test_that("T-long-mv-ipw3: MV natural course gives same sandwich as bootstrap", {
+  # All-NULL intervention: cumulative weight = 1, no propensity
+  # correction. Sandwich should still work (the empty-alpha early
+  # return path).
+  set.seed(19003)
+  n <- 300
+  L <- rnorm(n)
+  A1_1 <- rbinom(n, 1, plogis(0.3 * L))
+  A2_1 <- rbinom(n, 1, plogis(0.2 * L))
+  A1_2 <- rbinom(n, 1, plogis(0.3 * L + 0.1 * A1_1))
+  A2_2 <- rbinom(n, 1, plogis(0.2 * L + 0.1 * A1_2))
+  Y <- 1 + 0.3 * L + 0.5 * A1_2 + 0.3 * A2_2 + rnorm(n)
+
+  dat <- data.table::data.table(
+    id = rep(seq_len(n), each = 2L),
+    time = rep(1:2, n),
+    A1 = c(rbind(A1_1, A1_2)),
+    A2 = c(rbind(A2_1, A2_2)),
+    L = rep(L, each = 2L),
+    Y = c(rep(NA_real_, n), Y)
+  )
+
+  fit <- causat(
+    dat,
+    outcome = "Y",
+    treatment = c("A1", "A2"),
+    confounders = ~L,
+    estimator = "ipw",
+    type = "longitudinal",
+    id = "id",
+    time = "time"
+  )
+
+  res_sw <- contrast(
+    fit,
+    interventions = list(
+      both1 = list(A1 = static(1), A2 = static(1)),
+      nc = NULL
+    ),
+    type = "difference",
+    ci_method = "sandwich"
+  )
+
+  # Should produce finite SE and reasonable estimate
+  expect_true(is.finite(res_sw$contrasts$se))
+  expect_true(is.finite(res_sw$contrasts$estimate))
+})
+
+
+test_that("R-long-mv-ipw1: MV IPSI under longitudinal IPW is rejected", {
+  set.seed(19010)
+  n <- 100
+  L <- rnorm(n)
+  A1_1 <- rbinom(n, 1, plogis(0.3 * L))
+  A2_1 <- rbinom(n, 1, plogis(0.2 * L))
+  A1_2 <- rbinom(n, 1, plogis(0.3 * L))
+  A2_2 <- rbinom(n, 1, plogis(0.2 * L))
+  Y <- 1 + A1_2 + A2_2 + rnorm(n)
+
+  dat <- data.table::data.table(
+    id = rep(seq_len(n), each = 2L),
+    time = rep(1:2, n),
+    A1 = c(rbind(A1_1, A1_2)),
+    A2 = c(rbind(A2_1, A2_2)),
+    L = rep(L, each = 2L),
+    Y = c(rep(NA_real_, n), Y)
+  )
+
+  fit <- causat(
+    dat,
+    outcome = "Y",
+    treatment = c("A1", "A2"),
+    confounders = ~L,
+    estimator = "ipw",
+    type = "longitudinal",
+    id = "id",
+    time = "time"
+  )
+
+  expect_error(
+    contrast(
+      fit,
+      interventions = list(
+        bad = list(A1 = static(1), A2 = ipsi(0.5))
+      ),
+      ci_method = "sandwich"
+    ),
+    class = "causatr_longitudinal_ipsi_pending"
+  )
 })

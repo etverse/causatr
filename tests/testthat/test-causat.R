@@ -183,7 +183,7 @@ test_that("causat() rejects invalid history value", {
       confounders = ~L,
       id = "id",
       time = "time",
-      history = 0
+      history = -1
     )
   )
 })

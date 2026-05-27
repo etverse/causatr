@@ -11,7 +11,6 @@ vignette: >
 ```{r}
 #| include: false
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
-has_optmatch <- requireNamespace("optmatch", quietly = TRUE)
 ```
 
 Propensity score matching estimates causal effects by pairing treated and
@@ -123,7 +122,7 @@ For the ATE, MatchIt performs full matching (each unit gets a weight) rather
 than 1:1 nearest-neighbour matching.
 
 ```{r}
-#| eval: !expr has_optmatch
+#| eval: !expr requireNamespace("optmatch", quietly = TRUE)
 fit_m_ate <- causat(
   nhefs_complete,
   outcome = "wt82_71",
@@ -148,7 +147,7 @@ res_ate_sw
 ### ATE with bootstrap SE
 
 ```{r}
-#| eval: !expr has_optmatch
+#| eval: !expr requireNamespace("optmatch", quietly = TRUE)
 res_ate_bs <- contrast(
   fit_m_ate,
   interventions = list(quit = static(1), continue = static(0)),
@@ -393,7 +392,7 @@ results_list <- list(
     ci_upper = res_atc$contrasts$ci_upper[1]
   )
 )
-if (has_optmatch) {
+if (requireNamespace("optmatch", quietly = TRUE)) {
   results_list <- c(list(data.frame(
     estimand = "ATE",
     estimate = res_ate_sw$contrasts$estimate[1],
@@ -466,7 +465,7 @@ smoking on weight change differs by sex. The propensity score model used
 for matching automatically strips the interaction term.
 
 ```{r}
-#| eval: !expr has_optmatch
+#| eval: !expr requireNamespace("optmatch", quietly = TRUE)
 fit_m_hte <- causat(
   nhefs_complete,
   outcome = "wt82_71",

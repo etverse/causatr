@@ -1,5 +1,314 @@
 # causatr (development version)
 
+## 2026-05-24 — Phase 19a: Multivariate longitudinal IPW
+
+New support for joint time-varying treatments (`treatment = c("A1", "A2")`)
+under `estimator = "ipw"` with `type = "longitudinal"`. Composes Phase 8
+(multivariate point IPW, K components) with Phase 10 (longitudinal IPW, T
+periods) to produce the T × K propensity factorisation:
+
+    W_i = ∏_t ∏_k w_{t,k,i}
+
+* **Per-period multivariate fitting**: each time period fits K per-component
+  propensity models via `fit_treatment_models()` with sequential conditioning
+  (A_k ~ A_{1..k-1} + confounders + lags). The resulting per-period models are
+  `causatr_treatment_models` objects.
+* **Weight computation**: `compute_longitudinal_weights()` detects multivariate
+  models and dispatches to `compute_density_ratio_weights_mv()` per period,
+  then takes the row-product across periods.
+* **Sandwich variance**: `make_weight_fn_longitudinal()` delegates to
+  `make_weight_fn_mv()` per period, producing a T×K block-diagonal stacked
+  alpha. The variance engine (`compute_ipw_if_self_contained_long_one()`)
+  iterates over periods, then over components within each period, for the
+  per-model corrections.
+* **Bootstrap**: works automatically via `refit_ipw()` → `fit_longitudinal_ipw()`.
+* **Deferred**: stabilized weights (`stabilize = "marginal"`) and effect
+  modification (`A:modifier`) with multivariate longitudinal IPW are rejected
+  with classed errors (`causatr_longitudinal_mv_stabilize_pending`,
+  `causatr_longitudinal_mv_em_pending`).
+
+## 2026-05-23 — Phase 19-trim: Cross-cutting weight truncation
+
+New `trim` argument on `contrast()` for density-ratio weight truncation
+(winsorization). Clips per-component density ratios at the `trim`-th
+quantile before they enter any product (multivariate cross-component or
+longitudinal cross-period), following the approach of Cole & Hernan
+(2008) and the lmtp default of 0.999. Recommended values: `0.999`
+(mild) or `0.99` (moderate, per Spreafico et al. 2025).
+
+* `trim = 1` (default): no truncation, all existing behavior unchanged.
+* Applied to all weight-computing paths: point IPW, multivariate IPW,
+  longitudinal IPW, point AIPW, longitudinal AIPW.
+* Sandwich variance: truncation threshold is fixed at the original data's
+  quantile and held constant under numDeriv perturbation, so the SE
+  reflects the truncated weight surface at a fixed cutoff.
+* Bootstrap: each replicate recomputes its own quantile threshold on the
+  resampled data, capturing the full variance including truncation.
+* NOT applied to sampling weights (transport) or IPCW weights (censoring),
+  which define the target population rather than causal reweighting.
+* Cross-validated against `lmtp::lmtp_sdr()` with matching `.trim` values
+  for both multivariate point IPW and longitudinal IPW.
+
+## 2026-05-24 — Fix: MV IPW sandwich crash with natural-course intervention
+
+* **numDeriv::jacobian crash**: multivariate continuous IPW sandwich
+  variance crashed with "subscript out of bounds" when any intervention
+  was `NULL` (natural course). Root cause: `make_weight_fn_mv()` returns
+  `alpha_hat = numeric(0)` for natural course (no propensity parameters
+  to optimize), and `numDeriv::jacobian(fn, x = numeric(0))` cannot
+  handle zero-length input. Fixed by adding an early return in
+  `compute_ipw_if_self_contained_mv_one()` that skips the
+  cross-derivative computation when no propensity parameters exist —
+  the propensity correction is zero in this case since the weight
+  function is constant (all ones).
+
+## 2026-05-24 — Phase 19-trim critical review fix
+
+* **Sandwich/bootstrap truncation semantics mismatch**: the variance-engine
+  closures (`make_weight_fn_longitudinal`, `make_weight_fn_mv`) applied
+  truncation to the post-product cumulative weight, while the
+  weight-computation path (`compute_longitudinal_weights`,
+  `compute_density_ratio_weights_mv`) applied per-component/per-period
+  truncation before the product. This caused sandwich and bootstrap SEs to
+  disagree by ~10% under aggressive trim values. Fixed by distributing
+  per-component/per-period truncation thresholds to each sub-closure,
+  matching the per-component semantics throughout.
+
+## 2026-05-22 — Phase 18 critical review fixes
+
+3rd-round critical review of Phase 18 (SNM implementation):
+
+* **Bootstrap metadata fix**: longitudinal SNM bootstrap now correctly
+  forwards `confounders_outcome_raw` to replicated fits, ensuring
+  metadata consistency on the bootstrap `causatr_fit` objects.
+* **Predict consistency**: `snm_treatment_design()` now uses
+  `newdata = data` in `predict()` for scalar treatments, matching the
+  categorical branch and guarding against future data-vs-model mismatch.
+* **File split**: extracted `compute_snm_contrast()` from `snm_point.R`
+  (488 lines) into `snm_contrast.R` (191 lines), bringing both files
+  under the 300-line guideline.
+* **Roxygen**: added missing `@return` tags to
+  `variance_if_snm_longitudinal_notf()` and
+  `variance_if_snm_longitudinal_tf()`.
+* **delicatessen cross-checks**: added two new cross-language oracle
+  tests for longitudinal SNM — treatment-free model (TF, no EM) and
+  time-varying effect modification with TF (TV-EM + TF). Both use
+  Python delicatessen stacked M-estimation as the reference, with
+  tight point-estimate tolerances (1e-4) and SE tolerances (0.3–1%).
+
+## 2026-05-22 — Phase 18 complete: Structural Nested Mean Models
+
+Phase 18 is complete. The `snm.qmd` vignette now covers all shipped
+features: categorical and count treatment extensions (18h), bootstrap
+confidence intervals (18i), and S3 method output (18j), in addition to
+the existing coverage of point and longitudinal SNMs with time-varying
+effect modification, treatment-free efficiency augmentation, and
+sandwich inference.
+
+## 2026-05-22 — SNM-aware S3 dispatch (Phase 18j)
+
+All user-facing S3 methods now recognize SNM results and display
+blip-parameter-specific output instead of the intervention-mean layout
+used by gcomp/IPW/AIPW/matching.
+
+`print.causatr_result()` shows "Blip parameters:" (point), "Per-stage
+blip parameters:" (longitudinal), or "Averaged blip effect:" (Path B
+with `treatment_values`), and suppresses the empty contrasts table for
+Path A. `summary.causatr_result()` skips the "Intervention details"
+section for SNM and labels the vcov as "blip parameters".
+`plot.causatr_result()` produces a forest plot with parameter names as
+row labels, a zero reference line, and an SNM-specific title.
+`coef()` and `tidy()` correctly use the `parameter` column (instead of
+`intervention`) present in SNM result objects, and `tidy()` tags rows
+with `type = "parameter"`.
+
+## 2026-05-22 — Categorical and count treatment extensions for SNM (Phase 18h)
+
+Extends SNM g-estimation to categorical (k>2) and count (Poisson/NB)
+treatment types. The new `snm_treatment_design()` helper abstracts the
+construction of treatment-action (AM) and treatment-residual (RM)
+matrices so the g-estimating equation solve, variance engine, and
+bootstrap are uniform across all treatment types.
+
+**Categorical treatments** use multinomial residualisation via
+`nnet::multinom`. The per-level indicators D_j = 1{A=j} and residuals
+R_j = D_j - P(A=j|L) produce (K−1) × p_mod blip parameters, one set
+per non-reference treatment level. The sandwich variance uses
+`prepare_model_if_multinom()` for the multinomial treatment model IF
+and a softmax-based cross-derivative closure. `treatment_values` is
+rejected for categorical SNM — the per-level blip parameters are the
+estimand directly.
+
+**Count treatments** work with zero code changes: the existing scalar
+residual path R = A − E[A|L] handles Poisson and negative binomial
+treatment models via `propensity_family = "poisson"` or `"negbin"`.
+
+13 new truth-based tests covering point estimation, sandwich variance,
+bootstrap consistency, treatment-free model, and longitudinal backward
+sequential estimation for both categorical and count treatments.
+
+## 2026-05-22 — Bootstrap variance for SNM (Phase 18i)
+
+Adds bootstrap variance estimation for both point and longitudinal SNM
+estimators, completing the dual inference path (sandwich + bootstrap)
+that all other estimators already support.
+
+**Point bootstrap** resamples rows and re-solves the g-estimating equation
+on each replicate, handling all three paths: standard (no effect
+modification), with `A:modifier` interactions, and with `treatment_free`
+joint (β, ψ) estimation. When `treatment_values` is supplied, the
+bootstrap statistic is the scalar averaged blip effect directly — no
+delta-method transformation needed on the bootstrap vcov.
+
+**Longitudinal bootstrap** uses ID-clustered resampling (resample entire
+individual trajectories with clone-and-reassign for duplicates) and
+re-runs the full backward sequential g-estimation on each replicate.
+Forwards per-component confounders (`confounders_outcome`,
+`confounders_tv_outcome`, etc.) to ensure the blip specification is
+correctly reconstructed on bootstrap replicates even when outcome and
+treatment confounders are specified separately.
+
+All bootstrap SE estimates agree with sandwich SEs within a factor of 2
+across 9 test configurations (point ± EM ± treatment-free ±
+treatment_values ± binary/continuous treatment; longitudinal ± TF ±
+TV-EM).
+
+## 2026-05-21 — Triangulation tests, delicatessen cross-check, history=0 support (Phase 18f)
+
+Adds the Robins triangle invariant tests: under correct specification and
+no time-varying effect modification, the SNM blip sum, longitudinal
+IPW-MSM ATE, and ICE g-comp ATE must agree on binary static interventions.
+Three pairwise comparisons (SNM vs IPW, SNM vs ICE, 3-way) plus a negative
+control where IPW is biased by collider conditioning on a post-treatment
+modifier but SNM recovers the correct blip.
+
+Cross-language validation against Python's delicatessen package (Zivich
+2022) using stacked M-estimation on shared fixture data
+(data-raw/snm_longitudinal_fixture.csv). Both R and Python operate on
+the exact same dataset, enabling tight tolerances: 1e-4 for point
+estimates, 0.3% for sandwich SEs.
+
+The `history` parameter now accepts 0 (no-lag Markov model) for all
+longitudinal estimators (SNM, IPW, ICE). Previously history < 1 was
+rejected. The validator error message updated from "positive integer"
+to "non-negative integer." Tests added for all three estimators with
+history=0.
+
+Removed 18 suppressMessages/suppressWarnings wrappers around causatr
+calls in the test suite (test-snm.R, test-missing-data.R,
+test-longitudinal-ipw.R). All underlying messages were either eliminated
+at the source or are expected informational output.
+
+## 2026-05-21 — Longitudinal TV-EM truth test + formula dedup fix (Phase 18e)
+
+Adds the headline truth-based test for longitudinal SNMs with time-varying
+effect modification. The 2-period DGP has a post-treatment modifier
+M_1 = 1{L_1 > 0} (where L_1 depends on A_0) at both stages, with known
+blip parameters (psi_00 = 1.15, psi_0M = 2, psi_10 = 2, psi_1M = 2).
+Validates that the SNM correctly recovers all four parameters, while
+point-treatment IPW conditioning on M_1 is detectably biased due to
+collider bias (A_0 -> L_1 -> M_1).
+
+DTRreg cross-check uses `history = 0` for exact treatment-model match.
+Cluster bootstrap consistency check and TF-model efficiency test included.
+
+Also fixes `build_longitudinal_ps_formula()` to deduplicate baseline terms
+that overlap with time-varying terms. R formulas silently dropped the
+duplicate, so the fitted model was unaffected, but the formula object was
+misleading to anyone who inspected it.
+
+## 2026-05-21 — Fix longitudinal SNM variance with treatment-free model
+
+The sandwich variance for longitudinal `estimator = "snm"` with
+`treatment_free` now correctly accounts for the joint (beta, psi) system
+at each stage. Previously, the variance engine used the psi-only
+estimating equation scores and bread, ignoring the treatment-free nuisance
+parameters. When E[R * Z] ≈ 0 (correctly specified treatment model, TF
+covariates subset of PS covariates), the error cancelled exactly. When
+E[R * Z] ≠ 0 (TF formula includes covariates absent from the treatment
+model), the sandwich SEs were inflated by the unabsorbed TF prediction.
+The fix implements the full joint system with per-stage (beta_k, psi_k)
+blocks, cross-stage derivatives, and psi-marginal extraction — mirroring
+the point-treatment TF variance that was already correct.
+
+## 2026-05-21 — Longitudinal SNMM with per-stage blip estimation (Phase 18d)
+
+`estimator = "snm"` now supports `type = "longitudinal"` for multi-period
+panel data. The implementation uses backward sequential g-estimation (Robins
+1994): starting at the final stage K, each stage's blip parameters are
+estimated using the backward-transformed outcome H_k, yielding per-stage
+parameters (e.g. `stage0_psi_intercept`, `stage1_psi_intercept`). Each stage
+gets its own treatment model fit via the existing longitudinal propensity
+infrastructure.
+
+The cluster-robust sandwich variance accounts for cross-stage dependencies:
+earlier-stage blip parameters depend on later-stage estimates through the
+backward-transformed outcome, creating off-diagonal blocks in the bread
+matrix. Treatment-model corrections are applied per-stage via the standard
+numDeriv::jacobian approach.
+
+Testing: truth-based tests on binary and continuous treatment DGPs, DTRreg
+cross-checks (binary treatment), vcov PSD checks, rejection tests for
+treatment_values and bootstrap. DGP truth values account for the mediated
+A_0 -> L_1 -> Y path correctly (validated against DTRreg at n = 500k).
+
+## 2026-05-21 — Time-varying effect modification for SNMs (Phase 18c)
+
+SNMs now explicitly support **time-varying (post-treatment) modifiers** — the
+headline feature motivating the addition of SNMMs to causatr. The modifier M
+can depend on treatment A, unlike IPW-MSM where this opens collider paths
+(Robins 2000). With `treatment_free = ~ L`, the blip parameters recover the
+structural truth; without it, the moment-condition estimates capture a
+different (still valid) quantity that absorbs the A → M → Y indirect path.
+
+Documentation: updated `parse_effect_mod()` to clarify the SNM exception
+to the baseline-only modifier constraint. New vignette `snm.qmd` with a
+worked example demonstrating IPW bias with post-treatment modifiers and
+correct SNM identification.
+
+Testing: truth-based tests on DGPs where M = f(A, L), delicatessen
+cross-checks (4 scenarios: continuous/binary × no-TF/TF), DTRreg cross-check,
+IPW bias demonstration, vcov PSD checks.
+
+## 2026-05-20 — Treatment-free outcome model for SNM efficiency (Phase 18b½)
+
+`causat(..., treatment_free = ~ L)` enables a treatment-free outcome model that
+reduces blip parameter standard errors by 30–45% without changing point
+estimates. The approach follows Vansteelandt & Joffe (2014) and matches DTRreg's
+`tf.mod` argument: the treatment-free model parameters β and blip parameters ψ
+are solved jointly from a linear system, rather than fitting E[Y | L] separately.
+
+The sandwich variance engine extends to a stacked system
+(α_treatment, θ_joint = (β, ψ)) with the joint bread computed analytically and
+the cross-derivative A_{θ,α} via `numDeriv::jacobian()`. Validated against
+delicatessen on three DGPs (continuous + EM, binary + EM, two modifiers) and
+against DTRreg on the EM case — point estimates and SEs match to 0.01
+tolerance.
+
+Breaking change: none. The `treatment_free` parameter defaults to `NULL`,
+preserving the existing behavior. Non-SNM estimators reject `treatment_free`
+with a `causatr_treatment_free_not_snm` classed error.
+
+## 2026-05-20 — SNM point estimation and sandwich variance (Phase 18b)
+
+Point-treatment SNM g-estimation is now fully operational. `contrast(fit)`
+returns the blip parameter table (ψ₀, ψ_M, ...) with stacked-EE sandwich
+standard errors and confidence intervals. `contrast(fit, treatment_values =
+c(0, 1))` computes the population-averaged blip effect with delta-method
+variance.
+
+The sandwich variance engine (`variance_if_snm()`) implements the full
+stacked M-estimation system: treatment model score block + blip estimating
+equation block + cross-derivative A_{ψ,α} via `numDeriv::jacobian()`.
+Validated against `delicatessen` (Zivich et al. 2024) on three DGPs
+(continuous treatment + single modifier, binary treatment + single modifier,
+continuous treatment + two modifiers) with point estimate and SE agreement
+to 0.01 tolerance.
+
+New files: `R/variance_if_snm.R` (split from snm.R following the existing
+variance file pattern), `data-raw/snm_reference.py` (delicatessen reference
+script), fixture CSVs.
+
 ## 2026-05-20 — SNM routing and validation (Phase 18a)
 
 Added `estimator = "snm"` to `causat()` for structural nested mean model

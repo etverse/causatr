@@ -91,6 +91,15 @@ Project-specific rules that override / extend the etverse-wide rules at
 - **External oracle cross-checks** use contrast-level (not IF-level)
   comparisons. WeightIt + lmtp as test-only references.
 
+- **SNM `treatment_free` + longitudinal uses the joint (β,ψ) variance.**
+  `variance_if_snm_longitudinal_tf()` builds the full per-stage
+  `(β_k, ψ_k)` joint system with cross-stage derivatives, then extracts
+  the ψ marginal. The psi-only residual `H_k - γ_k` is WRONG when
+  `has_tf = TRUE` — the correct residual is `H_k - Z_k β_k - γ_k`. The
+  error cancels when `E[R·Z] ≈ 0` (orthogonality), so tests with a
+  correctly specified treatment model won't catch it. Test under broken
+  orthogonality (TF formula includes covariates absent from PS model).
+
 ### Review-time heuristics
 
 - **Saturated MSM neutralizes some variance concerns** — always verify against

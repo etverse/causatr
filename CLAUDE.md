@@ -7,7 +7,7 @@ Part of the [etverse](https://github.com/etverse) ecosystem.
 ## Guide files
 
 - `FEATURE_COVERAGE_MATRIX.md` — **single source of truth for "what works".** Every PR that changes a feature MUST update this file.
-- `PHASE_*.md` — per-phase implementation guides in the project root. Completed: 2–6, 8–17. In progress: 18 (SNM, chunk 18a shipped). Pending: 19–24 (design docs).
+- `PHASE_*.md` — per-phase implementation guides in the project root. Completed: 2–6, 8–18. Pending: 19–24 (design docs).
 
 ## Project structure
 
@@ -17,9 +17,9 @@ This is an R package: `R/` (source), `tests/testthat/` (tests, `test-foo.R` mirr
 
 **Core API:** `causat.R` (main fitting), `contrast.R` (causal contrasts), `diagnose.R` (main dispatch + panel helpers) + `diagnose_longitudinal.R` + `diagnose_positivity.R` + `diagnose_balance.R` + `diagnose_weights.R` + `diagnose_censoring.R` + `diagnose_intervention.R` + `diagnose_sampling.R` (sampling-model diagnostics for transport).
 **Interventions:** `interventions.R` — `static()`, `shift()`, `scale_by()`, `threshold()`, `dynamic()`, `ipsi()`, `stochastic()`.
-**Estimation:** `gcomp.R`, `ice.R`, `ipw.R`, `aipw.R` (point AIPW), `aipw_longitudinal.R` (longitudinal AIPW), `longitudinal_ipw.R`, `matching.R`, `snm.R` (structural nested mean model g-estimation), `censoring.R` (IPCW model fitting + weights).
-**Inference (IF sandwich):** `variance_if_core.R` (model-correction primitives + vcov aggregation), `variance_if.R` (main dispatcher + numeric fallback + point channel + gcomp/matching IF), `variance_if_ice.R`, `variance_if_ipw.R` (point + mv + longitudinal IPW IF), `variance_if_aipw.R` (point + longitudinal AIPW IF).
-**Inference (bootstrap):** `variance_bootstrap.R` (core + refitters), `variance_bootstrap_longitudinal.R` (longitudinal IPW/ICE/AIPW bootstrap).
+**Estimation:** `gcomp.R`, `ice.R`, `ipw.R`, `aipw.R` (point AIPW), `aipw_longitudinal.R` (longitudinal AIPW), `longitudinal_ipw.R`, `matching.R`, `snm.R` (SNM fitter + blip spec), `snm_point.R` (point g-estimation + blip design matrix), `snm_contrast.R` (SNM contrast dispatch + averaged blip), `snm_longitudinal.R` (longitudinal backward-sequential g-estimation), `censoring.R` (IPCW model fitting + weights).
+**Inference (IF sandwich):** `variance_if_core.R` (model-correction primitives + vcov aggregation), `variance_if.R` (main dispatcher + numeric fallback + point channel + gcomp/matching IF), `variance_if_ice.R`, `variance_if_ipw.R` (point + mv + longitudinal IPW IF), `variance_if_aipw.R` (point + longitudinal AIPW IF), `variance_if_snm.R` (point SNM sandwich), `variance_if_snm_longitudinal.R` (longitudinal SNM cluster sandwich).
+**Inference (bootstrap):** `variance_bootstrap.R` (core + refitters), `variance_bootstrap_longitudinal.R` (longitudinal IPW/ICE/AIPW bootstrap), `variance_bootstrap_snm.R` (point + longitudinal SNM bootstrap).
 **Data:** `to_person_period.R`, `prepare_data.R`, `data.R` (dataset documentation).
 **S3:** `print.R`, `summary.R`, `plot.R`, `coef.R`, `confint.R`, `tidy.R`, `knit_print.R`.
 **Support:** `effect_modification.R`, `ipw_weights.R` (point weights), `ipw_weights_mv.R` (mv weights + shared helpers), `ipw_weights_longitudinal.R`, `treatment_model.R`, `sampling_model.R` (sampling model for transport), `constructors.R` (`new_causatr_*` S3 constructors), `family.R` (GLM family helpers), `utils.R` (misc helpers), `checks.R`, `target_trial.R` (target trial protocol), `causat_mice.R` (MI workflow placeholder), `causatr-package.R` (package-level doc), `zzz.R`.
@@ -78,6 +78,7 @@ Shell: `air format .` (format all R files).
 ## Cost discipline
 
 - **Targeted tests**: Use `devtools::test(filter = "foo")` during development. Only run the full `devtools::test()` suite before committing. A hook blocks unfiltered test runs.
+- **Foreground tests**: Run all test and check commands in **foreground** with `timeout: 600000` (10 min). Never use `run_in_background` for `devtools::test()`, `testthat::test_file()`, `devtools::check()`, or `R CMD check`. A hook enforces this. Output comes back directly — no polling needed.
 - **Batch R scripts**: Combine multiple diagnostic/validation checks into a single `Rscript -e '...'` call instead of running them one at a time. Each R process startup costs 10-30 seconds of idle context.
 - **Model awareness**: For routine work (formatting, simple edits, running tests, git operations), Sonnet is 5x cheaper than Opus. Suggest `/model sonnet` to the user when entering a routine-work phase, and `/model opus` when hard reasoning is needed (debugging subtle bugs, designing new features, variance derivations).
 
@@ -109,8 +110,9 @@ causatr owns g-comp (parametric g-formula + ICE), a self-contained IPW density-r
 
 | Dimension | Values |
 |---|---|
-| **Treatment timing** | point, longitudinal (ICE + longitudinal IPW + longitudinal AIPW), transportability (`target =`) |
-| **Treatment type** | binary, continuous, categorical k>2, count (IPW: Poisson/NB), multivariate (gcomp + IPW + AIPW) |
+| **Estimator** | gcomp, ipw, aipw, matching, snm |
+| **Treatment timing** | point, longitudinal (ICE + longitudinal IPW + longitudinal AIPW + longitudinal SNM), transportability (`target =`) |
+| **Treatment type** | binary, continuous, categorical k>2, count (IPW: Poisson/NB), multivariate (gcomp + IPW + AIPW + longitudinal IPW) |
 | **Outcome family** | gaussian, binomial, quasibinomial, poisson, Gamma, any GLM family, `MASS::glm.nb`, `betareg::betareg` (beta regression) |
 | **Interventions** | `static`, `shift`, `scale_by`, `threshold` (gcomp only), `dynamic`, `ipsi` (IPW only), `stochastic` (gcomp only; IPW/AIPW when `density` supplied — Phase 24) |
 | **Estimand** | ATE, ATT, ATC, `by`-stratified |
@@ -125,7 +127,7 @@ causatr owns g-comp (parametric g-formula + ICE), a self-contained IPW density-r
 - **`dynamic()` = deterministic rules**, not MTPs. MTPs use `shift()` / `scale_by()` / `ipsi()`.
 - **Multivariate IPW = sequential MTP** (Díaz et al. 2023); multivariate gcomp = deterministic joint transformation. They coincide for static interventions, diverge otherwise by design.
 - **ICE applies intervention to current-time treatment only** — lag columns hold observed values. Recomputing lags double-counts interventions.
-- **Single IF engine** — `variance_if()` in `R/variance_if.R` serves all four methods via Channel 1 (sampling) + Channel 2 (nuisance correction).
+- **Single IF engine** — `variance_if()` in `R/variance_if.R` serves all five estimators via Channel 1 (sampling) + Channel 2 (nuisance correction).
 - **ICE defers model fitting to `contrast()`** — sequential outcome models are intervention-dependent.
 - **`censoring =` is a row filter by default.** With `ipcw = TRUE`, an internal censoring model is fit and IPCW weights are computed (Phase 14, shipped).
 - **`na.action = na.exclude` is rejected** — causes silent IF corruption via residual padding mismatch.
@@ -137,3 +139,4 @@ causatr owns g-comp (parametric g-formula + ICE), a self-contained IPW density-r
 - **MTP + transport uses MC marginalization** over \eqn{P(A \mid L, S=1)} because target rows lack observed treatment. Exact enumeration for binary, Monte Carlo integration for continuous. Sandwich variance is not supported for this combination (bootstrap only).
 - **Matching + transport is rejected** — matching estimands are fixed at fitting time and cannot incorporate sampling-odds reweighting.
 - **Per-component confounders** — `confounders_outcome`, `confounders_treatment`, `confounders_censoring`, `confounders_sampling` (+ TV variants `confounders_tv_outcome`, `confounders_tv_treatment`) allow separate covariate specifications per model component. The old `confounders` / `confounders_tv` are soft-deprecated but still work as a convenience shorthand. No cross-defaults between new args — each model component resolves independently via `%||%` fallback to the deprecated arg.
+- **Treatment-free model** (`treatment_free = ~ L`) — SNM efficiency augmentation following Vansteelandt & Joffe (2014). Joint estimation of (β, ψ) absorbs L→Y variance, reducing SEs by 30–45%. Does not change point estimates under correct blip specification.

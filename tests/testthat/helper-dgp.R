@@ -1148,3 +1148,337 @@ simulate_naimi_longitudinal <- function(n = 5000, seed = 42) {
     truth_never = truth_never
   )
 }
+
+
+# --- SNM DGPs (Phase 18) ---------------------------------------------------
+
+#' Point-treatment SNM DGP with effect modification
+#'
+#' From PHASE_18_SNMS.md design doc:
+#'   L ~ N(0, 1), M = I(L > 0)
+#'   A | L ~ N(0.5 * L, 1)   (continuous treatment)
+#'   Y = 2 + 3*A + 1.5*L + 2*A*M + eps, eps ~ N(0, 1)
+#'
+#' Linear blip: gamma(a, l; psi) = a * (psi_0 + psi_M * m)
+#' Truth: psi_0 = 3, psi_M = 2
+#'
+#' @param n Sample size.
+#' @param seed RNG seed.
+#' @return List with `data`, `truth_psi` (named vector).
+#' @noRd
+simulate_snm_point <- function(n = 2000, seed = 42) {
+  set.seed(seed)
+  L <- stats::rnorm(n)
+  M <- as.numeric(L > 0)
+  A <- stats::rnorm(n, mean = 0.5 * L, sd = 1)
+  eps <- stats::rnorm(n)
+  Y <- 2 + 3 * A + 1.5 * L + 2 * A * M + eps
+
+  data <- data.table::data.table(Y = Y, A = A, L = L, M = M)
+  list(
+    data = data,
+    truth_psi = c(psi_intercept = 3, psi_M = 2)
+  )
+}
+
+
+#' Point-treatment SNM DGP without effect modification (constant ATE)
+#'
+#'   L ~ N(0, 1)
+#'   A | L ~ N(0.5 * L, 1)
+#'   Y = 2 + 3*A + 1.5*L + eps, eps ~ N(0, 1)
+#'
+#' Linear blip: gamma(a; psi) = a * psi_0
+#' Truth: psi_0 = 3
+#'
+#' @param n Sample size.
+#' @param seed RNG seed.
+#' @return List with `data`, `truth_psi`.
+#' @noRd
+simulate_snm_point_no_em <- function(n = 2000, seed = 42) {
+  set.seed(seed)
+  L <- stats::rnorm(n)
+  A <- stats::rnorm(n, mean = 0.5 * L, sd = 1)
+  eps <- stats::rnorm(n)
+  Y <- 2 + 3 * A + 1.5 * L + eps
+
+  data <- data.table::data.table(Y = Y, A = A, L = L)
+  list(
+    data = data,
+    truth_psi = c(psi_intercept = 3)
+  )
+}
+
+
+#' Point-treatment SNM DGP with binary treatment and effect modification
+#'
+#'   L ~ N(0, 1), M = I(L > 0)
+#'   A | L ~ Bernoulli(expit(0.5 * L))
+#'   Y = 2 + 3*A + 1.5*L + 2*A*M + eps, eps ~ N(0, 1)
+#'
+#' Truth: psi_0 = 3, psi_M = 2
+#'
+#' @param n Sample size.
+#' @param seed RNG seed.
+#' @return List with `data`, `truth_psi`.
+#' @noRd
+simulate_snm_point_binary <- function(n = 2000, seed = 42) {
+  set.seed(seed)
+  L <- stats::rnorm(n)
+  M <- as.numeric(L > 0)
+  A <- stats::rbinom(n, 1, stats::plogis(0.5 * L))
+  eps <- stats::rnorm(n)
+  Y <- 2 + 3 * A + 1.5 * L + 2 * A * M + eps
+
+  data <- data.table::data.table(Y = Y, A = A, L = L, M = M)
+  list(
+    data = data,
+    truth_psi = c(psi_intercept = 3, psi_M = 2)
+  )
+}
+
+
+#' Point-treatment SNM DGP with time-varying (post-treatment) modifier
+#'
+#' The modifier M depends on treatment A, making it genuinely
+#' post-treatment. SNMs identify the blip under treatment-model
+#' correctness alone — M can be post-treatment. IPW-MSM with M as
+#' a modifier would condition on a descendant of A (biased).
+#'
+#'   L ~ N(0, 1)
+#'   A | L ~ N(0.5 * L, 1)
+#'   M = 0.3 * A + 0.5 * L + eps_M, eps_M ~ N(0, 0.5)
+#'   Y = 2 + 3*A + 1.5*L + 2*A*M + eps_Y, eps_Y ~ N(0, 1)
+#'
+#' Linear blip: gamma(a, m; psi) = a * (psi_0 + psi_M * m)
+#' With treatment-free model ~L: psi_0 = 3, psi_M = 2.
+#' Without treatment-free model, moment-condition estimates differ
+#' because the blip absorbs the A -> M -> Y indirect path.
+#'
+#' @param n Sample size.
+#' @param seed RNG seed.
+#' @return List with `data`, `truth_psi_with_tf` (under TF model).
+#' @noRd
+simulate_snm_point_tv_modifier <- function(n = 2000, seed = 42) {
+  set.seed(seed)
+  L <- stats::rnorm(n)
+  A <- stats::rnorm(n, mean = 0.5 * L, sd = 1)
+  M <- 0.3 * A + 0.5 * L + stats::rnorm(n, sd = sqrt(0.5))
+  eps <- stats::rnorm(n)
+  Y <- 2 + 3 * A + 1.5 * L + 2 * A * M + eps
+
+  data <- data.table::data.table(Y = Y, A = A, L = L, M = M)
+  list(
+    data = data,
+    truth_psi_with_tf = c(psi_intercept = 3, psi_M = 2)
+  )
+}
+
+
+#' Point-treatment SNM DGP with binary treatment and TV modifier
+#'
+#'   L ~ N(0, 1)
+#'   A | L ~ Bernoulli(expit(0.5 * L))
+#'   M = 0.5 * A + 0.5 * L + eps_M, eps_M ~ N(0, 0.5)
+#'   Y = 2 + 3*A + 1.5*L + 2*A*M + eps_Y, eps_Y ~ N(0, 1)
+#'
+#' With treatment-free model ~L: psi_0 = 3, psi_M = 2.
+#'
+#' @param n Sample size.
+#' @param seed RNG seed.
+#' @return List with `data`, `truth_psi_with_tf`.
+#' @noRd
+simulate_snm_point_tv_modifier_binary <- function(n = 2000, seed = 42) {
+  set.seed(seed)
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, stats::plogis(0.5 * L))
+  M <- 0.5 * A + 0.5 * L + stats::rnorm(n, sd = sqrt(0.5))
+  eps <- stats::rnorm(n)
+  Y <- 2 + 3 * A + 1.5 * L + 2 * A * M + eps
+
+  data <- data.table::data.table(Y = Y, A = A, L = L, M = M)
+  list(
+    data = data,
+    truth_psi_with_tf = c(psi_intercept = 3, psi_M = 2)
+  )
+}
+
+
+#' Longitudinal SNM DGP: 2-period, binary treatment, no EM
+#'
+#' Per-stage backward-sequential estimation (Robins 1994). Each
+#' stage has its own blip parameter estimated via backward induction.
+#'
+#'   L_0 ~ N(0, 1)
+#'   A_0 | L_0 ~ Bernoulli(expit(0.3 * L_0))
+#'   L_1 = 0.5 * L_0 + 0.3 * A_0 + eps_L,  eps_L ~ N(0, sqrt(0.5))
+#'   A_1 | L_1, A_0 ~ Bernoulli(expit(0.3 * L_1 + 0.2 * A_0))
+#'   Y = 2 + 3 * A_0 + 3 * A_1 + 1.5 * L_0 + 0.5 * L_1 + eps_Y
+#'
+#' The stage-0 blip captures the total causal effect of \eqn{A_0} on
+#' \eqn{Y} holding \eqn{A_1} fixed, which includes the mediated path
+#' \eqn{A_0 \to L_1 \to Y} (coefficient \eqn{0.3 \times 0.5 = 0.15}).
+#' DTRreg confirms convergence to these values at n = 500k.
+#'
+#' Truth (per-stage): stage0_psi_intercept = 3.15,
+#'   stage1_psi_intercept = 3
+#'
+#' @param n Number of individuals.
+#' @param seed RNG seed.
+#' @return List with `data`, `truth_psi` (named vector of per-stage
+#'   blip parameters).
+#' @noRd
+simulate_snm_longitudinal <- function(n = 2000, seed = 42) {
+  set.seed(seed)
+
+  L0 <- stats::rnorm(n)
+  A0 <- stats::rbinom(n, 1, stats::plogis(0.3 * L0))
+
+  # A_0 -> L_1 coefficient = 0.3; L_1 -> Y coefficient = 0.5
+  # So the mediated A_0 -> L_1 -> Y path contributes 0.3 * 0.5 = 0.15
+  L1 <- 0.5 * L0 + 0.3 * A0 + stats::rnorm(n, sd = sqrt(0.5))
+  A1 <- stats::rbinom(n, 1, stats::plogis(0.3 * L1 + 0.2 * A0))
+
+  Y <- 2 + 3 * A0 + 3 * A1 + 1.5 * L0 + 0.5 * L1 + stats::rnorm(n)
+
+  # Interleave per-individual rows: (time 0, time 1) pairs
+  data <- data.table::data.table(
+    id = rep(seq_len(n), each = 2L),
+    time = rep(0:1, n),
+    Y = as.numeric(rbind(NA, Y)),
+    A = as.numeric(rbind(A0, A1)),
+    L = as.numeric(rbind(L0, L1))
+  )
+
+  # Stage-1 blip = 3 (direct A_1 -> Y)
+  # Stage-0 blip = 3 + 0.3 * 0.5 = 3.15 (direct + mediated A_0 -> L_1 -> Y)
+  list(
+    data = data,
+    truth_psi = c(
+      stage0_psi_intercept = 3.15,
+      stage1_psi_intercept = 3
+    )
+  )
+}
+
+
+#' Longitudinal SNM DGP: 2-period, continuous treatment, no EM
+#'
+#' Same structure as `simulate_snm_longitudinal()` but with Gaussian
+#' treatment models. Same mediation channel applies: the stage-0 blip
+#' includes the \eqn{A_0 \to L_1 \to Y} path.
+#'
+#'   L_0 ~ N(0, 1)
+#'   A_0 | L_0 ~ N(0.5 * L_0, 1)
+#'   L_1 = 0.5 * L_0 + 0.3 * A_0 + eps_L
+#'   A_1 | L_1, A_0 ~ N(0.3 * L_1 + 0.2 * A_0, 1)
+#'   Y = 2 + 3 * A_0 + 3 * A_1 + 1.5 * L_0 + 0.5 * L_1 + eps_Y
+#'
+#' Truth (per-stage): stage0_psi_intercept = 3.15,
+#'   stage1_psi_intercept = 3
+#'
+#' @param n Number of individuals.
+#' @param seed RNG seed.
+#' @return List with `data`, `truth_psi`.
+#' @noRd
+simulate_snm_longitudinal_continuous <- function(n = 2000, seed = 42) {
+  set.seed(seed)
+
+  L0 <- stats::rnorm(n)
+  A0 <- stats::rnorm(n, mean = 0.5 * L0, sd = 1)
+
+  L1 <- 0.5 * L0 + 0.3 * A0 + stats::rnorm(n, sd = sqrt(0.5))
+  A1 <- stats::rnorm(n, mean = 0.3 * L1 + 0.2 * A0, sd = 1)
+
+  Y <- 2 + 3 * A0 + 3 * A1 + 1.5 * L0 + 0.5 * L1 + stats::rnorm(n)
+
+  # Interleave per-individual rows: (time 0, time 1) pairs
+  data <- data.table::data.table(
+    id = rep(seq_len(n), each = 2L),
+    time = rep(0:1, n),
+    Y = as.numeric(rbind(NA, Y)),
+    A = as.numeric(rbind(A0, A1)),
+    L = as.numeric(rbind(L0, L1))
+  )
+
+  list(
+    data = data,
+    truth_psi = c(
+      stage0_psi_intercept = 3.15,
+      stage1_psi_intercept = 3
+    )
+  )
+}
+
+
+#' Longitudinal SNM DGP: 2-period, binary treatment, time-varying EM
+#'
+#' Headline Phase 18 demonstration: the stage-1 blip includes a
+#' time-varying modifier \eqn{M_1 = 1\{L_1 > 0\}} that is
+#' post-treatment (L_1 depends on A_0). SNMs handle this correctly;
+#' IPW-MSM conditioning on M_1 introduces collider bias.
+#'
+#' M_0 = 1{L_0 > 0} is baseline (not affected by treatment).
+#' Both stages share the same blip specification (intercept + M),
+#' so the `build_blip_design_matrix()` applies uniformly.
+#'
+#'   L_0 ~ N(0, 1),  M_0 = 1{L_0 > 0}
+#'   A_0 | L_0 ~ Bernoulli(expit(0.3 * L_0))
+#'   L_1 = 0.5 * L_0 + 0.3 * A_0 + eps_L,  eps_L ~ N(0, sqrt(0.5))
+#'   M_1 = 1{L_1 > 0}                       (post-treatment!)
+#'   A_1 | L_1, A_0 ~ Bernoulli(expit(0.3 * L_1 + 0.2 * A_0))
+#'   Y = 2 + 1*A_0 + 2*A_0*M_0 + 2*A_1 + 2*A_1*M_1
+#'       + 1.5*L_0 + 0.5*L_1 + eps_Y
+#'
+#' Stage-0 blip: gamma_0 = a_0 * (psi_00 + psi_0M * M_0)
+#'   psi_00 = 1 + 0.3*0.5 = 1.15 (direct + mediated A_0 -> L_1 -> Y)
+#'   psi_0M = 2 (direct A_0*M_0 coefficient; M_0 is baseline,
+#'     no mediation through it)
+#'
+#' Stage-1 blip: gamma_1 = a_1 * (psi_10 + psi_1M * M_1)
+#'   psi_10 = 2, psi_1M = 2  (direct coefficients)
+#'
+#' @param n Number of individuals.
+#' @param seed RNG seed.
+#' @return List with `data` (person-period data.table with columns
+#'   id, time, Y, A, L, M) and `truth_psi` (named numeric vector).
+#' @noRd
+simulate_snm_longitudinal_tv_em <- function(n = 2000, seed = 42) {
+  set.seed(seed)
+
+  L0 <- stats::rnorm(n)
+  M0 <- as.numeric(L0 > 0)
+  A0 <- stats::rbinom(n, 1, stats::plogis(0.3 * L0))
+
+  L1 <- 0.5 * L0 + 0.3 * A0 + stats::rnorm(n, sd = sqrt(0.5))
+  M1 <- as.numeric(L1 > 0)
+  A1 <- stats::rbinom(n, 1, stats::plogis(0.3 * L1 + 0.2 * A0))
+
+  Y <- 2 +
+    1 * A0 +
+    2 * A0 * M0 +
+    2 * A1 +
+    2 * A1 * M1 +
+    1.5 * L0 +
+    0.5 * L1 +
+    stats::rnorm(n)
+
+  data <- data.table::data.table(
+    id = rep(seq_len(n), each = 2L),
+    time = rep(0:1, n),
+    Y = as.numeric(rbind(NA, Y)),
+    A = as.numeric(rbind(A0, A1)),
+    L = as.numeric(rbind(L0, L1)),
+    M = as.numeric(rbind(M0, M1))
+  )
+
+  list(
+    data = data,
+    truth_psi = c(
+      stage0_psi_intercept = 1.15,
+      stage0_psi_M = 2,
+      stage1_psi_intercept = 2,
+      stage1_psi_M = 2
+    )
+  )
+}

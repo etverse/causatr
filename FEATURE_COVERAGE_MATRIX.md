@@ -141,6 +141,11 @@ Per-period treatment density chain $f(A_k \mid \bar A_{k-1}, \bar L_k)$ + cumula
 | bin | gauss | static (always vs never) + EM (`A:sex`) | 2 | sandwich | — | ✅ ATE\|sex=0 = 5, ATE\|sex=1 = 8 | test-longitudinal-ipw.R |
 | bin | gauss | static (always vs never) + EM (`A:sex`) | 2 | sandwich | — | ✅ vs ICE EM | test-longitudinal-ipw.R |
 | (EM structure) | — | per-period propensity strips `A:sex`; MSM expands to `Y ~ 1 + sex` | 2 | — | — | ✅ formula check | test-longitudinal-ipw.R |
+| **MV binary** | gauss | static (both1 vs both0) | 2 | sandwich | — | ✅ SE ratio ~1 | test-longitudinal-ipw.R |
+| **MV binary** | gauss | static (both1 vs both0) | 2 | bootstrap | — | ✅ vs sandwich | test-longitudinal-ipw.R |
+| **MV cont** | gauss | shift + NULL (natural course) | 2 | sandwich | — | ✅ SE ratio ~1 | test-longitudinal-ipw.R |
+| **MV cont** | gauss | shift + NULL (natural course) | 2 | bootstrap | — | ✅ vs sandwich | test-longitudinal-ipw.R |
+| **MV binary** | gauss | static vs NULL (natural course) | 2 | sandwich | — | ✅ finite | test-longitudinal-ipw.R |
 
 **Known limitation (Phase 6, Robins 2000):** under longitudinal IPW the modifier MUST be a **baseline** covariate. A time-varying modifier in an MSM conditions on a post-treatment variable, biasing the estimand via mediator + collider paths. Not enforced at runtime (time-varying status isn't inferable from data); doc-level constraint only. The scientifically correct tool for time-varying effect modification is a structural nested model (Phase 18).
 
@@ -150,7 +155,8 @@ Rejections (all ✅ tested, "_pending" classed errors deferred to follow-up chun
 - `ipsi()` $\to$ test-longitudinal-ipw.R (`causatr_longitudinal_ipsi_pending`; per-period IPSI extension deferred)
 - `numerator =` without `stabilize = "marginal"` $\to$ test-longitudinal-ipw.R (`causatr_longitudinal_numerator_without_stabilize`)
 - bare treatment in confounders (`~ L + A`) $\to$ test-longitudinal-ipw.R (`causatr_bare_treatment_in_confounders`)
-- multivariate longitudinal IPW $\to$ test-longitudinal-ipw.R (`causatr_longitudinal_multivariate_pending`)
+- multivariate + stabilize $\to$ test-longitudinal-ipw.R (`causatr_longitudinal_mv_stabilize_pending`; Phase 19b)
+- multivariate + effect modification $\to$ test-longitudinal-ipw.R (`causatr_longitudinal_mv_em_pending`; Phase 19c)
 - ATT / ATC under longitudinal IPW $\to$ test-longitudinal-ipw.R (inherits `check_estimand_trt_compat`)
 - single-period data labelled `type = "longitudinal"` $\to$ test-longitudinal-ipw.R (`causatr_longitudinal_too_few_times`)
 
@@ -642,7 +648,7 @@ Composes Phase 2 gcomp + Phase 4 IPW into the classical analytical doubly-robust
 
 **Rejections (point, same as IPW):** static/threshold/dynamic on continuous → Dirac rejection ✅; stochastic (without `density`) → rejected ✅; stochastic (with `density`) → Phase 24.
 
-**Rejections (longitudinal):** multivariate → deferred ✅; ATT/ATC → rejected ✅.
+**Rejections (longitudinal):** multivariate + stabilize → deferred ✅; multivariate + EM → deferred ✅; multivariate IPSI → rejected ✅; ATT/ATC → rejected ✅.
 
 **Chunk 16o — AIPW + IPCW (triply-weighted DR)**
 
@@ -970,14 +976,211 @@ Third leg of the Robins triangle. Motivating use case: **correct handling of tim
 | No-EM inform (blip = constant ATE) | ✅ | test-snm.R |
 | Continuous treatment support | ✅ | test-snm.R |
 | Multivariate treatment → rejection (`causatr_snm_multivariate`) | ✅ | test-snm.R |
-| Longitudinal data → rejection (`causatr_snm_longitudinal_pending`) | ✅ | test-snm.R |
+| Longitudinal data accepted (`type = "longitudinal"`) | ✅ | test-snm.R |
 | `contrast(interventions=)` → rejection (`causatr_snm_no_interventions`) | ✅ | test-snm.R |
 | Missing treatment confounders → error | ✅ | test-snm.R |
 | `propensity_model_fn` default warning | ✅ | test-snm.R |
 | No `model_fn` default warning for SNM | ✅ | test-snm.R |
 | `build_blip_spec()` — no EM / single / multiple modifiers | ✅ | test-snm.R |
 
-**Remaining chunks (all ❌):** 18b (point estimation + sandwich), 18c (Phase 6 parser integration), 18d (longitudinal), 18e (TV-EM truth test), 18f (triangulation test), 18g (gesttools cross-check), 18h (categorical/count), 18i (bootstrap), 18j (S3 dispatch), 18k (documentation + vignette).
+**Chunk 18b — Point estimation, contrast, and sandwich variance (shipped)**
+
+| Feature | Status | Test |
+|---|---|---|
+| `compute_snm_blip_point()` — closed-form g-estimation | ✅ | test-snm.R |
+| `contrast(fit)` — blip parameter table (Path A) | ✅ | test-snm.R |
+| `contrast(fit, treatment_values = c(0, 1))` — averaged blip (Path B) | ✅ | test-snm.R |
+| `variance_if_snm()` — stacked EE sandwich | ✅ | test-snm.R |
+| Continuous trt + EM (design doc DGP) — truth | ✅ | test-snm.R |
+| Continuous trt + no EM — truth | ✅ | test-snm.R |
+| Binary trt + EM — truth | ✅ | test-snm.R |
+| Multiple modifiers (2 EM terms) — truth | ✅ | test-snm.R |
+| Large-sample convergence (n=20000) | ✅ | test-snm.R |
+| Sandwich SE vs manual bootstrap consistency | ✅ | test-snm.R |
+| delicatessen cross-check — continuous trt, EM | ✅ | test-snm.R |
+| delicatessen cross-check — binary trt, EM | ✅ | test-snm.R |
+| delicatessen cross-check — continuous trt, 2 modifiers | ✅ | test-snm.R |
+| DTRreg cross-check — binary trt, no EM (point + SE) | ✅ | test-snm.R |
+| `contrast(interventions=)` → rejection | ✅ | test-snm.R |
+| `ci_method = "bootstrap"` → rejection (pending 18i) | ✅ | test-snm.R |
+| `treatment_values` on non-SNM → rejection | ✅ | test-snm.R |
+| `treatment_values` length ≠ 2 → rejection | ✅ | test-snm.R |
+| Vcov dimensions and PSD | ✅ | test-snm.R |
+
+**Chunk 18b½ — Treatment-free outcome model for efficiency augmentation (shipped)**
+
+Joint estimation of (β, ψ) following Vansteelandt & Joffe (2014) and DTRreg's `tf.mod`. The treatment-free model E[Y | L] absorbs the L→Y variance, reducing SEs by 30–45% with unchanged point estimates.
+
+| Feature | Status | Test file |
+|---|---|---|
+| `treatment_free = ~ L` argument in `causat()` | ✅ | test-snm.R |
+| Joint (β, ψ) estimation in `compute_snm_blip_point()` | ✅ | test-snm.R |
+| 3-block sandwich: (α_trt, θ_joint = (β, ψ)) | ✅ | test-snm.R |
+| Continuous trt + EM + TF — truth | ✅ | test-snm.R |
+| No EM + TF — truth | ✅ | test-snm.R |
+| Binary trt + EM + TF — truth | ✅ | test-snm.R |
+| `treatment_values` + TF — averaged blip | ✅ | test-snm.R |
+| SE reduction across all DGPs (TF < no-TF) | ✅ | test-snm.R |
+| TF sandwich SE vs manual bootstrap consistency | ✅ | test-snm.R |
+| delicatessen cross-check — continuous trt, EM, TF | ✅ | test-snm.R |
+| delicatessen cross-check — binary trt, EM, TF | ✅ | test-snm.R |
+| delicatessen cross-check — continuous trt, 2 mods, TF | ✅ | test-snm.R |
+| DTRreg cross-check — binary trt, EM, TF (point + SE) | ✅ | test-snm.R |
+| DTRreg cross-check — binary trt, no EM, TF (point + SE) | ✅ | test-snm.R |
+| `treatment_free` on non-SNM → rejection (`causatr_treatment_free_not_snm`) | ✅ | test-snm.R |
+| `treatment_free` non-formula → rejection (`causatr_snm_bad_treatment_free`) | ✅ | test-snm.R |
+| Vcov PSD with TF model | ✅ | test-snm.R |
+
+**Chunk 18c — Time-varying (post-treatment) effect modification (shipped)**
+
+SNMs identify the blip under treatment-model correctness alone, so modifiers that depend on treatment (post-treatment) are valid — unlike IPW-MSM, which conditions on a descendant of A (collider bias; Robins 2000). This chunk adds truth-based tests, delicatessen cross-checks, DTRreg cross-checks, and an IPW bias demonstration on DGPs with genuinely post-treatment modifiers.
+
+| Feature | Status | Test file |
+|---|---|---|
+| Continuous trt + TV modifier + TF — truth (ψ₀ = 3, ψ_M = 2) | ✅ | test-snm.R |
+| Binary trt + TV modifier + TF — truth | ✅ | test-snm.R |
+| TV modifier without TF — runs, different blip quantity | ✅ | test-snm.R |
+| TF model reduces SEs on TV modifier DGP | ✅ | test-snm.R |
+| delicatessen cross-check — continuous trt, TV modifier, no TF | ✅ | test-snm.R |
+| delicatessen cross-check — continuous trt, TV modifier, TF | ✅ | test-snm.R |
+| delicatessen cross-check — binary trt, TV modifier, no TF | ✅ | test-snm.R |
+| delicatessen cross-check — binary trt, TV modifier, TF | ✅ | test-snm.R |
+| DTRreg cross-check — binary trt, TV modifier, TF | ✅ | test-snm.R |
+| IPW biased with post-treatment modifier (SNM is not) | ✅ | test-snm.R |
+| Vcov PSD for TV modifier (no TF) | ✅ | test-snm.R |
+| Vcov PSD for TV modifier (with TF) | ✅ | test-snm.R |
+
+**Chunk 18d — Longitudinal SNMM with per-stage blip estimation (shipped)**
+
+Backward sequential g-estimation (Robins 1994): per-stage blip parameters estimated by backward induction from stage K to stage 0. Cluster-robust sandwich with cross-stage derivatives. DTRreg cross-check validates point estimates.
+
+| Feature | Status | Test file |
+|---|---|---|
+| `compute_snm_blip_longitudinal()` — backward sequential estimation | ✅ | test-snm.R |
+| Per-stage blip parameters (`stage0_psi_intercept`, ...) | ✅ | test-snm.R |
+| Binary treatment, 2-period DGP — truth (ψ₀ = 3.15, ψ₁ = 3) | ✅ | test-snm.R |
+| Continuous treatment, 2-period DGP — truth | ✅ | test-snm.R |
+| `variance_if_snm_longitudinal()` — cluster-robust sandwich | ✅ | test-snm.R |
+| Sandwich SE vs cluster bootstrap consistency | ✅ | test-snm.R |
+| Vcov dimensions (K×p_psi × K×p_psi) and PSD | ✅ | test-snm.R |
+| DTRreg cross-check — binary trt, 2-period | ✅ | test-snm.R |
+| Treatment-free model accepted (point estimates consistent) | ✅ | test-snm.R |
+| TF joint (β,ψ) variance — psi marginal extraction | ✅ | test-snm.R |
+| TF variance efficiency gain when E[R·Z] ≠ 0 | ✅ | test-snm.R |
+| `treatment_values` rejected for longitudinal | ✅ | test-snm.R |
+| Bootstrap accepted (smoke test) | ✅ | test-snm.R |
+| `< 2 time points` → rejection | ✅ | test-snm.R |
+| `n_obs` and metadata in result | ✅ | test-snm.R |
+
+**delicatessen reference CSV:** `tests/testthat/fixtures/snm_delicatessen_reference.csv` (10 scenarios, generated by `data-raw/snm_reference.py`).
+
+**Chunk 18e — Longitudinal time-varying EM truth-based test (shipped)**
+
+Headline scientific demonstration: time-varying modifier $M_1 = 1\{L_1 > 0\}$ is post-treatment ($L_1$ depends on $A_0$). SNMs identify blip parameters correctly; IPW-MSM conditioning on $M_1$ is biased (collider bias). DGP: `simulate_snm_longitudinal_tv_em()` with truth $\psi_{00} = 1.15$, $\psi_{0M} = 2$, $\psi_{10} = 2$, $\psi_{1M} = 2$.
+
+| Feature | Status | Test |
+|---|---|---|
+| Per-stage blip with TV modifier — truth (4 params) | ✅ | test-snm.R |
+| TF model + TV-EM: same truth, tighter SEs | ✅ | test-snm.R |
+| DTRreg cross-check — TV-EM, `history=0` for exact PS match | ✅ | test-snm.R |
+| IPW biased with post-treatment modifier; SNM is not | ✅ | test-snm.R |
+| Vcov PSD and correct size (4×4) for TV-EM | ✅ | test-snm.R |
+| Sandwich SE vs cluster bootstrap for TV-EM | ✅ | test-snm.R |
+
+**Chunk 18f — Triangulation tests + delicatessen cross-check + `history = 0` (shipped)**
+
+Validates the Robins triangle invariant: under correct specification and no TV-EM, SNM blip sum = IPW-MSM ATE = ICE g-comp ATE for binary static interventions. Also adds `delicatessen` cross-language reference values and `history = 0` (no-lag) support for all longitudinal estimators.
+
+| Feature | Status | Test |
+|---|---|---|
+| SNM blip sum ≈ IPW ATE (binary, no EM, n=5000) | ✅ | test-snm-triangulation.R |
+| SNM blip sum ≈ ICE ATE (binary, no EM, n=5000) | ✅ | test-snm-triangulation.R |
+| 3-way triangulation: SNM ≈ IPW ≈ ICE (n=8000, tighter tol) | ✅ | test-snm-triangulation.R |
+| SNM correct but IPW biased with TV-EM (negative control) | ✅ | test-snm-triangulation.R |
+| delicatessen cross-check — base (no EM, no TF) point + SE | ✅ | test-snm-triangulation.R |
+| delicatessen cross-check — TF (no EM, treatment-free ~L) point + SE | ✅ | test-snm-triangulation.R |
+| delicatessen cross-check — TV-EM + TF (A:M modifier, treatment-free ~L) point + SE | ✅ | test-snm-triangulation.R |
+| `history = 0` — longitudinal IPW (no lags, ATE recovery) | ✅ | test-snm-triangulation.R |
+| `history = 0` — longitudinal ICE (no lags, finite output) | ✅ | test-snm-triangulation.R |
+| `history = 0` — longitudinal SNM (no lags, blip recovery) | ✅ | test-snm.R |
+| `history` validator: non-negative integer or Inf | ✅ | test-checks.R, test-causat.R |
+
+**delicatessen fixtures:** `tests/testthat/fixtures/snm_longitudinal_delicatessen.csv` (base), `snm_longitudinal_tf_delicatessen.csv` (TF), `snm_longitudinal_tv_em_delicatessen.csv` (TV-EM + TF). Generated by `data-raw/snm_longitudinal_reference.py` from shared fixtures in `data-raw/`.
+
+**Chunk 18i — Bootstrap variance for SNM (shipped)**
+
+Bootstrap variance for point and longitudinal SNM estimators. Point bootstrap resamples rows and re-solves the g-estimating equation (with or without treatment-free model). Longitudinal bootstrap uses ID-clustered resampling + full `fit_snm()` refit. Forwards per-component confounders (`confounders_outcome`, `confounders_tv_*`) to ensure correct blip spec on bootstrap replicates. `treatment_values` path bootstraps the averaged blip effect directly (scalar statistic, no delta method needed).
+
+| Test | Status | File |
+|---|---|---|
+| Point bootstrap SE consistent with sandwich (continuous, EM) | ✅ | test-snm-bootstrap.R |
+| Point bootstrap no EM (single psi) | ✅ | test-snm-bootstrap.R |
+| Point bootstrap + treatment-free: SE consistent | ✅ | test-snm-bootstrap.R |
+| Point bootstrap with `treatment_values` | ✅ | test-snm-bootstrap.R |
+| Point bootstrap: binary treatment + EM | ✅ | test-snm-bootstrap.R |
+| Longitudinal bootstrap SE consistent with sandwich | ✅ | test-snm-bootstrap.R |
+| Longitudinal bootstrap + treatment-free | ✅ | test-snm-bootstrap.R |
+| Longitudinal bootstrap with TV-EM (`confounders_outcome`) | ✅ | test-snm-bootstrap.R |
+| Bootstrap accepted (previously rejected) smoke test | ✅ | test-snm-bootstrap.R |
+
+**Chunk 18h — Categorical and count treatment extensions (shipped)**
+
+Extends SNM g-estimation to categorical (k>2, multinomial residualisation via `nnet::multinom`) and count (Poisson/NB, scalar residual R = A − λ̂) treatment types. `snm_treatment_design()` abstracts treatment design matrices (AM, RM) uniformly across all treatment types. For categorical, psi expands to (K−1) blocks with per-level indicators and multinomial residuals. `treatment_values` is rejected for categorical SNM (per-level blip parameters are the estimand).
+
+| Test | Status | File |
+|---|---|---|
+| Poisson count trt, no EM — truth (ψ = 0.5) | ✅ | test-snm.R |
+| Poisson count trt + EM — truth (ψ₀ = 0.5, ψ_M = 0.3) | ✅ | test-snm.R |
+| Poisson sandwich SE vs bootstrap consistency | ✅ | test-snm.R |
+| Poisson + TF model — truth | ✅ | test-snm.R |
+| Poisson + `treatment_values` — averaged blip | ✅ | test-snm.R |
+| Longitudinal Poisson — per-stage truth | ✅ | test-snm.R |
+| 3-level categorical, no EM — truth (ψ₁ = 0.8, ψ₂ = 1.5) | ✅ | test-snm.R |
+| Categorical + EM — 4 blip params (per-level × per-modifier) | ✅ | test-snm.R |
+| Categorical sandwich SE vs bootstrap consistency | ✅ | test-snm.R |
+| Categorical + TF model — truth | ✅ | test-snm.R |
+| Categorical vcov PSD and correct dimensions | ✅ | test-snm.R |
+| `treatment_values` rejected for categorical (`causatr_snm_cat_no_treatment_values`) | ✅ | test-snm.R |
+| Longitudinal categorical — per-stage per-level truth | ✅ | test-snm.R |
+
+**Chunk 18j — S3 dispatch for SNM results (shipped)**
+
+| Feature | Status | Test |
+|---|---|---|
+| `print.causatr_result()` — "Blip parameters" header for SNM Path A | ✅ | test-s3-methods.R |
+| `print.causatr_result()` — "Averaged blip effect" for SNM Path B | ✅ | test-s3-methods.R |
+| `print.causatr_result()` — "Per-stage blip parameters" for longitudinal SNM | ✅ | test-s3-methods.R |
+| `summary.causatr_result()` — skips intervention details for SNM + blip vcov label | ✅ | test-s3-methods.R |
+| `coef.causatr_result()` — returns named blip parameter vector | ✅ | test-s3-methods.R |
+| `tidy.causatr_result()` — handles `parameter` column, type = "parameter" | ✅ | test-s3-methods.R |
+| `tidy.causatr_result()` — SNM Path B (averaged blip) | ✅ | test-s3-methods.R |
+| `glance.causatr_result()` — works for SNM | ✅ | test-s3-methods.R |
+| `plot.causatr_result()` — forest plot with "Parameter" header + ref_line = 0 | ✅ | test-s3-methods.R |
+| `plot.causatr_result()` — longitudinal SNM title variation | ✅ | test-s3-methods.R |
+
+**Phase 18 COMPLETE.** All chunks shipped (18a–18f, 18h–18k). 18g dropped (gesttools archived).
+
+### Phase 19-trim — Cross-cutting weight truncation (shipped)
+
+`trim =` argument on `contrast()`. Winsorizes per-component density ratios at the `trim`-th quantile before products (Cole & Hernan 2008; lmtp default 0.999).
+
+| Feature | Status | Test |
+|---|---|---|
+| `truncate_weights()` helper: trim=1 no-op | ✅ | test-ipw-weights.R |
+| `truncate_weights()` helper: clips at quantile | ✅ | test-ipw-weights.R |
+| Point IPW + trim: max weight reduced | ✅ | test-ipw-weights.R |
+| Continuous IPW shift + trim | ✅ | test-ipw-weights.R |
+| IPSI + trim | ✅ | test-ipw-weights.R |
+| `make_weight_fn` closure agrees at alpha_hat with trim | ✅ | test-ipw-weights.R |
+| Multivariate IPW + trim | ✅ | test-ipw-weights.R |
+| Sandwich SE agrees with bootstrap under trim | ✅ | test-ipw-weights.R |
+| Monotonic max-weight reduction (0.999 > 0.99 > 0.95) | ✅ | test-ipw-weights.R |
+| Near-positivity DGP: trim stabilizes extreme weights | ✅ | test-ipw-weights.R |
+| AIPW + trim: doubly-robust property preserved | ✅ | test-ipw-weights.R |
+| Longitudinal IPW + trim | ✅ | test-longitudinal-ipw.R |
+| Longitudinal IPW + trim + bootstrap | ✅ | test-longitudinal-ipw.R |
+| MV IPW + trim: lmtp_sdr cross-check | ✅ | test-ipw-weights.R |
+| Long IPW + trim: lmtp_sdr cross-check | ✅ | test-longitudinal-ipw.R |
 
 ### `causat_mice()` — Multiple imputation
 Pool across `mice` imputations via Rubin's rules. All ❌.

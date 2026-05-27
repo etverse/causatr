@@ -39,7 +39,8 @@ variance_if_ipw <- function(
   mu_hat,
   fit_idx_full,
   n_total,
-  cluster_vec = NULL
+  cluster_vec = NULL,
+  trim = 1
 ) {
   int_names <- names(bundles)
   data <- fit$data
@@ -167,7 +168,8 @@ variance_if_ipw <- function(
         treatment_models = tms_local,
         data = fit_data_local,
         interventions = b$intervention,
-        estimand = "ATE"
+        estimand = "ATE",
+        trim = trim
       )
       wfn <- mv_closure$weight_fn
 
@@ -211,7 +213,8 @@ variance_if_ipw <- function(
       tm,
       fit_data_local,
       b$intervention,
-      estimand = estimand
+      estimand = estimand,
+      trim = trim
     )
 
     # The base weight closure covers only the density-ratio piece.
@@ -510,7 +513,8 @@ compute_ipw_if_self_contained_one <- function(
         "). The IPW sandwich engine assumes the MSM fits on the same ",
         "row set as the full data. Drop NA rows in `causat()` before ",
         "the IPW path builds the MSM."
-      )
+      ),
+      class = "causatr_variance_row_mismatch"
     )
   }
   if (nrow(prop_prep$X_fit) != n_total) {
@@ -521,7 +525,8 @@ compute_ipw_if_self_contained_one <- function(
         ") != n_total (",
         n_total,
         "). Same row-alignment invariant as the MSM above."
-      )
+      ),
+      class = "causatr_variance_row_mismatch"
     )
   }
 
@@ -602,6 +607,15 @@ compute_ipw_if_self_contained_mv_one <- function(
   msm_res <- apply_model_correction(msm_prep, J)
   n_fit <- nrow(msm_prep$X_fit)
 
+  # Natural course (NULL) for all K components: weight function is
+
+  # constant (all ones), so no propensity parameters exist and the
+  # cross-derivative A_{beta,alpha} is vacuous. Skip the jacobian
+  # and return only the MSM correction + Ch1 (sampling channel).
+  if (length(alpha_hat_stacked) == 0L) {
+    return(Ch1_i + msm_res$correction)
+  }
+
   # ---- Stacked cross-derivative via numDeriv ---------------------
   # phi_bar(alpha) = (1/n_fit) sum_i psi_beta_i(alpha, beta_hat).
   # Same shape as the univariate case; only `weight_fn` is the
@@ -664,7 +678,8 @@ compute_ipw_if_self_contained_mv_one <- function(
         ") != n_total (",
         n_total,
         "). Multivariate IPW assumes the MSM and every propensity model fit on the same rows."
-      )
+      ),
+      class = "causatr_variance_row_mismatch"
     )
   }
 
@@ -710,7 +725,8 @@ variance_if_ipw_longitudinal <- function(
   fit,
   bundles,
   target_within_first,
-  cluster_vec = NULL
+  cluster_vec = NULL,
+  trim = 1
 ) {
   int_names <- names(bundles)
   details <- fit$details
@@ -816,7 +832,8 @@ variance_if_ipw_longitudinal <- function(
       id_col = id_col,
       intervention = intervention,
       estimand = "ATE",
-      numerator_models_by_time = numerator_models_by_time
+      numerator_models_by_time = numerator_models_by_time,
+      trim = trim
     )
 
     # The longitudinal weight closure operates at id-level (length n_id),
@@ -994,47 +1011,106 @@ compute_ipw_if_self_contained_long_one <- function(
   }
 
   # ---- Per-period propensity corrections -------------------------
-  # The K propensity models are fit on disjoint row subsets, so the
-  # stacked propensity bread is block-diagonal -- the propensity
-  # correction is the SUM over periods of
-  # `apply_model_correction(prop_prep_k, g_prop_k)`. Each
-  # per-period correction lives in its own row space (length
-  # n_period_k); we project back to id-space.
-  K <- length(treatment_models_by_time)
+  # The propensity models are fit on disjoint row subsets (one per
+  # period), so the stacked propensity bread is block-diagonal.
+  # For univariate: each period contributes one propensity block.
+  # For multivariate: each period contributes K_comp sub-blocks (one
+  # per treatment component), all fit on the same period-k rows. We
+  # iterate over periods, then over components within each period.
+  n_periods <- length(treatment_models_by_time)
+  is_mv <- inherits(
+    treatment_models_by_time[[1L]],
+    "causatr_treatment_models"
+  )
   total_prop_correction_id <- rep(0, n_id)
 
-  for (k in seq_len(K)) {
-    idx <- alpha_offsets[k]:(alpha_offsets[k + 1L] - 1L)
-    A_block_k <- A_beta_alpha[, idx, drop = FALSE]
-    g_prop_k <- as.numeric(crossprod(A_block_k, h_msm_true))
+  for (k in seq_len(n_periods)) {
+    period_idx <- alpha_offsets[k]:(alpha_offsets[k + 1L] - 1L)
+    A_block_period <- A_beta_alpha[, period_idx, drop = FALSE]
 
     tm_k <- treatment_models_by_time[[k]]
     data_k <- fit_data_by_time[[k]]
     ids_k <- as.character(data_k[[id_col]])
-    period_ids <- ids_k[tm_k$fit_rows]
-    # `pos_k` maps each period-k fitted individual to its canonical id index.
-    # Needed because period-k rows may be in a different id order than ids_first.
-    pos_k <- match(period_ids, ids_first)
-    n_period_k <- length(period_ids)
 
-    prop_model_k <- tm_k$model
-    prop_prep_k <- if (inherits(prop_model_k, "multinom")) {
-      prepare_model_if_multinom(prop_model_k, seq_len(n_period_k), n_period_k)
+    if (is_mv) {
+      # Multivariate: tm_k is a causatr_treatment_models list of
+      # K_comp per-component models. Sub-slice the period block into
+      # per-component blocks and apply corrections independently.
+      K_comp <- length(tm_k)
+      period_ids <- ids_k[tm_k[[1L]]$fit_rows]
+      pos_k <- match(period_ids, ids_first)
+      n_period_k <- length(period_ids)
+
+      comp_lens <- vapply(
+        tm_k,
+        function(m) length(m$alpha_hat),
+        integer(1)
+      )
+      comp_offsets <- c(1L, cumsum(comp_lens) + 1L)
+
+      for (j in seq_len(K_comp)) {
+        comp_idx <- comp_offsets[j]:(comp_offsets[j + 1L] - 1L)
+        A_block_j <- A_block_period[, comp_idx, drop = FALSE]
+        g_prop_j <- as.numeric(crossprod(A_block_j, h_msm_true))
+
+        prop_model_j <- tm_k[[j]]$model
+        prop_prep_j <- if (inherits(prop_model_j, "multinom")) {
+          prepare_model_if_multinom(
+            prop_model_j,
+            seq_len(n_period_k),
+            n_period_k
+          )
+        } else {
+          prepare_model_if(
+            prop_model_j,
+            seq_len(n_period_k),
+            n_period_k
+          )
+        }
+        prop_res_j <- apply_model_correction(prop_prep_j, g_prop_j)
+
+        correction_id <- numeric(n_id)
+        correction_id[pos_k] <- prop_res_j$correction
+        if (n_period_k != n_id) {
+          correction_id <- correction_id * (n_id / n_period_k)
+        }
+        total_prop_correction_id <-
+          total_prop_correction_id + correction_id
+      }
     } else {
-      # prepare_model_if expects fit_idx relative to the model's own row set;
-      # period-k rows are already aligned to the model's frame so seq_len suffices.
-      prepare_model_if(prop_model_k, seq_len(n_period_k), n_period_k)
-    }
-    prop_res_k <- apply_model_correction(prop_prep_k, g_prop_k)
+      # Univariate: one propensity model per period.
+      g_prop_k <- as.numeric(
+        crossprod(A_block_period, h_msm_true)
+      )
 
-    # Project period-k correction (n_period_k-scaled) onto id-space (n_id-scaled).
-    # n_id/n_period_k = 1 under the complete-case bijection; kept for robustness.
-    correction_id <- numeric(n_id)
-    correction_id[pos_k] <- prop_res_k$correction
-    if (n_period_k != n_id) {
-      correction_id <- correction_id * (n_id / n_period_k)
+      period_ids <- ids_k[tm_k$fit_rows]
+      pos_k <- match(period_ids, ids_first)
+      n_period_k <- length(period_ids)
+
+      prop_model_k <- tm_k$model
+      prop_prep_k <- if (inherits(prop_model_k, "multinom")) {
+        prepare_model_if_multinom(
+          prop_model_k,
+          seq_len(n_period_k),
+          n_period_k
+        )
+      } else {
+        prepare_model_if(
+          prop_model_k,
+          seq_len(n_period_k),
+          n_period_k
+        )
+      }
+      prop_res_k <- apply_model_correction(prop_prep_k, g_prop_k)
+
+      correction_id <- numeric(n_id)
+      correction_id[pos_k] <- prop_res_k$correction
+      if (n_period_k != n_id) {
+        correction_id <- correction_id * (n_id / n_period_k)
+      }
+      total_prop_correction_id <-
+        total_prop_correction_id + correction_id
     }
-    total_prop_correction_id <- total_prop_correction_id + correction_id
   }
 
   # Block-lower-triangular M-estimation:

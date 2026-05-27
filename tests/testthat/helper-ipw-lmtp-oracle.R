@@ -36,19 +36,17 @@ lmtp_oracle_shift <- function(data, outcome, treatment, baseline, delta) {
     data[[trt]] + delta
   }
 
-  fit <- suppressWarnings(suppressMessages(
-    lmtp::lmtp_sdr(
-      data = data,
-      trt = treatment,
-      outcome = outcome,
-      baseline = baseline,
-      shift = shift_fn,
-      outcome_type = "continuous",
-      learners_trt = "SL.glm",
-      learners_outcome = "SL.glm",
-      folds = 1
-    )
-  ))
+  fit <- lmtp::lmtp_sdr(
+    data = data,
+    trt = treatment,
+    outcome = outcome,
+    baseline = baseline,
+    shift = shift_fn,
+    outcome_type = "continuous",
+    learners_trt = "SL.glm",
+    learners_outcome = "SL.glm",
+    folds = 1
+  )
 
   # lmtp >= 1.5 stores the point estimate in an S4 `influence_func_estimate`
   # object at `fit$estimate@x`.

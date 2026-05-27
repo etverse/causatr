@@ -32,6 +32,7 @@ website:
           - vignettes/gcomp.qmd
           - vignettes/ipw.qmd
           - vignettes/matching.qmd
+          - vignettes/snm.qmd
       - section: Interventions
         contents:
           - text: "Intervention types"
@@ -40,7 +41,9 @@ website:
         contents:
           - vignettes/triangulation.qmd
           - vignettes/longitudinal.qmd
+          - vignettes/transportability.qmd
           - vignettes/missing-data.qmd
+          - vignettes/diagnostics.qmd
           - vignettes/validation.qmd
       - section: Theory
         contents:

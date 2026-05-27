@@ -144,7 +144,7 @@ test_that("stochastic gcomp: binary treatment, gaussian outcome", {
     ci_method = "sandwich"
   )
   mu_g <- unname(coef(res)["g"])
-  expect_equal(mu_g, dgp$truth, tolerance = 0.35)
+  expect_equal(mu_g, dgp$truth, tolerance = 0.05)
   ci <- confint(res)
   expect_true(ci["g", 1] <= dgp$truth && dgp$truth <= ci["g", 2])
 })
@@ -191,7 +191,7 @@ test_that("stochastic gcomp: continuous treatment, gaussian outcome", {
     ci_method = "sandwich"
   )
   mu_g <- unname(coef(res)["g"])
-  expect_equal(mu_g, dgp$truth, tolerance = 0.35)
+  expect_equal(mu_g, dgp$truth, tolerance = 0.05)
   ci <- confint(res)
   expect_true(ci["g", 1] <= dgp$truth && dgp$truth <= ci["g", 2])
 })
@@ -238,7 +238,7 @@ test_that("stochastic gcomp: categorical treatment, gaussian outcome", {
     ci_method = "sandwich"
   )
   mu_g <- unname(coef(res)["g"])
-  expect_equal(mu_g, dgp$truth, tolerance = 0.35)
+  expect_equal(mu_g, dgp$truth, tolerance = 0.05)
   ci <- confint(res)
   expect_true(ci["g", 1] <= dgp$truth && dgp$truth <= ci["g", 2])
 })
@@ -266,7 +266,7 @@ test_that("stochastic gcomp: multivariate treatment, gaussian outcome", {
     ci_method = "sandwich"
   )
   mu_g <- unname(coef(res)["g"])
-  expect_equal(mu_g, dgp$truth, tolerance = 0.35)
+  expect_equal(mu_g, dgp$truth, tolerance = 0.05)
 })
 
 test_that("stochastic gcomp: binomial outcome, ratio contrast", {
@@ -435,7 +435,7 @@ test_that("stochastic gcomp: GAM model", {
     ci_method = "sandwich"
   )
   mu_g <- unname(coef(res)["g"])
-  expect_equal(mu_g, dgp$truth, tolerance = 0.3)
+  expect_equal(mu_g, dgp$truth, tolerance = 0.05)
 })
 
 test_that("stochastic gcomp: Poisson outcome, ratio contrast", {
@@ -548,7 +548,7 @@ test_that("stochastic gcomp: continuous shift vs deterministic shift oracle", {
   expect_equal(
     unname(coef(res_stoch)["g"]),
     unname(coef(res_det)["g"]),
-    tolerance = 0.3
+    tolerance = 0.05
   )
 })
 
@@ -577,8 +577,8 @@ test_that("stochastic gcomp: mixed interventions (stochastic + static)", {
   # mu_g should be between static(0) and static(1)
   expect_true(mu["a0"] < mu["g"] && mu["g"] < mu["a1"])
   # Static means should match known DGP truths
-  expect_equal(unname(mu["a1"]), 5, tolerance = 0.35)
-  expect_equal(unname(mu["a0"]), 2, tolerance = 0.35)
+  expect_equal(unname(mu["a1"]), 5, tolerance = 0.05)
+  expect_equal(unname(mu["a0"]), 2, tolerance = 0.05)
 })
 
 # -- Chunk 4: ICE (longitudinal) MC integration ------------------------------
@@ -604,7 +604,7 @@ test_that("stochastic ICE: binary treatment, gaussian, 2 periods", {
     ci_method = "sandwich"
   )
   mu_g <- unname(coef(res)["g"])
-  expect_equal(mu_g, dgp$truth, tolerance = 0.3)
+  expect_equal(mu_g, dgp$truth, tolerance = 0.05)
   ci <- confint(res)
   expect_true(ci["g", 1] <= dgp$truth && dgp$truth <= ci["g", 2])
 })
@@ -638,7 +638,7 @@ test_that("stochastic ICE: binary/gaussian, bootstrap CI covers truth", {
 
 test_that("stochastic ICE: continuous treatment, gaussian, 2 periods", {
   skip_on_cran()
-  dgp <- simulate_stochastic_ice_continuous_gaussian(n = 500, seed = 42)
+  dgp <- simulate_stochastic_ice_continuous_gaussian(n = 1000, seed = 42)
   fit <- causat(
     dgp$data,
     outcome = "Y",
@@ -657,7 +657,7 @@ test_that("stochastic ICE: continuous treatment, gaussian, 2 periods", {
     ci_method = "sandwich"
   )
   mu_g <- unname(coef(res)["g"])
-  expect_equal(mu_g, dgp$truth, tolerance = 0.3)
+  expect_equal(mu_g, dgp$truth, tolerance = 0.05)
 })
 
 test_that("stochastic ICE: reproducible with set.seed()", {

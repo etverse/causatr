@@ -18,7 +18,9 @@ print.causatr_fit <- function(x, ...) {
     x$estimator,
     gcomp = "G-computation",
     ipw = "IPW",
+    aipw = "AIPW (doubly-robust)",
     matching = "Matching (MatchIt)",
+    snm = "SNM (g-estimation)",
     x$estimator
   )
   family_label <- format_family(x$family)
@@ -149,7 +151,9 @@ print.causatr_result <- function(x, ...) {
     x$estimator,
     gcomp = "G-computation",
     ipw = "IPW",
+    aipw = "AIPW (doubly-robust)",
     matching = "Matching",
+    snm = "SNM (g-estimation)",
     x$estimator
   )
   type_label <- switch(
@@ -217,26 +221,51 @@ print.causatr_result <- function(x, ...) {
     )
   }
 
-  # When `by = ...` was used, `contrast()` adds a `by` column to both
-  # `x$estimates` and `x$contrasts`. Detecting it via column presence
-  # (rather than a separate slot) lets `print()` adapt without requiring
-  # callers to pass any extra flag.
-  has_by <- "by" %in% names(x$estimates)
+  # SNM results use a different layout: the estimates table contains
+  # blip parameters (column "parameter"), not intervention means.
+  is_snm <- identical(x$estimator, "snm")
 
-  if (has_by) {
-    cat("\nIntervention means (by subgroup):\n")
+  if (is_snm) {
+    is_avg_blip <- "parameter" %in%
+      names(x$estimates) &&
+      nrow(x$estimates) == 1L &&
+      identical(x$estimates$parameter[1L], "avg_blip_effect")
+    if (is_avg_blip) {
+      cat("\nAveraged blip effect:\n")
+    } else if (identical(x$fit_type, "longitudinal")) {
+      cat("\nPer-stage blip parameters:\n")
+    } else {
+      cat("\nBlip parameters:\n")
+    }
+    print(x$estimates, digits = 3)
+    # Only show contrasts if non-empty (Path B produces a row).
+    if (nrow(x$contrasts) > 0L) {
+      cat("\nContrasts:\n")
+      print(x$contrasts, digits = 3)
+    }
+    invisible(x)
   } else {
-    cat("\nIntervention means:\n")
-  }
-  print(x$estimates, digits = 3)
+    # When `by = ...` was used, `contrast()` adds a `by` column to both
+    # `x$estimates` and `x$contrasts`. Detecting it via column presence
+    # (rather than a separate slot) lets `print()` adapt without requiring
+    # callers to pass any extra flag.
+    has_by <- "by" %in% names(x$estimates)
 
-  if (has_by) {
-    cat("\nContrasts (by subgroup):\n")
-  } else {
-    cat("\nContrasts:\n")
+    if (has_by) {
+      cat("\nIntervention means (by subgroup):\n")
+    } else {
+      cat("\nIntervention means:\n")
+    }
+    print(x$estimates, digits = 3)
+
+    if (has_by) {
+      cat("\nContrasts (by subgroup):\n")
+    } else {
+      cat("\nContrasts:\n")
+    }
+    print(x$contrasts, digits = 3)
+    invisible(x)
   }
-  print(x$contrasts, digits = 3)
-  invisible(x)
 }
 
 #' Print causatr diagnostics

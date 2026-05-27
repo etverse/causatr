@@ -18,15 +18,18 @@
 #' @seealso [confint.causatr_result()], [contrast()]
 #' @export
 coef.causatr_result <- function(object, ...) {
-  # `coef()` conventionally returns model coefficients. Here we
-  # return the marginal means \hat\mu_a instead -- those are the
-  # "coefficients" of a causatr_result, in the sense that they're
-  # the primary k-dimensional parameter vector the sandwich/
-  # bootstrap vcov is expressed in. Pairing with `vcov()` below
+  # For SNM, the primary parameter vector is the blip parameters
+  # (named by "parameter" column). For other estimators, it's the
+  # marginal means (named by "intervention"). Pairing with `vcov()`
   # gives a broom-/stats-compatible (coef, vcov) view that works
   # with generic tools like `multcomp::glht()` or hand-rolled
   # linear combinations.
-  stats::setNames(object$estimates$estimate, object$estimates$intervention)
+  name_col <- if ("parameter" %in% names(object$estimates)) {
+    object$estimates$parameter
+  } else {
+    object$estimates$intervention
+  }
+  stats::setNames(object$estimates$estimate, name_col)
 }
 
 #' Variance-covariance matrix for a causatr result

@@ -1,9 +1,9 @@
 ---
-title: "Methodological triangulation: g-computation, IPW, AIPW, and matching"
+title: "Methodological triangulation: g-computation, IPW, AIPW, matching, and SNM"
 code-fold: show
 code-tools: true
 vignette: >
-  %\VignetteIndexEntry{Methodological triangulation: g-computation, IPW, AIPW, and matching}
+  %\VignetteIndexEntry{Methodological triangulation: g-computation, IPW, AIPW, matching, and SNM}
   %\VignetteEngine{quarto::html}
   %\VignetteEncoding{UTF-8}
 ---
@@ -15,13 +15,15 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 
 When multiple estimation methods agree on the same causal effect, we gain
 confidence that the result is not an artefact of a single modelling assumption.
-This vignette compares all four methods on the NHEFS dataset:
+This vignette compares all five methods on the NHEFS dataset:
 
 - **G-computation** relies on a correct outcome model.
 - **IPW** relies on a correct propensity model.
 - **AIPW** (doubly robust) is consistent if *either* model is correct, and
-  semiparametrically efficient when both are — making it the natural fourth
-  leg of the triangulation.
+  semiparametrically efficient when both are.
+- **SNM** (structural nested mean model) relies on a correct treatment model
+  and estimates blip parameters directly — the only method that correctly
+  handles time-varying effect modification. See `vignette("snm")`.
 - **Matching** relies on a correct propensity model and targets the ATT.
 
 ## Data: NHEFS
@@ -293,22 +295,26 @@ estimand via mediator and collider paths (Robins, Hernán, Brumback 2000).
 G-computation has no such restriction because it models the outcome, not
 the treatment.
 
+For **time-varying effect modification** (modifiers affected by prior
+treatment), use `estimator = "snm"` — see `vignette("snm")`.
+
 causatr does not enforce baseline-ness at runtime (time-varying status isn't
 inferable from data alone). This is a user responsibility.
 :::
 
 ## When to use which method
 
-| Criterion | G-computation | IPW | AIPW | Matching |
-|---|---|---|---|---|
-| Model required | Outcome | Treatment | Both | Treatment |
-| Doubly robust | No | No | **Yes** | No |
-| Semiparametrically efficient | No | No | **Yes** (when both correct) | No |
-| Non-static interventions | Yes | Yes (shift, scale\_by, dynamic, IPSI) | Yes (same as IPW) | No (static only) |
-| Continuous treatment | Yes | Yes (GPS) | Yes (shift, scale\_by) | No |
-| Categorical (k > 2) | Yes | Yes | Yes | No |
-| Longitudinal (time-varying) | Yes (ICE) | Yes | Yes (ICE-AIPW) | No |
-| Variance estimation | Sandwich or bootstrap | Sandwich or bootstrap | Sandwich or bootstrap | Cluster-robust sandwich |
+| Criterion | G-computation | IPW | AIPW | SNM | Matching |
+|---|---|---|---|---|---|
+| Model required | Outcome | Treatment | Both | Treatment | Treatment |
+| Doubly robust | No | No | **Yes** | No | No |
+| Semiparametrically efficient | No | No | **Yes** (when both correct) | No | No |
+| Non-static interventions | Yes | Yes (shift, scale\_by, dynamic, IPSI) | Yes (same as IPW) | No (`treatment_values =` only) | No (static only) |
+| Continuous treatment | Yes | Yes (GPS) | Yes (shift, scale\_by) | Yes | No |
+| Categorical (k > 2) | Yes | Yes | Yes | Pending | No |
+| Longitudinal (time-varying) | Yes (ICE) | Yes | Yes (ICE-AIPW) | Yes (backward g-estimation) | No |
+| Time-varying effect modification | Requires correct high-dim outcome model | Biased | Biased | **Yes** (headline use case) | Biased |
+| Variance estimation | Sandwich or bootstrap | Sandwich or bootstrap | Sandwich or bootstrap | Sandwich (bootstrap pending) | Cluster-robust sandwich |
 
 **Recommendation:**
 
@@ -319,6 +325,9 @@ inferable from data alone). This is a user responsibility.
   by the density-ratio engine.
 - Use **IPW** when the treatment model is the primary scientific object and
   you want to avoid specifying an outcome model.
+- Use **SNM** when your research question involves effect modification by a
+  variable that is itself affected by treatment — the other methods produce
+  biased results in this setting. See `vignette("snm")`.
 - Use **matching** for ATT estimation with balance diagnostics as the primary
   product.
 

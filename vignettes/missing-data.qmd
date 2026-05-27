@@ -624,7 +624,47 @@ tt(comp_ipcw, digits = 3)
 ```
 
 The IPCW estimates should be closer to the truth (ATE = 3) than naive
-complete-case analysis.
+complete-case analysis:
+
+```{r}
+#| label: fig-ipcw-comparison
+#| fig-width: 7
+#| fig-height: 4
+#| fig-alt: "Pointrange plot comparing naive complete-case, g-comp + IPCW, and IPW + IPCW estimates under MAR censoring. A dashed line marks the true ATE of 3. IPCW-corrected estimates are closer to the truth."
+ipcw_plot_df <- data.frame(
+  Method = factor(
+    c("Naive (complete-case)", "G-comp + IPCW", "IPW + IPCW"),
+    levels = c("Naive (complete-case)", "G-comp + IPCW", "IPW + IPCW")
+  ),
+  Estimate = c(
+    res_naive$contrasts$estimate[1],
+    res_ipcw$contrasts$estimate[1],
+    res_ipcw_ipw$contrasts$estimate[1]
+  ),
+  CI_lower = c(
+    res_naive$contrasts$ci_lower[1],
+    res_ipcw$contrasts$ci_lower[1],
+    res_ipcw_ipw$contrasts$ci_lower[1]
+  ),
+  CI_upper = c(
+    res_naive$contrasts$ci_upper[1],
+    res_ipcw$contrasts$ci_upper[1],
+    res_ipcw_ipw$contrasts$ci_upper[1]
+  )
+)
+
+tinyplot::tinyplot(
+  Estimate ~ Method,
+  data = ipcw_plot_df,
+  type = "pointrange",
+  ymin = ipcw_plot_df$CI_lower,
+  ymax = ipcw_plot_df$CI_upper,
+  pch = 19,
+  ylab = "ATE estimate (95% CI)",
+  main = "MAR censoring: naive vs IPCW correction"
+)
+abline(h = 3, lty = 2, col = "grey40")
+```
 
 ### Diagnostics
 

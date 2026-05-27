@@ -241,7 +241,8 @@ variance_bootstrap <- function(
   subset,
   parallel = "no",
   ncpus = 1L,
-  subset_env = parent.frame()
+  subset_env = parent.frame(),
+  trim = 1
 ) {
   data <- fit$data
   int_names <- names(interventions)
@@ -324,7 +325,8 @@ variance_bootstrap <- function(
               ipw_point_b <- compute_ipw_contrast_point(
                 fit_b,
                 interventions,
-                target_idx_b
+                target_idx_b,
+                trim = trim
               )
               ipw_point_b$mu_hat
             },
@@ -362,7 +364,8 @@ variance_bootstrap <- function(
               aipw_point_b <- compute_aipw_contrast_point(
                 fit_b,
                 interventions,
-                target_idx_b
+                target_idx_b,
+                trim = trim
               )
               aipw_point_b$mu_hat
             },
@@ -536,6 +539,7 @@ refit_model <- function(fit, d_b, weights = NULL) {
         fit$estimator,
         "'."
       ),
+      class = "causatr_unknown_estimator",
       .call = FALSE
     )
   }
@@ -622,6 +626,11 @@ refit_ipw <- function(fit, d_b, weights = NULL) {
     treatment = fit$treatment,
     confounders = resolve_confounders_treatment(fit),
     confounders_tv = resolve_confounders_tv_treatment(fit),
+    confounders_outcome = fit$details$confounders_outcome,
+    confounders_outcome_raw = fit$details$confounders_outcome,
+    confounders_treatment_raw = fit$details$confounders_treatment,
+    confounders_tv_outcome_raw = fit$details$confounders_tv_outcome,
+    confounders_tv_treatment_raw = fit$details$confounders_tv_treatment,
     family = fit$family,
     estimand = fit$estimand,
     type = fit$type,

@@ -312,7 +312,8 @@ variance_if <- function(
   aipw_bundles = NULL,
   aipw_fit_idx = NULL,
   aipw_n_total = NULL,
-  cluster_vec = NULL
+  cluster_vec = NULL,
+  trim = 1
 ) {
   if (fit$type == "longitudinal") {
     # Longitudinal IPW dispatch. The IPW path needs the
@@ -325,7 +326,8 @@ variance_if <- function(
         fit,
         ipw_bundles,
         target_within_first,
-        cluster_vec = cluster_vec
+        cluster_vec = cluster_vec,
+        trim = trim
       ))
     }
     if (fit$estimator == "aipw") {
@@ -333,7 +335,8 @@ variance_if <- function(
         fit,
         ice_aipw_results,
         target_within_first,
-        cluster_vec = cluster_vec
+        cluster_vec = cluster_vec,
+        trim = trim
       ))
     }
     return(variance_if_ice(
@@ -374,7 +377,8 @@ variance_if <- function(
       mu_hat,
       ipw_fit_idx,
       ipw_n_total,
-      cluster_vec = cluster_vec
+      cluster_vec = cluster_vec,
+      trim = trim
     ))
   }
 
@@ -386,11 +390,15 @@ variance_if <- function(
       mu_hat,
       aipw_fit_idx,
       aipw_n_total,
-      cluster_vec = cluster_vec
+      cluster_vec = cluster_vec,
+      trim = trim
     ))
   }
 
-  rlang::abort(paste0("Unknown estimator '", estimator, "' in variance_if()."))
+  rlang::abort(
+    paste0("Unknown estimator '", estimator, "' in variance_if()."),
+    class = "causatr_unknown_estimator"
+  )
 }
 
 

@@ -13,7 +13,7 @@ vignette: >
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 ```
 
-causatr provides a unified interface for causal effect estimation via four
+causatr provides a unified interface for causal effect estimation via five
 complementary methods:
 
 - **G-computation** (parametric g-formula) — fits an outcome model
@@ -23,6 +23,10 @@ complementary methods:
 - **Augmented IPW (AIPW)** — combines the outcome model and propensity score
   into a doubly-robust estimator: consistent if *either* model is correctly
   specified, and semiparametrically efficient when both are correct.
+- **Structural nested mean models (SNM)** — g-estimation of blip parameters
+  using the treatment model as an instrument. The only method that correctly
+  handles **time-varying effect modification** (modifiers affected by prior
+  treatment). See `vignette("snm")`.
 - **Propensity score matching** — pairs treated and control units with similar
   propensity scores.
 

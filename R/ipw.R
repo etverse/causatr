@@ -442,7 +442,8 @@ fit_ipw <- function(
 compute_ipw_contrast_point <- function(
   fit,
   interventions,
-  target_idx
+  target_idx,
+  trim = 1
 ) {
   data <- fit$data
   treatment <- fit$treatment
@@ -529,10 +530,17 @@ compute_ipw_contrast_point <- function(
         tms_local,
         fit_data,
         iv,
-        estimand = estimand
+        estimand = estimand,
+        trim = trim
       )
     } else {
-      compute_density_ratio_weights(tm, fit_data, iv, estimand = estimand)
+      compute_density_ratio_weights(
+        tm,
+        fit_data,
+        iv,
+        estimand = estimand,
+        trim = trim
+      )
     }
 
     # Compose with sampling weights (transport) and external weights.

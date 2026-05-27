@@ -161,6 +161,8 @@ fit_sampling_model <- function(
     response = ".sampling_s"
   )
 
+  # Use a temporary response column so the formula response doesn't collide
+  # with the user's actual target column name
   fit_data$.sampling_s <- as.integer(fit_data[[target]])
 
   # The sampling model is always logistic regardless of estimator family.
@@ -241,6 +243,7 @@ compute_sampling_weights <- function(
   )
   p_study <- stats::plogis(as.numeric(X_all %*% sampling_model$gamma_hat))
 
+  # Transportability: w = (1-p)/p (TATE); generalizability: w = 1/p (PATE)
   w <- rep(1, n)
   if (identical(target_subset, "target")) {
     w[study_rows] <- (1 - p_study[study_rows]) / p_study[study_rows]
@@ -282,6 +285,8 @@ make_sampling_weight_fn <- function(
     xlev = sampling_model$model$xlevels
   )
 
+  # Closure captures X_all and study_rows so numDeriv::jacobian()
+  # can evaluate w_S(gamma) at perturbed gamma values.
   function(gamma) {
     eta <- as.numeric(X_all %*% gamma)
     p <- stats::plogis(eta)

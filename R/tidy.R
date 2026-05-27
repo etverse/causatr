@@ -41,15 +41,24 @@ tidy.causatr_result <- function(
   # `contrast()` originally used.
   z <- stats::qnorm((1 + conf.level) / 2)
 
-  # Mean row per intervention. `std.error` is the broom-convention
-  # name for SE; our internal table uses `se`. `type` labels each
-  # row so a consumer can filter `means` vs `contrasts` after the
-  # `all` rbind below.
+  # SNM results have a "parameter" column; other estimators use
+  # "intervention". Pick whichever is present.
+  term_col <- if ("parameter" %in% names(x$estimates)) {
+    x$estimates$parameter
+  } else {
+    x$estimates$intervention
+  }
+  row_type <- if (identical(x$estimator, "snm")) "parameter" else "mean"
+
+  # Mean (or blip parameter) row per entry. `std.error` is the
+  # broom-convention name for SE; our internal table uses `se`.
+  # `type` labels each row so a consumer can filter `means` vs
+  # `contrasts` vs `parameter` after the `all` rbind below.
   means_df <- data.frame(
-    term = x$estimates$intervention,
+    term = term_col,
     estimate = x$estimates$estimate,
     std.error = x$estimates$se,
-    type = "mean",
+    type = row_type,
     stringsAsFactors = FALSE
   )
   if (conf.int) {
@@ -57,20 +66,29 @@ tidy.causatr_result <- function(
     means_df$conf.high <- means_df$estimate + z * means_df$std.error
   }
 
-  # Contrast row per comparison. Copy the pre-computed CIs rather
-  # than re-deriving -- for ratio/OR contrasts these came through the
-  # log-scale delta method in contrast(), which symmetric Wald here
-  # would not reproduce.
+  # Contrast CIs: for difference contrasts, recompute at the user's
+  # conf.level (symmetric Wald). For ratio/OR, the stored CIs came
+  # through the log-scale delta method in contrast(), which symmetric
+  # Wald cannot reproduce — keep the original CIs.
+  n_contrasts <- nrow(x$contrasts)
   contrasts_df <- data.frame(
     term = x$contrasts$comparison,
     estimate = x$contrasts$estimate,
     std.error = x$contrasts$se,
-    type = "contrast",
+    type = rep("contrast", n_contrasts),
     stringsAsFactors = FALSE
   )
   if (conf.int) {
-    contrasts_df$conf.low <- x$contrasts$ci_lower
-    contrasts_df$conf.high <- x$contrasts$ci_upper
+    if (x$type == "difference") {
+      contrasts_df$conf.low <- x$contrasts$estimate - z * x$contrasts$se
+      contrasts_df$conf.high <- x$contrasts$estimate + z * x$contrasts$se
+    } else {
+      # Ratio/OR: log-scale delta method CI.
+      # se_log = se_linear / estimate (derivable from stored fields).
+      se_log <- x$contrasts$se / x$contrasts$estimate
+      contrasts_df$conf.low <- exp(log(x$contrasts$estimate) - z * se_log)
+      contrasts_df$conf.high <- exp(log(x$contrasts$estimate) + z * se_log)
+    }
   }
 
   # Carry the `by` subgroup column through if it's present in the

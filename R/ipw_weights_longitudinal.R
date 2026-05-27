@@ -32,14 +32,17 @@
 #' parameters are held fixed in the variance engine; bootstrap refits
 #' both numerator and denominator and captures the full uncertainty.
 #'
-#' @param treatment_models_by_time Named list of K per-period
-#'   `causatr_treatment_model` objects from `fit_longitudinal_ipw()`.
-#' @param fit_data_by_time Named list of K per-period data subsets
+#' @param treatment_models_by_time Named list of T per-period models
+#'   from `fit_longitudinal_ipw()`. Each element is either a scalar
+#'   `causatr_treatment_model` (univariate) or a
+#'   `causatr_treatment_models` list of K components (multivariate).
+#' @param fit_data_by_time Named list of T per-period data subsets
 #'   (one row per individual at each period).
 #' @param ids_first Character vector of individual ids in the order
 #'   the returned weight vector is indexed by.
 #' @param id_col Character. Name of the id column.
-#' @param intervention A `causatr_intervention` object or `NULL`.
+#' @param intervention A `causatr_intervention` object, a named list
+#'   of per-component interventions (multivariate), or `NULL`.
 #' @param estimand Character. ATE only for longitudinal IPW.
 #' @param positivity_threshold Positive scalar. Per-period max weight
 #'   above this triggers the sequential-positivity warning.
@@ -61,7 +64,8 @@ compute_longitudinal_weights <- function(
   intervention,
   estimand = "ATE",
   positivity_threshold = 100,
-  numerator_models_by_time = NULL
+  numerator_models_by_time = NULL,
+  trim = 1
 ) {
   if (estimand != "ATE") {
     rlang::abort(
@@ -73,16 +77,24 @@ compute_longitudinal_weights <- function(
   n_times <- length(treatment_models_by_time)
   n_id <- length(ids_first)
 
+  # Detect multivariate: per-period models are `causatr_treatment_models`
+  # (plural, from `fit_treatment_models()`) rather than scalar
+  # `causatr_treatment_model` objects.
+  is_mv <- inherits(
+    treatment_models_by_time[[1L]],
+    "causatr_treatment_models"
+  )
+
   # Natural course: w = 1 for every individual at every period; the
   # product is identically 1.
   if (is.null(intervention)) {
     return(rep(1, n_id))
   }
 
-  # Per-period weights stacked into an `n_id × K` matrix so we can
+  # Per-period weights stacked into an `n_id × T` matrix so we can
   # diagnose positivity per period and then take row-products to get
   # the per-id cumulative weight. Each column is built by reusing the
-  # univariate `compute_density_ratio_weights()` engine against the
+  # univariate / multivariate density-ratio engine against the
   # period-k model and subset.
   # W[i, k] = w_{ik}; cumulative weight W_i = prod_k W[i, k] (row-product).
   W_per_period <- matrix(NA_real_, nrow = n_id, ncol = n_times)
@@ -94,25 +106,38 @@ compute_longitudinal_weights <- function(
     data_k <- fit_data_by_time[[k]]
     ids_k <- as.character(data_k[[id_col]])
 
-    # The univariate density-ratio engine respects `tm_k$fit_rows`
-    # internally -- the period-k subset already has one row per id, so
-    # `tm_k$fit_rows` is all-TRUE under the no-missingness assumption.
-    # The returned weight has length `sum(tm_k$fit_rows)` and is
-    # ordered to match the subset rows.
     if (stabilize) {
       tm_num_k <- numerator_models_by_time[[k]]
       w_k <- compute_stabilized_period_weight(
         tm_denom = tm_k,
         tm_num = tm_num_k,
         data = data_k,
-        intervention = intervention
+        intervention = intervention,
+        trim = trim
+      )
+    } else if (is_mv) {
+      # Multivariate: per-period model is a list of K component models.
+      # Reset fit_rows to all-TRUE (period-k subset is already filtered),
+      # matching the convention in compute_ipw_contrast_point().
+      tms_local <- tm_k
+      for (j in seq_along(tms_local)) {
+        tms_local[[j]]$fit_rows <- rep(TRUE, nrow(data_k))
+      }
+      class(tms_local) <- c("causatr_treatment_models", "list")
+      w_k <- compute_density_ratio_weights_mv(
+        tms_local,
+        data_k,
+        intervention,
+        estimand = estimand,
+        trim = trim
       )
     } else {
       w_k <- compute_density_ratio_weights(
         treatment_model = tm_k,
         data = data_k,
         intervention = intervention,
-        estimand = estimand
+        estimand = estimand,
+        trim = trim
       )
     }
 
@@ -125,7 +150,15 @@ compute_longitudinal_weights <- function(
     # `match()` returns NA for ids absent from ids_first; the
     # assignment `w_aligned[NA] <- ...` is silently ignored, so
     # unmatched ids stay 0 -- correct.
-    period_ids <- ids_k[tm_k$fit_rows]
+    #
+    # For MV, `fit_rows` alignment uses the first component's
+    # `fit_rows` (all components share the same row mask after the
+    # reset above).
+    if (is_mv) {
+      period_ids <- ids_k[tm_k[[1L]]$fit_rows]
+    } else {
+      period_ids <- ids_k[tm_k$fit_rows]
+    }
     w_aligned <- rep(0, n_id)
     pos <- match(period_ids, ids_first)
     w_aligned[pos] <- w_k
@@ -183,7 +216,8 @@ compute_stabilized_period_weight <- function(
   tm_denom,
   tm_num,
   data,
-  intervention
+  intervention,
+  trim = 1
 ) {
   fit_rows <- tm_denom$fit_rows
   fit_data <- data[fit_rows]
@@ -201,7 +235,7 @@ compute_stabilized_period_weight <- function(
   if (is.null(intervention)) {
     # Stabilized natural course: g_k(A_obs | ...) / f_k(A_obs | ..., L).
     f_num <- evaluate_density(tm_num, a_obs, fit_data)
-    return(f_num / f_obs)
+    return(truncate_weights(f_num / f_obs, trim))
   }
 
   check_intervention_family_compat(intervention, tm_denom)
@@ -230,7 +264,7 @@ compute_stabilized_period_weight <- function(
     target <- apply_intervention_to_values(intervention, fit_data, a_obs)
     ind <- as.numeric(a_obs == target)
     f_num <- evaluate_density(tm_num, a_obs, fit_data)
-    return(ind * f_num / f_obs)
+    return(truncate_weights(ind * f_num / f_obs, trim))
   }
 
   # Smooth pushforward branch (shift / scale_by on Gaussian / count).
@@ -243,7 +277,7 @@ compute_stabilized_period_weight <- function(
       f_num,
       "stabilized longitudinal shift"
     )
-    return(f_num / f_obs)
+    return(truncate_weights(f_num / f_obs, trim))
   }
   if (iv_type == "scale") {
     fct <- intervention$factor
@@ -259,7 +293,7 @@ compute_stabilized_period_weight <- function(
       f_num,
       "stabilized longitudinal scale"
     )
-    return((f_num / f_obs) / abs(fct))
+    return(truncate_weights((f_num / f_obs) / abs(fct), trim))
   }
 
   rlang::abort(
@@ -354,26 +388,32 @@ warn_seq_positivity <- function(W_per_period, time_points, threshold = 100) {
 #' Longitudinal companion to `make_weight_fn()` /
 #' `make_weight_fn_mv()`. For a fixed intervention applied at every
 #' period, builds a closure
-#' \deqn{W_i(\alpha) = \prod_{k=1}^{K} w_k(\alpha_k)}
-#' where `\alpha = (\alpha_1, \ldots, \alpha_K)` is the concatenation
+#' \deqn{W_i(\alpha) = \prod_{t=1}^{T} w_t(\alpha_t)}
+#' where `\alpha = (\alpha_1, \ldots, \alpha_T)` is the concatenation
 #' of per-period propensity coefficients. Each per-period sub-closure
-#' is built by `make_weight_fn()` applied to the period-k subset and
-#' density model.
+#' is built by `make_weight_fn()` (univariate) or
+#' `make_weight_fn_mv()` (multivariate) applied to the period-t
+#' subset and density model(s).
 #'
-#' The K propensity models are fit on **disjoint** row subsets (one
-#' subset per period), so the bread of the stacked propensity system
-#' is block-diagonal -- the variance engine handles the propensity
-#' correction as a sum of K single-model corrections. The closure
-#' itself is what `numDeriv::jacobian()` consumes to compute the
-#' cross-derivative `A_{beta, alpha}`.
+#' For multivariate treatment, each period's alpha block contains
+#' K component sub-blocks (from `make_weight_fn_mv()`), so the
+#' total stacked alpha has T x K blocks in period-major order.
+#'
+#' The T propensity model groups are fit on **disjoint** row subsets
+#' (one subset per period), so the bread of the stacked propensity
+#' system is block-diagonal -- the variance engine handles the
+#' propensity correction as a sum of T (x K) single-model
+#' corrections. The closure itself is what `numDeriv::jacobian()`
+#' consumes to compute the cross-derivative `A_{beta, alpha}`.
 #'
 #' Each sub-closure returns a length-`n_id` vector ordered to match
 #' the canonical `ids_first` ordering -- per-period ids are mapped
 #' back to that index space before multiplication, mirroring the
 #' alignment in `compute_longitudinal_weights()`.
 #'
-#' @param treatment_models_by_time Named list of K per-period
-#'   `causatr_treatment_model` objects.
+#' @param treatment_models_by_time Named list of T per-period models.
+#'   Each element is either a `causatr_treatment_model` (univariate)
+#'   or a `causatr_treatment_models` list of K components (MV).
 #' @param fit_data_by_time Named list of K per-period data subsets.
 #' @param ids_first Character vector of individual ids in the
 #'   canonical first-period order.
@@ -399,7 +439,8 @@ make_weight_fn_longitudinal <- function(
   id_col,
   intervention,
   estimand = "ATE",
-  numerator_models_by_time = NULL
+  numerator_models_by_time = NULL,
+  trim = 1
 ) {
   if (estimand != "ATE") {
     rlang::abort(
@@ -408,9 +449,16 @@ make_weight_fn_longitudinal <- function(
     )
   }
 
-  K <- length(treatment_models_by_time)
+  n_periods <- length(treatment_models_by_time)
   n_id <- length(ids_first)
   stabilize <- !is.null(numerator_models_by_time)
+
+  # Detect multivariate: per-period models are `causatr_treatment_models`
+  # (plural) rather than scalar `causatr_treatment_model` objects.
+  is_mv <- inherits(
+    treatment_models_by_time[[1L]],
+    "causatr_treatment_models"
+  )
 
   # Natural course unstabilized: weight is identically 1 regardless of
   # alpha. Still return a closure so the variance engine's loop has a
@@ -430,14 +478,68 @@ make_weight_fn_longitudinal <- function(
     ))
   }
 
+  # Precompute per-period truncation thresholds at alpha_hat.
+  # Per-period truncation before the cumulative product matches the
+  # semantics of compute_longitudinal_weights(), which truncates each
+  # period's density ratio via compute_density_ratio_weights(trim=).
+  # Fixing the threshold under numDeriv perturbation ensures the
+  # sandwich SE reflects the truncated weight surface, not a shifting
+  # truncation boundary.
+  period_thresholds <- vector("list", n_periods)
+  if (trim < 1) {
+    for (kk in seq_len(n_periods)) {
+      tm_kk <- treatment_models_by_time[[kk]]
+      data_kk <- fit_data_by_time[[kk]]
+      if (stabilize) {
+        w_kk <- compute_stabilized_period_weight(
+          tm_denom = tm_kk,
+          tm_num = numerator_models_by_time[[kk]],
+          data = data_kk,
+          intervention = intervention,
+          trim = 1
+        )
+      } else if (is_mv) {
+        tms_local <- tm_kk
+        for (j in seq_along(tms_local)) {
+          tms_local[[j]]$fit_rows <- rep(TRUE, nrow(data_kk))
+        }
+        class(tms_local) <- c("causatr_treatment_models", "list")
+        w_kk <- compute_density_ratio_weights_mv(
+          tms_local,
+          data_kk,
+          intervention,
+          estimand = estimand,
+          trim = 1
+        )
+      } else {
+        w_kk <- compute_density_ratio_weights(
+          treatment_model = tm_kk,
+          data = data_kk,
+          intervention = intervention,
+          estimand = estimand,
+          trim = 1
+        )
+      }
+      period_thresholds[[kk]] <- stats::quantile(
+        w_kk,
+        trim,
+        names = FALSE
+      )
+    }
+  }
+
   # Per-period sub-closures + alpha block lengths + alignment maps
   # back to the canonical id ordering.
-  sub_fns <- vector("list", K)
-  block_lens <- integer(K)
-  alpha_blocks <- vector("list", K)
-  align_idx <- vector("list", K)
+  # For univariate: each period contributes one propensity block.
+  # For multivariate: each period contributes K component blocks
+  # (via make_weight_fn_mv()), so the total stacked alpha has
+  # T×K blocks in period-major order.
+  sub_fns <- vector("list", n_periods)
+  block_lens <- integer(n_periods)
+  alpha_blocks <- vector("list", n_periods)
+  align_idx <- vector("list", n_periods)
 
-  for (k in seq_len(K)) {
+  for (k in seq_len(n_periods)) {
     tm_k <- treatment_models_by_time[[k]]
     data_k <- fit_data_by_time[[k]]
     ids_k <- as.character(data_k[[id_col]])
@@ -448,30 +550,69 @@ make_weight_fn_longitudinal <- function(
       # perturbation; same nuisance-fixed convention as multivariate IPW).
       # Only the denominator f_k(A | ..., L; alpha) varies with alpha.
       tm_num_k <- numerator_models_by_time[[k]]
-      sub_fn_k <- make_long_stabilized_period_closure(
+      raw_fn_k <- make_long_stabilized_period_closure(
         tm_denom = tm_k,
         tm_num = tm_num_k,
         data = data_k,
         intervention = intervention
       )
+      # Wrap with per-period truncation at the precomputed threshold.
+      if (trim < 1) {
+        sub_fn_k <- wrap_closure_with_trim(
+          raw_fn_k,
+          period_thresholds[[k]]
+        )
+      } else {
+        sub_fn_k <- raw_fn_k
+      }
+    } else if (is_mv) {
+      # Multivariate: delegate to make_weight_fn_mv() which handles the
+      # K-component stacking internally. The returned closure takes a
+      # stacked alpha of length sum_k(p_k) and returns a per-row weight.
+      # Reset fit_rows to all-TRUE (period-k data is already filtered).
+      tms_local <- tm_k
+      for (j in seq_along(tms_local)) {
+        tms_local[[j]]$fit_rows <- rep(TRUE, nrow(data_k))
+      }
+      class(tms_local) <- c("causatr_treatment_models", "list")
+      mv_closure_k <- make_weight_fn_mv(
+        tms_local,
+        data_k,
+        intervention,
+        estimand = estimand,
+        trim = trim
+      )
+      sub_fn_k <- mv_closure_k$weight_fn
     } else {
-      # Unstabilized: reuse the existing per-period closure builder.
+      # Unstabilized univariate: reuse the existing per-period builder.
+      # Per-period truncation applied here via trim + precomputed
+      # threshold — matches compute_longitudinal_weights() semantics.
       sub_fn_k <- make_weight_fn(
         treatment_model = tm_k,
         data = data_k,
         intervention = intervention,
-        estimand = estimand
+        estimand = estimand,
+        trim = trim,
+        trim_threshold = period_thresholds[[k]]
       )
     }
 
-    period_ids <- ids_k[tm_k$fit_rows]
+    if (is_mv) {
+      period_ids <- ids_k[tm_k[[1L]]$fit_rows]
+    } else {
+      period_ids <- ids_k[tm_k$fit_rows]
+    }
     pos <- match(period_ids, ids_first)
     align_idx[[k]] <- pos
 
     sub_fns[[k]] <- sub_fn_k
-    alpha_k <- tm_k$alpha_hat
-    alpha_blocks[[k]] <- alpha_k
-    block_lens[k] <- length(alpha_k)
+    if (is_mv) {
+      alpha_blocks[[k]] <- mv_closure_k$alpha_hat
+      block_lens[k] <- length(mv_closure_k$alpha_hat)
+    } else {
+      alpha_blocks[[k]] <- tm_k$alpha_hat
+      block_lens[k] <- length(tm_k$alpha_hat)
+    }
   }
 
   # offsets[k]:offsets[k+1]-1 slices the stacked alpha for period k.
@@ -481,9 +622,11 @@ make_weight_fn_longitudinal <- function(
   weight_fn <- function(alpha) {
     # Cumulative product W_i = prod_k w_{ik}(alpha_k). Each sub-closure
     # evaluates independently (period-k data is disjoint from period-k' data),
-    # so numDeriv can perturb the full stacked alpha safely.
+    # so numDeriv can perturb the full stacked alpha safely. Per-period
+    # truncation is baked into each sub-closure (via make_weight_fn's
+    # maybe_trim wrapper), so no post-product truncation is needed.
     W <- rep(1, n_id)
-    for (k in seq_len(K)) {
+    for (k in seq_len(n_periods)) {
       idx <- offsets[k]:(offsets[k + 1L] - 1L)
       alpha_k <- alpha[idx]
       w_period <- sub_fns[[k]](alpha_k)

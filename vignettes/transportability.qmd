@@ -48,11 +48,41 @@ head(df)
 table(df$S)
 ```
 
-The true ATE in the **study** population is 3 (constant treatment effect
-plus an interaction $A \times L$ whose average depends on the
-distribution of $L$ among the study rows). Because the sampling model
-shifts the $L$-distribution, the target-population ATE differs from the
-study ATE.
+The true ATE in any population is $3 + 1 \cdot E[L]$ (a constant main
+effect of 3 plus an interaction $A \times L$). Because the sampling
+model shifts the $L$-distribution, the study ($E[L \mid S=1] \approx
+0.5$) and target ($E[L \mid S=0] \approx -0.35$) populations have
+different ATEs: roughly 3.5 vs 2.65.
+
+The covariate shift is visible in the density of $L$ by selection status.
+The study ($S = 1$) overrepresents high values of $L$, while the target
+($S = 0$) is shifted left:
+
+```{r}
+#| label: fig-covariate-shift
+#| fig-width: 7
+#| fig-height: 4
+#| fig-alt: "Density plot of confounder L stratified by selection status S. The study population (S = 1) is shifted right compared to the target population (S = 0), illustrating the covariate shift that motivates transportability."
+dens_df <- data.frame(
+  L = df$L,
+  Population = ifelse(df$S == 1L, "Study (S = 1)", "Target (S = 0)")
+)
+
+tinyplot::tinyplot(
+  ~ L | Population,
+  data = dens_df,
+  type = "density",
+  lwd = 2,
+  xlab = "Confounder L",
+  ylab = "Density",
+  main = "Covariate shift between study and target",
+  palette = "dark2"
+)
+```
+
+This shift is exactly what the sampling model $P(S = 1 \mid L)$ captures.
+Without transport weights, causal estimates reflect the study's skewed
+$L$-distribution rather than the target's.
 
 ## The `target =` argument
 
@@ -63,11 +93,17 @@ fit_gc <- causat(
   df,
   outcome = "Y",
   treatment = "A",
-  confounders = ~ L,
+  confounders_outcome = ~ L + A:L,
+  confounders_treatment = ~ L,
+  confounders_sampling = ~ L,
   target = "S"
 )
 fit_gc
 ```
+
+The outcome model includes the `A:L` interaction to capture the
+heterogeneous treatment effect. Without it, g-comp would estimate a
+constant ATE ($\approx 3$) regardless of target population.
 
 This tells causatr to:
 
@@ -97,7 +133,7 @@ fit_study <- causat(
   df[df$S == 1, ],
   outcome = "Y",
   treatment = "A",
-  confounders = ~ L
+  confounders = ~ L + A:L
 )
 
 res_study <- contrast(
@@ -109,7 +145,34 @@ res_study
 ```
 
 The two estimates differ because the target population has a different
-distribution of $L$ than the study sample.
+distribution of $L$ than the study sample:
+
+```{r}
+#| label: fig-study-vs-transport
+#| fig-width: 7
+#| fig-height: 4
+#| fig-alt: "Pointrange plot comparing the study-only ATE (~3.5) with the transported ATE (~2.6). The study estimate is higher because the study population has higher L values, and the A*L interaction makes treatment more effective at high L."
+study_transport_df <- data.frame(
+  Target = c("Study only", "Transport (S = 0)"),
+  Estimate = c(res_study$contrasts$estimate[1],
+               res_gc$contrasts$estimate[1]),
+  CI_lower = c(res_study$contrasts$ci_lower[1],
+               res_gc$contrasts$ci_lower[1]),
+  CI_upper = c(res_study$contrasts$ci_upper[1],
+               res_gc$contrasts$ci_upper[1])
+)
+
+tinyplot::tinyplot(
+  Estimate ~ Target,
+  data = study_transport_df,
+  type = "pointrange",
+  ymin = study_transport_df$CI_lower,
+  ymax = study_transport_df$CI_upper,
+  pch = 19,
+  ylab = "ATE estimate (95% CI)",
+  main = "Study-population vs target-population ATE"
+)
+```
 
 ## Transportability vs generalizability
 
@@ -127,7 +190,9 @@ fit_gen <- causat(
   df,
   outcome = "Y",
   treatment = "A",
-  confounders = ~ L,
+  confounders_outcome = ~ L + A:L,
+  confounders_treatment = ~ L,
+  confounders_sampling = ~ L,
   target = "S",
   target_subset = "all"
 )
@@ -178,7 +243,9 @@ fit_aipw <- causat(
   df,
   outcome = "Y",
   treatment = "A",
-  confounders = ~ L,
+  confounders_outcome = ~ L + A:L,
+  confounders_treatment = ~ L,
+  confounders_sampling = ~ L,
   estimator = "aipw",
   target = "S"
 )
@@ -441,7 +508,7 @@ fit_sep <- causat(
   df,
   outcome = "Y",
   treatment = "A",
-  confounders_outcome = ~ L + I(L^2),
+  confounders_outcome = ~ L + A:L + I(L^2),
   confounders_treatment = ~ L,
   confounders_sampling = ~ L,
   estimator = "aipw",

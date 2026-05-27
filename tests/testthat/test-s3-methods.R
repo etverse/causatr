@@ -312,6 +312,102 @@ test_that("tidy.causatr_result returns data frame", {
   expect_equal(nrow(td_all), 3L)
 })
 
+test_that("tidy() conf.level adjusts difference contrast CIs", {
+  df <- data.frame(Y = rnorm(200), A = rbinom(200, 1, 0.5), L = rnorm(200))
+  fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L)
+  res <- contrast(
+    fit,
+    list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    ci_method = "sandwich"
+  )
+  t95 <- tidy(res, which = "contrasts", conf.level = 0.95)
+  t90 <- tidy(res, which = "contrasts", conf.level = 0.90)
+  w95 <- t95$conf.high - t95$conf.low
+  w90 <- t90$conf.high - t90$conf.low
+  expect_true(w95 > w90)
+  z95 <- stats::qnorm(0.975)
+  z90 <- stats::qnorm(0.95)
+  expect_equal(w95 / w90, z95 / z90, tolerance = 1e-10)
+})
+
+test_that("tidy() conf.level adjusts ratio/OR contrast CIs on log scale", {
+  set.seed(99)
+  df <- data.frame(
+    Y = rbinom(500, 1, 0.5),
+    A = rbinom(500, 1, 0.5),
+    L = rnorm(500)
+  )
+  fit <- causat(
+    df,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    family = "binomial"
+  )
+  res_r <- contrast(
+    fit,
+    list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "ratio",
+    ci_method = "sandwich"
+  )
+  t95 <- tidy(res_r, which = "contrasts", conf.level = 0.95)
+  t90 <- tidy(res_r, which = "contrasts", conf.level = 0.90)
+  expect_equal(t95$conf.low, res_r$contrasts$ci_lower, tolerance = 1e-10)
+  expect_equal(t95$conf.high, res_r$contrasts$ci_upper, tolerance = 1e-10)
+  expect_true(t90$conf.low > t95$conf.low)
+  expect_true(t90$conf.high < t95$conf.high)
+
+  res_or <- contrast(
+    fit,
+    list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    type = "or",
+    ci_method = "sandwich"
+  )
+  t95or <- tidy(res_or, which = "contrasts", conf.level = 0.95)
+  t90or <- tidy(res_or, which = "contrasts", conf.level = 0.90)
+  expect_equal(t95or$conf.low, res_or$contrasts$ci_lower, tolerance = 1e-10)
+  expect_true(t90or$conf.low > t95or$conf.low)
+})
+
+test_that("print labels include AIPW and SNM", {
+  df <- data.frame(Y = rnorm(50), A = rbinom(50, 1, 0.5), L = rnorm(50))
+  fit_aipw <- causat(
+    df,
+    "Y",
+    "A",
+    ~L,
+    estimator = "aipw",
+    propensity_model_fn = stats::glm
+  )
+  out <- capture.output(print(fit_aipw))
+  expect_true(any(grepl("AIPW", out)))
+})
+
+test_that("summary handles family objects and multivariate treatment", {
+  set.seed(1)
+  df <- data.frame(
+    Y = rbinom(50, 1, 0.5),
+    A = rbinom(50, 1, 0.5),
+    L = rnorm(50)
+  )
+  fit <- causat(df, "Y", "A", ~L, family = stats::binomial())
+  out <- capture.output(summary(fit))
+  expect_true(any(grepl("binomial", out)))
+
+  df2 <- data.frame(
+    Y = rnorm(50),
+    A1 = rbinom(50, 1, 0.5),
+    A2 = rbinom(50, 1, 0.5),
+    L = rnorm(50)
+  )
+  fit_mv <- causat(df2, "Y", c("A1", "A2"), ~L)
+  out_mv <- capture.output(summary(fit_mv))
+  expect_true(any(grepl("A1, A2", out_mv)))
+})
+
 test_that("glance.causatr_result returns one-row data frame", {
   df <- data.frame(
     Y = rnorm(100),
@@ -668,4 +764,286 @@ test_that("ICE × bootstrap × external weights gives finite SE matching sandwic
   ratio <- res_boot$contrasts$se[1] / res_sand$contrasts$se[1]
   expect_gt(ratio, 0.85)
   expect_lt(ratio, 1.2)
+})
+
+
+# SNM S3 dispatch (chunk 18j) -------------------------------------------
+
+test_that("print.causatr_result shows 'Blip parameters' for SNM Path A", {
+  set.seed(42)
+  n <- 200
+  L <- rnorm(n)
+  M <- as.numeric(L > 0)
+  A <- 0.5 * L + rnorm(n)
+  Y <- 2 + 3 * A + 2 * A * M + 1.5 * L + rnorm(n)
+  df <- data.frame(Y = Y, A = A, L = L, M = M)
+  fit <- causat(
+    df,
+    "Y",
+    "A",
+    confounders = ~ L + A:M,
+    estimator = "snm",
+    propensity_model_fn = stats::glm
+  )
+  res <- contrast(fit)
+
+  out <- capture.output(print(res))
+  expect_true(any(grepl("Blip parameters", out)))
+  expect_true(any(grepl("SNM", out)))
+  expect_true(any(grepl("psi_intercept", out)))
+  expect_false(any(grepl("Intervention means", out)))
+  expect_false(any(grepl("^Contrasts:", out)))
+})
+
+test_that("print.causatr_result shows 'Averaged blip effect' for SNM Path B", {
+  set.seed(42)
+  n <- 200
+  L <- rnorm(n)
+  M <- as.numeric(L > 0)
+  A <- 0.5 * L + rnorm(n)
+  Y <- 2 + 3 * A + 2 * A * M + 1.5 * L + rnorm(n)
+  df <- data.frame(Y = Y, A = A, L = L, M = M)
+  fit <- causat(
+    df,
+    "Y",
+    "A",
+    confounders = ~ L + A:M,
+    estimator = "snm",
+    propensity_model_fn = stats::glm
+  )
+  res <- contrast(fit, treatment_values = c(0, 1))
+
+  out <- capture.output(print(res))
+  expect_true(any(grepl("Averaged blip effect", out)))
+  expect_true(any(grepl("Contrasts", out)))
+  expect_true(any(grepl("a=1 vs a=0", out)))
+})
+
+test_that("print.causatr_result shows 'Per-stage blip' for longitudinal SNM", {
+  set.seed(42)
+  n <- 300
+  L0 <- rnorm(n)
+  A0 <- rbinom(n, 1, plogis(0.3 * L0))
+  L1 <- 0.5 * L0 + 0.3 * A0 + rnorm(n, 0, sqrt(0.5))
+  A1 <- rbinom(n, 1, plogis(0.3 * L1 + 0.2 * A0))
+  Y <- 2 + 3.15 * A0 + 3 * A1 + 1.5 * L0 + 0.5 * L1 + rnorm(n)
+  pp <- data.frame(
+    id = rep(1:n, each = 2),
+    time = rep(0:1, n),
+    A = c(rbind(A0, A1)),
+    L = c(rbind(L0, L1)),
+    Y = rep(Y, each = 2)
+  )
+  fit <- causat(
+    pp,
+    "Y",
+    "A",
+    confounders = ~1,
+    confounders_tv = ~L,
+    estimator = "snm",
+    id = "id",
+    time = "time",
+    propensity_model_fn = stats::glm
+  )
+  res <- contrast(fit)
+
+  out <- capture.output(print(res))
+  expect_true(any(grepl("Per-stage blip parameters", out)))
+  expect_true(any(grepl("stage0_psi_intercept", out)))
+  expect_true(any(grepl("stage1_psi_intercept", out)))
+})
+
+test_that("summary.causatr_result skips intervention details for SNM", {
+  set.seed(42)
+  n <- 200
+  L <- rnorm(n)
+  A <- 0.5 * L + rnorm(n)
+  Y <- 2 + 3 * A + 1.5 * L + rnorm(n)
+  df <- data.frame(Y = Y, A = A, L = L)
+  fit <- causat(
+    df,
+    "Y",
+    "A",
+    confounders = ~L,
+    estimator = "snm",
+    propensity_model_fn = stats::glm
+  )
+  res <- contrast(fit)
+
+  out <- capture.output(summary(res))
+  expect_true(any(grepl("blip parameters", out)))
+  expect_false(any(grepl("Intervention details", out)))
+})
+
+test_that("coef.causatr_result returns named blip vector for SNM", {
+  set.seed(42)
+  n <- 200
+  L <- rnorm(n)
+  M <- as.numeric(L > 0)
+  A <- 0.5 * L + rnorm(n)
+  Y <- 2 + 3 * A + 2 * A * M + 1.5 * L + rnorm(n)
+  df <- data.frame(Y = Y, A = A, L = L, M = M)
+  fit <- causat(
+    df,
+    "Y",
+    "A",
+    confounders = ~ L + A:M,
+    estimator = "snm",
+    propensity_model_fn = stats::glm
+  )
+  res <- contrast(fit)
+  cc <- coef(res)
+
+  expect_named(cc, c("psi_intercept", "psi_M"))
+  expect_equal(length(cc), 2L)
+  expect_true(all(is.finite(cc)))
+})
+
+test_that("tidy.causatr_result handles SNM blip parameters", {
+  set.seed(42)
+  n <- 200
+  L <- rnorm(n)
+  M <- as.numeric(L > 0)
+  A <- 0.5 * L + rnorm(n)
+  Y <- 2 + 3 * A + 2 * A * M + 1.5 * L + rnorm(n)
+  df <- data.frame(Y = Y, A = A, L = L, M = M)
+  fit <- causat(
+    df,
+    "Y",
+    "A",
+    confounders = ~ L + A:M,
+    estimator = "snm",
+    propensity_model_fn = stats::glm
+  )
+  res <- contrast(fit)
+
+  # which = "contrasts" is empty for SNM Path A
+  td_c <- tidy(res, which = "contrasts")
+  expect_equal(nrow(td_c), 0L)
+
+  # which = "means" returns blip parameters with type = "parameter"
+  td_m <- tidy(res, which = "means")
+  expect_equal(nrow(td_m), 2L)
+  expect_equal(td_m$type, c("parameter", "parameter"))
+  expect_equal(td_m$term, c("psi_intercept", "psi_M"))
+  expect_true(all(c("conf.low", "conf.high") %in% names(td_m)))
+
+  # which = "all" returns both (only the parameter rows since contrasts empty)
+  td_a <- tidy(res, which = "all")
+  expect_equal(nrow(td_a), 2L)
+})
+
+test_that("tidy.causatr_result handles SNM averaged blip (Path B)", {
+  set.seed(42)
+  n <- 200
+  L <- rnorm(n)
+  M <- as.numeric(L > 0)
+  A <- 0.5 * L + rnorm(n)
+  Y <- 2 + 3 * A + 2 * A * M + 1.5 * L + rnorm(n)
+  df <- data.frame(Y = Y, A = A, L = L, M = M)
+  fit <- causat(
+    df,
+    "Y",
+    "A",
+    confounders = ~ L + A:M,
+    estimator = "snm",
+    propensity_model_fn = stats::glm
+  )
+  res <- contrast(fit, treatment_values = c(0, 1))
+
+  td_c <- tidy(res, which = "contrasts")
+  expect_equal(nrow(td_c), 1L)
+  expect_equal(td_c$type, "contrast")
+
+  td_m <- tidy(res, which = "means")
+  expect_equal(nrow(td_m), 1L)
+  expect_equal(td_m$term, "avg_blip_effect")
+  expect_equal(td_m$type, "parameter")
+})
+
+test_that("glance.causatr_result works for SNM", {
+  set.seed(42)
+  n <- 200
+  L <- rnorm(n)
+  A <- 0.5 * L + rnorm(n)
+  Y <- 2 + 3 * A + 1.5 * L + rnorm(n)
+  df <- data.frame(Y = Y, A = A, L = L)
+  fit <- causat(
+    df,
+    "Y",
+    "A",
+    confounders = ~L,
+    estimator = "snm",
+    propensity_model_fn = stats::glm
+  )
+  res <- contrast(fit)
+  gl <- glance(res)
+
+  expect_equal(gl$estimator, "snm")
+  expect_equal(gl$n, 200L)
+  expect_equal(gl$n_interventions, 1L)
+})
+
+test_that("plot.causatr_result produces forest plot for SNM", {
+  skip_if_not_installed("forrest")
+  set.seed(42)
+  n <- 200
+  L <- rnorm(n)
+  M <- as.numeric(L > 0)
+  A <- 0.5 * L + rnorm(n)
+  Y <- 2 + 3 * A + 2 * A * M + 1.5 * L + rnorm(n)
+  df <- data.frame(Y = Y, A = A, L = L, M = M)
+  fit <- causat(
+    df,
+    "Y",
+    "A",
+    confounders = ~ L + A:M,
+    estimator = "snm",
+    propensity_model_fn = stats::glm
+  )
+
+  # Path A
+  res_a <- contrast(fit)
+  grDevices::pdf(tempfile())
+  expect_invisible(plot(res_a))
+  grDevices::dev.off()
+
+  # Path B
+  res_b <- contrast(fit, treatment_values = c(0, 1))
+  grDevices::pdf(tempfile())
+  expect_invisible(plot(res_b))
+  grDevices::dev.off()
+})
+
+test_that("plot.causatr_result title varies for longitudinal SNM", {
+  skip_if_not_installed("forrest")
+  set.seed(42)
+  n <- 300
+  L0 <- rnorm(n)
+  A0 <- rbinom(n, 1, plogis(0.3 * L0))
+  L1 <- 0.5 * L0 + 0.3 * A0 + rnorm(n, 0, sqrt(0.5))
+  A1 <- rbinom(n, 1, plogis(0.3 * L1 + 0.2 * A0))
+  Y <- 2 + 3.15 * A0 + 3 * A1 + 1.5 * L0 + 0.5 * L1 + rnorm(n)
+  pp <- data.frame(
+    id = rep(1:n, each = 2),
+    time = rep(0:1, n),
+    A = c(rbind(A0, A1)),
+    L = c(rbind(L0, L1)),
+    Y = rep(Y, each = 2)
+  )
+  fit <- causat(
+    pp,
+    "Y",
+    "A",
+    confounders = ~1,
+    confounders_tv = ~L,
+    estimator = "snm",
+    id = "id",
+    time = "time",
+    propensity_model_fn = stats::glm
+  )
+  res <- contrast(fit)
+  grDevices::pdf(tempfile())
+  expect_invisible(plot(res))
+  grDevices::dev.off()
 })

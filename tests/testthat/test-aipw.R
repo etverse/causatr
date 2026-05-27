@@ -488,8 +488,8 @@ test_that("AIPW recovers sex-stratified ATE with effect modification", {
   )
   est_sex0 <- result$contrasts$estimate[result$contrasts$by == "0"]
   est_sex1 <- result$contrasts$estimate[result$contrasts$by == "1"]
-  expect_equal(est_sex0, 3.0, tolerance = 0.3)
-  expect_equal(est_sex1, 4.5, tolerance = 0.3)
+  expect_equal(est_sex0, 3.0, tolerance = 0.05)
+  expect_equal(est_sex1, 4.5, tolerance = 0.05)
 })
 
 # --- Categorical treatment (chunk 16j) --------------------------------------
@@ -525,7 +525,7 @@ test_that("AIPW works with categorical treatment", {
   )
   # E[Y(b)] - E[Y(a)] = 2
 
-  expect_equal(result$contrasts$estimate[1], 2, tolerance = 0.3)
+  expect_equal(result$contrasts$estimate[1], 2, tolerance = 0.05)
   expect_true(is.finite(result$contrasts$se[1]) && result$contrasts$se[1] > 0)
 })
 
@@ -554,7 +554,7 @@ test_that("longitudinal AIPW: binary static, sandwich, ATE ~ 5", {
   )
   ate <- res$contrasts$estimate[1]
   se <- res$contrasts$se[1]
-  expect_equal(ate, 5, tolerance = 0.3)
+  expect_equal(ate, 5, tolerance = 0.05)
   expect_true(is.finite(se) && se > 0)
 })
 
@@ -581,7 +581,7 @@ test_that("longitudinal AIPW: binary static, bootstrap, ATE ~ 5", {
   )
   ate <- res$contrasts$estimate[1]
   se <- res$contrasts$se[1]
-  expect_equal(ate, 5, tolerance = 0.4)
+  expect_equal(ate, 5, tolerance = 0.05)
   expect_true(is.finite(se) && se > 0)
 })
 
@@ -846,7 +846,7 @@ test_that("longitudinal AIPW DR: wrong outcome, correct propensity", {
   )
   ate <- res$contrasts$estimate[1]
   # DR: should still recover truth despite wrong outcome model
-  expect_equal(ate, 5, tolerance = 0.6)
+  expect_equal(ate, 5, tolerance = 0.05)
 })
 
 test_that("longitudinal AIPW DR: correct outcome, wrong propensity", {
@@ -895,8 +895,8 @@ test_that("longitudinal AIPW DR: correct outcome, wrong propensity", {
     n_boot = 50
   )
   # Both should be close to truth (DR property)
-  expect_equal(res_c$contrasts$estimate[1], 5, tolerance = 0.4)
-  expect_equal(res_m$contrasts$estimate[1], 5, tolerance = 0.6)
+  expect_equal(res_c$contrasts$estimate[1], 5, tolerance = 0.05)
+  expect_equal(res_m$contrasts$estimate[1], 5, tolerance = 0.05)
 })
 
 test_that("longitudinal AIPW: sandwich SE finite and positive", {
@@ -1001,8 +1001,8 @@ test_that("longitudinal AIPW: effect modification by baseline (sex)", {
   est_sex1 <- res$contrasts$estimate[
     res$contrasts$by == "1"
   ]
-  expect_equal(est_sex0, 5, tolerance = 0.5)
-  expect_equal(est_sex1, 8, tolerance = 0.5)
+  expect_equal(est_sex0, 5, tolerance = 0.05)
+  expect_equal(est_sex1, 8, tolerance = 0.05)
 })
 
 test_that("longitudinal AIPW: EM agreement with ICE", {
@@ -1492,7 +1492,7 @@ test_that("longitudinal AIPW DR caveat: sandwich SE under misspecified outcome",
   expect_true(is.finite(se_sw) && se_sw > 0)
   expect_true(is.finite(se_bs) && se_bs > 0)
   # Point estimate should still recover truth (DR property)
-  expect_equal(res_sw$contrasts$estimate[1], 5, tolerance = 0.6)
+  expect_equal(res_sw$contrasts$estimate[1], 5, tolerance = 0.05)
 })
 
 test_that("longitudinal AIPW: EM agreement with long-IPW", {
@@ -1629,7 +1629,8 @@ test_that("longitudinal AIPW: near-positivity stress test", {
   se <- res$contrasts$se[1]
   expect_true(is.finite(ate))
   expect_true(is.finite(se) && se > 0)
-  expect_equal(ate, 5, tolerance = 2.0)
+  # DGP: Y[t=1] = 2 + 3*A + 1.5*L0 + noise → true ATE = 3
+  expect_equal(ate, 3, tolerance = 0.05)
 })
 
 # --- delicatessen cross-check (chunk 16k) ------------------------------------
@@ -1810,7 +1811,7 @@ test_that("mv AIPW: binary x binary static recovers truth", {
   )
   ate <- res$contrasts$estimate[1]
   se <- res$contrasts$se[1]
-  expect_equal(ate, 2.5, tolerance = 0.3)
+  expect_equal(ate, 2.5, tolerance = 0.05)
   expect_true(is.finite(se) && se > 0)
 })
 
@@ -1913,7 +1914,7 @@ test_that("mv AIPW: continuous x continuous shift recovers truth", {
   )
   ate <- res$contrasts$estimate[1]
   se <- res$contrasts$se[1]
-  expect_equal(ate, -0.9, tolerance = 0.3)
+  expect_equal(ate, -0.9, tolerance = 0.05)
   expect_true(is.finite(se) && se > 0)
 })
 
@@ -1941,7 +1942,7 @@ test_that("mv AIPW: DR — wrong outcome, correct propensity", {
     ci_method = "sandwich"
   )
   ate <- res$contrasts$estimate[1]
-  expect_equal(ate, 2.5, tolerance = 0.4)
+  expect_equal(ate, 2.5, tolerance = 0.05)
 })
 
 test_that("mv AIPW: DR — correct outcome, wrong propensity", {
@@ -1972,7 +1973,7 @@ test_that("mv AIPW: DR — correct outcome, wrong propensity", {
     ci_method = "sandwich"
   )
   ate <- res$contrasts$estimate[1]
-  expect_equal(ate, 2.5, tolerance = 0.4)
+  expect_equal(ate, 2.5, tolerance = 0.05)
 })
 
 test_that("mv AIPW: binary x binary binomial outcome", {
@@ -2024,7 +2025,7 @@ test_that("mv AIPW: stabilize = 'marginal' produces finite results", {
   )
   ate <- res$contrasts$estimate[1]
   se <- res$contrasts$se[1]
-  expect_equal(ate, 2.5, tolerance = 0.3)
+  expect_equal(ate, 2.5, tolerance = 0.05)
   expect_true(is.finite(se) && se > 0)
 })
 
@@ -2197,7 +2198,8 @@ test_that("aipw x bin trt x negbin x diff x sandwich", {
     type = "difference",
     ci_method = "sandwich"
   )
-  expect_equal(res$contrasts$estimate[1], truth, tolerance = 0.5)
+  # NegBin has high variance; n=3000 is ~13% relative error, converges at n=30K
+  expect_equal(res$contrasts$estimate[1], truth, tolerance = 0.15)
   expect_true(all(is.finite(res$contrasts$se) & res$contrasts$se > 0))
 })
 
@@ -2866,7 +2868,7 @@ test_that("aipw x GAM propensity DR: wrong outcome, correct GAM propensity", {
     reference = "a0",
     ci_method = "sandwich"
   )
-  expect_equal(res$contrasts$estimate[1], 3, tolerance = 0.5)
+  expect_equal(res$contrasts$estimate[1], 3, tolerance = 0.05)
   expect_true(all(is.finite(res$contrasts$se) & res$contrasts$se > 0))
 })
 

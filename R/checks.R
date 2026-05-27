@@ -472,7 +472,7 @@ check_treatment_nas <- function(
 #' @param estimand Character estimand.
 #' @param id Character ID column name, or `NULL`.
 #' @param time Character time column name, or `NULL`.
-#' @param history Positive integer or `Inf`.
+#' @param history Non-negative integer or `Inf`.
 #' @param call Caller environment for error messages.
 #' @return `NULL` invisibly; aborts on any validation failure.
 #' @noRd
@@ -635,76 +635,55 @@ check_causat_inputs <- function(
   # available. The resolution logic mirrors causat.R: per-component
   # formula wins, then unified formula, then NULL. An estimator that
   # requires a component must have a non-NULL formula after resolution.
+  # For longitudinal data (id + time supplied), time-varying
+  # confounders alone are a valid source: per-period model formulas
+  # are built from baseline_terms + tv_vars in the fit_* functions.
   conf_outcome <- confounders_outcome %||% confounders
   conf_treatment <- confounders_treatment %||% confounders
+  is_longitudinal <- !is.null(id) && !is.null(time)
 
-  if (estimator == "gcomp" && is.null(conf_outcome)) {
+  has_outcome_conf <- !is.null(conf_outcome)
+  if (!has_outcome_conf && is_longitudinal) {
+    has_outcome_conf <- !is.null(confounders_tv_outcome %||% confounders_tv)
+  }
+
+  has_treatment_conf <- !is.null(conf_treatment)
+  if (!has_treatment_conf && is_longitudinal) {
+    has_treatment_conf <- !is.null(confounders_tv_treatment %||% confounders_tv)
+  }
+
+  needs_outcome <- estimator %in% c("gcomp", "aipw", "matching")
+  needs_treatment <- estimator %in% c("ipw", "aipw", "matching", "snm")
+
+  if (needs_outcome && !has_outcome_conf) {
+    msg_suffix <- if (is_longitudinal) {
+      "Supply `confounders_outcome`, `confounders`, or `confounders_tv`."
+    } else {
+      "Supply `confounders_outcome` or `confounders`."
+    }
     rlang::abort(
       paste0(
-        "`estimator = \"gcomp\"` requires outcome-model confounders. ",
-        "Supply `confounders_outcome` or `confounders`."
+        "`estimator = \"",
+        estimator,
+        "\"` requires outcome-model confounders. ",
+        msg_suffix
       ),
       call = call
     )
   }
 
-  if (estimator == "ipw" && is.null(conf_treatment)) {
+  if (needs_treatment && !has_treatment_conf) {
+    msg_suffix <- if (is_longitudinal) {
+      "Supply `confounders_treatment`, `confounders`, or `confounders_tv`."
+    } else {
+      "Supply `confounders_treatment` or `confounders`."
+    }
     rlang::abort(
       paste0(
-        "`estimator = \"ipw\"` requires treatment-model confounders. ",
-        "Supply `confounders_treatment` or `confounders`."
-      ),
-      call = call
-    )
-  }
-
-  if (estimator == "aipw") {
-    if (is.null(conf_outcome)) {
-      rlang::abort(
-        paste0(
-          "`estimator = \"aipw\"` requires outcome-model confounders. ",
-          "Supply `confounders_outcome` or `confounders`."
-        ),
-        call = call
-      )
-    }
-    if (is.null(conf_treatment)) {
-      rlang::abort(
-        paste0(
-          "`estimator = \"aipw\"` requires treatment-model confounders. ",
-          "Supply `confounders_treatment` or `confounders`."
-        ),
-        call = call
-      )
-    }
-  }
-
-  if (estimator == "matching") {
-    if (is.null(conf_outcome)) {
-      rlang::abort(
-        paste0(
-          "`estimator = \"matching\"` requires outcome-model confounders. ",
-          "Supply `confounders_outcome` or `confounders`."
-        ),
-        call = call
-      )
-    }
-    if (is.null(conf_treatment)) {
-      rlang::abort(
-        paste0(
-          "`estimator = \"matching\"` requires treatment-model confounders. ",
-          "Supply `confounders_treatment` or `confounders`."
-        ),
-        call = call
-      )
-    }
-  }
-
-  if (estimator == "snm" && is.null(conf_treatment)) {
-    rlang::abort(
-      paste0(
-        "`estimator = \"snm\"` requires treatment-model confounders. ",
-        "Supply `confounders_treatment` or `confounders`."
+        "`estimator = \"",
+        estimator,
+        "\"` requires treatment-model confounders. ",
+        msg_suffix
       ),
       call = call
     )
@@ -728,10 +707,10 @@ check_causat_inputs <- function(
     )
   }
 
-  # `history` controls the Markov order of the longitudinal weight chain:
-  # history = 1 uses only the current period's covariates in each
-  # per-period propensity model, history = k uses the last k periods,
-  # Inf uses the full observed history. Must be a positive integer or Inf.
+  # `history` controls the Markov lag order of the longitudinal treatment
+  # model: history = 0 includes only current-period TV covariates (no
+  # lags), history = k includes up to lag-k of TV covariates, and Inf
+  # uses the full observed history. Must be a non-negative integer or Inf.
   # The two-step check is necessary: `is_scalar_integer` rejects `5` (which
   # R treats as a double literal), so we also accept a scalar double whose
   # value equals its floor. `identical(., Inf)` is the clean way to test
@@ -743,13 +722,13 @@ check_causat_inputs <- function(
         !identical(history, Inf)
     ) {
       rlang::abort(
-        "`history` must be a positive integer or `Inf`.",
+        "`history` must be a non-negative integer or `Inf`.",
         call = call
       )
     }
-    if (!is.infinite(history) && (history < 1 || history != floor(history))) {
+    if (!is.infinite(history) && (history < 0 || history != floor(history))) {
       rlang::abort(
-        "`history` must be a positive integer or `Inf`.",
+        "`history` must be a non-negative integer or `Inf`.",
         call = call
       )
     }
