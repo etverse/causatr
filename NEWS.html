@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.9.37">
+<meta name="generator" content="quarto-1.9.38">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -74,10 +74,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="site_libs/quarto-html/anchor.min.js"></script>
 <link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-7f8f88aac4f3542376d5c11b86a4c14d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-15634bcf2e68342d4ad2dfa704d543f6.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-b4053f44a9844110384dba2fb4cdf31e.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-98130f95a46b67a4a867697a2c34a567.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -233,6 +233,12 @@ window.Quarto = {
  <span class="menu-text">Propensity score matching with causatr</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./vignettes/snm.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Structural nested mean models with causatr</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -264,7 +270,7 @@ window.Quarto = {
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./vignettes/triangulation.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Methodological triangulation: g-computation, IPW, AIPW, and matching</span></a>
+ <span class="menu-text">Methodological triangulation: g-computation, IPW, AIPW, matching, and SNM</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -275,8 +281,20 @@ window.Quarto = {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="./vignettes/transportability.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Transportability and generalizability</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="./vignettes/missing-data.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Handling missing data</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./vignettes/diagnostics.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Diagnostics with causatr</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -513,6 +531,22 @@ window.Quarto = {
   <ul>
   <li><a href="#causatr-development-version" id="toc-causatr-development-version" class="nav-link active" data-scroll-target="#causatr-development-version">causatr (development version)</a>
   <ul class="collapse">
+  <li><a href="#phase-19a-multivariate-longitudinal-ipw" id="toc-phase-19a-multivariate-longitudinal-ipw" class="nav-link" data-scroll-target="#phase-19a-multivariate-longitudinal-ipw">2026-05-24 — Phase 19a: Multivariate longitudinal IPW</a></li>
+  <li><a href="#phase-19-trim-cross-cutting-weight-truncation" id="toc-phase-19-trim-cross-cutting-weight-truncation" class="nav-link" data-scroll-target="#phase-19-trim-cross-cutting-weight-truncation">2026-05-23 — Phase 19-trim: Cross-cutting weight truncation</a></li>
+  <li><a href="#fix-mv-ipw-sandwich-crash-with-natural-course-intervention" id="toc-fix-mv-ipw-sandwich-crash-with-natural-course-intervention" class="nav-link" data-scroll-target="#fix-mv-ipw-sandwich-crash-with-natural-course-intervention">2026-05-24 — Fix: MV IPW sandwich crash with natural-course intervention</a></li>
+  <li><a href="#phase-19-trim-critical-review-fix" id="toc-phase-19-trim-critical-review-fix" class="nav-link" data-scroll-target="#phase-19-trim-critical-review-fix">2026-05-24 — Phase 19-trim critical review fix</a></li>
+  <li><a href="#phase-18-critical-review-fixes" id="toc-phase-18-critical-review-fixes" class="nav-link" data-scroll-target="#phase-18-critical-review-fixes">2026-05-22 — Phase 18 critical review fixes</a></li>
+  <li><a href="#phase-18-complete-structural-nested-mean-models" id="toc-phase-18-complete-structural-nested-mean-models" class="nav-link" data-scroll-target="#phase-18-complete-structural-nested-mean-models">2026-05-22 — Phase 18 complete: Structural Nested Mean Models</a></li>
+  <li><a href="#snm-aware-s3-dispatch-phase-18j" id="toc-snm-aware-s3-dispatch-phase-18j" class="nav-link" data-scroll-target="#snm-aware-s3-dispatch-phase-18j">2026-05-22 — SNM-aware S3 dispatch (Phase 18j)</a></li>
+  <li><a href="#categorical-and-count-treatment-extensions-for-snm-phase-18h" id="toc-categorical-and-count-treatment-extensions-for-snm-phase-18h" class="nav-link" data-scroll-target="#categorical-and-count-treatment-extensions-for-snm-phase-18h">2026-05-22 — Categorical and count treatment extensions for SNM (Phase 18h)</a></li>
+  <li><a href="#bootstrap-variance-for-snm-phase-18i" id="toc-bootstrap-variance-for-snm-phase-18i" class="nav-link" data-scroll-target="#bootstrap-variance-for-snm-phase-18i">2026-05-22 — Bootstrap variance for SNM (Phase 18i)</a></li>
+  <li><a href="#triangulation-tests-delicatessen-cross-check-history0-support-phase-18f" id="toc-triangulation-tests-delicatessen-cross-check-history0-support-phase-18f" class="nav-link" data-scroll-target="#triangulation-tests-delicatessen-cross-check-history0-support-phase-18f">2026-05-21 — Triangulation tests, delicatessen cross-check, history=0 support (Phase 18f)</a></li>
+  <li><a href="#longitudinal-tv-em-truth-test-formula-dedup-fix-phase-18e" id="toc-longitudinal-tv-em-truth-test-formula-dedup-fix-phase-18e" class="nav-link" data-scroll-target="#longitudinal-tv-em-truth-test-formula-dedup-fix-phase-18e">2026-05-21 — Longitudinal TV-EM truth test + formula dedup fix (Phase 18e)</a></li>
+  <li><a href="#fix-longitudinal-snm-variance-with-treatment-free-model" id="toc-fix-longitudinal-snm-variance-with-treatment-free-model" class="nav-link" data-scroll-target="#fix-longitudinal-snm-variance-with-treatment-free-model">2026-05-21 — Fix longitudinal SNM variance with treatment-free model</a></li>
+  <li><a href="#longitudinal-snmm-with-per-stage-blip-estimation-phase-18d" id="toc-longitudinal-snmm-with-per-stage-blip-estimation-phase-18d" class="nav-link" data-scroll-target="#longitudinal-snmm-with-per-stage-blip-estimation-phase-18d">2026-05-21 — Longitudinal SNMM with per-stage blip estimation (Phase 18d)</a></li>
+  <li><a href="#time-varying-effect-modification-for-snms-phase-18c" id="toc-time-varying-effect-modification-for-snms-phase-18c" class="nav-link" data-scroll-target="#time-varying-effect-modification-for-snms-phase-18c">2026-05-21 — Time-varying effect modification for SNMs (Phase 18c)</a></li>
+  <li><a href="#treatment-free-outcome-model-for-snm-efficiency-phase-18b½" id="toc-treatment-free-outcome-model-for-snm-efficiency-phase-18b½" class="nav-link" data-scroll-target="#treatment-free-outcome-model-for-snm-efficiency-phase-18b½">2026-05-20 — Treatment-free outcome model for SNM efficiency (Phase 18b½)</a></li>
+  <li><a href="#snm-point-estimation-and-sandwich-variance-phase-18b" id="toc-snm-point-estimation-and-sandwich-variance-phase-18b" class="nav-link" data-scroll-target="#snm-point-estimation-and-sandwich-variance-phase-18b">2026-05-20 — SNM point estimation and sandwich variance (Phase 18b)</a></li>
   <li><a href="#snm-routing-and-validation-phase-18a" id="toc-snm-routing-and-validation-phase-18a" class="nav-link" data-scroll-target="#snm-routing-and-validation-phase-18a">2026-05-20 — SNM routing and validation (Phase 18a)</a></li>
   <li><a href="#phase-17-complete-transportability-documentation-phase-17m" id="toc-phase-17-complete-transportability-documentation-phase-17m" class="nav-link" data-scroll-target="#phase-17-complete-transportability-documentation-phase-17m">2026-05-20 — Phase 17 complete: transportability documentation (Phase 17m)</a></li>
   <li><a href="#mtp-transportability-via-mc-marginalization-phase-17l" id="toc-mtp-transportability-via-mc-marginalization-phase-17l" class="nav-link" data-scroll-target="#mtp-transportability-via-mc-marginalization-phase-17l">2026-05-18 — MTP + transportability via MC marginalization (Phase 17l)</a></li>
@@ -611,6 +645,117 @@ window.Quarto = {
 
 <section id="causatr-development-version" class="level1">
 <h1>causatr (development version)</h1>
+<section id="phase-19a-multivariate-longitudinal-ipw" class="level2">
+<h2 class="anchored" data-anchor-id="phase-19a-multivariate-longitudinal-ipw">2026-05-24 — Phase 19a: Multivariate longitudinal IPW</h2>
+<p>New support for joint time-varying treatments (<code>treatment = c("A1", "A2")</code>) under <code>estimator = "ipw"</code> with <code>type = "longitudinal"</code>. Composes Phase 8 (multivariate point IPW, K components) with Phase 10 (longitudinal IPW, T periods) to produce the T × K propensity factorisation:</p>
+<pre><code>W_i = ∏_t ∏_k w_{t,k,i}</code></pre>
+<ul>
+<li><strong>Per-period multivariate fitting</strong>: each time period fits K per-component propensity models via <code>fit_treatment_models()</code> with sequential conditioning (A_k ~ A_{1..k-1} + confounders + lags). The resulting per-period models are <code>causatr_treatment_models</code> objects.</li>
+<li><strong>Weight computation</strong>: <code>compute_longitudinal_weights()</code> detects multivariate models and dispatches to <code>compute_density_ratio_weights_mv()</code> per period, then takes the row-product across periods.</li>
+<li><strong>Sandwich variance</strong>: <code>make_weight_fn_longitudinal()</code> delegates to <code>make_weight_fn_mv()</code> per period, producing a T×K block-diagonal stacked alpha. The variance engine (<code>compute_ipw_if_self_contained_long_one()</code>) iterates over periods, then over components within each period, for the per-model corrections.</li>
+<li><strong>Bootstrap</strong>: works automatically via <code>refit_ipw()</code> → <code>fit_longitudinal_ipw()</code>.</li>
+<li><strong>Deferred</strong>: stabilized weights (<code>stabilize = "marginal"</code>) and effect modification (<code>A:modifier</code>) with multivariate longitudinal IPW are rejected with classed errors (<code>causatr_longitudinal_mv_stabilize_pending</code>, <code>causatr_longitudinal_mv_em_pending</code>).</li>
+</ul>
+</section>
+<section id="phase-19-trim-cross-cutting-weight-truncation" class="level2">
+<h2 class="anchored" data-anchor-id="phase-19-trim-cross-cutting-weight-truncation">2026-05-23 — Phase 19-trim: Cross-cutting weight truncation</h2>
+<p>New <code>trim</code> argument on <code>contrast()</code> for density-ratio weight truncation (winsorization). Clips per-component density ratios at the <code>trim</code>-th quantile before they enter any product (multivariate cross-component or longitudinal cross-period), following the approach of Cole &amp; Hernan (2008) and the lmtp default of 0.999. Recommended values: <code>0.999</code> (mild) or <code>0.99</code> (moderate, per Spreafico et al.&nbsp;2025).</p>
+<ul>
+<li><code>trim = 1</code> (default): no truncation, all existing behavior unchanged.</li>
+<li>Applied to all weight-computing paths: point IPW, multivariate IPW, longitudinal IPW, point AIPW, longitudinal AIPW.</li>
+<li>Sandwich variance: truncation threshold is fixed at the original data’s quantile and held constant under numDeriv perturbation, so the SE reflects the truncated weight surface at a fixed cutoff.</li>
+<li>Bootstrap: each replicate recomputes its own quantile threshold on the resampled data, capturing the full variance including truncation.</li>
+<li>NOT applied to sampling weights (transport) or IPCW weights (censoring), which define the target population rather than causal reweighting.</li>
+<li>Cross-validated against <code>lmtp::lmtp_sdr()</code> with matching <code>.trim</code> values for both multivariate point IPW and longitudinal IPW.</li>
+</ul>
+</section>
+<section id="fix-mv-ipw-sandwich-crash-with-natural-course-intervention" class="level2">
+<h2 class="anchored" data-anchor-id="fix-mv-ipw-sandwich-crash-with-natural-course-intervention">2026-05-24 — Fix: MV IPW sandwich crash with natural-course intervention</h2>
+<ul>
+<li><strong>numDeriv::jacobian crash</strong>: multivariate continuous IPW sandwich variance crashed with “subscript out of bounds” when any intervention was <code>NULL</code> (natural course). Root cause: <code>make_weight_fn_mv()</code> returns <code>alpha_hat = numeric(0)</code> for natural course (no propensity parameters to optimize), and <code>numDeriv::jacobian(fn, x = numeric(0))</code> cannot handle zero-length input. Fixed by adding an early return in <code>compute_ipw_if_self_contained_mv_one()</code> that skips the cross-derivative computation when no propensity parameters exist — the propensity correction is zero in this case since the weight function is constant (all ones).</li>
+</ul>
+</section>
+<section id="phase-19-trim-critical-review-fix" class="level2">
+<h2 class="anchored" data-anchor-id="phase-19-trim-critical-review-fix">2026-05-24 — Phase 19-trim critical review fix</h2>
+<ul>
+<li><strong>Sandwich/bootstrap truncation semantics mismatch</strong>: the variance-engine closures (<code>make_weight_fn_longitudinal</code>, <code>make_weight_fn_mv</code>) applied truncation to the post-product cumulative weight, while the weight-computation path (<code>compute_longitudinal_weights</code>, <code>compute_density_ratio_weights_mv</code>) applied per-component/per-period truncation before the product. This caused sandwich and bootstrap SEs to disagree by ~10% under aggressive trim values. Fixed by distributing per-component/per-period truncation thresholds to each sub-closure, matching the per-component semantics throughout.</li>
+</ul>
+</section>
+<section id="phase-18-critical-review-fixes" class="level2">
+<h2 class="anchored" data-anchor-id="phase-18-critical-review-fixes">2026-05-22 — Phase 18 critical review fixes</h2>
+<p>3rd-round critical review of Phase 18 (SNM implementation):</p>
+<ul>
+<li><strong>Bootstrap metadata fix</strong>: longitudinal SNM bootstrap now correctly forwards <code>confounders_outcome_raw</code> to replicated fits, ensuring metadata consistency on the bootstrap <code>causatr_fit</code> objects.</li>
+<li><strong>Predict consistency</strong>: <code>snm_treatment_design()</code> now uses <code>newdata = data</code> in <code>predict()</code> for scalar treatments, matching the categorical branch and guarding against future data-vs-model mismatch.</li>
+<li><strong>File split</strong>: extracted <code>compute_snm_contrast()</code> from <code>snm_point.R</code> (488 lines) into <code>snm_contrast.R</code> (191 lines), bringing both files under the 300-line guideline.</li>
+<li><strong>Roxygen</strong>: added missing <code>@return</code> tags to <code>variance_if_snm_longitudinal_notf()</code> and <code>variance_if_snm_longitudinal_tf()</code>.</li>
+<li><strong>delicatessen cross-checks</strong>: added two new cross-language oracle tests for longitudinal SNM — treatment-free model (TF, no EM) and time-varying effect modification with TF (TV-EM + TF). Both use Python delicatessen stacked M-estimation as the reference, with tight point-estimate tolerances (1e-4) and SE tolerances (0.3–1%).</li>
+</ul>
+</section>
+<section id="phase-18-complete-structural-nested-mean-models" class="level2">
+<h2 class="anchored" data-anchor-id="phase-18-complete-structural-nested-mean-models">2026-05-22 — Phase 18 complete: Structural Nested Mean Models</h2>
+<p>Phase 18 is complete. The <code>snm.qmd</code> vignette now covers all shipped features: categorical and count treatment extensions (18h), bootstrap confidence intervals (18i), and S3 method output (18j), in addition to the existing coverage of point and longitudinal SNMs with time-varying effect modification, treatment-free efficiency augmentation, and sandwich inference.</p>
+</section>
+<section id="snm-aware-s3-dispatch-phase-18j" class="level2">
+<h2 class="anchored" data-anchor-id="snm-aware-s3-dispatch-phase-18j">2026-05-22 — SNM-aware S3 dispatch (Phase 18j)</h2>
+<p>All user-facing S3 methods now recognize SNM results and display blip-parameter-specific output instead of the intervention-mean layout used by gcomp/IPW/AIPW/matching.</p>
+<p><code>print.causatr_result()</code> shows “Blip parameters:” (point), “Per-stage blip parameters:” (longitudinal), or “Averaged blip effect:” (Path B with <code>treatment_values</code>), and suppresses the empty contrasts table for Path A. <code>summary.causatr_result()</code> skips the “Intervention details” section for SNM and labels the vcov as “blip parameters”. <code>plot.causatr_result()</code> produces a forest plot with parameter names as row labels, a zero reference line, and an SNM-specific title. <code>coef()</code> and <code>tidy()</code> correctly use the <code>parameter</code> column (instead of <code>intervention</code>) present in SNM result objects, and <code>tidy()</code> tags rows with <code>type = "parameter"</code>.</p>
+</section>
+<section id="categorical-and-count-treatment-extensions-for-snm-phase-18h" class="level2">
+<h2 class="anchored" data-anchor-id="categorical-and-count-treatment-extensions-for-snm-phase-18h">2026-05-22 — Categorical and count treatment extensions for SNM (Phase 18h)</h2>
+<p>Extends SNM g-estimation to categorical (k&gt;2) and count (Poisson/NB) treatment types. The new <code>snm_treatment_design()</code> helper abstracts the construction of treatment-action (AM) and treatment-residual (RM) matrices so the g-estimating equation solve, variance engine, and bootstrap are uniform across all treatment types.</p>
+<p><strong>Categorical treatments</strong> use multinomial residualisation via <code>nnet::multinom</code>. The per-level indicators D_j = 1{A=j} and residuals R_j = D_j - P(A=j|L) produce (K−1) × p_mod blip parameters, one set per non-reference treatment level. The sandwich variance uses <code>prepare_model_if_multinom()</code> for the multinomial treatment model IF and a softmax-based cross-derivative closure. <code>treatment_values</code> is rejected for categorical SNM — the per-level blip parameters are the estimand directly.</p>
+<p><strong>Count treatments</strong> work with zero code changes: the existing scalar residual path R = A − E[A|L] handles Poisson and negative binomial treatment models via <code>propensity_family = "poisson"</code> or <code>"negbin"</code>.</p>
+<p>13 new truth-based tests covering point estimation, sandwich variance, bootstrap consistency, treatment-free model, and longitudinal backward sequential estimation for both categorical and count treatments.</p>
+</section>
+<section id="bootstrap-variance-for-snm-phase-18i" class="level2">
+<h2 class="anchored" data-anchor-id="bootstrap-variance-for-snm-phase-18i">2026-05-22 — Bootstrap variance for SNM (Phase 18i)</h2>
+<p>Adds bootstrap variance estimation for both point and longitudinal SNM estimators, completing the dual inference path (sandwich + bootstrap) that all other estimators already support.</p>
+<p><strong>Point bootstrap</strong> resamples rows and re-solves the g-estimating equation on each replicate, handling all three paths: standard (no effect modification), with <code>A:modifier</code> interactions, and with <code>treatment_free</code> joint (β, ψ) estimation. When <code>treatment_values</code> is supplied, the bootstrap statistic is the scalar averaged blip effect directly — no delta-method transformation needed on the bootstrap vcov.</p>
+<p><strong>Longitudinal bootstrap</strong> uses ID-clustered resampling (resample entire individual trajectories with clone-and-reassign for duplicates) and re-runs the full backward sequential g-estimation on each replicate. Forwards per-component confounders (<code>confounders_outcome</code>, <code>confounders_tv_outcome</code>, etc.) to ensure the blip specification is correctly reconstructed on bootstrap replicates even when outcome and treatment confounders are specified separately.</p>
+<p>All bootstrap SE estimates agree with sandwich SEs within a factor of 2 across 9 test configurations (point ± EM ± treatment-free ± treatment_values ± binary/continuous treatment; longitudinal ± TF ± TV-EM).</p>
+</section>
+<section id="triangulation-tests-delicatessen-cross-check-history0-support-phase-18f" class="level2">
+<h2 class="anchored" data-anchor-id="triangulation-tests-delicatessen-cross-check-history0-support-phase-18f">2026-05-21 — Triangulation tests, delicatessen cross-check, history=0 support (Phase 18f)</h2>
+<p>Adds the Robins triangle invariant tests: under correct specification and no time-varying effect modification, the SNM blip sum, longitudinal IPW-MSM ATE, and ICE g-comp ATE must agree on binary static interventions. Three pairwise comparisons (SNM vs IPW, SNM vs ICE, 3-way) plus a negative control where IPW is biased by collider conditioning on a post-treatment modifier but SNM recovers the correct blip.</p>
+<p>Cross-language validation against Python’s delicatessen package (Zivich 2022) using stacked M-estimation on shared fixture data (data-raw/snm_longitudinal_fixture.csv). Both R and Python operate on the exact same dataset, enabling tight tolerances: 1e-4 for point estimates, 0.3% for sandwich SEs.</p>
+<p>The <code>history</code> parameter now accepts 0 (no-lag Markov model) for all longitudinal estimators (SNM, IPW, ICE). Previously history &lt; 1 was rejected. The validator error message updated from “positive integer” to “non-negative integer.” Tests added for all three estimators with history=0.</p>
+<p>Removed 18 suppressMessages/suppressWarnings wrappers around causatr calls in the test suite (test-snm.R, test-missing-data.R, test-longitudinal-ipw.R). All underlying messages were either eliminated at the source or are expected informational output.</p>
+</section>
+<section id="longitudinal-tv-em-truth-test-formula-dedup-fix-phase-18e" class="level2">
+<h2 class="anchored" data-anchor-id="longitudinal-tv-em-truth-test-formula-dedup-fix-phase-18e">2026-05-21 — Longitudinal TV-EM truth test + formula dedup fix (Phase 18e)</h2>
+<p>Adds the headline truth-based test for longitudinal SNMs with time-varying effect modification. The 2-period DGP has a post-treatment modifier M_1 = 1{L_1 &gt; 0} (where L_1 depends on A_0) at both stages, with known blip parameters (psi_00 = 1.15, psi_0M = 2, psi_10 = 2, psi_1M = 2). Validates that the SNM correctly recovers all four parameters, while point-treatment IPW conditioning on M_1 is detectably biased due to collider bias (A_0 -&gt; L_1 -&gt; M_1).</p>
+<p>DTRreg cross-check uses <code>history = 0</code> for exact treatment-model match. Cluster bootstrap consistency check and TF-model efficiency test included.</p>
+<p>Also fixes <code>build_longitudinal_ps_formula()</code> to deduplicate baseline terms that overlap with time-varying terms. R formulas silently dropped the duplicate, so the fitted model was unaffected, but the formula object was misleading to anyone who inspected it.</p>
+</section>
+<section id="fix-longitudinal-snm-variance-with-treatment-free-model" class="level2">
+<h2 class="anchored" data-anchor-id="fix-longitudinal-snm-variance-with-treatment-free-model">2026-05-21 — Fix longitudinal SNM variance with treatment-free model</h2>
+<p>The sandwich variance for longitudinal <code>estimator = "snm"</code> with <code>treatment_free</code> now correctly accounts for the joint (beta, psi) system at each stage. Previously, the variance engine used the psi-only estimating equation scores and bread, ignoring the treatment-free nuisance parameters. When E[R * Z] ≈ 0 (correctly specified treatment model, TF covariates subset of PS covariates), the error cancelled exactly. When E[R * Z] ≠ 0 (TF formula includes covariates absent from the treatment model), the sandwich SEs were inflated by the unabsorbed TF prediction. The fix implements the full joint system with per-stage (beta_k, psi_k) blocks, cross-stage derivatives, and psi-marginal extraction — mirroring the point-treatment TF variance that was already correct.</p>
+</section>
+<section id="longitudinal-snmm-with-per-stage-blip-estimation-phase-18d" class="level2">
+<h2 class="anchored" data-anchor-id="longitudinal-snmm-with-per-stage-blip-estimation-phase-18d">2026-05-21 — Longitudinal SNMM with per-stage blip estimation (Phase 18d)</h2>
+<p><code>estimator = "snm"</code> now supports <code>type = "longitudinal"</code> for multi-period panel data. The implementation uses backward sequential g-estimation (Robins 1994): starting at the final stage K, each stage’s blip parameters are estimated using the backward-transformed outcome H_k, yielding per-stage parameters (e.g.&nbsp;<code>stage0_psi_intercept</code>, <code>stage1_psi_intercept</code>). Each stage gets its own treatment model fit via the existing longitudinal propensity infrastructure.</p>
+<p>The cluster-robust sandwich variance accounts for cross-stage dependencies: earlier-stage blip parameters depend on later-stage estimates through the backward-transformed outcome, creating off-diagonal blocks in the bread matrix. Treatment-model corrections are applied per-stage via the standard numDeriv::jacobian approach.</p>
+<p>Testing: truth-based tests on binary and continuous treatment DGPs, DTRreg cross-checks (binary treatment), vcov PSD checks, rejection tests for treatment_values and bootstrap. DGP truth values account for the mediated A_0 -&gt; L_1 -&gt; Y path correctly (validated against DTRreg at n = 500k).</p>
+</section>
+<section id="time-varying-effect-modification-for-snms-phase-18c" class="level2">
+<h2 class="anchored" data-anchor-id="time-varying-effect-modification-for-snms-phase-18c">2026-05-21 — Time-varying effect modification for SNMs (Phase 18c)</h2>
+<p>SNMs now explicitly support <strong>time-varying (post-treatment) modifiers</strong> — the headline feature motivating the addition of SNMMs to causatr. The modifier M can depend on treatment A, unlike IPW-MSM where this opens collider paths (Robins 2000). With <code>treatment_free = ~ L</code>, the blip parameters recover the structural truth; without it, the moment-condition estimates capture a different (still valid) quantity that absorbs the A → M → Y indirect path.</p>
+<p>Documentation: updated <code>parse_effect_mod()</code> to clarify the SNM exception to the baseline-only modifier constraint. New vignette <code>snm.qmd</code> with a worked example demonstrating IPW bias with post-treatment modifiers and correct SNM identification.</p>
+<p>Testing: truth-based tests on DGPs where M = f(A, L), delicatessen cross-checks (4 scenarios: continuous/binary × no-TF/TF), DTRreg cross-check, IPW bias demonstration, vcov PSD checks.</p>
+</section>
+<section id="treatment-free-outcome-model-for-snm-efficiency-phase-18b½" class="level2">
+<h2 class="anchored" data-anchor-id="treatment-free-outcome-model-for-snm-efficiency-phase-18b½">2026-05-20 — Treatment-free outcome model for SNM efficiency (Phase 18b½)</h2>
+<p><code>causat(..., treatment_free = ~ L)</code> enables a treatment-free outcome model that reduces blip parameter standard errors by 30–45% without changing point estimates. The approach follows Vansteelandt &amp; Joffe (2014) and matches DTRreg’s <code>tf.mod</code> argument: the treatment-free model parameters β and blip parameters ψ are solved jointly from a linear system, rather than fitting E[Y | L] separately.</p>
+<p>The sandwich variance engine extends to a stacked system (α_treatment, θ_joint = (β, ψ)) with the joint bread computed analytically and the cross-derivative A_{θ,α} via <code>numDeriv::jacobian()</code>. Validated against delicatessen on three DGPs (continuous + EM, binary + EM, two modifiers) and against DTRreg on the EM case — point estimates and SEs match to 0.01 tolerance.</p>
+<p>Breaking change: none. The <code>treatment_free</code> parameter defaults to <code>NULL</code>, preserving the existing behavior. Non-SNM estimators reject <code>treatment_free</code> with a <code>causatr_treatment_free_not_snm</code> classed error.</p>
+</section>
+<section id="snm-point-estimation-and-sandwich-variance-phase-18b" class="level2">
+<h2 class="anchored" data-anchor-id="snm-point-estimation-and-sandwich-variance-phase-18b">2026-05-20 — SNM point estimation and sandwich variance (Phase 18b)</h2>
+<p>Point-treatment SNM g-estimation is now fully operational. <code>contrast(fit)</code> returns the blip parameter table (ψ₀, ψ_M, …) with stacked-EE sandwich standard errors and confidence intervals. <code>contrast(fit, treatment_values = c(0, 1))</code> computes the population-averaged blip effect with delta-method variance.</p>
+<p>The sandwich variance engine (<code>variance_if_snm()</code>) implements the full stacked M-estimation system: treatment model score block + blip estimating equation block + cross-derivative A_{ψ,α} via <code>numDeriv::jacobian()</code>. Validated against <code>delicatessen</code> (Zivich et al.&nbsp;2024) on three DGPs (continuous treatment + single modifier, binary treatment + single modifier, continuous treatment + two modifiers) with point estimate and SE agreement to 0.01 tolerance.</p>
+<p>New files: <code>R/variance_if_snm.R</code> (split from snm.R following the existing variance file pattern), <code>data-raw/snm_reference.py</code> (delicatessen reference script), fixture CSVs.</p>
+</section>
 <section id="snm-routing-and-validation-phase-18a" class="level2">
 <h2 class="anchored" data-anchor-id="snm-routing-and-validation-phase-18a">2026-05-20 — SNM routing and validation (Phase 18a)</h2>
 <p>Added <code>estimator = "snm"</code> to <code>causat()</code> for structural nested mean model (SNMM) g-estimation — the third leg of the Robins triangle alongside g-computation and IPW-MSM. Chunk 18a ships the routing infrastructure: <code>fit_snm()</code> fits the treatment model via the existing <code>fit_treatment_model()</code> machinery, parses effect-modification terms (<code>A:modifier</code> in confounders) into a linear blip specification, and stores the result for downstream g-estimation. Supports binary and continuous point treatments.</p>
@@ -729,10 +874,10 @@ window.Quarto = {
 <section id="stochastic-interventions-under-g-computation-phase-12" class="level2">
 <h2 class="anchored" data-anchor-id="stochastic-interventions-under-g-computation-phase-12">2026-05-03 — Stochastic interventions under g-computation (Phase 12)</h2>
 <p>New <code>stochastic()</code> intervention constructor accepts a user-supplied sampler function and implements Monte Carlo g-formula integration for both point and longitudinal (ICE) estimators.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>sampler <span class="ot">&lt;-</span> <span class="cf">function</span>(a, data) <span class="fu">rnorm</span>(<span class="fu">length</span>(a), <span class="at">mean =</span> a <span class="sc">-</span> <span class="dv">1</span>, <span class="at">sd =</span> <span class="fl">0.5</span>)</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit,</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">stoch =</span> <span class="fu">stochastic</span>(sampler, <span class="at">n_mc =</span> <span class="dv">100</span>)),</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="st">"observed"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>sampler <span class="ot">&lt;-</span> <span class="cf">function</span>(a, data) <span class="fu">rnorm</span>(<span class="fu">length</span>(a), <span class="at">mean =</span> a <span class="sc">-</span> <span class="dv">1</span>, <span class="at">sd =</span> <span class="fl">0.5</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit,</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">stoch =</span> <span class="fu">stochastic</span>(sampler, <span class="at">n_mc =</span> <span class="dv">100</span>)),</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="st">"observed"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <ul>
 <li>Sandwich variance uses MC-averaged influence functions; bootstrap draws fresh MC samples per replicate.</li>
 <li>Rejection paths for IPW and matching with informative errors (<code>causatr_stochastic_ipw</code>, <code>causatr_stochastic_matching</code>).</li>
@@ -761,10 +906,10 @@ window.Quarto = {
 <section id="diagnose-rewrite-foundation-phase-11-chunk-11a" class="level2">
 <h2 class="anchored" data-anchor-id="diagnose-rewrite-foundation-phase-11-chunk-11a">2026-04-26 — <code>diagnose()</code> rewrite foundation (Phase 11 chunk 11a)</h2>
 <p><code>diagnose()</code> now accepts an <code>interventions =</code> argument that mirrors <code>contrast()</code>’s signature, and the returned <code>causatr_diag</code> object exposes a nested <code>per_intervention</code> named list (one panel per intervention key with <code>positivity</code>, <code>balance</code>, and <code>weights</code> slots). The default call <code>diagnose(fit)</code> is unchanged: a single panel keyed <code>obs</code> is auto- injected, populated with the observed-treatment Horvitz-Thompson view (<code>1/p</code> on treated, <code>1/(1-p)</code> on controls). Top-level <code>positivity</code> / <code>balance</code> / <code>weights</code> slots continue to point at the first panel so every existing flat-shape consumer keeps working without modification.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>diag <span class="ot">&lt;-</span> <span class="fu">diagnose</span>(fit,</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>                 <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)))</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>diag<span class="sc">$</span>per_intervention<span class="sc">$</span>a1<span class="sc">$</span>weights  <span class="co"># weight summary under static(1)</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>diag<span class="sc">$</span>per_intervention<span class="sc">$</span>a0<span class="sc">$</span>weights  <span class="co"># weight summary under static(0)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>diag <span class="ot">&lt;-</span> <span class="fu">diagnose</span>(fit,</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>                 <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)))</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>diag<span class="sc">$</span>per_intervention<span class="sc">$</span>a1<span class="sc">$</span>weights  <span class="co"># weight summary under static(1)</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>diag<span class="sc">$</span>per_intervention<span class="sc">$</span>a0<span class="sc">$</span>weights  <span class="co"># weight summary under static(0)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>User-named interventions route through <code>compute_density_ratio_weights()</code> to build the per-intervention HT-style weight; the resulting treated / control / overall summary uses the same Kish effective sample size formula as the legacy view, with a divide-by-zero guard so the zero-weight off-arm under a static-arm intervention reports <code>ess = 0</code> cleanly.</p>
 <p>Seven <code>causatr_diag_*_pending</code> classed errors gate every sub-feature that the rewrite has not yet absorbed: <code>causatr_diag_continuous_pending</code> (continuous IPW), <code>causatr_diag_categorical_pending</code> (categorical IPW), <code>causatr_diag_count_pending</code> (Poisson / negbin IPW), <code>causatr_diag_multivariate_pending</code> (multivariate IPW), <code>causatr_diag_longitudinal_pending</code> (replaces the pre-chunk-11a flat abort on ICE fits), <code>causatr_diag_estimand_pending</code> (IPW under ATT / ATC — gcomp and matching are unaffected because their diagnostic paths are estimand-agnostic), and <code>causatr_diag_em_pending</code> (the <code>by =</code> argument is reserved at the signature level so future chunks can lift the rejection without a signature break). The chunk 11a balance view remains the unadjusted SMD across treatment groups; per-intervention post-weighting balance lands in chunk 11d alongside the ATT / ATC rewrite.</p>
 <p>The 12 pre-existing test blocks in <code>test-diagnose.R</code> continue to pass unchanged as regression anchors; 12 new test blocks cover the per- intervention dispatch path (with manual <code>1/p</code> ESS reconstruction sanity), the multi-panel <code>print()</code> output, and one classed-error check per <code>_pending</code> gate.</p>
@@ -772,12 +917,12 @@ window.Quarto = {
 <section id="effect-modification-under-longitudinal-ipw-phase-10-chunk-10c" class="level2">
 <h2 class="anchored" data-anchor-id="effect-modification-under-longitudinal-ipw-phase-10-chunk-10c">2026-04-26 — Effect modification under longitudinal IPW (Phase 10 chunk 10c)</h2>
 <p><code>A:modifier</code> interactions in <code>confounders =</code> are now supported under longitudinal IPW. The per-period propensity formulas strip every treatment-touching term via <code>parse_effect_mod()</code> (modifier main effects are kept; only the <code>A:sex</code> interaction is removed because A is the response of the propensity model), and the final-period MSM expands from <code>Y ~ 1</code> to <code>Y ~ 1 + modifier</code> via the existing <code>build_ipw_msm_formula()</code> so <code>predict()</code> returns stratum-specific counterfactual means.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(d, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>              <span class="at">confounders =</span> <span class="sc">~</span> L0 <span class="sc">+</span> sex <span class="sc">+</span> A<span class="sc">:</span>sex,</span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>              <span class="at">confounders_tv =</span> <span class="sc">~</span> L,</span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>              <span class="at">id =</span> <span class="st">"id"</span>, <span class="at">time =</span> <span class="st">"time"</span>, <span class="at">estimator =</span> <span class="st">"ipw"</span>)</span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit, <span class="fu">list</span>(<span class="at">a =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">z =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>         <span class="at">reference =</span> <span class="st">"z"</span>, <span class="at">by =</span> <span class="st">"sex"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(d, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>              <span class="at">confounders =</span> <span class="sc">~</span> L0 <span class="sc">+</span> sex <span class="sc">+</span> A<span class="sc">:</span>sex,</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>              <span class="at">confounders_tv =</span> <span class="sc">~</span> L,</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>              <span class="at">id =</span> <span class="st">"id"</span>, <span class="at">time =</span> <span class="st">"time"</span>, <span class="at">estimator =</span> <span class="st">"ipw"</span>)</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit, <span class="fu">list</span>(<span class="at">a =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">z =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>         <span class="at">reference =</span> <span class="st">"z"</span>, <span class="at">by =</span> <span class="st">"sex"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p><strong>Known limitation.</strong> The modifier MUST be a baseline covariate (Robins 2000). A time-varying modifier in an MSM conditions on a post-treatment variable, biasing the estimand. Not enforced at runtime (time-varying status isn’t inferable from data); doc-level constraint only. Use a structural nested model (Phase 18) for time-varying effect modification.</p>
 <p>The chunk 10a <code>causatr_longitudinal_em_pending</code> rejection is removed. Bare treatment in confounders (<code>~ L + A</code>) continues to be rejected upstream by <code>check_em_compat()</code> with <code>causatr_bare_treatment_in_confounders</code>.</p>
 </section>
@@ -785,10 +930,10 @@ window.Quarto = {
 <h2 class="anchored" data-anchor-id="stabilized-longitudinal-ipw-phase-10-chunk-10b">2026-04-26 — Stabilized longitudinal IPW (Phase 10 chunk 10b)</h2>
 <p><code>causat(estimator = "ipw", id, time, stabilize = "marginal")</code> now fits per-period numerator models <span class="math inline">\(g_k(A_k \mid \bar A_{k-1}, V)\)</span> that drop time-varying confounders from the conditioning set. The per-period weight becomes <span class="math inline">\(g_k(d(A_k) \mid \bar A_{k-1}, V) \cdot
 \lvert \mathrm{Jac} \rvert / f_k(A_k \mid \bar A_{k-1}, \bar L_k)\)</span>, dampening the multiplicative L-dependence across periods that inflates the cumulative product.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(d, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>              <span class="at">confounders =</span> <span class="sc">~</span> L0, <span class="at">confounders_tv =</span> <span class="sc">~</span> L,</span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>              <span class="at">id =</span> <span class="st">"id"</span>, <span class="at">time =</span> <span class="st">"time"</span>, <span class="at">estimator =</span> <span class="st">"ipw"</span>,</span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>              <span class="at">stabilize =</span> <span class="st">"marginal"</span>, <span class="at">numerator =</span> <span class="sc">~</span> L0)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(d, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>              <span class="at">confounders =</span> <span class="sc">~</span> L0, <span class="at">confounders_tv =</span> <span class="sc">~</span> L,</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>              <span class="at">id =</span> <span class="st">"id"</span>, <span class="at">time =</span> <span class="st">"time"</span>, <span class="at">estimator =</span> <span class="st">"ipw"</span>,</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>              <span class="at">stabilize =</span> <span class="st">"marginal"</span>, <span class="at">numerator =</span> <span class="sc">~</span> L0)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <ul>
 <li>Default <code>numerator = NULL</code> keeps treatment lags only (drops L from every period). Custom <code>numerator = ~ V</code> adds the user-supplied baseline conditioning set on top of the treatment lags so the chain-rule factorisation of <span class="math inline">\(g_k\)</span> stays valid.</li>
 <li>Sandwich variance treats numerator parameters <span class="math inline">\(\gamma\)</span> as fixed (same nuisance-fixed convention as Phase 8e for multivariate IPW and <span class="math inline">\(\sigma\)</span> / <span class="math inline">\(\theta\)</span> for Gaussian / negbin densities). Bootstrap refits both numerator and denominator per replicate and captures the full uncertainty.</li>
@@ -800,11 +945,11 @@ window.Quarto = {
 <h2 class="anchored" data-anchor-id="longitudinal-ipw-core-phase-10-chunk-10a">2026-04-26 — Longitudinal IPW core (Phase 10 chunk 10a)</h2>
 <p><code>causat(estimator = "ipw", id = ..., time = ...)</code> now ships: fits a per-period treatment density chain <span class="math inline">\(f(A_k \mid \bar A_{k-1},
 \bar L_k)\)</span> across <code>time_points</code>, builds the cumulative density-ratio weight per individual under sequential-MTP semantics (Robins, Hernán, Brumback 2000; Díaz et al.&nbsp;2023), refits an intercept-only Hájek MSM on final-period outcomes, and reads <span class="math inline">\(\hat\mu_a\)</span> off the intercept.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(d, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>              <span class="at">confounders =</span> <span class="sc">~</span> L0, <span class="at">confounders_tv =</span> <span class="sc">~</span> L,</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>              <span class="at">id =</span> <span class="st">"id"</span>, <span class="at">time =</span> <span class="st">"time"</span>, <span class="at">estimator =</span> <span class="st">"ipw"</span>)</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit, <span class="fu">list</span>(<span class="at">s =</span> <span class="fu">shift</span>(<span class="fl">0.5</span>), <span class="at">n =</span> <span class="cn">NULL</span>),</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>         <span class="at">reference =</span> <span class="st">"n"</span>, <span class="at">ci_method =</span> <span class="st">"sandwich"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(d, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>              <span class="at">confounders =</span> <span class="sc">~</span> L0, <span class="at">confounders_tv =</span> <span class="sc">~</span> L,</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>              <span class="at">id =</span> <span class="st">"id"</span>, <span class="at">time =</span> <span class="st">"time"</span>, <span class="at">estimator =</span> <span class="st">"ipw"</span>)</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit, <span class="fu">list</span>(<span class="at">s =</span> <span class="fu">shift</span>(<span class="fl">0.5</span>), <span class="at">n =</span> <span class="cn">NULL</span>),</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>         <span class="at">reference =</span> <span class="st">"n"</span>, <span class="at">ci_method =</span> <span class="st">"sandwich"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <ul>
 <li>Supported interventions: <code>static()</code> / <code>shift()</code> / <code>scale_by()</code> / <code>dynamic()</code> (per-period dispatch through the existing <code>check_intervention_family_compat()</code> gates).</li>
 <li>Variance: stacked sandwich (<code>variance_if_ipw_longitudinal()</code>) with block-diagonal propensity bread across periods, plus id-clustered nonparametric bootstrap that resamples entire individual trajectories.</li>
@@ -816,11 +961,11 @@ window.Quarto = {
 <section id="future-backend-for-bootstrap-phase-9c" class="level2">
 <h2 class="anchored" data-anchor-id="future-backend-for-bootstrap-phase-9c">2026-04-22 — <code>future</code> backend for bootstrap (Phase 9c)</h2>
 <p><code>contrast(parallel = "future")</code> now dispatches bootstrap replicates through <code>future.apply::future_lapply()</code>, so any active <code>future::plan()</code> is honoured. Users with remote / cluster / <code>future.batchtools</code> workflows no longer have to set up socket clusters by hand via <code>parallel = "snow"</code>.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(future)</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">plan</span>(multisession, <span class="at">workers =</span> <span class="dv">4</span>)</span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit, <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>         <span class="at">ci_method =</span> <span class="st">"bootstrap"</span>, <span class="at">n_boot =</span> <span class="dv">500</span>,</span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>         <span class="at">parallel =</span> <span class="st">"future"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(future)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="fu">plan</span>(multisession, <span class="at">workers =</span> <span class="dv">4</span>)</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit, <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>         <span class="at">ci_method =</span> <span class="st">"bootstrap"</span>, <span class="at">n_boot =</span> <span class="dv">500</span>,</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>         <span class="at">parallel =</span> <span class="st">"future"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <ul>
 <li>The <code>"no" / "multicore" / "snow"</code> paths remain unchanged and still go through <code>boot::boot()</code>. <code>"future"</code> bypasses <code>boot::boot()</code> to let the <code>future</code> plan own the scheduling.</li>
 <li><code>ncpus</code> is ignored under <code>"future"</code> — the plan’s worker count is the single source of truth.</li>
@@ -831,12 +976,12 @@ window.Quarto = {
 <section id="surveysvydesign-integration-phase-9b" class="level2">
 <h2 class="anchored" data-anchor-id="surveysvydesign-integration-phase-9b">2026-04-22 — <code>survey::svydesign</code> integration (Phase 9b)</h2>
 <p><code>causat(weights = )</code> now accepts a <code>survey::svydesign</code> object directly. The sampling weights are extracted via <code>stats::weights(design)</code> and the design’s first-stage cluster (PSU) is auto-propagated into the fit’s <code>cluster</code> slot so the contrast-time sandwich is cluster-robust by default.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(survey)</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>des <span class="ot">&lt;-</span> <span class="fu">svydesign</span>(<span class="at">ids =</span> <span class="sc">~</span>psu, <span class="at">weights =</span> <span class="sc">~</span>pw, <span class="at">data =</span> d)</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(d, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>              <span class="at">confounders =</span> <span class="sc">~</span> L, <span class="at">weights =</span> des)</span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="co"># weights and cluster both applied automatically</span></span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit, <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(survey)</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>des <span class="ot">&lt;-</span> <span class="fu">svydesign</span>(<span class="at">ids =</span> <span class="sc">~</span>psu, <span class="at">weights =</span> <span class="sc">~</span>pw, <span class="at">data =</span> d)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(d, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>              <span class="at">confounders =</span> <span class="sc">~</span> L, <span class="at">weights =</span> des)</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="co"># weights and cluster both applied automatically</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit, <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Behaviour:</p>
 <ul>
 <li>Equivalent to <code>causat(weights = weights(des), cluster = names(des$cluster)[1])</code> — identical point estimate and SE (pinned in <code>test-survey-design.R</code>).</li>
@@ -860,17 +1005,17 @@ window.Quarto = {
 </section>
 <section id="api" class="level3">
 <h3 class="anchored" data-anchor-id="api">API</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(data, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>              <span class="at">confounders =</span> <span class="sc">~</span> L, <span class="at">cluster =</span> <span class="st">"site"</span>)</span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="co"># cluster auto-propagates from fit to contrast</span></span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit, <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)))</span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="co"># or specify at contrast time only</span></span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(data, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>, <span class="at">confounders =</span> <span class="sc">~</span> L)</span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit, <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>         <span class="at">cluster =</span> <span class="st">"site"</span>)     <span class="co"># column name</span></span>
-<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit, <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
-<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>         <span class="at">cluster =</span> data<span class="sc">$</span>site)  <span class="co"># direct vector</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(data, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>              <span class="at">confounders =</span> <span class="sc">~</span> L, <span class="at">cluster =</span> <span class="st">"site"</span>)</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="co"># cluster auto-propagates from fit to contrast</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit, <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)))</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="co"># or specify at contrast time only</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(data, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>, <span class="at">confounders =</span> <span class="sc">~</span> L)</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit, <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>         <span class="at">cluster =</span> <span class="st">"site"</span>)     <span class="co"># column name</span></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit, <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>         <span class="at">cluster =</span> data<span class="sc">$</span>site)  <span class="co"># direct vector</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="truth-testing" class="level3">
 <h3 class="anchored" data-anchor-id="truth-testing">Truth testing</h3>
@@ -1164,8 +1309,8 @@ w_k^{s}(\alpha_k) = \frac{g_k\bigl(d_k^{-1}(A_k) \mid A_{1..k-1}\bigr) \cdot |\m
 <h2 class="anchored" data-anchor-id="breaking-causat-causat_survival-argument-method-renamed-to-estimator">2026-04-17 — Breaking: <code>causat()</code> / <code>causat_survival()</code> argument <code>method</code> renamed to <code>estimator</code></h2>
 <p><code>causat(method = ...)</code> shadowed <code>WeightIt::weightit(method = ...)</code> and <code>MatchIt::matchit(method = ...)</code>, making it impossible to forward those packages’ own <code>method</code> selector through <code>...</code>. The causatr argument has been renamed to <code>estimator</code>; extra <code>...</code> arguments now flow cleanly into WeightIt / MatchIt. This is a hard rename with no deprecation shim — update call sites from <code>method = "gcomp" | "ipw" | "matching"</code> to <code>estimator = "..."</code>, and from <code>fit$method</code> / <code>result$method</code> / <code>diag$method</code> to <code>fit$estimator</code> / <code>result$estimator</code> / <code>diag$estimator</code>. The <code>glance.causatr_result()</code> output column is renamed in the same way.</p>
 <p>After the rename, forwarding e.g.&nbsp;a CBPS propensity model is a one-liner:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(data, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>, <span class="at">confounders =</span> <span class="sc">~</span> L1 <span class="sc">+</span> L2,</span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>              <span class="at">estimator =</span> <span class="st">"ipw"</span>, <span class="at">method =</span> <span class="st">"cbps"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(data, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>, <span class="at">confounders =</span> <span class="sc">~</span> L1 <span class="sc">+</span> L2,</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>              <span class="at">estimator =</span> <span class="st">"ipw"</span>, <span class="at">method =</span> <span class="st">"cbps"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>See <code>vignette("ipw")</code> for a worked example. <code>ci_method</code> is a separate concept and is unchanged.</p>
 </section>
 <section id="critical-review-sweep-r1r9-s1s9" class="level2">
