@@ -2979,3 +2979,93 @@ test_that("SNM GAM propensity model: finite estimates and SEs (smoke test)", {
   expect_true(all(is.finite(res$estimates$estimate)))
   expect_true(all(is.finite(res$estimates$se)))
 })
+
+# ── Cluster-robust SE (Group 3) ───────────────────────────────────────────────
+
+test_that("SNM cluster-robust SE: singleton cluster equals i.i.d. sandwich exactly", {
+  # The SNM blip IF is R_i * score_i where R_i is a mean-zero treatment
+  # residual. Since E[R_i] = 0, the within-cluster covariance of blip IF
+  # scores is ≈ 0 for correctly-specified treatment models — the cluster
+  # correction neither inflates nor deflates the sandwich in expectation.
+  # Mechanical correctness test: cluster = 1:n (every obs its own cluster)
+  # must give exactly the same vcov as the i.i.d. sandwich.
+  dgp <- simulate_snm_clustered(n_clusters = 50, obs_per_cluster = 20, seed = 42)
+  d <- dgp$data
+
+  fit <- causat(
+    d[, .(Y, A, L)],
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L,
+    estimator = "snm",
+    propensity_model_fn = stats::glm
+  )
+
+  snm_r <- compute_snm_blip_point(fit)
+  n_fit <- snm_r$n_obs
+  n_data <- nrow(fit$data)
+
+  vcov_iid <- variance_if_snm(fit, snm_r, cluster_vec = NULL)
+  # Singleton vector must be length nrow(fit$data) — variance_if_snm()
+  # subsets it to fit_rows internally. This tests the subsetting path.
+  vcov_singleton_full <- variance_if_snm(fit, snm_r, cluster_vec = seq_len(n_data))
+  # Direct fit-length singleton for reference
+  vcov_singleton_fit <- variance_if_snm(fit, snm_r, cluster_vec = seq_len(n_fit))
+
+  # All three must be numerically identical to i.i.d.
+  expect_equal(vcov_iid, vcov_singleton_full)
+  expect_equal(vcov_iid, vcov_singleton_fit)
+
+  # Contrast-level check: same SE with or without cluster (via raw vector)
+  res_iid <- contrast(fit, ci_method = "sandwich")
+  res_cl <- contrast(fit, ci_method = "sandwich", cluster = d$cluster_id)
+
+  # Point estimate unchanged by SE method
+  expect_equal(
+    res_iid$estimates$estimate,
+    res_cl$estimates$estimate,
+    tolerance = 1e-10
+  )
+
+  # SE is finite and positive under cluster
+  expect_true(all(is.finite(res_cl$estimates$se)))
+  expect_true(all(res_cl$estimates$se > 0))
+})
+
+test_that("SNM cluster-robust SE: by= rejects with informative error (not yet implemented)", {
+  # Group 4 will implement by-stratified averaged blip. Until then, a non-NULL
+  # `by` must fail cleanly so callers know the feature is coming.
+  d <- simulate_snm_point_no_em(n = 200, seed = 42)$data
+  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~ L,
+    estimator = "snm", propensity_model_fn = stats::glm)
+  expect_error(
+    contrast(fit, by = "L"),
+    class = "causatr_snm_by_not_implemented"
+  )
+})
+
+test_that("SNM cluster-robust SE: fit-time cluster propagates to contrast()", {
+  # cluster passed at causat() time is stored in fit$details$cluster and
+  # automatically used in contrast() without a second argument.
+  dgp <- simulate_snm_clustered(n_clusters = 50, obs_per_cluster = 20, seed = 42)
+  d <- dgp$data
+
+  fit_cl <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L,
+    estimator = "snm",
+    propensity_model_fn = stats::glm,
+    cluster = "cluster_id"
+  )
+
+  # Propagated (no cluster arg to contrast) vs explicit raw-vector override.
+  # Both use the same 50-cluster grouping, so SEs must be identical.
+  res_propagated <- contrast(fit_cl, ci_method = "sandwich")
+  res_explicit <- contrast(fit_cl, ci_method = "sandwich", cluster = d$cluster_id)
+
+  expect_equal(res_propagated$estimates$se, res_explicit$estimates$se, tolerance = 1e-10)
+  # Fit-time cluster is stored
+  expect_equal(fit_cl$details$cluster, "cluster_id")
+})

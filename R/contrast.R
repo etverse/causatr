@@ -376,6 +376,11 @@ contrast <- function(
         class = "causatr_snm_no_interventions"
       )
     }
+    # Resolve cluster here because the SNM path returns before the
+    # general cluster-resolution block below. Default to fit$details$cluster
+    # if the caller didn't supply one.
+    snm_cluster <- if (is.null(cluster)) fit$details$cluster else cluster
+    snm_cluster_vec <- resolve_cluster(snm_cluster, fit)
     return(compute_snm_contrast(
       fit,
       treatment_values = treatment_values,
@@ -384,6 +389,8 @@ contrast <- function(
       n_boot = n_boot,
       parallel = parallel,
       ncpus = ncpus,
+      cluster_vec = snm_cluster_vec,
+      by = by,
       call = call
     ))
   }

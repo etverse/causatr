@@ -36,10 +36,15 @@
 #'
 #' @param fit A `causatr_fit` with `estimator = "snm"`.
 #' @param snm_result Output of `compute_snm_blip_point()`.
+#' @param cluster_vec Character, integer, or factor vector of cluster IDs
+#'   (length = `nrow(fit$data)`) or `NULL` for i.i.d. aggregation. When
+#'   non-`NULL`, the vector is subsetted to the fit rows before aggregation,
+#'   then influence functions are summed within each cluster before the outer
+#'   product, implementing the Liang-Zeger cluster-robust sandwich.
 #' @return A named p_psi x p_psi variance-covariance matrix for
 #'   \eqn{\hat\psi}.
 #' @noRd
-variance_if_snm <- function(fit, snm_result) {
+variance_if_snm <- function(fit, snm_result, cluster_vec = NULL) {
   psi_hat <- snm_result$psi_hat
   Y <- snm_result$Y
   n <- snm_result$n_obs
@@ -49,6 +54,14 @@ variance_if_snm <- function(fit, snm_result) {
   beta_hat <- snm_result$beta_hat
   Z <- snm_result$Z
   has_tf <- !is.null(beta_hat)
+
+  # resolve_cluster() returns a vector of length nrow(fit$data). IF_psi has
+  # n_obs = sum(fit_rows) rows. Subset cluster_vec to fit rows so the lengths
+  # align for vcov_from_if(); this handles censoring, NA outcomes, and any
+  # other upstream row-exclusion transparently.
+  if (!is.null(cluster_vec)) {
+    cluster_vec <- cluster_vec[fit_rows]
+  }
 
   # Treatment design matrices from the point estimator
   td <- snm_result$td
@@ -170,10 +183,16 @@ variance_if_snm <- function(fit, snm_result) {
     IF_psi <- adjusted_score %*% t(A_psi_psi_inv)
   }
 
-  vcov_psi <- crossprod(IF_psi) / n^2
-  rownames(vcov_psi) <- names(psi_hat)
-  colnames(vcov_psi) <- names(psi_hat)
-  vcov_psi
+  # vcov_from_if() handles both i.i.d. (cluster = NULL) and cluster-robust
+  # aggregation identically to all other estimators. For i.i.d. it returns
+  # crossprod(IF_psi) / n^2; for clustered data it sums IF rows within
+  # each cluster first (Liang-Zeger 1986 cluster-robust sandwich).
+  vcov_from_if(
+    list(psi = IF_psi),
+    n,
+    int_names = colnames(IF_psi),
+    cluster = cluster_vec
+  )
 }
 
 

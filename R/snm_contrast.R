@@ -26,6 +26,11 @@
 #' @param parallel Character. `"no"`, `"multicore"`, `"snow"`, or
 #'   `"future"`.
 #' @param ncpus Integer. Number of CPU cores for parallel backends.
+#' @param cluster_vec Character or integer vector of cluster IDs (length
+#'   = n_obs) or `NULL` for i.i.d. aggregation. When non-`NULL`, the
+#'   Liang-Zeger cluster-robust sandwich is used.
+#' @param by Character column name for stratified averaged blip, or
+#'   `NULL`. Requires `treatment_values` to be set; ignored otherwise.
 #' @param call The original `contrast()` call.
 #' @return A `causatr_result` object.
 #' @noRd
@@ -37,8 +42,23 @@ compute_snm_contrast <- function(
   n_boot = 500L,
   parallel = "no",
   ncpus = 1L,
+  cluster_vec = NULL,
+  by = NULL,
   call
 ) {
+  # `by`-stratified averaged blip is Group 4 (not yet implemented). Reject
+  # non-NULL `by` early so callers get a clear error instead of silently
+  # ignoring the argument.
+  if (!is.null(by)) {
+    rlang::abort(
+      c(
+        "`by`-stratified averaged blip is not yet implemented for SNM.",
+        i = "Use `contrast(fit)` for the full blip parameter table."
+      ),
+      class = "causatr_snm_by_not_implemented"
+    )
+  }
+
   # Compute point estimates regardless of ci_method — sandwich and
   # bootstrap share the same psi_hat from the g-estimating equation.
   if (fit$type == "longitudinal") {
@@ -54,9 +74,10 @@ compute_snm_contrast <- function(
   # Variance: sandwich or bootstrap
   if (ci_method == "sandwich") {
     if (fit$type == "longitudinal") {
+      # Longitudinal variance uses the ID structure for clustering internally.
       vcov_psi <- variance_if_snm_longitudinal(fit, snm_result)
     } else {
-      vcov_psi <- variance_if_snm(fit, snm_result)
+      vcov_psi <- variance_if_snm(fit, snm_result, cluster_vec = cluster_vec)
     }
   } else {
     # Bootstrap: resample and re-estimate blip parameters
