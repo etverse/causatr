@@ -497,7 +497,7 @@ cat(sprintf(
 
 `compute_ipw_if_self_contained_one()` assembles the per-individual
 influence function for one intervention. The three channels, following
-the derivation in `vignette("variance-theory")` @eq-if-ipw, are:
+the derivation in `vignette("variance-theory")`, are:
 
 $$
 \text{IF}_i(\hat\mu_a) =
