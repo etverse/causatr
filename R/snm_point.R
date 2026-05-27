@@ -273,7 +273,15 @@ snm_treatment_design <- function(data, treatment, blip_spec, trt_model) {
       p_mod = p_mod
     )
   } else {
-    e_a <- stats::predict(trt_model$model, newdata = data, type = "response")
+    # as.numeric() strips the "array" class that predict.gam() attaches to
+    # its return value when newdata is supplied. Without it, R becomes a
+    # 1-D array, and array × matrix multiplication fails with "non-conformable
+    # arrays" even when the shapes are compatible.
+    e_a <- as.numeric(stats::predict(
+      trt_model$model,
+      newdata = data,
+      type = "response"
+    ))
     R <- A_raw - e_a
     AM <- A_raw * M
     RM <- R * M

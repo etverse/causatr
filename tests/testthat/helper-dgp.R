@@ -1482,3 +1482,184 @@ simulate_snm_longitudinal_tv_em <- function(n = 2000, seed = 42) {
     )
   )
 }
+
+
+#' Point-treatment SNM DGP: binomial outcome, linear probability model
+#'
+#' Binary treatment, binary outcome with known additive risk difference.
+#' E[Y | A, L] = 0.4 + psi_true * A + 0.05 * L is linear in A, so the
+#' blip EE (RM'Y / RM'AM) recovers psi_true in expectation regardless of
+#' the binomial noise.
+#'
+#'   L ~ N(0, 1)
+#'   A | L ~ Bernoulli(expit(0.5 * L))
+#'   P(Y=1 | A, L) = clamp(0.4 + 0.3 * A + 0.05 * L, 0, 1)
+#'
+#' Truth: psi_intercept = 0.3 (additive risk difference).
+#'
+#' @param n Sample size.
+#' @param seed RNG seed.
+#' @return List with `data`, `truth_psi`.
+#' @noRd
+simulate_snm_binomial_outcome <- function(n = 3000, seed = 42) {
+  set.seed(seed)
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, stats::plogis(0.5 * L))
+  mu <- pmax(0, pmin(1, 0.4 + 0.3 * A + 0.05 * L))
+  Y <- stats::rbinom(n, 1, mu)
+  data <- data.table::data.table(Y = Y, A = A, L = L)
+  list(data = data, truth_psi = c(psi_intercept = 0.3))
+}
+
+
+#' Point-treatment SNM DGP: Poisson outcome, identity-link mean
+#'
+#' Binary treatment, Poisson count outcome with known additive effect.
+#' E[Y | A, L] = 2 + 0.3 * A + 0.1 * L is linear in A, so the blip
+#' EE recovers psi_true = 0.3 in expectation.
+#'
+#'   L ~ N(0, 0.5)
+#'   A | L ~ Bernoulli(expit(0.5 * L))
+#'   Y | A, L ~ Poisson(pmax(0.1, 2 + 0.3 * A + 0.1 * L))
+#'
+#' Truth: psi_intercept = 0.3 (additive count effect).
+#'
+#' @param n Sample size.
+#' @param seed RNG seed.
+#' @return List with `data`, `truth_psi`.
+#' @noRd
+simulate_snm_poisson_outcome <- function(n = 3000, seed = 42) {
+  set.seed(seed)
+  L <- stats::rnorm(n, sd = 0.5)
+  A <- stats::rbinom(n, 1, stats::plogis(0.5 * L))
+  mu <- pmax(0.1, 2 + 0.3 * A + 0.1 * L)
+  Y <- stats::rpois(n, lambda = mu)
+  data <- data.table::data.table(Y = Y, A = A, L = L)
+  list(data = data, truth_psi = c(psi_intercept = 0.3))
+}
+
+
+#' Point-treatment SNM DGP: Gamma outcome, identity-link mean
+#'
+#' Binary treatment, Gamma outcome with known additive effect on the mean.
+#' E[Y | A, L] = 2 + 0.3 * A + 0.1 * L is linear in A.
+#'
+#'   L ~ N(0, 0.5)
+#'   A | L ~ Bernoulli(expit(0.5 * L))
+#'   Y | A, L ~ Gamma(shape = 3, rate = 3 / pmax(0.5, 2 + 0.3*A + 0.1*L))
+#'
+#' Truth: psi_intercept = 0.3 (additive mean effect).
+#'
+#' @param n Sample size.
+#' @param seed RNG seed.
+#' @return List with `data`, `truth_psi`.
+#' @noRd
+simulate_snm_gamma_outcome <- function(n = 3000, seed = 42) {
+  set.seed(seed)
+  L <- stats::rnorm(n, sd = 0.5)
+  A <- stats::rbinom(n, 1, stats::plogis(0.5 * L))
+  mu <- pmax(0.5, 2 + 0.3 * A + 0.1 * L)
+  shape <- 3
+  Y <- stats::rgamma(n, shape = shape, rate = shape / mu)
+  data <- data.table::data.table(Y = Y, A = A, L = L)
+  list(data = data, truth_psi = c(psi_intercept = 0.3))
+}
+
+
+#' Point-treatment SNM DGP: negative-binomial outcome, identity-link mean
+#'
+#' Binary treatment, NB count outcome with known additive effect.
+#' E[Y | A, L] = 2 + 0.3 * A + 0.1 * L is linear in A.
+#'
+#'   L ~ N(0, 0.5)
+#'   A | L ~ Bernoulli(expit(0.5 * L))
+#'   Y | A, L ~ NegBin(mu = pmax(0.1, 2 + 0.3*A + 0.1*L), theta = 3)
+#'
+#' Truth: psi_intercept = 0.3 (additive count effect).
+#'
+#' @param n Sample size.
+#' @param seed RNG seed.
+#' @return List with `data`, `truth_psi`.
+#' @noRd
+simulate_snm_nb_outcome <- function(n = 3000, seed = 42) {
+  set.seed(seed)
+  L <- stats::rnorm(n, sd = 0.5)
+  A <- stats::rbinom(n, 1, stats::plogis(0.5 * L))
+  mu <- pmax(0.1, 2 + 0.3 * A + 0.1 * L)
+  Y <- MASS::rnegbin(n, mu = mu, theta = 3)
+  data <- data.table::data.table(Y = Y, A = A, L = L)
+  list(data = data, truth_psi = c(psi_intercept = 0.3))
+}
+
+
+#' Point-treatment SNM DGP: beta-distributed outcome, linear mean
+#'
+#' Binary treatment, beta-distributed outcome with known additive effect on
+#' the proportion scale. E[Y | A, L] = 0.5 + 0.1 * A + 0.02 * L is linear
+#' in A; the beta noise does not affect the blip moment condition.
+#'
+#'   L ~ N(0, 1)
+#'   A | L ~ Bernoulli(expit(0.5 * L))
+#'   mu = 0.5 + 0.1 * A + 0.02 * L   (always in approximately (0.4, 0.65))
+#'   Y | A, L ~ Beta(phi * mu, phi * (1 - mu)),  phi = 10
+#'
+#' Truth: psi_intercept = 0.1 (additive proportion effect).
+#'
+#' @param n Sample size.
+#' @param seed RNG seed.
+#' @return List with `data`, `truth_psi`.
+#' @noRd
+simulate_snm_betareg_outcome <- function(n = 3000, seed = 42) {
+  set.seed(seed)
+  L <- stats::rnorm(n)
+  A <- stats::rbinom(n, 1, stats::plogis(0.5 * L))
+  mu <- 0.5 + 0.1 * A + 0.02 * L
+  phi <- 10
+  Y <- stats::rbeta(n, shape1 = phi * mu, shape2 = phi * (1 - mu))
+  data <- data.table::data.table(Y = Y, A = A, L = L)
+  list(data = data, truth_psi = c(psi_intercept = 0.1))
+}
+
+
+#' Point-treatment SNM DGP: clustered data for cluster-robust SE tests
+#'
+#' Within-cluster correlation is induced by a shared cluster-level random
+#' effect that enters both L and Y. The treatment residual R = A - E[A|L]
+#' has mean zero within clusters given L, but the blip score
+#' omega_i = R_i * (Y_i - A_i * psi) inherits within-cluster correlation
+#' from the shared random effect in Y, requiring cluster-robust aggregation.
+#'
+#'   cluster_u_c ~ N(0, sqrt(0.5))      [shared random effect per cluster]
+#'   L_i = cluster_u_{c(i)} + eps_L,   eps_L ~ N(0, sqrt(0.75))
+#'   A_i | L_i ~ Bernoulli(expit(0.5 * L_i))
+#'   Y_i = 2 + 0.5 * A_i + 0.5 * L_i + cluster_u_{c(i)} + eps_Y,
+#'         eps_Y ~ N(0, 0.5)
+#'
+#' Truth: psi_intercept = 0.5. The cluster_u term cancels in the moment
+#' condition because R_i is orthogonal to cluster_u given L_i.
+#'
+#' @param n_clusters Number of clusters.
+#' @param obs_per_cluster Observations per cluster.
+#' @param seed RNG seed.
+#' @return List with `data` (data.table), `truth_psi`, `cluster_col`.
+#' @noRd
+simulate_snm_clustered <- function(
+  n_clusters = 50,
+  obs_per_cluster = 20,
+  seed = 42
+) {
+  set.seed(seed)
+  n <- n_clusters * obs_per_cluster
+  cluster_id <- rep(seq_len(n_clusters), each = obs_per_cluster)
+  cluster_u <- stats::rnorm(n_clusters, sd = sqrt(0.5))
+  u_i <- cluster_u[cluster_id]
+  L <- u_i + stats::rnorm(n, sd = sqrt(0.75))
+  A <- stats::rbinom(n, 1, stats::plogis(0.5 * L))
+  Y <- 2 + 0.5 * A + 0.5 * L + u_i + stats::rnorm(n, sd = 0.5)
+  data <- data.table::data.table(Y = Y, A = A, L = L, cluster_id = cluster_id)
+  list(
+    data = data,
+    truth_psi = c(psi_intercept = 0.5),
+    cluster_col = "cluster_id"
+  )
+}

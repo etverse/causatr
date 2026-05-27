@@ -2819,3 +2819,163 @@ test_that("Longitudinal SNM: categorical treatment, per-stage estimation", {
   eig <- eigen(V, symmetric = TRUE, only.values = TRUE)$values
   expect_true(all(eig >= -1e-10))
 })
+
+
+# Outcome family truth tests -----------------------------------------------
+# The SNM blip EE psi_hat = (RM'AM)^-1 RM'Y is family-agnostic: outcome Y
+# enters only as a raw response vector. When E[Y|A,L] = psi*A + f(L) (linear
+# in A), the moment condition recovers psi regardless of the noise distribution.
+# These tests confirm that for each non-Gaussian family, the point estimate is
+# within tolerance of the known DGP truth.
+
+test_that("SNM recovers blip: binomial outcome (linear probability DGP)", {
+  # DGP: P(Y=1|A,L) = 0.4 + 0.3*A + 0.05*L.  Truth: psi = 0.3 (risk diff).
+  dgp <- simulate_snm_binomial_outcome(n = 3000, seed = 64)
+  fit <- causat(
+    dgp$data,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "snm",
+    family = "binomial",
+    propensity_model_fn = stats::glm
+  )
+  res <- contrast(fit, ci_method = "sandwich")
+  expect_equal(
+    res$estimates$estimate,
+    dgp$truth_psi[["psi_intercept"]],
+    tolerance = 0.05
+  )
+  expect_false(anyNA(res$estimates$se))
+})
+
+test_that("SNM recovers blip: quasibinomial outcome (same linear probability DGP)", {
+  # quasibinomial is identical to binomial for point estimation.
+  dgp <- simulate_snm_binomial_outcome(n = 3000, seed = 52)
+  fit <- causat(
+    dgp$data,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "snm",
+    family = "quasibinomial",
+    propensity_model_fn = stats::glm
+  )
+  res <- contrast(fit, ci_method = "sandwich")
+  expect_equal(
+    res$estimates$estimate,
+    dgp$truth_psi[["psi_intercept"]],
+    tolerance = 0.05
+  )
+  expect_false(anyNA(res$estimates$se))
+})
+
+test_that("SNM recovers blip: Poisson outcome (identity-link mean DGP)", {
+  # DGP: E[Y|A,L] = 2 + 0.3*A + 0.1*L.  Truth: psi = 0.3 (additive count).
+  dgp <- simulate_snm_poisson_outcome(n = 3000, seed = 53)
+  fit <- causat(
+    dgp$data,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "snm",
+    family = "poisson",
+    propensity_model_fn = stats::glm
+  )
+  res <- contrast(fit, ci_method = "sandwich")
+  expect_equal(
+    res$estimates$estimate,
+    dgp$truth_psi[["psi_intercept"]],
+    tolerance = 0.05
+  )
+  expect_false(anyNA(res$estimates$se))
+})
+
+test_that("SNM recovers blip: Gamma outcome (identity-link mean DGP)", {
+  # DGP: E[Y|A,L] = 2 + 0.3*A + 0.1*L, Y ~ Gamma(shape=3, rate=3/mu).
+  # Truth: psi = 0.3 (additive mean effect).
+  dgp <- simulate_snm_gamma_outcome(n = 3000, seed = 54)
+  fit <- causat(
+    dgp$data,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "snm",
+    family = Gamma(link = "log"),
+    propensity_model_fn = stats::glm
+  )
+  res <- contrast(fit, ci_method = "sandwich")
+  expect_equal(
+    res$estimates$estimate,
+    dgp$truth_psi[["psi_intercept"]],
+    tolerance = 0.05
+  )
+  expect_false(anyNA(res$estimates$se))
+})
+
+test_that("SNM recovers blip: negative-binomial outcome (identity-link mean DGP)", {
+  # DGP: E[Y|A,L] = 2 + 0.3*A + 0.1*L, Y ~ NegBin(mu, theta=3).
+  # Truth: psi = 0.3 (additive count effect).
+  skip_if_not_installed("MASS")
+  dgp <- simulate_snm_nb_outcome(n = 3000, seed = 101)
+  fit <- causat(
+    dgp$data,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "snm",
+    family = MASS::negative.binomial(3),
+    propensity_model_fn = stats::glm
+  )
+  res <- contrast(fit, ci_method = "sandwich")
+  expect_equal(
+    res$estimates$estimate,
+    dgp$truth_psi[["psi_intercept"]],
+    tolerance = 0.05
+  )
+  expect_false(anyNA(res$estimates$se))
+})
+
+test_that("SNM recovers blip: beta-distributed outcome", {
+  # DGP: E[Y|A,L] = 0.5 + 0.1*A + 0.02*L, Y ~ Beta(phi*mu, phi*(1-mu)).
+  # The blip EE is family-agnostic; family="betareg" is metadata only.
+  # Truth: psi = 0.1 (additive proportion effect).
+  skip_if_not_installed("betareg")
+  dgp <- simulate_snm_betareg_outcome(n = 3000, seed = 56)
+  fit <- causat(
+    dgp$data,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "snm",
+    family = "beta",
+    propensity_model_fn = stats::glm
+  )
+  res <- contrast(fit, ci_method = "sandwich")
+  expect_equal(
+    res$estimates$estimate,
+    dgp$truth_psi[["psi_intercept"]],
+    tolerance = 0.05
+  )
+  expect_false(anyNA(res$estimates$se))
+})
+
+test_that("SNM GAM propensity model: finite estimates and SEs (smoke test)", {
+  # mgcv::gam as propensity model; bread.gam() / estfun.gam() in sandwich.
+  # No truth required — just confirm finite output.
+  skip_if_not_installed("mgcv")
+  d <- simulate_snm_point_no_em(n = 1000, seed = 57)$data
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ s(L),
+    estimator = "snm",
+    propensity_model_fn = mgcv::gam
+  )
+  res <- contrast(fit, ci_method = "sandwich")
+  expect_false(anyNA(res$estimates$estimate))
+  expect_false(anyNA(res$estimates$se))
+  expect_true(all(is.finite(res$estimates$estimate)))
+  expect_true(all(is.finite(res$estimates$se)))
+})
