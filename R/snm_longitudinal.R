@@ -25,7 +25,7 @@
 #' Theory and Methods*, 23(8), 2379–2412.
 #'
 #' Vansteelandt S, Joffe M (2014). Structural nested models and G-estimation:
-#' a survey. *Statistical Science*, 29(2), 220–238.
+#' the partially realized promise. *Statistical Science*, 29(4), 707–731.
 #'
 #' @param fit A `causatr_fit` with `estimator = "snm"` and
 #'   `type = "longitudinal"`.
