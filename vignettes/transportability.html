@@ -77,7 +77,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-15634bcf2e68342d4ad2dfa704d543f6.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-b4053f44a9844110384dba2fb4cdf31e.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-98130f95a46b67a4a867697a2c34a567.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -2012,21 +2012,23 @@ Figure&nbsp;2
 <span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>L_mv <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n_mv)</span>
 <span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>S_mv <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n_mv, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="sc">-</span><span class="fl">0.5</span> <span class="sc">+</span> <span class="fl">0.8</span> <span class="sc">*</span> L_mv))</span>
 <span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>A1_mv <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(S_mv <span class="sc">==</span> <span class="dv">1</span>L, <span class="fu">rbinom</span>(n_mv, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="fl">0.2</span> <span class="sc">+</span> <span class="fl">0.3</span> <span class="sc">*</span> L_mv)), <span class="cn">NA_integer_</span>)</span>
-<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>A2_mv <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(</span>
-<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>  S_mv <span class="sc">==</span> <span class="dv">1</span>L,</span>
-<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rbinom</span>(n_mv, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="fl">0.1</span> <span class="sc">+</span> <span class="fl">0.2</span> <span class="sc">*</span> L_mv <span class="sc">+</span> <span class="fl">0.3</span> <span class="sc">*</span> A1_mv)),</span>
-<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>  <span class="cn">NA_integer_</span></span>
-<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Warning in rbinom(n_mv, 1, plogis(0.1 + 0.2 * L_mv + 0.3 * A1_mv)): NAs</span></span>
-<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; produced</span></span>
-<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a>Y_mv <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(</span>
-<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a>  S_mv <span class="sc">==</span> <span class="dv">1</span>L,</span>
-<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a>  <span class="dv">1</span> <span class="sc">+</span> <span class="dv">2</span> <span class="sc">*</span> A1_mv <span class="sc">+</span> <span class="fl">1.5</span> <span class="sc">*</span> A2_mv <span class="sc">+</span> L_mv <span class="sc">+</span> <span class="fl">0.5</span> <span class="sc">*</span> A1_mv <span class="sc">*</span> L_mv <span class="sc">+</span> <span class="fu">rnorm</span>(n_mv),</span>
-<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a>  <span class="cn">NA_real_</span></span>
-<span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb17-19"><a href="#cb17-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-20"><a href="#cb17-20" aria-hidden="true" tabindex="-1"></a>df_mv <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">Y =</span> Y_mv, <span class="at">A1 =</span> A1_mv, <span class="at">A2 =</span> A2_mv, <span class="at">L =</span> L_mv, <span class="at">S =</span> S_mv)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>A1_mv <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(</span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>  S_mv <span class="sc">==</span> <span class="dv">1</span>L, <span class="fu">rbinom</span>(n_mv, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="fl">0.2</span> <span class="sc">+</span> <span class="fl">0.3</span> <span class="sc">*</span> L_mv)), <span class="cn">NA_integer_</span></span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>A2_mv <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(</span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>  S_mv <span class="sc">==</span> <span class="dv">1</span>L,</span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rbinom</span>(n_mv, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="fl">0.1</span> <span class="sc">+</span> <span class="fl">0.2</span> <span class="sc">*</span> L_mv <span class="sc">+</span> <span class="fl">0.3</span> <span class="sc">*</span> A1_mv)),</span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a>  <span class="cn">NA_integer_</span></span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Warning in rbinom(n_mv, 1, plogis(0.1 + 0.2 * L_mv + 0.3 * A1_mv)): NAs</span></span>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; produced</span></span>
+<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a>Y_mv <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(</span>
+<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a>  S_mv <span class="sc">==</span> <span class="dv">1</span>L,</span>
+<span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a>  <span class="dv">1</span> <span class="sc">+</span> <span class="dv">2</span> <span class="sc">*</span> A1_mv <span class="sc">+</span> <span class="fl">1.5</span> <span class="sc">*</span> A2_mv <span class="sc">+</span> L_mv <span class="sc">+</span> <span class="fl">0.5</span> <span class="sc">*</span> A1_mv <span class="sc">*</span> L_mv <span class="sc">+</span> <span class="fu">rnorm</span>(n_mv),</span>
+<span id="cb17-19"><a href="#cb17-19" aria-hidden="true" tabindex="-1"></a>  <span class="cn">NA_real_</span></span>
+<span id="cb17-20"><a href="#cb17-20" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-21"><a href="#cb17-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-22"><a href="#cb17-22" aria-hidden="true" tabindex="-1"></a>df_mv <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">Y =</span> Y_mv, <span class="at">A1 =</span> A1_mv, <span class="at">A2 =</span> A2_mv, <span class="at">L =</span> L_mv, <span class="at">S =</span> S_mv)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
 <div class="cell">
@@ -3527,193 +3529,195 @@ Figure&nbsp;2
 <span id="cb22-493"><a href="#cb22-493" aria-hidden="true" tabindex="-1"></a>L_mv <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n_mv)</span>
 <span id="cb22-494"><a href="#cb22-494" aria-hidden="true" tabindex="-1"></a>S_mv <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n_mv, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="sc">-</span><span class="fl">0.5</span> <span class="sc">+</span> <span class="fl">0.8</span> <span class="sc">*</span> L_mv))</span>
 <span id="cb22-495"><a href="#cb22-495" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-496"><a href="#cb22-496" aria-hidden="true" tabindex="-1"></a>A1_mv <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(S_mv <span class="sc">==</span> <span class="dv">1</span>L, <span class="fu">rbinom</span>(n_mv, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="fl">0.2</span> <span class="sc">+</span> <span class="fl">0.3</span> <span class="sc">*</span> L_mv)), <span class="cn">NA_integer_</span>)</span>
-<span id="cb22-497"><a href="#cb22-497" aria-hidden="true" tabindex="-1"></a>A2_mv <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(</span>
-<span id="cb22-498"><a href="#cb22-498" aria-hidden="true" tabindex="-1"></a>  S_mv <span class="sc">==</span> <span class="dv">1</span>L,</span>
-<span id="cb22-499"><a href="#cb22-499" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rbinom</span>(n_mv, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="fl">0.1</span> <span class="sc">+</span> <span class="fl">0.2</span> <span class="sc">*</span> L_mv <span class="sc">+</span> <span class="fl">0.3</span> <span class="sc">*</span> A1_mv)),</span>
-<span id="cb22-500"><a href="#cb22-500" aria-hidden="true" tabindex="-1"></a>  <span class="cn">NA_integer_</span></span>
-<span id="cb22-501"><a href="#cb22-501" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb22-502"><a href="#cb22-502" aria-hidden="true" tabindex="-1"></a>Y_mv <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(</span>
-<span id="cb22-503"><a href="#cb22-503" aria-hidden="true" tabindex="-1"></a>  S_mv <span class="sc">==</span> <span class="dv">1</span>L,</span>
-<span id="cb22-504"><a href="#cb22-504" aria-hidden="true" tabindex="-1"></a>  <span class="dv">1</span> <span class="sc">+</span> <span class="dv">2</span> <span class="sc">*</span> A1_mv <span class="sc">+</span> <span class="fl">1.5</span> <span class="sc">*</span> A2_mv <span class="sc">+</span> L_mv <span class="sc">+</span> <span class="fl">0.5</span> <span class="sc">*</span> A1_mv <span class="sc">*</span> L_mv <span class="sc">+</span> <span class="fu">rnorm</span>(n_mv),</span>
-<span id="cb22-505"><a href="#cb22-505" aria-hidden="true" tabindex="-1"></a>  <span class="cn">NA_real_</span></span>
-<span id="cb22-506"><a href="#cb22-506" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb22-507"><a href="#cb22-507" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-508"><a href="#cb22-508" aria-hidden="true" tabindex="-1"></a>df_mv <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">Y =</span> Y_mv, <span class="at">A1 =</span> A1_mv, <span class="at">A2 =</span> A2_mv, <span class="at">L =</span> L_mv, <span class="at">S =</span> S_mv)</span>
-<span id="cb22-509"><a href="#cb22-509" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb22-510"><a href="#cb22-510" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-513"><a href="#cb22-513" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb22-514"><a href="#cb22-514" aria-hidden="true" tabindex="-1"></a>fit_mv <span class="ot">&lt;-</span> <span class="fu">causat</span>(</span>
-<span id="cb22-515"><a href="#cb22-515" aria-hidden="true" tabindex="-1"></a>  df_mv,</span>
-<span id="cb22-516"><a href="#cb22-516" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
-<span id="cb22-517"><a href="#cb22-517" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="fu">c</span>(<span class="st">"A1"</span>, <span class="st">"A2"</span>),</span>
-<span id="cb22-518"><a href="#cb22-518" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> <span class="sc">~</span> L,</span>
-<span id="cb22-519"><a href="#cb22-519" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimator =</span> <span class="st">"ipw"</span>,</span>
-<span id="cb22-520"><a href="#cb22-520" aria-hidden="true" tabindex="-1"></a>  <span class="at">target =</span> <span class="st">"S"</span></span>
-<span id="cb22-521"><a href="#cb22-521" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb22-522"><a href="#cb22-522" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-523"><a href="#cb22-523" aria-hidden="true" tabindex="-1"></a>res_mv <span class="ot">&lt;-</span> <span class="fu">contrast</span>(</span>
-<span id="cb22-524"><a href="#cb22-524" aria-hidden="true" tabindex="-1"></a>  fit_mv,</span>
-<span id="cb22-525"><a href="#cb22-525" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(</span>
-<span id="cb22-526"><a href="#cb22-526" aria-hidden="true" tabindex="-1"></a>    <span class="at">both =</span> <span class="fu">list</span>(<span class="at">A1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">A2 =</span> <span class="fu">static</span>(<span class="dv">1</span>)),</span>
-<span id="cb22-527"><a href="#cb22-527" aria-hidden="true" tabindex="-1"></a>    <span class="at">neither =</span> <span class="fu">list</span>(<span class="at">A1 =</span> <span class="fu">static</span>(<span class="dv">0</span>), <span class="at">A2 =</span> <span class="fu">static</span>(<span class="dv">0</span>))</span>
-<span id="cb22-528"><a href="#cb22-528" aria-hidden="true" tabindex="-1"></a>  ),</span>
-<span id="cb22-529"><a href="#cb22-529" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="st">"neither"</span></span>
-<span id="cb22-530"><a href="#cb22-530" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb22-531"><a href="#cb22-531" aria-hidden="true" tabindex="-1"></a>res_mv</span>
-<span id="cb22-532"><a href="#cb22-532" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb22-533"><a href="#cb22-533" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-534"><a href="#cb22-534" aria-hidden="true" tabindex="-1"></a>Sandwich and bootstrap variance both work for multivariate IPW</span>
-<span id="cb22-535"><a href="#cb22-535" aria-hidden="true" tabindex="-1"></a>transport. Stabilized weights (<span class="in">`stabilize = "marginal"`</span>) also compose</span>
-<span id="cb22-536"><a href="#cb22-536" aria-hidden="true" tabindex="-1"></a>with transport.</span>
-<span id="cb22-537"><a href="#cb22-537" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-538"><a href="#cb22-538" aria-hidden="true" tabindex="-1"></a><span class="fu">## Separate confounder specifications</span></span>
+<span id="cb22-496"><a href="#cb22-496" aria-hidden="true" tabindex="-1"></a>A1_mv <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(</span>
+<span id="cb22-497"><a href="#cb22-497" aria-hidden="true" tabindex="-1"></a>  S_mv <span class="sc">==</span> <span class="dv">1</span>L, <span class="fu">rbinom</span>(n_mv, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="fl">0.2</span> <span class="sc">+</span> <span class="fl">0.3</span> <span class="sc">*</span> L_mv)), <span class="cn">NA_integer_</span></span>
+<span id="cb22-498"><a href="#cb22-498" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb22-499"><a href="#cb22-499" aria-hidden="true" tabindex="-1"></a>A2_mv <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(</span>
+<span id="cb22-500"><a href="#cb22-500" aria-hidden="true" tabindex="-1"></a>  S_mv <span class="sc">==</span> <span class="dv">1</span>L,</span>
+<span id="cb22-501"><a href="#cb22-501" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rbinom</span>(n_mv, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="fl">0.1</span> <span class="sc">+</span> <span class="fl">0.2</span> <span class="sc">*</span> L_mv <span class="sc">+</span> <span class="fl">0.3</span> <span class="sc">*</span> A1_mv)),</span>
+<span id="cb22-502"><a href="#cb22-502" aria-hidden="true" tabindex="-1"></a>  <span class="cn">NA_integer_</span></span>
+<span id="cb22-503"><a href="#cb22-503" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb22-504"><a href="#cb22-504" aria-hidden="true" tabindex="-1"></a>Y_mv <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(</span>
+<span id="cb22-505"><a href="#cb22-505" aria-hidden="true" tabindex="-1"></a>  S_mv <span class="sc">==</span> <span class="dv">1</span>L,</span>
+<span id="cb22-506"><a href="#cb22-506" aria-hidden="true" tabindex="-1"></a>  <span class="dv">1</span> <span class="sc">+</span> <span class="dv">2</span> <span class="sc">*</span> A1_mv <span class="sc">+</span> <span class="fl">1.5</span> <span class="sc">*</span> A2_mv <span class="sc">+</span> L_mv <span class="sc">+</span> <span class="fl">0.5</span> <span class="sc">*</span> A1_mv <span class="sc">*</span> L_mv <span class="sc">+</span> <span class="fu">rnorm</span>(n_mv),</span>
+<span id="cb22-507"><a href="#cb22-507" aria-hidden="true" tabindex="-1"></a>  <span class="cn">NA_real_</span></span>
+<span id="cb22-508"><a href="#cb22-508" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb22-509"><a href="#cb22-509" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-510"><a href="#cb22-510" aria-hidden="true" tabindex="-1"></a>df_mv <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">Y =</span> Y_mv, <span class="at">A1 =</span> A1_mv, <span class="at">A2 =</span> A2_mv, <span class="at">L =</span> L_mv, <span class="at">S =</span> S_mv)</span>
+<span id="cb22-511"><a href="#cb22-511" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb22-512"><a href="#cb22-512" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-515"><a href="#cb22-515" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb22-516"><a href="#cb22-516" aria-hidden="true" tabindex="-1"></a>fit_mv <span class="ot">&lt;-</span> <span class="fu">causat</span>(</span>
+<span id="cb22-517"><a href="#cb22-517" aria-hidden="true" tabindex="-1"></a>  df_mv,</span>
+<span id="cb22-518"><a href="#cb22-518" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
+<span id="cb22-519"><a href="#cb22-519" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="fu">c</span>(<span class="st">"A1"</span>, <span class="st">"A2"</span>),</span>
+<span id="cb22-520"><a href="#cb22-520" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> <span class="sc">~</span> L,</span>
+<span id="cb22-521"><a href="#cb22-521" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimator =</span> <span class="st">"ipw"</span>,</span>
+<span id="cb22-522"><a href="#cb22-522" aria-hidden="true" tabindex="-1"></a>  <span class="at">target =</span> <span class="st">"S"</span></span>
+<span id="cb22-523"><a href="#cb22-523" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb22-524"><a href="#cb22-524" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-525"><a href="#cb22-525" aria-hidden="true" tabindex="-1"></a>res_mv <span class="ot">&lt;-</span> <span class="fu">contrast</span>(</span>
+<span id="cb22-526"><a href="#cb22-526" aria-hidden="true" tabindex="-1"></a>  fit_mv,</span>
+<span id="cb22-527"><a href="#cb22-527" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(</span>
+<span id="cb22-528"><a href="#cb22-528" aria-hidden="true" tabindex="-1"></a>    <span class="at">both =</span> <span class="fu">list</span>(<span class="at">A1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">A2 =</span> <span class="fu">static</span>(<span class="dv">1</span>)),</span>
+<span id="cb22-529"><a href="#cb22-529" aria-hidden="true" tabindex="-1"></a>    <span class="at">neither =</span> <span class="fu">list</span>(<span class="at">A1 =</span> <span class="fu">static</span>(<span class="dv">0</span>), <span class="at">A2 =</span> <span class="fu">static</span>(<span class="dv">0</span>))</span>
+<span id="cb22-530"><a href="#cb22-530" aria-hidden="true" tabindex="-1"></a>  ),</span>
+<span id="cb22-531"><a href="#cb22-531" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="st">"neither"</span></span>
+<span id="cb22-532"><a href="#cb22-532" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb22-533"><a href="#cb22-533" aria-hidden="true" tabindex="-1"></a>res_mv</span>
+<span id="cb22-534"><a href="#cb22-534" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb22-535"><a href="#cb22-535" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-536"><a href="#cb22-536" aria-hidden="true" tabindex="-1"></a>Sandwich and bootstrap variance both work for multivariate IPW</span>
+<span id="cb22-537"><a href="#cb22-537" aria-hidden="true" tabindex="-1"></a>transport. Stabilized weights (<span class="in">`stabilize = "marginal"`</span>) also compose</span>
+<span id="cb22-538"><a href="#cb22-538" aria-hidden="true" tabindex="-1"></a>with transport.</span>
 <span id="cb22-539"><a href="#cb22-539" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-540"><a href="#cb22-540" aria-hidden="true" tabindex="-1"></a>Use <span class="in">`confounders_sampling`</span> to control which covariates enter the</span>
-<span id="cb22-541"><a href="#cb22-541" aria-hidden="true" tabindex="-1"></a>sampling model $P(S = 1 \mid L)$ independently of the outcome or</span>
-<span id="cb22-542"><a href="#cb22-542" aria-hidden="true" tabindex="-1"></a>treatment model covariates:</span>
-<span id="cb22-543"><a href="#cb22-543" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-546"><a href="#cb22-546" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb22-547"><a href="#cb22-547" aria-hidden="true" tabindex="-1"></a>fit_sep <span class="ot">&lt;-</span> <span class="fu">causat</span>(</span>
-<span id="cb22-548"><a href="#cb22-548" aria-hidden="true" tabindex="-1"></a>  df,</span>
-<span id="cb22-549"><a href="#cb22-549" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
-<span id="cb22-550"><a href="#cb22-550" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
-<span id="cb22-551"><a href="#cb22-551" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders_outcome =</span> <span class="sc">~</span> L <span class="sc">+</span> A<span class="sc">:</span>L <span class="sc">+</span> <span class="fu">I</span>(L<span class="sc">^</span><span class="dv">2</span>),</span>
-<span id="cb22-552"><a href="#cb22-552" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders_treatment =</span> <span class="sc">~</span> L,</span>
-<span id="cb22-553"><a href="#cb22-553" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders_sampling =</span> <span class="sc">~</span> L,</span>
-<span id="cb22-554"><a href="#cb22-554" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimator =</span> <span class="st">"aipw"</span>,</span>
-<span id="cb22-555"><a href="#cb22-555" aria-hidden="true" tabindex="-1"></a>  <span class="at">target =</span> <span class="st">"S"</span></span>
-<span id="cb22-556"><a href="#cb22-556" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb22-557"><a href="#cb22-557" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-558"><a href="#cb22-558" aria-hidden="true" tabindex="-1"></a>res_sep <span class="ot">&lt;-</span> <span class="fu">contrast</span>(</span>
-<span id="cb22-559"><a href="#cb22-559" aria-hidden="true" tabindex="-1"></a>  fit_sep,</span>
-<span id="cb22-560"><a href="#cb22-560" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
-<span id="cb22-561"><a href="#cb22-561" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="st">"a0"</span></span>
-<span id="cb22-562"><a href="#cb22-562" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb22-563"><a href="#cb22-563" aria-hidden="true" tabindex="-1"></a>res_sep</span>
-<span id="cb22-564"><a href="#cb22-564" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb22-565"><a href="#cb22-565" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-566"><a href="#cb22-566" aria-hidden="true" tabindex="-1"></a>This is especially useful when the outcome model benefits from</span>
-<span id="cb22-567"><a href="#cb22-567" aria-hidden="true" tabindex="-1"></a>flexible specifications (splines, polynomials) while the sampling</span>
-<span id="cb22-568"><a href="#cb22-568" aria-hidden="true" tabindex="-1"></a>model needs only the core set of baseline confounders.</span>
-<span id="cb22-569"><a href="#cb22-569" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-570"><a href="#cb22-570" aria-hidden="true" tabindex="-1"></a><span class="fu">## Diagnostics</span></span>
+<span id="cb22-540"><a href="#cb22-540" aria-hidden="true" tabindex="-1"></a><span class="fu">## Separate confounder specifications</span></span>
+<span id="cb22-541"><a href="#cb22-541" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-542"><a href="#cb22-542" aria-hidden="true" tabindex="-1"></a>Use <span class="in">`confounders_sampling`</span> to control which covariates enter the</span>
+<span id="cb22-543"><a href="#cb22-543" aria-hidden="true" tabindex="-1"></a>sampling model $P(S = 1 \mid L)$ independently of the outcome or</span>
+<span id="cb22-544"><a href="#cb22-544" aria-hidden="true" tabindex="-1"></a>treatment model covariates:</span>
+<span id="cb22-545"><a href="#cb22-545" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-548"><a href="#cb22-548" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb22-549"><a href="#cb22-549" aria-hidden="true" tabindex="-1"></a>fit_sep <span class="ot">&lt;-</span> <span class="fu">causat</span>(</span>
+<span id="cb22-550"><a href="#cb22-550" aria-hidden="true" tabindex="-1"></a>  df,</span>
+<span id="cb22-551"><a href="#cb22-551" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
+<span id="cb22-552"><a href="#cb22-552" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
+<span id="cb22-553"><a href="#cb22-553" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders_outcome =</span> <span class="sc">~</span> L <span class="sc">+</span> A<span class="sc">:</span>L <span class="sc">+</span> <span class="fu">I</span>(L<span class="sc">^</span><span class="dv">2</span>),</span>
+<span id="cb22-554"><a href="#cb22-554" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders_treatment =</span> <span class="sc">~</span> L,</span>
+<span id="cb22-555"><a href="#cb22-555" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders_sampling =</span> <span class="sc">~</span> L,</span>
+<span id="cb22-556"><a href="#cb22-556" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimator =</span> <span class="st">"aipw"</span>,</span>
+<span id="cb22-557"><a href="#cb22-557" aria-hidden="true" tabindex="-1"></a>  <span class="at">target =</span> <span class="st">"S"</span></span>
+<span id="cb22-558"><a href="#cb22-558" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb22-559"><a href="#cb22-559" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-560"><a href="#cb22-560" aria-hidden="true" tabindex="-1"></a>res_sep <span class="ot">&lt;-</span> <span class="fu">contrast</span>(</span>
+<span id="cb22-561"><a href="#cb22-561" aria-hidden="true" tabindex="-1"></a>  fit_sep,</span>
+<span id="cb22-562"><a href="#cb22-562" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
+<span id="cb22-563"><a href="#cb22-563" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="st">"a0"</span></span>
+<span id="cb22-564"><a href="#cb22-564" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb22-565"><a href="#cb22-565" aria-hidden="true" tabindex="-1"></a>res_sep</span>
+<span id="cb22-566"><a href="#cb22-566" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb22-567"><a href="#cb22-567" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-568"><a href="#cb22-568" aria-hidden="true" tabindex="-1"></a>This is especially useful when the outcome model benefits from</span>
+<span id="cb22-569"><a href="#cb22-569" aria-hidden="true" tabindex="-1"></a>flexible specifications (splines, polynomials) while the sampling</span>
+<span id="cb22-570"><a href="#cb22-570" aria-hidden="true" tabindex="-1"></a>model needs only the core set of baseline confounders.</span>
 <span id="cb22-571"><a href="#cb22-571" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-572"><a href="#cb22-572" aria-hidden="true" tabindex="-1"></a><span class="in">`diagnose()`</span> includes a **sampling model panel** for transport fits,</span>
-<span id="cb22-573"><a href="#cb22-573" aria-hidden="true" tabindex="-1"></a>reporting the sampling-score distribution, sampling-weight summary, and</span>
-<span id="cb22-574"><a href="#cb22-574" aria-hidden="true" tabindex="-1"></a>extreme-weight flags:</span>
-<span id="cb22-575"><a href="#cb22-575" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-578"><a href="#cb22-578" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb22-579"><a href="#cb22-579" aria-hidden="true" tabindex="-1"></a>diag <span class="ot">&lt;-</span> <span class="fu">diagnose</span>(fit_ipw)</span>
-<span id="cb22-580"><a href="#cb22-580" aria-hidden="true" tabindex="-1"></a>diag</span>
-<span id="cb22-581"><a href="#cb22-581" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb22-582"><a href="#cb22-582" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-583"><a href="#cb22-583" aria-hidden="true" tabindex="-1"></a>Key diagnostics to check:</span>
+<span id="cb22-572"><a href="#cb22-572" aria-hidden="true" tabindex="-1"></a><span class="fu">## Diagnostics</span></span>
+<span id="cb22-573"><a href="#cb22-573" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-574"><a href="#cb22-574" aria-hidden="true" tabindex="-1"></a><span class="in">`diagnose()`</span> includes a **sampling model panel** for transport fits,</span>
+<span id="cb22-575"><a href="#cb22-575" aria-hidden="true" tabindex="-1"></a>reporting the sampling-score distribution, sampling-weight summary, and</span>
+<span id="cb22-576"><a href="#cb22-576" aria-hidden="true" tabindex="-1"></a>extreme-weight flags:</span>
+<span id="cb22-577"><a href="#cb22-577" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-580"><a href="#cb22-580" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb22-581"><a href="#cb22-581" aria-hidden="true" tabindex="-1"></a>diag <span class="ot">&lt;-</span> <span class="fu">diagnose</span>(fit_ipw)</span>
+<span id="cb22-582"><a href="#cb22-582" aria-hidden="true" tabindex="-1"></a>diag</span>
+<span id="cb22-583"><a href="#cb22-583" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb22-584"><a href="#cb22-584" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-585"><a href="#cb22-585" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Sampling positivity**: $P(S = 1 \mid L)$ should not be too close to</span>
-<span id="cb22-586"><a href="#cb22-586" aria-hidden="true" tabindex="-1"></a>  0 or 1. The <span class="in">`p_study_min`</span> and <span class="in">`p_study_max`</span> quantiles flag overlap</span>
-<span id="cb22-587"><a href="#cb22-587" aria-hidden="true" tabindex="-1"></a>  violations.</span>
-<span id="cb22-588"><a href="#cb22-588" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Extreme weights**: large sampling weights indicate regions of $L$</span>
-<span id="cb22-589"><a href="#cb22-589" aria-hidden="true" tabindex="-1"></a>  where the study underrepresents the target, leading to instability.</span>
-<span id="cb22-590"><a href="#cb22-590" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**ESS**: the effective sample size after sampling reweighting. Low ESS</span>
-<span id="cb22-591"><a href="#cb22-591" aria-hidden="true" tabindex="-1"></a>  signals that a few observations drive the estimate.</span>
-<span id="cb22-592"><a href="#cb22-592" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-593"><a href="#cb22-593" aria-hidden="true" tabindex="-1"></a><span class="fu">## Identification assumptions</span></span>
+<span id="cb22-585"><a href="#cb22-585" aria-hidden="true" tabindex="-1"></a>Key diagnostics to check:</span>
+<span id="cb22-586"><a href="#cb22-586" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-587"><a href="#cb22-587" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Sampling positivity**: $P(S = 1 \mid L)$ should not be too close to</span>
+<span id="cb22-588"><a href="#cb22-588" aria-hidden="true" tabindex="-1"></a>  0 or 1. The <span class="in">`p_study_min`</span> and <span class="in">`p_study_max`</span> quantiles flag overlap</span>
+<span id="cb22-589"><a href="#cb22-589" aria-hidden="true" tabindex="-1"></a>  violations.</span>
+<span id="cb22-590"><a href="#cb22-590" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Extreme weights**: large sampling weights indicate regions of $L$</span>
+<span id="cb22-591"><a href="#cb22-591" aria-hidden="true" tabindex="-1"></a>  where the study underrepresents the target, leading to instability.</span>
+<span id="cb22-592"><a href="#cb22-592" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**ESS**: the effective sample size after sampling reweighting. Low ESS</span>
+<span id="cb22-593"><a href="#cb22-593" aria-hidden="true" tabindex="-1"></a>  signals that a few observations drive the estimate.</span>
 <span id="cb22-594"><a href="#cb22-594" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-595"><a href="#cb22-595" aria-hidden="true" tabindex="-1"></a>Transport estimates require four assumptions (Dahabreh et al. 2020):</span>
+<span id="cb22-595"><a href="#cb22-595" aria-hidden="true" tabindex="-1"></a><span class="fu">## Identification assumptions</span></span>
 <span id="cb22-596"><a href="#cb22-596" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-597"><a href="#cb22-597" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Conditional exchangeability in the study:**</span>
-<span id="cb22-598"><a href="#cb22-598" aria-hidden="true" tabindex="-1"></a>   $Y^a \perp A \mid L, S = 1$.</span>
-<span id="cb22-599"><a href="#cb22-599" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**Treatment positivity in the study:**</span>
-<span id="cb22-600"><a href="#cb22-600" aria-hidden="true" tabindex="-1"></a>   $0 &lt; P(A = a \mid L, S = 1) &lt; 1$.</span>
-<span id="cb22-601"><a href="#cb22-601" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**Exchangeability over populations (transportability):**</span>
-<span id="cb22-602"><a href="#cb22-602" aria-hidden="true" tabindex="-1"></a>   $E<span class="co">[</span><span class="ot">Y^a \mid L, S = 1</span><span class="co">]</span> = E<span class="co">[</span><span class="ot">Y^a \mid L, S = 0</span><span class="co">]</span>$ --- the conditional</span>
-<span id="cb22-603"><a href="#cb22-603" aria-hidden="true" tabindex="-1"></a>   potential-outcome mean is the same across populations given $L$.</span>
-<span id="cb22-604"><a href="#cb22-604" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>**Sampling positivity:**</span>
-<span id="cb22-605"><a href="#cb22-605" aria-hidden="true" tabindex="-1"></a>   $P(S = 1 \mid L) &gt; 0$ on the target support.</span>
-<span id="cb22-606"><a href="#cb22-606" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-607"><a href="#cb22-607" aria-hidden="true" tabindex="-1"></a>Assumptions 1--2 are the standard causal assumptions (checked via</span>
-<span id="cb22-608"><a href="#cb22-608" aria-hidden="true" tabindex="-1"></a><span class="in">`diagnose()`</span> balance and positivity panels). Assumption 3 is the</span>
-<span id="cb22-609"><a href="#cb22-609" aria-hidden="true" tabindex="-1"></a>transportability leap --- it is not directly testable but requires</span>
-<span id="cb22-610"><a href="#cb22-610" aria-hidden="true" tabindex="-1"></a>domain knowledge. Assumption 4 is checked by the sampling diagnostics.</span>
-<span id="cb22-611"><a href="#cb22-611" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-612"><a href="#cb22-612" aria-hidden="true" tabindex="-1"></a><span class="fu">## Matching is not supported</span></span>
+<span id="cb22-597"><a href="#cb22-597" aria-hidden="true" tabindex="-1"></a>Transport estimates require four assumptions (Dahabreh et al. 2020):</span>
+<span id="cb22-598"><a href="#cb22-598" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-599"><a href="#cb22-599" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Conditional exchangeability in the study:**</span>
+<span id="cb22-600"><a href="#cb22-600" aria-hidden="true" tabindex="-1"></a>   $Y^a \perp A \mid L, S = 1$.</span>
+<span id="cb22-601"><a href="#cb22-601" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**Treatment positivity in the study:**</span>
+<span id="cb22-602"><a href="#cb22-602" aria-hidden="true" tabindex="-1"></a>   $0 &lt; P(A = a \mid L, S = 1) &lt; 1$.</span>
+<span id="cb22-603"><a href="#cb22-603" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**Exchangeability over populations (transportability):**</span>
+<span id="cb22-604"><a href="#cb22-604" aria-hidden="true" tabindex="-1"></a>   $E<span class="co">[</span><span class="ot">Y^a \mid L, S = 1</span><span class="co">]</span> = E<span class="co">[</span><span class="ot">Y^a \mid L, S = 0</span><span class="co">]</span>$ --- the conditional</span>
+<span id="cb22-605"><a href="#cb22-605" aria-hidden="true" tabindex="-1"></a>   potential-outcome mean is the same across populations given $L$.</span>
+<span id="cb22-606"><a href="#cb22-606" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>**Sampling positivity:**</span>
+<span id="cb22-607"><a href="#cb22-607" aria-hidden="true" tabindex="-1"></a>   $P(S = 1 \mid L) &gt; 0$ on the target support.</span>
+<span id="cb22-608"><a href="#cb22-608" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-609"><a href="#cb22-609" aria-hidden="true" tabindex="-1"></a>Assumptions 1--2 are the standard causal assumptions (checked via</span>
+<span id="cb22-610"><a href="#cb22-610" aria-hidden="true" tabindex="-1"></a><span class="in">`diagnose()`</span> balance and positivity panels). Assumption 3 is the</span>
+<span id="cb22-611"><a href="#cb22-611" aria-hidden="true" tabindex="-1"></a>transportability leap --- it is not directly testable but requires</span>
+<span id="cb22-612"><a href="#cb22-612" aria-hidden="true" tabindex="-1"></a>domain knowledge. Assumption 4 is checked by the sampling diagnostics.</span>
 <span id="cb22-613"><a href="#cb22-613" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-614"><a href="#cb22-614" aria-hidden="true" tabindex="-1"></a>Matching + transportability is a hard rejection:</span>
+<span id="cb22-614"><a href="#cb22-614" aria-hidden="true" tabindex="-1"></a><span class="fu">## Matching is not supported</span></span>
 <span id="cb22-615"><a href="#cb22-615" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-618"><a href="#cb22-618" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb22-619"><a href="#cb22-619" aria-hidden="true" tabindex="-1"></a><span class="co">#| error: true</span></span>
-<span id="cb22-620"><a href="#cb22-620" aria-hidden="true" tabindex="-1"></a><span class="fu">causat</span>(</span>
-<span id="cb22-621"><a href="#cb22-621" aria-hidden="true" tabindex="-1"></a>  df,</span>
-<span id="cb22-622"><a href="#cb22-622" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
-<span id="cb22-623"><a href="#cb22-623" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
-<span id="cb22-624"><a href="#cb22-624" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> <span class="sc">~</span> L,</span>
-<span id="cb22-625"><a href="#cb22-625" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimator =</span> <span class="st">"matching"</span>,</span>
-<span id="cb22-626"><a href="#cb22-626" aria-hidden="true" tabindex="-1"></a>  <span class="at">target =</span> <span class="st">"S"</span></span>
-<span id="cb22-627"><a href="#cb22-627" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb22-628"><a href="#cb22-628" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb22-629"><a href="#cb22-629" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-630"><a href="#cb22-630" aria-hidden="true" tabindex="-1"></a>This is by design: MatchIt's match-weight pathway does not compose</span>
-<span id="cb22-631"><a href="#cb22-631" aria-hidden="true" tabindex="-1"></a>cleanly with external sampling weights.</span>
-<span id="cb22-632"><a href="#cb22-632" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-633"><a href="#cb22-633" aria-hidden="true" tabindex="-1"></a><span class="fu">## Summary of covered combinations</span></span>
+<span id="cb22-616"><a href="#cb22-616" aria-hidden="true" tabindex="-1"></a>Matching + transportability is a hard rejection:</span>
+<span id="cb22-617"><a href="#cb22-617" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-620"><a href="#cb22-620" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb22-621"><a href="#cb22-621" aria-hidden="true" tabindex="-1"></a><span class="co">#| error: true</span></span>
+<span id="cb22-622"><a href="#cb22-622" aria-hidden="true" tabindex="-1"></a><span class="fu">causat</span>(</span>
+<span id="cb22-623"><a href="#cb22-623" aria-hidden="true" tabindex="-1"></a>  df,</span>
+<span id="cb22-624"><a href="#cb22-624" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
+<span id="cb22-625"><a href="#cb22-625" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
+<span id="cb22-626"><a href="#cb22-626" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> <span class="sc">~</span> L,</span>
+<span id="cb22-627"><a href="#cb22-627" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimator =</span> <span class="st">"matching"</span>,</span>
+<span id="cb22-628"><a href="#cb22-628" aria-hidden="true" tabindex="-1"></a>  <span class="at">target =</span> <span class="st">"S"</span></span>
+<span id="cb22-629"><a href="#cb22-629" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb22-630"><a href="#cb22-630" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb22-631"><a href="#cb22-631" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-632"><a href="#cb22-632" aria-hidden="true" tabindex="-1"></a>This is by design: MatchIt's match-weight pathway does not compose</span>
+<span id="cb22-633"><a href="#cb22-633" aria-hidden="true" tabindex="-1"></a>cleanly with external sampling weights.</span>
 <span id="cb22-634"><a href="#cb22-634" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-637"><a href="#cb22-637" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb22-638"><a href="#cb22-638" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: false</span></span>
-<span id="cb22-639"><a href="#cb22-639" aria-hidden="true" tabindex="-1"></a>comb <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
-<span id="cb22-640"><a href="#cb22-640" aria-hidden="true" tabindex="-1"></a>  <span class="at">Estimator =</span> <span class="fu">c</span>(</span>
-<span id="cb22-641"><a href="#cb22-641" aria-hidden="true" tabindex="-1"></a>    <span class="st">"gcomp"</span>, <span class="st">"gcomp"</span>, <span class="st">"gcomp"</span>, <span class="st">"gcomp"</span>,</span>
-<span id="cb22-642"><a href="#cb22-642" aria-hidden="true" tabindex="-1"></a>    <span class="st">"IPW"</span>, <span class="st">"IPW"</span>, <span class="st">"IPW"</span>, <span class="st">"IPW"</span>,</span>
-<span id="cb22-643"><a href="#cb22-643" aria-hidden="true" tabindex="-1"></a>    <span class="st">"AIPW"</span>, <span class="st">"AIPW"</span>, <span class="st">"AIPW"</span>,</span>
-<span id="cb22-644"><a href="#cb22-644" aria-hidden="true" tabindex="-1"></a>    <span class="st">"matching"</span></span>
-<span id="cb22-645"><a href="#cb22-645" aria-hidden="true" tabindex="-1"></a>  ),</span>
-<span id="cb22-646"><a href="#cb22-646" aria-hidden="true" tabindex="-1"></a>  <span class="at">Treatment =</span> <span class="fu">c</span>(</span>
-<span id="cb22-647"><a href="#cb22-647" aria-hidden="true" tabindex="-1"></a>    <span class="st">"binary"</span>, <span class="st">"continuous (MTP)"</span>, <span class="st">"multivariate"</span>, <span class="st">"longitudinal (ICE)"</span>,</span>
-<span id="cb22-648"><a href="#cb22-648" aria-hidden="true" tabindex="-1"></a>    <span class="st">"binary"</span>, <span class="st">"continuous (MTP)"</span>, <span class="st">"multivariate"</span>, <span class="st">"longitudinal"</span>,</span>
-<span id="cb22-649"><a href="#cb22-649" aria-hidden="true" tabindex="-1"></a>    <span class="st">"binary"</span>, <span class="st">"continuous (MTP)"</span>, <span class="st">"multivariate"</span>,</span>
-<span id="cb22-650"><a href="#cb22-650" aria-hidden="true" tabindex="-1"></a>    <span class="st">"any"</span></span>
-<span id="cb22-651"><a href="#cb22-651" aria-hidden="true" tabindex="-1"></a>  ),</span>
-<span id="cb22-652"><a href="#cb22-652" aria-hidden="true" tabindex="-1"></a>  <span class="at">Transport =</span> <span class="fu">c</span>(</span>
-<span id="cb22-653"><a href="#cb22-653" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Yes"</span>, <span class="st">"Yes (MC)"</span>, <span class="st">"Yes"</span>, <span class="st">"Yes"</span>,</span>
-<span id="cb22-654"><a href="#cb22-654" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Yes"</span>, <span class="st">"Yes"</span>, <span class="st">"Yes"</span>, <span class="st">"Yes"</span>,</span>
-<span id="cb22-655"><a href="#cb22-655" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Yes"</span>, <span class="st">"Yes (MC)"</span>, <span class="st">"Yes"</span>,</span>
-<span id="cb22-656"><a href="#cb22-656" aria-hidden="true" tabindex="-1"></a>    <span class="st">"No"</span></span>
-<span id="cb22-657"><a href="#cb22-657" aria-hidden="true" tabindex="-1"></a>  ),</span>
-<span id="cb22-658"><a href="#cb22-658" aria-hidden="true" tabindex="-1"></a>  <span class="at">Sandwich =</span> <span class="fu">c</span>(</span>
-<span id="cb22-659"><a href="#cb22-659" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Yes"</span>, <span class="st">"No (bootstrap)"</span>, <span class="st">"Yes"</span>, <span class="st">"Yes"</span>,</span>
-<span id="cb22-660"><a href="#cb22-660" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Yes"</span>, <span class="st">"Yes"</span>, <span class="st">"Yes"</span>, <span class="st">"Yes"</span>,</span>
-<span id="cb22-661"><a href="#cb22-661" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Yes"</span>, <span class="st">"No (bootstrap)"</span>, <span class="st">"Yes"</span>,</span>
-<span id="cb22-662"><a href="#cb22-662" aria-hidden="true" tabindex="-1"></a>    <span class="st">"---"</span></span>
-<span id="cb22-663"><a href="#cb22-663" aria-hidden="true" tabindex="-1"></a>  ),</span>
-<span id="cb22-664"><a href="#cb22-664" aria-hidden="true" tabindex="-1"></a>  <span class="at">IPCW =</span> <span class="fu">c</span>(</span>
-<span id="cb22-665"><a href="#cb22-665" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Yes"</span>, <span class="st">"---"</span>, <span class="st">"---"</span>, <span class="st">"---"</span>,</span>
-<span id="cb22-666"><a href="#cb22-666" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Yes"</span>, <span class="st">"---"</span>, <span class="st">"---"</span>, <span class="st">"Yes"</span>,</span>
-<span id="cb22-667"><a href="#cb22-667" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Yes"</span>, <span class="st">"---"</span>, <span class="st">"---"</span>,</span>
-<span id="cb22-668"><a href="#cb22-668" aria-hidden="true" tabindex="-1"></a>    <span class="st">"---"</span></span>
-<span id="cb22-669"><a href="#cb22-669" aria-hidden="true" tabindex="-1"></a>  ),</span>
-<span id="cb22-670"><a href="#cb22-670" aria-hidden="true" tabindex="-1"></a>  <span class="at">Status =</span> <span class="fu">c</span>(</span>
-<span id="cb22-671"><a href="#cb22-671" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Yes"</span>, <span class="st">"Yes"</span>, <span class="st">"Yes"</span>, <span class="st">"Yes"</span>,</span>
-<span id="cb22-672"><a href="#cb22-672" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Yes"</span>, <span class="st">"Yes"</span>, <span class="st">"Yes"</span>, <span class="st">"Yes"</span>,</span>
-<span id="cb22-673"><a href="#cb22-673" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Yes"</span>, <span class="st">"Yes"</span>, <span class="st">"Yes"</span>,</span>
-<span id="cb22-674"><a href="#cb22-674" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Rejected"</span></span>
-<span id="cb22-675"><a href="#cb22-675" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb22-676"><a href="#cb22-676" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb22-677"><a href="#cb22-677" aria-hidden="true" tabindex="-1"></a>tinytable<span class="sc">::</span><span class="fu">tt</span>(comb) <span class="sc">|&gt;</span></span>
-<span id="cb22-678"><a href="#cb22-678" aria-hidden="true" tabindex="-1"></a>  tinytable<span class="sc">::</span><span class="fu">style_tt</span>(<span class="at">j =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">6</span>, <span class="at">align =</span> <span class="st">"lllccc"</span>)</span>
-<span id="cb22-679"><a href="#cb22-679" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb22-680"><a href="#cb22-680" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-681"><a href="#cb22-681" aria-hidden="true" tabindex="-1"></a>See <span class="co">[</span><span class="ot">`FEATURE_COVERAGE_MATRIX.md`</span><span class="co">](https://github.com/etverse/causatr/blob/main/FEATURE_COVERAGE_MATRIX.md)</span></span>
-<span id="cb22-682"><a href="#cb22-682" aria-hidden="true" tabindex="-1"></a>for the full test-level coverage breakdown.</span>
-<span id="cb22-683"><a href="#cb22-683" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-684"><a href="#cb22-684" aria-hidden="true" tabindex="-1"></a><span class="fu">## References</span></span>
+<span id="cb22-635"><a href="#cb22-635" aria-hidden="true" tabindex="-1"></a><span class="fu">## Summary of covered combinations</span></span>
+<span id="cb22-636"><a href="#cb22-636" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-639"><a href="#cb22-639" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb22-640"><a href="#cb22-640" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: false</span></span>
+<span id="cb22-641"><a href="#cb22-641" aria-hidden="true" tabindex="-1"></a>comb <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb22-642"><a href="#cb22-642" aria-hidden="true" tabindex="-1"></a>  <span class="at">Estimator =</span> <span class="fu">c</span>(</span>
+<span id="cb22-643"><a href="#cb22-643" aria-hidden="true" tabindex="-1"></a>    <span class="st">"gcomp"</span>, <span class="st">"gcomp"</span>, <span class="st">"gcomp"</span>, <span class="st">"gcomp"</span>,</span>
+<span id="cb22-644"><a href="#cb22-644" aria-hidden="true" tabindex="-1"></a>    <span class="st">"IPW"</span>, <span class="st">"IPW"</span>, <span class="st">"IPW"</span>, <span class="st">"IPW"</span>,</span>
+<span id="cb22-645"><a href="#cb22-645" aria-hidden="true" tabindex="-1"></a>    <span class="st">"AIPW"</span>, <span class="st">"AIPW"</span>, <span class="st">"AIPW"</span>,</span>
+<span id="cb22-646"><a href="#cb22-646" aria-hidden="true" tabindex="-1"></a>    <span class="st">"matching"</span></span>
+<span id="cb22-647"><a href="#cb22-647" aria-hidden="true" tabindex="-1"></a>  ),</span>
+<span id="cb22-648"><a href="#cb22-648" aria-hidden="true" tabindex="-1"></a>  <span class="at">Treatment =</span> <span class="fu">c</span>(</span>
+<span id="cb22-649"><a href="#cb22-649" aria-hidden="true" tabindex="-1"></a>    <span class="st">"binary"</span>, <span class="st">"continuous (MTP)"</span>, <span class="st">"multivariate"</span>, <span class="st">"longitudinal (ICE)"</span>,</span>
+<span id="cb22-650"><a href="#cb22-650" aria-hidden="true" tabindex="-1"></a>    <span class="st">"binary"</span>, <span class="st">"continuous (MTP)"</span>, <span class="st">"multivariate"</span>, <span class="st">"longitudinal"</span>,</span>
+<span id="cb22-651"><a href="#cb22-651" aria-hidden="true" tabindex="-1"></a>    <span class="st">"binary"</span>, <span class="st">"continuous (MTP)"</span>, <span class="st">"multivariate"</span>,</span>
+<span id="cb22-652"><a href="#cb22-652" aria-hidden="true" tabindex="-1"></a>    <span class="st">"any"</span></span>
+<span id="cb22-653"><a href="#cb22-653" aria-hidden="true" tabindex="-1"></a>  ),</span>
+<span id="cb22-654"><a href="#cb22-654" aria-hidden="true" tabindex="-1"></a>  <span class="at">Transport =</span> <span class="fu">c</span>(</span>
+<span id="cb22-655"><a href="#cb22-655" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Yes"</span>, <span class="st">"Yes (MC)"</span>, <span class="st">"Yes"</span>, <span class="st">"Yes"</span>,</span>
+<span id="cb22-656"><a href="#cb22-656" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Yes"</span>, <span class="st">"Yes"</span>, <span class="st">"Yes"</span>, <span class="st">"Yes"</span>,</span>
+<span id="cb22-657"><a href="#cb22-657" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Yes"</span>, <span class="st">"Yes (MC)"</span>, <span class="st">"Yes"</span>,</span>
+<span id="cb22-658"><a href="#cb22-658" aria-hidden="true" tabindex="-1"></a>    <span class="st">"No"</span></span>
+<span id="cb22-659"><a href="#cb22-659" aria-hidden="true" tabindex="-1"></a>  ),</span>
+<span id="cb22-660"><a href="#cb22-660" aria-hidden="true" tabindex="-1"></a>  <span class="at">Sandwich =</span> <span class="fu">c</span>(</span>
+<span id="cb22-661"><a href="#cb22-661" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Yes"</span>, <span class="st">"No (bootstrap)"</span>, <span class="st">"Yes"</span>, <span class="st">"Yes"</span>,</span>
+<span id="cb22-662"><a href="#cb22-662" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Yes"</span>, <span class="st">"Yes"</span>, <span class="st">"Yes"</span>, <span class="st">"Yes"</span>,</span>
+<span id="cb22-663"><a href="#cb22-663" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Yes"</span>, <span class="st">"No (bootstrap)"</span>, <span class="st">"Yes"</span>,</span>
+<span id="cb22-664"><a href="#cb22-664" aria-hidden="true" tabindex="-1"></a>    <span class="st">"---"</span></span>
+<span id="cb22-665"><a href="#cb22-665" aria-hidden="true" tabindex="-1"></a>  ),</span>
+<span id="cb22-666"><a href="#cb22-666" aria-hidden="true" tabindex="-1"></a>  <span class="at">IPCW =</span> <span class="fu">c</span>(</span>
+<span id="cb22-667"><a href="#cb22-667" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Yes"</span>, <span class="st">"---"</span>, <span class="st">"---"</span>, <span class="st">"---"</span>,</span>
+<span id="cb22-668"><a href="#cb22-668" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Yes"</span>, <span class="st">"---"</span>, <span class="st">"---"</span>, <span class="st">"Yes"</span>,</span>
+<span id="cb22-669"><a href="#cb22-669" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Yes"</span>, <span class="st">"---"</span>, <span class="st">"---"</span>,</span>
+<span id="cb22-670"><a href="#cb22-670" aria-hidden="true" tabindex="-1"></a>    <span class="st">"---"</span></span>
+<span id="cb22-671"><a href="#cb22-671" aria-hidden="true" tabindex="-1"></a>  ),</span>
+<span id="cb22-672"><a href="#cb22-672" aria-hidden="true" tabindex="-1"></a>  <span class="at">Status =</span> <span class="fu">c</span>(</span>
+<span id="cb22-673"><a href="#cb22-673" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Yes"</span>, <span class="st">"Yes"</span>, <span class="st">"Yes"</span>, <span class="st">"Yes"</span>,</span>
+<span id="cb22-674"><a href="#cb22-674" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Yes"</span>, <span class="st">"Yes"</span>, <span class="st">"Yes"</span>, <span class="st">"Yes"</span>,</span>
+<span id="cb22-675"><a href="#cb22-675" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Yes"</span>, <span class="st">"Yes"</span>, <span class="st">"Yes"</span>,</span>
+<span id="cb22-676"><a href="#cb22-676" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Rejected"</span></span>
+<span id="cb22-677"><a href="#cb22-677" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb22-678"><a href="#cb22-678" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb22-679"><a href="#cb22-679" aria-hidden="true" tabindex="-1"></a>tinytable<span class="sc">::</span><span class="fu">tt</span>(comb) <span class="sc">|&gt;</span></span>
+<span id="cb22-680"><a href="#cb22-680" aria-hidden="true" tabindex="-1"></a>  tinytable<span class="sc">::</span><span class="fu">style_tt</span>(<span class="at">j =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">6</span>, <span class="at">align =</span> <span class="st">"lllccc"</span>)</span>
+<span id="cb22-681"><a href="#cb22-681" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb22-682"><a href="#cb22-682" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-683"><a href="#cb22-683" aria-hidden="true" tabindex="-1"></a>See <span class="co">[</span><span class="ot">`FEATURE_COVERAGE_MATRIX.md`</span><span class="co">](https://github.com/etverse/causatr/blob/main/FEATURE_COVERAGE_MATRIX.md)</span></span>
+<span id="cb22-684"><a href="#cb22-684" aria-hidden="true" tabindex="-1"></a>for the full test-level coverage breakdown.</span>
 <span id="cb22-685"><a href="#cb22-685" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-686"><a href="#cb22-686" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Dahabreh IJ, Robertson SE, Steingrimsson JA, Stuart EA, Hernán MA</span>
-<span id="cb22-687"><a href="#cb22-687" aria-hidden="true" tabindex="-1"></a>  (2020). Extending inferences from a randomized trial to a new target</span>
-<span id="cb22-688"><a href="#cb22-688" aria-hidden="true" tabindex="-1"></a>  population. *Stat Med* 39:1999--2014.</span>
-<span id="cb22-689"><a href="#cb22-689" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Cole SR, Stuart EA (2010). Generalizing evidence from randomized</span>
-<span id="cb22-690"><a href="#cb22-690" aria-hidden="true" tabindex="-1"></a>  clinical trials to target populations. *Am J Epidemiol* 172:107--115.</span>
-<span id="cb22-691"><a href="#cb22-691" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Hernán MA, VanderWeele TJ (2017). Causal inference under multiple</span>
-<span id="cb22-692"><a href="#cb22-692" aria-hidden="true" tabindex="-1"></a>  versions of treatment. *J Causal Inf* 5(2):20160014.</span>
+<span id="cb22-686"><a href="#cb22-686" aria-hidden="true" tabindex="-1"></a><span class="fu">## References</span></span>
+<span id="cb22-687"><a href="#cb22-687" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-688"><a href="#cb22-688" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Dahabreh IJ, Robertson SE, Steingrimsson JA, Stuart EA, Hernán MA</span>
+<span id="cb22-689"><a href="#cb22-689" aria-hidden="true" tabindex="-1"></a>  (2020). Extending inferences from a randomized trial to a new target</span>
+<span id="cb22-690"><a href="#cb22-690" aria-hidden="true" tabindex="-1"></a>  population. *Stat Med* 39:1999--2014.</span>
+<span id="cb22-691"><a href="#cb22-691" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Cole SR, Stuart EA (2010). Generalizing evidence from randomized</span>
+<span id="cb22-692"><a href="#cb22-692" aria-hidden="true" tabindex="-1"></a>  clinical trials to target populations. *Am J Epidemiol* 172:107--115.</span>
+<span id="cb22-693"><a href="#cb22-693" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Hernán MA, VanderWeele TJ (2017). Causal inference under multiple</span>
+<span id="cb22-694"><a href="#cb22-694" aria-hidden="true" tabindex="-1"></a>  versions of treatment. *J Causal Inf* 5(2):20160014.</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->
