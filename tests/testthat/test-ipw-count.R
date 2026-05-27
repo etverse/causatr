@@ -40,6 +40,9 @@ test_that("fit_treatment_model() with propensity_family = 'poisson' returns Pois
 
 test_that("fit_treatment_model() with propensity_family = 'negbin' returns NB fit", {
   skip_if_not_installed("MASS")
+  # MASS::glm.nb calls Fortran code that crashes with EXCEPTION_ACCESS_VIOLATION
+  # (0xC0000005) inside testthat parallel subprocess workers on Windows.
+  skip_on_os("windows")
   d <- simulate_count_treatment(n = 500, seed = 2)
   dt <- data.table::as.data.table(d)
 
@@ -92,6 +95,7 @@ test_that("evaluate_density() Poisson returns dpois per row", {
 
 test_that("evaluate_density() negbin returns dnbinom per row", {
   skip_if_not_installed("MASS")
+  skip_on_os("windows")
   d <- simulate_count_treatment(n = 300, seed = 4)
   dt <- data.table::as.data.table(d)
   # theta.ml iteration warning is expected: Poisson DGP has theta = Inf.
@@ -149,9 +153,9 @@ test_that("ipw × count trt × Poisson × shift(1) recovers ATE = 1.5", {
 
 test_that("ipw × count trt × negbin agrees with Poisson on Poisson DGP", {
   # When the true DGP is Poisson, a NB fit (which nests Poisson at
-
   # theta -> Inf) should produce the same point estimate.
   skip_if_not_installed("MASS")
+  skip_on_os("windows")
   d <- simulate_count_treatment(n = 5000, seed = 10)
 
   fit_pois <- causat(
