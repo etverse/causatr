@@ -1186,6 +1186,17 @@ Groups 1–6 from the Phase 18 combination matrix audit. Addresses all 🟡 item
 | `weights =` manual WLS formula match (`sum(w*R*Y)/sum(w*R*A)`) | ✅ | test-snm.R |
 | `weights = rep(1, n)` recovers unweighted exactly | ✅ | test-snm.R |
 | Sandwich fallback: `causatr_snm_no_estfun` for unsupported model class | ✅ | test-snm.R |
+| DTRreg cross-check — binary × no EM: point estimate to 1e-6 | ✅ | test-snm-dtrreg-oracle.R |
+| DTRreg cross-check — binary × EM + TF: point + SE to 1e-6 / 1e-2 | ✅ | test-snm-dtrreg-oracle.R |
+| Continuous truth (no DTRreg — linear blip unsupported by DTRreg) | ✅ | test-snm-dtrreg-oracle.R |
+| MCAR outcomes: causatr CC agrees with DTRreg CC to 1e-6 | ✅ | test-snm-dtrreg-oracle.R |
+| Observation weights: WLS oracle `sum(w*R*Y)/sum(w*R*A)` match | ✅ | test-snm-dtrreg-oracle.R |
+| Cluster singleton: `cluster_vec = 1:n` = i.i.d. exactly | ✅ | test-snm-dtrreg-oracle.R |
+| Cluster propagation: fit-time cluster = explicit `cluster =` argument | ✅ | test-snm-dtrreg-oracle.R |
+| `by =` per-stratum: manual delta-method formula match to 1e-6 | ✅ | test-snm-dtrreg-oracle.R |
+| Longitudinal × binary × no EM: causatr vs DTRreg within 0.05 | ✅ | test-snm-dtrreg-oracle.R |
+| Longitudinal × TV-EM: blip params within 0.20 of truth | ✅ | test-snm-dtrreg-oracle.R |
+| Sandwich fallback: `variance_if_snm()` throws `causatr_snm_no_estfun` | ✅ | test-snm-dtrreg-oracle.R |
 
 **Phase 18 COMPLETE.** All chunks shipped (18a–18f, 18h–18k, 18b-ext). 18g dropped (gesttools archived).
 
