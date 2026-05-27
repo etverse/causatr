@@ -292,7 +292,9 @@ build_snm_phi_alpha_closure <- function(
       }
       vals <- RM_alpha * resid_blip
       vals[!valid_full, ] <- 0
-      if (!is.null(w)) vals <- vals * w
+      if (!is.null(w)) {
+        vals <- vals * w
+      }
       colMeans(vals)
     }
   } else {
@@ -306,7 +308,9 @@ build_snm_phi_alpha_closure <- function(
       R_alpha <- A_raw - mu
       vals <- M * (R_alpha * resid_blip)
       vals[!valid_full, ] <- 0
-      if (!is.null(w)) vals <- vals * w
+      if (!is.null(w)) {
+        vals <- vals * w
+      }
       colMeans(vals)
     }
   }

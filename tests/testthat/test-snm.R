@@ -2989,14 +2989,18 @@ test_that("SNM cluster-robust SE: singleton cluster equals i.i.d. sandwich exact
   # correction neither inflates nor deflates the sandwich in expectation.
   # Mechanical correctness test: cluster = 1:n (every obs its own cluster)
   # must give exactly the same vcov as the i.i.d. sandwich.
-  dgp <- simulate_snm_clustered(n_clusters = 50, obs_per_cluster = 20, seed = 42)
+  dgp <- simulate_snm_clustered(
+    n_clusters = 50,
+    obs_per_cluster = 20,
+    seed = 42
+  )
   d <- dgp$data
 
   fit <- causat(
     d[, .(Y, A, L)],
     outcome = "Y",
     treatment = "A",
-    confounders = ~ L,
+    confounders = ~L,
     estimator = "snm",
     propensity_model_fn = stats::glm
   )
@@ -3008,9 +3012,17 @@ test_that("SNM cluster-robust SE: singleton cluster equals i.i.d. sandwich exact
   vcov_iid <- variance_if_snm(fit, snm_r, cluster_vec = NULL)
   # Singleton vector must be length nrow(fit$data) — variance_if_snm()
   # subsets it to fit_rows internally. This tests the subsetting path.
-  vcov_singleton_full <- variance_if_snm(fit, snm_r, cluster_vec = seq_len(n_data))
+  vcov_singleton_full <- variance_if_snm(
+    fit,
+    snm_r,
+    cluster_vec = seq_len(n_data)
+  )
   # Direct fit-length singleton for reference
-  vcov_singleton_fit <- variance_if_snm(fit, snm_r, cluster_vec = seq_len(n_fit))
+  vcov_singleton_fit <- variance_if_snm(
+    fit,
+    snm_r,
+    cluster_vec = seq_len(n_fit)
+  )
 
   # All three must be numerically identical to i.i.d.
   expect_equal(vcov_iid, vcov_singleton_full)
@@ -3034,8 +3046,14 @@ test_that("SNM cluster-robust SE: singleton cluster equals i.i.d. sandwich exact
 
 test_that("SNM by= rejects without treatment_values", {
   d <- simulate_snm_point_no_em(n = 200, seed = 42)$data
-  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~ L,
-    estimator = "snm", propensity_model_fn = stats::glm)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "snm",
+    propensity_model_fn = stats::glm
+  )
   expect_error(
     contrast(fit, by = "L"),
     class = "causatr_snm_by_needs_treatment_values"
@@ -3044,8 +3062,14 @@ test_that("SNM by= rejects without treatment_values", {
 
 test_that("SNM by= rejects when column not in data", {
   d <- simulate_snm_point_no_em(n = 200, seed = 42)$data
-  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~ L,
-    estimator = "snm", propensity_model_fn = stats::glm)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "snm",
+    propensity_model_fn = stats::glm
+  )
   expect_error(
     contrast(fit, treatment_values = c(0, 1), by = "not_a_column"),
     class = "causatr_snm_by_not_found"
@@ -3066,11 +3090,16 @@ test_that("SNM by-stratified averaged blip: per-stratum truth matches manual for
     outcome = "Y",
     treatment = "A",
     confounders_outcome = ~ L + A:M,
-    confounders_treatment = ~ L,
+    confounders_treatment = ~L,
     estimator = "snm"
   )
 
-  res <- contrast(fit, treatment_values = c(0, 1), by = "M", ci_method = "sandwich")
+  res <- contrast(
+    fit,
+    treatment_values = c(0, 1),
+    by = "M",
+    ci_method = "sandwich"
+  )
 
   est <- res$estimates
   expect_true("by" %in% names(est))
@@ -3104,12 +3133,21 @@ test_that("SNM by-stratified averaged blip: pooled equals colMeans of per-stratu
     outcome = "Y",
     treatment = "A",
     confounders_outcome = ~ L + A:M,
-    confounders_treatment = ~ L,
+    confounders_treatment = ~L,
     estimator = "snm"
   )
 
-  res_pooled <- contrast(fit, treatment_values = c(0, 1), ci_method = "sandwich")
-  res_by <- contrast(fit, treatment_values = c(0, 1), by = "M", ci_method = "sandwich")
+  res_pooled <- contrast(
+    fit,
+    treatment_values = c(0, 1),
+    ci_method = "sandwich"
+  )
+  res_by <- contrast(
+    fit,
+    treatment_values = c(0, 1),
+    by = "M",
+    ci_method = "sandwich"
+  )
 
   # Pooled m_bar = colMeans(M_full). Per-stratum: M=0 → (1,0), M=1 → (1,1).
   # Weighted average (by n_by / n) must equal the pooled estimate.
@@ -3122,14 +3160,18 @@ test_that("SNM by-stratified averaged blip: pooled equals colMeans of per-stratu
 test_that("SNM cluster-robust SE: fit-time cluster propagates to contrast()", {
   # cluster passed at causat() time is stored in fit$details$cluster and
   # automatically used in contrast() without a second argument.
-  dgp <- simulate_snm_clustered(n_clusters = 50, obs_per_cluster = 20, seed = 42)
+  dgp <- simulate_snm_clustered(
+    n_clusters = 50,
+    obs_per_cluster = 20,
+    seed = 42
+  )
   d <- dgp$data
 
   fit_cl <- causat(
     d,
     outcome = "Y",
     treatment = "A",
-    confounders = ~ L,
+    confounders = ~L,
     estimator = "snm",
     propensity_model_fn = stats::glm,
     cluster = "cluster_id"
@@ -3138,9 +3180,17 @@ test_that("SNM cluster-robust SE: fit-time cluster propagates to contrast()", {
   # Propagated (no cluster arg to contrast) vs explicit raw-vector override.
   # Both use the same 50-cluster grouping, so SEs must be identical.
   res_propagated <- contrast(fit_cl, ci_method = "sandwich")
-  res_explicit <- contrast(fit_cl, ci_method = "sandwich", cluster = d$cluster_id)
+  res_explicit <- contrast(
+    fit_cl,
+    ci_method = "sandwich",
+    cluster = d$cluster_id
+  )
 
-  expect_equal(res_propagated$estimates$se, res_explicit$estimates$se, tolerance = 1e-10)
+  expect_equal(
+    res_propagated$estimates$se,
+    res_explicit$estimates$se,
+    tolerance = 1e-10
+  )
   # Fit-time cluster is stored
   expect_equal(fit_cl$details$cluster, "cluster_id")
 })
@@ -3157,11 +3207,18 @@ test_that("SNM weighted EE: estimate matches manual weighted g-estimation", {
   L <- rnorm(n)
   A <- rbinom(n, 1, plogis(0.5 * L))
   Y <- 0.5 * A + 0.3 * L + rnorm(n, sd = 0.5)
-  w <- 1 + A  # integer weights: treated=2, control=1
+  w <- 1 + A # integer weights: treated=2, control=1
   d <- data.table::data.table(Y = Y, A = A, L = L)
 
-  fit_w <- causat(d, outcome = "Y", treatment = "A", confounders = ~ L,
-    estimator = "snm", propensity_model_fn = stats::glm, weights = w)
+  fit_w <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "snm",
+    propensity_model_fn = stats::glm,
+    weights = w
+  )
   res_w <- contrast(fit_w, ci_method = "sandwich")
 
   # Manual weighted EE: use the fitted propensity from the treatment model
@@ -3173,12 +3230,21 @@ test_that("SNM weighted EE: estimate matches manual weighted g-estimation", {
   expect_equal(res_w$estimates$estimate, psi_manual, tolerance = 1e-6)
 
   # Compare to unweighted: estimates should differ when w != constant
-  fit_u <- causat(d, outcome = "Y", treatment = "A", confounders = ~ L,
-    estimator = "snm", propensity_model_fn = stats::glm)
+  fit_u <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "snm",
+    propensity_model_fn = stats::glm
+  )
   res_u <- contrast(fit_u, ci_method = "sandwich")
 
-  expect_false(isTRUE(all.equal(res_w$estimates$estimate,
-    res_u$estimates$estimate, tolerance = 1e-3)))
+  expect_false(isTRUE(all.equal(
+    res_w$estimates$estimate,
+    res_u$estimates$estimate,
+    tolerance = 1e-3
+  )))
 
   # SE finite and positive
   expect_true(is.finite(res_w$estimates$se))
@@ -3193,15 +3259,32 @@ test_that("SNM weighted EE: unit weights (w=1) recovers unweighted estimate exac
   Y <- 0.5 * A + 0.3 * L + rnorm(n, sd = 0.5)
   d <- data.table::data.table(Y = Y, A = A, L = L)
 
-  fit_u <- causat(d, outcome = "Y", treatment = "A", confounders = ~ L,
-    estimator = "snm", propensity_model_fn = stats::glm)
-  fit_w1 <- causat(d, outcome = "Y", treatment = "A", confounders = ~ L,
-    estimator = "snm", propensity_model_fn = stats::glm, weights = rep(1, n))
+  fit_u <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "snm",
+    propensity_model_fn = stats::glm
+  )
+  fit_w1 <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "snm",
+    propensity_model_fn = stats::glm,
+    weights = rep(1, n)
+  )
 
   res_u <- contrast(fit_u, ci_method = "sandwich")
   res_w1 <- contrast(fit_w1, ci_method = "sandwich")
 
-  expect_equal(res_w1$estimates$estimate, res_u$estimates$estimate, tolerance = 1e-10)
+  expect_equal(
+    res_w1$estimates$estimate,
+    res_u$estimates$estimate,
+    tolerance = 1e-10
+  )
   expect_equal(res_w1$estimates$se, res_u$estimates$se, tolerance = 1e-10)
 })
 
@@ -3212,15 +3295,21 @@ test_that("variance_if_snm() gives actionable error when treatment model lacks e
   # of a class with no sandwich::estfun() method. variance_if_snm() should
   # catch the dispatch failure and re-throw with causatr_snm_no_estfun class.
   d <- simulate_snm_point_no_em(n = 500, seed = 42)$data
-  fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~ L,
-    estimator = "snm", propensity_model_fn = stats::glm)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L,
+    estimator = "snm",
+    propensity_model_fn = stats::glm
+  )
 
   # Replace the treatment model object with a fake class that has no estfun()
   fake_trt_model <- structure(list(), class = "causatr_fake_no_estfun_model")
   fit_bad <- fit
   fit_bad$details$treatment_model$model <- fake_trt_model
 
-  snm_r <- compute_snm_blip_point(fit)  # still valid (uses original fit)
+  snm_r <- compute_snm_blip_point(fit) # still valid (uses original fit)
   expect_error(
     variance_if_snm(fit_bad, snm_r),
     class = "causatr_snm_no_estfun"
