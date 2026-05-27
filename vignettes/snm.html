@@ -930,10 +930,10 @@ Figure&nbsp;1
 <span id="cb11-27"><a href="#cb11-27" aria-hidden="true" tabindex="-1"></a><span class="fu">abline</span>(<span class="at">h =</span> avg_blip_truth, <span class="at">lty =</span> <span class="dv">2</span>, <span class="at">col =</span> <span class="st">"grey40"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
-<div id="fig-bias-comparison" class="quarto-float quarto-figure quarto-figure-center anchored" alt="Pointrange plot showing the IPW-MSM estimate (severely biased at ~6.5) versus the SNM averaged blip (correct at ~3.5). A dashed line marks the true value." width="576">
+<div id="fig-bias-comparison" class="quarto-float quarto-figure quarto-figure-center anchored" alt="Pointrange plot showing the IPW-MSM estimate (biased downward) versus the SNM averaged blip (correct at approximately 3). A dashed horizontal line marks the true averaged blip value." width="576">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-bias-comparison-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="snm_files/figure-html/fig-bias-comparison-1.png" id="fig-bias-comparison" class="img-fluid figure-img" alt="Pointrange plot showing the IPW-MSM estimate (severely biased at ~6.5) versus the SNM averaged blip (correct at ~3.5). A dashed line marks the true value." width="576">
+<img src="snm_files/figure-html/fig-bias-comparison-1.png" id="fig-bias-comparison" class="img-fluid figure-img" alt="Pointrange plot showing the IPW-MSM estimate (biased downward) versus the SNM averaged blip (correct at approximately 3). A dashed horizontal line marks the true averaged blip value." width="576">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-bias-comparison-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 Figure&nbsp;2
@@ -2346,7 +2346,7 @@ Figure&nbsp;3
 <span id="cb22-351"><a href="#cb22-351" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fig-bias-comparison</span></span>
 <span id="cb22-352"><a href="#cb22-352" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-width: 6</span></span>
 <span id="cb22-353"><a href="#cb22-353" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-height: 4</span></span>
-<span id="cb22-354"><a href="#cb22-354" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-alt: "Pointrange plot showing the IPW-MSM estimate (severely biased at ~6.5) versus the SNM averaged blip (correct at ~3.5). A dashed line marks the true value."</span></span>
+<span id="cb22-354"><a href="#cb22-354" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-alt: "Pointrange plot showing the IPW-MSM estimate (biased downward) versus the SNM averaged blip (correct at approximately 3). A dashed horizontal line marks the true averaged blip value."</span></span>
 <span id="cb22-355"><a href="#cb22-355" aria-hidden="true" tabindex="-1"></a>bias_df <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
 <span id="cb22-356"><a href="#cb22-356" aria-hidden="true" tabindex="-1"></a>  <span class="at">Method =</span> <span class="fu">factor</span>(</span>
 <span id="cb22-357"><a href="#cb22-357" aria-hidden="true" tabindex="-1"></a>    <span class="fu">c</span>(<span class="st">"IPW-MSM (biased)"</span>, <span class="st">"SNM (correct)"</span>),</span>
