@@ -77,7 +77,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-15634bcf2e68342d4ad2dfa704d543f6.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-98130f95a46b67a4a867697a2c34a567.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-b4053f44a9844110384dba2fb4cdf31e.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -754,7 +754,7 @@ window.Quarto = {
 <span id="cb6-45"><a href="#cb6-45" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
-<div id="fig-msm-vs-snm" class="quarto-float quarto-figure quarto-figure-center anchored" alt="Pointrange plot comparing g-comp (MSM) and SNM estimates from the same DGP. The MSM panel shows marginal ATE and subgroup-specific ATEs; the SNM panel shows blip parameters and the averaged blip. All estimates bracket the true values." width="768">
+<div id="fig-msm-vs-snm" class="quarto-float quarto-figure quarto-figure-center anchored" width="768" alt="Pointrange plot comparing g-comp (MSM) and SNM estimates from the same DGP. The MSM panel shows marginal ATE and subgroup-specific ATEs; the SNM panel shows blip parameters and the averaged blip. All estimates bracket the true values.">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-msm-vs-snm-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <img src="snm_files/figure-html/fig-msm-vs-snm-1.png" id="fig-msm-vs-snm" class="img-fluid figure-img" alt="Pointrange plot comparing g-comp (MSM) and SNM estimates from the same DGP. The MSM panel shows marginal ATE and subgroup-specific ATEs; the SNM panel shows blip parameters and the averaged blip. All estimates bracket the true values." width="768">
@@ -853,7 +853,8 @@ Figure&nbsp;1
 <span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1:   a0 vs a1 -2.049563 0.07879844 -2.204005 -1.895121</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
-<p>The IPW estimate is far from the truth (the averaged structural blip is approximately <span class="math inline">\(3 + 2 \times \bar{M} \approx 3 + 2 \times 0.25 = 3.5\)</span>).</p>
+<p>Since <span class="math inline">\(M = 0.3A + 0.5L + \epsilon\)</span> with <span class="math inline">\(A\)</span> and <span class="math inline">\(L\)</span> both mean-zero, <span class="math inline">\(\bar{M}
+\approx 0\)</span> and the true averaged blip is <span class="math inline">\(\approx 3 + 2 \times 0 = 3\)</span>. The IPW estimate is substantially biased away from this value.</p>
 </section>
 <section id="snm-g-estimation-correct" class="level3">
 <h3 class="anchored" data-anchor-id="snm-g-estimation-correct">SNM g-estimation: correct</h3>
@@ -896,7 +897,7 @@ Figure&nbsp;1
 </section>
 <section id="visualizing-the-bias" class="level3">
 <h3 class="anchored" data-anchor-id="visualizing-the-bias">Visualizing the bias</h3>
-<p>The contrast between the two approaches is clearest in a figure. The IPW-MSM estimate (<span class="math inline">\(\approx 6.5\)</span>) is far from the true averaged blip (<span class="math inline">\(\approx 3.5\)</span>, dashed line), while the SNM recovers the truth:</p>
+<p>The contrast between the two approaches is clearest in a figure. The IPW-MSM estimate (biased downward) is far from the true averaged blip (<span class="math inline">\(\approx 3\)</span>, dashed line), while the SNM recovers the truth:</p>
 <div class="cell">
 <details open="" class="code-fold">
 <summary>Code</summary>
@@ -929,7 +930,7 @@ Figure&nbsp;1
 <span id="cb11-27"><a href="#cb11-27" aria-hidden="true" tabindex="-1"></a><span class="fu">abline</span>(<span class="at">h =</span> avg_blip_truth, <span class="at">lty =</span> <span class="dv">2</span>, <span class="at">col =</span> <span class="st">"grey40"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
-<div id="fig-bias-comparison" class="quarto-float quarto-figure quarto-figure-center anchored" alt="Pointrange plot showing the IPW-MSM estimate (severely biased at ~6.5) versus the SNM averaged blip (correct at ~3.5). A dashed line marks the true value." width="576">
+<div id="fig-bias-comparison" class="quarto-float quarto-figure quarto-figure-center anchored" width="576" alt="Pointrange plot showing the IPW-MSM estimate (severely biased at ~6.5) versus the SNM averaged blip (correct at ~3.5). A dashed line marks the true value.">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-bias-comparison-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <img src="snm_files/figure-html/fig-bias-comparison-1.png" id="fig-bias-comparison" class="img-fluid figure-img" alt="Pointrange plot showing the IPW-MSM estimate (severely biased at ~6.5) versus the SNM averaged blip (correct at ~3.5). A dashed line marks the true value." width="576">
@@ -1277,7 +1278,7 @@ Figure&nbsp;2
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(result_long)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
-<div id="fig-longitudinal-blip" class="quarto-float quarto-figure quarto-figure-center anchored" alt="Forest plot of longitudinal SNM blip parameters. Three parameters are shown: psi_0 intercept near 1, psi_1 intercept near 2, and psi_1_M near 2, all with tight confidence intervals around the true values." width="672">
+<div id="fig-longitudinal-blip" class="quarto-float quarto-figure quarto-figure-center anchored" width="672" alt="Forest plot of longitudinal SNM blip parameters. Three parameters are shown: psi_0 intercept near 1, psi_1 intercept near 2, and psi_1_M near 2, all with tight confidence intervals around the true values.">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-longitudinal-blip-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <img src="snm_files/figure-html/fig-longitudinal-blip-1.png" id="fig-longitudinal-blip" class="img-fluid figure-img" alt="Forest plot of longitudinal SNM blip parameters. Three parameters are shown: psi_0 intercept near 1, psi_1 intercept near 2, and psi_1_M near 2, all with tight confidence intervals around the true values." width="672">
@@ -1555,7 +1556,7 @@ Figure&nbsp;3
 <h2 class="anchored" data-anchor-id="references">References</h2>
 <ul>
 <li>Robins JM (1994). Correcting for non-compliance using structural nested mean models. <em>Comm Stat Theory Methods</em> 23:2379–2412.</li>
-<li>Vansteelandt S, Joffe MM (2014). Structural nested models and g-estimation: The partially realized promise. <em>Stat Sci</em> 29:707–731.</li>
+<li>Vansteelandt S, Joffe M (2014). Structural nested models and G-estimation: the partially realized promise. <em>Stat Sci</em> 29(4):707–731.</li>
 <li>Robins JM (2000). Marginal structural models versus structural nested models as tools for causal inference. In <em>Statistical Models in Epidemiology</em>.</li>
 </ul>
 
@@ -2299,369 +2300,370 @@ Figure&nbsp;3
 <span id="cb22-299"><a href="#cb22-299" aria-hidden="true" tabindex="-1"></a>r_ipw<span class="sc">$</span>contrasts</span>
 <span id="cb22-300"><a href="#cb22-300" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb22-301"><a href="#cb22-301" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-302"><a href="#cb22-302" aria-hidden="true" tabindex="-1"></a>The IPW estimate is far from the truth (the averaged structural blip is</span>
-<span id="cb22-303"><a href="#cb22-303" aria-hidden="true" tabindex="-1"></a>approximately $3 + 2 \times \bar{M} \approx 3 + 2 \times 0.25 = 3.5$).</span>
-<span id="cb22-304"><a href="#cb22-304" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-305"><a href="#cb22-305" aria-hidden="true" tabindex="-1"></a><span class="fu">### SNM g-estimation: correct</span></span>
-<span id="cb22-306"><a href="#cb22-306" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-307"><a href="#cb22-307" aria-hidden="true" tabindex="-1"></a>The SNM identifies the blip using the treatment residual as an instrument.</span>
-<span id="cb22-308"><a href="#cb22-308" aria-hidden="true" tabindex="-1"></a>With a treatment-free model to absorb the $L \to Y$ pathway, the structural</span>
-<span id="cb22-309"><a href="#cb22-309" aria-hidden="true" tabindex="-1"></a>blip parameters are recovered:</span>
-<span id="cb22-310"><a href="#cb22-310" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-313"><a href="#cb22-313" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb22-314"><a href="#cb22-314" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: snm-correct</span></span>
-<span id="cb22-315"><a href="#cb22-315" aria-hidden="true" tabindex="-1"></a>fit_snm <span class="ot">&lt;-</span> <span class="fu">causat</span>(d, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
-<span id="cb22-316"><a href="#cb22-316" aria-hidden="true" tabindex="-1"></a>                  <span class="at">confounders_outcome =</span> <span class="sc">~</span> L <span class="sc">+</span> A<span class="sc">:</span>M,</span>
-<span id="cb22-317"><a href="#cb22-317" aria-hidden="true" tabindex="-1"></a>                  <span class="at">confounders_treatment =</span> <span class="sc">~</span> L,</span>
-<span id="cb22-318"><a href="#cb22-318" aria-hidden="true" tabindex="-1"></a>                  <span class="at">estimator =</span> <span class="st">"snm"</span>,</span>
-<span id="cb22-319"><a href="#cb22-319" aria-hidden="true" tabindex="-1"></a>                  <span class="at">treatment_free =</span> <span class="sc">~</span> L)</span>
-<span id="cb22-320"><a href="#cb22-320" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-321"><a href="#cb22-321" aria-hidden="true" tabindex="-1"></a><span class="co"># Blip parameter table</span></span>
-<span id="cb22-322"><a href="#cb22-322" aria-hidden="true" tabindex="-1"></a>r_blip <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit_snm, <span class="at">ci_method =</span> <span class="st">"sandwich"</span>)</span>
-<span id="cb22-323"><a href="#cb22-323" aria-hidden="true" tabindex="-1"></a>r_blip<span class="sc">$</span>estimates</span>
-<span id="cb22-324"><a href="#cb22-324" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb22-325"><a href="#cb22-325" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-326"><a href="#cb22-326" aria-hidden="true" tabindex="-1"></a>The estimated $\hat\psi_0 \approx 3$ and $\hat\psi_M \approx 2$ match the</span>
-<span id="cb22-327"><a href="#cb22-327" aria-hidden="true" tabindex="-1"></a>truth closely, with tight standard errors.</span>
-<span id="cb22-328"><a href="#cb22-328" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-329"><a href="#cb22-329" aria-hidden="true" tabindex="-1"></a><span class="fu">### Averaged blip effect</span></span>
-<span id="cb22-330"><a href="#cb22-330" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-331"><a href="#cb22-331" aria-hidden="true" tabindex="-1"></a>To get a single summary number (like an ATE), use <span class="in">`treatment_values`</span>:</span>
-<span id="cb22-332"><a href="#cb22-332" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-335"><a href="#cb22-335" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb22-336"><a href="#cb22-336" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: snm-averaged</span></span>
-<span id="cb22-337"><a href="#cb22-337" aria-hidden="true" tabindex="-1"></a>r_avg <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit_snm, <span class="at">treatment_values =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>))</span>
-<span id="cb22-338"><a href="#cb22-338" aria-hidden="true" tabindex="-1"></a>r_avg<span class="sc">$</span>estimates</span>
-<span id="cb22-339"><a href="#cb22-339" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb22-340"><a href="#cb22-340" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-341"><a href="#cb22-341" aria-hidden="true" tabindex="-1"></a><span class="fu">### Visualizing the bias</span></span>
-<span id="cb22-342"><a href="#cb22-342" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-343"><a href="#cb22-343" aria-hidden="true" tabindex="-1"></a>The contrast between the two approaches is clearest in a figure. The IPW-MSM</span>
-<span id="cb22-344"><a href="#cb22-344" aria-hidden="true" tabindex="-1"></a>estimate ($\approx 6.5$) is far from the true averaged blip ($\approx 3.5$,</span>
-<span id="cb22-345"><a href="#cb22-345" aria-hidden="true" tabindex="-1"></a>dashed line), while the SNM recovers the truth:</span>
-<span id="cb22-346"><a href="#cb22-346" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-349"><a href="#cb22-349" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb22-350"><a href="#cb22-350" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fig-bias-comparison</span></span>
-<span id="cb22-351"><a href="#cb22-351" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-width: 6</span></span>
-<span id="cb22-352"><a href="#cb22-352" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-height: 4</span></span>
-<span id="cb22-353"><a href="#cb22-353" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-alt: "Pointrange plot showing the IPW-MSM estimate (severely biased at ~6.5) versus the SNM averaged blip (correct at ~3.5). A dashed line marks the true value."</span></span>
-<span id="cb22-354"><a href="#cb22-354" aria-hidden="true" tabindex="-1"></a>bias_df <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
-<span id="cb22-355"><a href="#cb22-355" aria-hidden="true" tabindex="-1"></a>  <span class="at">Method =</span> <span class="fu">factor</span>(</span>
-<span id="cb22-356"><a href="#cb22-356" aria-hidden="true" tabindex="-1"></a>    <span class="fu">c</span>(<span class="st">"IPW-MSM (biased)"</span>, <span class="st">"SNM (correct)"</span>),</span>
-<span id="cb22-357"><a href="#cb22-357" aria-hidden="true" tabindex="-1"></a>    <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">"IPW-MSM (biased)"</span>, <span class="st">"SNM (correct)"</span>)</span>
-<span id="cb22-358"><a href="#cb22-358" aria-hidden="true" tabindex="-1"></a>  ),</span>
-<span id="cb22-359"><a href="#cb22-359" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimate =</span> <span class="fu">c</span>(<span class="sc">-</span>r_ipw<span class="sc">$</span>contrasts<span class="sc">$</span>estimate[<span class="dv">1</span>],</span>
-<span id="cb22-360"><a href="#cb22-360" aria-hidden="true" tabindex="-1"></a>               r_avg<span class="sc">$</span>estimates<span class="sc">$</span>estimate[<span class="dv">1</span>]),</span>
-<span id="cb22-361"><a href="#cb22-361" aria-hidden="true" tabindex="-1"></a>  <span class="at">ci_lower =</span> <span class="fu">c</span>(<span class="sc">-</span>r_ipw<span class="sc">$</span>contrasts<span class="sc">$</span>ci_upper[<span class="dv">1</span>],</span>
-<span id="cb22-362"><a href="#cb22-362" aria-hidden="true" tabindex="-1"></a>               r_avg<span class="sc">$</span>estimates<span class="sc">$</span>ci_lower[<span class="dv">1</span>]),</span>
-<span id="cb22-363"><a href="#cb22-363" aria-hidden="true" tabindex="-1"></a>  <span class="at">ci_upper =</span> <span class="fu">c</span>(<span class="sc">-</span>r_ipw<span class="sc">$</span>contrasts<span class="sc">$</span>ci_lower[<span class="dv">1</span>],</span>
-<span id="cb22-364"><a href="#cb22-364" aria-hidden="true" tabindex="-1"></a>               r_avg<span class="sc">$</span>estimates<span class="sc">$</span>ci_upper[<span class="dv">1</span>])</span>
-<span id="cb22-365"><a href="#cb22-365" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb22-366"><a href="#cb22-366" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-367"><a href="#cb22-367" aria-hidden="true" tabindex="-1"></a><span class="co"># Approximate truth: 3 + 2 * mean(M) where M = 0.3*A + 0.5*L + noise</span></span>
-<span id="cb22-368"><a href="#cb22-368" aria-hidden="true" tabindex="-1"></a>avg_blip_truth <span class="ot">&lt;-</span> <span class="dv">3</span> <span class="sc">+</span> <span class="dv">2</span> <span class="sc">*</span> <span class="fu">mean</span>(d<span class="sc">$</span>M)</span>
-<span id="cb22-369"><a href="#cb22-369" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-370"><a href="#cb22-370" aria-hidden="true" tabindex="-1"></a>tinyplot<span class="sc">::</span><span class="fu">tinyplot</span>(</span>
-<span id="cb22-371"><a href="#cb22-371" aria-hidden="true" tabindex="-1"></a>  estimate <span class="sc">~</span> Method,</span>
-<span id="cb22-372"><a href="#cb22-372" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> bias_df,</span>
-<span id="cb22-373"><a href="#cb22-373" aria-hidden="true" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">"pointrange"</span>,</span>
-<span id="cb22-374"><a href="#cb22-374" aria-hidden="true" tabindex="-1"></a>  <span class="at">ymin =</span> bias_df<span class="sc">$</span>ci_lower,</span>
-<span id="cb22-375"><a href="#cb22-375" aria-hidden="true" tabindex="-1"></a>  <span class="at">ymax =</span> bias_df<span class="sc">$</span>ci_upper,</span>
-<span id="cb22-376"><a href="#cb22-376" aria-hidden="true" tabindex="-1"></a>  <span class="at">pch =</span> <span class="dv">19</span>,</span>
-<span id="cb22-377"><a href="#cb22-377" aria-hidden="true" tabindex="-1"></a>  <span class="at">ylab =</span> <span class="st">"Effect estimate (95% CI)"</span>,</span>
-<span id="cb22-378"><a href="#cb22-378" aria-hidden="true" tabindex="-1"></a>  <span class="at">main =</span> <span class="st">"Post-treatment effect modification:</span><span class="sc">\n</span><span class="st">IPW-MSM vs SNM"</span></span>
-<span id="cb22-379"><a href="#cb22-379" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb22-380"><a href="#cb22-380" aria-hidden="true" tabindex="-1"></a><span class="fu">abline</span>(<span class="at">h =</span> avg_blip_truth, <span class="at">lty =</span> <span class="dv">2</span>, <span class="at">col =</span> <span class="st">"grey40"</span>)</span>
-<span id="cb22-381"><a href="#cb22-381" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb22-382"><a href="#cb22-382" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-383"><a href="#cb22-383" aria-hidden="true" tabindex="-1"></a><span class="fu">## Basic usage</span></span>
-<span id="cb22-384"><a href="#cb22-384" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-385"><a href="#cb22-385" aria-hidden="true" tabindex="-1"></a><span class="fu">### Point treatment with effect modification</span></span>
-<span id="cb22-386"><a href="#cb22-386" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-389"><a href="#cb22-389" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb22-390"><a href="#cb22-390" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: basic-em</span></span>
-<span id="cb22-391"><a href="#cb22-391" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">42</span>)</span>
-<span id="cb22-392"><a href="#cb22-392" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">2000</span></span>
-<span id="cb22-393"><a href="#cb22-393" aria-hidden="true" tabindex="-1"></a>L <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
-<span id="cb22-394"><a href="#cb22-394" aria-hidden="true" tabindex="-1"></a>sex <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, <span class="fl">0.5</span>)</span>
-<span id="cb22-395"><a href="#cb22-395" aria-hidden="true" tabindex="-1"></a>A <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="fl">0.3</span> <span class="sc">*</span> L <span class="sc">+</span> <span class="fl">0.2</span> <span class="sc">*</span> sex))</span>
-<span id="cb22-396"><a href="#cb22-396" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">+</span> <span class="dv">2</span> <span class="sc">*</span> A <span class="sc">+</span> L <span class="sc">+</span> <span class="fl">1.5</span> <span class="sc">*</span> A <span class="sc">*</span> sex <span class="sc">+</span> <span class="fu">rnorm</span>(n)</span>
-<span id="cb22-397"><a href="#cb22-397" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> data.table<span class="sc">::</span><span class="fu">data.table</span>(<span class="at">Y =</span> Y, <span class="at">A =</span> A, <span class="at">L =</span> L, <span class="at">sex =</span> sex)</span>
-<span id="cb22-398"><a href="#cb22-398" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-399"><a href="#cb22-399" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(d, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
-<span id="cb22-400"><a href="#cb22-400" aria-hidden="true" tabindex="-1"></a>              <span class="at">confounders_outcome =</span> <span class="sc">~</span> L <span class="sc">+</span> sex <span class="sc">+</span> A<span class="sc">:</span>sex,</span>
-<span id="cb22-401"><a href="#cb22-401" aria-hidden="true" tabindex="-1"></a>              <span class="at">confounders_treatment =</span> <span class="sc">~</span> L <span class="sc">+</span> sex,</span>
-<span id="cb22-402"><a href="#cb22-402" aria-hidden="true" tabindex="-1"></a>              <span class="at">estimator =</span> <span class="st">"snm"</span>,</span>
-<span id="cb22-403"><a href="#cb22-403" aria-hidden="true" tabindex="-1"></a>              <span class="at">treatment_free =</span> <span class="sc">~</span> L <span class="sc">+</span> sex)</span>
-<span id="cb22-404"><a href="#cb22-404" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-405"><a href="#cb22-405" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit, <span class="at">ci_method =</span> <span class="st">"sandwich"</span>)</span>
-<span id="cb22-406"><a href="#cb22-406" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb22-407"><a href="#cb22-407" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-408"><a href="#cb22-408" aria-hidden="true" tabindex="-1"></a>The blip parameters are: $\psi_{\text{intercept}}$ (treatment effect when</span>
-<span id="cb22-409"><a href="#cb22-409" aria-hidden="true" tabindex="-1"></a><span class="in">`sex = 0`</span>) and $\psi_{\text{sex}}$ (additional effect when <span class="in">`sex = 1`</span>).</span>
-<span id="cb22-410"><a href="#cb22-410" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-411"><a href="#cb22-411" aria-hidden="true" tabindex="-1"></a><span class="fu">### Continuous treatment</span></span>
-<span id="cb22-412"><a href="#cb22-412" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-413"><a href="#cb22-413" aria-hidden="true" tabindex="-1"></a>SNMs work naturally with continuous treatments — the canonical SNMM case.</span>
-<span id="cb22-414"><a href="#cb22-414" aria-hidden="true" tabindex="-1"></a>The treatment model is a Gaussian GLM by default:</span>
-<span id="cb22-415"><a href="#cb22-415" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-418"><a href="#cb22-418" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb22-419"><a href="#cb22-419" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: continuous-treatment</span></span>
-<span id="cb22-420"><a href="#cb22-420" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">101</span>)</span>
-<span id="cb22-421"><a href="#cb22-421" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">2000</span></span>
-<span id="cb22-422"><a href="#cb22-422" aria-hidden="true" tabindex="-1"></a>L <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
-<span id="cb22-423"><a href="#cb22-423" aria-hidden="true" tabindex="-1"></a>A <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n, <span class="at">mean =</span> <span class="fl">0.5</span> <span class="sc">*</span> L, <span class="at">sd =</span> <span class="dv">1</span>)</span>
-<span id="cb22-424"><a href="#cb22-424" aria-hidden="true" tabindex="-1"></a>M <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(L <span class="sc">&gt;</span> <span class="dv">0</span>)</span>
-<span id="cb22-425"><a href="#cb22-425" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> <span class="dv">2</span> <span class="sc">+</span> <span class="dv">3</span> <span class="sc">*</span> A <span class="sc">+</span> <span class="fl">1.5</span> <span class="sc">*</span> L <span class="sc">+</span> <span class="dv">2</span> <span class="sc">*</span> A <span class="sc">*</span> M <span class="sc">+</span> <span class="fu">rnorm</span>(n)</span>
-<span id="cb22-426"><a href="#cb22-426" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> data.table<span class="sc">::</span><span class="fu">data.table</span>(<span class="at">Y =</span> Y, <span class="at">A =</span> A, <span class="at">L =</span> L, <span class="at">M =</span> M)</span>
-<span id="cb22-427"><a href="#cb22-427" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-428"><a href="#cb22-428" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(d, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
-<span id="cb22-429"><a href="#cb22-429" aria-hidden="true" tabindex="-1"></a>              <span class="at">confounders_outcome =</span> <span class="sc">~</span> L <span class="sc">+</span> A<span class="sc">:</span>M,</span>
-<span id="cb22-430"><a href="#cb22-430" aria-hidden="true" tabindex="-1"></a>              <span class="at">confounders_treatment =</span> <span class="sc">~</span> L,</span>
-<span id="cb22-431"><a href="#cb22-431" aria-hidden="true" tabindex="-1"></a>              <span class="at">estimator =</span> <span class="st">"snm"</span>)</span>
-<span id="cb22-432"><a href="#cb22-432" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-433"><a href="#cb22-433" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit, <span class="at">ci_method =</span> <span class="st">"sandwich"</span>)</span>
-<span id="cb22-434"><a href="#cb22-434" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb22-435"><a href="#cb22-435" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-436"><a href="#cb22-436" aria-hidden="true" tabindex="-1"></a><span class="fu">### Treatment-free model for efficiency</span></span>
-<span id="cb22-437"><a href="#cb22-437" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-438"><a href="#cb22-438" aria-hidden="true" tabindex="-1"></a>The <span class="in">`treatment_free`</span> argument specifies an outcome model $E<span class="co">[</span><span class="ot">Y \mid L</span><span class="co">]</span>$ that</span>
-<span id="cb22-439"><a href="#cb22-439" aria-hidden="true" tabindex="-1"></a>absorbs the $L \to Y$ variance, improving efficiency (Vansteelandt &amp; Joffe</span>
-<span id="cb22-440"><a href="#cb22-440" aria-hidden="true" tabindex="-1"></a>2014). It does not change the point estimates when the blip is correctly</span>
-<span id="cb22-441"><a href="#cb22-441" aria-hidden="true" tabindex="-1"></a>specified — only the standard errors shrink:</span>
-<span id="cb22-442"><a href="#cb22-442" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-445"><a href="#cb22-445" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb22-446"><a href="#cb22-446" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: tf-efficiency</span></span>
-<span id="cb22-447"><a href="#cb22-447" aria-hidden="true" tabindex="-1"></a><span class="co"># Without treatment-free model</span></span>
-<span id="cb22-448"><a href="#cb22-448" aria-hidden="true" tabindex="-1"></a>r_no_tf <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit, <span class="at">ci_method =</span> <span class="st">"sandwich"</span>)</span>
-<span id="cb22-449"><a href="#cb22-449" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-450"><a href="#cb22-450" aria-hidden="true" tabindex="-1"></a><span class="co"># With treatment-free model</span></span>
-<span id="cb22-451"><a href="#cb22-451" aria-hidden="true" tabindex="-1"></a>fit_tf <span class="ot">&lt;-</span> <span class="fu">causat</span>(d, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
-<span id="cb22-452"><a href="#cb22-452" aria-hidden="true" tabindex="-1"></a>                 <span class="at">confounders_outcome =</span> <span class="sc">~</span> L <span class="sc">+</span> A<span class="sc">:</span>M,</span>
-<span id="cb22-453"><a href="#cb22-453" aria-hidden="true" tabindex="-1"></a>                 <span class="at">confounders_treatment =</span> <span class="sc">~</span> L,</span>
-<span id="cb22-454"><a href="#cb22-454" aria-hidden="true" tabindex="-1"></a>                 <span class="at">estimator =</span> <span class="st">"snm"</span>,</span>
-<span id="cb22-455"><a href="#cb22-455" aria-hidden="true" tabindex="-1"></a>                 <span class="at">treatment_free =</span> <span class="sc">~</span> L)</span>
-<span id="cb22-456"><a href="#cb22-456" aria-hidden="true" tabindex="-1"></a>r_tf <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit_tf, <span class="at">ci_method =</span> <span class="st">"sandwich"</span>)</span>
-<span id="cb22-457"><a href="#cb22-457" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-458"><a href="#cb22-458" aria-hidden="true" tabindex="-1"></a><span class="co"># Compare SEs</span></span>
-<span id="cb22-459"><a href="#cb22-459" aria-hidden="true" tabindex="-1"></a>data.table<span class="sc">::</span><span class="fu">data.table</span>(</span>
-<span id="cb22-460"><a href="#cb22-460" aria-hidden="true" tabindex="-1"></a>  <span class="at">parameter =</span> r_no_tf<span class="sc">$</span>estimates<span class="sc">$</span>parameter,</span>
-<span id="cb22-461"><a href="#cb22-461" aria-hidden="true" tabindex="-1"></a>  <span class="at">se_without_tf =</span> r_no_tf<span class="sc">$</span>estimates<span class="sc">$</span>se,</span>
-<span id="cb22-462"><a href="#cb22-462" aria-hidden="true" tabindex="-1"></a>  <span class="at">se_with_tf =</span> r_tf<span class="sc">$</span>estimates<span class="sc">$</span>se,</span>
-<span id="cb22-463"><a href="#cb22-463" aria-hidden="true" tabindex="-1"></a>  <span class="at">reduction_pct =</span> <span class="fu">round</span>(<span class="dv">100</span> <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> r_tf<span class="sc">$</span>estimates<span class="sc">$</span>se <span class="sc">/</span> r_no_tf<span class="sc">$</span>estimates<span class="sc">$</span>se), <span class="dv">1</span>)</span>
-<span id="cb22-464"><a href="#cb22-464" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb22-465"><a href="#cb22-465" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb22-466"><a href="#cb22-466" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-467"><a href="#cb22-467" aria-hidden="true" tabindex="-1"></a><span class="fu">## Interpretation</span></span>
-<span id="cb22-468"><a href="#cb22-468" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-469"><a href="#cb22-469" aria-hidden="true" tabindex="-1"></a>SNM blip parameters have a direct causal interpretation:</span>
-<span id="cb22-470"><a href="#cb22-470" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-471"><a href="#cb22-471" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**$\psi_{\text{intercept}}$**: the causal effect of a one-unit treatment</span>
-<span id="cb22-472"><a href="#cb22-472" aria-hidden="true" tabindex="-1"></a>  increase in the reference stratum (all modifiers = 0).</span>
-<span id="cb22-473"><a href="#cb22-473" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**$\psi_{\text{modifier}}$**: the additional causal effect per unit of the</span>
-<span id="cb22-474"><a href="#cb22-474" aria-hidden="true" tabindex="-1"></a>  modifier. This is the effect modification parameter.</span>
-<span id="cb22-475"><a href="#cb22-475" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-476"><a href="#cb22-476" aria-hidden="true" tabindex="-1"></a>The averaged blip effect $\Delta = (a_1 - a_0) \cdot (\hat\psi_0 + \sum_j \hat\psi_j \bar{m}_j)$</span>
-<span id="cb22-477"><a href="#cb22-477" aria-hidden="true" tabindex="-1"></a>is an ATE-like summary that averages the blip over the observed modifier</span>
-<span id="cb22-478"><a href="#cb22-478" aria-hidden="true" tabindex="-1"></a>distribution.</span>
-<span id="cb22-479"><a href="#cb22-479" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-480"><a href="#cb22-480" aria-hidden="true" tabindex="-1"></a><span class="fu">## Key differences from other estimators</span></span>
-<span id="cb22-481"><a href="#cb22-481" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-482"><a href="#cb22-482" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Feature <span class="pp">|</span> gcomp <span class="pp">|</span> IPW-MSM <span class="pp">|</span> SNM <span class="pp">|</span></span>
-<span id="cb22-483"><a href="#cb22-483" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|---|</span></span>
-<span id="cb22-484"><a href="#cb22-484" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Time-varying EM <span class="pp">|</span> Requires correct high-dimensional outcome model <span class="pp">|</span> Biased (conditions on post-treatment) <span class="pp">|</span> Correct (headline use case) <span class="pp">|</span></span>
-<span id="cb22-485"><a href="#cb22-485" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Identification <span class="pp">|</span> Outcome model <span class="pp">|</span> Treatment model <span class="pp">|</span> Treatment model <span class="pp">|</span></span>
-<span id="cb22-486"><a href="#cb22-486" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Output <span class="pp">|</span> Counterfactual means <span class="pp">|</span> Counterfactual means <span class="pp">|</span> Blip parameters <span class="pp">|</span></span>
-<span id="cb22-487"><a href="#cb22-487" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`interventions =`</span> <span class="pp">|</span> Yes <span class="pp">|</span> Yes <span class="pp">|</span> No (<span class="in">`treatment_values =`</span> instead) <span class="pp">|</span></span>
-<span id="cb22-488"><a href="#cb22-488" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Near-positivity <span class="pp">|</span> Extrapolation risk <span class="pp">|</span> Weight explosion <span class="pp">|</span> Degrades gracefully <span class="pp">|</span></span>
-<span id="cb22-489"><a href="#cb22-489" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-490"><a href="#cb22-490" aria-hidden="true" tabindex="-1"></a><span class="fu">## Longitudinal SNM</span></span>
-<span id="cb22-491"><a href="#cb22-491" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-492"><a href="#cb22-492" aria-hidden="true" tabindex="-1"></a>SNMs extend naturally to time-varying treatments. The backward-sequential</span>
-<span id="cb22-493"><a href="#cb22-493" aria-hidden="true" tabindex="-1"></a>g-estimation algorithm (Robins 1994) estimates per-stage blip parameters</span>
-<span id="cb22-494"><a href="#cb22-494" aria-hidden="true" tabindex="-1"></a>$\psi_k$ by iterating from the last time point backward:</span>
-<span id="cb22-495"><a href="#cb22-495" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-496"><a href="#cb22-496" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>At stage $K$, solve the blip equation for $\psi_K$ using the observed</span>
-<span id="cb22-497"><a href="#cb22-497" aria-hidden="true" tabindex="-1"></a>   outcome $Y$.</span>
-<span id="cb22-498"><a href="#cb22-498" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>At stage $k &lt; K$, replace $Y$ with the **backward-transformed outcome**</span>
-<span id="cb22-499"><a href="#cb22-499" aria-hidden="true" tabindex="-1"></a>   $H_k = Y - \sum_{j &gt; k} \gamma_j(A_j, \bar{L}_j; \hat\psi_j)$ — the</span>
-<span id="cb22-500"><a href="#cb22-500" aria-hidden="true" tabindex="-1"></a>   hypothetical outcome under no treatment from $k+1$ onward.</span>
-<span id="cb22-501"><a href="#cb22-501" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-502"><a href="#cb22-502" aria-hidden="true" tabindex="-1"></a><span class="fu">### Two-period DGP with time-varying effect modification</span></span>
-<span id="cb22-503"><a href="#cb22-503" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-504"><a href="#cb22-504" aria-hidden="true" tabindex="-1"></a>This is the headline use case: the modifier $M_1 = \mathbf{1}<span class="sc">\{</span>L_1 &gt; 0<span class="sc">\}</span>$</span>
-<span id="cb22-505"><a href="#cb22-505" aria-hidden="true" tabindex="-1"></a>is post-treatment (it depends on $A_0$), so IPW-MSM cannot include it</span>
-<span id="cb22-506"><a href="#cb22-506" aria-hidden="true" tabindex="-1"></a>without collider bias. The SNM identifies the per-stage blip correctly.</span>
-<span id="cb22-507"><a href="#cb22-507" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-510"><a href="#cb22-510" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb22-511"><a href="#cb22-511" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: longitudinal-snm</span></span>
-<span id="cb22-512"><a href="#cb22-512" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">18</span>)</span>
-<span id="cb22-513"><a href="#cb22-513" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">5000</span></span>
-<span id="cb22-514"><a href="#cb22-514" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-515"><a href="#cb22-515" aria-hidden="true" tabindex="-1"></a>L0 <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
-<span id="cb22-516"><a href="#cb22-516" aria-hidden="true" tabindex="-1"></a>A0 <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="fl">0.3</span> <span class="sc">*</span> L0))</span>
-<span id="cb22-517"><a href="#cb22-517" aria-hidden="true" tabindex="-1"></a>L1 <span class="ot">&lt;-</span> <span class="fl">0.5</span> <span class="sc">*</span> L0 <span class="sc">+</span> <span class="fl">0.3</span> <span class="sc">*</span> A0 <span class="sc">+</span> <span class="fu">rnorm</span>(n, <span class="at">sd =</span> <span class="fu">sqrt</span>(<span class="fl">0.5</span>))</span>
-<span id="cb22-518"><a href="#cb22-518" aria-hidden="true" tabindex="-1"></a>M1 <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(L1 <span class="sc">&gt;</span> <span class="dv">0</span>)</span>
-<span id="cb22-519"><a href="#cb22-519" aria-hidden="true" tabindex="-1"></a>A1 <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="fl">0.3</span> <span class="sc">*</span> L1 <span class="sc">+</span> <span class="fl">0.2</span> <span class="sc">*</span> A0))</span>
-<span id="cb22-520"><a href="#cb22-520" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> <span class="dv">2</span> <span class="sc">+</span> <span class="dv">1</span> <span class="sc">*</span> A0 <span class="sc">+</span> <span class="dv">2</span> <span class="sc">*</span> A1 <span class="sc">+</span> <span class="dv">2</span> <span class="sc">*</span> A1 <span class="sc">*</span> M1 <span class="sc">+</span> <span class="fl">1.5</span> <span class="sc">*</span> L0 <span class="sc">+</span> <span class="fl">0.5</span> <span class="sc">*</span> L1 <span class="sc">+</span> <span class="fu">rnorm</span>(n)</span>
-<span id="cb22-521"><a href="#cb22-521" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-522"><a href="#cb22-522" aria-hidden="true" tabindex="-1"></a>d_long <span class="ot">&lt;-</span> data.table<span class="sc">::</span><span class="fu">rbindlist</span>(<span class="fu">list</span>(</span>
-<span id="cb22-523"><a href="#cb22-523" aria-hidden="true" tabindex="-1"></a>  data.table<span class="sc">::</span><span class="fu">data.table</span>(<span class="at">id =</span> <span class="fu">seq_len</span>(n), <span class="at">time =</span> <span class="dv">0</span>L,</span>
-<span id="cb22-524"><a href="#cb22-524" aria-hidden="true" tabindex="-1"></a>    <span class="at">A =</span> A0, <span class="at">L =</span> L0, <span class="at">M =</span> <span class="fu">as.numeric</span>(L0 <span class="sc">&gt;</span> <span class="dv">0</span>), <span class="at">Y =</span> <span class="cn">NA_real_</span>),</span>
-<span id="cb22-525"><a href="#cb22-525" aria-hidden="true" tabindex="-1"></a>  data.table<span class="sc">::</span><span class="fu">data.table</span>(<span class="at">id =</span> <span class="fu">seq_len</span>(n), <span class="at">time =</span> <span class="dv">1</span>L,</span>
-<span id="cb22-526"><a href="#cb22-526" aria-hidden="true" tabindex="-1"></a>    <span class="at">A =</span> A1, <span class="at">L =</span> L1, <span class="at">M =</span> M1, <span class="at">Y =</span> Y)</span>
-<span id="cb22-527"><a href="#cb22-527" aria-hidden="true" tabindex="-1"></a>))</span>
-<span id="cb22-528"><a href="#cb22-528" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-529"><a href="#cb22-529" aria-hidden="true" tabindex="-1"></a>fit_long <span class="ot">&lt;-</span> <span class="fu">causat</span>(d_long, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
-<span id="cb22-530"><a href="#cb22-530" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders_outcome =</span> <span class="sc">~</span> A<span class="sc">:</span>M,</span>
-<span id="cb22-531"><a href="#cb22-531" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders_tv =</span> <span class="sc">~</span> L,</span>
-<span id="cb22-532"><a href="#cb22-532" aria-hidden="true" tabindex="-1"></a>  <span class="at">id =</span> <span class="st">"id"</span>, <span class="at">time =</span> <span class="st">"time"</span>, <span class="at">type =</span> <span class="st">"longitudinal"</span>,</span>
-<span id="cb22-533"><a href="#cb22-533" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimator =</span> <span class="st">"snm"</span>,</span>
-<span id="cb22-534"><a href="#cb22-534" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment_free =</span> <span class="sc">~</span> L)</span>
-<span id="cb22-535"><a href="#cb22-535" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-536"><a href="#cb22-536" aria-hidden="true" tabindex="-1"></a>result_long <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit_long, <span class="at">ci_method =</span> <span class="st">"sandwich"</span>)</span>
-<span id="cb22-537"><a href="#cb22-537" aria-hidden="true" tabindex="-1"></a>result_long<span class="sc">$</span>estimates</span>
-<span id="cb22-538"><a href="#cb22-538" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb22-539"><a href="#cb22-539" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-540"><a href="#cb22-540" aria-hidden="true" tabindex="-1"></a>The truth is $\psi_{0,\text{intercept}} = 1$, $\psi_{1,\text{intercept}} = 2$,</span>
-<span id="cb22-541"><a href="#cb22-541" aria-hidden="true" tabindex="-1"></a>$\psi_{1,M} = 2$. The SNM recovers these per-stage blip parameters with</span>
-<span id="cb22-542"><a href="#cb22-542" aria-hidden="true" tabindex="-1"></a>backward-sequential g-estimation and cluster-robust sandwich standard errors.</span>
-<span id="cb22-543"><a href="#cb22-543" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-544"><a href="#cb22-544" aria-hidden="true" tabindex="-1"></a>The forest plot shows all per-stage blip parameters with 95% CIs:</span>
-<span id="cb22-545"><a href="#cb22-545" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-548"><a href="#cb22-548" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb22-549"><a href="#cb22-549" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fig-longitudinal-blip</span></span>
-<span id="cb22-550"><a href="#cb22-550" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-width: 7</span></span>
-<span id="cb22-551"><a href="#cb22-551" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-height: 4</span></span>
-<span id="cb22-552"><a href="#cb22-552" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-alt: "Forest plot of longitudinal SNM blip parameters. Three parameters are shown: psi_0 intercept near 1, psi_1 intercept near 2, and psi_1_M near 2, all with tight confidence intervals around the true values."</span></span>
-<span id="cb22-553"><a href="#cb22-553" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(result_long)</span>
-<span id="cb22-554"><a href="#cb22-554" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb22-555"><a href="#cb22-555" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-556"><a href="#cb22-556" aria-hidden="true" tabindex="-1"></a><span class="fu">## Categorical treatment</span></span>
-<span id="cb22-557"><a href="#cb22-557" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-558"><a href="#cb22-558" aria-hidden="true" tabindex="-1"></a>SNMs work with categorical treatments ($k &gt; 2$ levels). The treatment model is</span>
-<span id="cb22-559"><a href="#cb22-559" aria-hidden="true" tabindex="-1"></a>a multinomial logistic regression via <span class="in">`nnet::multinom()`</span>. The blip expands to</span>
-<span id="cb22-560"><a href="#cb22-560" aria-hidden="true" tabindex="-1"></a>$(K-1)$ level-specific parameters (relative to the reference level):</span>
-<span id="cb22-561"><a href="#cb22-561" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-564"><a href="#cb22-564" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb22-565"><a href="#cb22-565" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: categorical-treatment</span></span>
-<span id="cb22-566"><a href="#cb22-566" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1803</span>)</span>
-<span id="cb22-567"><a href="#cb22-567" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">3000</span></span>
-<span id="cb22-568"><a href="#cb22-568" aria-hidden="true" tabindex="-1"></a>L <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
-<span id="cb22-569"><a href="#cb22-569" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-570"><a href="#cb22-570" aria-hidden="true" tabindex="-1"></a><span class="co"># Multinomial probabilities from softmax</span></span>
-<span id="cb22-571"><a href="#cb22-571" aria-hidden="true" tabindex="-1"></a>eta1 <span class="ot">&lt;-</span> <span class="fl">0.2</span> <span class="sc">+</span> <span class="fl">0.5</span> <span class="sc">*</span> L</span>
-<span id="cb22-572"><a href="#cb22-572" aria-hidden="true" tabindex="-1"></a>eta2 <span class="ot">&lt;-</span> <span class="sc">-</span><span class="fl">0.3</span> <span class="sc">+</span> <span class="fl">0.3</span> <span class="sc">*</span> L</span>
-<span id="cb22-573"><a href="#cb22-573" aria-hidden="true" tabindex="-1"></a>denom <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">+</span> <span class="fu">exp</span>(eta1) <span class="sc">+</span> <span class="fu">exp</span>(eta2)</span>
-<span id="cb22-574"><a href="#cb22-574" aria-hidden="true" tabindex="-1"></a>A_num <span class="ot">&lt;-</span> <span class="fu">sapply</span>(<span class="fu">seq_len</span>(n), <span class="cf">function</span>(i) {</span>
-<span id="cb22-575"><a href="#cb22-575" aria-hidden="true" tabindex="-1"></a>  <span class="fu">sample</span>(<span class="dv">0</span><span class="sc">:</span><span class="dv">2</span>, <span class="dv">1</span>, <span class="at">prob =</span> <span class="fu">c</span>(<span class="dv">1</span> <span class="sc">/</span> denom[i], <span class="fu">exp</span>(eta1[i]) <span class="sc">/</span> denom[i],</span>
-<span id="cb22-576"><a href="#cb22-576" aria-hidden="true" tabindex="-1"></a>                           <span class="fu">exp</span>(eta2[i]) <span class="sc">/</span> denom[i]))</span>
-<span id="cb22-577"><a href="#cb22-577" aria-hidden="true" tabindex="-1"></a>})</span>
-<span id="cb22-578"><a href="#cb22-578" aria-hidden="true" tabindex="-1"></a>A <span class="ot">&lt;-</span> <span class="fu">factor</span>(A_num, <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">"0"</span>, <span class="st">"1"</span>, <span class="st">"2"</span>))</span>
-<span id="cb22-579"><a href="#cb22-579" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> <span class="dv">2</span> <span class="sc">+</span> <span class="fl">0.8</span> <span class="sc">*</span> (A_num <span class="sc">==</span> <span class="dv">1</span>) <span class="sc">+</span> <span class="fl">1.5</span> <span class="sc">*</span> (A_num <span class="sc">==</span> <span class="dv">2</span>) <span class="sc">+</span> L <span class="sc">+</span> <span class="fu">rnorm</span>(n)</span>
-<span id="cb22-580"><a href="#cb22-580" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> data.table<span class="sc">::</span><span class="fu">data.table</span>(<span class="at">Y =</span> Y, <span class="at">A =</span> A, <span class="at">L =</span> L)</span>
-<span id="cb22-581"><a href="#cb22-581" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-582"><a href="#cb22-582" aria-hidden="true" tabindex="-1"></a>fit_cat <span class="ot">&lt;-</span> <span class="fu">causat</span>(d, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
-<span id="cb22-583"><a href="#cb22-583" aria-hidden="true" tabindex="-1"></a>                  <span class="at">confounders =</span> <span class="sc">~</span> L,</span>
-<span id="cb22-584"><a href="#cb22-584" aria-hidden="true" tabindex="-1"></a>                  <span class="at">estimator =</span> <span class="st">"snm"</span>,</span>
-<span id="cb22-585"><a href="#cb22-585" aria-hidden="true" tabindex="-1"></a>                  <span class="at">propensity_model_fn =</span> nnet<span class="sc">::</span>multinom)</span>
-<span id="cb22-586"><a href="#cb22-586" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-587"><a href="#cb22-587" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit_cat, <span class="at">ci_method =</span> <span class="st">"sandwich"</span>)</span>
-<span id="cb22-588"><a href="#cb22-588" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb22-589"><a href="#cb22-589" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-590"><a href="#cb22-590" aria-hidden="true" tabindex="-1"></a>The truth is $\psi_1 = 0.8$ (level 1 vs 0) and $\psi_2 = 1.5$ (level 2 vs 0).</span>
-<span id="cb22-591"><a href="#cb22-591" aria-hidden="true" tabindex="-1"></a>Note that <span class="in">`treatment_values`</span> is not available for categorical SNMs — the</span>
-<span id="cb22-592"><a href="#cb22-592" aria-hidden="true" tabindex="-1"></a>per-level blip parameters are the estimand.</span>
-<span id="cb22-593"><a href="#cb22-593" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-594"><a href="#cb22-594" aria-hidden="true" tabindex="-1"></a><span class="fu">## Count treatment</span></span>
-<span id="cb22-595"><a href="#cb22-595" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-596"><a href="#cb22-596" aria-hidden="true" tabindex="-1"></a>Poisson or negative-binomial treatments use the appropriate propensity model.</span>
-<span id="cb22-597"><a href="#cb22-597" aria-hidden="true" tabindex="-1"></a>The residual $R = A - \hat\lambda$ is used in the g-estimating equation:</span>
-<span id="cb22-598"><a href="#cb22-598" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-601"><a href="#cb22-601" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb22-602"><a href="#cb22-602" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: count-treatment</span></span>
-<span id="cb22-603"><a href="#cb22-603" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1804</span>)</span>
-<span id="cb22-604"><a href="#cb22-604" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">3000</span></span>
-<span id="cb22-605"><a href="#cb22-605" aria-hidden="true" tabindex="-1"></a>L <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
-<span id="cb22-606"><a href="#cb22-606" aria-hidden="true" tabindex="-1"></a>A <span class="ot">&lt;-</span> <span class="fu">rpois</span>(n, <span class="at">lambda =</span> <span class="fu">exp</span>(<span class="fl">0.5</span> <span class="sc">+</span> <span class="fl">0.3</span> <span class="sc">*</span> L))</span>
-<span id="cb22-607"><a href="#cb22-607" aria-hidden="true" tabindex="-1"></a>M <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(L <span class="sc">&gt;</span> <span class="dv">0</span>)</span>
-<span id="cb22-608"><a href="#cb22-608" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> <span class="dv">2</span> <span class="sc">+</span> <span class="fl">0.5</span> <span class="sc">*</span> A <span class="sc">+</span> <span class="fl">0.3</span> <span class="sc">*</span> A <span class="sc">*</span> M <span class="sc">+</span> L <span class="sc">+</span> <span class="fu">rnorm</span>(n)</span>
-<span id="cb22-609"><a href="#cb22-609" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> data.table<span class="sc">::</span><span class="fu">data.table</span>(<span class="at">Y =</span> Y, <span class="at">A =</span> A, <span class="at">L =</span> L, <span class="at">M =</span> M)</span>
-<span id="cb22-610"><a href="#cb22-610" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-611"><a href="#cb22-611" aria-hidden="true" tabindex="-1"></a>fit_count <span class="ot">&lt;-</span> <span class="fu">causat</span>(d, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
-<span id="cb22-612"><a href="#cb22-612" aria-hidden="true" tabindex="-1"></a>                    <span class="at">confounders_outcome =</span> <span class="sc">~</span> L <span class="sc">+</span> A<span class="sc">:</span>M,</span>
-<span id="cb22-613"><a href="#cb22-613" aria-hidden="true" tabindex="-1"></a>                    <span class="at">confounders_treatment =</span> <span class="sc">~</span> L,</span>
-<span id="cb22-614"><a href="#cb22-614" aria-hidden="true" tabindex="-1"></a>                    <span class="at">estimator =</span> <span class="st">"snm"</span>,</span>
-<span id="cb22-615"><a href="#cb22-615" aria-hidden="true" tabindex="-1"></a>                    <span class="at">propensity_family =</span> <span class="st">"poisson"</span>)</span>
-<span id="cb22-616"><a href="#cb22-616" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-617"><a href="#cb22-617" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit_count, <span class="at">ci_method =</span> <span class="st">"sandwich"</span>)</span>
-<span id="cb22-618"><a href="#cb22-618" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb22-619"><a href="#cb22-619" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-620"><a href="#cb22-620" aria-hidden="true" tabindex="-1"></a>The truth is $\psi_0 = 0.5$ and $\psi_M = 0.3$.</span>
-<span id="cb22-621"><a href="#cb22-621" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-622"><a href="#cb22-622" aria-hidden="true" tabindex="-1"></a><span class="fu">## Bootstrap confidence intervals</span></span>
-<span id="cb22-623"><a href="#cb22-623" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-624"><a href="#cb22-624" aria-hidden="true" tabindex="-1"></a>All SNM variants support bootstrap inference via <span class="in">`ci_method = "bootstrap"`</span>.</span>
-<span id="cb22-625"><a href="#cb22-625" aria-hidden="true" tabindex="-1"></a>For longitudinal SNMs, the bootstrap uses ID-clustered resampling:</span>
-<span id="cb22-626"><a href="#cb22-626" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-629"><a href="#cb22-629" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb22-630"><a href="#cb22-630" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: bootstrap-ci</span></span>
-<span id="cb22-631"><a href="#cb22-631" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1805</span>)</span>
-<span id="cb22-632"><a href="#cb22-632" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">2000</span></span>
-<span id="cb22-633"><a href="#cb22-633" aria-hidden="true" tabindex="-1"></a>L <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
-<span id="cb22-634"><a href="#cb22-634" aria-hidden="true" tabindex="-1"></a>A <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n, <span class="at">mean =</span> <span class="fl">0.5</span> <span class="sc">*</span> L, <span class="at">sd =</span> <span class="dv">1</span>)</span>
-<span id="cb22-635"><a href="#cb22-635" aria-hidden="true" tabindex="-1"></a>M <span class="ot">&lt;-</span> <span class="fl">0.3</span> <span class="sc">*</span> A <span class="sc">+</span> <span class="fl">0.5</span> <span class="sc">*</span> L <span class="sc">+</span> <span class="fu">rnorm</span>(n, <span class="at">sd =</span> <span class="fu">sqrt</span>(<span class="fl">0.5</span>))</span>
-<span id="cb22-636"><a href="#cb22-636" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> <span class="dv">2</span> <span class="sc">+</span> <span class="dv">3</span> <span class="sc">*</span> A <span class="sc">+</span> <span class="fl">1.5</span> <span class="sc">*</span> L <span class="sc">+</span> <span class="dv">2</span> <span class="sc">*</span> A <span class="sc">*</span> M <span class="sc">+</span> <span class="fu">rnorm</span>(n)</span>
-<span id="cb22-637"><a href="#cb22-637" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> data.table<span class="sc">::</span><span class="fu">data.table</span>(<span class="at">Y =</span> Y, <span class="at">A =</span> A, <span class="at">L =</span> L, <span class="at">M =</span> M)</span>
-<span id="cb22-638"><a href="#cb22-638" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-639"><a href="#cb22-639" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(d, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
-<span id="cb22-640"><a href="#cb22-640" aria-hidden="true" tabindex="-1"></a>              <span class="at">confounders_outcome =</span> <span class="sc">~</span> L <span class="sc">+</span> A<span class="sc">:</span>M,</span>
-<span id="cb22-641"><a href="#cb22-641" aria-hidden="true" tabindex="-1"></a>              <span class="at">confounders_treatment =</span> <span class="sc">~</span> L,</span>
-<span id="cb22-642"><a href="#cb22-642" aria-hidden="true" tabindex="-1"></a>              <span class="at">estimator =</span> <span class="st">"snm"</span>,</span>
-<span id="cb22-643"><a href="#cb22-643" aria-hidden="true" tabindex="-1"></a>              <span class="at">treatment_free =</span> <span class="sc">~</span> L)</span>
-<span id="cb22-644"><a href="#cb22-644" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-645"><a href="#cb22-645" aria-hidden="true" tabindex="-1"></a>r_boot <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit, <span class="at">ci_method =</span> <span class="st">"bootstrap"</span>, <span class="at">n_boot =</span> <span class="dv">500</span>)</span>
-<span id="cb22-646"><a href="#cb22-646" aria-hidden="true" tabindex="-1"></a>r_boot<span class="sc">$</span>estimates</span>
-<span id="cb22-647"><a href="#cb22-647" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb22-648"><a href="#cb22-648" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-649"><a href="#cb22-649" aria-hidden="true" tabindex="-1"></a><span class="fu">## Inspecting results</span></span>
-<span id="cb22-650"><a href="#cb22-650" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-651"><a href="#cb22-651" aria-hidden="true" tabindex="-1"></a>The standard S3 methods work with SNM results. <span class="in">`print()`</span> displays a</span>
-<span id="cb22-652"><a href="#cb22-652" aria-hidden="true" tabindex="-1"></a>"Blip parameters" header, <span class="in">`summary()`</span> shows the blip variance-covariance</span>
-<span id="cb22-653"><a href="#cb22-653" aria-hidden="true" tabindex="-1"></a>matrix, and <span class="in">`plot()`</span> produces a forest plot with a zero reference line</span>
-<span id="cb22-654"><a href="#cb22-654" aria-hidden="true" tabindex="-1"></a>(blip = 0 means no treatment effect):</span>
-<span id="cb22-655"><a href="#cb22-655" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-658"><a href="#cb22-658" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb22-659"><a href="#cb22-659" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: s3-methods</span></span>
-<span id="cb22-660"><a href="#cb22-660" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-width: 7</span></span>
-<span id="cb22-661"><a href="#cb22-661" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-height: 4</span></span>
-<span id="cb22-662"><a href="#cb22-662" aria-hidden="true" tabindex="-1"></a>fit_demo <span class="ot">&lt;-</span> <span class="fu">causat</span>(d, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
-<span id="cb22-663"><a href="#cb22-663" aria-hidden="true" tabindex="-1"></a>                   <span class="at">confounders_outcome =</span> <span class="sc">~</span> L <span class="sc">+</span> A<span class="sc">:</span>M,</span>
-<span id="cb22-664"><a href="#cb22-664" aria-hidden="true" tabindex="-1"></a>                   <span class="at">confounders_treatment =</span> <span class="sc">~</span> L,</span>
-<span id="cb22-665"><a href="#cb22-665" aria-hidden="true" tabindex="-1"></a>                   <span class="at">estimator =</span> <span class="st">"snm"</span>,</span>
-<span id="cb22-666"><a href="#cb22-666" aria-hidden="true" tabindex="-1"></a>                   <span class="at">treatment_free =</span> <span class="sc">~</span> L)</span>
-<span id="cb22-667"><a href="#cb22-667" aria-hidden="true" tabindex="-1"></a>r_demo <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit_demo, <span class="at">ci_method =</span> <span class="st">"sandwich"</span>)</span>
-<span id="cb22-668"><a href="#cb22-668" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-669"><a href="#cb22-669" aria-hidden="true" tabindex="-1"></a><span class="co"># Forest plot: reference line at 0</span></span>
-<span id="cb22-670"><a href="#cb22-670" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(r_demo)</span>
-<span id="cb22-671"><a href="#cb22-671" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb22-672"><a href="#cb22-672" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-673"><a href="#cb22-673" aria-hidden="true" tabindex="-1"></a>The <span class="in">`tidy()`</span> method returns a tidy data frame compatible with <span class="in">`broom`</span>:</span>
-<span id="cb22-674"><a href="#cb22-674" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-677"><a href="#cb22-677" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb22-678"><a href="#cb22-678" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: tidy-method</span></span>
-<span id="cb22-679"><a href="#cb22-679" aria-hidden="true" tabindex="-1"></a><span class="co"># Use which = "means" for blip parameters (SNM Path A has no contrasts)</span></span>
-<span id="cb22-680"><a href="#cb22-680" aria-hidden="true" tabindex="-1"></a><span class="fu">tidy</span>(r_demo, <span class="at">which =</span> <span class="st">"means"</span>)</span>
-<span id="cb22-681"><a href="#cb22-681" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb22-682"><a href="#cb22-682" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-683"><a href="#cb22-683" aria-hidden="true" tabindex="-1"></a><span class="fu">## References</span></span>
-<span id="cb22-684"><a href="#cb22-684" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-685"><a href="#cb22-685" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Robins JM (1994). Correcting for non-compliance using structural nested mean</span>
-<span id="cb22-686"><a href="#cb22-686" aria-hidden="true" tabindex="-1"></a>  models. *Comm Stat Theory Methods* 23:2379--2412.</span>
-<span id="cb22-687"><a href="#cb22-687" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Vansteelandt S, Joffe MM (2014). Structural nested models and g-estimation:</span>
-<span id="cb22-688"><a href="#cb22-688" aria-hidden="true" tabindex="-1"></a>  The partially realized promise. *Stat Sci* 29:707--731.</span>
-<span id="cb22-689"><a href="#cb22-689" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Robins JM (2000). Marginal structural models versus structural nested models</span>
-<span id="cb22-690"><a href="#cb22-690" aria-hidden="true" tabindex="-1"></a>  as tools for causal inference. In *Statistical Models in Epidemiology*.</span>
+<span id="cb22-302"><a href="#cb22-302" aria-hidden="true" tabindex="-1"></a>Since $M = 0.3A + 0.5L + \epsilon$ with $A$ and $L$ both mean-zero, $\bar{M}</span>
+<span id="cb22-303"><a href="#cb22-303" aria-hidden="true" tabindex="-1"></a>\approx 0$ and the true averaged blip is $\approx 3 + 2 \times 0 = 3$. The</span>
+<span id="cb22-304"><a href="#cb22-304" aria-hidden="true" tabindex="-1"></a>IPW estimate is substantially biased away from this value.</span>
+<span id="cb22-305"><a href="#cb22-305" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-306"><a href="#cb22-306" aria-hidden="true" tabindex="-1"></a><span class="fu">### SNM g-estimation: correct</span></span>
+<span id="cb22-307"><a href="#cb22-307" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-308"><a href="#cb22-308" aria-hidden="true" tabindex="-1"></a>The SNM identifies the blip using the treatment residual as an instrument.</span>
+<span id="cb22-309"><a href="#cb22-309" aria-hidden="true" tabindex="-1"></a>With a treatment-free model to absorb the $L \to Y$ pathway, the structural</span>
+<span id="cb22-310"><a href="#cb22-310" aria-hidden="true" tabindex="-1"></a>blip parameters are recovered:</span>
+<span id="cb22-311"><a href="#cb22-311" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-314"><a href="#cb22-314" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb22-315"><a href="#cb22-315" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: snm-correct</span></span>
+<span id="cb22-316"><a href="#cb22-316" aria-hidden="true" tabindex="-1"></a>fit_snm <span class="ot">&lt;-</span> <span class="fu">causat</span>(d, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
+<span id="cb22-317"><a href="#cb22-317" aria-hidden="true" tabindex="-1"></a>                  <span class="at">confounders_outcome =</span> <span class="sc">~</span> L <span class="sc">+</span> A<span class="sc">:</span>M,</span>
+<span id="cb22-318"><a href="#cb22-318" aria-hidden="true" tabindex="-1"></a>                  <span class="at">confounders_treatment =</span> <span class="sc">~</span> L,</span>
+<span id="cb22-319"><a href="#cb22-319" aria-hidden="true" tabindex="-1"></a>                  <span class="at">estimator =</span> <span class="st">"snm"</span>,</span>
+<span id="cb22-320"><a href="#cb22-320" aria-hidden="true" tabindex="-1"></a>                  <span class="at">treatment_free =</span> <span class="sc">~</span> L)</span>
+<span id="cb22-321"><a href="#cb22-321" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-322"><a href="#cb22-322" aria-hidden="true" tabindex="-1"></a><span class="co"># Blip parameter table</span></span>
+<span id="cb22-323"><a href="#cb22-323" aria-hidden="true" tabindex="-1"></a>r_blip <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit_snm, <span class="at">ci_method =</span> <span class="st">"sandwich"</span>)</span>
+<span id="cb22-324"><a href="#cb22-324" aria-hidden="true" tabindex="-1"></a>r_blip<span class="sc">$</span>estimates</span>
+<span id="cb22-325"><a href="#cb22-325" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb22-326"><a href="#cb22-326" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-327"><a href="#cb22-327" aria-hidden="true" tabindex="-1"></a>The estimated $\hat\psi_0 \approx 3$ and $\hat\psi_M \approx 2$ match the</span>
+<span id="cb22-328"><a href="#cb22-328" aria-hidden="true" tabindex="-1"></a>truth closely, with tight standard errors.</span>
+<span id="cb22-329"><a href="#cb22-329" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-330"><a href="#cb22-330" aria-hidden="true" tabindex="-1"></a><span class="fu">### Averaged blip effect</span></span>
+<span id="cb22-331"><a href="#cb22-331" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-332"><a href="#cb22-332" aria-hidden="true" tabindex="-1"></a>To get a single summary number (like an ATE), use <span class="in">`treatment_values`</span>:</span>
+<span id="cb22-333"><a href="#cb22-333" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-336"><a href="#cb22-336" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb22-337"><a href="#cb22-337" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: snm-averaged</span></span>
+<span id="cb22-338"><a href="#cb22-338" aria-hidden="true" tabindex="-1"></a>r_avg <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit_snm, <span class="at">treatment_values =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>))</span>
+<span id="cb22-339"><a href="#cb22-339" aria-hidden="true" tabindex="-1"></a>r_avg<span class="sc">$</span>estimates</span>
+<span id="cb22-340"><a href="#cb22-340" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb22-341"><a href="#cb22-341" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-342"><a href="#cb22-342" aria-hidden="true" tabindex="-1"></a><span class="fu">### Visualizing the bias</span></span>
+<span id="cb22-343"><a href="#cb22-343" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-344"><a href="#cb22-344" aria-hidden="true" tabindex="-1"></a>The contrast between the two approaches is clearest in a figure. The IPW-MSM</span>
+<span id="cb22-345"><a href="#cb22-345" aria-hidden="true" tabindex="-1"></a>estimate (biased downward) is far from the true averaged blip ($\approx 3$,</span>
+<span id="cb22-346"><a href="#cb22-346" aria-hidden="true" tabindex="-1"></a>dashed line), while the SNM recovers the truth:</span>
+<span id="cb22-347"><a href="#cb22-347" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-350"><a href="#cb22-350" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb22-351"><a href="#cb22-351" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fig-bias-comparison</span></span>
+<span id="cb22-352"><a href="#cb22-352" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-width: 6</span></span>
+<span id="cb22-353"><a href="#cb22-353" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-height: 4</span></span>
+<span id="cb22-354"><a href="#cb22-354" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-alt: "Pointrange plot showing the IPW-MSM estimate (severely biased at ~6.5) versus the SNM averaged blip (correct at ~3.5). A dashed line marks the true value."</span></span>
+<span id="cb22-355"><a href="#cb22-355" aria-hidden="true" tabindex="-1"></a>bias_df <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb22-356"><a href="#cb22-356" aria-hidden="true" tabindex="-1"></a>  <span class="at">Method =</span> <span class="fu">factor</span>(</span>
+<span id="cb22-357"><a href="#cb22-357" aria-hidden="true" tabindex="-1"></a>    <span class="fu">c</span>(<span class="st">"IPW-MSM (biased)"</span>, <span class="st">"SNM (correct)"</span>),</span>
+<span id="cb22-358"><a href="#cb22-358" aria-hidden="true" tabindex="-1"></a>    <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">"IPW-MSM (biased)"</span>, <span class="st">"SNM (correct)"</span>)</span>
+<span id="cb22-359"><a href="#cb22-359" aria-hidden="true" tabindex="-1"></a>  ),</span>
+<span id="cb22-360"><a href="#cb22-360" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimate =</span> <span class="fu">c</span>(<span class="sc">-</span>r_ipw<span class="sc">$</span>contrasts<span class="sc">$</span>estimate[<span class="dv">1</span>],</span>
+<span id="cb22-361"><a href="#cb22-361" aria-hidden="true" tabindex="-1"></a>               r_avg<span class="sc">$</span>estimates<span class="sc">$</span>estimate[<span class="dv">1</span>]),</span>
+<span id="cb22-362"><a href="#cb22-362" aria-hidden="true" tabindex="-1"></a>  <span class="at">ci_lower =</span> <span class="fu">c</span>(<span class="sc">-</span>r_ipw<span class="sc">$</span>contrasts<span class="sc">$</span>ci_upper[<span class="dv">1</span>],</span>
+<span id="cb22-363"><a href="#cb22-363" aria-hidden="true" tabindex="-1"></a>               r_avg<span class="sc">$</span>estimates<span class="sc">$</span>ci_lower[<span class="dv">1</span>]),</span>
+<span id="cb22-364"><a href="#cb22-364" aria-hidden="true" tabindex="-1"></a>  <span class="at">ci_upper =</span> <span class="fu">c</span>(<span class="sc">-</span>r_ipw<span class="sc">$</span>contrasts<span class="sc">$</span>ci_lower[<span class="dv">1</span>],</span>
+<span id="cb22-365"><a href="#cb22-365" aria-hidden="true" tabindex="-1"></a>               r_avg<span class="sc">$</span>estimates<span class="sc">$</span>ci_upper[<span class="dv">1</span>])</span>
+<span id="cb22-366"><a href="#cb22-366" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb22-367"><a href="#cb22-367" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-368"><a href="#cb22-368" aria-hidden="true" tabindex="-1"></a><span class="co"># Approximate truth: 3 + 2 * mean(M) where M = 0.3*A + 0.5*L + noise</span></span>
+<span id="cb22-369"><a href="#cb22-369" aria-hidden="true" tabindex="-1"></a>avg_blip_truth <span class="ot">&lt;-</span> <span class="dv">3</span> <span class="sc">+</span> <span class="dv">2</span> <span class="sc">*</span> <span class="fu">mean</span>(d<span class="sc">$</span>M)</span>
+<span id="cb22-370"><a href="#cb22-370" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-371"><a href="#cb22-371" aria-hidden="true" tabindex="-1"></a>tinyplot<span class="sc">::</span><span class="fu">tinyplot</span>(</span>
+<span id="cb22-372"><a href="#cb22-372" aria-hidden="true" tabindex="-1"></a>  estimate <span class="sc">~</span> Method,</span>
+<span id="cb22-373"><a href="#cb22-373" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> bias_df,</span>
+<span id="cb22-374"><a href="#cb22-374" aria-hidden="true" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">"pointrange"</span>,</span>
+<span id="cb22-375"><a href="#cb22-375" aria-hidden="true" tabindex="-1"></a>  <span class="at">ymin =</span> bias_df<span class="sc">$</span>ci_lower,</span>
+<span id="cb22-376"><a href="#cb22-376" aria-hidden="true" tabindex="-1"></a>  <span class="at">ymax =</span> bias_df<span class="sc">$</span>ci_upper,</span>
+<span id="cb22-377"><a href="#cb22-377" aria-hidden="true" tabindex="-1"></a>  <span class="at">pch =</span> <span class="dv">19</span>,</span>
+<span id="cb22-378"><a href="#cb22-378" aria-hidden="true" tabindex="-1"></a>  <span class="at">ylab =</span> <span class="st">"Effect estimate (95% CI)"</span>,</span>
+<span id="cb22-379"><a href="#cb22-379" aria-hidden="true" tabindex="-1"></a>  <span class="at">main =</span> <span class="st">"Post-treatment effect modification:</span><span class="sc">\n</span><span class="st">IPW-MSM vs SNM"</span></span>
+<span id="cb22-380"><a href="#cb22-380" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb22-381"><a href="#cb22-381" aria-hidden="true" tabindex="-1"></a><span class="fu">abline</span>(<span class="at">h =</span> avg_blip_truth, <span class="at">lty =</span> <span class="dv">2</span>, <span class="at">col =</span> <span class="st">"grey40"</span>)</span>
+<span id="cb22-382"><a href="#cb22-382" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb22-383"><a href="#cb22-383" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-384"><a href="#cb22-384" aria-hidden="true" tabindex="-1"></a><span class="fu">## Basic usage</span></span>
+<span id="cb22-385"><a href="#cb22-385" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-386"><a href="#cb22-386" aria-hidden="true" tabindex="-1"></a><span class="fu">### Point treatment with effect modification</span></span>
+<span id="cb22-387"><a href="#cb22-387" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-390"><a href="#cb22-390" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb22-391"><a href="#cb22-391" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: basic-em</span></span>
+<span id="cb22-392"><a href="#cb22-392" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">42</span>)</span>
+<span id="cb22-393"><a href="#cb22-393" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">2000</span></span>
+<span id="cb22-394"><a href="#cb22-394" aria-hidden="true" tabindex="-1"></a>L <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb22-395"><a href="#cb22-395" aria-hidden="true" tabindex="-1"></a>sex <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, <span class="fl">0.5</span>)</span>
+<span id="cb22-396"><a href="#cb22-396" aria-hidden="true" tabindex="-1"></a>A <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="fl">0.3</span> <span class="sc">*</span> L <span class="sc">+</span> <span class="fl">0.2</span> <span class="sc">*</span> sex))</span>
+<span id="cb22-397"><a href="#cb22-397" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">+</span> <span class="dv">2</span> <span class="sc">*</span> A <span class="sc">+</span> L <span class="sc">+</span> <span class="fl">1.5</span> <span class="sc">*</span> A <span class="sc">*</span> sex <span class="sc">+</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb22-398"><a href="#cb22-398" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> data.table<span class="sc">::</span><span class="fu">data.table</span>(<span class="at">Y =</span> Y, <span class="at">A =</span> A, <span class="at">L =</span> L, <span class="at">sex =</span> sex)</span>
+<span id="cb22-399"><a href="#cb22-399" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-400"><a href="#cb22-400" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(d, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
+<span id="cb22-401"><a href="#cb22-401" aria-hidden="true" tabindex="-1"></a>              <span class="at">confounders_outcome =</span> <span class="sc">~</span> L <span class="sc">+</span> sex <span class="sc">+</span> A<span class="sc">:</span>sex,</span>
+<span id="cb22-402"><a href="#cb22-402" aria-hidden="true" tabindex="-1"></a>              <span class="at">confounders_treatment =</span> <span class="sc">~</span> L <span class="sc">+</span> sex,</span>
+<span id="cb22-403"><a href="#cb22-403" aria-hidden="true" tabindex="-1"></a>              <span class="at">estimator =</span> <span class="st">"snm"</span>,</span>
+<span id="cb22-404"><a href="#cb22-404" aria-hidden="true" tabindex="-1"></a>              <span class="at">treatment_free =</span> <span class="sc">~</span> L <span class="sc">+</span> sex)</span>
+<span id="cb22-405"><a href="#cb22-405" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-406"><a href="#cb22-406" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit, <span class="at">ci_method =</span> <span class="st">"sandwich"</span>)</span>
+<span id="cb22-407"><a href="#cb22-407" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb22-408"><a href="#cb22-408" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-409"><a href="#cb22-409" aria-hidden="true" tabindex="-1"></a>The blip parameters are: $\psi_{\text{intercept}}$ (treatment effect when</span>
+<span id="cb22-410"><a href="#cb22-410" aria-hidden="true" tabindex="-1"></a><span class="in">`sex = 0`</span>) and $\psi_{\text{sex}}$ (additional effect when <span class="in">`sex = 1`</span>).</span>
+<span id="cb22-411"><a href="#cb22-411" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-412"><a href="#cb22-412" aria-hidden="true" tabindex="-1"></a><span class="fu">### Continuous treatment</span></span>
+<span id="cb22-413"><a href="#cb22-413" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-414"><a href="#cb22-414" aria-hidden="true" tabindex="-1"></a>SNMs work naturally with continuous treatments — the canonical SNMM case.</span>
+<span id="cb22-415"><a href="#cb22-415" aria-hidden="true" tabindex="-1"></a>The treatment model is a Gaussian GLM by default:</span>
+<span id="cb22-416"><a href="#cb22-416" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-419"><a href="#cb22-419" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb22-420"><a href="#cb22-420" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: continuous-treatment</span></span>
+<span id="cb22-421"><a href="#cb22-421" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">101</span>)</span>
+<span id="cb22-422"><a href="#cb22-422" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">2000</span></span>
+<span id="cb22-423"><a href="#cb22-423" aria-hidden="true" tabindex="-1"></a>L <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb22-424"><a href="#cb22-424" aria-hidden="true" tabindex="-1"></a>A <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n, <span class="at">mean =</span> <span class="fl">0.5</span> <span class="sc">*</span> L, <span class="at">sd =</span> <span class="dv">1</span>)</span>
+<span id="cb22-425"><a href="#cb22-425" aria-hidden="true" tabindex="-1"></a>M <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(L <span class="sc">&gt;</span> <span class="dv">0</span>)</span>
+<span id="cb22-426"><a href="#cb22-426" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> <span class="dv">2</span> <span class="sc">+</span> <span class="dv">3</span> <span class="sc">*</span> A <span class="sc">+</span> <span class="fl">1.5</span> <span class="sc">*</span> L <span class="sc">+</span> <span class="dv">2</span> <span class="sc">*</span> A <span class="sc">*</span> M <span class="sc">+</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb22-427"><a href="#cb22-427" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> data.table<span class="sc">::</span><span class="fu">data.table</span>(<span class="at">Y =</span> Y, <span class="at">A =</span> A, <span class="at">L =</span> L, <span class="at">M =</span> M)</span>
+<span id="cb22-428"><a href="#cb22-428" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-429"><a href="#cb22-429" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(d, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
+<span id="cb22-430"><a href="#cb22-430" aria-hidden="true" tabindex="-1"></a>              <span class="at">confounders_outcome =</span> <span class="sc">~</span> L <span class="sc">+</span> A<span class="sc">:</span>M,</span>
+<span id="cb22-431"><a href="#cb22-431" aria-hidden="true" tabindex="-1"></a>              <span class="at">confounders_treatment =</span> <span class="sc">~</span> L,</span>
+<span id="cb22-432"><a href="#cb22-432" aria-hidden="true" tabindex="-1"></a>              <span class="at">estimator =</span> <span class="st">"snm"</span>)</span>
+<span id="cb22-433"><a href="#cb22-433" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-434"><a href="#cb22-434" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit, <span class="at">ci_method =</span> <span class="st">"sandwich"</span>)</span>
+<span id="cb22-435"><a href="#cb22-435" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb22-436"><a href="#cb22-436" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-437"><a href="#cb22-437" aria-hidden="true" tabindex="-1"></a><span class="fu">### Treatment-free model for efficiency</span></span>
+<span id="cb22-438"><a href="#cb22-438" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-439"><a href="#cb22-439" aria-hidden="true" tabindex="-1"></a>The <span class="in">`treatment_free`</span> argument specifies an outcome model $E<span class="co">[</span><span class="ot">Y \mid L</span><span class="co">]</span>$ that</span>
+<span id="cb22-440"><a href="#cb22-440" aria-hidden="true" tabindex="-1"></a>absorbs the $L \to Y$ variance, improving efficiency (Vansteelandt &amp; Joffe</span>
+<span id="cb22-441"><a href="#cb22-441" aria-hidden="true" tabindex="-1"></a>2014). It does not change the point estimates when the blip is correctly</span>
+<span id="cb22-442"><a href="#cb22-442" aria-hidden="true" tabindex="-1"></a>specified — only the standard errors shrink:</span>
+<span id="cb22-443"><a href="#cb22-443" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-446"><a href="#cb22-446" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb22-447"><a href="#cb22-447" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: tf-efficiency</span></span>
+<span id="cb22-448"><a href="#cb22-448" aria-hidden="true" tabindex="-1"></a><span class="co"># Without treatment-free model</span></span>
+<span id="cb22-449"><a href="#cb22-449" aria-hidden="true" tabindex="-1"></a>r_no_tf <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit, <span class="at">ci_method =</span> <span class="st">"sandwich"</span>)</span>
+<span id="cb22-450"><a href="#cb22-450" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-451"><a href="#cb22-451" aria-hidden="true" tabindex="-1"></a><span class="co"># With treatment-free model</span></span>
+<span id="cb22-452"><a href="#cb22-452" aria-hidden="true" tabindex="-1"></a>fit_tf <span class="ot">&lt;-</span> <span class="fu">causat</span>(d, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
+<span id="cb22-453"><a href="#cb22-453" aria-hidden="true" tabindex="-1"></a>                 <span class="at">confounders_outcome =</span> <span class="sc">~</span> L <span class="sc">+</span> A<span class="sc">:</span>M,</span>
+<span id="cb22-454"><a href="#cb22-454" aria-hidden="true" tabindex="-1"></a>                 <span class="at">confounders_treatment =</span> <span class="sc">~</span> L,</span>
+<span id="cb22-455"><a href="#cb22-455" aria-hidden="true" tabindex="-1"></a>                 <span class="at">estimator =</span> <span class="st">"snm"</span>,</span>
+<span id="cb22-456"><a href="#cb22-456" aria-hidden="true" tabindex="-1"></a>                 <span class="at">treatment_free =</span> <span class="sc">~</span> L)</span>
+<span id="cb22-457"><a href="#cb22-457" aria-hidden="true" tabindex="-1"></a>r_tf <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit_tf, <span class="at">ci_method =</span> <span class="st">"sandwich"</span>)</span>
+<span id="cb22-458"><a href="#cb22-458" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-459"><a href="#cb22-459" aria-hidden="true" tabindex="-1"></a><span class="co"># Compare SEs</span></span>
+<span id="cb22-460"><a href="#cb22-460" aria-hidden="true" tabindex="-1"></a>data.table<span class="sc">::</span><span class="fu">data.table</span>(</span>
+<span id="cb22-461"><a href="#cb22-461" aria-hidden="true" tabindex="-1"></a>  <span class="at">parameter =</span> r_no_tf<span class="sc">$</span>estimates<span class="sc">$</span>parameter,</span>
+<span id="cb22-462"><a href="#cb22-462" aria-hidden="true" tabindex="-1"></a>  <span class="at">se_without_tf =</span> r_no_tf<span class="sc">$</span>estimates<span class="sc">$</span>se,</span>
+<span id="cb22-463"><a href="#cb22-463" aria-hidden="true" tabindex="-1"></a>  <span class="at">se_with_tf =</span> r_tf<span class="sc">$</span>estimates<span class="sc">$</span>se,</span>
+<span id="cb22-464"><a href="#cb22-464" aria-hidden="true" tabindex="-1"></a>  <span class="at">reduction_pct =</span> <span class="fu">round</span>(<span class="dv">100</span> <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> r_tf<span class="sc">$</span>estimates<span class="sc">$</span>se <span class="sc">/</span> r_no_tf<span class="sc">$</span>estimates<span class="sc">$</span>se), <span class="dv">1</span>)</span>
+<span id="cb22-465"><a href="#cb22-465" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb22-466"><a href="#cb22-466" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb22-467"><a href="#cb22-467" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-468"><a href="#cb22-468" aria-hidden="true" tabindex="-1"></a><span class="fu">## Interpretation</span></span>
+<span id="cb22-469"><a href="#cb22-469" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-470"><a href="#cb22-470" aria-hidden="true" tabindex="-1"></a>SNM blip parameters have a direct causal interpretation:</span>
+<span id="cb22-471"><a href="#cb22-471" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-472"><a href="#cb22-472" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**$\psi_{\text{intercept}}$**: the causal effect of a one-unit treatment</span>
+<span id="cb22-473"><a href="#cb22-473" aria-hidden="true" tabindex="-1"></a>  increase in the reference stratum (all modifiers = 0).</span>
+<span id="cb22-474"><a href="#cb22-474" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**$\psi_{\text{modifier}}$**: the additional causal effect per unit of the</span>
+<span id="cb22-475"><a href="#cb22-475" aria-hidden="true" tabindex="-1"></a>  modifier. This is the effect modification parameter.</span>
+<span id="cb22-476"><a href="#cb22-476" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-477"><a href="#cb22-477" aria-hidden="true" tabindex="-1"></a>The averaged blip effect $\Delta = (a_1 - a_0) \cdot (\hat\psi_0 + \sum_j \hat\psi_j \bar{m}_j)$</span>
+<span id="cb22-478"><a href="#cb22-478" aria-hidden="true" tabindex="-1"></a>is an ATE-like summary that averages the blip over the observed modifier</span>
+<span id="cb22-479"><a href="#cb22-479" aria-hidden="true" tabindex="-1"></a>distribution.</span>
+<span id="cb22-480"><a href="#cb22-480" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-481"><a href="#cb22-481" aria-hidden="true" tabindex="-1"></a><span class="fu">## Key differences from other estimators</span></span>
+<span id="cb22-482"><a href="#cb22-482" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-483"><a href="#cb22-483" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Feature <span class="pp">|</span> gcomp <span class="pp">|</span> IPW-MSM <span class="pp">|</span> SNM <span class="pp">|</span></span>
+<span id="cb22-484"><a href="#cb22-484" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|---|</span></span>
+<span id="cb22-485"><a href="#cb22-485" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Time-varying EM <span class="pp">|</span> Requires correct high-dimensional outcome model <span class="pp">|</span> Biased (conditions on post-treatment) <span class="pp">|</span> Correct (headline use case) <span class="pp">|</span></span>
+<span id="cb22-486"><a href="#cb22-486" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Identification <span class="pp">|</span> Outcome model <span class="pp">|</span> Treatment model <span class="pp">|</span> Treatment model <span class="pp">|</span></span>
+<span id="cb22-487"><a href="#cb22-487" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Output <span class="pp">|</span> Counterfactual means <span class="pp">|</span> Counterfactual means <span class="pp">|</span> Blip parameters <span class="pp">|</span></span>
+<span id="cb22-488"><a href="#cb22-488" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`interventions =`</span> <span class="pp">|</span> Yes <span class="pp">|</span> Yes <span class="pp">|</span> No (<span class="in">`treatment_values =`</span> instead) <span class="pp">|</span></span>
+<span id="cb22-489"><a href="#cb22-489" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Near-positivity <span class="pp">|</span> Extrapolation risk <span class="pp">|</span> Weight explosion <span class="pp">|</span> Degrades gracefully <span class="pp">|</span></span>
+<span id="cb22-490"><a href="#cb22-490" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-491"><a href="#cb22-491" aria-hidden="true" tabindex="-1"></a><span class="fu">## Longitudinal SNM</span></span>
+<span id="cb22-492"><a href="#cb22-492" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-493"><a href="#cb22-493" aria-hidden="true" tabindex="-1"></a>SNMs extend naturally to time-varying treatments. The backward-sequential</span>
+<span id="cb22-494"><a href="#cb22-494" aria-hidden="true" tabindex="-1"></a>g-estimation algorithm (Robins 1994) estimates per-stage blip parameters</span>
+<span id="cb22-495"><a href="#cb22-495" aria-hidden="true" tabindex="-1"></a>$\psi_k$ by iterating from the last time point backward:</span>
+<span id="cb22-496"><a href="#cb22-496" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-497"><a href="#cb22-497" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>At stage $K$, solve the blip equation for $\psi_K$ using the observed</span>
+<span id="cb22-498"><a href="#cb22-498" aria-hidden="true" tabindex="-1"></a>   outcome $Y$.</span>
+<span id="cb22-499"><a href="#cb22-499" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>At stage $k &lt; K$, replace $Y$ with the **backward-transformed outcome**</span>
+<span id="cb22-500"><a href="#cb22-500" aria-hidden="true" tabindex="-1"></a>   $H_k = Y - \sum_{j &gt; k} \gamma_j(A_j, \bar{L}_j; \hat\psi_j)$ — the</span>
+<span id="cb22-501"><a href="#cb22-501" aria-hidden="true" tabindex="-1"></a>   hypothetical outcome under no treatment from $k+1$ onward.</span>
+<span id="cb22-502"><a href="#cb22-502" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-503"><a href="#cb22-503" aria-hidden="true" tabindex="-1"></a><span class="fu">### Two-period DGP with time-varying effect modification</span></span>
+<span id="cb22-504"><a href="#cb22-504" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-505"><a href="#cb22-505" aria-hidden="true" tabindex="-1"></a>This is the headline use case: the modifier $M_1 = \mathbf{1}<span class="sc">\{</span>L_1 &gt; 0<span class="sc">\}</span>$</span>
+<span id="cb22-506"><a href="#cb22-506" aria-hidden="true" tabindex="-1"></a>is post-treatment (it depends on $A_0$), so IPW-MSM cannot include it</span>
+<span id="cb22-507"><a href="#cb22-507" aria-hidden="true" tabindex="-1"></a>without collider bias. The SNM identifies the per-stage blip correctly.</span>
+<span id="cb22-508"><a href="#cb22-508" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-511"><a href="#cb22-511" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb22-512"><a href="#cb22-512" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: longitudinal-snm</span></span>
+<span id="cb22-513"><a href="#cb22-513" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">18</span>)</span>
+<span id="cb22-514"><a href="#cb22-514" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">5000</span></span>
+<span id="cb22-515"><a href="#cb22-515" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-516"><a href="#cb22-516" aria-hidden="true" tabindex="-1"></a>L0 <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb22-517"><a href="#cb22-517" aria-hidden="true" tabindex="-1"></a>A0 <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="fl">0.3</span> <span class="sc">*</span> L0))</span>
+<span id="cb22-518"><a href="#cb22-518" aria-hidden="true" tabindex="-1"></a>L1 <span class="ot">&lt;-</span> <span class="fl">0.5</span> <span class="sc">*</span> L0 <span class="sc">+</span> <span class="fl">0.3</span> <span class="sc">*</span> A0 <span class="sc">+</span> <span class="fu">rnorm</span>(n, <span class="at">sd =</span> <span class="fu">sqrt</span>(<span class="fl">0.5</span>))</span>
+<span id="cb22-519"><a href="#cb22-519" aria-hidden="true" tabindex="-1"></a>M1 <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(L1 <span class="sc">&gt;</span> <span class="dv">0</span>)</span>
+<span id="cb22-520"><a href="#cb22-520" aria-hidden="true" tabindex="-1"></a>A1 <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="fl">0.3</span> <span class="sc">*</span> L1 <span class="sc">+</span> <span class="fl">0.2</span> <span class="sc">*</span> A0))</span>
+<span id="cb22-521"><a href="#cb22-521" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> <span class="dv">2</span> <span class="sc">+</span> <span class="dv">1</span> <span class="sc">*</span> A0 <span class="sc">+</span> <span class="dv">2</span> <span class="sc">*</span> A1 <span class="sc">+</span> <span class="dv">2</span> <span class="sc">*</span> A1 <span class="sc">*</span> M1 <span class="sc">+</span> <span class="fl">1.5</span> <span class="sc">*</span> L0 <span class="sc">+</span> <span class="fl">0.5</span> <span class="sc">*</span> L1 <span class="sc">+</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb22-522"><a href="#cb22-522" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-523"><a href="#cb22-523" aria-hidden="true" tabindex="-1"></a>d_long <span class="ot">&lt;-</span> data.table<span class="sc">::</span><span class="fu">rbindlist</span>(<span class="fu">list</span>(</span>
+<span id="cb22-524"><a href="#cb22-524" aria-hidden="true" tabindex="-1"></a>  data.table<span class="sc">::</span><span class="fu">data.table</span>(<span class="at">id =</span> <span class="fu">seq_len</span>(n), <span class="at">time =</span> <span class="dv">0</span>L,</span>
+<span id="cb22-525"><a href="#cb22-525" aria-hidden="true" tabindex="-1"></a>    <span class="at">A =</span> A0, <span class="at">L =</span> L0, <span class="at">M =</span> <span class="fu">as.numeric</span>(L0 <span class="sc">&gt;</span> <span class="dv">0</span>), <span class="at">Y =</span> <span class="cn">NA_real_</span>),</span>
+<span id="cb22-526"><a href="#cb22-526" aria-hidden="true" tabindex="-1"></a>  data.table<span class="sc">::</span><span class="fu">data.table</span>(<span class="at">id =</span> <span class="fu">seq_len</span>(n), <span class="at">time =</span> <span class="dv">1</span>L,</span>
+<span id="cb22-527"><a href="#cb22-527" aria-hidden="true" tabindex="-1"></a>    <span class="at">A =</span> A1, <span class="at">L =</span> L1, <span class="at">M =</span> M1, <span class="at">Y =</span> Y)</span>
+<span id="cb22-528"><a href="#cb22-528" aria-hidden="true" tabindex="-1"></a>))</span>
+<span id="cb22-529"><a href="#cb22-529" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-530"><a href="#cb22-530" aria-hidden="true" tabindex="-1"></a>fit_long <span class="ot">&lt;-</span> <span class="fu">causat</span>(d_long, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
+<span id="cb22-531"><a href="#cb22-531" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders_outcome =</span> <span class="sc">~</span> A<span class="sc">:</span>M,</span>
+<span id="cb22-532"><a href="#cb22-532" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders_tv =</span> <span class="sc">~</span> L,</span>
+<span id="cb22-533"><a href="#cb22-533" aria-hidden="true" tabindex="-1"></a>  <span class="at">id =</span> <span class="st">"id"</span>, <span class="at">time =</span> <span class="st">"time"</span>, <span class="at">type =</span> <span class="st">"longitudinal"</span>,</span>
+<span id="cb22-534"><a href="#cb22-534" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimator =</span> <span class="st">"snm"</span>,</span>
+<span id="cb22-535"><a href="#cb22-535" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment_free =</span> <span class="sc">~</span> L)</span>
+<span id="cb22-536"><a href="#cb22-536" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-537"><a href="#cb22-537" aria-hidden="true" tabindex="-1"></a>result_long <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit_long, <span class="at">ci_method =</span> <span class="st">"sandwich"</span>)</span>
+<span id="cb22-538"><a href="#cb22-538" aria-hidden="true" tabindex="-1"></a>result_long<span class="sc">$</span>estimates</span>
+<span id="cb22-539"><a href="#cb22-539" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb22-540"><a href="#cb22-540" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-541"><a href="#cb22-541" aria-hidden="true" tabindex="-1"></a>The truth is $\psi_{0,\text{intercept}} = 1$, $\psi_{1,\text{intercept}} = 2$,</span>
+<span id="cb22-542"><a href="#cb22-542" aria-hidden="true" tabindex="-1"></a>$\psi_{1,M} = 2$. The SNM recovers these per-stage blip parameters with</span>
+<span id="cb22-543"><a href="#cb22-543" aria-hidden="true" tabindex="-1"></a>backward-sequential g-estimation and cluster-robust sandwich standard errors.</span>
+<span id="cb22-544"><a href="#cb22-544" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-545"><a href="#cb22-545" aria-hidden="true" tabindex="-1"></a>The forest plot shows all per-stage blip parameters with 95% CIs:</span>
+<span id="cb22-546"><a href="#cb22-546" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-549"><a href="#cb22-549" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb22-550"><a href="#cb22-550" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fig-longitudinal-blip</span></span>
+<span id="cb22-551"><a href="#cb22-551" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-width: 7</span></span>
+<span id="cb22-552"><a href="#cb22-552" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-height: 4</span></span>
+<span id="cb22-553"><a href="#cb22-553" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-alt: "Forest plot of longitudinal SNM blip parameters. Three parameters are shown: psi_0 intercept near 1, psi_1 intercept near 2, and psi_1_M near 2, all with tight confidence intervals around the true values."</span></span>
+<span id="cb22-554"><a href="#cb22-554" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(result_long)</span>
+<span id="cb22-555"><a href="#cb22-555" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb22-556"><a href="#cb22-556" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-557"><a href="#cb22-557" aria-hidden="true" tabindex="-1"></a><span class="fu">## Categorical treatment</span></span>
+<span id="cb22-558"><a href="#cb22-558" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-559"><a href="#cb22-559" aria-hidden="true" tabindex="-1"></a>SNMs work with categorical treatments ($k &gt; 2$ levels). The treatment model is</span>
+<span id="cb22-560"><a href="#cb22-560" aria-hidden="true" tabindex="-1"></a>a multinomial logistic regression via <span class="in">`nnet::multinom()`</span>. The blip expands to</span>
+<span id="cb22-561"><a href="#cb22-561" aria-hidden="true" tabindex="-1"></a>$(K-1)$ level-specific parameters (relative to the reference level):</span>
+<span id="cb22-562"><a href="#cb22-562" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-565"><a href="#cb22-565" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb22-566"><a href="#cb22-566" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: categorical-treatment</span></span>
+<span id="cb22-567"><a href="#cb22-567" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1803</span>)</span>
+<span id="cb22-568"><a href="#cb22-568" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">3000</span></span>
+<span id="cb22-569"><a href="#cb22-569" aria-hidden="true" tabindex="-1"></a>L <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb22-570"><a href="#cb22-570" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-571"><a href="#cb22-571" aria-hidden="true" tabindex="-1"></a><span class="co"># Multinomial probabilities from softmax</span></span>
+<span id="cb22-572"><a href="#cb22-572" aria-hidden="true" tabindex="-1"></a>eta1 <span class="ot">&lt;-</span> <span class="fl">0.2</span> <span class="sc">+</span> <span class="fl">0.5</span> <span class="sc">*</span> L</span>
+<span id="cb22-573"><a href="#cb22-573" aria-hidden="true" tabindex="-1"></a>eta2 <span class="ot">&lt;-</span> <span class="sc">-</span><span class="fl">0.3</span> <span class="sc">+</span> <span class="fl">0.3</span> <span class="sc">*</span> L</span>
+<span id="cb22-574"><a href="#cb22-574" aria-hidden="true" tabindex="-1"></a>denom <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">+</span> <span class="fu">exp</span>(eta1) <span class="sc">+</span> <span class="fu">exp</span>(eta2)</span>
+<span id="cb22-575"><a href="#cb22-575" aria-hidden="true" tabindex="-1"></a>A_num <span class="ot">&lt;-</span> <span class="fu">sapply</span>(<span class="fu">seq_len</span>(n), <span class="cf">function</span>(i) {</span>
+<span id="cb22-576"><a href="#cb22-576" aria-hidden="true" tabindex="-1"></a>  <span class="fu">sample</span>(<span class="dv">0</span><span class="sc">:</span><span class="dv">2</span>, <span class="dv">1</span>, <span class="at">prob =</span> <span class="fu">c</span>(<span class="dv">1</span> <span class="sc">/</span> denom[i], <span class="fu">exp</span>(eta1[i]) <span class="sc">/</span> denom[i],</span>
+<span id="cb22-577"><a href="#cb22-577" aria-hidden="true" tabindex="-1"></a>                           <span class="fu">exp</span>(eta2[i]) <span class="sc">/</span> denom[i]))</span>
+<span id="cb22-578"><a href="#cb22-578" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb22-579"><a href="#cb22-579" aria-hidden="true" tabindex="-1"></a>A <span class="ot">&lt;-</span> <span class="fu">factor</span>(A_num, <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">"0"</span>, <span class="st">"1"</span>, <span class="st">"2"</span>))</span>
+<span id="cb22-580"><a href="#cb22-580" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> <span class="dv">2</span> <span class="sc">+</span> <span class="fl">0.8</span> <span class="sc">*</span> (A_num <span class="sc">==</span> <span class="dv">1</span>) <span class="sc">+</span> <span class="fl">1.5</span> <span class="sc">*</span> (A_num <span class="sc">==</span> <span class="dv">2</span>) <span class="sc">+</span> L <span class="sc">+</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb22-581"><a href="#cb22-581" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> data.table<span class="sc">::</span><span class="fu">data.table</span>(<span class="at">Y =</span> Y, <span class="at">A =</span> A, <span class="at">L =</span> L)</span>
+<span id="cb22-582"><a href="#cb22-582" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-583"><a href="#cb22-583" aria-hidden="true" tabindex="-1"></a>fit_cat <span class="ot">&lt;-</span> <span class="fu">causat</span>(d, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
+<span id="cb22-584"><a href="#cb22-584" aria-hidden="true" tabindex="-1"></a>                  <span class="at">confounders =</span> <span class="sc">~</span> L,</span>
+<span id="cb22-585"><a href="#cb22-585" aria-hidden="true" tabindex="-1"></a>                  <span class="at">estimator =</span> <span class="st">"snm"</span>,</span>
+<span id="cb22-586"><a href="#cb22-586" aria-hidden="true" tabindex="-1"></a>                  <span class="at">propensity_model_fn =</span> nnet<span class="sc">::</span>multinom)</span>
+<span id="cb22-587"><a href="#cb22-587" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-588"><a href="#cb22-588" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit_cat, <span class="at">ci_method =</span> <span class="st">"sandwich"</span>)</span>
+<span id="cb22-589"><a href="#cb22-589" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb22-590"><a href="#cb22-590" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-591"><a href="#cb22-591" aria-hidden="true" tabindex="-1"></a>The truth is $\psi_1 = 0.8$ (level 1 vs 0) and $\psi_2 = 1.5$ (level 2 vs 0).</span>
+<span id="cb22-592"><a href="#cb22-592" aria-hidden="true" tabindex="-1"></a>Note that <span class="in">`treatment_values`</span> is not available for categorical SNMs — the</span>
+<span id="cb22-593"><a href="#cb22-593" aria-hidden="true" tabindex="-1"></a>per-level blip parameters are the estimand.</span>
+<span id="cb22-594"><a href="#cb22-594" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-595"><a href="#cb22-595" aria-hidden="true" tabindex="-1"></a><span class="fu">## Count treatment</span></span>
+<span id="cb22-596"><a href="#cb22-596" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-597"><a href="#cb22-597" aria-hidden="true" tabindex="-1"></a>Poisson or negative-binomial treatments use the appropriate propensity model.</span>
+<span id="cb22-598"><a href="#cb22-598" aria-hidden="true" tabindex="-1"></a>The residual $R = A - \hat\lambda$ is used in the g-estimating equation:</span>
+<span id="cb22-599"><a href="#cb22-599" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-602"><a href="#cb22-602" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb22-603"><a href="#cb22-603" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: count-treatment</span></span>
+<span id="cb22-604"><a href="#cb22-604" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1804</span>)</span>
+<span id="cb22-605"><a href="#cb22-605" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">3000</span></span>
+<span id="cb22-606"><a href="#cb22-606" aria-hidden="true" tabindex="-1"></a>L <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb22-607"><a href="#cb22-607" aria-hidden="true" tabindex="-1"></a>A <span class="ot">&lt;-</span> <span class="fu">rpois</span>(n, <span class="at">lambda =</span> <span class="fu">exp</span>(<span class="fl">0.5</span> <span class="sc">+</span> <span class="fl">0.3</span> <span class="sc">*</span> L))</span>
+<span id="cb22-608"><a href="#cb22-608" aria-hidden="true" tabindex="-1"></a>M <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(L <span class="sc">&gt;</span> <span class="dv">0</span>)</span>
+<span id="cb22-609"><a href="#cb22-609" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> <span class="dv">2</span> <span class="sc">+</span> <span class="fl">0.5</span> <span class="sc">*</span> A <span class="sc">+</span> <span class="fl">0.3</span> <span class="sc">*</span> A <span class="sc">*</span> M <span class="sc">+</span> L <span class="sc">+</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb22-610"><a href="#cb22-610" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> data.table<span class="sc">::</span><span class="fu">data.table</span>(<span class="at">Y =</span> Y, <span class="at">A =</span> A, <span class="at">L =</span> L, <span class="at">M =</span> M)</span>
+<span id="cb22-611"><a href="#cb22-611" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-612"><a href="#cb22-612" aria-hidden="true" tabindex="-1"></a>fit_count <span class="ot">&lt;-</span> <span class="fu">causat</span>(d, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
+<span id="cb22-613"><a href="#cb22-613" aria-hidden="true" tabindex="-1"></a>                    <span class="at">confounders_outcome =</span> <span class="sc">~</span> L <span class="sc">+</span> A<span class="sc">:</span>M,</span>
+<span id="cb22-614"><a href="#cb22-614" aria-hidden="true" tabindex="-1"></a>                    <span class="at">confounders_treatment =</span> <span class="sc">~</span> L,</span>
+<span id="cb22-615"><a href="#cb22-615" aria-hidden="true" tabindex="-1"></a>                    <span class="at">estimator =</span> <span class="st">"snm"</span>,</span>
+<span id="cb22-616"><a href="#cb22-616" aria-hidden="true" tabindex="-1"></a>                    <span class="at">propensity_family =</span> <span class="st">"poisson"</span>)</span>
+<span id="cb22-617"><a href="#cb22-617" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-618"><a href="#cb22-618" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit_count, <span class="at">ci_method =</span> <span class="st">"sandwich"</span>)</span>
+<span id="cb22-619"><a href="#cb22-619" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb22-620"><a href="#cb22-620" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-621"><a href="#cb22-621" aria-hidden="true" tabindex="-1"></a>The truth is $\psi_0 = 0.5$ and $\psi_M = 0.3$.</span>
+<span id="cb22-622"><a href="#cb22-622" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-623"><a href="#cb22-623" aria-hidden="true" tabindex="-1"></a><span class="fu">## Bootstrap confidence intervals</span></span>
+<span id="cb22-624"><a href="#cb22-624" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-625"><a href="#cb22-625" aria-hidden="true" tabindex="-1"></a>All SNM variants support bootstrap inference via <span class="in">`ci_method = "bootstrap"`</span>.</span>
+<span id="cb22-626"><a href="#cb22-626" aria-hidden="true" tabindex="-1"></a>For longitudinal SNMs, the bootstrap uses ID-clustered resampling:</span>
+<span id="cb22-627"><a href="#cb22-627" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-630"><a href="#cb22-630" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb22-631"><a href="#cb22-631" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: bootstrap-ci</span></span>
+<span id="cb22-632"><a href="#cb22-632" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1805</span>)</span>
+<span id="cb22-633"><a href="#cb22-633" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">2000</span></span>
+<span id="cb22-634"><a href="#cb22-634" aria-hidden="true" tabindex="-1"></a>L <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb22-635"><a href="#cb22-635" aria-hidden="true" tabindex="-1"></a>A <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n, <span class="at">mean =</span> <span class="fl">0.5</span> <span class="sc">*</span> L, <span class="at">sd =</span> <span class="dv">1</span>)</span>
+<span id="cb22-636"><a href="#cb22-636" aria-hidden="true" tabindex="-1"></a>M <span class="ot">&lt;-</span> <span class="fl">0.3</span> <span class="sc">*</span> A <span class="sc">+</span> <span class="fl">0.5</span> <span class="sc">*</span> L <span class="sc">+</span> <span class="fu">rnorm</span>(n, <span class="at">sd =</span> <span class="fu">sqrt</span>(<span class="fl">0.5</span>))</span>
+<span id="cb22-637"><a href="#cb22-637" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> <span class="dv">2</span> <span class="sc">+</span> <span class="dv">3</span> <span class="sc">*</span> A <span class="sc">+</span> <span class="fl">1.5</span> <span class="sc">*</span> L <span class="sc">+</span> <span class="dv">2</span> <span class="sc">*</span> A <span class="sc">*</span> M <span class="sc">+</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb22-638"><a href="#cb22-638" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> data.table<span class="sc">::</span><span class="fu">data.table</span>(<span class="at">Y =</span> Y, <span class="at">A =</span> A, <span class="at">L =</span> L, <span class="at">M =</span> M)</span>
+<span id="cb22-639"><a href="#cb22-639" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-640"><a href="#cb22-640" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(d, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
+<span id="cb22-641"><a href="#cb22-641" aria-hidden="true" tabindex="-1"></a>              <span class="at">confounders_outcome =</span> <span class="sc">~</span> L <span class="sc">+</span> A<span class="sc">:</span>M,</span>
+<span id="cb22-642"><a href="#cb22-642" aria-hidden="true" tabindex="-1"></a>              <span class="at">confounders_treatment =</span> <span class="sc">~</span> L,</span>
+<span id="cb22-643"><a href="#cb22-643" aria-hidden="true" tabindex="-1"></a>              <span class="at">estimator =</span> <span class="st">"snm"</span>,</span>
+<span id="cb22-644"><a href="#cb22-644" aria-hidden="true" tabindex="-1"></a>              <span class="at">treatment_free =</span> <span class="sc">~</span> L)</span>
+<span id="cb22-645"><a href="#cb22-645" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-646"><a href="#cb22-646" aria-hidden="true" tabindex="-1"></a>r_boot <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit, <span class="at">ci_method =</span> <span class="st">"bootstrap"</span>, <span class="at">n_boot =</span> <span class="dv">500</span>)</span>
+<span id="cb22-647"><a href="#cb22-647" aria-hidden="true" tabindex="-1"></a>r_boot<span class="sc">$</span>estimates</span>
+<span id="cb22-648"><a href="#cb22-648" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb22-649"><a href="#cb22-649" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-650"><a href="#cb22-650" aria-hidden="true" tabindex="-1"></a><span class="fu">## Inspecting results</span></span>
+<span id="cb22-651"><a href="#cb22-651" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-652"><a href="#cb22-652" aria-hidden="true" tabindex="-1"></a>The standard S3 methods work with SNM results. <span class="in">`print()`</span> displays a</span>
+<span id="cb22-653"><a href="#cb22-653" aria-hidden="true" tabindex="-1"></a>"Blip parameters" header, <span class="in">`summary()`</span> shows the blip variance-covariance</span>
+<span id="cb22-654"><a href="#cb22-654" aria-hidden="true" tabindex="-1"></a>matrix, and <span class="in">`plot()`</span> produces a forest plot with a zero reference line</span>
+<span id="cb22-655"><a href="#cb22-655" aria-hidden="true" tabindex="-1"></a>(blip = 0 means no treatment effect):</span>
+<span id="cb22-656"><a href="#cb22-656" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-659"><a href="#cb22-659" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb22-660"><a href="#cb22-660" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: s3-methods</span></span>
+<span id="cb22-661"><a href="#cb22-661" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-width: 7</span></span>
+<span id="cb22-662"><a href="#cb22-662" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-height: 4</span></span>
+<span id="cb22-663"><a href="#cb22-663" aria-hidden="true" tabindex="-1"></a>fit_demo <span class="ot">&lt;-</span> <span class="fu">causat</span>(d, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
+<span id="cb22-664"><a href="#cb22-664" aria-hidden="true" tabindex="-1"></a>                   <span class="at">confounders_outcome =</span> <span class="sc">~</span> L <span class="sc">+</span> A<span class="sc">:</span>M,</span>
+<span id="cb22-665"><a href="#cb22-665" aria-hidden="true" tabindex="-1"></a>                   <span class="at">confounders_treatment =</span> <span class="sc">~</span> L,</span>
+<span id="cb22-666"><a href="#cb22-666" aria-hidden="true" tabindex="-1"></a>                   <span class="at">estimator =</span> <span class="st">"snm"</span>,</span>
+<span id="cb22-667"><a href="#cb22-667" aria-hidden="true" tabindex="-1"></a>                   <span class="at">treatment_free =</span> <span class="sc">~</span> L)</span>
+<span id="cb22-668"><a href="#cb22-668" aria-hidden="true" tabindex="-1"></a>r_demo <span class="ot">&lt;-</span> <span class="fu">contrast</span>(fit_demo, <span class="at">ci_method =</span> <span class="st">"sandwich"</span>)</span>
+<span id="cb22-669"><a href="#cb22-669" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-670"><a href="#cb22-670" aria-hidden="true" tabindex="-1"></a><span class="co"># Forest plot: reference line at 0</span></span>
+<span id="cb22-671"><a href="#cb22-671" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(r_demo)</span>
+<span id="cb22-672"><a href="#cb22-672" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb22-673"><a href="#cb22-673" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-674"><a href="#cb22-674" aria-hidden="true" tabindex="-1"></a>The <span class="in">`tidy()`</span> method returns a tidy data frame compatible with <span class="in">`broom`</span>:</span>
+<span id="cb22-675"><a href="#cb22-675" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-678"><a href="#cb22-678" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb22-679"><a href="#cb22-679" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: tidy-method</span></span>
+<span id="cb22-680"><a href="#cb22-680" aria-hidden="true" tabindex="-1"></a><span class="co"># Use which = "means" for blip parameters (SNM Path A has no contrasts)</span></span>
+<span id="cb22-681"><a href="#cb22-681" aria-hidden="true" tabindex="-1"></a><span class="fu">tidy</span>(r_demo, <span class="at">which =</span> <span class="st">"means"</span>)</span>
+<span id="cb22-682"><a href="#cb22-682" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb22-683"><a href="#cb22-683" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-684"><a href="#cb22-684" aria-hidden="true" tabindex="-1"></a><span class="fu">## References</span></span>
+<span id="cb22-685"><a href="#cb22-685" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-686"><a href="#cb22-686" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Robins JM (1994). Correcting for non-compliance using structural nested mean</span>
+<span id="cb22-687"><a href="#cb22-687" aria-hidden="true" tabindex="-1"></a>  models. *Comm Stat Theory Methods* 23:2379--2412.</span>
+<span id="cb22-688"><a href="#cb22-688" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Vansteelandt S, Joffe M (2014). Structural nested models and G-estimation:</span>
+<span id="cb22-689"><a href="#cb22-689" aria-hidden="true" tabindex="-1"></a>  the partially realized promise. *Stat Sci* 29(4):707--731.</span>
+<span id="cb22-690"><a href="#cb22-690" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Robins JM (2000). Marginal structural models versus structural nested models</span>
+<span id="cb22-691"><a href="#cb22-691" aria-hidden="true" tabindex="-1"></a>  as tools for causal inference. In *Statistical Models in Epidemiology*.</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->
