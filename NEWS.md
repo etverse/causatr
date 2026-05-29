@@ -1,5 +1,30 @@
 # causatr (development version)
 
+## 2026-05-29 — Phase 19c: Effect modification for multivariate longitudinal IPW
+
+Baseline effect modification (`A:modifier` terms in `confounders`) now works
+for joint time-varying treatments under `estimator = "ipw"`,
+`type = "longitudinal"`. The previously emitted
+`causatr_longitudinal_mv_em_pending` rejection has been removed.
+
+* **No multivariate-specific EM code needed**: lifting the rejection lets the
+  existing wirings compose. Each per-period, per-component propensity in
+  `fit_treatment_models()` strips its own treatment-touching interaction
+  terms (Phase 8b), the per-period formula strips them via
+  `em_info$confounder_terms` (Phase 10c), and the single final-period MSM
+  expands from `Y ~ 1` to `Y ~ 1 + modifier` via `build_ipw_msm_formula()`.
+  The modifier stays as a confounder main effect in every propensity; only
+  the `A:modifier` interactions are dropped.
+* **Baseline-only constraint carries over** (Robins 2000): the modifier must be
+  a pre-treatment covariate. A time-varying modifier in the MSM conditions on a
+  post-treatment variable. Not enforced at runtime; use `estimator = "snm"` for
+  time-varying effect modification.
+* **Truth-based test**: `make_em_mv_long_scm()` is a 2-period × 2-component
+  binary DGP with sex effect modification whose static contrast has analytical
+  truths 9 (sex = 0) and 15 (sex = 1). Tests confirm IPW recovers these, agrees
+  with ICE g-computation cross-method, strips the interactions per component,
+  and is invariant to stabilization under a static intervention.
+
 ## 2026-05-29 — Phase 19b: Stabilized multivariate longitudinal IPW
 
 Stabilized weights (`stabilize = "marginal"`) now compose with joint

@@ -925,9 +925,17 @@ correct tool for time-varying effect modification is a structural
 nested model — use `estimator = "snm"` with `id =` and `time =`
 (see `vignette("snm")`).
 
-**What's not yet supported.** Multivariate longitudinal treatment
-and per-period `ipsi()` are rejected with `_pending` classed errors.
-Use `estimator = "gcomp"` (ICE) for those scenarios today.
+Baseline effect modification also composes with **multivariate**
+longitudinal treatment: each per-period × per-component propensity
+strips its own `A_k:modifier` interactions (keeping the modifier as a
+confounder main effect), and the single final-period MSM still expands
+to `Y ~ 1 + modifier`. Specify the interaction once per component, e.g.
+`confounders = ~ baseline + sex + A1:sex + A2:sex` with
+`treatment = c("A1", "A2")`.
+
+**What's not yet supported.** Per-period `ipsi()` under longitudinal
+IPW is rejected with a `_pending` classed error. Use
+`estimator = "gcomp"` (ICE) for that scenario today.
 
 ### Weight truncation
 

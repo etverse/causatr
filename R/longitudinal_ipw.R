@@ -154,16 +154,13 @@ fit_longitudinal_ipw <- function(
     check_confounders_treatment(confounders, treatment, estimator = "ipw")
   }
 
-  # EM + multivariate longitudinal not yet implemented.
-  if (is_multivariate && em_info$has_em) {
-    rlang::abort(
-      c(
-        "Effect modification is not yet supported for multivariate longitudinal IPW.",
-        i = "Remove `A:modifier` terms from confounders, or switch to a single treatment."
-      ),
-      class = "causatr_longitudinal_mv_em_pending"
-    )
-  }
+  # Multivariate EM composes the two existing stripping wirings: each
+  # per-component propensity in `fit_treatment_models()` strips the
+  # treatment-touching terms via its own `parse_effect_mod()` call, and
+  # the per-period formula here strips them via `em_info$confounder_terms`
+  # (below). The final-period MSM expansion to `Y ~ 1 + modifier` is the
+  # same single-MSM path used by univariate longitudinal IPW. No
+  # multivariate-specific EM code is needed.
 
   # Sorted unique time points. Per-period propensity models index into
   # `time_points[k]`; lag columns (`lag1_A`, ...) created by
@@ -197,9 +194,9 @@ fit_longitudinal_ipw <- function(
 
   # Baseline confounders enter every per-period propensity. Strip the
   # treatment-touching (EM) terms for parity with point IPW
-  # `build_ps_formula()` -- here EM is rejected upfront, but using
-  # `em_info$confounder_terms` keeps the call self-consistent if the
-  # rejection is later relaxed.
+  # `build_ps_formula()`: `em_info$confounder_terms` drops every
+  # `A:modifier` interaction so the propensity is `A ~ baseline + tv +
+  # lags`. The modifier re-enters only at the final-period MSM.
   baseline_terms <- em_info$confounder_terms
   if (length(baseline_terms) == 0L) {
     baseline_terms <- character(0L)

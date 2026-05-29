@@ -386,29 +386,6 @@ test_that("T-long-ipw7: natural course (NULL intervention) returns observed marg
 # Rejection snapshots
 # ----------------------------------------------------------------------
 
-test_that("R-long-ipw1b: MV longitudinal IPW with EM is rejected", {
-  set.seed(7100)
-  d <- make_linear_scm(n = 100, seed = 7100)
-  d <- data.table::as.data.table(d)
-  d$A2 <- d$A + stats::rnorm(nrow(d), 0, 0.1)
-  d$sex <- sample(c(0, 1), nrow(d), replace = TRUE)
-
-  expect_error(
-    causat(
-      d,
-      outcome = "Y",
-      treatment = c("A", "A2"),
-      confounders = ~ L0 + A:sex,
-      confounders_tv = ~L,
-      id = "id",
-      time = "time",
-      estimator = "ipw"
-    ),
-    class = "causatr_longitudinal_mv_em_pending"
-  )
-})
-
-
 test_that("R-long-ipw3: numerator = formula without stabilize = 'marginal' is rejected", {
   set.seed(7102)
   d <- make_linear_scm(n = 100, seed = 7102)
@@ -1591,5 +1568,209 @@ test_that("R-long-mv-ipw1: MV IPSI under longitudinal IPW is rejected", {
       ci_method = "sandwich"
     ),
     class = "causatr_longitudinal_ipsi_pending"
+  )
+})
+
+
+# -----------------------------------------------------------------------
+# Multivariate longitudinal IPW + effect modification (Phase 19c)
+# -----------------------------------------------------------------------
+# Composes per-component EM stripping (Phase 8b) with per-period EM
+# stripping (Phase 10c). `make_em_mv_long_scm()` is a 2-period x
+# 2-component binary DGP with effect modification by baseline `sex`;
+# its static (1,1) -> (0,0) contrast has analytical truth 9 (sex = 0)
+# and 15 (sex = 1). See the helper for the derivation.
+
+test_that("T-long-mv-em1: MV longitudinal IPW EM static recovers analytical truth", {
+  # Truth-based: the sex-stratified static ATE under the multivariate
+  # DGP equals 9 (sex = 0) and 15 (sex = 1), combining the direct
+  # treatment effect (2 + 1.5*sex)*4 with the indirect path through L1
+  # (a constant shift of 1). Under a static contrast the multivariate
+  # IPW (sequential MTP) estimand coincides with g-computation, so IPW
+  # targets these truths exactly.
+  d <- make_em_mv_long_scm(n = 6000, seed = 7720)
+  d <- data.table::as.data.table(d)
+
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = c("A1", "A2"),
+    confounders = ~ L0 + sex + A1:sex + A2:sex,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    estimator = "ipw"
+  )
+  expect_true(fit$details$is_multivariate)
+  expect_true(fit$details$em_info$has_em)
+
+  res <- contrast(
+    fit,
+    interventions = list(
+      a = list(A1 = static(1), A2 = static(1)),
+      z = list(A1 = static(0), A2 = static(0))
+    ),
+    reference = "z",
+    type = "difference",
+    by = "sex",
+    ci_method = "sandwich"
+  )
+  cdt <- as.data.frame(res$contrasts)
+  est_sex0 <- cdt$estimate[cdt$by == "0"]
+  est_sex1 <- cdt$estimate[cdt$by == "1"]
+
+  expect_equal(est_sex0, 9, tolerance = 0.6)
+  expect_equal(est_sex1, 15, tolerance = 0.6)
+  # Sandwich SEs are finite and positive in both strata.
+  expect_true(all(is.finite(cdt$se)))
+  expect_true(all(cdt$se > 0))
+})
+
+
+test_that("T-long-mv-em2: MV longitudinal IPW EM agrees with ICE g-comp cross-method", {
+  # Cross-method: under a static contrast the multivariate IPW and
+  # g-computation estimands coincide (Diaz et al. 2023). Both fit the
+  # same `A1:sex + A2:sex` model and must agree per stratum.
+  d <- make_em_mv_long_scm(n = 6000, seed = 7721)
+  d <- data.table::as.data.table(d)
+
+  fit_ipw <- causat(
+    d,
+    outcome = "Y",
+    treatment = c("A1", "A2"),
+    confounders = ~ L0 + sex + A1:sex + A2:sex,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    estimator = "ipw"
+  )
+  res_ipw <- contrast(
+    fit_ipw,
+    interventions = list(
+      a = list(A1 = static(1), A2 = static(1)),
+      z = list(A1 = static(0), A2 = static(0))
+    ),
+    reference = "z",
+    type = "difference",
+    by = "sex"
+  )
+
+  fit_ice <- causat(
+    d,
+    outcome = "Y",
+    treatment = c("A1", "A2"),
+    confounders = ~ L0 + sex + A1:sex + A2:sex,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    estimator = "gcomp"
+  )
+  res_ice <- contrast(
+    fit_ice,
+    interventions = list(
+      a = list(A1 = static(1), A2 = static(1)),
+      z = list(A1 = static(0), A2 = static(0))
+    ),
+    reference = "z",
+    by = "sex"
+  )
+
+  ipw_dt <- as.data.frame(res_ipw$contrasts)
+  ice_dt <- as.data.frame(res_ice$contrasts)
+  ipw_sex0 <- ipw_dt$estimate[ipw_dt$by == "0"]
+  ipw_sex1 <- ipw_dt$estimate[ipw_dt$by == "1"]
+  ice_sex0 <- ice_dt$estimate[ice_dt$by == "0"]
+  ice_sex1 <- ice_dt$estimate[ice_dt$by == "1"]
+
+  expect_lt(abs(ipw_sex0 - ice_sex0), 0.5)
+  expect_lt(abs(ipw_sex1 - ice_sex1), 0.5)
+})
+
+
+test_that("T-long-mv-em3: per-component propensities strip A:modifier; modifier kept as confounder", {
+  # Mechanical check: each per-period, per-component propensity must
+  # drop the `A1:sex` / `A2:sex` interaction terms (a treatment-touching
+  # term cannot enter a propensity model for that treatment), while
+  # `sex` itself stays as a confounder main effect. The modifier
+  # re-enters only at the final-period MSM (`Y ~ 1 + sex`).
+  d <- make_em_mv_long_scm(n = 800, seed = 7722)
+  d <- data.table::as.data.table(d)
+
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = c("A1", "A2"),
+    confounders = ~ L0 + sex + A1:sex + A2:sex,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    estimator = "ipw"
+  )
+
+  expect_equal(fit$details$em_info$modifier_vars, "sex")
+
+  for (period in names(fit$details$treatment_models_by_time)) {
+    tms <- fit$details$treatment_models_by_time[[period]]
+    for (comp in c("A1", "A2")) {
+      rhs <- attr(stats::terms(tms[[comp]]$ps_formula), "term.labels")
+      # No interaction term that touches a treatment component.
+      expect_false(any(grepl("A1:|:A1|A2:|:A2", rhs)))
+      # `sex` retained as a plain confounder main effect.
+      expect_true("sex" %in% rhs)
+    }
+  }
+
+  # The MSM the contrast path builds from `em_info` expands to
+  # `Y ~ 1 + sex` so `predict()` returns per-stratum counterfactual means.
+  msm <- build_ipw_msm_formula("Y", fit$details$em_info)
+  expect_equal(attr(stats::terms(msm), "term.labels"), "sex")
+})
+
+
+test_that("T-long-mv-em4: stabilized + static MV EM equals unstabilized + static MV EM", {
+  # Under a static intervention on discrete treatment the stabilizing
+  # numerator and the denominator share the indicator support, so the
+  # per-period stabilized weight equals the unstabilized weight up to a
+  # constant that cancels in the Hajek MSM. Stabilization must not move
+  # the stratified point estimates.
+  d <- make_em_mv_long_scm(n = 1500, seed = 7723)
+  d <- data.table::as.data.table(d)
+
+  common_args <- list(
+    data = d,
+    outcome = "Y",
+    treatment = c("A1", "A2"),
+    confounders = ~ L0 + sex + A1:sex + A2:sex,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    estimator = "ipw"
+  )
+  fit_us <- do.call(causat, common_args)
+  fit_st <- do.call(causat, c(common_args, list(stabilize = "marginal")))
+
+  ints <- list(
+    a = list(A1 = static(1), A2 = static(1)),
+    z = list(A1 = static(0), A2 = static(0))
+  )
+  res_us <- contrast(
+    fit_us,
+    interventions = ints,
+    reference = "z",
+    type = "difference",
+    by = "sex"
+  )
+  res_st <- contrast(
+    fit_st,
+    interventions = ints,
+    reference = "z",
+    type = "difference",
+    by = "sex"
+  )
+
+  expect_equal(
+    res_st$contrasts$estimate,
+    res_us$contrasts$estimate,
+    tolerance = 1e-8
   )
 })

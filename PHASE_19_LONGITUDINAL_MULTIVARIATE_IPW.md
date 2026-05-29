@@ -1,6 +1,6 @@
 # Phase 19 — Longitudinal Multivariate IPW
 
-> **Status: IN PROGRESS — 19-trim shipped, 19a shipped, 19b shipped, 19c next.**
+> **Status: COMPLETE — 19-trim, 19a, 19b, 19c all shipped.**
 >
 > **Depends on:** Phase 8 (multivariate IPW), Phase 10 (longitudinal IPW).
 
@@ -114,8 +114,8 @@ via the chunk 10c wiring. MSM expands to `Y ~ 1 + modifier` via
 
 ### 19c — effect modification
 
-- [ ] Reuse the chunk 10c per-period propensity stripping via `parse_effect_mod()`'s `confounder_terms` slot. The Phase 8b multivariate EM already handles per-component stripping; Phase 10c handles per-period. Composition is automatic if both wirings are honoured.
-- [ ] Truth test on a 2-period × 2-component DGP with EM (e.g. extend `make_em_ice_scm()` to multivariate).
+- [x] Reuse the chunk 10c per-period propensity stripping via `parse_effect_mod()`'s `confounder_terms` slot. The Phase 8b multivariate EM already handles per-component stripping; Phase 10c handles per-period. Composition is automatic if both wirings are honoured. Confirmed: the `causatr_longitudinal_mv_em_pending` rejection was the only blocker; lifting it makes the existing wiring (`em_info` → `details`, per-component `fit_treatment_models()` stripping, final-period `build_ipw_msm_formula()` expansion) compose with no MV-specific EM code.
+- [x] Truth test on a 2-period × 2-component DGP with EM (`make_em_mv_long_scm()`, a binary MV analogue of `make_em_ice_scm()` with analytical static truths 9 and 15 by `sex`).
 
 ## Tests
 

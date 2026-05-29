@@ -149,6 +149,10 @@ Per-period treatment density chain $f(A_k \mid \bar A_{k-1}, \bar L_k)$ + cumula
 | **MV** (numerator structure) | — | `stabilize="marginal"` per-period × per-component chain numerators (L dropped, lags + prior components kept) | 2 | — | — | ✅ formula check | test-longitudinal-ipw.R |
 | **MV binary** | gauss | static (both1 vs both0) + `stabilize="marginal"` | 2 | sandwich | — | ✅ identical to unstabilized | test-longitudinal-ipw.R |
 | **MV cont** | gauss | shift + NULL + `stabilize="marginal"` | 2 | sandwich + bootstrap | — | ✅ SE ratio ~1 | test-longitudinal-ipw.R |
+| **MV binary** | gauss | static (both1 vs both0) + EM (`A1:sex` + `A2:sex`), by(sex) | 2 | sandwich | — | ✅ ATE\|sex=0 = 9, ATE\|sex=1 = 15 | test-longitudinal-ipw.R |
+| **MV binary** | gauss | static + EM, by(sex) | 2 | sandwich | — | ✅ vs ICE g-comp | test-longitudinal-ipw.R |
+| **MV** (EM structure) | — | each per-period × per-component propensity strips `A1:sex`/`A2:sex` (keeps `sex` as confounder); MSM expands to `Y ~ 1 + sex` | 2 | — | — | ✅ formula check | test-longitudinal-ipw.R |
+| **MV binary** | gauss | static + EM + `stabilize="marginal"`, by(sex) | 2 | sandwich | — | ✅ identical to unstabilized | test-longitudinal-ipw.R |
 
 **Known limitation (Phase 6, Robins 2000):** under longitudinal IPW the modifier MUST be a **baseline** covariate. A time-varying modifier in an MSM conditions on a post-treatment variable, biasing the estimand via mediator + collider paths. Not enforced at runtime (time-varying status isn't inferable from data); doc-level constraint only. The scientifically correct tool for time-varying effect modification is a structural nested model (Phase 18).
 
@@ -158,7 +162,6 @@ Rejections (all ✅ tested, "_pending" classed errors deferred to follow-up chun
 - `ipsi()` $\to$ test-longitudinal-ipw.R (`causatr_longitudinal_ipsi_pending`; per-period IPSI extension deferred)
 - `numerator =` without `stabilize = "marginal"` $\to$ test-longitudinal-ipw.R (`causatr_longitudinal_numerator_without_stabilize`)
 - bare treatment in confounders (`~ L + A`) $\to$ test-longitudinal-ipw.R (`causatr_bare_treatment_in_confounders`)
-- multivariate + effect modification $\to$ test-longitudinal-ipw.R (`causatr_longitudinal_mv_em_pending`; Phase 19c)
 - ATT / ATC under longitudinal IPW $\to$ test-longitudinal-ipw.R (inherits `check_estimand_trt_compat`)
 - single-period data labelled `type = "longitudinal"` $\to$ test-longitudinal-ipw.R (`causatr_longitudinal_too_few_times`)
 
