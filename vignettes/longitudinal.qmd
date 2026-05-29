@@ -1408,6 +1408,7 @@ informative error.
 | Binary | Continuous | Static | ATE | Difference | Sandwich | censoring | ✅ |
 | Binary | Continuous | Static + EM | ATE | Difference | Sandwich / bootstrap | none | ✅ |
 | Continuous | Continuous | Shift + EM | ATE | Difference | Sandwich | none | ✅ |
+| Multivariate | Continuous | Static + EM (`A1:sex` + `A2:sex`) | ATE | Difference | Sandwich | none / marginal | ✅ truth + vs ICE |
 | Binary | Any | IPSI($\delta$) | — | — | — | — | ⛔ Phase 4 |
 | Binary | Any | Static / ATT | ATT | — | — | — | ⛔ ICE is ATE-only |
 
