@@ -22,18 +22,21 @@
 #'
 #' ## What is rejected at this fit boundary
 #'
-#' Longitudinal IPW currently supports:
+#' Longitudinal IPW supports:
 #'
-#' - univariate treatment (binary / continuous / count via
-#'   `propensity_family`)
+#' - univariate and multivariate treatment (binary / continuous / count
+#'   via `propensity_family`); multivariate factorises the joint density
+#'   over both the time and component axes.
 #' - `static()` / `shift()` / `scale_by()` / `dynamic()` interventions
-#' - intercept-only Hajek MSM (no effect modification)
-#' - unstabilized weights only (`stabilize = "none"`)
+#' - intercept-only Hajek MSM, plus `Y ~ 1 + modifier` under
+#'   baseline effect modification (univariate only)
+#' - unstabilized and `stabilize = "marginal"` weights, including the
+#'   multivariate per-period per-component numerator chain
 #'
-#' Multivariate treatment, effect-modification (`A:modifier` in
-#' `confounders`), `stabilize = "marginal"`, and `ipsi()` are rejected
-#' upfront with classed errors. `threshold()` continues to be rejected
-#' per period by `check_intervention_family_compat()`.
+#' Effect modification combined with multivariate treatment and
+#' `ipsi()` are rejected upfront with classed errors. `threshold()`
+#' continues to be rejected per period by
+#' `check_intervention_family_compat()`.
 #'
 #' @param data data.table from `prepare_data()` with lag columns and
 #'   sorted by `(id, time)`.
@@ -108,17 +111,6 @@ fit_longitudinal_ipw <- function(
   ...
 ) {
   is_multivariate <- length(treatment) > 1L
-
-  # Stabilization + multivariate longitudinal not yet implemented.
-  if (is_multivariate && stabilize == "marginal") {
-    rlang::abort(
-      c(
-        "Stabilized weights are not yet supported for multivariate longitudinal IPW.",
-        i = "Use `stabilize = 'none'` or switch to a single treatment."
-      ),
-      class = "causatr_longitudinal_mv_stabilize_pending"
-    )
-  }
 
   # `numerator =` is the user-facing knob for a custom numerator
   # formula. Under `stabilize = "none"` it has no meaning -- the
@@ -361,10 +353,27 @@ fit_longitudinal_ipw <- function(
       if (!is.null(weights)) {
         num_args$weights <- weights[data[[time]] == time_points[k]]
       }
-      numerator_models_by_time[[k]] <- do.call(
-        fit_treatment_model,
-        c(num_args, dots)
-      )
+      if (is_multivariate) {
+        # Per-component numerator chain. `build_longitudinal_numerator_ps_formula()`
+        # vectorises over `treatment`, so its RHS already carries the
+        # prior-period treatment lags for every component (Ā_{t-1}) plus
+        # any user `numerator = ~ V`. Passing it as `confounders` to
+        # `fit_treatment_models()` adds the within-period prior components
+        # A_{t,1..k-1} via the chain rule, giving the numerator
+        # g_{t,k}(A_{t,k} | A_{t,1..k-1}, Ā_{t-1}, V) with L dropped.
+        # We fit these as a plain (`stabilize = "none"`) component list:
+        # the numerator factorisation needs only the denominator-style
+        # per-component models, not a second nested numerator.
+        numerator_models_by_time[[k]] <- do.call(
+          fit_treatment_models,
+          c(num_args, dots)
+        )
+      } else {
+        numerator_models_by_time[[k]] <- do.call(
+          fit_treatment_model,
+          c(num_args, dots)
+        )
+      }
     }
     names(numerator_models_by_time) <- as.character(time_points)
   }

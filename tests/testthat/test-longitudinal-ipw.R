@@ -386,28 +386,6 @@ test_that("T-long-ipw7: natural course (NULL intervention) returns observed marg
 # Rejection snapshots
 # ----------------------------------------------------------------------
 
-test_that("R-long-ipw1: MV longitudinal IPW with stabilize is rejected", {
-  set.seed(7100)
-  d <- make_linear_scm(n = 100, seed = 7100)
-  d <- data.table::as.data.table(d)
-  d$A2 <- d$A + stats::rnorm(nrow(d), 0, 0.1)
-
-  expect_error(
-    causat(
-      d,
-      outcome = "Y",
-      treatment = c("A", "A2"),
-      confounders = ~L0,
-      confounders_tv = ~L,
-      id = "id",
-      time = "time",
-      estimator = "ipw",
-      stabilize = "marginal"
-    ),
-    class = "causatr_longitudinal_mv_stabilize_pending"
-  )
-})
-
 test_that("R-long-ipw1b: MV longitudinal IPW with EM is rejected", {
   set.seed(7100)
   d <- make_linear_scm(n = 100, seed = 7100)
@@ -1337,6 +1315,206 @@ test_that("T-long-mv-ipw3: MV natural course gives same sandwich as bootstrap", 
   # Should produce finite SE and reasonable estimate
   expect_true(is.finite(res_sw$contrasts$se))
   expect_true(is.finite(res_sw$contrasts$estimate))
+})
+
+
+test_that("T-long-mv-stab1: stabilized MV fits per-period, per-component chain numerators", {
+  # The MV longitudinal numerator factorises over BOTH the time axis
+  # and the component axis. Within a period, component k conditions on
+  # the prior components A_{1..k-1}; across periods, every component
+  # conditions on the lagged treatments. The marginal numerator drops
+  # the time-varying L from all of these formulas (baseline-only
+  # conditioning), which is what distinguishes the numerator from the
+  # full-L denominator.
+  set.seed(19101)
+  n <- 400
+  L <- rnorm(n)
+  A1_1 <- rbinom(n, 1, plogis(0.5 + 0.3 * L))
+  A2_1 <- rbinom(n, 1, plogis(0.3 + 0.2 * L + 0.15 * A1_1))
+  A1_2 <- rbinom(n, 1, plogis(0.3 + 0.3 * L + 0.1 * A1_1))
+  A2_2 <- rbinom(n, 1, plogis(0.2 + 0.2 * L + 0.1 * A1_2 + 0.05 * A2_1))
+  Y <- 2 + 0.5 * L + A1_2 + 0.5 * A2_2 + rnorm(n)
+
+  dat <- data.table::data.table(
+    id = rep(seq_len(n), each = 2L),
+    time = rep(1:2, n),
+    A1 = c(rbind(A1_1, A1_2)),
+    A2 = c(rbind(A2_1, A2_2)),
+    L = rep(L, each = 2L),
+    Y = c(rep(NA_real_, n), Y)
+  )
+
+  fit <- causat(
+    dat,
+    outcome = "Y",
+    treatment = c("A1", "A2"),
+    confounders = ~L,
+    estimator = "ipw",
+    type = "longitudinal",
+    id = "id",
+    time = "time",
+    stabilize = "marginal"
+  )
+
+  num_models <- fit$details$numerator_models_by_time
+  expect_false(is.null(num_models))
+  expect_length(num_models, 2L)
+
+  # Each period's numerator is itself a per-component treatment-models
+  # list (one entry per treatment component).
+  p1 <- num_models[[1]]
+  p2 <- num_models[[2]]
+  expect_s3_class(p1, "causatr_treatment_models")
+  expect_s3_class(p2, "causatr_treatment_models")
+  expect_length(p1, 2L)
+  expect_length(p2, 2L)
+
+  # Period 1: no lags. A1 has no upstream conditioning (intercept-only);
+  # A2 conditions on the prior component A1. L dropped throughout.
+  expect_equal(deparse(p1[[1]]$ps_formula), "A1 ~ 1")
+  expect_equal(deparse(p1[[2]]$ps_formula), "A2 ~ A1")
+
+  # Period 2: both components condition on the lagged treatments; A2
+  # additionally conditions on the within-period prior component A1.
+  expect_equal(deparse(p2[[1]]$ps_formula), "A1 ~ lag1_A1 + lag1_A2")
+  expect_equal(
+    deparse(p2[[2]]$ps_formula),
+    "A2 ~ A1 + lag1_A1 + lag1_A2"
+  )
+})
+
+
+test_that("T-long-mv-stab2: stabilized + static binary MV recovers identical estimate as unstabilized", {
+  # Same invariant as the univariate T-long-ipw-stab2 and the
+  # multivariate point Phase 8e: under static interventions on discrete
+  # treatments the per-period, per-component weight is
+  # `prod_k I(A_k = a_k) * f^*_k / f_k`. On the surviving rows every
+  # conditioning variable (prior components + lags) is pinned to the
+  # static target, so the marginal numerator f^* equals the denominator
+  # f at the evaluation point and the Hajek mean is unchanged. The
+  # equality must hold for both the point estimate and the sandwich SE.
+  set.seed(19102)
+  n <- 1500
+  L <- rnorm(n)
+  A1_1 <- rbinom(n, 1, plogis(0.5 + 0.3 * L))
+  A2_1 <- rbinom(n, 1, plogis(0.3 + 0.2 * L + 0.15 * A1_1))
+  A1_2 <- rbinom(n, 1, plogis(0.3 + 0.3 * L + 0.1 * A1_1))
+  A2_2 <- rbinom(n, 1, plogis(0.2 + 0.2 * L + 0.1 * A1_2 + 0.05 * A2_1))
+  Y <- 2 + 0.5 * L + A1_2 + 0.5 * A2_2 + rnorm(n)
+
+  dat <- data.table::data.table(
+    id = rep(seq_len(n), each = 2L),
+    time = rep(1:2, n),
+    A1 = c(rbind(A1_1, A1_2)),
+    A2 = c(rbind(A2_1, A2_2)),
+    L = rep(L, each = 2L),
+    Y = c(rep(NA_real_, n), Y)
+  )
+
+  mk <- function(stab) {
+    causat(
+      dat,
+      outcome = "Y",
+      treatment = c("A1", "A2"),
+      confounders = ~L,
+      estimator = "ipw",
+      type = "longitudinal",
+      id = "id",
+      time = "time",
+      stabilize = stab
+    )
+  }
+  ivs <- list(
+    b1 = list(A1 = static(1), A2 = static(1)),
+    b0 = list(A1 = static(0), A2 = static(0))
+  )
+  res_us <- contrast(
+    mk("none"),
+    interventions = ivs,
+    reference = "b0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  res_st <- contrast(
+    mk("marginal"),
+    interventions = ivs,
+    reference = "b0",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+
+  expect_equal(
+    res_st$contrasts$estimate,
+    res_us$contrasts$estimate,
+    tolerance = 1e-6
+  )
+  expect_equal(
+    res_st$contrasts$se,
+    res_us$contrasts$se,
+    tolerance = 1e-6
+  )
+})
+
+
+test_that("T-long-mv-stab3: stabilized MV shift has finite sandwich SE close to bootstrap", {
+  # For shift on continuous treatments the stabilized natural-course
+  # arm carries non-unit numerator/denominator ratios, so the sandwich
+  # must propagate uncertainty through the denominator alpha (numerator
+  # gamma held fixed, per the nuisance-fixed convention). Bootstrap
+  # refits both. The two SE estimates should agree to within MC noise.
+  set.seed(19103)
+  n <- 1000
+  L <- rnorm(n)
+  A1_1 <- rnorm(n, 0.5 + 0.3 * L)
+  A2_1 <- rnorm(n, 0.3 + 0.2 * L + 0.1 * A1_1)
+  A1_2 <- rnorm(n, 0.3 + 0.3 * L + 0.1 * A1_1)
+  A2_2 <- rnorm(n, 0.2 + 0.2 * L + 0.1 * A1_2 + 0.05 * A2_1)
+  Y <- 2 + 0.5 * L + 0.5 * A1_2 + 0.3 * A2_2 + rnorm(n)
+
+  dat <- data.table::data.table(
+    id = rep(seq_len(n), each = 2L),
+    time = rep(1:2, n),
+    A1 = c(rbind(A1_1, A1_2)),
+    A2 = c(rbind(A2_1, A2_2)),
+    L = rep(L, each = 2L),
+    Y = c(rep(NA_real_, n), Y)
+  )
+
+  fit <- causat(
+    dat,
+    outcome = "Y",
+    treatment = c("A1", "A2"),
+    confounders = ~L,
+    estimator = "ipw",
+    type = "longitudinal",
+    id = "id",
+    time = "time",
+    stabilize = "marginal",
+    numerator = ~1
+  )
+  ivs <- list(
+    up = list(A1 = shift(0.5), A2 = shift(0.3)),
+    nc = NULL
+  )
+  res_sw <- contrast(
+    fit,
+    interventions = ivs,
+    reference = "nc",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  res_bs <- contrast(
+    fit,
+    interventions = ivs,
+    reference = "nc",
+    type = "difference",
+    ci_method = "bootstrap"
+  )
+
+  se_ratio <- res_sw$contrasts$se / res_bs$contrasts$se
+  expect_gt(se_ratio, 0.7)
+  expect_lt(se_ratio, 1.4)
+  expect_true(all(is.finite(res_sw$contrasts$se) & res_sw$contrasts$se > 0))
 })
 
 

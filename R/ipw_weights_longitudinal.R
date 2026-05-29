@@ -106,16 +106,7 @@ compute_longitudinal_weights <- function(
     data_k <- fit_data_by_time[[k]]
     ids_k <- as.character(data_k[[id_col]])
 
-    if (stabilize) {
-      tm_num_k <- numerator_models_by_time[[k]]
-      w_k <- compute_stabilized_period_weight(
-        tm_denom = tm_k,
-        tm_num = tm_num_k,
-        data = data_k,
-        intervention = intervention,
-        trim = trim
-      )
-    } else if (is_mv) {
+    if (is_mv) {
       # Multivariate: per-period model is a list of K component models.
       # Reset fit_rows to all-TRUE (period-k subset is already filtered),
       # matching the convention in compute_ipw_contrast_point().
@@ -124,11 +115,29 @@ compute_longitudinal_weights <- function(
         tms_local[[j]]$fit_rows <- rep(TRUE, nrow(data_k))
       }
       class(tms_local) <- c("causatr_treatment_models", "list")
+      # Under stabilization the per-period numerator is itself a
+      # K-component list `g_{t,k}(A_{t,k} | A_{t,1..k-1}, Ā_{t-1}, V)`.
+      # `compute_density_ratio_weights_mv()` reads the numerator chain
+      # and the stabilize flag off attributes, so re-attach them here
+      # (the `class<-` / `[[<-` edits above strip custom attributes).
+      if (stabilize) {
+        attr(tms_local, "numerator_models") <- numerator_models_by_time[[k]]
+        attr(tms_local, "stabilize") <- "marginal"
+      }
       w_k <- compute_density_ratio_weights_mv(
         tms_local,
         data_k,
         intervention,
         estimand = estimand,
+        trim = trim
+      )
+    } else if (stabilize) {
+      tm_num_k <- numerator_models_by_time[[k]]
+      w_k <- compute_stabilized_period_weight(
+        tm_denom = tm_k,
+        tm_num = tm_num_k,
+        data = data_k,
+        intervention = intervention,
         trim = trim
       )
     } else {
@@ -490,25 +499,30 @@ make_weight_fn_longitudinal <- function(
     for (kk in seq_len(n_periods)) {
       tm_kk <- treatment_models_by_time[[kk]]
       data_kk <- fit_data_by_time[[kk]]
-      if (stabilize) {
-        w_kk <- compute_stabilized_period_weight(
-          tm_denom = tm_kk,
-          tm_num = numerator_models_by_time[[kk]],
-          data = data_kk,
-          intervention = intervention,
-          trim = 1
-        )
-      } else if (is_mv) {
+      if (is_mv) {
         tms_local <- tm_kk
         for (j in seq_along(tms_local)) {
           tms_local[[j]]$fit_rows <- rep(TRUE, nrow(data_kk))
         }
         class(tms_local) <- c("causatr_treatment_models", "list")
+        if (stabilize) {
+          attr(tms_local, "numerator_models") <-
+            numerator_models_by_time[[kk]]
+          attr(tms_local, "stabilize") <- "marginal"
+        }
         w_kk <- compute_density_ratio_weights_mv(
           tms_local,
           data_kk,
           intervention,
           estimand = estimand,
+          trim = 1
+        )
+      } else if (stabilize) {
+        w_kk <- compute_stabilized_period_weight(
+          tm_denom = tm_kk,
+          tm_num = numerator_models_by_time[[kk]],
+          data = data_kk,
+          intervention = intervention,
           trim = 1
         )
       } else {
@@ -544,7 +558,34 @@ make_weight_fn_longitudinal <- function(
     data_k <- fit_data_by_time[[k]]
     ids_k <- as.character(data_k[[id_col]])
 
-    if (stabilize) {
+    if (is_mv) {
+      # Multivariate: delegate to make_weight_fn_mv() which handles the
+      # K-component stacking internally. The returned closure takes a
+      # stacked alpha of length sum_k(p_k) and returns a per-row weight.
+      # Reset fit_rows to all-TRUE (period-k data is already filtered).
+      tms_local <- tm_k
+      for (j in seq_along(tms_local)) {
+        tms_local[[j]]$fit_rows <- rep(TRUE, nrow(data_k))
+      }
+      class(tms_local) <- c("causatr_treatment_models", "list")
+      # Stabilized multivariate: re-attach the per-period numerator
+      # chain + flag so `make_weight_fn_mv()` builds the fixed-numerator
+      # closures (numerator gamma held fixed under numDeriv perturbation,
+      # only the denominator alpha varies). Stripped by the `class<-` /
+      # `[[<-` edits above, so re-attach here.
+      if (stabilize) {
+        attr(tms_local, "numerator_models") <- numerator_models_by_time[[k]]
+        attr(tms_local, "stabilize") <- "marginal"
+      }
+      mv_closure_k <- make_weight_fn_mv(
+        tms_local,
+        data_k,
+        intervention,
+        estimand = estimand,
+        trim = trim
+      )
+      sub_fn_k <- mv_closure_k$weight_fn
+    } else if (stabilize) {
       # Stabilized closure: numerator density g_k is precomputed once
       # at closure-creation time (gamma fixed under numDeriv
       # perturbation; same nuisance-fixed convention as multivariate IPW).
@@ -565,24 +606,6 @@ make_weight_fn_longitudinal <- function(
       } else {
         sub_fn_k <- raw_fn_k
       }
-    } else if (is_mv) {
-      # Multivariate: delegate to make_weight_fn_mv() which handles the
-      # K-component stacking internally. The returned closure takes a
-      # stacked alpha of length sum_k(p_k) and returns a per-row weight.
-      # Reset fit_rows to all-TRUE (period-k data is already filtered).
-      tms_local <- tm_k
-      for (j in seq_along(tms_local)) {
-        tms_local[[j]]$fit_rows <- rep(TRUE, nrow(data_k))
-      }
-      class(tms_local) <- c("causatr_treatment_models", "list")
-      mv_closure_k <- make_weight_fn_mv(
-        tms_local,
-        data_k,
-        intervention,
-        estimand = estimand,
-        trim = trim
-      )
-      sub_fn_k <- mv_closure_k$weight_fn
     } else {
       # Unstabilized univariate: reuse the existing per-period builder.
       # Per-period truncation applied here via trim + precomputed

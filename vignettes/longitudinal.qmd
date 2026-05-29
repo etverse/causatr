@@ -1035,6 +1035,49 @@ res_mv_long
 Structural truth: `both_on − both_off = 4.9` (direct effects $4.6$ plus
 indirect $0.3$ via $L_1$).
 
+### Stabilization with multivariate treatments
+
+`stabilize = "marginal"` composes with multivariate longitudinal IPW. The
+marginal numerator factorises over **both** axes: per period and per
+component. Each component's numerator drops the time-varying confounders
+$L$ but keeps the treatment lags and the within-period prior components
+$A_{1,\dots,k-1}$, mirroring the denominator chain rule:
+
+$$
+g(\bar{A}_1, \bar{A}_2 \mid V)
+  = \prod_t \prod_k g_{t,k}\bigl(A_{t,k} \mid A_{t,1:k-1}, \bar{A}_{t-1}, V\bigr).
+$$
+
+Under static interventions on binary treatments the stabilized and
+unstabilized estimates coincide exactly — the indicator pins every
+conditioning variable to the target, so numerator and denominator densities
+cancel on the surviving rows:
+
+```{r}
+fit_mv_long_stab <- causat(
+  mv_long,
+  outcome = "Y",
+  treatment = c("A1", "A2"),
+  confounders = ~ 1,
+  confounders_tv = ~ L,
+  id = "id",
+  time = "time",
+  model_fn = stats::glm,
+  stabilize = "marginal"
+)
+
+res_mv_long_stab <- contrast(
+  fit_mv_long_stab,
+  interventions = list(
+    both_on  = list(A1 = static(1), A2 = static(1)),
+    both_off = list(A1 = static(0), A2 = static(0))
+  ),
+  reference = "both_off",
+  type = "difference"
+)
+res_mv_long_stab
+```
+
 ## External weights (IPCW / survey)
 
 External weights — survey weights or pre-computed IPCW — pass through

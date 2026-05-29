@@ -1,5 +1,34 @@
 # causatr (development version)
 
+## 2026-05-29 — Phase 19b: Stabilized multivariate longitudinal IPW
+
+Stabilized weights (`stabilize = "marginal"`) now compose with joint
+time-varying treatments under `estimator = "ipw"`, `type = "longitudinal"`.
+The marginal numerator factorises over both axes, mirroring the T × K
+denominator:
+
+    g(Ā1, Ā2 | V) = ∏_t ∏_k g_{t,k}(A_{t,k} | A_{t,1..k-1}, Ā_{t-1}, V)
+
+* **Per-period × per-component numerator sweep**: when `stabilize = "marginal"`
+  and `length(treatment) > 1L`, each period fits a K-component numerator via
+  the denominator `fit_treatment_models()` path, but with confounders set to
+  `remove_response(build_longitudinal_numerator_ps_formula(...))` — this drops
+  the time-varying L while retaining the treatment lags and baseline numerator
+  covariates `V`. The per-component chain rule then layers the prior components
+  `A_{1..k-1}` on automatically. Numerator models are stashed as the
+  `numerator_models` / `stabilize` attributes on each period's denominator
+  `causatr_treatment_models` list.
+* **Weight + variance composition**: the MV weight and IF closures
+  (`compute_density_ratio_weights_mv()`, `make_weight_fn_mv()`) read the
+  numerator attributes and apply the stabilized per-component ratio. Numerator
+  parameters (gamma) are held fixed under the sandwich (nuisance-fixed
+  convention, as for sigma/theta); bootstrap refits both numerator and
+  denominator.
+* **Invariants**: under static interventions on discrete treatments the
+  stabilized estimate and sandwich SE are *identical* to unstabilized (the
+  Hájek-mean invariant carries over from Phase 8e / 10b). The
+  `causatr_longitudinal_mv_stabilize_pending` rejection is removed.
+
 ## 2026-05-24 — Phase 19a: Multivariate longitudinal IPW
 
 New support for joint time-varying treatments (`treatment = c("A1", "A2")`)

@@ -1,6 +1,6 @@
 # Phase 19 — Longitudinal Multivariate IPW
 
-> **Status: IN PROGRESS — 19-trim shipped, 19a shipped, 19b next.**
+> **Status: IN PROGRESS — 19-trim shipped, 19a shipped, 19b shipped, 19c next.**
 >
 > **Depends on:** Phase 8 (multivariate IPW), Phase 10 (longitudinal IPW).
 
@@ -106,10 +106,11 @@ via the chunk 10c wiring. MSM expands to `Y ~ 1 + modifier` via
 - [x] IPSI check in `compute_ipw_contrast_longitudinal()` handles MV (per-component check).
 - [x] `build_longitudinal_ps_formula()` handles vector `treatment` (placeholder response for MV).
 
-### 19b — stabilization
+### 19b — stabilization ✅
 
-- [ ] Extend the per-period numerator-model sweep to be per-period × per-component when `stabilize = "marginal"` AND `length(treatment) > 1L`. Reuse the Phase 8e per-component numerator dispatch within Phase 10b's per-period sweep.
-- [ ] Stash $T \times K$ numerator models alongside $T \times K$ denominator models.
+- [x] Extend the per-period numerator-model sweep to be per-period × per-component when `stabilize = "marginal"` AND `length(treatment) > 1L`. Reuse the denominator `fit_treatment_models()` path with `confounders = remove_response(build_longitudinal_numerator_ps_formula(...))` so the marginal numerator drops time-varying L while keeping lags + V; the per-component chain rule then layers on the prior components $A_{1..k-1}$ automatically.
+- [x] Stash $T \times K$ numerator models alongside $T \times K$ denominator models via the `numerator_models` / `stabilize` attributes on each period's denominator `causatr_treatment_models` list (read by the MV weight + variance closures).
+- [x] Lift the `causatr_longitudinal_mv_stabilize_pending` rejection.
 
 ### 19c — effect modification
 
