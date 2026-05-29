@@ -653,7 +653,7 @@ Composes Phase 2 gcomp + Phase 4 IPW into the classical analytical doubly-robust
 
 **Rejections (point, same as IPW):** static/threshold/dynamic on continuous → Dirac rejection ✅; stochastic (without `density`) → rejected ✅; stochastic (with `density`) → Phase 24.
 
-**Rejections (longitudinal):** multivariate + stabilize → supported (Phase 19b) ✅; multivariate + EM → deferred ✅; multivariate IPSI → rejected ✅; ATT/ATC → rejected ✅.
+**Rejections (longitudinal AIPW):** multivariate longitudinal AIPW (any intervention) → rejected ✅ (`causatr_longitudinal_multivariate_pending`, deferred to the multivariate longitudinal AIPW phase; longitudinal *IPW* already supports multivariate static/shift/stabilize/EM under Phase 19); ATT/ATC → rejected ✅.
 
 **Chunk 16o — AIPW + IPCW (triply-weighted DR)**
 
