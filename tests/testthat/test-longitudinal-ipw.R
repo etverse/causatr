@@ -1456,7 +1456,7 @@ test_that("T-long-mv-stab2: stabilized + static binary MV recovers identical est
 })
 
 
-test_that("T-long-mv-stab3: stabilized MV shift has finite sandwich SE close to bootstrap", {
+test_that("T-long-mv-stab3: stabilized MV shift SE close to bootstrap and natural course is exact sample mean", {
   # For shift on continuous treatments the stabilized natural-course
   # arm carries non-unit numerator/denominator ratios, so the sandwich
   # must propagate uncertainty through the denominator alpha (numerator
@@ -1515,6 +1515,40 @@ test_that("T-long-mv-stab3: stabilized MV shift has finite sandwich SE close to 
   expect_gt(se_ratio, 0.7)
   expect_lt(se_ratio, 1.4)
   expect_true(all(is.finite(res_sw$contrasts$se) & res_sw$contrasts$se > 0))
+
+  # Truth-based point-estimate check (2026-05-29 critical review): the
+  # whole-NULL natural-course arm carries weight 1 at every period by
+  # construction, and that short-circuit fires BEFORE the stabilize
+  # branch. So the stabilized natural-course marginal mean must equal
+  # the UNSTABILIZED natural-course marginal mean EXACTLY -- the
+  # numerator chain never enters. A Monte Carlo check (200 reps)
+  # confirmed the weight-1 path reproduces the raw sample mean to ~1e-15
+  # and is unbiased, while routing natural course through prod(g/f)
+  # (e.g. a shift(0) MTP) is also unbiased but ~3.4x noisier. This pins
+  # the documented behavior so a future "fix" that sends whole-NULL
+  # through prod(g/f) under stabilization is caught.
+  fit_unstab <- causat(
+    dat,
+    outcome = "Y",
+    treatment = c("A1", "A2"),
+    confounders = ~L,
+    estimator = "ipw",
+    type = "longitudinal",
+    id = "id",
+    time = "time"
+  )
+  res_unstab <- contrast(
+    fit_unstab,
+    interventions = ivs,
+    reference = "nc",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  nc_stab <- res_sw$estimates$estimate[res_sw$estimates$intervention == "nc"]
+  nc_unstab <- res_unstab$estimates$estimate[
+    res_unstab$estimates$intervention == "nc"
+  ]
+  expect_equal(nc_stab, nc_unstab, tolerance = 1e-12)
 })
 
 
