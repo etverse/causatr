@@ -525,7 +525,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h1>causatr</h1>
 <!-- badges: start -->
 <p><a href="https://github.com/etverse/causatr/actions/workflows/R-CMD-check.yaml"><img src="https://github.com/etverse/causatr/actions/workflows/R-CMD-check.yaml/badge.svg" class="img-fluid" alt="R-CMD-check"></a> <a href="https://app.codecov.io/gh/etverse/causatr"><img src="https://codecov.io/gh/etverse/causatr/graph/badge.svg" class="img-fluid" alt="Codecov test coverage"></a> <!-- badges: end --></p>
-<p><strong>causatr</strong> provides a unified interface for causal effect estimation via four complementary methods: g-computation (parametric g-formula + ICE), inverse probability weighting (IPW with a self-contained density-ratio engine), augmented IPW (AIPW — doubly robust), and propensity score matching (via <a href="https://kosukeimai.github.io/MatchIt/">MatchIt</a>). When multiple methods agree, you can be more confident in your findings — this is called <strong>methodological triangulation</strong>.</p>
+<p><strong>causatr</strong> provides a unified interface for causal effect estimation via five complementary methods: g-computation (parametric g-formula + ICE), inverse probability weighting (IPW with a self-contained density-ratio engine), augmented IPW (AIPW — doubly robust), structural nested mean models (SNM — g-estimation for time-varying effect modification), and propensity score matching (via <a href="https://kosukeimai.github.io/MatchIt/">MatchIt</a>). When multiple methods agree, you can be more confident in your findings — this is called <strong>methodological triangulation</strong>.</p>
 <p>The package implements the methods described in Hernán &amp; Robins (2025) <em>Causal Inference: What If</em> with a simple two-step API:</p>
 <ol type="1">
 <li><strong>Fit</strong> the causal model with <code>causat()</code></li>
@@ -554,15 +554,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>    qsmk<span class="sc">:</span>smokeintensity,</span>
 <span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">censoring =</span> <span class="st">"censored"</span></span>
 <span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Step 2: Contrast interventions</span></span>
-<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">contrast</span>(</span>
-<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>  fit,</span>
-<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">quit =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">continue =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
-<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="st">"continue"</span></span>
-<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 117 row(s) with NA predictions excluded from the target population.</span></span>
-<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>result</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Warning: `model_fn` not specified; defaulting to `stats::glm`.</span></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ℹ Set `model_fn` explicitly (e.g. `model_fn = stats::glm` or `model_fn = mgcv::gam`).</span></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a><span class="co"># Step 2: Contrast interventions</span></span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">contrast</span>(</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>  fit,</span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">quit =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">continue =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="st">"continue"</span></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 117 row(s) with NA predictions excluded from the target population.</span></span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>result</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p><strong>Estimator:</strong> gcomp &nbsp;·&nbsp; <strong>Estimand:</strong> ATE &nbsp;·&nbsp; <strong>Contrast:</strong> difference &nbsp;·&nbsp; <strong>CI method:</strong> sandwich &nbsp;·&nbsp; <strong>N:</strong> 1629</p>
 <table class="caption-top table">
 <thead>
@@ -623,36 +625,46 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="co"># G-computation (outcome model)</span></span>
 <span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>fit_gc <span class="ot">&lt;-</span> <span class="fu">causat</span>(nhefs, <span class="at">outcome =</span> <span class="st">"wt82_71"</span>, <span class="at">treatment =</span> <span class="st">"qsmk"</span>,</span>
 <span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> conf, <span class="at">censoring =</span> <span class="st">"censored"</span>)</span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="co"># IPW (treatment model)</span></span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>fit_ipw <span class="ot">&lt;-</span> <span class="fu">causat</span>(nhefs, <span class="at">outcome =</span> <span class="st">"wt82_71"</span>, <span class="at">treatment =</span> <span class="st">"qsmk"</span>,</span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> conf, <span class="at">estimator =</span> <span class="st">"ipw"</span>)</span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="co"># AIPW (doubly robust)</span></span>
-<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>fit_aipw <span class="ot">&lt;-</span> <span class="fu">causat</span>(nhefs, <span class="at">outcome =</span> <span class="st">"wt82_71"</span>, <span class="at">treatment =</span> <span class="st">"qsmk"</span>,</span>
-<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> conf, <span class="at">estimator =</span> <span class="st">"aipw"</span>, <span class="at">censoring =</span> <span class="st">"censored"</span>)</span>
-<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Matching (propensity score)</span></span>
-<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>fit_m <span class="ot">&lt;-</span> <span class="fu">causat</span>(nhefs, <span class="at">outcome =</span> <span class="st">"wt82_71"</span>, <span class="at">treatment =</span> <span class="st">"qsmk"</span>,</span>
-<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> conf, <span class="at">estimator =</span> <span class="st">"matching"</span>, <span class="at">estimand =</span> <span class="st">"ATT"</span>)</span>
-<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a><span class="co"># All four estimates</span></span>
-<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>intv <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">quit =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">cont =</span> <span class="fu">static</span>(<span class="dv">0</span>))</span>
-<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a><span class="fu">rbind</span>(</span>
-<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">estimator =</span> <span class="st">"gcomp"</span>, <span class="fu">contrast</span>(fit_gc,</span>
-<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a>    intv, <span class="at">reference =</span> <span class="st">"cont"</span>)<span class="sc">$</span>contrasts),</span>
-<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">estimator =</span> <span class="st">"ipw"</span>, <span class="fu">contrast</span>(fit_ipw,</span>
-<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a>    intv, <span class="at">reference =</span> <span class="st">"cont"</span>)<span class="sc">$</span>contrasts),</span>
-<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">estimator =</span> <span class="st">"aipw"</span>, <span class="fu">contrast</span>(fit_aipw,</span>
-<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a>    intv, <span class="at">reference =</span> <span class="st">"cont"</span>)<span class="sc">$</span>contrasts),</span>
-<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">estimator =</span> <span class="st">"matching"</span>, <span class="fu">contrast</span>(fit_m,</span>
-<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a>    intv, <span class="at">reference =</span> <span class="st">"cont"</span>)<span class="sc">$</span>contrasts)</span>
-<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   estimator   comparison estimate        se ci_lower ci_upper</span></span>
-<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1     gcomp quit vs cont 3.155727 0.4487520 2.276190 4.035265</span></span>
-<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2       ipw quit vs cont 3.205240 0.4693563 2.285318 4.125162</span></span>
-<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3      aipw quit vs cont 3.216881 0.4714837 2.292790 4.140972</span></span>
-<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4  matching quit vs cont 2.984411 0.5091996 1.986398 3.982424</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Warning: `model_fn` not specified; defaulting to `stats::glm`.</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ℹ Set `model_fn` explicitly (e.g. `model_fn = stats::glm` or `model_fn = mgcv::gam`).</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="co"># IPW (treatment model)</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>fit_ipw <span class="ot">&lt;-</span> <span class="fu">causat</span>(nhefs, <span class="at">outcome =</span> <span class="st">"wt82_71"</span>, <span class="at">treatment =</span> <span class="st">"qsmk"</span>,</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> conf, <span class="at">estimator =</span> <span class="st">"ipw"</span>)</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Warning: `model_fn` not specified; defaulting to `stats::glm`.</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ℹ Set `model_fn` explicitly (e.g. `model_fn = stats::glm` or `model_fn = mgcv::gam`).</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Warning: `propensity_model_fn` not specified; defaulting to `stats::glm`.</span></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ℹ Set `propensity_model_fn` explicitly if you need a different fitter (e.g. `mgcv::gam`).</span></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a><span class="co"># AIPW (doubly robust)</span></span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>fit_aipw <span class="ot">&lt;-</span> <span class="fu">causat</span>(nhefs, <span class="at">outcome =</span> <span class="st">"wt82_71"</span>, <span class="at">treatment =</span> <span class="st">"qsmk"</span>,</span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> conf, <span class="at">estimator =</span> <span class="st">"aipw"</span>, <span class="at">censoring =</span> <span class="st">"censored"</span>)</span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Warning: `model_fn` not specified; defaulting to `stats::glm`.</span></span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ℹ Set `model_fn` explicitly (e.g. `model_fn = stats::glm` or `model_fn = mgcv::gam`).</span></span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; `propensity_model_fn` not specified; defaulting to `stats::glm`.</span></span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ℹ Set `propensity_model_fn` explicitly if you need a different fitter (e.g. `mgcv::gam`).</span></span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a><span class="co"># Matching (propensity score)</span></span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>fit_m <span class="ot">&lt;-</span> <span class="fu">causat</span>(nhefs, <span class="at">outcome =</span> <span class="st">"wt82_71"</span>, <span class="at">treatment =</span> <span class="st">"qsmk"</span>,</span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> conf, <span class="at">estimator =</span> <span class="st">"matching"</span>, <span class="at">estimand =</span> <span class="st">"ATT"</span>)</span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a><span class="co"># All four estimates</span></span>
+<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a>intv <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">quit =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">cont =</span> <span class="fu">static</span>(<span class="dv">0</span>))</span>
+<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a><span class="fu">rbind</span>(</span>
+<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">estimator =</span> <span class="st">"gcomp"</span>, <span class="fu">contrast</span>(fit_gc,</span>
+<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>    intv, <span class="at">reference =</span> <span class="st">"cont"</span>)<span class="sc">$</span>contrasts),</span>
+<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">estimator =</span> <span class="st">"ipw"</span>, <span class="fu">contrast</span>(fit_ipw,</span>
+<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a>    intv, <span class="at">reference =</span> <span class="st">"cont"</span>)<span class="sc">$</span>contrasts),</span>
+<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">estimator =</span> <span class="st">"aipw"</span>, <span class="fu">contrast</span>(fit_aipw,</span>
+<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a>    intv, <span class="at">reference =</span> <span class="st">"cont"</span>)<span class="sc">$</span>contrasts),</span>
+<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">estimator =</span> <span class="st">"matching"</span>, <span class="fu">contrast</span>(fit_m,</span>
+<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a>    intv, <span class="at">reference =</span> <span class="st">"cont"</span>)<span class="sc">$</span>contrasts)</span>
+<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   estimator   comparison estimate        se ci_lower ci_upper</span></span>
+<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1     gcomp quit vs cont 3.155727 0.4487520 2.276190 4.035265</span></span>
+<span id="cb3-44"><a href="#cb3-44" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2       ipw quit vs cont 3.205240 0.4693563 2.285318 4.125162</span></span>
+<span id="cb3-45"><a href="#cb3-45" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3      aipw quit vs cont 3.216881 0.4657863 2.303957 4.129806</span></span>
+<span id="cb3-46"><a href="#cb3-46" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4  matching quit vs cont 2.984411 0.5091996 1.986398 3.982424</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="intervention-types" class="level2">
 <h2 class="anchored" data-anchor-id="intervention-types">Intervention types</h2>
@@ -661,16 +673,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"smokeintensity"</span>,</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> <span class="sc">~</span> sex <span class="sc">+</span> age <span class="sc">+</span> race <span class="sc">+</span> wt71,</span>
 <span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">censoring =</span> <span class="st">"censored"</span>)</span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit_cont,</span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(</span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">reduce10 =</span> <span class="fu">shift</span>(<span class="sc">-</span><span class="dv">10</span>),</span>
-<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">halved =</span> <span class="fu">scale_by</span>(<span class="fl">0.5</span>),</span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">cap20 =</span> <span class="fu">threshold</span>(<span class="dv">0</span>, <span class="dv">20</span>),</span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">observed =</span> <span class="cn">NULL</span></span>
-<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>  ),</span>
-<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="st">"observed"</span></span>
-<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Warning: `model_fn` not specified; defaulting to `stats::glm`.</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ℹ Set `model_fn` explicitly (e.g. `model_fn = stats::glm` or `model_fn = mgcv::gam`).</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit_cont,</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">reduce10 =</span> <span class="fu">shift</span>(<span class="sc">-</span><span class="dv">10</span>),</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">halved =</span> <span class="fu">scale_by</span>(<span class="fl">0.5</span>),</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">cap20 =</span> <span class="fu">threshold</span>(<span class="dv">0</span>, <span class="dv">20</span>),</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">observed =</span> <span class="cn">NULL</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>  ),</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="st">"observed"</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p><strong>Estimator:</strong> gcomp &nbsp;·&nbsp; <strong>Estimand:</strong> ATE &nbsp;·&nbsp; <strong>Contrast:</strong> difference &nbsp;·&nbsp; <strong>CI method:</strong> sandwich &nbsp;·&nbsp; <strong>N:</strong> 1746</p>
 <table class="caption-top table">
 <thead>
@@ -760,8 +774,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="features" class="level2">
 <h2 class="anchored" data-anchor-id="features">Features</h2>
 <ul>
-<li><strong>Four estimation methods</strong>: g-computation (parametric g-formula), IPW (self-contained density-ratio engine — no runtime dependency on WeightIt), AIPW (doubly robust — consistent if either outcome or treatment model is correct), and matching (via <a href="https://kosukeimai.github.io/MatchIt/">MatchIt</a>). Matching is binary-only; continuous, categorical, count, and multivariate treatments use g-comp, IPW, or AIPW.</li>
-<li><strong>Longitudinal support</strong>: ICE g-computation (Zivich et al.&nbsp;2024), longitudinal IPW, and longitudinal AIPW for time-varying treatments. Sandwich variance via stacked estimating equations, plus parallel bootstrap via <code>boot::boot()</code> (with optional <a href="https://future.futureverse.org/">future</a> backend).</li>
+<li><strong>Five estimation methods</strong>: g-computation (parametric g-formula), IPW (self-contained density-ratio engine — no runtime dependency on WeightIt), AIPW (doubly robust — consistent if either outcome or treatment model is correct), SNM (structural nested mean models — g-estimation for time-varying effect modification via blip parameters), and matching (via <a href="https://kosukeimai.github.io/MatchIt/">MatchIt</a>). Matching is binary-only; continuous, categorical, count, and multivariate treatments use g-comp, IPW, AIPW, or SNM.</li>
+<li><strong>Longitudinal support</strong>: ICE g-computation (Zivich et al.&nbsp;2024), longitudinal IPW, longitudinal AIPW, and longitudinal SNM (backward-sequential g-estimation) for time-varying treatments. Sandwich variance via stacked estimating equations, plus parallel bootstrap via <code>boot::boot()</code> (with optional <a href="https://future.futureverse.org/">future</a> backend).</li>
 <li><strong>Flexible interventions</strong>: <code>static()</code>, <code>shift()</code>, <code>scale_by()</code>, <code>threshold()</code>, <code>dynamic()</code>, <code>ipsi()</code> (incremental propensity score), and <code>stochastic()</code> (user-defined randomised rules with Monte Carlo integration). Which interventions are available depends on the estimator — see the <a href="https://etverse.github.io/causatr/articles/interventions.html">interventions vignette</a>.</li>
 <li><strong>Treatment types</strong>: binary, continuous, categorical (k &gt; 2), count (Poisson / negative binomial propensity via <code>propensity_family =</code>), and multivariate (joint) treatments. Multivariate IPW uses sequential MTP factorisation (Díaz et al.&nbsp;2023) with optional stabilised weights (<code>stabilize = "marginal"</code>).</li>
 <li><strong>Any outcome family</strong>: gaussian, binomial (logit / probit / cloglog), Poisson, quasibinomial (fractional), Gamma, negative binomial (<code>MASS::glm.nb</code>), beta regression (<code>betareg::betareg</code>), plus any family you pass through <code>model_fn</code>.</li>
