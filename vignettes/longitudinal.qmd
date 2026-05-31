@@ -1086,6 +1086,54 @@ res_mv_long_stab <- contrast(
 res_mv_long_stab
 ```
 
+### Doubly-robust multivariate longitudinal AIPW
+
+For doubly-robust protection on joint time-varying treatments, switch
+`estimator = "aipw"`. The ICE-AIPW recursion (Bang & Robins 2005) augments
+the sequential outcome models with the multivariate per-period density-ratio
+weight — the same per-period $\times$ per-component chain used by the IPW
+path. The estimator is consistent if **either** the sequence of outcome
+models **or** the per-period propensity chain is correctly specified.
+
+```{r}
+fit_mv_long_aipw <- causat(
+  mv_long,
+  outcome = "Y",
+  treatment = c("A1", "A2"),
+  confounders = ~ 1,
+  confounders_tv = ~ L,
+  id = "id",
+  time = "time",
+  estimator = "aipw",
+  model_fn = stats::glm
+)
+
+res_mv_long_aipw <- contrast(
+  fit_mv_long_aipw,
+  interventions = list(
+    both_on  = list(A1 = static(1), A2 = static(1)),
+    both_off = list(A1 = static(0), A2 = static(0))
+  ),
+  reference = "both_off",
+  type = "difference",
+  ci_method = "sandwich"
+)
+tt(tidy(res_mv_long_aipw), digits = 3)
+```
+
+The point estimate recovers the same structural truth (`both_on −
+both_off = 4.9`) as the IPW and g-computation fits above — under a static
+contrast the multivariate IPW, g-computation, and AIPW estimands coincide
+(Díaz et al. 2023). The sandwich SE comes from a $T \times K$ block-diagonal
+stacked estimating-equation system (one propensity block per period $\times$
+component, plus the outcome cascade).
+
+Two combinations are **not** supported on this path:
+
+- `stabilize = "marginal"` is rejected for longitudinal AIPW (use
+  `estimator = "ipw"` for stabilized longitudinal weights).
+- Transport (`target =`) for longitudinal AIPW is not yet available.
+
 ## External weights (IPCW / survey)
 
 External weights — survey weights or pre-computed IPCW — pass through
@@ -1409,6 +1457,8 @@ informative error.
 | Binary | Continuous | Static + EM | ATE | Difference | Sandwich / bootstrap | none | ✅ |
 | Continuous | Continuous | Shift + EM | ATE | Difference | Sandwich | none | ✅ |
 | Multivariate | Continuous | Static + EM (`A1:sex` + `A2:sex`) | ATE | Difference | Sandwich | none / marginal | ✅ truth + vs ICE |
+| Multivariate (AIPW) | Continuous / Binary | Static / Shift | ATE | Difference | Sandwich / bootstrap | none | ✅ truth + DR + vs ICE/IPW |
+| Multivariate (AIPW) | Any | Static | ATE | Difference | Sandwich | marginal | ⛔ stabilize rejected |
 | Binary | Any | IPSI($\delta$) | — | — | — | — | ⛔ Phase 4 |
 | Binary | Any | Static / ATT | ATT | — | — | — | ⛔ ICE is ATE-only |
 

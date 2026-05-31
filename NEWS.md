@@ -1,5 +1,53 @@
 # causatr (development version)
 
+## 2026-05-30 — Phase 25: Multivariate longitudinal AIPW
+
+Doubly-robust estimation of joint time-varying interventions now works:
+`estimator = "aipw"` with `treatment = c("A1", "A2")`, `id =`, and `time =`.
+The previously emitted `causatr_longitudinal_multivariate_pending` rejection
+in `fit_aipw_longitudinal()` has been removed.
+
+* **A low-risk composition, no new estimation math**: the outcome (ICE) side
+  of the Bang & Robins (2005) backward recursion already loops over vector
+  `treatment`, and Phase 19 already built the multivariate per-period density
+  chain (`fit_treatment_models()`, `compute_density_ratio_weights_mv()`,
+  `make_weight_fn_mv()`). `fit_aipw_longitudinal()` now dispatches on
+  `length(treatment)` to fit a per-period K-component propensity chain, and
+  `ice_aipw_iterate()` uses the multivariate per-period density-ratio weight.
+* **Stacked sandwich**: Channel 2b of `variance_if_aipw_long_one()` stacks
+  `T × K` block-diagonal propensity corrections (block-diagonal across time
+  via disjoint period subsets, block-diagonal across components via the chain
+  rule) instead of `T`. Bootstrap is unchanged — id-clustered resampling
+  preserves both axes.
+* **Stabilization rejected**: `stabilize = "marginal"` is now an explicit
+  classed error (`causatr_stabilize_longitudinal_aipw`) for longitudinal AIPW
+  (univariate and multivariate). `fit_aipw()` never threaded `stabilize` into
+  the longitudinal path, so a stabilized request was previously honoured
+  nowhere; users wanting stabilized longitudinal weights should use
+  `estimator = "ipw"`.
+* **Truth-based + cross-method tests**: on the static binary
+  `make_em_mv_long_scm()` DGP (analytical truths 9 / 15 by sex), MV AIPW
+  recovers the stratified truths, agrees with MV ICE g-computation and MV
+  longitudinal IPW cross-method, and satisfies one-sided double-robustness
+  (wrong outcome + correct propensity, and vice versa). A continuous-shift DGP
+  checks finiteness and sandwich-vs-bootstrap SE parity. No external
+  single-call oracle exists for longitudinal AIPW (lmtp's SDR uses a different
+  nuisance-fixing convention), so triangulation + DR + truth recovery stand in.
+
+### Unbalanced-panel sandwich caveat
+
+The longitudinal AIPW sandwich SE now emits a classed warning
+(`causatr_longitudinal_aipw_unbalanced_sandwich`) when the panel is
+unbalanced (some individuals are not observed at every period, e.g. monotone
+dropout or a censoring row-filter). A Monte-Carlo study (300 reps) showed the
+per-period rescaled sandwich underestimates the true SE by ~15% under
+informative dropout, because dropped ids contribute exactly zero to
+later-period channels rather than their unobserved counterfactual
+contribution — a limitation of the row-filtering influence function that a
+constant rescale cannot repair. The bootstrap reproduces the truth, so the
+warning steers users to `ci_method = "bootstrap"`. Affects both univariate
+and multivariate longitudinal AIPW.
+
 ## 2026-05-29 — Phase 19c: Effect modification for multivariate longitudinal IPW
 
 Baseline effect modification (`A:modifier` terms in `confounders`) now works

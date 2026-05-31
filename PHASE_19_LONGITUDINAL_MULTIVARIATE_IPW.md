@@ -141,13 +141,14 @@ the IPW and g-computation estimands.
 
 ## Downstream: longitudinal AIPW composition
 
-When Phase 19 ships, longitudinal AIPW (Phase 16i, `fit_aipw_longitudinal()`)
-will need a corresponding multivariate composition update:
-`fit_aipw_longitudinal()` must dispatch to the multivariate per-period
-density chain, and `ice_aipw_iterate()` must use multivariate cumulative
-weights. The `causatr_longitudinal_multivariate_pending` rejection in
-`R/aipw_longitudinal.R` gates this (still active — MV longitudinal AIPW
-is not yet implemented).
+**Addressed by Phase 25** (`PHASE_25_LONGITUDINAL_MULTIVARIATE_AIPW.md`).
+The multivariate composition reuses this phase's per-period density chain:
+`fit_aipw_longitudinal()` now dispatches on `length(treatment)` to
+`fit_treatment_models()`, `ice_aipw_iterate()` uses
+`compute_density_ratio_weights_mv()` per period, and the longitudinal AIPW
+sandwich (Channel 2b in `variance_if_aipw_long_one()`) stacks $T \times K$
+propensity blocks. The `causatr_longitudinal_multivariate_pending` rejection
+in `R/aipw_longitudinal.R` has been removed.
 
 ## References
 

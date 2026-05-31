@@ -33,7 +33,7 @@ causatr is the right home for AIPW because (a) the gcomp and IPW engines already
 
 - **TMLE / SDR with cross-fitting.** `lmtp` already covers this; different design problem (ML nuisances, cross-fitting folds, targeting step).
 - **Machine-learning nuisances.** AIPW with ML nuisances requires cross-fitting to recover $\sqrt{n}$-consistency; out of scope by the same logic as plain gcomp (see CLAUDE.md "Why GLMs/GAMs, not ML").
-- **AIPW under multivariate treatment.** Shipped as chunk 16m (composes Phase 8 joint density with AIPW functional).
+- **AIPW under multivariate treatment.** Shipped as chunk 16m (composes Phase 8 joint density with AIPW functional). The **multivariate longitudinal** AIPW extension (joint time-varying treatments, composing chunk 16m with Phase 19's per-period density chain) shipped in **Phase 25** (`PHASE_25_LONGITUDINAL_MULTIVARIATE_AIPW.md`).
 - **Targeted maximum likelihood.** The targeting step is the TMLE innovation, not the AIPW innovation. AIPW is the non-targeted DR estimator.
 - **Stochastic interventions under AIPW.** Moved to **Phase 24** (`PHASE_24_STOCHASTIC_AIPW.md`). Stochastic AIPW requires extending the `stochastic()` constructor with a user-supplied `density` function to compute density-ratio weights. Phase 24 covers both stochastic IPW and stochastic AIPW in a unified phase.
 

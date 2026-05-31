@@ -1151,24 +1151,385 @@ test_that("longitudinal AIPW: 3-period DGP agrees with IPW", {
   expect_true(is.finite(se) && se > 0)
 })
 
-test_that("longitudinal AIPW: multivariate treatment rejected", {
-  d <- make_linear_scm(n = 300, n_times = 2, seed = 57)
+# -----------------------------------------------------------------------
+# Multivariate longitudinal AIPW (Phase 25)
+# -----------------------------------------------------------------------
+# Joint time-varying treatments `treatment = c("A1", "A2")` with
+# `id =`/`time =` under the doubly-robust ICE-AIPW estimator. The
+# propensity side reuses the Phase 19 multivariate density chain
+# (per-period x per-component `fit_treatment_models()`); the outcome
+# side reuses the ICE backward recursion (already loops over vector
+# treatment). `make_em_mv_long_scm()` is a 2-period x 2-component binary
+# DGP with effect modification by baseline `sex`; its static
+# (1,1) -> (0,0) contrast has analytical truth 9 (sex = 0) and 15
+# (sex = 1), and the sex-marginal pooled truth is (9 + 15)/2 = 12.
+#
+# Oracle note: longitudinal AIPW has no external single-call oracle in
+# this suite (lmtp's SDR fixes nuisances differently). The validation
+# strategy mirrors the univariate longitudinal AIPW tests above:
+# truth recovery on the static binary DGP (where MV IPW = MV gcomp =
+# MV AIPW coincide, Diaz et al. 2023), cross-method triangulation
+# against MV ICE g-comp and MV longitudinal IPW, and the
+# double-robustness property under one-sided misspecification.
+
+test_that("T-long-mv-aipw1: MV longitudinal AIPW static recovers analytical truth by sex", {
+  d <- make_em_mv_long_scm(n = 6000, seed = 2501)
   d <- data.table::as.data.table(d)
-  d[, A2 := rbinom(.N, 1, 0.5)]
+
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = c("A1", "A2"),
+    confounders = ~ L0 + sex + A1:sex + A2:sex,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    estimator = "aipw",
+    propensity_model_fn = stats::glm,
+    family = "gaussian"
+  )
+  expect_true(fit$details$is_multivariate)
+
+  res <- contrast(
+    fit,
+    interventions = list(
+      a = list(A1 = static(1), A2 = static(1)),
+      z = list(A1 = static(0), A2 = static(0))
+    ),
+    reference = "z",
+    type = "difference",
+    by = "sex",
+    ci_method = "sandwich"
+  )
+  cdt <- as.data.frame(res$contrasts)
+  est_sex0 <- cdt$estimate[cdt$by == "0"]
+  est_sex1 <- cdt$estimate[cdt$by == "1"]
+
+  expect_equal(est_sex0, 9, tolerance = 0.6)
+  expect_equal(est_sex1, 15, tolerance = 0.6)
+  expect_true(all(is.finite(cdt$se) & cdt$se > 0))
+})
+
+test_that("T-long-mv-aipw2: MV longitudinal AIPW sandwich vs bootstrap SE parity", {
+  d <- make_em_mv_long_scm(n = 3000, seed = 2502)
+  d <- data.table::as.data.table(d)
+
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = c("A1", "A2"),
+    confounders = ~ L0 + sex,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    estimator = "aipw",
+    propensity_model_fn = stats::glm,
+    family = "gaussian"
+  )
+  ivs <- list(
+    a = list(A1 = static(1), A2 = static(1)),
+    z = list(A1 = static(0), A2 = static(0))
+  )
+  res_s <- contrast(
+    fit,
+    interventions = ivs,
+    reference = "z",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  res_b <- contrast(
+    fit,
+    interventions = ivs,
+    reference = "z",
+    type = "difference",
+    ci_method = "bootstrap",
+    n_boot = 200
+  )
+  ratio <- res_s$contrasts$se / res_b$contrasts$se
+  expect_gt(ratio, 0.7)
+  expect_lt(ratio, 1.4)
+})
+
+test_that("T-long-mv-aipw3: MV longitudinal AIPW cross-method agreement with ICE g-comp and IPW", {
+  # Under a static contrast the multivariate IPW (sequential MTP),
+  # multivariate ICE g-computation, and multivariate AIPW estimands
+  # coincide (Diaz et al. 2023). All three fit the same EM model and
+  # must agree per stratum.
+  d <- make_em_mv_long_scm(n = 4000, seed = 2503)
+  d <- data.table::as.data.table(d)
+  ivs <- list(
+    a = list(A1 = static(1), A2 = static(1)),
+    z = list(A1 = static(0), A2 = static(0))
+  )
+  conf <- ~ L0 + sex + A1:sex + A2:sex
+
+  fit_a <- causat(
+    d,
+    outcome = "Y",
+    treatment = c("A1", "A2"),
+    confounders = conf,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    estimator = "aipw",
+    propensity_model_fn = stats::glm,
+    family = "gaussian"
+  )
+  fit_g <- causat(
+    d,
+    outcome = "Y",
+    treatment = c("A1", "A2"),
+    confounders = conf,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    estimator = "gcomp",
+    family = "gaussian"
+  )
+  fit_i <- causat(
+    d,
+    outcome = "Y",
+    treatment = c("A1", "A2"),
+    confounders = conf,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    estimator = "ipw",
+    family = "gaussian"
+  )
+
+  res_a <- contrast(fit_a, interventions = ivs, reference = "z", by = "sex")
+  res_g <- contrast(fit_g, interventions = ivs, reference = "z", by = "sex")
+  res_i <- contrast(fit_i, interventions = ivs, reference = "z", by = "sex")
+
+  for (sx in c("0", "1")) {
+    a_est <- res_a$contrasts$estimate[res_a$contrasts$by == sx]
+    g_est <- res_g$contrasts$estimate[res_g$contrasts$by == sx]
+    i_est <- res_i$contrasts$estimate[res_i$contrasts$by == sx]
+    expect_lt(abs(a_est - g_est), 0.5)
+    expect_lt(abs(a_est - i_est), 0.5)
+  }
+})
+
+test_that("T-long-mv-aipw4: MV longitudinal AIPW double-robustness under one-sided misspecification", {
+  # DR property: with EITHER the outcome model OR the propensity model
+  # correctly specified, the AIPW estimator recovers the truth. We hold
+  # the EM baseline (`confounders`, driving the MSM expansion and EM
+  # stripping) correct in both arms and toggle the time-varying
+  # confounder `L` on/off per component:
+  #   (a) wrong outcome (drops L), correct propensity (keeps L);
+  #   (b) correct outcome (keeps L), wrong propensity (drops L).
+  # Both must recover the sex-stratified truths 9 / 15.
+  conf <- ~ L0 + sex + A1:sex + A2:sex
+  ivs <- list(
+    a = list(A1 = static(1), A2 = static(1)),
+    z = list(A1 = static(0), A2 = static(0))
+  )
+
+  # (a) wrong outcome / correct propensity
+  d_a <- data.table::as.data.table(make_em_mv_long_scm(n = 6000, seed = 2504))
+  fit_a <- causat(
+    d_a,
+    outcome = "Y",
+    treatment = c("A1", "A2"),
+    confounders = conf,
+    confounders_tv_treatment = ~L,
+    id = "id",
+    time = "time",
+    estimator = "aipw",
+    propensity_model_fn = stats::glm,
+    family = "gaussian"
+  )
+  res_a <- contrast(
+    fit_a,
+    interventions = ivs,
+    reference = "z",
+    by = "sex",
+    ci_method = "bootstrap",
+    n_boot = 50
+  )
+  ca <- as.data.frame(res_a$contrasts)
+  expect_equal(ca$estimate[ca$by == "0"], 9, tolerance = 0.7)
+  expect_equal(ca$estimate[ca$by == "1"], 15, tolerance = 0.7)
+
+  # (b) correct outcome / wrong propensity
+  d_b <- data.table::as.data.table(make_em_mv_long_scm(n = 6000, seed = 2505))
+  fit_b <- causat(
+    d_b,
+    outcome = "Y",
+    treatment = c("A1", "A2"),
+    confounders = conf,
+    confounders_tv_outcome = ~L,
+    id = "id",
+    time = "time",
+    estimator = "aipw",
+    propensity_model_fn = stats::glm,
+    family = "gaussian"
+  )
+  res_b <- contrast(
+    fit_b,
+    interventions = ivs,
+    reference = "z",
+    by = "sex",
+    ci_method = "bootstrap",
+    n_boot = 50
+  )
+  cb <- as.data.frame(res_b$contrasts)
+  expect_equal(cb$estimate[cb$by == "0"], 9, tolerance = 0.7)
+  expect_equal(cb$estimate[cb$by == "1"], 15, tolerance = 0.7)
+})
+
+test_that("T-long-mv-aipw5: MV longitudinal AIPW continuous shift finite + SE parity", {
+  # No closed-form truth under a non-static shift (MV AIPW and g-comp
+  # estimands diverge by design, Diaz et al. 2023), so we check only
+  # finiteness and sandwich-vs-bootstrap SE parity on a 2-period x
+  # 2-component continuous-treatment DGP.
+  set.seed(2506)
+  n <- 1200
+  L <- rnorm(n)
+  A1_1 <- rnorm(n, 0.5 + 0.3 * L)
+  A2_1 <- rnorm(n, 0.3 + 0.2 * L + 0.1 * A1_1)
+  L2 <- 0.5 * (A1_1 + A2_1) + 0.5 * L + rnorm(n, 0, 0.5)
+  A1_2 <- rnorm(n, 0.3 + 0.3 * L2 + 0.1 * A1_1)
+  A2_2 <- rnorm(n, 0.2 + 0.2 * L2 + 0.1 * A1_2 + 0.05 * A2_1)
+  Y <- 2 + 0.5 * L2 + 0.5 * A1_2 + 0.3 * A2_2 + rnorm(n)
+
+  dat <- data.table::data.table(
+    id = rep(seq_len(n), each = 2L),
+    time = rep(0:1, n),
+    A1 = c(rbind(A1_1, A1_2)),
+    A2 = c(rbind(A2_1, A2_2)),
+    L = c(rbind(L, L2)),
+    Y = c(rbind(rep(NA_real_, n), Y))
+  )
+
+  fit <- causat(
+    dat,
+    outcome = "Y",
+    treatment = c("A1", "A2"),
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    estimator = "aipw",
+    propensity_model_fn = stats::glm,
+    family = "gaussian"
+  )
+  ivs <- list(
+    up = list(A1 = shift(0.5), A2 = shift(0.5)),
+    nat = NULL
+  )
+  res_s <- contrast(
+    fit,
+    interventions = ivs,
+    reference = "nat",
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  res_b <- contrast(
+    fit,
+    interventions = ivs,
+    reference = "nat",
+    type = "difference",
+    ci_method = "bootstrap",
+    n_boot = 200
+  )
+  expect_true(is.finite(res_s$contrasts$estimate))
+  expect_true(is.finite(res_s$contrasts$se) && res_s$contrasts$se > 0)
+  ratio <- res_s$contrasts$se / res_b$contrasts$se
+  expect_gt(ratio, 0.6)
+  expect_lt(ratio, 1.6)
+})
+
+test_that("R-long-mv-aipw1: stabilize rejected for longitudinal AIPW", {
+  # Stabilization is not yet wired into the longitudinal AIPW path
+  # (no per-period numerator sweep), so it must be rejected rather than
+  # silently dropped — for both univariate and multivariate treatment.
+  d <- data.table::as.data.table(make_em_mv_long_scm(n = 300, seed = 58))
   expect_error(
     causat(
       d,
       outcome = "Y",
-      treatment = c("A", "A2"),
-      confounders = ~L0,
+      treatment = c("A1", "A2"),
+      confounders = ~sex,
       confounders_tv = ~L,
       estimator = "aipw",
-      propensity_model_fn = stats::glm,
       family = "gaussian",
+      stabilize = "marginal",
       id = "id",
       time = "time"
     ),
-    "ultivariate"
+    class = "causatr_stabilize_longitudinal_aipw"
+  )
+})
+
+test_that("R-long-aipw-unbalanced: sandwich warns on unbalanced panel", {
+  # Critical review 2026-05-30, Issue #5
+  # (repro: /tmp/causatr_repro_unbalanced_se.R).
+  # Under monotone dropout a period's models are fit on fewer than n rows;
+  # a Monte-Carlo study (300 reps) showed the rescaled longitudinal AIPW
+  # sandwich underestimates the true SE by ~15% (empirical SD 0.0695 vs
+  # mean sandwich SE 0.0590). The honest contract is a classed warning
+  # steering to the bootstrap, not a silently-low SE. This test pins the
+  # warning contract: it fires iff the panel is unbalanced.
+  gen <- function(n, dropout, seed) {
+    set.seed(seed)
+    L0 <- rbinom(n, 1, 0.5)
+    A0 <- rbinom(n, 1, plogis(-0.2 + 0.6 * L0))
+    L1 <- rbinom(n, 1, plogis(-0.2 + 0.8 * A0 + 0.3 * L0))
+    A1 <- rbinom(n, 1, plogis(-0.2 + 0.6 * L1))
+    Y <- 2 + 2.5 * A0 + 2.5 * A1 - 0.5 * L1 + rnorm(n)
+    d <- data.table::data.table(
+      id = rep(seq_len(n), each = 2L),
+      time = rep(0:1, n),
+      A = c(rbind(A0, A1)),
+      L = c(rbind(L0, L1)),
+      Y = c(rbind(NA_real_, Y))
+    )
+    if (dropout) {
+      drop_ids <- which(A0 == 1 & runif(n) < 0.4)
+      d <- d[!(id %in% drop_ids & time == 1L)]
+    }
+    d[]
+  }
+
+  run <- function(d) {
+    fit <- causat(
+      d,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~1,
+      confounders_tv = ~L,
+      id = "id",
+      time = "time",
+      estimator = "aipw",
+      propensity_model_fn = stats::glm,
+      family = "gaussian"
+    )
+    contrast(
+      fit,
+      interventions = list(a = static(1), z = static(0)),
+      reference = "z",
+      type = "difference",
+      ci_method = "sandwich"
+    )
+  }
+
+  # Balanced panel: no warning.
+  rlang::reset_warning_verbosity(
+    "causatr_longitudinal_aipw_unbalanced_sandwich"
+  )
+  expect_no_condition(
+    run(gen(800, dropout = FALSE, seed = 101)),
+    class = "causatr_longitudinal_aipw_unbalanced_sandwich"
+  )
+
+  # Unbalanced panel (informative monotone dropout): warning fires.
+  rlang::reset_warning_verbosity(
+    "causatr_longitudinal_aipw_unbalanced_sandwich"
+  )
+  expect_warning(
+    run(gen(800, dropout = TRUE, seed = 101)),
+    class = "causatr_longitudinal_aipw_unbalanced_sandwich"
   )
 })
 

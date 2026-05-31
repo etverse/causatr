@@ -165,6 +165,14 @@ Each composition is tracked as a concrete chunk below (17i–17l). Summary:
 | 17l | MTP + transportability: MC marginalization $E_{A|L,S=1}[\hat{m}(d(A,L), L) \mid L]$ for shift/scale\_by/ipsi on target rows where $A = \mathrm{NA}$; sequential regression or Monte Carlo integration (Díaz & Hejazi 2020; Hejazi et al. 2024) | 17e | ✅ done |
 | 17m | Documentation, vignette (`transportability.qmd`), `FEATURE_COVERAGE_MATRIX.md` rows, `CLAUDE.md` update | 17a–17l | ✅ done |
 
+**Downstream (out of Phase 17 scope):** transport × **longitudinal AIPW**
+(univariate + multivariate) is the one transport cell Phase 17 left open —
+`variance_if_aipw_long_one()` has no sampling-model correction channel and
+there is no longitudinal AIPW sampling-correction helper. It is **owned by
+Phase 26** (`PHASE_26_LONGITUDINAL_AIPW_TRANSPORT.md`, PENDING design doc,
+bootstrap-only variance reusing the 17i sampling-odds broadcast + 17l MC
+marginalizers).
+
 ## Invariants
 
 - `target = "S"` requires S to be a binary 0/1 column with no NAs. The sampling model is fit on **all rows**, not just study rows.

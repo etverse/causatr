@@ -79,6 +79,16 @@ Project-specific rules that override / extend the etverse-wide rules at
 - **Effect modifier in IPW / matching must be a baseline covariate.** Not
   enforced at runtime (time-varying status isn't inferable from data) — doc-
   level constraint only. Do not flag this as a "missing check".
+- **Longitudinal AIPW sandwich SE underestimates on unbalanced panels by
+  design.** When the panel is unbalanced (monotone dropout / censoring
+  row-filter), `variance_if_aipw_longitudinal()` emits a classed warning
+  (`causatr_longitudinal_aipw_unbalanced_sandwich`, `.frequency = "once"`)
+  and the SE is ~15% low (Monte-Carlo verified, 300 reps). This is a known
+  limitation of the row-filtering IF: dropped ids contribute zero to
+  later-period channels instead of their unobserved counterfactual, and a
+  constant `n / n_period_k` rescale cannot repair it. The bootstrap is
+  correct. Do NOT flag the low sandwich SE as a fixable bug — the contract
+  is the warning + bootstrap fallback, not a re-derived IF.
 
 ### Implementation conventions
 

@@ -7,7 +7,7 @@ Part of the [etverse](https://github.com/etverse) ecosystem.
 ## Guide files
 
 - `FEATURE_COVERAGE_MATRIX.md` — **single source of truth for "what works".** Every PR that changes a feature MUST update this file.
-- `PHASE_*.md` — per-phase implementation guides in the project root. Completed: 2–6, 8–19. Pending: 20–24 (design docs).
+- `PHASE_*.md` — per-phase implementation guides in the project root. Completed: 2–6, 8–19, 25. Pending: 20–24, 26 (design docs).
 
 ## Project structure
 
@@ -18,7 +18,7 @@ This is an R package: `R/` (source), `tests/testthat/` (tests, `test-foo.R` mirr
 **Core API:** `causat.R` (main fitting), `contrast.R` (causal contrasts), `diagnose.R` (main dispatch + panel helpers) + `diagnose_longitudinal.R` + `diagnose_positivity.R` + `diagnose_balance.R` + `diagnose_weights.R` + `diagnose_censoring.R` + `diagnose_intervention.R` + `diagnose_sampling.R` (sampling-model diagnostics for transport).
 **Interventions:** `interventions.R` — `static()`, `shift()`, `scale_by()`, `threshold()`, `dynamic()`, `ipsi()`, `stochastic()`.
 **Estimation:** `gcomp.R`, `ice.R`, `ipw.R`, `aipw.R` (point AIPW), `aipw_longitudinal.R` (longitudinal AIPW), `longitudinal_ipw.R` (longitudinal IPW fitter) + `longitudinal_ipw_formula.R` (per-period propensity/numerator formula builders) + `longitudinal_ipw_contrast.R` (per-intervention contrast bundles), `matching.R`, `snm.R` (SNM fitter + blip spec), `snm_point.R` (point g-estimation + blip design matrix), `snm_contrast.R` (SNM contrast dispatch + averaged blip), `snm_longitudinal.R` (longitudinal backward-sequential g-estimation), `censoring.R` (IPCW model fitting + weights).
-**Inference (IF sandwich):** `variance_if_core.R` (model-correction primitives + vcov aggregation), `variance_if.R` (main dispatcher + numeric fallback + point channel + gcomp/matching IF), `variance_if_ice.R`, `variance_if_ipw.R` (point + mv IPW IF) + `variance_if_ipw_longitudinal.R` (longitudinal IPW IF) + `variance_if_ipw_sampling.R` (transport sampling-model corrections), `variance_if_aipw.R` (point + longitudinal AIPW IF), `variance_if_snm.R` (point SNM sandwich), `variance_if_snm_longitudinal.R` (longitudinal SNM cluster sandwich).
+**Inference (IF sandwich):** `variance_if_core.R` (model-correction primitives + vcov aggregation), `variance_if.R` (main dispatcher + numeric fallback + point channel + gcomp/matching IF), `variance_if_ice.R`, `variance_if_ipw.R` (point + mv IPW IF) + `variance_if_ipw_longitudinal.R` (longitudinal IPW IF) + `variance_if_ipw_sampling.R` (transport sampling-model corrections), `variance_if_aipw.R` (point AIPW IF) + `variance_if_aipw_longitudinal.R` (longitudinal AIPW IF), `variance_if_snm.R` (point SNM sandwich), `variance_if_snm_longitudinal.R` (longitudinal SNM cluster sandwich).
 **Inference (bootstrap):** `variance_bootstrap.R` (core + refitters), `variance_bootstrap_longitudinal.R` (longitudinal IPW/ICE/AIPW bootstrap), `variance_bootstrap_snm.R` (point + longitudinal SNM bootstrap).
 **Data:** `to_person_period.R`, `prepare_data.R`, `data.R` (dataset documentation).
 **S3:** `print.R`, `summary.R`, `plot.R`, `coef.R`, `confint.R`, `tidy.R`, `knit_print.R`.
@@ -112,7 +112,7 @@ causatr owns g-comp (parametric g-formula + ICE), a self-contained IPW density-r
 |---|---|
 | **Estimator** | gcomp, ipw, aipw, matching, snm |
 | **Treatment timing** | point, longitudinal (ICE + longitudinal IPW + longitudinal AIPW + longitudinal SNM), transportability (`target =`) |
-| **Treatment type** | binary, continuous, categorical k>2, count (IPW: Poisson/NB), multivariate (gcomp + IPW + AIPW + longitudinal IPW) |
+| **Treatment type** | binary, continuous, categorical k>2, count (IPW: Poisson/NB), multivariate (gcomp + IPW + AIPW + longitudinal IPW + longitudinal AIPW) |
 | **Outcome family** | gaussian, binomial, quasibinomial, poisson, Gamma, any GLM family, `MASS::glm.nb`, `betareg::betareg` (beta regression) |
 | **Interventions** | `static`, `shift`, `scale_by`, `threshold` (gcomp only), `dynamic`, `ipsi` (IPW only), `stochastic` (gcomp only; IPW/AIPW when `density` supplied — Phase 24) |
 | **Estimand** | ATE, ATT, ATC, `by`-stratified |
@@ -134,7 +134,8 @@ causatr owns g-comp (parametric g-formula + ICE), a self-contained IPW density-r
 - **ATT/ATC only for static interventions on binary 0/1 treatment.**
 - **Effect modifier must be baseline** under IPW/matching/longitudinal IPW (doc-level constraint, not enforced at runtime). Baseline EM composes with multivariate longitudinal IPW (Phase 19c): each per-period × per-component propensity strips its `A:modifier` interactions (keeping the modifier as a confounder main effect) and the single final-period MSM expands to `Y ~ 1 + modifier`. **SNM lifts the baseline restriction** — time-varying effect modification is the headline use case for `estimator = "snm"` (Phase 18).
 - **SNM estimates blip parameters, not counterfactual means** — `contrast()` with `interventions =` is rejected for SNM fits. The blip ψ is the estimand directly; no intervention specification is needed.
-- **Stabilized weights** (`stabilize = "marginal"`) supported for multivariate IPW (Phase 8), multivariate AIPW (Phase 16m), longitudinal IPW (Phase 10), and multivariate longitudinal IPW (Phase 19b — per-period × per-component chain numerator that drops time-varying L). Numerator parameters held fixed in sandwich; bootstrap refits both.
+- **Stabilized weights** (`stabilize = "marginal"`) supported for multivariate IPW (Phase 8), multivariate AIPW (Phase 16m), longitudinal IPW (Phase 10), and multivariate longitudinal IPW (Phase 19b — per-period × per-component chain numerator that drops time-varying L). Numerator parameters held fixed in sandwich; bootstrap refits both. **Rejected for longitudinal AIPW** (univariate + multivariate, Phase 25): `fit_aipw()` never threaded `stabilize` into `fit_aipw_longitudinal()`, and the ICE-AIPW recursion uses Hájek-normalized single-period weights — a classed error (`causatr_stabilize_longitudinal_aipw`) points users to `estimator = "ipw"` for stabilized longitudinal weights.
+- **Multivariate longitudinal AIPW** (Phase 25) composes the ICE-AIPW backward recursion (Bang & Robins 2005; outcome side already loops over vector `treatment`) with Phase 19's per-period × per-component density chain (`fit_treatment_models()`, `compute_density_ratio_weights_mv()`). The longitudinal AIPW sandwich (Channel 2b in `variance_if_aipw_long_one()`) stacks $T \times K$ block-diagonal propensity corrections. Transport (`target =`) for longitudinal AIPW is **not** supported — owned by the pending Phase 26 design doc.
 - **Transport uses a sampling model** \eqn{P(S=1 \mid L)} fit on combined study+target data; weights are \eqn{(1-\hat{p})/\hat{p}} sampling-odds weights. `target_subset = "target"` (transportability) vs `"all"` (generalizability).
 - **MTP + transport uses MC marginalization** over \eqn{P(A \mid L, S=1)} because target rows lack observed treatment. Exact enumeration for binary, Monte Carlo integration for continuous. Sandwich variance is not supported for this combination (bootstrap only).
 - **Matching + transport is rejected** — matching estimands are fixed at fitting time and cannot incorporate sampling-odds reweighting.

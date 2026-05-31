@@ -653,7 +653,28 @@ Composes Phase 2 gcomp + Phase 4 IPW into the classical analytical doubly-robust
 
 **Rejections (point, same as IPW):** static/threshold/dynamic on continuous → Dirac rejection ✅; stochastic (without `density`) → rejected ✅; stochastic (with `density`) → Phase 24.
 
-**Rejections (longitudinal AIPW):** multivariate longitudinal AIPW (any intervention) → rejected ✅ (`causatr_longitudinal_multivariate_pending`, deferred to the multivariate longitudinal AIPW phase; longitudinal *IPW* already supports multivariate static/shift/stabilize/EM under Phase 19); ATT/ATC → rejected ✅.
+**Rejections (longitudinal AIPW):** multivariate longitudinal AIPW → supported (Phase 25) ✅ (see the MV longitudinal AIPW block below); ATT/ATC → rejected ✅; `stabilize = "marginal"` → rejected ✅ (`causatr_stabilize_longitudinal_aipw`; use `estimator = "ipw"` for stabilized longitudinal weights).
+
+**Chunk 25 — Multivariate longitudinal AIPW**
+
+Joint time-varying treatments `treatment = c("A1", "A2")` with `id =`/`time =`
+under the doubly-robust ICE-AIPW estimator. The outcome side reuses the ICE
+backward recursion (already loops over vector treatment); the propensity side
+reuses the Phase 19 per-period × per-component density chain
+(`fit_treatment_models()`, `compute_density_ratio_weights_mv()`,
+`make_weight_fn_mv()`). The sandwich stacks T×K block-diagonal propensity
+corrections in `variance_if_aipw_long_one()` Channel 2b.
+
+| Feature | Status | Test |
+|---|---|---|
+| MV longitudinal AIPW: static recovers analytical truth by sex (9 / 15) | ✅ | test-aipw.R (`T-long-mv-aipw1`) |
+| MV longitudinal AIPW: sandwich vs bootstrap SE parity (within 30%) | ✅ | test-aipw.R (`T-long-mv-aipw2`) |
+| MV longitudinal AIPW: cross-method agreement with MV ICE g-comp + MV long-IPW | ✅ | test-aipw.R (`T-long-mv-aipw3`) |
+| MV longitudinal AIPW: double-robustness (one-sided misspecification) | ✅ | test-aipw.R (`T-long-mv-aipw4`) |
+| MV longitudinal AIPW: continuous shift finite + SE parity | ✅ | test-aipw.R (`T-long-mv-aipw5`) |
+| `stabilize = "marginal"` rejected for longitudinal AIPW (univ + MV) | ✅ | test-aipw.R (`R-long-mv-aipw1`) |
+
+**Rejections (MV longitudinal AIPW):** `ipsi()` components → rejected ✅ (`causatr_longitudinal_ipsi_pending`, inherited from the univariate path); transport (`target =`) → owned by Phase 26 (design doc).
 
 **Chunk 16o — AIPW + IPCW (triply-weighted DR)**
 
