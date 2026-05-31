@@ -1166,7 +1166,9 @@ tt(tidy(res_mv_trim))
 | Longitudinal | Continuous | Static / Shift / Scale / Dynamic | ATE | Difference | Sandwich / Bootstrap | none | ✅ (see `vignette("longitudinal")`) |
 | Longitudinal | Continuous | Static + stabilize="marginal" | ATE | Difference | Sandwich | none | ✅ |
 | Longitudinal | Any | IPSI | --- | --- | --- | --- | ⛔ (use point IPW) |
-| Multivariate longitudinal | --- | --- | --- | --- | --- | --- | ⛔ (use ICE) |
+| Multivariate longitudinal | Continuous | Static / Shift | ATE | Difference | Sandwich / Bootstrap | none / marginal | ✅ (see `vignette("longitudinal")`) |
+| Multivariate longitudinal | Gaussian | Static + EM (`A_k:modifier`) | by-stratified | Difference | Sandwich | none / marginal | ✅ vs ICE |
+| Multivariate longitudinal | Any | IPSI component | --- | --- | --- | --- | ⛔ (use ICE) |
 
 See `FEATURE_COVERAGE_MATRIX.md`
 for the authoritative coverage status of every method × treatment × outcome

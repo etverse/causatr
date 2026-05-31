@@ -1,6 +1,6 @@
 # Phase 19 — Longitudinal Multivariate IPW
 
-> **Status: IN PROGRESS — 19-trim shipped, 19a shipped, 19b next.**
+> **Status: COMPLETE — 19-trim, 19a, 19b, 19c all shipped.**
 >
 > **Depends on:** Phase 8 (multivariate IPW), Phase 10 (longitudinal IPW).
 
@@ -23,11 +23,13 @@ $$
 
 ## Current state
 
-The chunk 10a `causatr_longitudinal_multivariate_pending` rejection
-in `R/longitudinal_ipw.R` hard-aborts when `length(treatment) > 1L`
-under `type = "longitudinal"`. Both Phase 8 (multivariate point IPW)
-and Phase 10 (univariate longitudinal IPW) ship the building blocks
-this phase composes.
+Shipped. `fit_longitudinal_ipw()` dispatches on `length(treatment)` and
+the multivariate path supports static/shift interventions (19a),
+`stabilize = "marginal"` (19b), and baseline effect modification (19c).
+The original chunk 10a `causatr_longitudinal_multivariate_pending`
+rejection and the interim `causatr_longitudinal_mv_stabilize_pending` /
+`causatr_longitudinal_mv_em_pending` rejections have all been removed.
+Only per-component `ipsi()` remains rejected (deferred to Phase 20).
 
 ## Design
 
@@ -106,23 +108,31 @@ via the chunk 10c wiring. MSM expands to `Y ~ 1 + modifier` via
 - [x] IPSI check in `compute_ipw_contrast_longitudinal()` handles MV (per-component check).
 - [x] `build_longitudinal_ps_formula()` handles vector `treatment` (placeholder response for MV).
 
-### 19b — stabilization
+### 19b — stabilization ✅
 
-- [ ] Extend the per-period numerator-model sweep to be per-period × per-component when `stabilize = "marginal"` AND `length(treatment) > 1L`. Reuse the Phase 8e per-component numerator dispatch within Phase 10b's per-period sweep.
-- [ ] Stash $T \times K$ numerator models alongside $T \times K$ denominator models.
+- [x] Extend the per-period numerator-model sweep to be per-period × per-component when `stabilize = "marginal"` AND `length(treatment) > 1L`. Reuse the denominator `fit_treatment_models()` path with `confounders = remove_response(build_longitudinal_numerator_ps_formula(...))` so the marginal numerator drops time-varying L while keeping lags + V; the per-component chain rule then layers on the prior components $A_{1..k-1}$ automatically.
+- [x] Stash $T \times K$ numerator models alongside $T \times K$ denominator models via the `numerator_models` / `stabilize` attributes on each period's denominator `causatr_treatment_models` list (read by the MV weight + variance closures).
+- [x] Lift the `causatr_longitudinal_mv_stabilize_pending` rejection.
 
-### 19c — effect modification
+### 19c — effect modification ✅
 
-- [ ] Reuse the chunk 10c per-period propensity stripping via `parse_effect_mod()`'s `confounder_terms` slot. The Phase 8b multivariate EM already handles per-component stripping; Phase 10c handles per-period. Composition is automatic if both wirings are honoured.
-- [ ] Truth test on a 2-period × 2-component DGP with EM (e.g. extend `make_em_ice_scm()` to multivariate).
+- [x] Reuse the chunk 10c per-period propensity stripping via `parse_effect_mod()`'s `confounder_terms` slot. The Phase 8b multivariate EM already handles per-component stripping; Phase 10c handles per-period. Composition is automatic if both wirings are honoured. Confirmed: the `causatr_longitudinal_mv_em_pending` rejection was the only blocker; lifting it makes the existing wiring (`em_info` → `details`, per-component `fit_treatment_models()` stripping, final-period `build_ipw_msm_formula()` expansion) compose with no MV-specific EM code.
+- [x] Truth test on a 2-period × 2-component DGP with EM (`make_em_mv_long_scm()`, a binary MV analogue of `make_em_ice_scm()` with analytical static truths 9 and 15 by `sex`).
 
 ## Tests
 
-- Truth-based: 2-period × 2-component continuous DGP. Cross-check IPW point estimate against ICE g-comp on the same DGP.
-- Static + static recovers identical estimate as multivariate point IPW with `type = "point"` on the per-period collapsed data (sanity invariant).
-- Stabilized + static identical to unstabilized + static (Phase 8e / 10b invariant carries over).
-- EM cross-method agreement vs ICE on the 2-period × 2-component sex-stratified DGP.
-- Bootstrap parity within MC tolerance.
+All in `tests/testthat/test-longitudinal-ipw.R`.
+
+- **19a/19b** — `T-long-mv-ipw1/2/3` (binary static + continuous shift: sandwich vs bootstrap SE parity, natural course) and `T-long-mv-stab1/2/3` (per-period × per-component chain numerators; stabilized + static binary == unstabilized; stabilized shift SE vs bootstrap + exact natural-course sample mean).
+- **19c** — `T-long-mv-em1/2/3/4` on `make_em_mv_long_scm()` (binary 2-period × 2-component, sex EM):
+  - `em1`: stratified static ATE recovers the analytical truths 9 (sex = 0) and 15 (sex = 1).
+  - `em2`: IPW agrees with ICE g-computation cross-method. The cross-check uses a **static** contrast, where the multivariate IPW (sequential MTP) and g-computation estimands coincide; under a non-static shift they diverge by design (Díaz et al. 2023), so a shift cross-check is not a valid oracle.
+  - `em3`: each per-period × per-component propensity strips `A1:sex`/`A2:sex` while keeping `sex` as a confounder main effect; MSM expands to `Y ~ 1 + sex`.
+  - `em4`: stabilized + static == unstabilized + static (Phase 8e / 10b invariant carries over to MV EM).
+
+The DGP is binary rather than continuous because the truth-based and
+cross-method checks both rely on the static-intervention coincidence of
+the IPW and g-computation estimands.
 
 ## Out of scope
 
@@ -131,12 +141,14 @@ via the chunk 10c wiring. MSM expands to `Y ~ 1 + modifier` via
 
 ## Downstream: longitudinal AIPW composition
 
-When Phase 19 ships, longitudinal AIPW (Phase 16i, `fit_aipw_longitudinal()`)
-will need a corresponding multivariate composition update:
-`fit_aipw_longitudinal()` must dispatch to the multivariate per-period
-density chain, and `ice_aipw_iterate()` must use multivariate cumulative
-weights. The `causatr_longitudinal_multivariate_pending` rejection in
-`R/aipw.R` gates this.
+**Addressed by Phase 25** (`PHASE_25_LONGITUDINAL_MULTIVARIATE_AIPW.md`).
+The multivariate composition reuses this phase's per-period density chain:
+`fit_aipw_longitudinal()` now dispatches on `length(treatment)` to
+`fit_treatment_models()`, `ice_aipw_iterate()` uses
+`compute_density_ratio_weights_mv()` per period, and the longitudinal AIPW
+sandwich (Channel 2b in `variance_if_aipw_long_one()`) stacks $T \times K$
+propensity blocks. The `causatr_longitudinal_multivariate_pending` rejection
+in `R/aipw_longitudinal.R` has been removed.
 
 ## References
 

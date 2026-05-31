@@ -146,6 +146,13 @@ Per-period treatment density chain $f(A_k \mid \bar A_{k-1}, \bar L_k)$ + cumula
 | **MV cont** | gauss | shift + NULL (natural course) | 2 | sandwich | — | ✅ SE ratio ~1 | test-longitudinal-ipw.R |
 | **MV cont** | gauss | shift + NULL (natural course) | 2 | bootstrap | — | ✅ vs sandwich | test-longitudinal-ipw.R |
 | **MV binary** | gauss | static vs NULL (natural course) | 2 | sandwich | — | ✅ finite | test-longitudinal-ipw.R |
+| **MV** (numerator structure) | — | `stabilize="marginal"` per-period × per-component chain numerators (L dropped, lags + prior components kept) | 2 | — | — | ✅ formula check | test-longitudinal-ipw.R |
+| **MV binary** | gauss | static (both1 vs both0) + `stabilize="marginal"` | 2 | sandwich | — | ✅ identical to unstabilized | test-longitudinal-ipw.R |
+| **MV cont** | gauss | shift + NULL + `stabilize="marginal"` | 2 | sandwich + bootstrap | — | ✅ SE ratio ~1 | test-longitudinal-ipw.R |
+| **MV binary** | gauss | static (both1 vs both0) + EM (`A1:sex` + `A2:sex`), by(sex) | 2 | sandwich | — | ✅ ATE\|sex=0 = 9, ATE\|sex=1 = 15 | test-longitudinal-ipw.R |
+| **MV binary** | gauss | static + EM, by(sex) | 2 | sandwich | — | ✅ vs ICE g-comp | test-longitudinal-ipw.R |
+| **MV** (EM structure) | — | each per-period × per-component propensity strips `A1:sex`/`A2:sex` (keeps `sex` as confounder); MSM expands to `Y ~ 1 + sex` | 2 | — | — | ✅ formula check | test-longitudinal-ipw.R |
+| **MV binary** | gauss | static + EM + `stabilize="marginal"`, by(sex) | 2 | sandwich | — | ✅ identical to unstabilized | test-longitudinal-ipw.R |
 
 **Known limitation (Phase 6, Robins 2000):** under longitudinal IPW the modifier MUST be a **baseline** covariate. A time-varying modifier in an MSM conditions on a post-treatment variable, biasing the estimand via mediator + collider paths. Not enforced at runtime (time-varying status isn't inferable from data); doc-level constraint only. The scientifically correct tool for time-varying effect modification is a structural nested model (Phase 18).
 
@@ -155,8 +162,6 @@ Rejections (all ✅ tested, "_pending" classed errors deferred to follow-up chun
 - `ipsi()` $\to$ test-longitudinal-ipw.R (`causatr_longitudinal_ipsi_pending`; per-period IPSI extension deferred)
 - `numerator =` without `stabilize = "marginal"` $\to$ test-longitudinal-ipw.R (`causatr_longitudinal_numerator_without_stabilize`)
 - bare treatment in confounders (`~ L + A`) $\to$ test-longitudinal-ipw.R (`causatr_bare_treatment_in_confounders`)
-- multivariate + stabilize $\to$ test-longitudinal-ipw.R (`causatr_longitudinal_mv_stabilize_pending`; Phase 19b)
-- multivariate + effect modification $\to$ test-longitudinal-ipw.R (`causatr_longitudinal_mv_em_pending`; Phase 19c)
 - ATT / ATC under longitudinal IPW $\to$ test-longitudinal-ipw.R (inherits `check_estimand_trt_compat`)
 - single-period data labelled `type = "longitudinal"` $\to$ test-longitudinal-ipw.R (`causatr_longitudinal_too_few_times`)
 
@@ -648,7 +653,28 @@ Composes Phase 2 gcomp + Phase 4 IPW into the classical analytical doubly-robust
 
 **Rejections (point, same as IPW):** static/threshold/dynamic on continuous → Dirac rejection ✅; stochastic (without `density`) → rejected ✅; stochastic (with `density`) → Phase 24.
 
-**Rejections (longitudinal):** multivariate + stabilize → deferred ✅; multivariate + EM → deferred ✅; multivariate IPSI → rejected ✅; ATT/ATC → rejected ✅.
+**Rejections (longitudinal AIPW):** multivariate longitudinal AIPW → supported (Phase 25) ✅ (see the MV longitudinal AIPW block below); ATT/ATC → rejected ✅; `stabilize = "marginal"` → rejected ✅ (`causatr_stabilize_longitudinal_aipw`; use `estimator = "ipw"` for stabilized longitudinal weights).
+
+**Chunk 25 — Multivariate longitudinal AIPW**
+
+Joint time-varying treatments `treatment = c("A1", "A2")` with `id =`/`time =`
+under the doubly-robust ICE-AIPW estimator. The outcome side reuses the ICE
+backward recursion (already loops over vector treatment); the propensity side
+reuses the Phase 19 per-period × per-component density chain
+(`fit_treatment_models()`, `compute_density_ratio_weights_mv()`,
+`make_weight_fn_mv()`). The sandwich stacks T×K block-diagonal propensity
+corrections in `variance_if_aipw_long_one()` Channel 2b.
+
+| Feature | Status | Test |
+|---|---|---|
+| MV longitudinal AIPW: static recovers analytical truth by sex (9 / 15) | ✅ | test-aipw.R (`T-long-mv-aipw1`) |
+| MV longitudinal AIPW: sandwich vs bootstrap SE parity (within 30%) | ✅ | test-aipw.R (`T-long-mv-aipw2`) |
+| MV longitudinal AIPW: cross-method agreement with MV ICE g-comp + MV long-IPW | ✅ | test-aipw.R (`T-long-mv-aipw3`) |
+| MV longitudinal AIPW: double-robustness (one-sided misspecification) | ✅ | test-aipw.R (`T-long-mv-aipw4`) |
+| MV longitudinal AIPW: continuous shift finite + SE parity | ✅ | test-aipw.R (`T-long-mv-aipw5`) |
+| `stabilize = "marginal"` rejected for longitudinal AIPW (univ + MV) | ✅ | test-aipw.R (`R-long-mv-aipw1`) |
+
+**Rejections (MV longitudinal AIPW):** `ipsi()` components → rejected ✅ (`causatr_longitudinal_ipsi_pending`, inherited from the univariate path); transport (`target =`) → owned by Phase 26 (design doc).
 
 **Chunk 16o — AIPW + IPCW (triply-weighted DR)**
 

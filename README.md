@@ -11,10 +11,11 @@ coverage](https://codecov.io/gh/etverse/causatr/graph/badge.svg)](https://app.co
 <!-- badges: end -->
 
 **causatr** provides a unified interface for causal effect estimation
-via four complementary methods: g-computation (parametric g-formula +
+via five complementary methods: g-computation (parametric g-formula +
 ICE), inverse probability weighting (IPW with a self-contained
-density-ratio engine), augmented IPW (AIPW — doubly robust), and
-propensity score matching (via
+density-ratio engine), augmented IPW (AIPW — doubly robust), structural
+nested mean models (SNM — g-estimation for time-varying effect
+modification), and propensity score matching (via
 [MatchIt](https://kosukeimai.github.io/MatchIt/)). When multiple methods
 agree, you can be more confident in your findings — this is called
 **methodological triangulation**.
@@ -54,6 +55,8 @@ fit <- causat(
     qsmk:smokeintensity,
   censoring = "censored"
 )
+#> Warning: `model_fn` not specified; defaulting to `stats::glm`.
+#> ℹ Set `model_fn` explicitly (e.g. `model_fn = stats::glm` or `model_fn = mgcv::gam`).
 
 # Step 2: Contrast interventions
 result <- contrast(
@@ -92,14 +95,24 @@ conf <- ~ sex + age + race + smokeintensity + smokeyrs +
 # G-computation (outcome model)
 fit_gc <- causat(nhefs, outcome = "wt82_71", treatment = "qsmk",
   confounders = conf, censoring = "censored")
+#> Warning: `model_fn` not specified; defaulting to `stats::glm`.
+#> ℹ Set `model_fn` explicitly (e.g. `model_fn = stats::glm` or `model_fn = mgcv::gam`).
 
 # IPW (treatment model)
 fit_ipw <- causat(nhefs, outcome = "wt82_71", treatment = "qsmk",
   confounders = conf, estimator = "ipw")
+#> Warning: `model_fn` not specified; defaulting to `stats::glm`.
+#> ℹ Set `model_fn` explicitly (e.g. `model_fn = stats::glm` or `model_fn = mgcv::gam`).
+#> Warning: `propensity_model_fn` not specified; defaulting to `stats::glm`.
+#> ℹ Set `propensity_model_fn` explicitly if you need a different fitter (e.g. `mgcv::gam`).
 
 # AIPW (doubly robust)
 fit_aipw <- causat(nhefs, outcome = "wt82_71", treatment = "qsmk",
   confounders = conf, estimator = "aipw", censoring = "censored")
+#> Warning: `model_fn` not specified; defaulting to `stats::glm`.
+#> ℹ Set `model_fn` explicitly (e.g. `model_fn = stats::glm` or `model_fn = mgcv::gam`).
+#> `propensity_model_fn` not specified; defaulting to `stats::glm`.
+#> ℹ Set `propensity_model_fn` explicitly if you need a different fitter (e.g. `mgcv::gam`).
 
 # Matching (propensity score)
 fit_m <- causat(nhefs, outcome = "wt82_71", treatment = "qsmk",
@@ -120,7 +133,7 @@ rbind(
 #>   estimator   comparison estimate        se ci_lower ci_upper
 #> 1     gcomp quit vs cont 3.155727 0.4487520 2.276190 4.035265
 #> 2       ipw quit vs cont 3.205240 0.4693563 2.285318 4.125162
-#> 3      aipw quit vs cont 3.216881 0.4714837 2.292790 4.140972
+#> 3      aipw quit vs cont 3.216881 0.4657863 2.303957 4.129806
 #> 4  matching quit vs cont 2.984411 0.5091996 1.986398 3.982424
 ```
 
@@ -134,6 +147,8 @@ fit_cont <- causat(nhefs, outcome = "wt82_71",
   treatment = "smokeintensity",
   confounders = ~ sex + age + race + wt71,
   censoring = "censored")
+#> Warning: `model_fn` not specified; defaulting to `stats::glm`.
+#> ℹ Set `model_fn` explicitly (e.g. `model_fn = stats::glm` or `model_fn = mgcv::gam`).
 
 contrast(fit_cont,
   interventions = list(
@@ -178,15 +193,18 @@ plot(diag)    # Love plot (requires cobalt)
 
 ## Features
 
-- **Four estimation methods**: g-computation (parametric g-formula), IPW
+- **Five estimation methods**: g-computation (parametric g-formula), IPW
   (self-contained density-ratio engine — no runtime dependency on
   WeightIt), AIPW (doubly robust — consistent if either outcome or
-  treatment model is correct), and matching (via
+  treatment model is correct), SNM (structural nested mean models —
+  g-estimation for time-varying effect modification via blip
+  parameters), and matching (via
   [MatchIt](https://kosukeimai.github.io/MatchIt/)). Matching is
   binary-only; continuous, categorical, count, and multivariate
-  treatments use g-comp, IPW, or AIPW.
+  treatments use g-comp, IPW, AIPW, or SNM.
 - **Longitudinal support**: ICE g-computation (Zivich et al. 2024),
-  longitudinal IPW, and longitudinal AIPW for time-varying treatments.
+  longitudinal IPW, longitudinal AIPW, and longitudinal SNM
+  (backward-sequential g-estimation) for time-varying treatments.
   Sandwich variance via stacked estimating equations, plus parallel
   bootstrap via `boot::boot()` (with optional
   [future](https://future.futureverse.org/) backend).

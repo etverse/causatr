@@ -613,6 +613,77 @@ make_em_ice_binom_scm <- function(n = 5000, seed = 42) {
   )
 }
 
+# DGP-EM-MV-LONG: Multivariate longitudinal effect modification.
+#
+# 2 periods x 2 binary treatment components per period, with the per-period
+# treatment effect modified by a baseline binary covariate `sex`. This is
+# the multivariate analogue of make_em_ice_scm() and exercises the
+# composition of per-component EM stripping (Phase 8b) with per-period EM
+# stripping (Phase 10c) under longitudinal IPW.
+#
+# DGP (2 periods, components A1 and A2 each period):
+#   L0  ~ N(0, 1);  sex ~ Bern(0.5)
+#   Ltv0 = 0.5 * L0 + eps
+#   A1_0 ~ Bern(expit(0.5 * L0))
+#   A2_0 ~ Bern(expit(0.3 + 0.2 * L0 + 0.15 * A1_0))
+#   L1   = 0.5 * (A1_0 + A2_0) + 0.5 * L0 + eps
+#   A1_1 ~ Bern(expit(0.3 * L1 + 0.1 * A1_0))
+#   A2_1 ~ Bern(expit(0.2 + 0.2 * L1 + 0.1 * A1_1 + 0.05 * A2_0))
+#   Y = 10 + (2 + 1.5*sex) * (A1_0 + A2_0 + A1_1 + A2_1) + Ltv0 + L1 + eps
+#
+# Analytical truth for the static (1,1) -> (0,0) contrast, stratified by sex.
+# Setting all four treatments to 1 vs 0 shifts the direct outcome term by
+# (2 + 1.5*sex) * 4 and the indirect path through L1 by
+#   E[L1 | do(A=1)] - E[L1 | do(A=0)] = 0.5*(1+1) - 0 = 1.
+# So the sex-stratified static ATE is:
+#   sex = 0:  (2 + 0)   * 4 + 1 = 9
+#   sex = 1:  (2 + 1.5) * 4 + 1 = 15
+# Under the static contrast the multivariate IPW (sequential MTP) and the
+# multivariate g-computation estimands coincide, so both estimators target
+# these same truths (Diaz et al. 2023; they diverge only for non-static MTPs).
+make_em_mv_long_scm <- function(n = 5000, seed = 42) {
+  set.seed(seed)
+
+  L0 <- stats::rnorm(n)
+  sex <- stats::rbinom(n, 1, 0.5)
+  Ltv0 <- 0.5 * L0 + stats::rnorm(n, 0, 0.5)
+  A1_0 <- stats::rbinom(n, 1, stats::plogis(0.5 * L0))
+  A2_0 <- stats::rbinom(n, 1, stats::plogis(0.3 + 0.2 * L0 + 0.15 * A1_0))
+  L1 <- 0.5 * (A1_0 + A2_0) + 0.5 * L0 + stats::rnorm(n, 0, 0.5)
+  A1_1 <- stats::rbinom(n, 1, stats::plogis(0.3 * L1 + 0.1 * A1_0))
+  A2_1 <- stats::rbinom(
+    n,
+    1,
+    stats::plogis(0.2 + 0.2 * L1 + 0.1 * A1_1 + 0.05 * A2_0)
+  )
+
+  trt_effect <- (2 + 1.5 * sex) * (A1_0 + A2_0 + A1_1 + A2_1)
+  Y <- 10 + trt_effect + Ltv0 + L1 + stats::rnorm(n)
+
+  rbind(
+    data.frame(
+      id = seq_len(n),
+      time = 0L,
+      A1 = A1_0,
+      A2 = A2_0,
+      L = Ltv0,
+      L0 = L0,
+      sex = sex,
+      Y = NA_real_
+    ),
+    data.frame(
+      id = seq_len(n),
+      time = 1L,
+      A1 = A1_1,
+      A2 = A2_1,
+      L = L1,
+      L0 = L0,
+      sex = sex,
+      Y = Y
+    )
+  )
+}
+
 # -- Stochastic intervention DGPs -------------------------------------------
 #
 # Each DGP returns a list with:

@@ -40,15 +40,12 @@ fit_aipw_longitudinal <- function(
   confounders_tv_treatment_raw = NULL,
   ...
 ) {
-  if (length(treatment) > 1L) {
-    rlang::abort(
-      c(
-        "Multivariate longitudinal AIPW is not supported.",
-        i = "Use `estimator = 'gcomp'` (ICE) for joint interventions."
-      ),
-      class = "causatr_longitudinal_multivariate_pending"
-    )
-  }
+  # Multivariate joint treatments factorise the per-period density via the
+  # within-period chain rule f_k(A_{t,k} | A_{t,1..k-1}, history); the
+  # per-period propensity is then a K-component `causatr_treatment_models`
+  # list rather than a single model. The ICE outcome machinery already
+  # iterates over vector `treatment`, so only the propensity side branches.
+  is_multivariate <- length(treatment) > 1L
 
   check_reserved_cols(data)
 
@@ -56,10 +53,15 @@ fit_aipw_longitudinal <- function(
   time_points <- sort(unique(data[[time]]))
   n_times <- length(time_points)
 
-  baseline_terms <- attr(
-    stats::terms(confounders),
-    "term.labels"
-  )
+  # Baseline confounders may be NULL when only time-varying confounders
+  # are supplied (`confounders_tv = ~L`), so guard `stats::terms()`,
+  # which errors on NULL. Mirrors `fit_longitudinal_ipw()`'s NULL-safe
+  # `baseline_terms` resolution.
+  baseline_terms <- if (is.null(confounders)) {
+    character(0L)
+  } else {
+    attr(stats::terms(confounders), "term.labels")
+  }
   em_info <- parse_effect_mod(confounders, treatment)
 
   tv_vars <- if (!is.null(confounders_tv)) {
@@ -128,16 +130,25 @@ fit_aipw_longitudinal <- function(
     character(0)
   }
 
-  trt_family_first <- detect_treatment_family(data[[treatment]])
-  prop_model_fn <- if (!is.null(propensity_model_fn)) {
-    propensity_model_fn
-  } else if (trt_family_first == "categorical") {
-    nnet::multinom
-  } else if (identical(propensity_family, "negbin")) {
-    check_pkg("MASS")
-    MASS::glm.nb
+  # Resolve the propensity fitter. Univariate: dispatch on the detected
+  # treatment family (categorical → multinom, negbin opt-in via
+  # `propensity_family`). Multivariate: `fit_treatment_models()` handles
+  # per-component family dispatch internally, so we only resolve the base
+  # fitter here. Mirrors the dispatch in `fit_longitudinal_ipw()`.
+  if (!is_multivariate) {
+    trt_family_first <- detect_treatment_family(data[[treatment]])
+    prop_model_fn <- if (!is.null(propensity_model_fn)) {
+      propensity_model_fn
+    } else if (trt_family_first == "categorical") {
+      nnet::multinom
+    } else if (identical(propensity_family, "negbin")) {
+      check_pkg("MASS")
+      MASS::glm.nb
+    } else {
+      model_fn
+    }
   } else {
-    model_fn
+    prop_model_fn <- propensity_model_fn %||% model_fn
   }
 
   treatment_models_by_time <- vector("list", n_times)
@@ -167,7 +178,15 @@ fit_aipw_longitudinal <- function(
     if (!is.null(weights)) {
       tm_args$weights <- weights[rows_k]
     }
-    tm_k <- do.call(fit_treatment_model, c(tm_args, dots))
+    # Multivariate: `fit_treatment_models()` builds the within-period
+    # chain A_{t,k} ~ A_{t,1..k-1} + confounders (one model per
+    # component, EM terms stripped per component). Univariate: a single
+    # per-period model. Mirrors the dispatch in `fit_longitudinal_ipw()`.
+    tm_k <- if (is_multivariate) {
+      do.call(fit_treatment_models, c(tm_args, dots))
+    } else {
+      do.call(fit_treatment_model, c(tm_args, dots))
+    }
 
     treatment_models_by_time[[k]] <- tm_k
     fit_data_by_time[[k]] <- data_k
@@ -222,6 +241,7 @@ fit_aipw_longitudinal <- function(
       weights = weights,
       dots = dots,
       # IPW-side metadata
+      is_multivariate = is_multivariate,
       treatment_models_by_time = treatment_models_by_time,
       fit_data_by_time = fit_data_by_time,
       per_period_formula = per_period_formula,
@@ -275,6 +295,7 @@ ice_aipw_iterate <- function(fit, intervention, trim = 1) {
   em_info <- details$em_info
   treatment_models_by_time <- details$treatment_models_by_time
   fit_data_by_time <- details$fit_data_by_time
+  is_multivariate <- isTRUE(details$is_multivariate)
 
   binary_outcome <- is_binary_family(family_outcome)
 
@@ -340,13 +361,34 @@ ice_aipw_iterate <- function(fit, intervention, trim = 1) {
     data_k <- fit_data_by_time[[k]]
     ids_k <- as.character(data_k[[id_col]])
 
-    w_k <- compute_density_ratio_weights(
-      tm_k,
-      data_k,
-      intervention,
-      estimand = "ATE",
-      trim = trim
-    )
+    # Multivariate: the per-period model is a K-component list; the
+    # single-period weight is the product of the within-period component
+    # density ratios (chain rule). Mirrors the MV branch in
+    # `compute_longitudinal_weights()`. `fit_rows` is reset to all-TRUE
+    # because the period-k subset is already filtered, then re-classed so
+    # `compute_density_ratio_weights_mv()` recognises the list.
+    if (is_multivariate) {
+      tms_local <- tm_k
+      for (j in seq_along(tms_local)) {
+        tms_local[[j]]$fit_rows <- rep(TRUE, nrow(data_k))
+      }
+      class(tms_local) <- c("causatr_treatment_models", "list")
+      w_k <- compute_density_ratio_weights_mv(
+        tms_local,
+        data_k,
+        intervention,
+        estimand = "ATE",
+        trim = trim
+      )
+    } else {
+      w_k <- compute_density_ratio_weights(
+        tm_k,
+        data_k,
+        intervention,
+        estimand = "ATE",
+        trim = trim
+      )
+    }
 
     idx_k <- id_to_idx[ids_k]
     W_period[idx_k, k] <- w_k

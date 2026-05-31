@@ -75,6 +75,29 @@ fit_aipw <- function(
   ...
 ) {
   if (type == "longitudinal") {
+    # Weight stabilization is not yet wired into the longitudinal
+    # AIPW path: there is no per-period (x per-component) numerator
+    # sweep in `fit_aipw_longitudinal()`, so a `stabilize` request
+    # would otherwise be silently dropped. Reject explicitly until the
+    # numerator chain is implemented. Longitudinal IPW already supports
+    # stabilization for both the univariate and multivariate paths.
+    if (stabilize != "none") {
+      rlang::abort(
+        c(
+          paste0(
+            "`stabilize = '",
+            stabilize,
+            "'` is not supported for longitudinal AIPW."
+          ),
+          i = paste0(
+            "Use `estimator = 'ipw'` with `type = 'longitudinal'` for ",
+            "stabilized longitudinal weights, or `stabilize = 'none'` ",
+            "for longitudinal AIPW (Hajek-normalized)."
+          )
+        ),
+        class = "causatr_stabilize_longitudinal_aipw"
+      )
+    }
     return(fit_aipw_longitudinal(
       data = data,
       outcome = outcome,

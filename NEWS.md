@@ -1,5 +1,107 @@
 # causatr (development version)
 
+## 2026-05-30 — Phase 25: Multivariate longitudinal AIPW
+
+Doubly-robust estimation of joint time-varying interventions now works:
+`estimator = "aipw"` with `treatment = c("A1", "A2")`, `id =`, and `time =`.
+The previously emitted `causatr_longitudinal_multivariate_pending` rejection
+in `fit_aipw_longitudinal()` has been removed.
+
+* **A low-risk composition, no new estimation math**: the outcome (ICE) side
+  of the Bang & Robins (2005) backward recursion already loops over vector
+  `treatment`, and Phase 19 already built the multivariate per-period density
+  chain (`fit_treatment_models()`, `compute_density_ratio_weights_mv()`,
+  `make_weight_fn_mv()`). `fit_aipw_longitudinal()` now dispatches on
+  `length(treatment)` to fit a per-period K-component propensity chain, and
+  `ice_aipw_iterate()` uses the multivariate per-period density-ratio weight.
+* **Stacked sandwich**: Channel 2b of `variance_if_aipw_long_one()` stacks
+  `T × K` block-diagonal propensity corrections (block-diagonal across time
+  via disjoint period subsets, block-diagonal across components via the chain
+  rule) instead of `T`. Bootstrap is unchanged — id-clustered resampling
+  preserves both axes.
+* **Stabilization rejected**: `stabilize = "marginal"` is now an explicit
+  classed error (`causatr_stabilize_longitudinal_aipw`) for longitudinal AIPW
+  (univariate and multivariate). `fit_aipw()` never threaded `stabilize` into
+  the longitudinal path, so a stabilized request was previously honoured
+  nowhere; users wanting stabilized longitudinal weights should use
+  `estimator = "ipw"`.
+* **Truth-based + cross-method tests**: on the static binary
+  `make_em_mv_long_scm()` DGP (analytical truths 9 / 15 by sex), MV AIPW
+  recovers the stratified truths, agrees with MV ICE g-computation and MV
+  longitudinal IPW cross-method, and satisfies one-sided double-robustness
+  (wrong outcome + correct propensity, and vice versa). A continuous-shift DGP
+  checks finiteness and sandwich-vs-bootstrap SE parity. No external
+  single-call oracle exists for longitudinal AIPW (lmtp's SDR uses a different
+  nuisance-fixing convention), so triangulation + DR + truth recovery stand in.
+
+### Unbalanced-panel sandwich caveat
+
+The longitudinal AIPW sandwich SE now emits a classed warning
+(`causatr_longitudinal_aipw_unbalanced_sandwich`) when the panel is
+unbalanced (some individuals are not observed at every period, e.g. monotone
+dropout or a censoring row-filter). A Monte-Carlo study (300 reps) showed the
+per-period rescaled sandwich underestimates the true SE by ~15% under
+informative dropout, because dropped ids contribute exactly zero to
+later-period channels rather than their unobserved counterfactual
+contribution — a limitation of the row-filtering influence function that a
+constant rescale cannot repair. The bootstrap reproduces the truth, so the
+warning steers users to `ci_method = "bootstrap"`. Affects both univariate
+and multivariate longitudinal AIPW.
+
+## 2026-05-29 — Phase 19c: Effect modification for multivariate longitudinal IPW
+
+Baseline effect modification (`A:modifier` terms in `confounders`) now works
+for joint time-varying treatments under `estimator = "ipw"`,
+`type = "longitudinal"`. The previously emitted
+`causatr_longitudinal_mv_em_pending` rejection has been removed.
+
+* **No multivariate-specific EM code needed**: lifting the rejection lets the
+  existing wirings compose. Each per-period, per-component propensity in
+  `fit_treatment_models()` strips its own treatment-touching interaction
+  terms (Phase 8b), the per-period formula strips them via
+  `em_info$confounder_terms` (Phase 10c), and the single final-period MSM
+  expands from `Y ~ 1` to `Y ~ 1 + modifier` via `build_ipw_msm_formula()`.
+  The modifier stays as a confounder main effect in every propensity; only
+  the `A:modifier` interactions are dropped.
+* **Baseline-only constraint carries over** (Robins 2000): the modifier must be
+  a pre-treatment covariate. A time-varying modifier in the MSM conditions on a
+  post-treatment variable. Not enforced at runtime; use `estimator = "snm"` for
+  time-varying effect modification.
+* **Truth-based test**: `make_em_mv_long_scm()` is a 2-period × 2-component
+  binary DGP with sex effect modification whose static contrast has analytical
+  truths 9 (sex = 0) and 15 (sex = 1). Tests confirm IPW recovers these, agrees
+  with ICE g-computation cross-method, strips the interactions per component,
+  and is invariant to stabilization under a static intervention.
+
+## 2026-05-29 — Phase 19b: Stabilized multivariate longitudinal IPW
+
+Stabilized weights (`stabilize = "marginal"`) now compose with joint
+time-varying treatments under `estimator = "ipw"`, `type = "longitudinal"`.
+The marginal numerator factorises over both axes, mirroring the T × K
+denominator:
+
+    g(Ā1, Ā2 | V) = ∏_t ∏_k g_{t,k}(A_{t,k} | A_{t,1..k-1}, Ā_{t-1}, V)
+
+* **Per-period × per-component numerator sweep**: when `stabilize = "marginal"`
+  and `length(treatment) > 1L`, each period fits a K-component numerator via
+  the denominator `fit_treatment_models()` path, but with confounders set to
+  `remove_response(build_longitudinal_numerator_ps_formula(...))` — this drops
+  the time-varying L while retaining the treatment lags and baseline numerator
+  covariates `V`. The per-component chain rule then layers the prior components
+  `A_{1..k-1}` on automatically. Numerator models are stashed as the
+  `numerator_models` / `stabilize` attributes on each period's denominator
+  `causatr_treatment_models` list.
+* **Weight + variance composition**: the MV weight and IF closures
+  (`compute_density_ratio_weights_mv()`, `make_weight_fn_mv()`) read the
+  numerator attributes and apply the stabilized per-component ratio. Numerator
+  parameters (gamma) are held fixed under the sandwich (nuisance-fixed
+  convention, as for sigma/theta); bootstrap refits both numerator and
+  denominator.
+* **Invariants**: under static interventions on discrete treatments the
+  stabilized estimate and sandwich SE are *identical* to unstabilized (the
+  Hájek-mean invariant carries over from Phase 8e / 10b). The
+  `causatr_longitudinal_mv_stabilize_pending` rejection is removed.
+
 ## 2026-05-24 — Phase 19a: Multivariate longitudinal IPW
 
 New support for joint time-varying treatments (`treatment = c("A1", "A2")`)

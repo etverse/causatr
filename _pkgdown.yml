@@ -9,6 +9,7 @@ articles:
       - gcomp
       - ipw
       - matching
+      - snm
   - title: Interventions
     contents:
       - interventions
@@ -16,7 +17,9 @@ articles:
     contents:
       - triangulation
       - longitudinal
+      - transportability
       - missing-data
+      - diagnostics
       - validation
   - title: Theory
     contents:
