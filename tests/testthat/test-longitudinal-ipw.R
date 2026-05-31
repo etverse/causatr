@@ -433,9 +433,76 @@ test_that("R-long-ipw4: bare treatment in confounders (~ L + A) is rejected unde
 })
 
 
-test_that("R-long-ipw5: ipsi() is rejected under longitudinal IPW", {
+# Per-period propensity formulas causatr builds for the 2-period
+# `make_linear_scm` DGP under `confounders = ~L0`, `confounders_tv = ~L`:
+#   period 0 (time = 0): A ~ L + L0          (no lags available)
+#   period 1 (time = 1): A ~ L + lag1_A + lag1_L + L0
+# The oracle below reconstructs these exactly so the manual product-of-
+# Kennedy-weights mean matches causatr's IPSI contrast to numerical
+# precision (same propensity fits, same closed-form weight).
+make_long_ipsi_oracle_inputs <- function(d, delta) {
+  d0 <- d[time == 0][order(id)]
+  d1 <- d[time == 1][order(id)]
+  # period-1 lag columns hold the OBSERVED period-0 values, matching
+  # causatr's `create_lag_vars()`.
+  d1$lag1_A <- d0$A
+  d1$lag1_L <- d0$L
+  list(
+    data_by_period = list(d0, d1),
+    formulas = list(A ~ L + L0, A ~ L + lag1_A + lag1_L + L0),
+    y_final = d1$Y
+  )
+}
+
+test_that("R-long-ipw5: longitudinal IPSI matches per-period Kennedy oracle", {
+  # Truth-based wiring check: the per-period IPSI weight product and the
+  # intercept-only final MSM must reproduce a first-principles manual
+  # Kennedy product. Both use the same per-period propensity fits, so
+  # agreement is to numerical precision.
   set.seed(7104)
-  d <- make_linear_scm(n = 200, seed = 7104)
+  d <- make_linear_scm(n = 1500, seed = 7104)
+  d <- data.table::as.data.table(d)
+  delta <- 2
+
+  oin <- make_long_ipsi_oracle_inputs(d, delta)
+  oracle <- manual_long_ipsi_oracle(
+    data_by_period = oin$data_by_period,
+    formulas = oin$formulas,
+    treatment = "A",
+    y_final = oin$y_final,
+    delta = delta
+  )
+
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    estimator = "ipw"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(ip = ipsi(delta)),
+    ci_method = "sandwich"
+  )
+
+  expect_equal(
+    res$estimates$estimate[res$estimates$intervention == "ip"],
+    oracle$theta,
+    tolerance = 1e-6
+  )
+})
+
+test_that("R-long-ipw5b: longitudinal IPSI sandwich SE matches bootstrap", {
+  # Sandwich (stacked per-period propensity correction + numDeriv
+  # cross-derivative) vs bootstrap parity for univariate IPSI. The two
+  # variance estimators target the same M-estimation sandwich, so they
+  # agree within Monte-Carlo error of the bootstrap.
+  set.seed(8810)
+  d <- make_linear_scm(n = 1200, seed = 8810)
   d <- data.table::as.data.table(d)
 
   fit <- causat(
@@ -448,9 +515,103 @@ test_that("R-long-ipw5: ipsi() is rejected under longitudinal IPW", {
     time = "time",
     estimator = "ipw"
   )
+
+  res_s <- contrast(
+    fit,
+    interventions = list(ip = ipsi(2)),
+    ci_method = "sandwich"
+  )
+  set.seed(8810)
+  res_b <- contrast(
+    fit,
+    interventions = list(ip = ipsi(2)),
+    ci_method = "bootstrap",
+    n_boot = 300
+  )
+
+  se_s <- res_s$estimates$se[res_s$estimates$intervention == "ip"]
+  se_b <- res_b$estimates$se[res_b$estimates$intervention == "ip"]
+  # Point estimates identical (same fit); SEs within 15% of each other.
+  expect_equal(
+    res_s$estimates$estimate[res_s$estimates$intervention == "ip"],
+    res_b$estimates$estimate[res_b$estimates$intervention == "ip"],
+    tolerance = 1e-8
+  )
+  expect_equal(se_s, se_b, tolerance = 0.15)
+})
+
+test_that("R-long-ipw5c: longitudinal IPSI difference contrast recovers truth", {
+  # A difference of two IPSI means (delta = 2 vs delta = 1) under the
+  # per-period Kennedy oracle. delta = 1 is the natural course (unit
+  # weights), so the contrast is E[Y(ipsi(2))] - E[Y].
+  set.seed(7106)
+  d <- make_linear_scm(n = 1500, seed = 7106)
+  d <- data.table::as.data.table(d)
+
+  o2 <- make_long_ipsi_oracle_inputs(d, 2)
+  oracle2 <- manual_long_ipsi_oracle(
+    o2$data_by_period,
+    o2$formulas,
+    "A",
+    o2$y_final,
+    delta = 2
+  )
+  o1 <- make_long_ipsi_oracle_inputs(d, 1)
+  oracle1 <- manual_long_ipsi_oracle(
+    o1$data_by_period,
+    o1$formulas,
+    "A",
+    o1$y_final,
+    delta = 1
+  )
+
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    estimator = "ipw"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(hi = ipsi(2), lo = ipsi(1)),
+    type = "difference",
+    reference = "lo",
+    ci_method = "sandwich"
+  )
+
+  expect_equal(
+    res$contrasts$estimate,
+    oracle2$theta - oracle1$theta,
+    tolerance = 1e-6
+  )
+})
+
+test_that("R-long-ipw5e: stabilized longitudinal IPSI is rejected", {
+  # Kennedy's IPSI weight is already a bounded propensity-odds ratio with
+  # no separate marginal numerator, so `stabilize = "marginal"` + IPSI is
+  # rejected with a dedicated class pointing to `stabilize = "none"`.
+  set.seed(7108)
+  d <- make_linear_scm(n = 300, seed = 7108)
+  d <- data.table::as.data.table(d)
+
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    estimator = "ipw",
+    stabilize = "marginal"
+  )
   expect_error(
-    contrast(fit, interventions = list(ip = ipsi(2.0))),
-    class = "causatr_longitudinal_ipsi_pending"
+    contrast(fit, interventions = list(ip = ipsi(2))),
+    class = "causatr_longitudinal_ipsi_stabilize"
   )
 })
 
@@ -1530,6 +1691,9 @@ test_that("T-long-mv-stab3: stabilized MV shift SE close to bootstrap and natura
 
 
 test_that("R-long-mv-ipw1: MV IPSI under longitudinal IPW is rejected", {
+  # Univariate longitudinal IPSI is supported (R-long-ipw5); the
+  # multivariate case stays rejected because Kennedy's closed form is
+  # binary-univariate with no per-component density-chain shortcut.
   set.seed(19010)
   n <- 100
   L <- rnorm(n)
@@ -1567,7 +1731,7 @@ test_that("R-long-mv-ipw1: MV IPSI under longitudinal IPW is rejected", {
       ),
       ci_method = "sandwich"
     ),
-    class = "causatr_longitudinal_ipsi_pending"
+    class = "causatr_longitudinal_ipsi_multivariate"
   )
 })
 

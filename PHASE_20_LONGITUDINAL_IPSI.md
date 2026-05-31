@@ -1,6 +1,6 @@
 # Phase 20 — Per-period IPSI under Longitudinal IPW
 
-> **Status: PENDING (design doc).**
+> **Status: COMPLETE (univariate).**
 >
 > **Depends on:** Phase 4 (point IPSI via Kennedy 2019 closed form), Phase 10 (longitudinal IPW core).
 
@@ -20,14 +20,21 @@ per-period propensity. The intervention acts on the propensity at
 each period rather than substituting a counterfactual treatment value,
 exactly as in point IPSI.
 
-## Current state
+## Current state (implemented)
 
-`compute_ipw_contrast_longitudinal()` rejects every IPSI intervention
-upfront with `causatr_longitudinal_ipsi_pending`. The point IPSI
-machinery (`ipsi_weight_formula()` in `R/ipw_weights.R`,
-`make_weight_fn()`'s IPSI branch) is per-period-ready --
-`compute_density_ratio_weights()` already routes IPSI to the closed
-form on Bernoulli treatments without touching the time index.
+`compute_ipw_contrast_longitudinal()` accepts univariate `ipsi(delta)`:
+no new estimation code was required because the point IPSI machinery
+(`ipsi_weight_formula()` in `R/ipw_weights.R`, `make_weight_fn()`'s IPSI
+branch) was already per-period-ready --
+`compute_density_ratio_weights()` routes IPSI to the closed form on
+Bernoulli treatments without touching the time index, so
+`compute_longitudinal_weights()` multiplies the per-period factors and
+`make_weight_fn_longitudinal()` stacks the per-period IPSI sub-closures
+for the sandwich.
+
+Two combinations remain rejected with dedicated classes:
+multivariate IPSI (`causatr_longitudinal_ipsi_multivariate`) and IPSI +
+`stabilize = "marginal"` (`causatr_longitudinal_ipsi_stabilize`).
 
 ## Design
 
@@ -68,14 +75,14 @@ IPSI extended across periods.
 
 ## Items
 
-- [ ] Lift the `causatr_longitudinal_ipsi_pending` rejection in `compute_ipw_contrast_longitudinal()`.
-- [ ] Verify per-period dispatch: `compute_longitudinal_weights()` already calls `compute_density_ratio_weights()` per period, which routes IPSI to the closed form.
-- [ ] Verify `make_weight_fn_longitudinal()` builds correct IPSI sub-closures via `make_weight_fn()` per period.
-- [ ] Confirm the variance engine handles IPSI without modification (the cross-derivative is well-defined; `numDeriv::jacobian` on the stacked closure produces the right block structure).
-- [ ] Truth-based test: 2-period binary DGP, IPSI($\delta = 2$) recovers the structural sequential-IPSI target. Cross-check against a manual product-of-Kennedy-weights oracle (parallel to `manual_ipsi_oracle()` in `helper-ipw-lmtp-oracle.R`).
-- [ ] Bootstrap parity test.
-- [ ] Sequential positivity warning fires when the per-period IPSI weight has a heavy tail (default Phase 10a behaviour applies — IPSI weights are always finite per period because the denominator $\delta p_t + (1 - p_t)$ stays in $[\min(1, \delta), \max(1, \delta)]$, so positivity violation would only come from the $\delta A_t + (1 - A_t)$ numerator amplifying a rare $A_t$ pattern).
-- [ ] Update `FEATURE_COVERAGE_MATRIX.md`, `NEWS.md`, `CLAUDE.md`, the `PHASE_10` doc, and the longitudinal vignette.
+- [x] Lift the univariate `ipsi()` rejection in `compute_ipw_contrast_longitudinal()`. Multivariate IPSI now rejects with `causatr_longitudinal_ipsi_multivariate`; IPSI + `stabilize = "marginal"` rejects with `causatr_longitudinal_ipsi_stabilize`.
+- [x] Verify per-period dispatch: `compute_longitudinal_weights()` calls `compute_density_ratio_weights()` per period, which routes IPSI to the closed form — confirmed, no change needed.
+- [x] Verify `make_weight_fn_longitudinal()` builds correct IPSI sub-closures via `make_weight_fn()` per period — confirmed, no change needed.
+- [x] Confirm the variance engine handles IPSI without modification (the cross-derivative is well-defined; `numDeriv::jacobian` on the stacked closure produces the right block structure). Sandwich vs bootstrap parity within 15%.
+- [x] Truth-based test (`R-long-ipw5`): 2-period binary DGP, IPSI($\delta = 2$) matches the per-period product-of-Kennedy-weights oracle to 1e-6. New oracle `manual_long_ipsi_oracle()` in `helper-ipw-lmtp-oracle.R`. Difference contrast (`R-long-ipw5c`) also oracle-checked.
+- [x] Bootstrap parity test (`R-long-ipw5b`).
+- [x] Sequential positivity: default Phase 10a behaviour applies — IPSI per-period weights are bounded by construction (denominator $\delta p_t + (1 - p_t) \in [\min(1, \delta), \max(1, \delta)]$); `warn_seq_positivity()` is intervention-agnostic and already tested.
+- [x] Updated `FEATURE_COVERAGE_MATRIX.md`, `NEWS.md`, `CLAUDE.md`, and the longitudinal vignette.
 
 ## Out of scope
 

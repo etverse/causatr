@@ -28,14 +28,17 @@
 #'   via `propensity_family`); multivariate factorises the joint density
 #'   over both the time and component axes.
 #' - `static()` / `shift()` / `scale_by()` / `dynamic()` interventions
+#' - univariate `ipsi(delta)` via a per-period Kennedy (2019) closed-form
+#'   weight product (binary treatment, unstabilized only)
 #' - intercept-only Hajek MSM, plus `Y ~ 1 + modifier` under
 #'   baseline effect modification (univariate only)
 #' - unstabilized and `stabilize = "marginal"` weights, including the
 #'   multivariate per-period per-component numerator chain
 #'
-#' Effect modification combined with multivariate treatment and
-#' `ipsi()` are rejected upfront with classed errors. `threshold()`
-#' continues to be rejected per period by
+#' Effect modification combined with multivariate treatment is rejected
+#' upfront. Multivariate `ipsi()` and `ipsi()` + `stabilize = "marginal"`
+#' are rejected in `compute_ipw_contrast_longitudinal()` with classed
+#' errors. `threshold()` continues to be rejected per period by
 #' `check_intervention_family_compat()`.
 #'
 #' @param data data.table from `prepare_data()` with lag columns and

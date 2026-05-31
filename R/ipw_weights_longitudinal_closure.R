@@ -336,6 +336,10 @@ make_long_stabilized_period_closure <- function(
     check_intervention_family_compat(intervention, tm_denom)
     iv_type <- intervention$type
     if (iv_type == "ipsi") {
+      # IPSI + `stabilize = "marginal"` is rejected upstream
+      # (`causatr_longitudinal_ipsi_stabilize`). Unstabilized IPSI never
+      # reaches this stabilized closure — its variance closure is built
+      # by `make_weight_fn()`'s IPSI branch.
       rlang::abort(
         "Internal error: stabilized longitudinal closure reached IPSI branch."
       )

@@ -1,5 +1,33 @@
 # causatr (development version)
 
+## 2026-05-31 — Phase 20: Per-period IPSI under longitudinal IPW
+
+Univariate `ipsi(delta)` interventions now work under longitudinal IPW
+(`estimator = "ipw"` with `id =` and `time =`). The previously emitted
+`causatr_longitudinal_ipsi_pending` rejection in
+`compute_ipw_contrast_longitudinal()` has been lifted for the univariate case.
+
+* **No new estimation math**: Kennedy's (2019) closed-form incremental
+  propensity-score weight extends to a per-period product
+  `W_i = prod_t (delta * A_t + (1 - A_t)) / (delta * p_t + (1 - p_t))`. Each
+  period already routes through `compute_density_ratio_weights()`'s IPSI
+  branch on the period-`t` subset, and `compute_longitudinal_weights()`
+  multiplies the per-period factors within an id exactly as for
+  `static` / `shift` / `scale_by`.
+* **Stacked sandwich is automatic**: `make_weight_fn_longitudinal()` builds
+  per-period sub-closures via `make_weight_fn()`, whose IPSI branch is smooth
+  in the propensity coefficients through the `delta * p_t + (1 - p_t)`
+  denominator, so `numDeriv::jacobian()` on the stacked closure produces the
+  block-diagonal cross-derivative without modification. Sandwich and bootstrap
+  SEs agree within Monte-Carlo error.
+* **Two combinations stay rejected** with dedicated classes: multivariate IPSI
+  (`causatr_longitudinal_ipsi_multivariate` — Kennedy's closed form is
+  binary-univariate, the per-component density chain has no IPSI shortcut) and
+  IPSI + `stabilize = "marginal"` (`causatr_longitudinal_ipsi_stabilize` —
+  the IPSI weight is already a bounded propensity-odds ratio with no separate
+  marginal numerator). Longitudinal **AIPW** IPSI remains unsupported (the ICE
+  recursion needs a counterfactual treatment stream IPSI does not provide).
+
 ## 2026-05-30 — Phase 25: Multivariate longitudinal AIPW
 
 Doubly-robust estimation of joint time-varying interventions now works:

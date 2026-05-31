@@ -251,9 +251,12 @@ compute_stabilized_period_weight <- function(
   iv_type <- intervention$type
 
   if (iv_type == "ipsi") {
-    # IPSI under longitudinal IPW is rejected upstream
-    # (`causatr_longitudinal_ipsi_pending`); reaching this branch
-    # means the rejection was bypassed.
+    # IPSI + `stabilize = "marginal"` is rejected upstream in
+    # `compute_ipw_contrast_longitudinal()`
+    # (`causatr_longitudinal_ipsi_stabilize`): Kennedy's closed form has
+    # no separate marginal numerator. Reaching this branch means the
+    # rejection was bypassed. (Unstabilized IPSI never enters this
+    # helper — it routes through `compute_density_ratio_weights()`.)
     rlang::abort(
       "Internal error: stabilized longitudinal weight reached IPSI branch."
     )

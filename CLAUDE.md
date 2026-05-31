@@ -7,7 +7,7 @@ Part of the [etverse](https://github.com/etverse) ecosystem.
 ## Guide files
 
 - `FEATURE_COVERAGE_MATRIX.md` — **single source of truth for "what works".** Every PR that changes a feature MUST update this file.
-- `PHASE_*.md` — per-phase implementation guides in the project root. Completed: 2–6, 8–19, 25. Pending: 20–24, 26 (design docs).
+- `PHASE_*.md` — per-phase implementation guides in the project root. Completed: 2–6, 8–20, 25. Pending: 21–24, 26 (design docs).
 
 ## Project structure
 
@@ -114,7 +114,7 @@ causatr owns g-comp (parametric g-formula + ICE), a self-contained IPW density-r
 | **Treatment timing** | point, longitudinal (ICE + longitudinal IPW + longitudinal AIPW + longitudinal SNM), transportability (`target =`) |
 | **Treatment type** | binary, continuous, categorical k>2, count (IPW: Poisson/NB), multivariate (gcomp + IPW + AIPW + longitudinal IPW + longitudinal AIPW) |
 | **Outcome family** | gaussian, binomial, quasibinomial, poisson, Gamma, any GLM family, `MASS::glm.nb`, `betareg::betareg` (beta regression) |
-| **Interventions** | `static`, `shift`, `scale_by`, `threshold` (gcomp only), `dynamic`, `ipsi` (IPW only), `stochastic` (gcomp only; IPW/AIPW when `density` supplied — Phase 24) |
+| **Interventions** | `static`, `shift`, `scale_by`, `threshold` (gcomp only), `dynamic`, `ipsi` (IPW only — point + univariate longitudinal), `stochastic` (gcomp only; IPW/AIPW when `density` supplied — Phase 24) |
 | **Estimand** | ATE, ATT, ATC, `by`-stratified |
 | **Contrast** | difference, ratio, OR |
 | **Variance** | sandwich (analytic IF), bootstrap, numeric Tier 1/2 fallback |
@@ -125,6 +125,7 @@ causatr owns g-comp (parametric g-formula + ICE), a self-contained IPW density-r
 - **IPW MSM is `Y ~ 1` (Hájek intercept)** per intervention, not `Y ~ A`. With effect modification, expands to `Y ~ 1 + modifier`. Treatment absorbed by density-ratio weights.
 - **Matching MSM is `Y ~ A`** (or `Y ~ A + modifier + A:modifier` with EM).
 - **`dynamic()` = deterministic rules**, not MTPs. MTPs use `shift()` / `scale_by()` / `ipsi()`.
+- **Longitudinal IPSI (Phase 20)** — univariate `ipsi(delta)` under longitudinal IPW extends Kennedy's (2019) closed form to a per-period product $W_i = \prod_t (\delta A_t + (1 - A_t)) / (\delta p_t + (1 - p_t))$. No new machinery: each period reuses `compute_density_ratio_weights()`'s IPSI branch and the stacked sandwich reuses `make_weight_fn()`'s IPSI sub-closure. **Rejected**: multivariate IPSI (`causatr_longitudinal_ipsi_multivariate` — closed form is binary-univariate) and IPSI + `stabilize = "marginal"` (`causatr_longitudinal_ipsi_stabilize` — Kennedy's weight has no separate marginal numerator). Longitudinal **AIPW** IPSI stays rejected (no counterfactual treatment stream for the ICE recursion).
 - **Multivariate IPW = sequential MTP** (Díaz et al. 2023); multivariate gcomp = deterministic joint transformation. They coincide for static interventions, diverge otherwise by design.
 - **ICE applies intervention to current-time treatment only** — lag columns hold observed values. Recomputing lags double-counts interventions.
 - **Single IF engine** — `variance_if()` in `R/variance_if.R` serves all five estimators via Channel 1 (sampling) + Channel 2 (nuisance correction).
