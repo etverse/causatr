@@ -119,3 +119,22 @@ Project-specific rules that override / extend the etverse-wide rules at
   and run sandwich vs bootstrap numerically.
 - **The matching variance engine uses `cluster = subclass`** for within-
   subclass aggregation. Don't flag this as an unnecessary cluster adjustment.
+
+### Test-DGP conventions (learned the hard way)
+
+- **Person-period outcome placement.** In hand-built longitudinal DGPs with
+  interleaved rows (`id = rep(1:n, each = 2)`, `time = rep(1:2, n)`), the
+  end-of-follow-up outcome MUST be interleaved onto the final-period rows:
+  `Y = c(rbind(rep(NA_real_, n), Y_obs))` (NA at time 1, Y at time 2),
+  matching the `A = c(rbind(A_1, A_2))` pattern. The shorthand
+  `Y = c(rep(NA_real_, n), Y_obs)` is WRONG — it blocks all NAs into the
+  first n rows and all outcomes into the last n rows, scrambling Y against
+  the covariates. Tests with this bug still "pass" if their only assertions
+  are loose (`expect_gt(est, -0.3)`, sandwich-vs-bootstrap parity), because
+  those hold on a meaningless estimate. When reviewing a longitudinal test,
+  check the Y construction first.
+- **lmtp is the MV oracle too.** `lmtp::lmtp_sdr()` accepts multivariate
+  treatment via `trt = list(c("A1_t", "A2_t"), ...)` and a shift function
+  over those columns. Use it to pin multivariate longitudinal MTP contrasts
+  to truth, not just sandwich-vs-bootstrap parity. causatr's MV longitudinal
+  IPW shift matches lmtp to ~3% — it is correct; do not "fix" it.

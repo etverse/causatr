@@ -910,6 +910,62 @@ test_that("T-long-ipw-stab5: custom numerator = ~ baseline keeps treatment lags 
 })
 
 
+test_that("T-long-ipw-stab6: stabilized scale_by + trim sandwich matches bootstrap", {
+  # Exercises the stabilized continuous-treatment `scale_by` branch of
+  # `make_long_stabilized_period_closure()` together with the per-period
+  # trim-threshold precompute in `make_weight_fn_longitudinal()`. The
+  # sandwich (gamma-fixed numerator, alpha-varying denominator, truncated
+  # at the fixed per-period quantile) and the bootstrap (refits both)
+  # target the same M-estimation variance, so they agree within MC error.
+  set.seed(7605)
+  d <- make_continuous_scm(n = 1500, seed = 7605)
+  d <- data.table::as.data.table(d)
+
+  fit_st <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    estimator = "ipw",
+    stabilize = "marginal",
+    numerator = ~L0
+  )
+
+  res_sw <- contrast(
+    fit_st,
+    interventions = list(sc = scale_by(1.1), n = NULL),
+    reference = "n",
+    type = "difference",
+    ci_method = "sandwich",
+    trim = 0.99
+  )
+  set.seed(7605)
+  res_bs <- contrast(
+    fit_st,
+    interventions = list(sc = scale_by(1.1), n = NULL),
+    reference = "n",
+    type = "difference",
+    ci_method = "bootstrap",
+    n_boot = 200,
+    trim = 0.99
+  )
+
+  # Point estimate identical across variance methods (same fit + weights).
+  expect_equal(
+    res_sw$contrasts$estimate[1],
+    res_bs$contrasts$estimate[1],
+    tolerance = 1e-6
+  )
+  # Sandwich vs bootstrap SE parity (gamma uncertainty is small here).
+  se_ratio <- res_sw$contrasts$se[1] / res_bs$contrasts$se[1]
+  expect_gt(se_ratio, 0.5)
+  expect_lt(se_ratio, 2)
+})
+
+
 # ----------------------------------------------------------------------
 # Chunk 10c: effect modification (baseline modifier)
 # ----------------------------------------------------------------------
@@ -1282,7 +1338,7 @@ test_that("T-long-mv-ipw1: binary MV longitudinal IPW static, sandwich vs bootst
     A1 = c(rbind(A1_1, A1_2)),
     A2 = c(rbind(A2_1, A2_2)),
     L = rep(L, each = 2L),
-    Y = c(rep(NA_real_, n), Y)
+    Y = c(rbind(rep(NA_real_, n), Y))
   )
 
   fit <- causat(
@@ -1327,14 +1383,34 @@ test_that("T-long-mv-ipw1: binary MV longitudinal IPW static, sandwich vs bootst
   expect_gt(se_ratio, 0.7)
   expect_lt(se_ratio, 1.4)
 
-  # E[Y(1,1)] - E[Y(0,0)]: the IPW estimand involves the cumulative
-  # product weight across periods, which reweights to the joint
-  # interventional distribution. With binary treatments the HT
-  # indicator drops rows, so the effective sample is smaller and the
-  # IPW estimand approximates the structural effect (psi1 + psi2)
-  # only under large n and good overlap. Check finite + positive.
-  expect_true(is.finite(res_sw$contrasts$estimate))
-  expect_gt(res_sw$contrasts$estimate, 0)
+  # Cross-method truth: for a STATIC intervention the multivariate
+  # sequential-MTP IPW estimand coincides with g-computation (the
+  # deterministic joint transformation), so the IPW contrast must match
+  # the ICE g-comp contrast on the same sample. This is a sharper check
+  # than the structural psi1 + psi2 = 1.5, which the binary HT estimator
+  # only approaches at large n (verified IPW = 1.20, ICE = 1.36 here).
+  fit_ice <- causat(
+    dat,
+    outcome = "Y",
+    treatment = c("A1", "A2"),
+    confounders = ~L,
+    estimator = "gcomp",
+    id = "id",
+    time = "time"
+  )
+  res_ice <- contrast(
+    fit_ice,
+    interventions = list(
+      both1 = list(A1 = static(1), A2 = static(1)),
+      both0 = list(A1 = static(0), A2 = static(0))
+    ),
+    type = "difference"
+  )
+  expect_equal(
+    res_sw$contrasts$estimate,
+    res_ice$contrasts$estimate,
+    tolerance = 0.25
+  )
 })
 
 
@@ -1358,7 +1434,7 @@ test_that("T-long-mv-ipw2: continuous MV longitudinal IPW shift, sandwich vs boo
     A1 = c(rbind(A1_1, A1_2)),
     A2 = c(rbind(A2_1, A2_2)),
     L = rep(L, each = 2L),
-    Y = c(rep(NA_real_, n), Y)
+    Y = c(rbind(rep(NA_real_, n), Y))
   )
 
   fit <- causat(
@@ -1380,6 +1456,7 @@ test_that("T-long-mv-ipw2: continuous MV longitudinal IPW shift, sandwich vs boo
       up = list(A1 = shift(delta1), A2 = shift(delta2)),
       nc = NULL
     ),
+    reference = "nc",
     type = "difference",
     ci_method = "sandwich"
   )
@@ -1389,6 +1466,7 @@ test_that("T-long-mv-ipw2: continuous MV longitudinal IPW shift, sandwich vs boo
       up = list(A1 = shift(delta1), A2 = shift(delta2)),
       nc = NULL
     ),
+    reference = "nc",
     type = "difference",
     ci_method = "bootstrap"
   )
@@ -1398,12 +1476,94 @@ test_that("T-long-mv-ipw2: continuous MV longitudinal IPW shift, sandwich vs boo
   expect_gt(se_ratio, 0.7)
   expect_lt(se_ratio, 1.4)
 
-  # The shifted estimand is approximately psi1*d1 + psi2*d2 = 0.34
-  # under the linear DGP, but the IPW cumulative product weights
-  # and the joint density factorisation introduce finite-sample bias.
-  # Check finite and same sign as the structural effect.
-  expect_true(is.finite(res_sw$contrasts$estimate))
-  expect_gt(res_sw$contrasts$estimate, -0.3)
+  # Structural truth: an additive shift on a linear-Gaussian outcome that
+  # depends only on the final-period treatments adds psi1*delta1 +
+  # psi2*delta2 = 0.5*0.5 + 0.3*0.3 = 0.34 (the shift is exogenous, so the
+  # downstream feedback A_1 -> L,A_2 enters only through the natural
+  # value and cancels in the contrast). The sequential-MTP IPW estimator
+  # targets this; lmtp_sdr agrees to ~0.335 on this DGP. Verified
+  # estimate = 0.359 at this seed/n.
+  expect_equal(
+    res_sw$contrasts$estimate,
+    psi1 * delta1 + psi2 * delta2,
+    tolerance = 0.1
+  )
+})
+
+
+test_that("T-long-mv-ipw2b: continuous MV longitudinal IPW shift + trim, sandwich vs bootstrap", {
+  # Same DGP as T-long-mv-ipw2 but with `trim < 1`, which exercises the
+  # multivariate per-period trim-threshold precompute loop in
+  # `make_weight_fn_longitudinal()` (the `is_mv` branch). Sandwich and
+  # bootstrap both truncate per-period density ratios at the fixed
+  # quantile before the cumulative product, so they agree within MC error.
+  set.seed(19002)
+  n <- 800
+  L <- rnorm(n)
+  A1_1 <- rnorm(n, 0.5 + 0.3 * L)
+  A2_1 <- rnorm(n, 0.3 + 0.2 * L + 0.1 * A1_1)
+  A1_2 <- rnorm(n, 0.3 + 0.3 * L + 0.1 * A1_1)
+  A2_2 <- rnorm(n, 0.2 + 0.2 * L + 0.1 * A1_2 + 0.05 * A2_1)
+  Y <- 2 + 0.5 * L + 0.5 * A1_2 + 0.3 * A2_2 + rnorm(n)
+
+  dat <- data.table::data.table(
+    id = rep(seq_len(n), each = 2L),
+    time = rep(1:2, n),
+    A1 = c(rbind(A1_1, A1_2)),
+    A2 = c(rbind(A2_1, A2_2)),
+    L = rep(L, each = 2L),
+    Y = c(rbind(rep(NA_real_, n), Y))
+  )
+
+  fit <- causat(
+    dat,
+    outcome = "Y",
+    treatment = c("A1", "A2"),
+    confounders = ~L,
+    estimator = "ipw",
+    type = "longitudinal",
+    id = "id",
+    time = "time"
+  )
+
+  ivs <- list(up = list(A1 = shift(0.5), A2 = shift(0.3)), nc = NULL)
+  res_sw <- contrast(
+    fit,
+    interventions = ivs,
+    reference = "nc",
+    type = "difference",
+    ci_method = "sandwich",
+    trim = 0.95
+  )
+  set.seed(19002)
+  res_bs <- contrast(
+    fit,
+    interventions = ivs,
+    reference = "nc",
+    type = "difference",
+    ci_method = "bootstrap",
+    n_boot = 200,
+    trim = 0.95
+  )
+
+  # Point estimate identical across variance methods (same fit + weights).
+  expect_equal(
+    res_sw$contrasts$estimate,
+    res_bs$contrasts$estimate,
+    tolerance = 1e-6
+  )
+  # Structural truth (psi1*d1 + psi2*d2 = 0.34) up to per-period trim bias.
+  # Trim winsorizes each period's density ratio at its 95th percentile,
+  # shrinking the shifted mean slightly toward natural course; verified
+  # estimate = 0.316 at this seed/n, so a 0.12 tolerance is honest.
+  expect_equal(
+    res_sw$contrasts$estimate,
+    0.5 * 0.5 + 0.3 * 0.3,
+    tolerance = 0.12
+  )
+  se_ratio <- res_sw$contrasts$se / res_bs$contrasts$se
+  expect_gt(se_ratio, 0.5)
+  expect_lt(se_ratio, 2)
 })
 
 
@@ -1426,7 +1586,7 @@ test_that("T-long-mv-ipw3: MV natural course gives same sandwich as bootstrap", 
     A1 = c(rbind(A1_1, A1_2)),
     A2 = c(rbind(A2_1, A2_2)),
     L = rep(L, each = 2L),
-    Y = c(rep(NA_real_, n), Y)
+    Y = c(rbind(rep(NA_real_, n), Y))
   )
 
   fit <- causat(
@@ -1479,7 +1639,7 @@ test_that("T-long-mv-stab1: stabilized MV fits per-period, per-component chain n
     A1 = c(rbind(A1_1, A1_2)),
     A2 = c(rbind(A2_1, A2_2)),
     L = rep(L, each = 2L),
-    Y = c(rep(NA_real_, n), Y)
+    Y = c(rbind(rep(NA_real_, n), Y))
   )
 
   fit <- causat(
@@ -1546,7 +1706,7 @@ test_that("T-long-mv-stab2: stabilized + static binary MV recovers identical est
     A1 = c(rbind(A1_1, A1_2)),
     A2 = c(rbind(A2_1, A2_2)),
     L = rep(L, each = 2L),
-    Y = c(rep(NA_real_, n), Y)
+    Y = c(rbind(rep(NA_real_, n), Y))
   )
 
   mk <- function(stab) {
@@ -1615,7 +1775,7 @@ test_that("T-long-mv-stab3: stabilized MV shift SE close to bootstrap and natura
     A1 = c(rbind(A1_1, A1_2)),
     A2 = c(rbind(A2_1, A2_2)),
     L = rep(L, each = 2L),
-    Y = c(rep(NA_real_, n), Y)
+    Y = c(rbind(rep(NA_real_, n), Y))
   )
 
   fit <- causat(
@@ -1709,7 +1869,7 @@ test_that("R-long-mv-ipw1: MV IPSI under longitudinal IPW is rejected", {
     A1 = c(rbind(A1_1, A1_2)),
     A2 = c(rbind(A2_1, A2_2)),
     L = rep(L, each = 2L),
-    Y = c(rep(NA_real_, n), Y)
+    Y = c(rbind(rep(NA_real_, n), Y))
   )
 
   fit <- causat(
