@@ -39,6 +39,27 @@ test_that("pool_table_boot() implements V = between - within/M exactly", {
   expect_equal(pool$diagnostics$within[1], w_comp, tolerance = 1e-12)
 })
 
+test_that("pool_table_boot() warns when the variance component is floored", {
+  # Critical review (2026-06-01), Finding E — repro /tmp/causatr_repro_E.R.
+  # When within-bootstrap imputation noise dominates the between-bootstrap
+  # signal the raw von Hippel variance goes negative; it is floored to ~0 but
+  # must warn so a near-zero SE is not mistaken for a precise estimate.
+  B <- 6
+  M <- 2
+  # Per-bootstrap means all 1.0 (zero between), large within spread.
+  cells <- matrix(
+    c(0, 2, 1, 1, 0.05, 1.95, 0.9, 1.1, -0.1, 2.1, 1.05, 0.95),
+    nrow = B, byrow = TRUE
+  )
+  arr <- array(cells, dim = c(B, M, 1))
+  expect_warning(
+    pool <- pool_table_boot(arr, scale = "linear", conf_level = 0.95),
+    class = "causatr_mi_boot_floor"
+  )
+  # The SE is the epsilon floor, not a genuine estimate.
+  expect_equal(pool$se[1], sqrt(.Machine$double.eps), tolerance = 1e-12)
+})
+
 test_that("pool_table_boot() pools ratios on the log scale", {
   B <- 4
   M <- 2

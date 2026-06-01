@@ -1282,6 +1282,7 @@ Hippel two-stage bootstrap-then-impute).
 | Warn when analysis var absent/unused in imputation model | ✅ | test-causat-mice.R |
 | Reject non-`mids` input; reject unknown `pool_method` | ✅ | test-causat-mice.R |
 | Reject Boot MI with `B < 2` or `M < 2` | ✅ | test-pool-boot-mi.R |
+| Boot MI warns on floored (non-positive) variance component | ✅ | test-pool-boot-mi.R |
 
 Transport (`target =`) + MI is not yet validated (owned by the pending Phase
 17i / 26 transport work).

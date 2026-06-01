@@ -31,7 +31,10 @@ handles missing outcomes (Y).
 * **Guards.** `causat_mice()` warns when an analysis variable is absent from or
   unused by the imputation model (a uncongeniality risk), drops individual
   imputations that fail to fit (aborting only if none survive), and degrades
-  gracefully to a single complete-data analysis when `m = 1`.
+  gracefully to a single complete-data analysis when `m = 1`. Boot MI warns
+  (`causatr_mi_boot_floor`) when a variance component goes non-positive and is
+  floored — a signal that `B`/`M` are too small for the random-effects
+  decomposition rather than a genuinely tiny standard error.
 
 New internal engines live in `R/pool_rubin.R` and `R/pool_boot_mi.R`. The
 `check_treatment_nas()` hint now advertises MI as a third way to handle missing

@@ -287,9 +287,13 @@ pool_table_boot <- function(arr, scale, conf_level) {
     b_comp <- stats::var(boot_means)
     w_comp <- mean(apply(cell, 1L, stats::var))
     # von Hippel: subtract the imputation-noise share carried by each
-    # bootstrap mean. Floor at a small positive value to keep CIs finite
-    # when imputation noise dominates a small between-bootstrap signal.
-    v_hat <- max(b_comp - w_comp / M, .Machine$double.eps)
+    # bootstrap mean. The raw value can go negative when imputation noise
+    # dominates a small between-bootstrap signal (typically B too small);
+    # floor at a small positive value to keep CIs finite, and flag it so the
+    # caller can warn -- a silently floored (near-zero) SE would otherwise
+    # masquerade as a precise estimate.
+    raw_v <- b_comp - w_comp / M
+    v_hat <- max(raw_v, .Machine$double.eps)
 
     lo_link <- grand - crit * sqrt(v_hat)
     hi_link <- grand + crit * sqrt(v_hat)
@@ -311,11 +315,35 @@ pool_table_boot <- function(arr, scale, conf_level) {
       ci_lower = lo,
       ci_upper = hi,
       between = b_comp,
-      within = w_comp
+      within = w_comp,
+      floored = raw_v <= 0
     )
   })
 
   pull <- function(field) vapply(out, `[[`, numeric(1), field)
+
+  # A floored variance means the random-effects decomposition could not
+  # separate sampling variability from imputation noise; the reported SE is
+  # an epsilon placeholder, not a real estimate. Warn rather than return a
+  # spuriously tiny interval.
+  n_floored <- sum(vapply(out, `[[`, logical(1), "floored"))
+  if (n_floored > 0L) {
+    rlang::warn(
+      c(
+        paste0(
+          n_floored,
+          " Boot MI variance component(s) were non-positive and floored to ~0."
+        ),
+        x = "Within-bootstrap imputation noise exceeded the between-bootstrap signal.",
+        i = paste0(
+          "Increase `B`, increase `M`, or use `pool_method = \"rubin\"`. ",
+          "The affected SE(s) are not trustworthy."
+        )
+      ),
+      class = "causatr_mi_boot_floor"
+    )
+  }
+
   diagnostics <- data.table::data.table(
     between = pull("between"),
     within = pull("within"),
