@@ -531,6 +531,7 @@ window.Quarto = {
   <ul>
   <li><a href="#causatr-development-version" id="toc-causatr-development-version" class="nav-link active" data-scroll-target="#causatr-development-version">causatr (development version)</a>
   <ul class="collapse">
+  <li><a href="#phase-20-per-period-ipsi-under-longitudinal-ipw" id="toc-phase-20-per-period-ipsi-under-longitudinal-ipw" class="nav-link" data-scroll-target="#phase-20-per-period-ipsi-under-longitudinal-ipw">2026-05-31 — Phase 20: Per-period IPSI under longitudinal IPW</a></li>
   <li><a href="#phase-25-multivariate-longitudinal-aipw" id="toc-phase-25-multivariate-longitudinal-aipw" class="nav-link" data-scroll-target="#phase-25-multivariate-longitudinal-aipw">2026-05-30 — Phase 25: Multivariate longitudinal AIPW</a>
   <ul class="collapse">
   <li><a href="#unbalanced-panel-sandwich-caveat" id="toc-unbalanced-panel-sandwich-caveat" class="nav-link" data-scroll-target="#unbalanced-panel-sandwich-caveat">Unbalanced-panel sandwich caveat</a></li>
@@ -651,6 +652,15 @@ window.Quarto = {
 
 <section id="causatr-development-version" class="level1">
 <h1>causatr (development version)</h1>
+<section id="phase-20-per-period-ipsi-under-longitudinal-ipw" class="level2">
+<h2 class="anchored" data-anchor-id="phase-20-per-period-ipsi-under-longitudinal-ipw">2026-05-31 — Phase 20: Per-period IPSI under longitudinal IPW</h2>
+<p>Univariate <code>ipsi(delta)</code> interventions now work under longitudinal IPW (<code>estimator = "ipw"</code> with <code>id =</code> and <code>time =</code>). The previously emitted <code>causatr_longitudinal_ipsi_pending</code> rejection in <code>compute_ipw_contrast_longitudinal()</code> has been lifted for the univariate case.</p>
+<ul>
+<li><strong>No new estimation math</strong>: Kennedy’s (2019) closed-form incremental propensity-score weight extends to a per-period product <code>W_i = prod_t (delta * A_t + (1 - A_t)) / (delta * p_t + (1 - p_t))</code>. Each period already routes through <code>compute_density_ratio_weights()</code>’s IPSI branch on the period-<code>t</code> subset, and <code>compute_longitudinal_weights()</code> multiplies the per-period factors within an id exactly as for <code>static</code> / <code>shift</code> / <code>scale_by</code>.</li>
+<li><strong>Stacked sandwich is automatic</strong>: <code>make_weight_fn_longitudinal()</code> builds per-period sub-closures via <code>make_weight_fn()</code>, whose IPSI branch is smooth in the propensity coefficients through the <code>delta * p_t + (1 - p_t)</code> denominator, so <code>numDeriv::jacobian()</code> on the stacked closure produces the block-diagonal cross-derivative without modification. Sandwich and bootstrap SEs agree within Monte-Carlo error.</li>
+<li><strong>Two combinations stay rejected</strong> with dedicated classes: multivariate IPSI (<code>causatr_longitudinal_ipsi_multivariate</code> — Kennedy’s closed form is binary-univariate, the per-component density chain has no IPSI shortcut) and IPSI + <code>stabilize = "marginal"</code> (<code>causatr_longitudinal_ipsi_stabilize</code> — the IPSI weight is already a bounded propensity-odds ratio with no separate marginal numerator). Longitudinal <strong>AIPW</strong> IPSI remains unsupported (the ICE recursion needs a counterfactual treatment stream IPSI does not provide).</li>
+</ul>
+</section>
 <section id="phase-25-multivariate-longitudinal-aipw" class="level2">
 <h2 class="anchored" data-anchor-id="phase-25-multivariate-longitudinal-aipw">2026-05-30 — Phase 25: Multivariate longitudinal AIPW</h2>
 <p>Doubly-robust estimation of joint time-varying interventions now works: <code>estimator = "aipw"</code> with <code>treatment = c("A1", "A2")</code>, <code>id =</code>, and <code>time =</code>. The previously emitted <code>causatr_longitudinal_multivariate_pending</code> rejection in <code>fit_aipw_longitudinal()</code> has been removed.</p>
