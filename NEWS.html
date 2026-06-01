@@ -339,6 +339,12 @@ window.Quarto = {
       <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="./man/causat_mice.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">causat_mice</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="./man/causat.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">causat</span></a>
   </div>
@@ -531,6 +537,8 @@ window.Quarto = {
   <ul>
   <li><a href="#causatr-development-version" id="toc-causatr-development-version" class="nav-link active" data-scroll-target="#causatr-development-version">causatr (development version)</a>
   <ul class="collapse">
+  <li><a href="#classed-confounder-placement-warnings" id="toc-classed-confounder-placement-warnings" class="nav-link" data-scroll-target="#classed-confounder-placement-warnings">2026-06-01 — Classed confounder-placement warnings</a></li>
+  <li><a href="#phase-21-multiple-imputation-via-causat_mice" id="toc-phase-21-multiple-imputation-via-causat_mice" class="nav-link" data-scroll-target="#phase-21-multiple-imputation-via-causat_mice">2026-06-01 — Phase 21: Multiple imputation via <code>causat_mice()</code></a></li>
   <li><a href="#phase-20-per-period-ipsi-under-longitudinal-ipw" id="toc-phase-20-per-period-ipsi-under-longitudinal-ipw" class="nav-link" data-scroll-target="#phase-20-per-period-ipsi-under-longitudinal-ipw">2026-05-31 — Phase 20: Per-period IPSI under longitudinal IPW</a></li>
   <li><a href="#phase-25-multivariate-longitudinal-aipw" id="toc-phase-25-multivariate-longitudinal-aipw" class="nav-link" data-scroll-target="#phase-25-multivariate-longitudinal-aipw">2026-05-30 — Phase 25: Multivariate longitudinal AIPW</a>
   <ul class="collapse">
@@ -652,6 +660,25 @@ window.Quarto = {
 
 <section id="causatr-development-version" class="level1">
 <h1>causatr (development version)</h1>
+<section id="classed-confounder-placement-warnings" class="level2">
+<h2 class="anchored" data-anchor-id="classed-confounder-placement-warnings">2026-06-01 — Classed confounder-placement warnings</h2>
+<p>The two <code>prepare_data()</code> warnings that flag a likely <code>confounders</code> / <code>confounders_tv</code> mix-up are now classed so downstream code (and tests) can match on class rather than message text: <code>causatr_tv_confounder_constant</code> (a time-varying confounder that never varies within an individual) and <code>causatr_baseline_confounder_varying</code> (a baseline confounder that does vary within individuals). No behaviour change beyond the added condition class.</p>
+</section>
+<section id="phase-21-multiple-imputation-via-causat_mice" class="level2">
+<h2 class="anchored" data-anchor-id="phase-21-multiple-imputation-via-causat_mice">2026-06-01 — Phase 21: Multiple imputation via <code>causat_mice()</code></h2>
+<p><code>causat_mice()</code> is now implemented and exported. It is the analysis step of a multiple-imputation workflow: the user imputes missing covariates and/or treatment upstream with <code>mice::mice()</code>, and <code>causat_mice()</code> fits <code>causat()</code> + <code>contrast()</code> on every completed dataset and pools the per-imputation estimates into a single <code>causatr_result</code>. This is the supported way to handle missing-at-random covariates (L) or treatment (A) — orthogonal to IPCW, which handles missing outcomes (Y).</p>
+<ul>
+<li><p><strong>Two pooling engines.</strong> <code>pool_method = "rubin"</code> (default) applies Rubin’s</p>
+<ol start="1987" type="1">
+<li>rules with Barnard-Rubin (1999) degrees of freedom, cross-checked to machine precision against <code>mice::pool.scalar()</code>. <code>pool_method = "boot_mi"</code> implements von Hippel’s (2020) two-stage bootstrap-then-impute variance, which attains nominal coverage without relying on Rubin’s congeniality assumption — <strong>provided the point estimator stays consistent</strong> (a bootstrap corrects the variance, not bias; Bartlett &amp; Hughes 2020). Under uncongeniality Rubin’s variance can be biased in either direction (Meng 1994), so it is not uniformly conservative. Means and difference contrasts pool on the natural scale; ratio / odds-ratio contrasts pool on the log scale.</li>
+</ol></li>
+<li><p><strong>Estimator-agnostic.</strong> Every <code>causat()</code> configuration flows through unchanged: all five estimators (gcomp, IPW, AIPW, matching, SNM), every treatment type and outcome family, all interventions and contrast scales, <code>by</code>-stratification and ATT, stabilized weights, longitudinal (ICE + longitudinal IPW), and IPCW (missing L imputed while censored Y is reweighted) all pool. SNM pools per blip parameter.</p></li>
+<li><p><strong>S3 integration.</strong> <code>confint()</code> and <code>tidy()</code> reconstruct <code>t</code>-based intervals from the per-row pooling degrees of freedom (stored in the <code>"mi_details"</code> attribute) so the user’s confidence level is honored. <code>parallel = "future"</code> forwards the Boot MI bootstrap to <code>future.apply</code>.</p></li>
+<li><p><strong>Guards.</strong> <code>causat_mice()</code> warns when an analysis variable is absent from or unused by the imputation model (a uncongeniality risk), drops individual imputations that fail to fit (aborting only if none survive), and degrades gracefully to a single complete-data analysis when <code>m = 1</code>. Boot MI warns (<code>causatr_mi_boot_floor</code>) when a variance component goes non-positive and is floored — a signal that <code>B</code>/<code>M</code> are too small for the random-effects decomposition rather than a genuinely tiny standard error.</p></li>
+<li><p><strong>Coverage study + theory correction (21h).</strong> A Monte-Carlo study (<code>test-mi-coverage.R</code>) confirms Rubin and Boot MI both attain ~nominal coverage when the imputation model keeps the causal estimator consistent (DGP-MI1), with Rubin’s intervals marginally wider. It also corrects an earlier claim in the design doc: excluding the outcome from the predictor matrix (DGP-MI5) is a <em>misspecification that biases the estimate</em>, so neither pooling rule recovers coverage — a bootstrap fixes variance, not bias (Bartlett &amp; Hughes 2020). The MI workflow guide is the <code>missing-data.qmd</code> vignette (21i).</p></li>
+</ul>
+<p>New internal engines live in <code>R/pool_rubin.R</code> and <code>R/pool_boot_mi.R</code>. The <code>check_treatment_nas()</code> hint now advertises MI as a third way to handle missing treatment alongside IPCW and complete-case analysis.</p>
+</section>
 <section id="phase-20-per-period-ipsi-under-longitudinal-ipw" class="level2">
 <h2 class="anchored" data-anchor-id="phase-20-per-period-ipsi-under-longitudinal-ipw">2026-05-31 — Phase 20: Per-period IPSI under longitudinal IPW</h2>
 <p>Univariate <code>ipsi(delta)</code> interventions now work under longitudinal IPW (<code>estimator = "ipw"</code> with <code>id =</code> and <code>time =</code>). The previously emitted <code>causatr_longitudinal_ipsi_pending</code> rejection in <code>compute_ipw_contrast_longitudinal()</code> has been lifted for the univariate case.</p>

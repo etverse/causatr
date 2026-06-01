@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>causat – causatr</title>
+<title>causat_mice – causatr</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -171,7 +171,7 @@ window.Quarto = {
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../man/causat_mice.html">Reference</a></li><li class="breadcrumb-item"><a href="../man/causat.html">causat</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../man/causat_mice.html">Reference</a></li><li class="breadcrumb-item"><a href="../man/causat_mice.html">causat_mice</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -339,13 +339,13 @@ window.Quarto = {
       <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../man/causat_mice.html" class="sidebar-item-text sidebar-link">
+  <a href="../man/causat_mice.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text">causat_mice</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../man/causat.html" class="sidebar-item-text sidebar-link active">
+  <a href="../man/causat.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">causat</span></a>
   </div>
 </li>
@@ -535,7 +535,7 @@ window.Quarto = {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#fit-a-causal-model" id="toc-fit-a-causal-model" class="nav-link active" data-scroll-target="#fit-a-causal-model">Fit a causal model</a>
+  <li><a href="#pool-causal-estimates-across-multiply-imputed-datasets" id="toc-pool-causal-estimates-across-multiply-imputed-datasets" class="nav-link active" data-scroll-target="#pool-causal-estimates-across-multiply-imputed-datasets">Pool causal estimates across multiply-imputed datasets</a>
   <ul class="collapse">
   <li><a href="#description" id="toc-description" class="nav-link" data-scroll-target="#description">Description</a></li>
   <li><a href="#usage" id="toc-usage" class="nav-link" data-scroll-target="#usage">Usage</a></li>
@@ -550,53 +550,38 @@ window.Quarto = {
 <div class="quarto-code-links"><h2>Code Links</h2><ul><li><a href="undefined"><i class="bi bi-link-45deg"></i></a></li></ul></div></nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../man/causat_mice.html">Reference</a></li><li class="breadcrumb-item"><a href="../man/causat.html">causat</a></li></ol></nav></header>
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../man/causat_mice.html">Reference</a></li><li class="breadcrumb-item"><a href="../man/causat_mice.html">causat_mice</a></li></ol></nav></header>
 
 
 
 
-<section id="fit-a-causal-model" class="level2 unnumbered">
-<h2 class="unnumbered anchored" data-anchor-id="fit-a-causal-model">Fit a causal model</h2>
+<section id="pool-causal-estimates-across-multiply-imputed-datasets" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="pool-causal-estimates-across-multiply-imputed-datasets">Pool causal estimates across multiply-imputed datasets</h2>
 <section id="description" class="level3">
 <h3 class="anchored" data-anchor-id="description">Description</h3>
-<p>Prepares the causal estimation pipeline for a given estimator. For <code>“gcomp”</code>, fits the conditional outcome model E[Y | A, L] that will be used by <code>contrast()</code> for standardisation. For <code>“ipw”</code>, fits the conditional treatment density <span class="math inline">\(f(A \mid L)\)</span> that the self-contained density-ratio engine uses to build per-intervention Hajek weights for the MSM refit inside <code>contrast()</code>. For <code>“matching”</code>, creates matched sets (via <code>MatchIt::matchit()</code>) that will be used for matched estimation in <code>contrast()</code>.</p>
-<p>For longitudinal data (<code>id</code> and <code>time</code> provided), <code>“gcomp”</code> uses ICE g-computation (Zivich et al., 2024): outcome models are fitted at each time point via backward iteration.</p>
+<p>Fits a causal model with <code>causat()</code> and computes a causal <code>contrast()</code> on every completed dataset stored in a <code>mice</code> <code>mids</code> object, then pools the per-imputation estimates into a single <code>causatr_result</code>. This is the analysis step of a multiple-imputation (MI) workflow: the user imputes missing covariates and/or treatment upstream with <code>mice::mice()</code>, and <code>causat_mice()</code> propagates the imputation uncertainty into the causal estimate and its standard error.</p>
+<p>Multiple imputation is the right tool for <strong>missing covariates (L)</strong> or <strong>missing treatment (A)</strong> under a missing-at-random mechanism. Missing <strong>outcomes (Y)</strong> are handled by inverse-probability-of-censoring weighting (<code>ipcw = TRUE</code>) or complete-case analysis, not by imputing Y; however Y <em>should</em> be a predictor in the upstream imputation model.</p>
 </section>
 <section id="usage" class="level3">
 <h3 class="anchored" data-anchor-id="usage">Usage</h3>
-<pre><code class="language-R">causat(
-  data,
+<pre><code class="language-R">causat_mice(
+  imp,
   outcome,
   treatment,
   confounders = NULL,
-  confounders_tv = NULL,
-  confounders_outcome = NULL,
-  confounders_treatment = NULL,
-  confounders_censoring = NULL,
-  confounders_sampling = NULL,
-  confounders_tv_outcome = NULL,
-  confounders_tv_treatment = NULL,
-  estimator = c("gcomp", "ipw", "aipw", "matching", "snm"),
+  interventions = NULL,
+  estimator = "gcomp",
   family = "gaussian",
-  estimand = c("ATE", "ATT", "ATC"),
-  id = NULL,
-  time = NULL,
-  censoring = NULL,
-  ipcw = FALSE,
-  censoring_model_fn = NULL,
-  history = Inf,
-  numerator = NULL,
-  weights = NULL,
-  cluster = NULL,
-  type = NULL,
-  model_fn = stats::glm,
-  propensity_model_fn = NULL,
-  propensity_family = NULL,
-  stabilize = c("none", "marginal"),
-  target = NULL,
-  sampling_model_fn = NULL,
-  target_subset = c("target", "all"),
-  treatment_free = NULL,
+  estimand = "ATE",
+  type = "difference",
+  ci_method = "sandwich",
+  conf_level = 0.95,
+  by = NULL,
+  pool_method = c("rubin", "boot_mi"),
+  B = 200L,
+  M = 2L,
+  parallel = c("no", "future"),
+  seed = NULL,
   ...
 )
 </code></pre>
@@ -606,10 +591,10 @@ window.Quarto = {
 <table role="presentation">
 <tbody><tr>
 <td style="white-space: collapse; font-family: monospace; vertical-align: top">
-<code id="data">data</code>
+<code id="imp">imp</code>
 </td>
 <td>
-A data frame or data.table.
+A <code>mids</code> object returned by <code>mice::mice()</code>.
 </td>
 </tr>
 <tr>
@@ -617,7 +602,7 @@ A data frame or data.table.
 <code id="outcome">outcome</code>
 </td>
 <td>
-Character. Name of the outcome variable.
+Character scalar naming the outcome column. Passed to <code>causat()</code>.
 </td>
 </tr>
 <tr>
@@ -625,7 +610,7 @@ Character. Name of the outcome variable.
 <code id="treatment">treatment</code>
 </td>
 <td>
-Character scalar or character vector. Name(s) of the treatment variable(s). Pass a character vector for multivariate (joint) treatments, e.g.&nbsp;<code>treatment = c(“A1”, “A2”)</code>.
+Character scalar (or vector for multivariate treatment) naming the treatment column(s). Passed to <code>causat()</code>.
 </td>
 </tr>
 <tr>
@@ -633,63 +618,15 @@ Character scalar or character vector. Name(s) of the treatment variable(s). Pass
 <code id="confounders">confounders</code>
 </td>
 <td>
-A one-sided formula specifying baseline (time-invariant) confounders, e.g.&nbsp;<code>~ L1 + L2</code>. Interactions and transformations are allowed, e.g.&nbsp;<code>~ L1 * L2 + splines::ns(age, 4)</code>. For longitudinal data, these confounders are constant within each individual (measured at baseline) and enter every time-step outcome model. <strong>Soft-deprecated:</strong> prefer the per-component formulas (<code>confounders_outcome</code>, <code>confounders_treatment</code>, etc.) for finer control. When <code>NULL</code> (the new default), at least the per-component formulas required by the chosen estimator must be supplied.
+A one-sided formula of baseline confounders, or <code>NULL</code> when per-component formulas are supplied through <code>…</code>. Passed to <code>causat()</code>.
 </td>
 </tr>
 <tr>
 <td style="white-space: collapse; font-family: monospace; vertical-align: top">
-<code id="confounders_tv">confounders_tv</code>
+<code id="interventions">interventions</code>
 </td>
 <td>
-A one-sided formula or <code>NULL</code>. Time-varying confounders for longitudinal data (e.g.&nbsp;<code>~ CD4 + viral_load</code>). These change over time within individuals and enter the outcome model at each ICE step alongside their lagged values (controlled by <code>history</code>). Ignored for point treatments. If <code>NULL</code>, no time-varying confounders are used. <strong>Soft-deprecated:</strong> prefer <code>confounders_tv_outcome</code> and <code>confounders_tv_treatment</code> for finer control.
-</td>
-</tr>
-<tr>
-<td style="white-space: collapse; font-family: monospace; vertical-align: top">
-<code id="confounders_outcome">confounders_outcome</code>
-</td>
-<td>
-One-sided formula or <code>NULL</code>. Confounders for the outcome model only. When non-<code>NULL</code>, overrides <code>confounders</code> for the outcome model (g-comp, AIPW outcome side, ICE backward iteration, matching MSM). Falls back to <code>confounders</code> when <code>NULL</code>.
-</td>
-</tr>
-<tr>
-<td style="white-space: collapse; font-family: monospace; vertical-align: top">
-<code id="confounders_treatment">confounders_treatment</code>
-</td>
-<td>
-One-sided formula or <code>NULL</code>. Confounders for the treatment (propensity) model only. When non-<code>NULL</code>, overrides <code>confounders</code> for the propensity model (IPW, AIPW treatment side, matching distance formula). Falls back to <code>confounders</code> when <code>NULL</code>.
-</td>
-</tr>
-<tr>
-<td style="white-space: collapse; font-family: monospace; vertical-align: top">
-<code id="confounders_censoring">confounders_censoring</code>
-</td>
-<td>
-One-sided formula or <code>NULL</code>. Confounders for the censoring model when <code>ipcw = TRUE</code>. Falls back to <code>confounders</code> when <code>NULL</code>.
-</td>
-</tr>
-<tr>
-<td style="white-space: collapse; font-family: monospace; vertical-align: top">
-<code id="confounders_sampling">confounders_sampling</code>
-</td>
-<td>
-One-sided formula or <code>NULL</code>. Confounders for the sampling model <span class="math inline">\(P(S = 1 \mid L)\)</span> when <code>target</code> is non-<code>NULL</code>. Falls back to <code>confounders</code> when <code>NULL</code>.
-</td>
-</tr>
-<tr>
-<td style="white-space: collapse; font-family: monospace; vertical-align: top">
-<code id="confounders_tv_outcome">confounders_tv_outcome</code>
-</td>
-<td>
-One-sided formula or <code>NULL</code>. Time-varying confounders for the outcome model only (longitudinal data). Falls back to <code>confounders_tv</code> when <code>NULL</code>.
-</td>
-</tr>
-<tr>
-<td style="white-space: collapse; font-family: monospace; vertical-align: top">
-<code id="confounders_tv_treatment">confounders_tv_treatment</code>
-</td>
-<td>
-One-sided formula or <code>NULL</code>. Time-varying confounders for the treatment model only (longitudinal data). Falls back to <code>confounders_tv</code> when <code>NULL</code>.
+A named list of intervention objects (e.g. <code>list(a1 = static(1), a0 = static(0))</code>). Passed to <code>contrast()</code>. Leave <code>NULL</code> for <code>estimator = “snm”</code>, whose estimand is the blip parameter itself and which rejects an <code>interventions</code> argument.
 </td>
 </tr>
 <tr>
@@ -697,7 +634,7 @@ One-sided formula or <code>NULL</code>. Time-varying confounders for the treatme
 <code id="estimator">estimator</code>
 </td>
 <td>
-Character. Causal estimator: <code>“gcomp”</code> (default), <code>“ipw”</code>, <code>“aipw”</code>, <code>“matching”</code>, or <code>“snm”</code>. IPW uses a self-contained density-ratio engine (no runtime dependency on <code>WeightIt</code>); AIPW is doubly-robust (outcome model + propensity weights); matching requires the <code>MatchIt</code> package; SNM fits a structural nested mean model via g-estimation. Note: <code>“matching”</code> is restricted to <strong>binary point treatments</strong> (MatchIt does not support multi-category or continuous treatments); use <code>“gcomp”</code> or <code>“ipw”</code> for those cases.
+Character causal estimator: <code>“gcomp”</code> (default), <code>“ipw”</code>, <code>“aipw”</code>, <code>“matching”</code>, or <code>“snm”</code>. Passed to <code>causat()</code>.
 </td>
 </tr>
 <tr>
@@ -705,7 +642,7 @@ Character. Causal estimator: <code>“gcomp”</code> (default), <code>“ipw”
 <code id="family">family</code>
 </td>
 <td>
-Character or family object. The outcome model family (e.g.&nbsp;<code>“gaussian”</code>, <code>“binomial”</code>, <code>stats::quasibinomial()</code>). Used by all methods: passed to the outcome model for <code>“gcomp”</code>, to the per-intervention weighted MSM refit for <code>“ipw”</code>, and to the outcome model on matched data for <code>“matching”</code>.
+Outcome family (character or family object). Passed to <code>causat()</code>.
 </td>
 </tr>
 <tr>
@@ -713,80 +650,7 @@ Character or family object. The outcome model family (e.g.&nbsp;<code>“gaussia
 <code id="estimand">estimand</code>
 </td>
 <td>
-Character. The target estimand: <code>“ATE”</code> (default), <code>“ATT”</code>, or <code>“ATC”</code>. <code>“ATT”</code> and <code>“ATC”</code> are only defined for binary point treatments. For <code>“gcomp”</code>, the estimand stored here is used as the default in <code>contrast()</code> but can be overridden there. For <code>“ipw”</code> and <code>“matching”</code>, the estimand is fixed at fitting time because it determines the weights or match direction; it cannot be changed in <code>contrast()</code>.
-</td>
-</tr>
-<tr>
-<td style="white-space: collapse; font-family: monospace; vertical-align: top">
-<code id="id">id</code>
-</td>
-<td>
-Character or <code>NULL</code>. Name of the individual ID variable. Must be provided together with <code>time</code> for longitudinal data.
-</td>
-</tr>
-<tr>
-<td style="white-space: collapse; font-family: monospace; vertical-align: top">
-<code id="time">time</code>
-</td>
-<td>
-Character or <code>NULL</code>. Name of the time variable. Must be provided together with <code>id</code> for longitudinal data.
-</td>
-</tr>
-<tr>
-<td style="white-space: collapse; font-family: monospace; vertical-align: top">
-<code id="censoring">censoring</code>
-</td>
-<td>
-Character or <code>NULL</code>. Name of the censoring indicator variable (1 = censored, 0 = uncensored). Without <code>ipcw = TRUE</code>, this is a <strong>row filter only:</strong> rows where <code>censoring != 0</code> are excluded from model fitting but no censoring model is fit. For g-computation with a correctly specified outcome model, row filtering is sufficient under MAR censoring. For IPW under MAR censoring, set <code>ipcw = TRUE</code> or supply pre-computed IPCW weights via <code style="white-space: pre;">weights =</code>. For longitudinal data, censoring is time-varying: <code>C_k = 1</code> means the individual dropped out at time <code>k</code>.
-</td>
-</tr>
-<tr>
-<td style="white-space: collapse; font-family: monospace; vertical-align: top">
-<code id="ipcw">ipcw</code>
-</td>
-<td>
-<p>Logical. If <code>TRUE</code>, fit an internal censoring model <span class="math inline">\(P(C = 0 \mid A, L)\)</span> and compute stabilized IPCW weights that are composed multiplicatively with any external <code>weights</code>. Requires <code>censoring</code> to be specified. Default <code>FALSE</code> preserves the legacy row-filter-only behaviour. For IPW under MAR censoring this is essential; for g-comp it provides doubly-robust protection.</p>
-<strong>Variance note:</strong> For point treatments the sandwich SE fully accounts for censoring-model estimation uncertainty (Channel 2 correction). For longitudinal treatments (ICE, longitudinal IPW) the Channel 2 correction for per-period censoring models is omitted, making the sandwich SE conservative. Use <code>ci_method = “bootstrap”</code> for tighter CIs in longitudinal IPCW settings.
-</td>
-</tr>
-<tr>
-<td style="white-space: collapse; font-family: monospace; vertical-align: top">
-<code id="censoring_model_fn">censoring_model_fn</code>
-</td>
-<td>
-Function or <code>NULL</code>. The fitting function for the censoring model when <code>ipcw = TRUE</code>. Must accept <code style="white-space: pre;">(formula, data, family, weights, …)</code>. Default <code>NULL</code> uses <code>stats::glm</code>. Ignored when <code>ipcw = FALSE</code>.
-</td>
-</tr>
-<tr>
-<td style="white-space: collapse; font-family: monospace; vertical-align: top">
-<code id="history">history</code>
-</td>
-<td>
-Non-negative integer or <code>Inf</code>. Markov lag order for longitudinal models: how many lagged time points of treatment and time-varying confounders to include in each per-period model. Default <code>Inf</code> (full history). <code>0</code> means no lags (current-period TV covariates only). Ignored for point treatments.
-</td>
-</tr>
-<tr>
-<td style="white-space: collapse; font-family: monospace; vertical-align: top">
-<code id="numerator">numerator</code>
-</td>
-<td>
-A one-sided formula or <code>NULL</code>. Numerator formula for stabilized IPW weights in longitudinal models. Defaults to baseline confounders only (no time-varying confounders), which gives the standard stabilized weights. Only relevant for <code>estimator = “ipw”</code> with longitudinal data.
-</td>
-</tr>
-<tr>
-<td style="white-space: collapse; font-family: monospace; vertical-align: top">
-<code id="weights">weights</code>
-</td>
-<td>
-Numeric vector, a <code>survey::svydesign</code> object, or <code>NULL</code>. Pre-computed observation weights (e.g.&nbsp;survey weights or externally computed IPCW). When a <code>survey.design</code> object is supplied, <code>stats::weights()</code> is used to extract the sampling weights and the first-stage cluster (PSU) is auto-propagated into the fit’s <code>cluster</code> slot so the contrast-time sandwich is cluster-robust by default; override by passing an explicit <code style="white-space: pre;">cluster =</code> alongside. For <code>“gcomp”</code>, passed to <code>glm()</code>. For <code>“ipw”</code>, multiplied with the estimated propensity weights.
-</td>
-</tr>
-<tr>
-<td style="white-space: collapse; font-family: monospace; vertical-align: top">
-<code id="cluster">cluster</code>
-</td>
-<td>
-Character or <code>NULL</code>. Name of a column in <code>data</code> identifying cluster membership (e.g.&nbsp;site, household, PSU id). Stored in the fit and preserved through <code>prepare_data()</code> so that <code>contrast()</code> can default its own <code style="white-space: pre;">cluster =</code> argument to this column, producing a cluster-robust sandwich without the user having to repeat the column name. Users can still override at contrast time by passing <code style="white-space: pre;">cluster = </code> explicitly. Forwarded to matching is not allowed (matching clusters on its own <code>subclass</code>).
+Character estimand (<code>“ATE”</code>, <code>“ATT”</code>, <code>“ATC”</code>). Passed to <code>causat()</code>.
 </td>
 </tr>
 <tr>
@@ -794,80 +658,71 @@ Character or <code>NULL</code>. Name of a column in <code>data</code> identifyin
 <code id="type">type</code>
 </td>
 <td>
-Character or <code>NULL</code>. Whether the data are <code>“point”</code> (single time-point per individual) or <code>“longitudinal”</code> (repeated measures). Default <code>NULL</code> auto-detects: <code>“longitudinal”</code> when both <code>id</code> and <code>time</code> are provided, <code>“point”</code> otherwise. Passing <code>type = “longitudinal”</code> explicitly requires <code>id</code> and <code>time</code>.
+Character contrast scale: <code>“difference”</code> (default), <code>“ratio”</code>, or <code>“or”</code>. Passed to <code>contrast()</code>.
 </td>
 </tr>
 <tr>
 <td style="white-space: collapse; font-family: monospace; vertical-align: top">
-<code id="model_fn">model_fn</code>
+<code id="ci_method">ci_method</code>
 </td>
 <td>
-Function. The fitting function for the outcome model in g-computation. Must accept <code style="white-space: pre;">(formula, data, family, weights, …)</code>. Default <code>stats::glm</code>; pass <code>mgcv::gam</code> for GAMs, <code>MASS::glm.nb</code> for negative-binomial, etc. For <code>“ipw”</code>, <code>model_fn</code> also fits the placeholder <code>Y ~ A</code> display model and is the default propensity fitter when <code>propensity_model_fn</code> is <code>NULL</code>. Ignored for <code>“matching”</code>.
+Character within-imputation variance method, <code>“sandwich”</code> (default) or <code>“bootstrap”</code>, used for each per-imputation <code>contrast()</code> call. The <em>pooled</em> variance is governed by <code>pool_method</code>, not this argument.
 </td>
 </tr>
 <tr>
 <td style="white-space: collapse; font-family: monospace; vertical-align: top">
-<code id="propensity_model_fn">propensity_model_fn</code>
+<code id="conf_level">conf_level</code>
 </td>
 <td>
-Function or <code>NULL</code>. IPW only. The fitting function for the conditional treatment density <span class="math inline">\(f(A \mid L)\)</span> used to build density-ratio weights. Must accept the same <code style="white-space: pre;">(formula, data, family, weights, …)</code> signature. <code>NULL</code> (default) reuses <code>model_fn</code>. Pass <code>mgcv::gam</code> for a flexible propensity.
+Numeric confidence level for the pooled intervals. Default <code>0.95</code>.
 </td>
 </tr>
 <tr>
 <td style="white-space: collapse; font-family: monospace; vertical-align: top">
-<code id="propensity_family">propensity_family</code>
+<code id="by">by</code>
 </td>
 <td>
-Character or <code>NULL</code>. IPW only. Explicit treatment density family: <code>“poisson”</code> or <code>“negbin”</code> for count treatments. <code>NULL</code> (default) auto-detects from the treatment values (bernoulli / gaussian / categorical). Auto-detection never infers count – use this parameter to opt in. For <code>“negbin”</code>, <code>MASS::glm.nb</code> is auto-selected as the propensity fitter unless <code>propensity_model_fn</code> is explicitly provided. Ignored for <code>“gcomp”</code> and <code>“matching”</code>.
+Optional one-sided formula or character naming a baseline stratifier. Pooling is applied per <code>by</code>-stratum row independently. Passed to <code>contrast()</code>.
 </td>
 </tr>
 <tr>
 <td style="white-space: collapse; font-family: monospace; vertical-align: top">
-<code id="stabilize">stabilize</code>
+<code id="pool_method">pool_method</code>
 </td>
 <td>
-<p>Character. Multivariate IPW only. Controls the numerator density in each per-component weight factor.</p>
-<ul>
-<li>
-<p><code>“none”</code> (default): numerator conditions on the same covariates as the denominator. Per-component weight is <span class="math inline">\(f_k(d_k^{-1}(A_k) \mid A_{1..k-1}^{\mathrm{obs}}, L) \cdot |\mathrm{Jac}| / f_k(A_k \mid A_{1..k-1}^{\mathrm{obs}}, L)\)</span>.</p>
-</li>
-<li>
-<p><code>“marginal”</code>: numerator drops <span class="math inline">\(L\)</span>, conditioning only on prior treatments (Robins, Hernán, Brumback 2000). Fits a second per-component density model <span class="math inline">\(g_k(A_k \mid A_{1..k-1})\)</span> and uses it in the numerator; the denominator stays at the full-L density. This dampens the multiplicative L-dependence across <span class="math inline">\(K\)</span> factors and typically reduces weight variance substantially on datasets where multiple components have well-predicted propensities.</p>
-</li>
-</ul>
-Ignored for univariate IPW, <code>“gcomp”</code>, and <code>“matching”</code>.
+Character pooling strategy. <code>“rubin”</code> (default) applies Rubin’s rules to the per-imputation sandwich variances. <code>“boot_mi”</code> uses von Hippel’s bootstrap-then-impute two-stage variance, valid under uncongeniality. See Details.
 </td>
 </tr>
 <tr>
 <td style="white-space: collapse; font-family: monospace; vertical-align: top">
-<code id="target">target</code>
+<code id="B">B</code>
 </td>
 <td>
-Character or <code>NULL</code>. Column name of a binary 0/1 sampling indicator S, where S = 1 identifies study-population rows (observed A and Y) and S = 0 identifies target-population rows (only L observed). When non-<code>NULL</code>, enables transportability/generalizability estimation: the sampling model <span class="math inline">\(P(S = 1 \mid L)\)</span> is fit on all rows and stored on the fit object for use in <code>contrast()</code>. Default <code>NULL</code> produces a study-population estimand with no transportability adjustment. <strong>Not supported with <code>estimator = “matching”</code></strong>.
+Integer number of bootstrap resamples for <code>pool_method = “boot_mi”</code>. Default <code>200</code>. Ignored for <code>“rubin”</code>.
 </td>
 </tr>
 <tr>
 <td style="white-space: collapse; font-family: monospace; vertical-align: top">
-<code id="sampling_model_fn">sampling_model_fn</code>
+<code id="M">M</code>
 </td>
 <td>
-Function or <code>NULL</code>. Fitting function for the sampling model <span class="math inline">\(P(S = 1 \mid L)\)</span> when <code>target</code> is non-<code>NULL</code>. Must accept <code style="white-space: pre;">(formula, data, family, …)</code>. Default <code>NULL</code> uses <code>stats::glm</code> with <code>family = binomial()</code>. Ignored when <code>target = NULL</code>.
+Integer number of imputations per bootstrap resample for <code>pool_method = “boot_mi”</code>. Default <code>2</code> (von Hippel’s efficient variant). Ignored for <code>“rubin”</code>.
 </td>
 </tr>
 <tr>
 <td style="white-space: collapse; font-family: monospace; vertical-align: top">
-<code id="target_subset">target_subset</code>
+<code id="parallel">parallel</code>
 </td>
 <td>
-Character. Which rows define the target population for transportability/generalizability. <code>“target”</code> (default) restricts the target to S = 0 rows only (transportability: the study is external to the target population). <code>“all”</code> uses all rows S = 0 and S = 1 (generalizability: the study is a biased subsample of the target). Ignored when <code>target = NULL</code>.
+Character parallel backend forwarded to the Boot MI engine: <code>“no”</code> (default) or <code>“future”</code> (uses <code>future.apply::future_lapply()</code>).
 </td>
 </tr>
 <tr>
 <td style="white-space: collapse; font-family: monospace; vertical-align: top">
-<code id="treatment_free">treatment_free</code>
+<code id="seed">seed</code>
 </td>
 <td>
-One-sided formula or <code>NULL</code>. SNM only. Specifies the treatment-free outcome model <span class="math inline">\(E[Y \mid L]\)</span>, a nuisance model whose predictions are subtracted from Y before g-estimation. This projects out the <span class="math inline">\(L \to Y\)</span> association and reduces the variance of <span class="math inline">\(\hat\psi\)</span> without changing the point estimate (both approaches are consistent). DTRreg calls this the <code>tf.mod</code> argument. The formula should contain only baseline confounders (no treatment or modifiers). Default <code>NULL</code> uses the standard residualized-treatment moment condition without a treatment-free model. Ignored for non-SNM estimators.
+Optional integer seed. For <code>pool_method = “boot_mi”</code> it seeds the bootstrap-and-impute loop reproducibly.
 </td>
 </tr>
 <tr>
@@ -875,7 +730,7 @@ One-sided formula or <code>NULL</code>. SNM only. Specifies the treatment-free o
 <code id="...">…</code>
 </td>
 <td>
-Additional arguments passed to the underlying estimation function. For <code>estimator = “ipw”</code>, dots are forwarded into the user’s <code>propensity_model_fn</code> via <code>fit_treatment_model()</code> (e.g. smoothing arguments for <code>mgcv::gam</code>). For <code>estimator = “matching”</code>, dots are forwarded into <code>MatchIt::matchit()</code> (e.g. <code>method = “nearest”</code>, <code>ratio = 1</code>, <code>caliper = 0.2</code>).
+Additional arguments forwarded to <code>causat()</code> (e.g.&nbsp;<code>id</code>, <code>time</code>, <code>confounders_tv</code>, <code>censoring</code>, <code>ipcw</code>, <code>confounders_outcome</code>, <code>propensity_model_fn</code>, <code>model_fn</code>).
 </td>
 </tr>
 </tbody></table>
@@ -883,273 +738,88 @@ Additional arguments passed to the underlying estimation function. For <code>est
 <section id="details" class="level3">
 <h3 class="anchored" data-anchor-id="details">Details</h3>
 <h4 class="anchored">
-G-computation (<code>estimator = “gcomp”</code>)
+Rubin’s rules (<code>pool_method = “rubin”</code>)
 </h4>
-<p>Fits E[Y | A, L] using <code>glm()</code> (or <code>mgcv::gam()</code> if the formula contains <code>s()</code> or <code>te()</code> terms). <code>contrast()</code> standardises over the target population (controlled by <code>estimand</code>) to obtain E[Y^a] under each intervention. For <code>“gcomp”</code>, the estimand can be overridden in <code>contrast()</code> – fit once, contrast with multiple estimands.</p>
-<p>For longitudinal data, uses ICE g-computation (Zivich et al., 2024): outcome models are fitted one per time point via backward iteration, conditioning on baseline confounders (<code>confounders</code>), time-varying confounders (<code>confounders_tv</code>), and their lags up to <code>history</code> steps.</p>
+<p>Let <span class="math inline">\(\hat{Q}_i\)</span> and <span class="math inline">\(U_i\)</span> be the estimate and variance from imputation <span class="math inline">\(i\)</span>. The pooled estimate is <code class="reqn">{Q} = m^{-1}_i _i</code> and the total variance is <span class="math inline">\(T = \bar{U} + (1 + 1/m) B\)</span> with within variance <span class="math inline">\(\bar{U} = m^{-1}\sum_i U_i\)</span> and between variance <span class="math inline">\(B = (m-1)^{-1}\sum_i (\hat{Q}_i - \bar{Q})^2\)</span>. Confidence intervals use Barnard-Rubin degrees of freedom.</p>
 <h4 class="anchored">
-IPW (<code>estimator = “ipw”</code>)
+Congeniality
 </h4>
-<p>Fits a conditional treatment density <span class="math inline">\(f(A \mid L)\)</span> via <code>propensity_model_fn</code> (defaults to <code>model_fn</code>). Each intervention requested in <code>contrast()</code> builds its own density-ratio weight vector and refits a weighted marginal structural model. Supports binary (via HT or IPSI), continuous (via smooth shift / scale_by), and dynamic-on-binary interventions. <code>threshold()</code> and continuous <code>dynamic()</code> rules are routed to <code>estimator = “gcomp”</code> with a pointer. Categorical treatments are not supported under IPW; <code>estimator = “gcomp”</code> handles them via predict-then-average.</p>
-<p><strong>Longitudinal IPW</strong> is supported via sequential density-ratio weights (cumulative product across time points) with optional stabilization. Supply <code>id</code> and <code>time</code> to activate.</p>
+<p>Causal estimands are typically <em>uncongenial</em> with the <code>mice</code> imputation model (the estimand is a functional of the outcome/treatment model under intervention, not a parameter of the imputation model). Under uncongeniality Rubin’s variance can be biased in <em>either</em> direction depending on the situation – conservative for some kinds of uncongeniality (Meng 1994), but anticonservative in others (Bartlett &amp; Hughes 2020). <code>pool_method = “boot_mi”</code> sidesteps Rubin’s variance decomposition with a resampling variance that attains nominal coverage <strong>provided the point estimator stays consistent</strong>: a bootstrap corrects the variance, not bias in the estimate itself. Always include the outcome, treatment, all confounders, and any effect modifiers as predictors in the upstream <code>mice()</code> call – omitting a key predictor (e.g.&nbsp;the outcome) misspecifies the imputation, which can <em>bias</em> the causal estimate and so defeat both pooling rules. <code>causat_mice()</code> warns when an analysis variable is absent or unused.</p>
 <h4 class="anchored">
-AIPW (<code>estimator = “aipw”</code>)
+What this does not do
 </h4>
-<p>Doubly-robust estimation combining the outcome model (as in g-comp) with propensity-score weights (as in IPW). The AIPW estimator is consistent if either the outcome model or the treatment model is correctly specified. Supports binary, continuous, categorical, count, and multivariate treatments (point); longitudinal AIPW is also supported via sequential outcome models and cumulative density-ratio weights.</p>
-<h4 class="anchored">
-Matching (<code>estimator = “matching”</code>)
-</h4>
-<p>Calls <code>MatchIt::matchit()</code> to create matched sets. The estimand is fixed at fitting time. Only <code>static()</code> interventions are supported in <code>contrast()</code>. <strong>Matching is binary-only</strong>: <code>MatchIt</code> does not support categorical (k &gt; 2 levels) or continuous treatments, and causatr aborts with a clear error in both cases. Use <code>estimator = “gcomp”</code> or <code>estimator = “ipw”</code> for categorical / continuous treatments. Longitudinal matching is also unsupported.</p>
-<h4 class="anchored">
-Estimands
-</h4>
-<table>
-<tbody><tr>
-<td style="text-align: left;">
-Estimand
-</td>
-<td style="text-align: left;">
-Population averaged over
-</td>
-<td style="text-align: left;">
-Applicability
-</td>
-</tr>
-<tr>
-<td style="text-align: left;">
-<code>“ATE”</code>
-</td>
-<td style="text-align: left;">
-All individuals
-</td>
-<td style="text-align: left;">
-Always
-</td>
-</tr>
-<tr>
-<td style="text-align: left;">
-<code>“ATT”</code>
-</td>
-<td style="text-align: left;">
-Observed treated (<code>A = 1</code>)
-</td>
-<td style="text-align: left;">
-Binary point treatment only
-</td>
-</tr>
-<tr>
-<td style="text-align: left;">
-<code>“ATC”</code>
-</td>
-<td style="text-align: left;">
-Observed controls (<code>A = 0</code>)
-</td>
-<td style="text-align: left;">
-Binary point treatment only
-</td>
-</tr>
-</tbody></table>
-<p>For continuous, categorical, multivariate, or longitudinal treatments, use <code>estimand = “ATE”</code> and pass a <code>subset</code> expression to <code>contrast()</code> for subgroup effects.</p>
-<h4 class="anchored">
-Identifiability assumptions
-</h4>
-<p>All methods assume: (1) exchangeability (no unmeasured confounding given L), (2) positivity (every individual has positive probability of each treatment value given L), (3) consistency (the observed outcome under the observed treatment equals the potential outcome). Positivity is checked automatically and a warning is issued if near-violations are detected.</p>
-<h4 class="anchored">
-Missing data handling
-</h4>
-<p><strong>Outcome (Y) missing.</strong> Rows with <code>NA</code> outcome are excluded from model fitting via <code>get_fit_rows()</code>. If a <code>censoring</code> column is provided, rows with <code>censoring != 0</code> are also excluded. <code>contrast()</code> predicts on ALL rows (including those with missing Y) and standardizes over the target population. Under MCAR, this complete-case analysis is unbiased. Under MAR (censoring depends on A and/or L), g-computation with a correctly specified outcome model is still consistent because the regression surface E[Y | A, L] is unchanged by the censoring mechanism (Hernan &amp; Robins, Ch. 13). For IPW under MAR, IPCW weights are needed – supply them via <code style="white-space: pre;">weights =</code>. The <code style="white-space: pre;">censoring =</code> parameter is a <strong>row filter</strong>, not IPCW: no censoring model is fit internally.</p>
-<p><strong>Treatment (A) missing.</strong> <code>causat()</code> aborts if any treatment values are <code>NA</code> and no <code>censoring</code> column is provided. You cannot define a counterfactual without knowing the treatment value. Remove rows with missing A before calling <code>causat()</code> (unbiased under MCAR), or use multiple imputation (planned via <code>causat_mice()</code>).</p>
-<p><strong>Covariates (L) missing.</strong> For <code>estimator = “gcomp”</code>, the outcome model’s <code>na.action = na.omit</code> drops rows with NA covariates at fit time. <code>predict()</code> returns NA for rows with missing L, which <code>contrast()</code> excludes from the target population. Under MCAR this is unbiased. For <code>estimator = “ipw”</code>, the propensity model also drops NA-covariate rows; if this creates a row-count mismatch with the outcome mask, <code>causat()</code> aborts with a clear error. For <code>estimator = “matching”</code>, MatchIt handles covariate NAs internally. Under MAR, multiple imputation is needed (planned via <code>causat_mice()</code>).</p>
+<p>It does not perform the imputation (call <code>mice::mice()</code> first), impute the outcome, handle MNAR mechanisms, or pool omnibus tests across contrasts.</p>
 </section>
 <section id="value" class="level3">
 <h3 class="anchored" data-anchor-id="value">Value</h3>
-<p>A <code>causatr_fit</code> object with slots:</p>
-<dl>
-<dt>
-<code>model</code>
-</dt>
-<dd>
-Fitted model object(s): <code>glm</code>/<code>gam</code> for <code>“gcomp”</code>; a placeholder <code>Y ~ A</code> weighted MSM for <code>“ipw”</code> (the density model lives in <code>details$propensity_model</code>); the matched-data outcome model for <code>“matching”</code>.
-</dd>
-<dt>
-<code>data</code>
-</dt>
-<dd>
-data.table used for fitting.
-</dd>
-<dt>
-<code>treatment</code>, <code>outcome</code>, <code>confounders</code>, <code>confounders_tv</code>, <code>family</code>
-</dt>
-<dd>
-Model spec.
-</dd>
-<dt>
-<code>estimator</code>
-</dt>
-<dd>
-<code>“gcomp”</code>, <code>“ipw”</code>, or <code>“matching”</code>.
-</dd>
-<dt>
-<code>type</code>
-</dt>
-<dd>
-<code>“point”</code> or <code>“longitudinal”</code>.
-</dd>
-<dt>
-<code>estimand</code>
-</dt>
-<dd>
-<code>“ATE”</code>, <code>“ATT”</code>, or <code>“ATC”</code>.
-</dd>
-<dt>
-<code>id</code>, <code>time</code>, <code>censoring</code>
-</dt>
-<dd>
-Longitudinal identifiers.
-</dd>
-<dt>
-<code>history</code>
-</dt>
-<dd>
-Markov order for longitudinal ICE models.
-</dd>
-<dt>
-<code>numerator</code>
-</dt>
-<dd>
-Numerator formula for longitudinal IPW.
-</dd>
-<dt>
-<code>weights_obj</code>
-</dt>
-<dd>
-Legacy slot, always <code>NULL</code>.
-</dd>
-<dt>
-<code>match_obj</code>
-</dt>
-<dd>
-<code>matchit</code> object (matching only).
-</dd>
-<dt>
-<code>call</code>
-</dt>
-<dd>
-The original call.
-</dd>
-<dt>
-<code>details</code>
-</dt>
-<dd>
-Internal diagnostics list.
-</dd>
-</dl>
+<p>A <code>causatr_result</code> with pooled estimates, standard errors, and confidence intervals. <code>ci_method</code> is <code>“rubin”</code> or <code>“boot_mi”</code>. The per-row pooling diagnostics are attached as the <code>“mi_details”</code> attribute.</p>
 </section>
 <section id="references" class="level3">
 <h3 class="anchored" data-anchor-id="references">References</h3>
-<p>Hernan MA, Robins JM (2025). <em>Causal Inference: What If</em>. Chapman &amp; Hall/CRC. Chapters 12 (IPW), 13 (g-formula), 15 (matching), 21 (ICE).</p>
-<p>Zivich PN, Ross RK, Shook-Sa BE, Cole SR, Edwards JK (2024). Empirical sandwich variance estimator for iterated conditional expectation g-computation. <em>Statistics in Medicine</em> 43:5562-5572.</p>
+<p>Rubin DB (1987). <em>Multiple Imputation for Nonresponse in Surveys</em>. Wiley.</p>
+<p>van Buuren S, Groothuis-Oudshoorn K (2011). mice: Multivariate Imputation by Chained Equations in R. <em>Journal of Statistical Software</em> 45(3):1-67.</p>
+<p>von Hippel PT (2020). How many imputations do you need? <em>Sociological Methods &amp; Research</em> 49(3):699-718.</p>
+<p>Meng XL (1994). Multiple-imputation inferences with uncongenial sources of input. <em>Statistical Science</em> 9(4):538-558.</p>
+<p>Bartlett JW, Hughes RA (2020). Bootstrap inference for multiple imputation under uncongeniality and misspecification. <em>Statistical Methods in Medical Research</em> 29(12):3533-3546.</p>
 </section>
 <section id="see-also" class="level3">
 <h3 class="anchored" data-anchor-id="see-also">See Also</h3>
-<p><code>contrast()</code>, <code>diagnose()</code>, <code>static()</code>, <code>shift()</code>, <code>dynamic()</code></p>
+<p><code>causat()</code>, <code>contrast()</code></p>
 </section>
 <section id="examples" class="level3">
 <h3 class="anchored" data-anchor-id="examples">Examples</h3>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">"causatr"</span>)</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"nhefs"</span>, <span class="at">package =</span> <span class="st">"causatr"</span>)</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Point treatment, g-computation (default)</span></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  nhefs,</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"wt82_71"</span>,</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"qsmk"</span>,</span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> <span class="sc">~</span> sex <span class="sc">+</span> age <span class="sc">+</span> race <span class="sc">+</span> education <span class="sc">+</span></span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>    smokeintensity <span class="sc">+</span> smokeyrs <span class="sc">+</span> exercise <span class="sc">+</span> active <span class="sc">+</span> wt71,</span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">model_fn =</span> stats<span class="sc">::</span>glm</span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="co"># ATT via g-computation (override estimand in contrast())</span></span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>fit_att <span class="ot">&lt;-</span> <span class="fu">causat</span>(</span>
-<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>  nhefs,</span>
-<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"wt82_71"</span>,</span>
-<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"qsmk"</span>,</span>
-<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> <span class="sc">~</span> sex <span class="sc">+</span> age <span class="sc">+</span> race <span class="sc">+</span> education <span class="sc">+</span></span>
-<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>    smokeintensity <span class="sc">+</span> smokeyrs <span class="sc">+</span> exercise <span class="sc">+</span> active <span class="sc">+</span> wt71,</span>
-<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimand =</span> <span class="st">"ATT"</span>,</span>
-<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>  <span class="at">model_fn =</span> stats<span class="sc">::</span>glm</span>
-<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a><span class="co"># IPW -- self-contained density-ratio engine; estimand fixed at</span></span>
-<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a><span class="co"># fit time. A non-default `propensity_model_fn` (e.g. `mgcv::gam`)</span></span>
-<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a><span class="co"># swaps in a smooth propensity model without touching the rest of</span></span>
-<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a><span class="co"># the pipeline.</span></span>
-<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>fit_ipw <span class="ot">&lt;-</span> <span class="fu">causat</span>(</span>
-<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>  nhefs,</span>
-<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"wt82_71"</span>,</span>
-<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"qsmk"</span>,</span>
-<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> <span class="sc">~</span> sex <span class="sc">+</span> age <span class="sc">+</span> race <span class="sc">+</span> education <span class="sc">+</span></span>
-<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>    smokeintensity <span class="sc">+</span> smokeyrs <span class="sc">+</span> exercise <span class="sc">+</span> active <span class="sc">+</span> wt71,</span>
-<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimator =</span> <span class="st">"ipw"</span>,</span>
-<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimand =</span> <span class="st">"ATE"</span>,</span>
-<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a>  <span class="at">model_fn =</span> stats<span class="sc">::</span>glm,</span>
-<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a>  <span class="at">propensity_model_fn =</span> stats<span class="sc">::</span>glm</span>
-<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a><span class="co"># Matching (requires MatchIt). `method = "nearest"` is MatchIt's own arg.</span></span>
-<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a>fit_match <span class="ot">&lt;-</span> <span class="fu">causat</span>(</span>
-<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a>  nhefs,</span>
-<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"wt82_71"</span>,</span>
-<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"qsmk"</span>,</span>
-<span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> <span class="sc">~</span> sex <span class="sc">+</span> age <span class="sc">+</span> race <span class="sc">+</span> education <span class="sc">+</span></span>
-<span id="cb1-48"><a href="#cb1-48" aria-hidden="true" tabindex="-1"></a>    smokeintensity <span class="sc">+</span> smokeyrs <span class="sc">+</span> exercise <span class="sc">+</span> active <span class="sc">+</span> wt71,</span>
-<span id="cb1-49"><a href="#cb1-49" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimator =</span> <span class="st">"matching"</span>,</span>
-<span id="cb1-50"><a href="#cb1-50" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimand =</span> <span class="st">"ATT"</span>,</span>
-<span id="cb1-51"><a href="#cb1-51" aria-hidden="true" tabindex="-1"></a>  <span class="at">method =</span> <span class="st">"nearest"</span></span>
-<span id="cb1-52"><a href="#cb1-52" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb1-53"><a href="#cb1-53" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-54"><a href="#cb1-54" aria-hidden="true" tabindex="-1"></a><span class="co"># Longitudinal with time-varying confounders</span></span>
-<span id="cb1-55"><a href="#cb1-55" aria-hidden="true" tabindex="-1"></a>fit_long <span class="ot">&lt;-</span> <span class="fu">causat</span>(</span>
-<span id="cb1-56"><a href="#cb1-56" aria-hidden="true" tabindex="-1"></a>  data_long,</span>
-<span id="cb1-57"><a href="#cb1-57" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
-<span id="cb1-58"><a href="#cb1-58" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
-<span id="cb1-59"><a href="#cb1-59" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> <span class="sc">~</span> sex <span class="sc">+</span> race <span class="sc">+</span> baseline_age,</span>
-<span id="cb1-60"><a href="#cb1-60" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders_tv =</span> <span class="sc">~</span> CD4 <span class="sc">+</span> viral_load,</span>
-<span id="cb1-61"><a href="#cb1-61" aria-hidden="true" tabindex="-1"></a>  <span class="at">id =</span> <span class="st">"id"</span>,</span>
-<span id="cb1-62"><a href="#cb1-62" aria-hidden="true" tabindex="-1"></a>  <span class="at">time =</span> <span class="st">"time"</span>,</span>
-<span id="cb1-63"><a href="#cb1-63" aria-hidden="true" tabindex="-1"></a>  <span class="at">history =</span> <span class="cn">Inf</span>,</span>
-<span id="cb1-64"><a href="#cb1-64" aria-hidden="true" tabindex="-1"></a>  <span class="at">model_fn =</span> stats<span class="sc">::</span>glm</span>
-<span id="cb1-65"><a href="#cb1-65" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb1-66"><a href="#cb1-66" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-67"><a href="#cb1-67" aria-hidden="true" tabindex="-1"></a><span class="co"># Multivariate treatment</span></span>
-<span id="cb1-68"><a href="#cb1-68" aria-hidden="true" tabindex="-1"></a>fit_multi <span class="ot">&lt;-</span> <span class="fu">causat</span>(</span>
-<span id="cb1-69"><a href="#cb1-69" aria-hidden="true" tabindex="-1"></a>  data,</span>
-<span id="cb1-70"><a href="#cb1-70" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
-<span id="cb1-71"><a href="#cb1-71" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="fu">c</span>(<span class="st">"A1"</span>, <span class="st">"A2"</span>),</span>
-<span id="cb1-72"><a href="#cb1-72" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> <span class="sc">~</span> L1 <span class="sc">+</span> L2,</span>
-<span id="cb1-73"><a href="#cb1-73" aria-hidden="true" tabindex="-1"></a>  <span class="at">model_fn =</span> stats<span class="sc">::</span>glm</span>
-<span id="cb1-74"><a href="#cb1-74" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb1-75"><a href="#cb1-75" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-76"><a href="#cb1-76" aria-hidden="true" tabindex="-1"></a><span class="co"># Negative binomial outcome (count data with overdispersion)</span></span>
-<span id="cb1-77"><a href="#cb1-77" aria-hidden="true" tabindex="-1"></a>fit_nb <span class="ot">&lt;-</span> <span class="fu">causat</span>(</span>
-<span id="cb1-78"><a href="#cb1-78" aria-hidden="true" tabindex="-1"></a>  data,</span>
-<span id="cb1-79"><a href="#cb1-79" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
-<span id="cb1-80"><a href="#cb1-80" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
-<span id="cb1-81"><a href="#cb1-81" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> <span class="sc">~</span> L1 <span class="sc">+</span> L2,</span>
-<span id="cb1-82"><a href="#cb1-82" aria-hidden="true" tabindex="-1"></a>  <span class="at">model_fn =</span> MASS<span class="sc">::</span>glm.nb</span>
-<span id="cb1-83"><a href="#cb1-83" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb1-84"><a href="#cb1-84" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-85"><a href="#cb1-85" aria-hidden="true" tabindex="-1"></a><span class="co"># Beta regression outcome (proportions/rates in (0, 1))</span></span>
-<span id="cb1-86"><a href="#cb1-86" aria-hidden="true" tabindex="-1"></a>fit_beta <span class="ot">&lt;-</span> <span class="fu">causat</span>(</span>
-<span id="cb1-87"><a href="#cb1-87" aria-hidden="true" tabindex="-1"></a>  data,</span>
-<span id="cb1-88"><a href="#cb1-88" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
-<span id="cb1-89"><a href="#cb1-89" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
-<span id="cb1-90"><a href="#cb1-90" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> <span class="sc">~</span> L1 <span class="sc">+</span> L2,</span>
-<span id="cb1-91"><a href="#cb1-91" aria-hidden="true" tabindex="-1"></a>  <span class="at">model_fn =</span> betareg<span class="sc">::</span>betareg,</span>
-<span id="cb1-92"><a href="#cb1-92" aria-hidden="true" tabindex="-1"></a>  <span class="at">family =</span> <span class="st">"beta"</span></span>
-<span id="cb1-93"><a href="#cb1-93" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="fu">requireNamespace</span>(<span class="st">"mice"</span>, <span class="at">quietly =</span> <span class="cn">TRUE</span>)) {</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set.seed</span>(<span class="dv">1</span>)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  n <span class="ot">&lt;-</span> <span class="dv">400</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  L <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  A <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="fl">0.5</span> <span class="sc">*</span> L))</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  Y <span class="ot">&lt;-</span> <span class="dv">2</span> <span class="sc">+</span> <span class="dv">3</span> <span class="sc">*</span> A <span class="sc">+</span> <span class="fl">1.5</span> <span class="sc">*</span> L <span class="sc">+</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>  <span class="co"># L missing-at-random on the (observed) treatment.</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>  L[<span class="fu">rbinom</span>(n, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="sc">-</span><span class="dv">1</span> <span class="sc">+</span> <span class="fl">0.8</span> <span class="sc">*</span> A)) <span class="sc">==</span> <span class="dv">0</span>] <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  dat <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">Y =</span> Y, <span class="at">A =</span> A, <span class="at">L =</span> L)</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  imp <span class="ot">&lt;-</span> mice<span class="sc">::</span><span class="fu">mice</span>(dat, <span class="at">m =</span> <span class="dv">5</span>, <span class="at">printFlag =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  res <span class="ot">&lt;-</span> <span class="fu">causat_mice</span>(</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>    imp,</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">confounders =</span> <span class="sc">~</span>L,</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">estimator =</span> <span class="st">"gcomp"</span></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summary</span>(res)</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>&lt;causatr_result&gt;
+ Estimator: G-computation
+ Estimand:  ATE
+ Contrast:  Difference
+ CI method: rubin
+ N:         400
+
+Intervention means:
+   intervention estimate    se ci_lower ci_upper
+         &lt;char&gt;    &lt;num&gt; &lt;num&gt;    &lt;num&gt;    &lt;num&gt;
+1:           a1     5.01 0.129     4.75     5.27
+2:           a0     2.01 0.124     1.77     2.26
+
+Contrasts:
+   comparison estimate    se ci_lower ci_upper
+       &lt;char&gt;    &lt;num&gt; &lt;num&gt;    &lt;num&gt;    &lt;num&gt;
+1:   a0 vs a1       -3 0.171    -3.37    -2.62
+
+Intervention details:
+  a1: static, value = 1
+  a0: static, value = 0
+
+Variance-covariance matrix of marginal means:
+          [,1]      [,2]
+[1,] 0.0166584 0.0000000
+[2,] 0.0000000 0.0153196</code></pre>
+</div>
 </div>
 
 
