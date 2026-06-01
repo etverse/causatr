@@ -1034,7 +1034,7 @@ Third leg of the Robins triangle. Motivating use case: **correct handling of tim
 | delicatessen cross-check — continuous trt, 2 modifiers | ✅ | test-snm.R |
 | DTRreg cross-check — binary trt, no EM (point + SE) | ✅ | test-snm.R |
 | `contrast(interventions=)` → rejection | ✅ | test-snm.R |
-| `ci_method = "bootstrap"` → rejection (pending 18i) | ✅ | test-snm.R |
+| `ci_method = "bootstrap"` accepted (point + longitudinal) | ✅ | test-snm-bootstrap.R (see Chunk 18i) |
 | `treatment_values` on non-SNM → rejection | ✅ | test-snm.R |
 | `treatment_values` length ≠ 2 → rejection | ✅ | test-snm.R |
 | Vcov dimensions and PSD | ✅ | test-snm.R |
