@@ -1,5 +1,42 @@
 # causatr (development version)
 
+## 2026-06-01 — Phase 21: Multiple imputation via `causat_mice()`
+
+`causat_mice()` is now implemented and exported. It is the analysis step of a
+multiple-imputation workflow: the user imputes missing covariates and/or
+treatment upstream with `mice::mice()`, and `causat_mice()` fits `causat()` +
+`contrast()` on every completed dataset and pools the per-imputation estimates
+into a single `causatr_result`. This is the supported way to handle
+missing-at-random covariates (L) or treatment (A) — orthogonal to IPCW, which
+handles missing outcomes (Y).
+
+* **Two pooling engines.** `pool_method = "rubin"` (default) applies Rubin's
+  (1987) rules with Barnard-Rubin (1999) degrees of freedom, cross-checked to
+  machine precision against `mice::pool.scalar()`. `pool_method = "boot_mi"`
+  implements von Hippel's (2020) two-stage bootstrap-then-impute variance,
+  which restores nominal coverage under the uncongeniality that is typical of
+  causal estimands (where Rubin's rules are conservative). Means and difference
+  contrasts pool on the natural scale; ratio / odds-ratio contrasts pool on the
+  log scale.
+* **Estimator-agnostic.** Every `causat()` configuration flows through
+  unchanged: all five estimators (gcomp, IPW, AIPW, matching, SNM), every
+  treatment type and outcome family, all interventions and contrast scales,
+  `by`-stratification and ATT, stabilized weights, longitudinal (ICE +
+  longitudinal IPW), and IPCW (missing L imputed while censored Y is reweighted)
+  all pool. SNM pools per blip parameter.
+* **S3 integration.** `confint()` and `tidy()` reconstruct `t`-based intervals
+  from the per-row pooling degrees of freedom (stored in the `"mi_details"`
+  attribute) so the user's confidence level is honored. `parallel = "future"`
+  forwards the Boot MI bootstrap to `future.apply`.
+* **Guards.** `causat_mice()` warns when an analysis variable is absent from or
+  unused by the imputation model (a uncongeniality risk), drops individual
+  imputations that fail to fit (aborting only if none survive), and degrades
+  gracefully to a single complete-data analysis when `m = 1`.
+
+New internal engines live in `R/pool_rubin.R` and `R/pool_boot_mi.R`. The
+`check_treatment_nas()` hint now advertises MI as a third way to handle missing
+treatment alongside IPCW and complete-case analysis.
+
 ## 2026-05-31 — Phase 20: Per-period IPSI under longitudinal IPW
 
 Univariate `ipsi(delta)` interventions now work under longitudinal IPW

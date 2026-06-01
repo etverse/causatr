@@ -1,6 +1,16 @@
 # Phase 21 — Multiple Imputation via `causat_mice()`
 
-> **Status: PENDING (design doc)**
+> **Status: IMPLEMENTED (21a–21g shipped; 21h coverage suite minimal, 21i vignette pending)**
+>
+> `causat_mice()` is exported and pools `causat()` + `contrast()` across `mice`
+> imputations. Because the implementation is estimator-agnostic, the chunks
+> originally scoped as separate work (IPCW + MI, longitudinal MI) are covered
+> by the core loop and tested. Engines: `R/pool_rubin.R` (Rubin's rules +
+> Barnard-Rubin df, cross-checked against `mice::pool.scalar()`),
+> `R/pool_boot_mi.R` (von Hippel two-stage Boot MI). Tests:
+> `test-causat-mice.R`, `test-pool-rubin.R`, `test-pool-boot-mi.R`.
+> Still to do: a fuller Monte-Carlo coverage study (21h) and the workflow
+> vignette (21i).
 
 ## Motivation
 
