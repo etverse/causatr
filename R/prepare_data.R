@@ -247,7 +247,8 @@ warn_confounder_variation <- function(
             v,
             "' does not vary within any individual. ",
             "Consider moving it to `confounders` (baseline)."
-          )
+          ),
+          class = "causatr_tv_confounder_constant"
         )
       }
     }
@@ -267,7 +268,8 @@ warn_confounder_variation <- function(
             v,
             "' varies within some individuals. ",
             "Consider moving it to `confounders_tv` (time-varying)."
-          )
+          ),
+          class = "causatr_baseline_confounder_varying"
         )
       }
     }

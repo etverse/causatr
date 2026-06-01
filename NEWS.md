@@ -1,5 +1,14 @@
 # causatr (development version)
 
+## 2026-06-01 — Classed confounder-placement warnings
+
+The two `prepare_data()` warnings that flag a likely `confounders` /
+`confounders_tv` mix-up are now classed so downstream code (and tests) can match
+on class rather than message text: `causatr_tv_confounder_constant` (a
+time-varying confounder that never varies within an individual) and
+`causatr_baseline_confounder_varying` (a baseline confounder that does vary
+within individuals). No behaviour change beyond the added condition class.
+
 ## 2026-06-01 — Phase 21: Multiple imputation via `causat_mice()`
 
 `causat_mice()` is now implemented and exported. It is the analysis step of a

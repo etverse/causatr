@@ -538,14 +538,21 @@ test_that("AIPW transport: effect modification (by=sex)", {
   )
   d <- data.frame(Y = Y, A = A, L = L, sex = sex, S = S)
 
-  fit <- causat(
-    d,
-    "Y",
-    "A",
-    ~ L + A:sex,
-    estimator = "aipw",
-    propensity_model_fn = stats::glm,
-    target = "S"
+  # `sex` enters only via `A:sex`, so it is stripped from the (treatment-free)
+  # sampling formula and causatr warns that a baseline confounder is absent from
+  # the sampling model. That warning is the documented, correct behaviour here,
+  # so assert it rather than letting it leak to the reporter.
+  expect_warning(
+    fit <- causat(
+      d,
+      "Y",
+      "A",
+      ~ L + A:sex,
+      estimator = "aipw",
+      propensity_model_fn = stats::glm,
+      target = "S"
+    ),
+    class = "causatr_transport_predictor_subset"
   )
   res <- contrast(
     fit,
