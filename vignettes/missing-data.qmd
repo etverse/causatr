@@ -237,8 +237,314 @@ res_l <- contrast(
 res_l
 ```
 
-Under MCAR covariate missingness, the estimate is unbiased. Under MAR,
-multiple imputation is needed (planned via `causat_mice()`).
+Under MCAR covariate missingness, the estimate is unbiased. Under MAR, the
+complete-case fit is *biased* — the missing rows are not a random sample of the
+data — and multiple imputation is needed. The next section walks through that
+workflow with `causat_mice()`.
+
+## Multiple imputation for MAR covariates and treatment
+
+When covariates (or treatment) are missing **at random** (MAR) rather than
+completely at random, dropping the incomplete rows distorts the analysis: the
+observed subset is no longer representative. Multiple imputation (MI) fixes this
+by filling in the missing values from their predictive distribution several
+times, running the analysis on each completed dataset, and pooling. causatr's
+`causat_mice()` is the *analysis-and-pooling* step: you impute upstream with
+`mice::mice()`, then hand the `mids` object to `causat_mice()`, which runs
+`causat()` + `contrast()` on every completed dataset and pools the results into
+a single `causatr_result`.
+
+```{r}
+#| label: mi-setup
+# Multiple imputation needs the mice package (a Suggested dependency). Every
+# chunk in this section is guarded so the vignette still renders without it.
+has_mice <- requireNamespace("mice", quietly = TRUE)
+```
+
+**A MAR covariate.** We simulate a confounder `L` whose missingness depends on
+the *observed* treatment `A` (so it is MAR, not MCAR) — `L` is recorded less
+often for the untreated. The true ATE is 3.
+
+```{r}
+#| eval: has_mice
+set.seed(2024)
+n_mi <- 2000
+L <- rnorm(n_mi)
+A <- rbinom(n_mi, 1, plogis(0.5 * L))
+Y <- 2 + 3 * A + 1.5 * L + rnorm(n_mi) # true ATE = 3
+# L is observed more often among the treated -> missing more often among
+# controls: missingness depends on the observed A (MAR, not MCAR).
+R_L <- rbinom(n_mi, 1, plogis(0.6 + 0.7 * A))
+df_full <- data.frame(Y = Y, A = A, L = L)
+df_mar_l <- df_full
+df_mar_l$L[R_L == 0] <- NA
+round(mean(is.na(df_mar_l$L)), 2) # fraction of L missing
+```
+
+Helper to read a difference contrast as a signed magnitude with a symmetric
+interval (the reference direction is a display convention; the true effect is
+3):
+
+```{r}
+#| eval: has_mice
+ate_row <- function(res, label) {
+  e <- res$contrasts$estimate[1]
+  half <- (res$contrasts$ci_upper[1] - res$contrasts$ci_lower[1]) / 2
+  data.frame(Method = label, Estimate = abs(e),
+             CI_lower = abs(e) - half, CI_upper = abs(e) + half)
+}
+```
+
+**Complete-case analysis discards the incomplete rows.** A subtlety worth being
+honest about: under g-computation with a *correctly specified* outcome model,
+covariate missingness that depends only on modelled variables (here `A`) leaves
+the complete-case estimate approximately *valid* — so it will land near the
+truth below. But that is a fragile special case, not a general guarantee:
+
+- it throws away every partially observed row (here ~30%), and
+- it is not even an option for `estimator = "ipw"` or `"matching"`, which abort
+  on rows with a missing confounder, and
+- it breaks once missingness depends on the **outcome**, which a covariate-only
+  model cannot absorb.
+
+Multiple imputation sidesteps all three by using every row and propagating the
+imputation uncertainty into the standard error.
+
+```{r}
+#| eval: has_mice
+cc_fit <- causat(df_mar_l, outcome = "Y", treatment = "A",
+                 confounders = ~L, model_fn = stats::glm)
+cc_res <- contrast(cc_fit, interventions = list(a1 = static(1), a0 = static(0)),
+                   reference = "a0", type = "difference", ci_method = "sandwich")
+cc_res
+```
+
+**Multiple imputation uses every row.** Impute `L` with `mice()` (the default
+predictor matrix carries `A` *and* `Y`, which is exactly what we want — see the
+congeniality note below), then pool with `causat_mice()`:
+
+```{r}
+#| eval: has_mice
+library(mice)
+imp <- mice(df_mar_l, m = 20, printFlag = FALSE)
+
+mi_res <- causat_mice(
+  imp,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~L,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  estimator = "gcomp",
+  type = "difference"
+)
+mi_res
+```
+
+The pooled standard error reflects both the within-imputation sampling
+variability and the between-imputation uncertainty, via Rubin's (1987) rules
+with Barnard-Rubin (1999) degrees of freedom. The per-imputation diagnostics
+(including the fraction of missing information) live in the `"mi_details"`
+attribute:
+
+```{r}
+#| eval: has_mice
+attr(mi_res, "mi_details")$contrasts
+```
+
+Be transparent about what MI does and does not buy here. Complete-case is valid
+in this design, and the two estimates agree closely — MI does not magically
+sharpen a valid analysis. It does still use the partially observed rows (so its
+interval is, if anything, a touch narrower than complete-case's), and the `fmi`
+column reports how much information the missingness costs. The honest caveat
+runs the *other* way: MI is only as good as its imputation model. A misspecified
+imputation can bias the causal estimate **worse** than complete-case — we
+demonstrate exactly that below by dropping `Y` from the predictor matrix. MI's
+decisive *advantage*, meanwhile, shows up when complete-case is **biased** — the
+next design.
+
+### When complete-case fails: outcome-dependent missingness
+
+Complete-case validity above hinged on `L` being missing as a function of `A`
+alone — a *modelled* covariate. Now make missingness depend on the **outcome**,
+and in *opposite directions* across treatment arms: among the treated `L` is
+recorded when `Y` is low, among controls when `Y` is high. The outcome
+regression conditions on covariates, not on its own selection, so the
+complete-case fit cannot undo this distortion and its ATE is badly biased. MI,
+which imputes `L` from `(A, Y)` over the whole sample, recovers the truth.
+
+```{r}
+#| eval: has_mice
+# Reusable complete-case (na.omit) + MI g-computation on a partially observed
+# data frame, each summarised by ate_row().
+cc_mi_gcomp <- function(dmar, m = 20) {
+  ints <- list(a1 = static(1), a0 = static(0))
+  cc <- contrast(
+    causat(na.omit(dmar), outcome = "Y", treatment = "A",
+           confounders = ~L, model_fn = stats::glm),
+    interventions = ints, reference = "a0", ci_method = "sandwich"
+  )
+  imp_d <- mice(dmar, m = m, printFlag = FALSE)
+  mi <- causat_mice(imp_d, outcome = "Y", treatment = "A", confounders = ~L,
+                    interventions = ints, estimator = "gcomp")
+  list(cc = cc, mi = mi)
+}
+
+set.seed(3)
+n2 <- 4000
+L2 <- rnorm(n2)
+A2 <- rbinom(n2, 1, plogis(0.5 * L2))
+Y2 <- 2 + 3 * A2 + 1.5 * L2 + rnorm(n2) # true ATE = 3
+z2 <- (Y2 - mean(Y2)) / sd(Y2)
+# Observe L with arm-flipped dependence on Y: MAR on (A, Y), unmodellable by a
+# covariate-only outcome regression fit on complete cases.
+R2 <- rbinom(n2, 1, plogis(1.0 + 1.8 * ifelse(A2 == 1, -z2, z2)))
+df2_full <- data.frame(Y = Y2, A = A2, L = L2)
+df2 <- df2_full
+df2$L[R2 == 0] <- NA
+fit2 <- cc_mi_gcomp(df2)
+fit2$cc$contrasts
+fit2$mi$contrasts
+```
+
+Side by side, with the (unobservable) full-data oracle for reference. Design 1
+is the benign covariate-MAR case (complete-case valid, MI slightly wider);
+Design 2 is the outcome-dependent case (complete-case biased, MI on target):
+
+```{r}
+#| eval: has_mice
+oracle1 <- contrast(causat(df_full, "Y", "A", confounders = ~L, model_fn = stats::glm),
+                    interventions = list(a1 = static(1), a0 = static(0)),
+                    reference = "a0", ci_method = "sandwich")
+oracle2 <- contrast(causat(df2_full, "Y", "A", confounders = ~L, model_fn = stats::glm),
+                    interventions = list(a1 = static(1), a0 = static(0)),
+                    reference = "a0", ci_method = "sandwich")
+
+d1 <- "Design 1: covariate-MAR (CC valid)"
+d2 <- "Design 2: outcome-dependent (CC biased)"
+compare <- rbind(
+  cbind(Design = d1, rbind(ate_row(oracle1, "Oracle"),
+        ate_row(cc_res, "Complete-case"), ate_row(mi_res, "MI"))),
+  cbind(Design = d2, rbind(ate_row(oracle2, "Oracle"),
+        ate_row(fit2$cc, "Complete-case"), ate_row(fit2$mi, "MI")))
+)
+compare$Method <- factor(compare$Method,
+                         levels = c("Oracle", "Complete-case", "MI"))
+tt(compare, digits = 3)
+```
+
+```{r}
+#| eval: has_mice
+#| fig-alt: "Pointrange plot of ATE estimates with confidence intervals. Two coloured series (Design 1 and Design 2) at each of Oracle, Complete-case, and MI. In Design 1 all three sit on the dashed truth line at 3. In Design 2 the complete-case point falls well below 3 while Oracle and MI remain on it."
+tinyplot(
+  Estimate ~ Method | Design,
+  data = compare,
+  type = "pointrange",
+  ymin = compare$CI_lower,
+  ymax = compare$CI_upper,
+  ylab = "ATE estimate",
+  xlab = "",
+  main = "Complete-case vs MI across two missingness designs"
+)
+abline(h = 3, lty = 2, col = "grey40")
+```
+
+Design 2 is where MI earns its keep: complete-case misses the truth by a wide
+margin, MI lands on it. Design 1 is the honest counterweight — when
+complete-case is valid, MI buys nothing and costs a little precision.
+
+`causat_mice()` is **estimator-agnostic** — swap `estimator = "ipw"`,
+`"aipw"`, `"matching"`, or `"snm"`, change the outcome family, the contrast
+scale, add `by =` stratification, or go longitudinal with `id =`/`time =`, and
+the same pooling applies. For `"ipw"` and `"matching"` MI is not just better but
+*necessary*: those engines abort on a missing confounder, so the only
+alternatives are manual listwise deletion or imputation. MAR *treatment* is
+handled the same way: impute `A` (as a factor, so `mice` uses logistic
+regression) and pass the `mids` object on.
+
+### Boot MI for inference that does not assume congeniality
+
+The default `pool_method = "rubin"` is exactly valid when the imputation and
+analysis models are *congenial*. Causal estimands are often uncongenial with the
+`mice` model, and under uncongeniality Rubin's variance can be biased in either
+direction (Meng 1994; Bartlett & Hughes 2020) — not reliably conservative.
+`pool_method = "boot_mi"` (von Hippel 2020) replaces Rubin's variance
+decomposition with a bootstrap-then-impute resampling variance:
+
+```{r}
+#| eval: has_mice
+boot_res <- causat_mice(
+  imp,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~L,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  estimator = "gcomp",
+  type = "difference",
+  pool_method = "boot_mi",
+  B = 50, # raise to ~200-1000 in practice; small here for a fast vignette
+  M = 2,
+  seed = 1
+)
+boot_res
+```
+
+Both pooling rules are only as good as the consistency of the underlying
+estimator — the next note explains why that puts the outcome in the imputation
+model.
+
+### Congeniality, consistency, and why Y must be a predictor
+
+A bootstrap (and Rubin's rules) corrects the *variance*, not *bias* in the point
+estimate. Both pooling rules attain approximately nominal coverage **only when
+the causal estimator stays consistent** (Bartlett & Hughes 2020). The single
+most important way to keep it consistent is to **include the outcome `Y` as a
+predictor in the imputation model** (van Buuren 2018, ch. 6): omitting it
+produces biased imputed covariates, which biases the causal estimate — and no
+pooling rule can repair that.
+
+Design 2 makes the stakes concrete. Re-impute it with `Y` *excluded* from the
+predictor matrix — exactly the misspecification the missingness mechanism
+punishes — and the MI estimate is biased *further* from the truth than even
+complete-case. `causat_mice()` flags it: it warns when an analysis variable is
+absent from, or unused by, the imputation model.
+
+```{r}
+#| eval: has_mice
+#| warning: true
+pred <- mice::make.predictorMatrix(df2)
+pred[, "Y"] <- 0 # deliberately drop Y from the predictor matrix
+imp_noY <- mice(df2, predictorMatrix = pred, m = 20, printFlag = FALSE)
+
+# The warning fires: Y is present in the data but never used to impute L.
+mi_noY <- causat_mice(
+  imp_noY,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~L,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  estimator = "gcomp"
+)
+```
+
+```{r}
+#| eval: has_mice
+#| echo: false
+data.frame(
+  Method = c("Complete-case", "MI (Y included)", "MI (Y excluded)"),
+  Estimate = round(c(abs(fit2$cc$contrasts$estimate[1]),
+                     abs(fit2$mi$contrasts$estimate[1]),
+                     abs(mi_noY$contrasts$estimate[1])), 3)
+) |> tt()
+```
+
+So MI is not automatically safe: done well (with `Y`) it recovers the truth that
+complete-case missed; done badly (without `Y`) it can be *worse* than
+complete-case. The imputation model matters.
+
+Do **not** impute `Y` itself: missing outcomes belong to inverse-probability-of-
+censoring weighting (`ipcw = TRUE`, shown below) or complete-case analysis, not
+MI. Including `Y` as a *predictor* (good) is the opposite of *imputing* `Y`
+(wrong tool).
 
 ## Both outcome and covariate missing
 
@@ -287,8 +593,9 @@ causat(
 )
 ```
 
-If treatment is MCAR, drop the rows. If MAR, use multiple imputation before
-calling `causat()`.
+If treatment is MCAR, drop the rows. If MAR, impute `A` with `mice()` (store it
+as a factor so `mice` uses logistic regression) and pool with `causat_mice()`,
+exactly as for a MAR covariate above.
 
 ## Missing outcomes with continuous treatment
 
@@ -738,12 +1045,13 @@ correct standard errors, or `ci_method = "bootstrap"` with manual weights.
 summary_df <- data.frame(
   Variable = c("Outcome (Y)", "Outcome (Y)", "Outcome (Y)",
                "Outcome (Y)", "Outcome (Y)",
-               "Treatment (A)", "Covariates (L)", "Covariates (L)", "Y + L"),
+               "Treatment (A)", "Treatment (A)",
+               "Covariates (L)", "Covariates (L)", "Y + L"),
   Mechanism = c("MCAR", "MCAR", "MCAR", "MAR", "MAR",
-                "Any", "MCAR", "MAR", "MCAR"),
+                "NA to causat()", "MAR", "MCAR", "MAR", "MCAR"),
   Method = c("G-comp", "IPW", "Matching",
              "Any + ipcw=TRUE", "Any + manual weights",
-             "Any", "G-comp", "Any", "G-comp"),
+             "Any", "Any", "G-comp", "Any", "G-comp"),
   Handling = c(
     "Complete-case model, predict on all rows",
     "Fit treatment model on observed-Y subset",
@@ -751,13 +1059,14 @@ summary_df <- data.frame(
     "Built-in IPCW via censoring= + ipcw=TRUE",
     "External IPCW weights via weights=",
     "Rejected (abort with error)",
+    "Impute A, then causat_mice()",
     "na.omit drops rows; predict returns NA",
-    "Multiple imputation (causat_mice, planned)",
+    "Multiple imputation via causat_mice()",
     "Combines both drop rules"
   ),
   Status = c("Supported", "Supported", "Supported",
              "Supported", "Supported",
-             "Rejected", "Supported", "Planned", "Supported")
+             "Rejected", "Supported", "Supported", "Supported", "Supported")
 )
 tt(summary_df)
 ```
@@ -768,11 +1077,13 @@ tt(summary_df)
    The estimate is unbiased; the SE increases proportionally to the information
    loss.
 
-2. **Missing treatment values** are never allowed. Drop rows (MCAR) or impute
-   (MAR) before calling `causat()`.
+2. **Missing treatment values** cannot be passed to `causat()` directly. Drop
+   rows (MCAR) or impute with `mice()` + `causat_mice()` (MAR).
 
 3. **Missing covariates (MCAR)** work out-of-the-box under g-comp via
-   `na.omit`. For MAR missingness, multiple imputation is needed.
+   `na.omit`. For MAR missingness, use multiple imputation via `causat_mice()`
+   (Rubin's rules by default, Boot MI when congeniality is in doubt). Always
+   include the outcome as a *predictor* in the imputation model.
 
 4. **MAR outcome missingness** is handled by `ipcw = TRUE`, which fits a
    censoring model and computes stabilized IPCW weights automatically.
@@ -789,3 +1100,20 @@ longitudinal studies).
 
 Little RJA, Rubin DB (2019). *Statistical Analysis with Missing Data*. 3rd ed.
 Wiley.
+
+Rubin DB (1987). *Multiple Imputation for Nonresponse in Surveys*. Wiley.
+
+Barnard J, Rubin DB (1999). Small-sample degrees of freedom with multiple
+imputation. *Biometrika* 86(4):948-955.
+
+Meng XL (1994). Multiple-imputation inferences with uncongenial sources of
+input. *Statistical Science* 9(4):538-558.
+
+van Buuren S (2018). *Flexible Imputation of Missing Data*. 2nd ed. CRC Press.
+
+Bartlett JW, Hughes RA (2020). Bootstrap inference for multiple imputation under
+uncongeniality and misspecification. *Statistical Methods in Medical Research*
+29(12):3533-3546.
+
+von Hippel PT (2020). How many imputations do you need? A two-stage calculation
+using a quadratic rule. *Sociological Methods & Research* 49(3):699-718.

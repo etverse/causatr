@@ -14,10 +14,12 @@ handles missing outcomes (Y).
   (1987) rules with Barnard-Rubin (1999) degrees of freedom, cross-checked to
   machine precision against `mice::pool.scalar()`. `pool_method = "boot_mi"`
   implements von Hippel's (2020) two-stage bootstrap-then-impute variance,
-  which restores nominal coverage under the uncongeniality that is typical of
-  causal estimands (where Rubin's rules are conservative). Means and difference
-  contrasts pool on the natural scale; ratio / odds-ratio contrasts pool on the
-  log scale.
+  which attains nominal coverage without relying on Rubin's congeniality
+  assumption — **provided the point estimator stays consistent** (a bootstrap
+  corrects the variance, not bias; Bartlett & Hughes 2020). Under
+  uncongeniality Rubin's variance can be biased in either direction (Meng 1994),
+  so it is not uniformly conservative. Means and difference contrasts pool on
+  the natural scale; ratio / odds-ratio contrasts pool on the log scale.
 * **Estimator-agnostic.** Every `causat()` configuration flows through
   unchanged: all five estimators (gcomp, IPW, AIPW, matching, SNM), every
   treatment type and outcome family, all interventions and contrast scales,
@@ -35,6 +37,16 @@ handles missing outcomes (Y).
   (`causatr_mi_boot_floor`) when a variance component goes non-positive and is
   floored — a signal that `B`/`M` are too small for the random-effects
   decomposition rather than a genuinely tiny standard error.
+
+* **Coverage study + theory correction (21h).** A Monte-Carlo study
+  (`test-mi-coverage.R`) confirms Rubin and Boot MI both attain ~nominal
+  coverage when the imputation model keeps the causal estimator consistent
+  (DGP-MI1), with Rubin's intervals marginally wider. It also corrects an
+  earlier claim in the design doc: excluding the outcome from the predictor
+  matrix (DGP-MI5) is a *misspecification that biases the estimate*, so neither
+  pooling rule recovers coverage — a bootstrap fixes variance, not bias
+  (Bartlett & Hughes 2020). The MI workflow guide is the `missing-data.qmd`
+  vignette (21i).
 
 New internal engines live in `R/pool_rubin.R` and `R/pool_boot_mi.R`. The
 `check_treatment_nas()` hint now advertises MI as a third way to handle missing

@@ -77,12 +77,18 @@
 #' ## Congeniality
 #' Causal estimands are typically *uncongenial* with the `mice` imputation
 #' model (the estimand is a functional of the outcome/treatment model under
-#' intervention, not a parameter of the imputation model). Under
-#' uncongeniality Rubin's rules give conservative (wider) intervals, which is
-#' safe but may sacrifice power. `pool_method = "boot_mi"` restores nominal
-#' coverage. Always include the outcome, treatment, all confounders, and any
-#' effect modifiers as predictors in the upstream `mice()` call;
-#' `causat_mice()` warns when an analysis variable is absent.
+#' intervention, not a parameter of the imputation model). Under uncongeniality
+#' Rubin's variance can be biased in *either* direction depending on the
+#' situation -- conservative for some kinds of uncongeniality (Meng 1994), but
+#' anticonservative in others (Bartlett & Hughes 2020). `pool_method =
+#' "boot_mi"` sidesteps Rubin's variance decomposition with a resampling
+#' variance that attains nominal coverage **provided the point estimator stays
+#' consistent**: a bootstrap corrects the variance, not bias in the estimate
+#' itself. Always include the outcome, treatment, all confounders, and any
+#' effect modifiers as predictors in the upstream `mice()` call -- omitting a
+#' key predictor (e.g. the outcome) misspecifies the imputation, which can
+#' *bias* the causal estimate and so defeat both pooling rules.
+#' `causat_mice()` warns when an analysis variable is absent or unused.
 #'
 #' ## What this does not do
 #' It does not perform the imputation (call `mice::mice()` first), impute the
@@ -96,6 +102,13 @@
 #'
 #' von Hippel PT (2020). How many imputations do you need? *Sociological
 #' Methods & Research* 49(3):699-718.
+#'
+#' Meng XL (1994). Multiple-imputation inferences with uncongenial sources of
+#' input. *Statistical Science* 9(4):538-558.
+#'
+#' Bartlett JW, Hughes RA (2020). Bootstrap inference for multiple imputation
+#' under uncongeniality and misspecification. *Statistical Methods in Medical
+#' Research* 29(12):3533-3546.
 #'
 #' @examples
 #' if (requireNamespace("mice", quietly = TRUE)) {

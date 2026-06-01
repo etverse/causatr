@@ -1275,7 +1275,10 @@ Hippel two-stage bootstrap-then-impute).
 | ATT + MI; `by`-stratified pooling (per-row) | ✅ | test-causat-mice.R |
 | Longitudinal (ICE + longitudinal IPW) + MI | ✅ | test-causat-mice.R |
 | IPCW + MI: missing L imputed, censored Y reweighted | ✅ | test-causat-mice.R |
-| Boot MI recovers ATE; corrects Rubin conservatism (uncongenial) | ✅ | test-pool-boot-mi.R |
+| Boot MI recovers ATE; tighter SE than Rubin under misspecified imputation | ✅ | test-pool-boot-mi.R |
+| MC coverage: Rubin ~nominal when estimator consistent (DGP-MI1) | ✅ | test-mi-coverage.R |
+| MC coverage: Boot MI ~nominal, SE no wider than Rubin (consistent regime) | ✅ | test-mi-coverage.R |
+| MC coverage: omitting Y biases estimate, collapses coverage for both (DGP-MI5) | ✅ | test-mi-coverage.R |
 | S3: confint / tidy honor Barnard-Rubin df | ✅ | test-causat-mice.R |
 | `parallel = "future"` Boot MI | ✅ | test-pool-boot-mi.R |
 | Edge: m=1 degenerate (warn); all-fit-failure (abort) | ✅ | test-causat-mice.R |

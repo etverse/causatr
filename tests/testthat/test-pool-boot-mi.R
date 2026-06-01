@@ -1,7 +1,8 @@
 # Boot MI (von Hippel 2020) variance engine. The decomposition is unit-tested
 # exactly via pool_table_boot(); the full causat_mice(pool_method="boot_mi")
-# path is checked for truth recovery, structure, reproducibility, and the
-# uncongeniality correction relative to Rubin's rules.
+# path is checked for truth recovery, structure, reproducibility, and its
+# pooled SE relative to Rubin's rules under a misspecified imputation. Coverage
+# behaviour in the consistent regime lives in test-mi-coverage.R.
 
 test_that("pool_table_boot() implements V = between - within/M exactly", {
   # Build a B x M x 1 array with known per-cell values so the random-effects
@@ -49,7 +50,8 @@ test_that("pool_table_boot() warns when the variance component is floored", {
   # Per-bootstrap means all 1.0 (zero between), large within spread.
   cells <- matrix(
     c(0, 2, 1, 1, 0.05, 1.95, 0.9, 1.1, -0.1, 2.1, 1.05, 0.95),
-    nrow = B, byrow = TRUE
+    nrow = B,
+    byrow = TRUE
   )
   arr <- array(cells, dim = c(B, M, 1))
   expect_warning(
@@ -166,13 +168,18 @@ test_that("boot_mi is reproducible across parallel backends with a fixed seed", 
   )
 })
 
-test_that("Boot MI corrects Rubin's conservatism under uncongeniality", {
+test_that("Boot MI yields a tighter pooled SE than Rubin under misspecified imputation", {
   skip_on_cran()
   skip_if_not_installed("mice")
-  # DGP-MI5 has an A*L interaction; imputing L without Y is uncongenial.
-  # Rubin's between-imputation variance then overestimates the imputation
-  # uncertainty, so its pooled SE is larger than Boot MI's. Average over a
-  # few datasets to damp Monte Carlo noise in the comparison.
+  # DGP-MI5 has an A*L interaction; imputing L without Y misspecifies the
+  # imputation model. Rubin's between-imputation variance then carries more
+  # imputation noise than Boot MI's resampling variance, so its pooled SE is
+  # the larger of the two. This is a *variance-width* comparison only: with Y
+  # omitted the causal estimate is biased (inconsistent), so neither interval
+  # attains nominal coverage -- a bootstrap corrects variance, not bias
+  # (Bartlett & Hughes 2020). The coverage behaviour of each method in the
+  # consistent regime is studied in test-mi-coverage.R. Average over a few
+  # datasets to damp Monte Carlo noise in the SE comparison.
   rubin_se <- numeric(4)
   boot_se <- numeric(4)
   for (s in 1:4) {
@@ -221,9 +228,13 @@ test_that("Boot MI corrects Rubin's conservatism under uncongeniality", {
     )
     rubin_se[s] <- rr$contrasts$se[1]
     boot_se[s] <- bb$contrasts$se[1]
-    # Both must still recover the marginal truth of 3.
-    expect_equal(abs(rr$contrasts$estimate[1]), 3, tolerance = 0.3)
-    expect_equal(abs(bb$contrasts$estimate[1]), 3, tolerance = 0.3)
+    # Excluding Y biases the estimate above the truth of 3 (~3.4-3.7) -- the
+    # inconsistency that makes this an SE-width, not a coverage, comparison.
+    # Both pooling rules sit on the same biased point estimate.
+    expect_gt(abs(rr$contrasts$estimate[1]), 3.2)
+    expect_gt(abs(bb$contrasts$estimate[1]), 3.2)
   }
+  # The misspecified imputation inflates Rubin's between-imputation variance
+  # far more than Boot MI's resampling variance (~2x here), a robust margin.
   expect_gt(mean(rubin_se), mean(boot_se))
 })

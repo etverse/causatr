@@ -1810,13 +1810,16 @@ simulate_mi_longitudinal <- function(n = 2000, seed = 42) {
   )
 }
 
-# DGP-MI5: Uncongenial imputation, point treatment.
+# DGP-MI5: Misspecified imputation that biases the estimate, point treatment.
 #   L ~ N(0,1); A ~ Bern(expit(0.5 L)); Y = 2 + 3 A + 1.5 L + 0.8 A L + N(0,1).
 #   R_L ~ Bern(expit(-1 + 0.8 A)); L MAR on A.
 #   Marginal (population) ATE = 3 + 0.8 E[L] = 3 (L centered). The A*L term
-#   makes the analysis model require P(L | A, Y); imputing L without Y is
-#   deliberately uncongenial, under which Rubin's rules overcover and
-#   Boot MI restores nominal coverage. True ATE = 3.
+#   makes the analysis model require P(L | A, Y); imputing L without Y is a
+#   misspecification that biases the marginal-ATE estimator (~3.4-3.7), so
+#   neither Rubin's rules nor Boot MI recovers nominal coverage -- a bootstrap
+#   corrects variance, not bias (Bartlett & Hughes 2020). Consumed by
+#   test-pool-boot-mi.R (SE-width comparison) and test-mi-coverage.R (the
+#   omit-Y misspecification arm). True ATE = 3.
 simulate_mi_uncongenial <- function(n = 2000, seed = 42) {
   set.seed(seed)
   L <- rnorm(n)

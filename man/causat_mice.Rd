@@ -123,12 +123,17 @@ Barnard-Rubin degrees of freedom.
 
 Causal estimands are typically \emph{uncongenial} with the \code{mice} imputation
 model (the estimand is a functional of the outcome/treatment model under
-intervention, not a parameter of the imputation model). Under
-uncongeniality Rubin's rules give conservative (wider) intervals, which is
-safe but may sacrifice power. \code{pool_method = "boot_mi"} restores nominal
-coverage. Always include the outcome, treatment, all confounders, and any
-effect modifiers as predictors in the upstream \code{mice()} call;
-\code{causat_mice()} warns when an analysis variable is absent.
+intervention, not a parameter of the imputation model). Under uncongeniality
+Rubin's variance can be biased in \emph{either} direction depending on the
+situation -- conservative for some kinds of uncongeniality (Meng 1994), but
+anticonservative in others (Bartlett & Hughes 2020). \code{pool_method = "boot_mi"} sidesteps Rubin's variance decomposition with a resampling
+variance that attains nominal coverage \strong{provided the point estimator stays
+consistent}: a bootstrap corrects the variance, not bias in the estimate
+itself. Always include the outcome, treatment, all confounders, and any
+effect modifiers as predictors in the upstream \code{mice()} call -- omitting a
+key predictor (e.g. the outcome) misspecifies the imputation, which can
+\emph{bias} the causal estimate and so defeat both pooling rules.
+\code{causat_mice()} warns when an analysis variable is absent or unused.
 }
 
 \subsection{What this does not do}{
@@ -169,6 +174,13 @@ by Chained Equations in R. \emph{Journal of Statistical Software} 45(3):1-67.
 
 von Hippel PT (2020). How many imputations do you need? \emph{Sociological
 Methods & Research} 49(3):699-718.
+
+Meng XL (1994). Multiple-imputation inferences with uncongenial sources of
+input. \emph{Statistical Science} 9(4):538-558.
+
+Bartlett JW, Hughes RA (2020). Bootstrap inference for multiple imputation
+under uncongeniality and misspecification. \emph{Statistical Methods in Medical
+Research} 29(12):3533-3546.
 }
 \seealso{
 \code{\link[=causat]{causat()}}, \code{\link[=contrast]{contrast()}}
