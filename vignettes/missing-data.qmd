@@ -266,7 +266,7 @@ the *observed* treatment `A` (so it is MAR, not MCAR) — `L` is recorded less
 often for the untreated. The true ATE is 3.
 
 ```{r}
-#| eval: has_mice
+#| eval: !expr has_mice
 set.seed(2024)
 n_mi <- 2000
 L <- rnorm(n_mi)
@@ -286,7 +286,7 @@ interval (the reference direction is a display convention; the true effect is
 3):
 
 ```{r}
-#| eval: has_mice
+#| eval: !expr has_mice
 ate_row <- function(res, label) {
   e <- res$contrasts$estimate[1]
   half <- (res$contrasts$ci_upper[1] - res$contrasts$ci_lower[1]) / 2
@@ -311,7 +311,7 @@ Multiple imputation sidesteps all three by using every row and propagating the
 imputation uncertainty into the standard error.
 
 ```{r}
-#| eval: has_mice
+#| eval: !expr has_mice
 cc_fit <- causat(df_mar_l, outcome = "Y", treatment = "A",
                  confounders = ~L, model_fn = stats::glm)
 cc_res <- contrast(cc_fit, interventions = list(a1 = static(1), a0 = static(0)),
@@ -324,7 +324,7 @@ predictor matrix carries `A` *and* `Y`, which is exactly what we want — see th
 congeniality note below), then pool with `causat_mice()`:
 
 ```{r}
-#| eval: has_mice
+#| eval: !expr has_mice
 library(mice)
 imp <- mice(df_mar_l, m = 20, printFlag = FALSE)
 
@@ -347,7 +347,7 @@ with Barnard-Rubin (1999) degrees of freedom. The per-imputation diagnostics
 attribute:
 
 ```{r}
-#| eval: has_mice
+#| eval: !expr has_mice
 attr(mi_res, "mi_details")$contrasts
 ```
 
@@ -373,7 +373,7 @@ complete-case fit cannot undo this distortion and its ATE is badly biased. MI,
 which imputes `L` from `(A, Y)` over the whole sample, recovers the truth.
 
 ```{r}
-#| eval: has_mice
+#| eval: !expr has_mice
 # Reusable complete-case (na.omit) + MI g-computation on a partially observed
 # data frame, each summarised by ate_row().
 cc_mi_gcomp <- function(dmar, m = 20) {
@@ -411,7 +411,7 @@ is the benign covariate-MAR case (complete-case valid, MI slightly wider);
 Design 2 is the outcome-dependent case (complete-case biased, MI on target):
 
 ```{r}
-#| eval: has_mice
+#| eval: !expr has_mice
 oracle1 <- contrast(causat(df_full, "Y", "A", confounders = ~L, model_fn = stats::glm),
                     interventions = list(a1 = static(1), a0 = static(0)),
                     reference = "a0", ci_method = "sandwich")
@@ -433,7 +433,7 @@ tt(compare, digits = 3)
 ```
 
 ```{r}
-#| eval: has_mice
+#| eval: !expr has_mice
 #| fig-alt: "Pointrange plot of ATE estimates with confidence intervals. Two coloured series (Design 1 and Design 2) at each of Oracle, Complete-case, and MI. In Design 1 all three sit on the dashed truth line at 3. In Design 2 the complete-case point falls well below 3 while Oracle and MI remain on it."
 tinyplot(
   Estimate ~ Method | Design,
@@ -471,7 +471,7 @@ direction (Meng 1994; Bartlett & Hughes 2020) — not reliably conservative.
 decomposition with a bootstrap-then-impute resampling variance:
 
 ```{r}
-#| eval: has_mice
+#| eval: !expr has_mice
 boot_res <- causat_mice(
   imp,
   outcome = "Y",
@@ -509,7 +509,7 @@ complete-case. `causat_mice()` flags it: it warns when an analysis variable is
 absent from, or unused by, the imputation model.
 
 ```{r}
-#| eval: has_mice
+#| eval: !expr has_mice
 #| warning: true
 pred <- mice::make.predictorMatrix(df2)
 pred[, "Y"] <- 0 # deliberately drop Y from the predictor matrix
@@ -527,7 +527,7 @@ mi_noY <- causat_mice(
 ```
 
 ```{r}
-#| eval: has_mice
+#| eval: !expr has_mice
 #| echo: false
 data.frame(
   Method = c("Complete-case", "MI (Y included)", "MI (Y excluded)"),
