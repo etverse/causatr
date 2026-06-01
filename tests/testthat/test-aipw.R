@@ -3243,7 +3243,11 @@ test_that("aipw x GAM outcome+propensity x sandwich vs bootstrap SE", {
   Y <- 1 + 3 * A + sin(2 * L) + L^2 + stats::rnorm(n)
   df <- data.frame(Y = Y, A = A, L = L)
 
-  fit <- causat(
+  # mgcv's GAM optimiser occasionally backs off a step on a bootstrap resample
+  # ("Fitting terminated with step failure"); that is mgcv-internal numerical
+  # chatter, not a causatr problem, so muffle just that message (see
+  # helper-external-warnings.R) around the GAM fit and the refitting bootstrap.
+  fit <- muffle_gam_step_failure(causat(
     df,
     outcome = "Y",
     treatment = "A",
@@ -3251,20 +3255,20 @@ test_that("aipw x GAM outcome+propensity x sandwich vs bootstrap SE", {
     estimator = "aipw",
     model_fn = mgcv::gam,
     propensity_model_fn = mgcv::gam
-  )
+  ))
   res_sand <- contrast(
     fit,
     interventions = list(a1 = static(1), a0 = static(0)),
     reference = "a0",
     ci_method = "sandwich"
   )
-  res_boot <- contrast(
+  res_boot <- muffle_gam_step_failure(contrast(
     fit,
     interventions = list(a1 = static(1), a0 = static(0)),
     reference = "a0",
     ci_method = "bootstrap",
     n_boot = 100L
-  )
+  ))
   ratio <- res_boot$contrasts$se[1] / res_sand$contrasts$se[1]
   expect_gt(ratio, 0.5)
   expect_lt(ratio, 2.0)

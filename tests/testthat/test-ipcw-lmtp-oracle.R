@@ -12,6 +12,14 @@
 # These cross-checks apply to all IPCW chunks (14b, 14c) and should
 # NOT be removed from the plan when individual chunks are completed.
 
+# lmtp::lmtp_sdr() scales the outcome to [0, 1] and fits cross-fitted binomial
+# GLMs; on some folds these quasi-separate and glm.fit emits the benign "fitted
+# probabilities numerically 0 or 1 occurred". That is lmtp-internal chatter on
+# the oracle side, irrelevant to the causatr estimate under test, so route every
+# oracle call through this muffling wrapper (helper-external-warnings.R). Every
+# other warning still surfaces.
+sdr_quiet <- function(...) muffle_glm_separation(lmtp::lmtp_sdr(...))
+
 # ── DGP-M2b: non-linear outcome with differential censoring ──────
 
 test_that("IPCW eliminates censoring bias with misspecified model", {
@@ -136,7 +144,7 @@ test_that("gcomp+IPCW agrees with lmtp_sdr on DGP-M2b", {
   d_lmtp$C_lmtp <- 1L - d_lmtp$C
 
   lmtp_1 <- tryCatch(
-    lmtp::lmtp_sdr(
+    sdr_quiet(
       data = d_lmtp,
       trt = "A",
       outcome = "Y",
@@ -152,7 +160,7 @@ test_that("gcomp+IPCW agrees with lmtp_sdr on DGP-M2b", {
     error = function(e) NULL
   )
   lmtp_0 <- tryCatch(
-    lmtp::lmtp_sdr(
+    sdr_quiet(
       data = d_lmtp,
       trt = "A",
       outcome = "Y",
@@ -211,7 +219,7 @@ test_that("IPW+IPCW agrees with lmtp_sdr on DGP-M2b", {
   d_lmtp$C_lmtp <- 1L - d_lmtp$C
 
   lmtp_1 <- tryCatch(
-    lmtp::lmtp_sdr(
+    sdr_quiet(
       data = d_lmtp,
       trt = "A",
       outcome = "Y",
@@ -227,7 +235,7 @@ test_that("IPW+IPCW agrees with lmtp_sdr on DGP-M2b", {
     error = function(e) NULL
   )
   lmtp_0 <- tryCatch(
-    lmtp::lmtp_sdr(
+    sdr_quiet(
       data = d_lmtp,
       trt = "A",
       outcome = "Y",
@@ -414,7 +422,7 @@ test_that("longitudinal lmtp cross-check: ICE+IPCW agrees with lmtp_sdr", {
   # lmtp SDR with censoring
   df <- dgp_m5_to_lmtp_wide(d)
   lmtp_1 <- tryCatch(
-    lmtp::lmtp_sdr(
+    sdr_quiet(
       data = df,
       trt = c("A_0", "A_1"),
       outcome = "Y",
@@ -430,7 +438,7 @@ test_that("longitudinal lmtp cross-check: ICE+IPCW agrees with lmtp_sdr", {
     error = function(e) NULL
   )
   lmtp_0 <- tryCatch(
-    lmtp::lmtp_sdr(
+    sdr_quiet(
       data = df,
       trt = c("A_0", "A_1"),
       outcome = "Y",
@@ -490,7 +498,7 @@ test_that("longitudinal lmtp cross-check: IPW+IPCW agrees with lmtp_sdr", {
   # lmtp SDR with censoring
   df <- dgp_m5_to_lmtp_wide(d)
   lmtp_1 <- tryCatch(
-    lmtp::lmtp_sdr(
+    sdr_quiet(
       data = df,
       trt = c("A_0", "A_1"),
       outcome = "Y",
@@ -506,7 +514,7 @@ test_that("longitudinal lmtp cross-check: IPW+IPCW agrees with lmtp_sdr", {
     error = function(e) NULL
   )
   lmtp_0 <- tryCatch(
-    lmtp::lmtp_sdr(
+    sdr_quiet(
       data = df,
       trt = c("A_0", "A_1"),
       outcome = "Y",

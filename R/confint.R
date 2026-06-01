@@ -28,6 +28,27 @@ confint.causatr_result <- function(object, parm, level = 0.95, ...) {
   # Half-alpha for two-sided CI: 0.95 level -> alpha = 0.025 per tail.
   alpha <- (1 - level) / 2
 
+  # Multiple-imputation results (`ci_method = "rubin"` / `"boot_mi"`) carry
+  # per-row degrees of freedom in the "mi_details" attribute. Reconstruct
+  # t-based CIs from the pooled SE and df so the user's `level` is honored,
+  # matching how the Rubin / Boot MI engines built the stored bounds.
+  mi <- attr(object, "mi_details")
+  if (!is.null(mi) && object$ci_method %in% c("rubin", "boot_mi")) {
+    est <- object$estimates$estimate
+    se <- object$estimates$se
+    df <- mi$estimates$df
+    crit <- stats::qt(1 - alpha, df = df)
+    ci <- cbind(lower = est - crit * se, upper = est + crit * se)
+    rownames(ci) <- object$estimates[[
+      if ("parameter" %in% names(object$estimates)) {
+        "parameter"
+      } else {
+        "intervention"
+      }
+    ]]
+    return(ci)
+  }
+
   # Three cases based on the shape of `object$boot_t`:
   #   (a) list                 -> stratified (by-group) bootstrap,
   #                               one matrix per subgroup

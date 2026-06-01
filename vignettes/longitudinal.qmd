@@ -1569,4 +1569,4 @@ sandwich variance estimator for iterated conditional expectation
 g-computation. *Statistics in Medicine* 43:5562--5572.
 
 Bang H, Robins JM (2005). Doubly robust estimation in missing data and causal
-inference models. *Biometrics* 61:962--972.
+inference models. *Biometrics* 61:962--973.

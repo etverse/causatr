@@ -1635,20 +1635,26 @@ test_that("Longitudinal SNM rejects fewer than 2 time points", {
     A = rbinom(10, 1, 0.5),
     L = rnorm(10)
   )
-  expect_error(
-    causat(
-      d,
-      outcome = "Y",
-      treatment = "A",
-      confounders = ~1,
-      confounders_tv = ~L,
-      id = "id",
-      time = "time",
-      type = "longitudinal",
-      family = "gaussian",
-      estimator = "snm"
+  # Each id has a single time point, so the time-varying `L` is constant within
+  # every individual and causatr warns before it reaches the <2-times abort.
+  # Assert both: the warning (consumed) wrapping the expected classed error.
+  expect_warning(
+    expect_error(
+      causat(
+        d,
+        outcome = "Y",
+        treatment = "A",
+        confounders = ~1,
+        confounders_tv = ~L,
+        id = "id",
+        time = "time",
+        type = "longitudinal",
+        family = "gaussian",
+        estimator = "snm"
+      ),
+      class = "causatr_longitudinal_too_few_times"
     ),
-    class = "causatr_longitudinal_too_few_times"
+    class = "causatr_tv_confounder_constant"
   )
 })
 

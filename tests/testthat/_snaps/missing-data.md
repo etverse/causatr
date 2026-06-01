@@ -6,6 +6,7 @@
       Error in `causat()`:
       ! Treatment variable 'A' has 3 missing values.
       i Use `censoring = '...'` for inverse probability of censoring weights.
+      i Or impute upstream with `mice::mice()` and pool with `causat_mice()` (multiple imputation for MAR treatment).
       i Or remove incomplete cases before calling `causat()`.
 
 # treatment NAs without censoring → abort (ipw)
@@ -16,6 +17,7 @@
       Error in `causat()`:
       ! Treatment variable 'A' has 3 missing values.
       i Use `censoring = '...'` for inverse probability of censoring weights.
+      i Or impute upstream with `mice::mice()` and pool with `causat_mice()` (multiple imputation for MAR treatment).
       i Or remove incomplete cases before calling `causat()`.
 
 # treatment NAs without censoring → abort (matching)
@@ -26,5 +28,6 @@
       Error in `causat()`:
       ! Treatment variable 'A' has 3 missing values.
       i Use `censoring = '...'` for inverse probability of censoring weights.
+      i Or impute upstream with `mice::mice()` and pool with `causat_mice()` (multiple imputation for MAR treatment).
       i Or remove incomplete cases before calling `causat()`.
 

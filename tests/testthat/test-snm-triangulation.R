@@ -222,17 +222,22 @@ test_that("SNM correct but IPW biased with time-varying EM (negative control)", 
   )
 
   # IPW-MSM with A:M in confounders (conditioning on post-treatment M_1)
-  # is biased — collider bias from M_1 being a descendant of A_0
-  fit_ipw <- causat(
-    dgp$data,
-    outcome = "Y",
-    treatment = "A",
-    confounders = ~ A:M,
-    confounders_tv = ~ L + M,
-    id = "id",
-    time = "time",
-    estimator = "ipw",
-    propensity_model_fn = stats::glm
+  # is biased — collider bias from M_1 being a descendant of A_0. `M` enters
+  # `confounders` (baseline) via the interaction yet varies within individuals,
+  # so causatr correctly warns; assert it rather than let it leak.
+  expect_warning(
+    fit_ipw <- causat(
+      dgp$data,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~ A:M,
+      confounders_tv = ~ L + M,
+      id = "id",
+      time = "time",
+      estimator = "ipw",
+      propensity_model_fn = stats::glm
+    ),
+    class = "causatr_baseline_confounder_varying"
   )
   res_ipw <- contrast(
     fit_ipw,

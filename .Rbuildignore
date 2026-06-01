@@ -50,6 +50,7 @@
 ^_quarto$
 ^_pkgdown\.yml$
 ^FEATURE_COVERAGE_MATRIX\.md$
+^codecov\.yml$
 ^vignettes/\.quarto$
 ^vignettes/.*\.html$
 ^vignettes/.*_files$

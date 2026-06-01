@@ -1,6 +1,22 @@
 # Phase 21 — Multiple Imputation via `causat_mice()`
 
-> **Status: PENDING (design doc)**
+> **Status: COMPLETE (21a–21i shipped)**
+>
+> `causat_mice()` is exported and pools `causat()` + `contrast()` across `mice`
+> imputations. Because the implementation is estimator-agnostic, the chunks
+> originally scoped as separate work (IPCW + MI, longitudinal MI) are covered
+> by the core loop and tested. Engines: `R/pool_rubin.R` (Rubin's rules +
+> Barnard-Rubin df, cross-checked against `mice::pool.scalar()`),
+> `R/pool_boot_mi.R` (von Hippel two-stage Boot MI). Tests:
+> `test-causat-mice.R`, `test-pool-rubin.R`, `test-pool-boot-mi.R`, and the
+> Monte-Carlo coverage study `test-mi-coverage.R` (21h). The MI workflow guide
+> lives in the `missing-data.qmd` vignette (21i).
+>
+> **21h correction.** The coverage study revealed (and the literature confirms,
+> Meng 1994; Bartlett & Hughes 2020) that this doc's original DGP-MI5
+> "Rubin overcovers / Boot MI nominal" expectation was wrong: omitting Y is a
+> *misspecification that biases the causal estimate*, so neither pooling rule
+> recovers coverage. The corrected analysis is in the DGP-MI5 section below.
 
 ## Motivation
 
@@ -156,22 +172,31 @@ omnibus test) is out of scope.
 - `pool_method = "rubin"` (default): Standard Rubin's rules. Each
   imputation returns a sandwich variance $U_i$ from `contrast(...,
   ci_method = "sandwich")`. Rubin's rules add the between-imputation
-  component. Fast ($m$ fits). Under uncongeniality (the norm for causal
-  inference — see below), CIs are typically conservative (wider than
-  nominal). This is acceptable for most applications.
+  component. Fast ($m$ fits). Exactly valid under congeniality. Under
+  uncongeniality the variance can be biased in *either* direction
+  depending on the situation: conservative for some kinds of
+  uncongeniality (Meng 1994), anticonservative in others (Bartlett &
+  Hughes 2020). In many causal-inference settings it is mildly
+  conservative, but this is not guaranteed.
 
 - `pool_method = "boot_mi"`: Bootstrap-then-impute (Boot MI). Draws
   $B$ bootstrap samples from the **incomplete** (pre-imputation) data,
   runs `mice()` + `causat()` + `contrast()` on each bootstrap sample,
   and takes the bootstrap variance across samples. Valid under
   uncongeniality because the bootstrap captures the full sampling
-  distribution without relying on Rubin's variance decomposition.
-  Slower ($B \times M$ fits) but methodologically correct when the
-  imputation and analysis models are not congenial. Uses von Hippel's
+  distribution without relying on Rubin's variance decomposition —
+  **but only when the point estimator is consistent**. A bootstrap
+  corrects the variance, not bias in the estimate: if the imputation
+  model is misspecified enough to bias the causal estimate, no pooling
+  rule (Rubin or Boot MI) attains nominal coverage (Bartlett & Hughes
+  2020). Slower ($B \times M$ fits). Uses von Hippel's
   efficient variant: $M = 2$ imputations per bootstrap sample, with a
   one-way random effects decomposition to separate bootstrap variance
-  from residual imputation noise (von Hippel 2020). Recommended $B =
-  200$, giving $200 \times 2 = 400$ total fits.
+  from residual imputation noise (von Hippel 2020). The default $B =
+  200$ ($200 \times 2 = 400$ fits) trades coverage accuracy for speed;
+  Boot MI's nominal-coverage guarantee is asymptotic in $B$, and
+  Bartlett & Hughes (2020) use $B = 1000$ for approximately correct
+  coverage, so raise $B$ when interval calibration matters.
 
   **Why not MI-boot-Rubin?** Running a bootstrap *within* each
   imputation and then pooling bootstrap variances via Rubin's rules
@@ -235,10 +260,16 @@ sequential ($M = 2$ is fast).
 
 An imputation model is **congenial** with an analysis procedure when
 both derive from (or are consistent with) the same joint model.
-Rubin's rules are asymptotically unbiased under congeniality; under
-uncongeniality the between-imputation variance $B$ typically
-overestimates the true imputation uncertainty, producing conservative
-CIs (Bartlett & Hughes 2020).
+Rubin's rules are asymptotically unbiased under congeniality. Under
+uncongeniality Rubin's variance estimator "can be biased upwards or
+downwards depending on the specific situation" (Bartlett & Hughes
+2020): it is conservative for certain kinds of uncongeniality (Meng
+1994) but anticonservative in others. There is no general guarantee
+that causal-estimand uncongeniality is conservative; the only robust
+statement is that, **as long as the point estimator stays consistent**,
+both Rubin's rules and Boot MI attain approximately nominal coverage
+(Bartlett & Hughes 2020, who note their methods' validity holds
+"provided the point estimator is consistent").
 
 **Causal inference is uncongenial by default.** The causal estimand
 $E[Y(a)]$ is a functional of the outcome/treatment model under
@@ -259,11 +290,16 @@ intervention — not a parameter of the mice imputation model:
    modifiers). This does not guarantee congeniality but reduces bias
    in the imputed values. causatr should warn if variables in the
    `causat()` formula are absent from the `mids` predictor matrix.
-2. For routine use, `pool_method = "rubin"` (default) is adequate:
-   conservative CIs are safe and fast.
-3. When efficiency matters (tight power budget, regulatory context),
-   use `pool_method = "boot_mi"` for valid non-conservative inference
-   regardless of congeniality.
+2. For routine use, `pool_method = "rubin"` (default) is adequate and
+   fast. It is exactly valid under congeniality; under uncongeniality its
+   variance can err in either direction (Meng 1994; Bartlett & Hughes
+   2020), so its intervals are not guaranteed conservative.
+3. When interval calibration matters, `pool_method = "boot_mi"` gives a
+   resampling variance that does not lean on Rubin's congeniality
+   assumption -- but its nominal-coverage guarantee still requires the
+   point estimator to be consistent. No pooling rule repairs a biased
+   estimate, so the priority in (1) -- a richly specified imputation
+   model -- comes first.
 
 ### What `causat_mice()` does NOT do
 
@@ -337,7 +373,7 @@ R_{L1} ~ Bernoulli(expit(-1 + 0.5*A_0))          # L_1 MAR on A_0
 
 Longitudinal MI with treatment-confounder feedback.
 
-### DGP-MI5: Uncongenial imputation (point treatment)
+### DGP-MI5: Misspecified imputation that biases the estimate (point treatment)
 
 ```
 L ~ N(0, 1)
@@ -347,19 +383,31 @@ R_L ~ Bernoulli(expit(-1 + 0.8*A))          # L MAR on A
 ```
 
 Imputation model: `mice(method = "pmm")` with Y **excluded** from
-the predictor matrix (deliberately uncongenial — violates the
-recommendation to include Y). This induces uncongeniality between the
-imputation model $P(L \mid A)$ and the analysis model
-$E[Y \mid A, L]$ which requires $P(L \mid A, Y)$.
+the predictor matrix (violates the recommendation to include Y). The
+analysis model $E[Y \mid A, L]$ has an $A \cdot L$ interaction, so it
+needs $P(L \mid A, Y)$; imputing $L$ from $P(L \mid A)$ alone produces
+**biased imputed values**, which makes the marginal-ATE estimator
+**inconsistent** (it settles near $3.5$, not the true $3$).
 
-**Expected behaviour:**
-- `pool_method = "rubin"`: overcoverage (conservative CIs).
-- `pool_method = "boot_mi"`: nominal coverage.
+**Expected behaviour (empirically verified, `test-mi-coverage.R`):**
+- Excluding Y biases the point estimate, so **both** `rubin` and
+  `boot_mi` under-cover — a bootstrap fixes variance, not bias
+  (Bartlett & Hughes 2020: validity holds only "provided the point
+  estimator is consistent").
+- A companion run with Y *included* (correctly specified, consistent
+  estimator) restores nominal coverage for both methods, with Rubin's
+  intervals marginally wider than Boot MI's.
 
-This DGP verifies that Boot MI corrects the conservatism of Rubin's
-rules under uncongeniality. A companion run with Y included in the
-predictor matrix (congenial) should show both methods at nominal
-coverage, confirming the uncongeniality is the cause.
+So DGP-MI5 is a **cautionary, bias-dominated** case: it demonstrates
+why the outcome must enter the imputation model (and motivates the
+`causatr_mi_missing_predictors` warning), **not** a clean
+Rubin-overcoverage / Boot-MI-rescue contrast. The earlier framing of
+this DGP as "Rubin overcovers, Boot MI nominal" was incorrect: omitting
+a key predictor is *misspecification that biases the estimate*, which is
+outside the regime where any variance rule can recover coverage.
+Demonstrating Rubin overcoverage specifically would require a
+consistency-preserving uncongeniality (e.g. Meng's subgroup /
+heteroscedastic examples), which is out of scope here.
 
 ## SNM integration (Phase 18)
 
@@ -381,6 +429,8 @@ The `pool_method = "boot_mi"` path also applies — each bootstrap sample is imp
   Software* 45(3):1-67.
 - Barnard J, Rubin DB (1999). Small-sample degrees of freedom with
   multiple imputation. *Biometrika* 86:948-955.
+- Meng XL (1994). Multiple-imputation inferences with uncongenial
+  sources of input. *Statistical Science* 9(4):538-558.
 - Moons KGM, Donders RART, Stijnen T, Harrell FE (2006). Using the
   outcome in a study to impute missing predictor values was preferred.
   *Journal of Clinical Epidemiology* 59:1092-1101.

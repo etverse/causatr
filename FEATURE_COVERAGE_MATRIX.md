@@ -386,7 +386,7 @@ remain in this matrix.
 | svydesign + matching rejected, row-count mismatch rejected | ✅ | test-survey-design.R |
 | `contrast(parallel = "future")` — gcomp + ICE via `future::plan()` | ✅ | test-future-backend.R |
 | `dispatch_boot()` — future vs boot MC equivalence | ✅ | test-future-backend.R |
-| `causat_mice()` stub | 🟡 | test-causat-mice.R |
+| `causat_mice()` multiple-imputation pooling (see MI section below) | ✅ | test-causat-mice.R |
 | Cross-method EM triangulation (gcomp + IPW + matching) | ✅ | test-effect-modification.R |
 | Per-component confounders (`confounders_outcome`, `confounders_treatment`, etc.) — routing, backward compat, validation, ground truth | ✅ | test-separate-confounders.R |
 | Per-component confounders — Kang-Schafer S2/S3 DR with split formulas | ✅ | test-kang-schafer.R |
@@ -1255,7 +1255,40 @@ Groups 1–6 from the Phase 18 combination matrix audit. Addresses all 🟡 item
 | Long IPW + trim: lmtp_sdr cross-check | ✅ | test-longitudinal-ipw.R |
 
 ### `causat_mice()` — Multiple imputation
-Pool across `mice` imputations via Rubin's rules. All ❌.
+Pool `causat()` + `contrast()` across `mice` imputations. `pool_method = "rubin"`
+(default, Rubin's rules + Barnard-Rubin df) and `pool_method = "boot_mi"` (von
+Hippel two-stage bootstrap-then-impute).
+
+| Feature | Status | Test file |
+|---|---|---|
+| Rubin pooling math matches `mice::pool.scalar()` (1e-8) | ✅ | test-pool-rubin.R |
+| Barnard-Rubin df matches `mice:::barnard.rubin()` | ✅ | test-pool-rubin.R |
+| Boot MI von Hippel decomposition (unit, exact) | ✅ | test-pool-boot-mi.R |
+| gcomp + MI: MAR covariate, recovers ATE | ✅ | test-causat-mice.R |
+| ipw / aipw / matching + MI: recover ATE | ✅ | test-causat-mice.R |
+| snm + MI: per-blip-parameter pooling | ✅ | test-causat-mice.R |
+| MAR treatment: impute A from P(A\|L,Y) | ✅ | test-causat-mice.R |
+| Continuous / categorical / count treatment + MI | ✅ | test-causat-mice.R |
+| Multivariate treatment (gcomp + IPW, incl. stabilized) + MI | ✅ | test-causat-mice.R |
+| Outcome families: binomial (ratio/OR), poisson, Gamma | ✅ | test-causat-mice.R |
+| Interventions: shift, scale_by, dynamic, threshold, ipsi | ✅ | test-causat-mice.R |
+| ATT + MI; `by`-stratified pooling (per-row) | ✅ | test-causat-mice.R |
+| Longitudinal (ICE + longitudinal IPW) + MI | ✅ | test-causat-mice.R |
+| IPCW + MI: missing L imputed, censored Y reweighted | ✅ | test-causat-mice.R |
+| Boot MI recovers ATE; tighter SE than Rubin under misspecified imputation | ✅ | test-pool-boot-mi.R |
+| MC coverage: Rubin ~nominal when estimator consistent (DGP-MI1) | ✅ | test-mi-coverage.R |
+| MC coverage: Boot MI ~nominal, SE no wider than Rubin (consistent regime) | ✅ | test-mi-coverage.R |
+| MC coverage: omitting Y biases estimate, collapses coverage for both (DGP-MI5) | ✅ | test-mi-coverage.R |
+| S3: confint / tidy honor Barnard-Rubin df | ✅ | test-causat-mice.R |
+| `parallel = "future"` Boot MI | ✅ | test-pool-boot-mi.R |
+| Edge: m=1 degenerate (warn); all-fit-failure (abort) | ✅ | test-causat-mice.R |
+| Warn when analysis var absent/unused in imputation model | ✅ | test-causat-mice.R |
+| Reject non-`mids` input; reject unknown `pool_method` | ✅ | test-causat-mice.R |
+| Reject Boot MI with `B < 2` or `M < 2` | ✅ | test-pool-boot-mi.R |
+| Boot MI warns on floored (non-positive) variance component | ✅ | test-pool-boot-mi.R |
+
+Transport (`target =`) + MI is not yet validated (owned by the pending Phase
+17i / 26 transport work).
 
 ---
 

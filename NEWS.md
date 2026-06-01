@@ -1,5 +1,66 @@
 # causatr (development version)
 
+## 2026-06-01 — Classed confounder-placement warnings
+
+The two `prepare_data()` warnings that flag a likely `confounders` /
+`confounders_tv` mix-up are now classed so downstream code (and tests) can match
+on class rather than message text: `causatr_tv_confounder_constant` (a
+time-varying confounder that never varies within an individual) and
+`causatr_baseline_confounder_varying` (a baseline confounder that does vary
+within individuals). No behaviour change beyond the added condition class.
+
+## 2026-06-01 — Phase 21: Multiple imputation via `causat_mice()`
+
+`causat_mice()` is now implemented and exported. It is the analysis step of a
+multiple-imputation workflow: the user imputes missing covariates and/or
+treatment upstream with `mice::mice()`, and `causat_mice()` fits `causat()` +
+`contrast()` on every completed dataset and pools the per-imputation estimates
+into a single `causatr_result`. This is the supported way to handle
+missing-at-random covariates (L) or treatment (A) — orthogonal to IPCW, which
+handles missing outcomes (Y).
+
+* **Two pooling engines.** `pool_method = "rubin"` (default) applies Rubin's
+  (1987) rules with Barnard-Rubin (1999) degrees of freedom, cross-checked to
+  machine precision against `mice::pool.scalar()`. `pool_method = "boot_mi"`
+  implements von Hippel's (2020) two-stage bootstrap-then-impute variance,
+  which attains nominal coverage without relying on Rubin's congeniality
+  assumption — **provided the point estimator stays consistent** (a bootstrap
+  corrects the variance, not bias; Bartlett & Hughes 2020). Under
+  uncongeniality Rubin's variance can be biased in either direction (Meng 1994),
+  so it is not uniformly conservative. Means and difference contrasts pool on
+  the natural scale; ratio / odds-ratio contrasts pool on the log scale.
+* **Estimator-agnostic.** Every `causat()` configuration flows through
+  unchanged: all five estimators (gcomp, IPW, AIPW, matching, SNM), every
+  treatment type and outcome family, all interventions and contrast scales,
+  `by`-stratification and ATT, stabilized weights, longitudinal (ICE +
+  longitudinal IPW), and IPCW (missing L imputed while censored Y is reweighted)
+  all pool. SNM pools per blip parameter.
+* **S3 integration.** `confint()` and `tidy()` reconstruct `t`-based intervals
+  from the per-row pooling degrees of freedom (stored in the `"mi_details"`
+  attribute) so the user's confidence level is honored. `parallel = "future"`
+  forwards the Boot MI bootstrap to `future.apply`.
+* **Guards.** `causat_mice()` warns when an analysis variable is absent from or
+  unused by the imputation model (a uncongeniality risk), drops individual
+  imputations that fail to fit (aborting only if none survive), and degrades
+  gracefully to a single complete-data analysis when `m = 1`. Boot MI warns
+  (`causatr_mi_boot_floor`) when a variance component goes non-positive and is
+  floored — a signal that `B`/`M` are too small for the random-effects
+  decomposition rather than a genuinely tiny standard error.
+
+* **Coverage study + theory correction (21h).** A Monte-Carlo study
+  (`test-mi-coverage.R`) confirms Rubin and Boot MI both attain ~nominal
+  coverage when the imputation model keeps the causal estimator consistent
+  (DGP-MI1), with Rubin's intervals marginally wider. It also corrects an
+  earlier claim in the design doc: excluding the outcome from the predictor
+  matrix (DGP-MI5) is a *misspecification that biases the estimate*, so neither
+  pooling rule recovers coverage — a bootstrap fixes variance, not bias
+  (Bartlett & Hughes 2020). The MI workflow guide is the `missing-data.qmd`
+  vignette (21i).
+
+New internal engines live in `R/pool_rubin.R` and `R/pool_boot_mi.R`. The
+`check_treatment_nas()` hint now advertises MI as a third way to handle missing
+treatment alongside IPCW and complete-case analysis.
+
 ## 2026-05-31 — Phase 20: Per-period IPSI under longitudinal IPW
 
 Univariate `ipsi(delta)` interventions now work under longitudinal IPW

@@ -2539,7 +2539,7 @@ If unsure, run with `ci_method = "sandwich"` first — if you see a
 ## References
 
 - Bang H, Robins JM (2005). Doubly robust estimation in missing data and
-  causal inference models. *Biometrics* 61:962–972.
+  causal inference models. *Biometrics* 61:962–973.
 - Hampel FR, Ronchetti EM, Rousseeuw PJ, Stahel WA (1986). *Robust
   Statistics: The Approach Based on Influence Functions*. Wiley.
 - Hirano K, Imbens GW, Ridder G (2003). Efficient estimation of average

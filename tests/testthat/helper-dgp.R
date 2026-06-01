@@ -1734,3 +1734,99 @@ simulate_snm_clustered <- function(
     cluster_col = "cluster_id"
   )
 }
+
+# DGP-MI1: MAR covariate missingness, point treatment.
+#   L ~ N(0, 1); A ~ Bernoulli(expit(0.5 L)); Y = 2 + 3 A + 1.5 L + N(0, 1).
+#   R_L ~ Bernoulli(expit(-1 + 0.8 A)); L observed iff R_L = 1.
+#   Missingness in L depends on the observed A (MAR). Complete-case is
+#   biased (conditioning on R_L = 1 distorts the L distribution given A);
+#   MI recovers the truth. True ATE = 3.
+simulate_mi_covariate <- function(n = 2000, seed = 42) {
+  set.seed(seed)
+  L <- rnorm(n)
+  A <- rbinom(n, 1, plogis(0.5 * L))
+  Y <- 2 + 3 * A + 1.5 * L + rnorm(n)
+  R_L <- rbinom(n, 1, plogis(-1 + 0.8 * A))
+  L_obs <- L
+  L_obs[R_L == 0] <- NA
+  data.frame(Y = Y, A = A, L = L_obs, L_full = L)
+}
+
+# DGP-MI2: MAR treatment missingness, point treatment.
+#   L ~ N(0, 1); A ~ Bernoulli(expit(0.5 L)); Y = 2 + 3 A + 1.5 L + N(0, 1).
+#   R_A ~ Bernoulli(expit(-1 + 0.6 L)); A observed iff R_A = 1.
+#   causat() aborts on NA treatment; MI imputes A from P(A | L, Y).
+#   True ATE = 3.
+simulate_mi_treatment <- function(n = 2000, seed = 42) {
+  set.seed(seed)
+  L <- rnorm(n)
+  A <- rbinom(n, 1, plogis(0.5 * L))
+  Y <- 2 + 3 * A + 1.5 * L + rnorm(n)
+  R_A <- rbinom(n, 1, plogis(-1 + 0.6 * L))
+  A_obs <- A
+  A_obs[R_A == 0] <- NA
+  data.frame(Y = Y, A = A_obs, L = L, A_full = A)
+}
+
+# DGP-MI3: MAR covariate + outcome censoring (joint MI + IPCW).
+#   L MAR on A (as DGP-MI1); Y additionally censored.
+#   C ~ Bernoulli(expit(-2 + 0.6 A + 0.4 L)); Y is NA when C = 1.
+#   Requires MI for L and IPCW for Y. True ATE = 3.
+simulate_mi_ipcw <- function(n = 3000, seed = 42) {
+  set.seed(seed)
+  L <- rnorm(n)
+  A <- rbinom(n, 1, plogis(0.5 * L))
+  Y <- 2 + 3 * A + 1.5 * L + rnorm(n)
+  C <- rbinom(n, 1, plogis(-2 + 0.6 * A + 0.4 * L))
+  Y[C == 1] <- NA
+  R_L <- rbinom(n, 1, plogis(-1 + 0.8 * A))
+  L_obs <- L
+  L_obs[R_L == 0] <- NA
+  data.frame(Y = Y, A = A, L = L_obs, C = C, L_full = L)
+}
+
+# DGP-MI4: Longitudinal MAR covariate (treatment-confounder feedback).
+#   L0 ~ N(0,1); A0 ~ Bern(expit(0.3 L0)); L1 = 0.5 L0 + 0.3 A0 + N(0,1);
+#   A1 ~ Bern(expit(0.3 L1)); Y = 10 + 2(A0 + A1) + L0 + L1 + N(0,1).
+#   R_L1 ~ Bern(expit(-1 + 0.5 A0)); L1 observed iff R_L1 = 1 (MAR on A0).
+#   g-formula ATE (always vs never) = 4 (direct) + 0.3 (A0 -> L1 -> Y) = 4.3.
+#   Returned in person-period long format with columns id, time, L, A, Y.
+simulate_mi_longitudinal <- function(n = 2000, seed = 42) {
+  set.seed(seed)
+  L0 <- rnorm(n)
+  A0 <- rbinom(n, 1, plogis(0.3 * L0))
+  L1 <- 0.5 * L0 + 0.3 * A0 + rnorm(n)
+  A1 <- rbinom(n, 1, plogis(0.3 * L1))
+  Y <- 10 + 2 * (A0 + A1) + L0 + L1 + rnorm(n)
+  R_L1 <- rbinom(n, 1, plogis(-1 + 0.5 * A0))
+  L1_obs <- L1
+  L1_obs[R_L1 == 0] <- NA
+  data.frame(
+    id = rep(seq_len(n), each = 2L),
+    time = rep(c(0L, 1L), times = n),
+    L = as.vector(rbind(L0, L1_obs)),
+    A = as.vector(rbind(A0, A1)),
+    Y = rep(Y, each = 2L)
+  )
+}
+
+# DGP-MI5: Misspecified imputation that biases the estimate, point treatment.
+#   L ~ N(0,1); A ~ Bern(expit(0.5 L)); Y = 2 + 3 A + 1.5 L + 0.8 A L + N(0,1).
+#   R_L ~ Bern(expit(-1 + 0.8 A)); L MAR on A.
+#   Marginal (population) ATE = 3 + 0.8 E[L] = 3 (L centered). The A*L term
+#   makes the analysis model require P(L | A, Y); imputing L without Y is a
+#   misspecification that biases the marginal-ATE estimator (~3.4-3.7), so
+#   neither Rubin's rules nor Boot MI recovers nominal coverage -- a bootstrap
+#   corrects variance, not bias (Bartlett & Hughes 2020). Consumed by
+#   test-pool-boot-mi.R (SE-width comparison) and test-mi-coverage.R (the
+#   omit-Y misspecification arm). True ATE = 3.
+simulate_mi_uncongenial <- function(n = 2000, seed = 42) {
+  set.seed(seed)
+  L <- rnorm(n)
+  A <- rbinom(n, 1, plogis(0.5 * L))
+  Y <- 2 + 3 * A + 1.5 * L + 0.8 * A * L + rnorm(n)
+  R_L <- rbinom(n, 1, plogis(-1 + 0.8 * A))
+  L_obs <- L
+  L_obs[R_L == 0] <- NA
+  data.frame(Y = Y, A = A, L = L_obs, L_full = L)
+}
