@@ -45,13 +45,15 @@
 #'     variable, for multivariate (joint) treatments. Each sub-list must name
 #'     every treatment variable specified in `causat()`.
 #'
-#'   **Note:** Non-static interventions (`shift()`, `scale_by()`, `threshold()`,
-#'   `dynamic()`, `ipsi()`, `stochastic()`) are only supported for
-#'   `estimator = "gcomp"`.
-#'   For IPW and matching, the weights/matched sets were estimated under the
-#'   observed treatment distribution; applying a different regime requires
-#'   re-calling [causat()] with updated data. `ipsi()` additionally requires
-#'   a fitted propensity model and currently aborts for all estimators.
+#'   **Note:** intervention support is estimator-specific.
+#'   `gcomp` supports `static()` / `shift()` / `scale_by()` / `threshold()` /
+#'   `dynamic()` / `stochastic()`. IPW supports `static()` / `shift()` /
+#'   `scale_by()` / `dynamic()`, plus `ipsi()` on binary treatment (point and
+#'   univariate longitudinal) and `stochastic()` when a `density` is supplied.
+#'   `matching` supports `static()` only. `ipsi()` requires a fitted
+#'   propensity model and a binary treatment; multivariate / stabilized
+#'   longitudinal IPSI and longitudinal AIPW IPSI are rejected with classed
+#'   errors.
 #' @param type Character. The contrast scale: `"difference"` (default),
 #'   `"ratio"`, or `"or"` (odds ratio). All pairwise contrasts are reported.
 #' @param estimand Character or `NULL`. The target estimand: `"ATE"`,

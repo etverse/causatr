@@ -99,10 +99,20 @@ compute_ipw_contrast_longitudinal <- function(
 
   int_names <- names(interventions)
 
-  # `ipsi()` is not supported under longitudinal IPW. Surface a clear
-  # error rather than silently producing an untested result.
-  # For multivariate treatment, each intervention is a named list of
-  # per-component interventions — check each sub-intervention.
+  # Univariate `ipsi(delta)` is supported under longitudinal IPW: the
+  # Kennedy (2019) closed-form weight extends to a per-period product
+  # (each period's weight comes from `compute_density_ratio_weights()`'s
+  # IPSI branch). Two combinations remain unsupported and are rejected
+  # here with classed errors:
+  #
+  #   * Multivariate IPSI — the closed form is binary-univariate; the
+  #     per-component density chain has no IPSI shortcut.
+  #   * Stabilized IPSI (`stabilize = "marginal"`) — Kennedy's weight is
+  #     already a bounded ratio acting on the propensity, so there is no
+  #     separate marginal numerator to stabilize against; the stabilized
+  #     per-period closures (`compute_stabilized_period_weight()`,
+  #     `make_long_stabilized_period_closure()`) have no IPSI branch.
+  is_stabilized <- !is.null(numerator_models_by_time)
   for (nm in int_names) {
     iv <- interventions[[nm]]
     if (is.null(iv)) {
@@ -115,7 +125,7 @@ compute_ipw_contrast_longitudinal <- function(
         if (!is.null(sub_iv) && sub_iv$type == "ipsi") {
           rlang::abort(
             c(
-              "`ipsi()` is not supported under longitudinal IPW.",
+              "`ipsi()` is not supported under multivariate longitudinal IPW.",
               i = paste0(
                 "Intervention `",
                 nm,
@@ -123,20 +133,24 @@ compute_ipw_contrast_longitudinal <- function(
                 comp_nm,
                 "` is `ipsi()`."
               ),
-              i = "Use `static()` / `shift()` / `scale_by()` / `dynamic()` per component, or switch to point IPW."
+              i = "Use `static()` / `shift()` / `scale_by()` / `dynamic()` per component, switch to point IPW, or use univariate longitudinal IPW (`ipsi()` is supported there)."
             ),
-            class = "causatr_longitudinal_ipsi_pending"
+            class = "causatr_longitudinal_ipsi_multivariate"
           )
         }
       }
-    } else if (inherits(iv, "causatr_intervention") && iv$type == "ipsi") {
+    } else if (
+      inherits(iv, "causatr_intervention") &&
+        iv$type == "ipsi" &&
+        is_stabilized
+    ) {
       rlang::abort(
         c(
-          "`ipsi()` is not supported under longitudinal IPW.",
+          "`ipsi()` is not supported with `stabilize = 'marginal'` under longitudinal IPW.",
           i = paste0("Intervention `", nm, "` is `ipsi()`."),
-          i = "Use `static()`, `shift()`, `scale_by()`, or `dynamic()` instead, or switch to point IPW."
+          i = "Kennedy's IPSI weight is already a bounded propensity-odds ratio with no separate marginal numerator. Set `stabilize = 'none'` to run longitudinal IPSI."
         ),
-        class = "causatr_longitudinal_ipsi_pending"
+        class = "causatr_longitudinal_ipsi_stabilize"
       )
     }
   }

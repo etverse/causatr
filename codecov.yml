@@ -1,0 +1,38 @@
+## Codecov configuration for causatr.
+##
+## The default Codecov patch status compares each PR's changed lines against
+## the project's base coverage with no slack, so any PR that touches the
+## heavily-branched variance/closure machinery (numDeriv stacked closures,
+## per-period stabilized/trim paths, transport sampling corrections) is
+## flagged red even when overall coverage is high (~92%). Many of those
+## branches are defensive guards or rarely-exercised feature combinations
+## that are validated by truth-based simulation rather than line-by-line.
+##
+## We therefore set realistic targets with a small threshold and mark the
+## statuses informational: Codecov still reports the per-PR delta as a
+## comment, but a coverage dip on a single PR does not produce a failing
+## check. Branch protection is not enabled, so these statuses are advisory
+## either way; informational mode makes that explicit.
+
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        # Allow a small dip without flagging the project status red.
+        threshold: 1%
+        informational: true
+    patch:
+      default:
+        # Aim for most new lines covered, but don't hard-fail a PR that
+        # adds defensive branches or feature combinations covered by
+        # truth-based simulation rather than direct line execution.
+        target: 80%
+        threshold: 5%
+        informational: true
+
+## Keep the per-PR comment (the coverage delta table is useful signal) but
+## only post when there is something to report.
+comment:
+  layout: "reach, diff, files"
+  require_changes: true

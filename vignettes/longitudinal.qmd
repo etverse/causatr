@@ -812,7 +812,8 @@ res_ipw_long$contrasts
 `dynamic()` are dispatched per period through the same family-aware
 gates as point IPW (`check_intervention_family_compat()`). Natural
 course (`NULL`) collapses every per-period weight to 1 and recovers
-the observed marginal mean.
+the observed marginal mean. `ipsi()` is supported for univariate binary
+treatment via a per-period Kennedy product (see below).
 
 **Bootstrap.** `ci_method = "bootstrap"` resamples **individuals**
 (every person-period row of a sampled id travels together). Cloning
@@ -933,9 +934,99 @@ to `Y ~ 1 + modifier`. Specify the interaction once per component, e.g.
 `confounders = ~ baseline + sex + A1:sex + A2:sex` with
 `treatment = c("A1", "A2")`.
 
-**What's not yet supported.** Per-period `ipsi()` under longitudinal
-IPW is rejected with a `_pending` classed error. Use
-`estimator = "gcomp"` (ICE) for that scenario today.
+### Incremental propensity-score interventions (IPSI)
+
+For **binary** time-varying treatment, `ipsi(delta)` shifts the
+treatment odds at every period by a factor $\delta$ rather than fixing a
+counterfactual value. Kennedy's (2019) closed-form weight extends to a
+per-period product:
+
+$$
+W_i = \prod_{t=1}^{T} \frac{\delta \, A_{t,i} + (1 - A_{t,i})}
+                            {\delta \, p_{t,i} + (1 - p_{t,i})},
+\qquad p_{t,i} = P(A_t = 1 \mid \bar A_{t-1}, \bar L_t).
+$$
+
+$\delta = 1$ recovers the natural course (every factor is 1); $\delta > 1$
+nudges everyone toward treatment, $\delta < 1$ away from it. Because each
+denominator stays in $[\min(1, \delta), \max(1, \delta)]$, the per-period
+weights are bounded by construction — IPSI is a stable alternative to
+deterministic "always treat" contrasts when positivity is borderline.
+
+```{r}
+set.seed(204)
+n_ip <- 800
+ip_id <- rep(seq_len(n_ip), each = 2)
+ip_time <- rep(0:1, n_ip)
+L0_ip <- rnorm(n_ip)
+A0_ip <- rbinom(n_ip, 1, plogis(0.5 * L0_ip))
+L1_ip <- 0.5 * L0_ip + 0.4 * A0_ip + rnorm(n_ip)
+A1_ip <- rbinom(n_ip, 1, plogis(0.3 * L1_ip + 0.2 * A0_ip))
+Y_ip <- 10 + 2 * (A0_ip + A1_ip) + L0_ip + L1_ip + rnorm(n_ip)
+ipsi_long <- data.frame(
+  id = ip_id,
+  time = ip_time,
+  A = as.vector(rbind(A0_ip, A1_ip)),
+  L = as.vector(rbind(L0_ip, L1_ip)),
+  L0 = rep(L0_ip, each = 2),
+  Y = as.vector(rbind(rep(NA_real_, n_ip), Y_ip))
+)
+
+fit_ipsi_long <- causat(
+  ipsi_long,
+  outcome     = "Y",
+  treatment   = "A",
+  confounders = ~ L0,
+  confounders_tv = ~ L,
+  id          = "id",
+  time        = "time",
+  estimator   = "ipw"
+)
+
+res_ipsi <- contrast(
+  fit_ipsi_long,
+  interventions = list(
+    down = ipsi(0.5),
+    observed = ipsi(1),
+    up = ipsi(2)
+  ),
+  ci_method = "sandwich"
+)
+tt(tidy(res_ipsi), digits = 3)
+```
+
+The three means interpolate monotonically: lowering the treatment odds
+($\delta = 0.5$) pulls the counterfactual mean below the natural course
+($\delta = 1$), raising them ($\delta = 2$) pushes it up.
+
+```{r}
+#| fig-width: 5
+#| fig-height: 3.5
+#| fig-alt: "Point estimates and confidence intervals for IPSI counterfactual means at delta = 0.5, 1, and 2. The means increase monotonically with delta."
+ipsi_df <- res_ipsi$estimates
+ipsi_df$delta <- c(0.5, 1, 2)[match(
+  ipsi_df$intervention,
+  c("down", "observed", "up")
+)]
+ipsi_df <- ipsi_df[order(ipsi_df$delta), ]
+tinyplot(
+  estimate ~ factor(delta),
+  data = ipsi_df,
+  type = "pointrange",
+  ymin = ipsi_df$ci_lower,
+  ymax = ipsi_df$ci_upper,
+  ylab = "Counterfactual mean E[Y(ipsi(delta))]",
+  xlab = "IPSI odds multiplier (delta)",
+  main = "Longitudinal IPSI interpolates with delta"
+)
+```
+
+`ipsi()` under longitudinal IPW is **univariate binary only**. Multivariate
+IPSI (`treatment = c("A1", "A2")` with an `ipsi()` component) and
+`ipsi()` combined with `stabilize = "marginal"` are rejected with classed
+errors (`causatr_longitudinal_ipsi_multivariate`,
+`causatr_longitudinal_ipsi_stabilize`). Longitudinal AIPW does not support
+IPSI — use `estimator = "ipw"`.
 
 ### Weight truncation
 
@@ -1459,7 +1550,9 @@ informative error.
 | Multivariate | Continuous | Static + EM (`A1:sex` + `A2:sex`) | ATE | Difference | Sandwich | none / marginal | ✅ truth + vs ICE |
 | Multivariate (AIPW) | Continuous / Binary | Static / Shift | ATE | Difference | Sandwich / bootstrap | none | ✅ truth + DR + vs ICE/IPW |
 | Multivariate (AIPW) | Any | Static | ATE | Difference | Sandwich | marginal | ⛔ stabilize rejected |
-| Binary | Any | IPSI($\delta$) | — | — | — | — | ⛔ Phase 4 |
+| Binary | Continuous | IPSI($\delta$) | ATE | Difference | Sandwich / bootstrap | none | ✅ +oracle (per-period Kennedy) |
+| Multivariate | Any | IPSI($\delta$) component | — | — | — | — | ⛔ binary-univariate only |
+| Binary | Any | IPSI($\delta$) | ATE | — | — | marginal | ⛔ no marginal numerator |
 | Binary | Any | Static / ATT | ATT | — | — | — | ⛔ ICE is ATE-only |
 
 See `FEATURE_COVERAGE_MATRIX.md`

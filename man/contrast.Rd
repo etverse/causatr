@@ -44,13 +44,15 @@ variable, for multivariate (joint) treatments. Each sub-list must name
 every treatment variable specified in \code{causat()}.
 }
 
-\strong{Note:} Non-static interventions (\code{shift()}, \code{scale_by()}, \code{threshold()},
-\code{dynamic()}, \code{ipsi()}, \code{stochastic()}) are only supported for
-\code{estimator = "gcomp"}.
-For IPW and matching, the weights/matched sets were estimated under the
-observed treatment distribution; applying a different regime requires
-re-calling \code{\link[=causat]{causat()}} with updated data. \code{ipsi()} additionally requires
-a fitted propensity model and currently aborts for all estimators.}
+\strong{Note:} intervention support is estimator-specific.
+\code{gcomp} supports \code{static()} / \code{shift()} / \code{scale_by()} / \code{threshold()} /
+\code{dynamic()} / \code{stochastic()}. IPW supports \code{static()} / \code{shift()} /
+\code{scale_by()} / \code{dynamic()}, plus \code{ipsi()} on binary treatment (point and
+univariate longitudinal) and \code{stochastic()} when a \code{density} is supplied.
+\code{matching} supports \code{static()} only. \code{ipsi()} requires a fitted
+propensity model and a binary treatment; multivariate / stabilized
+longitudinal IPSI and longitudinal AIPW IPSI are rejected with classed
+errors.}
 
 \item{type}{Character. The contrast scale: \code{"difference"} (default),
 \code{"ratio"}, or \code{"or"} (odds ratio). All pairwise contrasts are reported.}

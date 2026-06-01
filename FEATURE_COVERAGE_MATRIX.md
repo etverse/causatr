@@ -153,13 +153,19 @@ Per-period treatment density chain $f(A_k \mid \bar A_{k-1}, \bar L_k)$ + cumula
 | **MV binary** | gauss | static + EM, by(sex) | 2 | sandwich | — | ✅ vs ICE g-comp | test-longitudinal-ipw.R |
 | **MV** (EM structure) | — | each per-period × per-component propensity strips `A1:sex`/`A2:sex` (keeps `sex` as confounder); MSM expands to `Y ~ 1 + sex` | 2 | — | — | ✅ formula check | test-longitudinal-ipw.R |
 | **MV binary** | gauss | static + EM + `stabilize="marginal"`, by(sex) | 2 | sandwich | — | ✅ identical to unstabilized | test-longitudinal-ipw.R |
+| bin | gauss | `ipsi($\delta$=2)` (per-period Kennedy product) | 2 | sandwich | — | ✅ +oracle (manual per-period Kennedy product) | test-longitudinal-ipw.R |
+| bin | gauss | `ipsi($\delta$=2)` | 2 | bootstrap | — | ✅ vs sandwich (within 15%) | test-longitudinal-ipw.R |
+| bin | gauss | `ipsi($\delta$=2)` vs `ipsi($\delta$=1)` (difference) | 2 | sandwich | — | ✅ +oracle | test-longitudinal-ipw.R |
+
+**Per-period IPSI (Phase 20):** univariate `ipsi(delta)` extends Kennedy's (2019) closed-form weight to a per-period product $W_i = \prod_t (\delta A_{t} + (1 - A_{t})) / (\delta p_{t} + (1 - p_{t}))$. No new density-evaluation path — each period reuses `compute_density_ratio_weights()`'s IPSI branch; the stacked sandwich reuses `make_weight_fn()`'s IPSI sub-closure per period.
 
 **Known limitation (Phase 6, Robins 2000):** under longitudinal IPW the modifier MUST be a **baseline** covariate. A time-varying modifier in an MSM conditions on a post-treatment variable, biasing the estimand via mediator + collider paths. Not enforced at runtime (time-varying status isn't inferable from data); doc-level constraint only. The scientifically correct tool for time-varying effect modification is a structural nested model (Phase 18).
 
 Sequential positivity warning (`causatr_longitudinal_seq_positivity`): fires when any per-period weight max exceeds 100 (default threshold); silent below threshold. Tested directly on `warn_seq_positivity()`.
 
-Rejections (all ✅ tested, "_pending" classed errors deferred to follow-up chunks):
-- `ipsi()` $\to$ test-longitudinal-ipw.R (`causatr_longitudinal_ipsi_pending`; per-period IPSI extension deferred)
+Rejections (all ✅ tested):
+- multivariate `ipsi()` (any component) $\to$ test-longitudinal-ipw.R (`causatr_longitudinal_ipsi_multivariate`; Kennedy's closed form is binary-univariate)
+- `ipsi()` + `stabilize = "marginal"` $\to$ test-longitudinal-ipw.R (`causatr_longitudinal_ipsi_stabilize`; IPSI weight has no separate marginal numerator)
 - `numerator =` without `stabilize = "marginal"` $\to$ test-longitudinal-ipw.R (`causatr_longitudinal_numerator_without_stabilize`)
 - bare treatment in confounders (`~ L + A`) $\to$ test-longitudinal-ipw.R (`causatr_bare_treatment_in_confounders`)
 - ATT / ATC under longitudinal IPW $\to$ test-longitudinal-ipw.R (inherits `check_estimand_trt_compat`)
