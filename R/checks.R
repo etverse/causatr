@@ -588,6 +588,143 @@ check_stratified <- function(
   invisible(NULL)
 }
 
+#' Validate natural-history MTP interventions against a fit
+#'
+#' @description
+#' Natural-history modified treatment policies ([grace_period()] /
+#' [carry_forward()]) are estimated by the augmented-data sequential regression
+#' ([glmtp_iterate()]), which only exists for **longitudinal g-computation** on
+#' a **discrete** treatment. This gate, called from [contrast()] when any
+#' intervention is a `causatr_glmtp`, enforces:
+#'
+#' 1. `estimator = "gcomp"` and a longitudinal fit (`id` / `time`). IPW / AIPW /
+#'    matching and point treatments have no augmented backward recursion.
+#'    Rejected with class `causatr_glmtp_not_ice`.
+#' 2. Transport (`target =`) is not supported for the augmented engine.
+#'    Rejected with class `causatr_glmtp_not_ice`.
+#' 3. A glmtp intervention is not mixed with a standard non-`NULL` intervention
+#'    in the same contrast (a natural-course `NULL` reference is allowed and is
+#'    routed through the identity policy). Rejected with class
+#'    `causatr_glmtp_mixed`.
+#' 4. The treatment is discrete with a tractable history enumeration -- delegated
+#'    to [glmtp_support()] (class `causatr_glmtp_continuous_trt`) and
+#'    [glmtp_check_tractable()] (class `causatr_glmtp_too_many`).
+#'
+#' A no-op when no intervention is a `causatr_glmtp`.
+#'
+#' @param fit A `causatr_fit`.
+#' @param interventions Named list of interventions.
+#' @param call Caller environment for error messages.
+#'
+#' @return `NULL` invisibly; aborts on any violation.
+#'
+#' @noRd
+check_glmtp_compat <- function(fit, interventions, call = rlang::caller_env()) {
+  is_g <- vapply(
+    interventions,
+    function(iv) inherits(iv, "causatr_glmtp"),
+    logical(1)
+  )
+  if (!any(is_g)) {
+    return(invisible(NULL))
+  }
+
+  # (1) ICE-only: longitudinal g-computation.
+  if (!(fit$estimator == "gcomp" && fit$type == "longitudinal")) {
+    rlang::abort(
+      c(
+        paste0(
+          "Natural-history MTPs (`grace_period()` / `carry_forward()`) are ",
+          "only supported for longitudinal g-computation."
+        ),
+        i = paste0(
+          "Fit with `estimator = \"gcomp\"` and `id` / `time` columns ",
+          "(longitudinal ICE)."
+        ),
+        x = paste0(
+          "Got estimator = \"",
+          fit$estimator,
+          "\", type = \"",
+          fit$type,
+          "\"."
+        )
+      ),
+      class = "causatr_glmtp_not_ice",
+      call = call
+    )
+  }
+
+  # (1b) Stratified ICE and the augmented engine are independent nuisance-model
+  # choices that have not been composed; the augmented recursion would silently
+  # ignore the stratifier. Reject rather than mislead.
+  if (!is.null(fit$details$stratified)) {
+    rlang::abort(
+      c(
+        paste0(
+          "Natural-history MTPs are not supported together with stratified ",
+          "ICE (`stratified =`)."
+        ),
+        i = "Refit without `stratified` to use `grace_period()` / `carry_forward()`."
+      ),
+      class = "causatr_glmtp_not_ice",
+      call = call
+    )
+  }
+
+  # (2) Transport is owned by a separate (pending) longitudinal-transport path.
+  if (!is.null(fit$target)) {
+    rlang::abort(
+      c(
+        "Natural-history MTPs do not support transportability (`target =`).",
+        i = paste0(
+          "The augmented sequential regression has no sampling-model channel; ",
+          "drop `target` to estimate the study-population effect."
+        )
+      ),
+      class = "causatr_glmtp_not_ice",
+      call = call
+    )
+  }
+
+  # (3) No mixing with standard non-NULL interventions. A NULL natural-course
+  # reference is allowed (routed through the identity policy in glmtp_iterate()).
+  is_std <- vapply(
+    interventions,
+    function(iv) !is.null(iv) && !inherits(iv, "causatr_glmtp"),
+    logical(1)
+  )
+  if (any(is_std)) {
+    rlang::abort(
+      c(
+        paste0(
+          "Natural-history MTPs cannot be mixed with standard interventions ",
+          "in one `contrast()` call."
+        ),
+        i = paste0(
+          "Offending intervention(s): ",
+          paste(shQuote(names(interventions)[is_std]), collapse = ", "),
+          "."
+        ),
+        i = paste0(
+          "Use only `grace_period()` / `carry_forward()` (a `NULL` ",
+          "natural-course reference is allowed), or run a separate contrast."
+        )
+      ),
+      class = "causatr_glmtp_mixed",
+      call = call
+    )
+  }
+
+  # (4) Discrete support + tractable enumeration. `glmtp_support()` rejects
+  # continuous / factor / multivariate treatment; `glmtp_check_tractable()`
+  # caps the worst-step blow-up. Use the budget from the first glmtp arm.
+  budget <- interventions[[which(is_g)[1L]]]$budget %||% 1024L
+  support <- glmtp_support(fit$data, fit$treatment, fit$censoring, call = call)
+  glmtp_check_tractable(support, fit$details$n_times, budget, call = call)
+
+  invisible(NULL)
+}
+
 #' Validate all inputs to causat()
 #'
 #' @param data A data.frame or data.table.
