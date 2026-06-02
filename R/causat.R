@@ -202,6 +202,19 @@
 #'   should contain only baseline confounders (no treatment or modifiers).
 #'   Default `NULL` uses the standard residualized-treatment moment condition
 #'   without a treatment-free model. Ignored for non-SNM estimators.
+#' @param stratified Character or `NULL`. Name of a baseline
+#'   (time-invariant) column to stratify the ICE outcome models on.
+#'   **Longitudinal g-computation (ICE) only.** When set, a separate
+#'   outcome / pseudo-outcome model is fitted for each stratum at every
+#'   backward step instead of a single pooled model -- the right choice
+#'   when the outcome--treatment relationship differs structurally across
+#'   baseline subgroups (e.g. different functional form by sex). The column
+#'   must be discrete, complete, and constant within each individual.
+#'   Variance for stratified ICE is **bootstrap only**
+#'   (`ci_method = "bootstrap"` in [contrast()]); requesting the analytic
+#'   sandwich aborts with a classed error. Default `NULL` fits pooled
+#'   models. Ignored / rejected for point treatments and non-gcomp
+#'   estimators.
 #' @param ... Additional arguments passed to the underlying estimation
 #'   function. For `estimator = "ipw"`, dots are forwarded into the
 #'   user's `propensity_model_fn` via `fit_treatment_model()` (e.g.
@@ -464,6 +477,7 @@ causat <- function(
   sampling_model_fn = NULL,
   target_subset = c("target", "all"),
   treatment_free = NULL,
+  stratified = NULL,
   ...
 ) {
   stabilize <- rlang::arg_match(stabilize)
@@ -663,8 +677,15 @@ causat <- function(
     censoring = censoring,
     history = history,
     cluster = cluster,
-    target = target
+    target = target,
+    stratified = stratified
   )
+
+  # Stratified ICE: validate the stratifying column on the prepared data
+  # (data.table; the column survived `prepare_data()`'s keep set). Rejects
+  # non-ICE estimators, time-varying / continuous / NA stratifiers. Runs
+  # here so a misuse is caught before any model is fitted.
+  check_stratified(data, stratified, estimator, type, id, call = call)
 
   # NA check on treatment values: if any are missing, user must either
   # provide a censoring column (IPCW), use mice imputation, or remove
@@ -839,6 +860,7 @@ causat <- function(
       confounders_sampling = confounders_sampling,
       confounders_tv_outcome = confounders_tv_outcome,
       confounders_tv_treatment = confounders_tv_treatment,
+      stratified = stratified,
       ...
     ),
     ipw = fit_ipw(

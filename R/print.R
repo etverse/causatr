@@ -97,6 +97,11 @@ print.causatr_fit <- function(x, ...) {
     cat(" ID:         ", x$id, "\n", sep = "")
     cat(" Time:       ", x$time, "\n", sep = "")
   }
+  # Stratified ICE: surface the stratifying column when present. Guarded
+  # so non-stratified fits print exactly as before (no snapshot churn).
+  if (!is.null(x$details$stratified)) {
+    cat(" Stratified: ", x$details$stratified, "\n", sep = "")
+  }
   cat(" N:          ", nrow(x$data), "\n", sep = "")
   invisible(x)
 }

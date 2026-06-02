@@ -230,7 +230,25 @@ Rejections (all ✅ tested):
 | bin | binom | static + EM | 2 | sandwich | — | ✅ | test-effect-modification.R |
 | multi | gauss | static + EM | 2 | sandwich | — | 🟡 | test-effect-modification.R |
 
+### Stratified ICE (`stratified = "G"`, Phase 22a)
+
+Per-baseline-stratum outcome models at each backward step. Variance is bootstrap-only;
+the analytic sandwich is rejected (derivation in `PHASE_22_ICE_ENHANCEMENTS.md`).
+
+| Trt | Outcome | Intervention | Periods | Variance | Wt | Status | Test |
+|---|---|---|---|---|---|---|---|
+| bin | gauss | static/shift | 2 | (point) | — | ✅ exact vs per-stratum pooled | test-ice-stratified.R |
+| bin | binom | static | 2 | boot | — | ✅ truth + lmtp | test-ice-stratified.R |
+| cont | gauss | shift | 2 | boot | — | ✅ | test-ice-stratified.R |
+| bin | gauss | dynamic (cov) | 2 | (point) | — | ✅ | test-ice-stratified.R |
+| bin | gauss | static | 2 | (point) | ext / cens | ✅ | test-ice-stratified.R |
+| bin | binom | static | 2 | boot | — | ✅ CI covers truth | test-ice-stratified.R |
+
 Rejections (all ✅ tested): ipsi $\to$ test-ice.R, ATT/ATC $\to$ test-ice.R.
+Stratified rejections (all ✅ tested, `test-ice-stratified.R`): non-ICE estimator / point treatment
+$\to$ `causatr_stratified_not_ice`; missing column $\to$ `causatr_stratified_not_found`;
+time-varying column $\to$ `causatr_stratified_not_baseline`; continuous column $\to$
+`causatr_stratified_too_many`; analytic sandwich $\to$ `causatr_stratified_ice_sandwich`.
 
 ---
 

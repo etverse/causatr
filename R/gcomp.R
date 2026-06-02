@@ -31,6 +31,9 @@
 #'   TV outcome-model confounders (stored on the fit).
 #' @param confounders_tv_treatment One-sided formula or `NULL`. User-supplied
 #'   TV treatment-model confounders (stored on the fit).
+#' @param stratified Character scalar naming a baseline column to stratify
+#'   the per-step ICE outcome models on, or `NULL`. Longitudinal only;
+#'   forwarded to `fit_ice()`.
 #' @param ... Passed to `model_fn`.
 #'
 #' @return A `causatr_fit` object.
@@ -59,6 +62,7 @@ fit_gcomp <- function(
   confounders_sampling = NULL,
   confounders_tv_outcome = NULL,
   confounders_tv_treatment = NULL,
+  stratified = NULL,
   ...
 ) {
   if (type == "longitudinal") {
@@ -83,6 +87,7 @@ fit_gcomp <- function(
       confounders_sampling = confounders_sampling,
       confounders_tv_outcome = confounders_tv_outcome,
       confounders_tv_treatment = confounders_tv_treatment,
+      stratified = stratified,
       ...
     )
   } else {

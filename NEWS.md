@@ -1,5 +1,39 @@
 # causatr (development version)
 
+## 2026-06-02 — Phase 22a: Stratified ICE (`stratified = "G"`)
+
+`causat(..., stratified = "G")` adds stratified iterated-conditional-expectation
+g-computation for longitudinal data. When the outcome–treatment relationship
+differs structurally across a baseline subgroup `G`, a single pooled per-step
+model is misspecified; stratified ICE fits one outcome / pseudo-outcome model
+**per stratum** of `G` at every backward step and merges per-stratum predictions
+back into the recursion.
+
+* **Estimand-preserving.** Because `G` is baseline and individuals never cross
+  strata in the recursion, stratified ICE on the full panel is *exactly* equal to
+  running pooled ICE separately on each stratum subset — the target marginal
+  $E[Y^{\bar d}]$ (and any `by` / `subset`) is unchanged. The within-stratum
+  formula drops the constant stratum term automatically.
+* **Variance is bootstrap-only.** Use `ci_method = "bootstrap"` in `contrast()`;
+  the ID-cluster bootstrap refits all per-stratum per-period models on each
+  replicate. Requesting the analytic sandwich aborts with
+  `causatr_stratified_ice_sandwich` (the stacked-EE derivation is documented in
+  `PHASE_22_ICE_ENHANCEMENTS.md` for a future sub-chunk).
+* **Composes with** binary/continuous treatment, gaussian/binomial outcome,
+  `static` / `shift` / `dynamic` / `stochastic` interventions, lags / TV
+  confounders, censoring row-filter, and external/IPCW weights.
+* **Validated** by exact equivalence to per-stratum pooled ICE, a truth-based
+  binary DGP with documented Monte-Carlo truths, and an `lmtp` per-stratum
+  cross-check (`test-ice-stratified.R`). Misuse is rejected with classed errors
+  (`causatr_stratified_not_ice`, `_not_baseline`, `_too_many`, `_not_found`,
+  `_na`).
+
+This is Phase 22a. Phase 22b (natural-history modified treatment policies —
+grace periods, carry-forward) is **designed** in `PHASE_22_ICE_ENHANCEMENTS.md`
+(an augmented-data sequential-regression G-LMTP engine, per arXiv:2605.24167) but
+not yet implemented; the earlier "thin `dynamic()` wrapper" idea was found to be
+theoretically unsound and is not shipped.
+
 ## 2026-06-01 — Classed confounder-placement warnings
 
 The two `prepare_data()` warnings that flag a likely `confounders` /

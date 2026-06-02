@@ -452,6 +452,142 @@ check_treatment_nas <- function(
   }
 }
 
+#' Validate the `stratified` argument for stratified ICE
+#'
+#' @description
+#' Stratified ICE fits a separate per-step outcome model for each level of
+#' a baseline (time-invariant) grouping variable. This validator enforces
+#' the three preconditions the feature requires:
+#'
+#' 1. The feature is only defined for longitudinal g-computation (ICE):
+#'    point treatments and the IPW / AIPW / matching / SNM estimators have
+#'    no per-step backward recursion to stratify. Rejected with class
+#'    `causatr_stratified_not_ice`.
+#' 2. The stratifying column must be **baseline** -- constant within every
+#'    individual across time. A time-varying column would make stratum
+#'    membership change across backward steps, which is not the supported
+#'    estimand. Rejected with class `causatr_stratified_not_baseline`.
+#' 3. The column must define a small number of discrete strata (factor,
+#'    character, logical, or low-cardinality integer). A continuous column
+#'    would yield one stratum per individual and leave every per-step
+#'    model unidentified. Rejected with class `causatr_stratified_too_many`.
+#'
+#' Runs after `prepare_data()`, so `data` is a data.table and the
+#' stratifying column has been retained in the keep set.
+#'
+#' @param data Prepared data.table.
+#' @param stratified Character scalar column name, or `NULL` (no-op).
+#' @param estimator Character estimator from `causat()`.
+#' @param type `"point"` or `"longitudinal"`.
+#' @param id Character ID column name, or `NULL`.
+#' @param call Caller environment for error messages.
+#'
+#' @return `NULL` invisibly; aborts on any violation.
+#'
+#' @noRd
+check_stratified <- function(
+  data,
+  stratified,
+  estimator,
+  type,
+  id,
+  call = rlang::caller_env()
+) {
+  if (is.null(stratified)) {
+    return(invisible(NULL))
+  }
+  check_string(stratified, arg = "stratified", call = call)
+
+  # (1) ICE-only. Reject before touching the column so the user gets the
+  # most fundamental misuse first (e.g. `stratified` under IPW).
+  if (!(estimator == "gcomp" && type == "longitudinal")) {
+    rlang::abort(
+      c(
+        "`stratified` is only supported for longitudinal g-computation (ICE).",
+        i = paste0(
+          "Use `estimator = \"gcomp\"` with `id` and `time` for ",
+          "stratified ICE."
+        ),
+        x = paste0(
+          "Got estimator = \"",
+          estimator,
+          "\", type = \"",
+          type,
+          "\"."
+        )
+      ),
+      class = "causatr_stratified_not_ice",
+      call = call
+    )
+  }
+
+  if (!stratified %in% names(data)) {
+    rlang::abort(
+      paste0("`stratified` column '", stratified, "' not found in `data`."),
+      class = "causatr_stratified_not_found",
+      call = call
+    )
+  }
+
+  vals <- data[[stratified]]
+  if (anyNA(vals)) {
+    rlang::abort(
+      c(
+        paste0("`stratified` column '", stratified, "' contains NA values."),
+        i = "The stratifying variable must be a complete baseline covariate."
+      ),
+      class = "causatr_stratified_na",
+      call = call
+    )
+  }
+
+  # (2) Time-invariance: every individual must carry a single stratum value.
+  nu <- data[, data.table::uniqueN(get(stratified)), by = c(id)]$V1
+  if (any(nu > 1L)) {
+    rlang::abort(
+      c(
+        paste0(
+          "`stratified` column '",
+          stratified,
+          "' varies within individuals."
+        ),
+        i = paste0(
+          "Stratified ICE requires a baseline (time-invariant) grouping ",
+          "variable."
+        ),
+        i = "Move time-varying structure into `confounders_tv` instead."
+      ),
+      class = "causatr_stratified_not_baseline",
+      call = call
+    )
+  }
+
+  # (3) Discrete, low-cardinality strata.
+  n_levels <- data.table::uniqueN(vals)
+  is_continuous <- is.double(vals) && any(vals != floor(vals))
+  if (is_continuous || n_levels > 10L) {
+    rlang::abort(
+      c(
+        paste0(
+          "`stratified` column '",
+          stratified,
+          "' has ",
+          n_levels,
+          " distinct value(s)",
+          if (is_continuous) " (continuous)" else "",
+          "."
+        ),
+        i = "Stratified ICE needs a small number of discrete strata (<= 10).",
+        i = "Discretise the variable (e.g. `cut()` into bins) before stratifying."
+      ),
+      class = "causatr_stratified_too_many",
+      call = call
+    )
+  }
+
+  invisible(NULL)
+}
+
 #' Validate all inputs to causat()
 #'
 #' @param data A data.frame or data.table.

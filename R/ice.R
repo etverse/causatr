@@ -31,6 +31,10 @@
 #' @param id Character. Name of the individual ID column.
 #' @param time Character. Name of the time column.
 #' @param call The original `causat()` call (for error messages).
+#' @param stratified Character scalar naming a baseline (time-invariant)
+#'   column to stratify the per-step outcome models on, or `NULL` (pooled
+#'   models, the default). When set, `ice_iterate()` fits one model per
+#'   stratum at every backward step.
 #' @param ... Passed to `model_fn`.
 #'
 #' @return A `causatr_fit` object with `model = NULL` and all needed
@@ -58,6 +62,7 @@ fit_ice <- function(
   confounders_sampling = NULL,
   confounders_tv_outcome = NULL,
   confounders_tv_treatment = NULL,
+  stratified = NULL,
   ...
 ) {
   # Guard against a silent collision with any causatr-reserved column.
@@ -187,6 +192,7 @@ fit_ice <- function(
       family_outcome = family_obj,
       family_pseudo = family_pseudo,
       weights = weights,
+      stratified = stratified,
       dots = dots
     )
   )
@@ -542,6 +548,10 @@ ice_iterate <- function(fit, intervention) {
   family_outcome <- details$family_outcome
   family_pseudo <- details$family_pseudo
   external_weights <- details$weights
+  # Stratifying column (or NULL). When set, `ice_fit_step()` /
+  # `ice_predict_step()` fit and predict one model per baseline stratum
+  # at each backward step instead of a single pooled model.
+  stratified <- details$stratified
   # User's stashed `...` for `model_fn`. The per-step `replay_fit()`
   # calls below take care of duplicate-key stripping in one place
   # (R/utils.R).
@@ -648,22 +658,21 @@ ice_iterate <- function(fit, intervention) {
     em_info
   )
 
-  # Build args for `model_fn` (default `stats::glm`) via do.call. We
-  # go through do.call rather than a direct call because `glm()` uses
-  # non-standard evaluation for `weights =`: passing `weights = NULL`
-  # explicitly is NOT the same as omitting it, and do.call lets us
-  # include the argument conditionally.
-  model_args <- list(
-    formula = formula_k,
-    data = fit_data
+  # Fit the final-time model, pooled or per-stratum. `ice_fit_step()`
+  # centralises the `family` / `weights` argument handling (glm uses NSE
+  # on `weights =`, so the argument is included conditionally) and the
+  # stratified split. The weight vector is pre-subset to the fitting rows
+  # so it aligns with `fit_data` row-for-row.
+  w_final <- if (!is.null(external_weights)) external_weights[fit_mask]
+  models[[n_times]] <- ice_fit_step(
+    model_fn,
+    formula_k,
+    fit_data,
+    family_outcome,
+    w_final,
+    model_fn_dots,
+    stratified
   )
-  if (fn_accepts_family(model_fn)) {
-    model_args$family <- family_outcome
-  }
-  if (!is.null(external_weights)) {
-    model_args$weights <- external_weights[fit_mask]
-  }
-  models[[n_times]] <- replay_fit(model_fn, model_args, model_fn_dots)
 
   # Predict Q_K under the intervention for ALL uncensored individuals
   # at the final time (not just those in the fitting set). The g-formula
@@ -685,20 +694,16 @@ ice_iterate <- function(fit, intervention) {
         id_col,
         time_col
       )
-      preds_mat[, m] <- stats::predict(
+      preds_mat[, m] <- ice_predict_step(
         models[[n_times]],
-        newdata = data_iv_m[pred_mask],
-        type = "response"
+        data_iv_m[pred_mask],
+        stratified
       )
     }
     preds <- rowMeans(preds_mat, na.rm = TRUE)
   } else {
     pred_data <- data_iv[pred_mask]
-    preds <- stats::predict(
-      models[[n_times]],
-      newdata = pred_data,
-      type = "response"
-    )
+    preds <- ice_predict_step(models[[n_times]], pred_data, stratified)
   }
   pseudo[pred_ids] <- preds
   # Saturation check on the final-time predictions. These are the
@@ -778,25 +783,25 @@ ice_iterate <- function(fit, intervention) {
       em_info
     )
 
-    # `do.call(model_fn, model_args_k)` rather than a direct call so
-    # the `weights =` argument can be conditionally included: glm()
-    # uses NSE on `weights`, and `weights = NULL` is not the same as
-    # omitting it. External weights (IPCW, survey weights) MUST flow
-    # through every backward pseudo-outcome model, otherwise the
-    # stacked-EE sandwich for the longitudinal target is biased.
-    # `mask_uncens` is length n_total; we subset it to `has_pseudo`
-    # so the weight vector aligns with `fit_data` row-for-row.
-    model_args_k <- list(
-      formula = formula_k,
-      data = fit_data
+    # Fit the backward-step pseudo-outcome model, pooled or per-stratum.
+    # External weights (IPCW, survey weights) MUST flow through every
+    # backward model, otherwise the stacked-EE sandwich for the
+    # longitudinal target is biased. `mask_uncens` is length n_total; we
+    # subset it to `has_pseudo` so the weight vector aligns with
+    # `fit_data` row-for-row. `family_pseudo` is quasibinomial for binary
+    # outcomes (the pseudo response is a fitted probability, not 0/1).
+    w_k <- if (!is.null(external_weights)) {
+      external_weights[mask_uncens][has_pseudo]
+    }
+    models[[step_i]] <- ice_fit_step(
+      model_fn,
+      formula_k,
+      fit_data,
+      family_pseudo,
+      w_k,
+      model_fn_dots,
+      stratified
     )
-    if (fn_accepts_family(model_fn)) {
-      model_args_k$family <- family_pseudo
-    }
-    if (!is.null(external_weights)) {
-      model_args_k$weights <- external_weights[mask_uncens][has_pseudo]
-    }
-    models[[step_i]] <- replay_fit(model_fn, model_args_k, model_fn_dots)
 
     # Predict Q_k under the intervention for ALL individuals at the
     # current time point (not just the fitting subset). We condition on
@@ -818,20 +823,16 @@ ice_iterate <- function(fit, intervention) {
           id_col,
           time_col
         )
-        preds_mat_bk[, m] <- stats::predict(
+        preds_mat_bk[, m] <- ice_predict_step(
           models[[step_i]],
-          newdata = data_iv_m[mask_current],
-          type = "response"
+          data_iv_m[mask_current],
+          stratified
         )
       }
       preds <- rowMeans(preds_mat_bk, na.rm = TRUE)
     } else {
       pred_all <- data_iv[mask_current]
-      preds <- stats::predict(
-        models[[step_i]],
-        newdata = pred_all,
-        type = "response"
-      )
+      preds <- ice_predict_step(models[[step_i]], pred_all, stratified)
     }
 
     # Saturation check on each backward step's predictions (see the
