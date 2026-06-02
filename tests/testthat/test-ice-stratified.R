@@ -421,6 +421,77 @@ test_that("stratified rejects a missing, time-varying, or continuous column", {
   )
 })
 
+test_that("stratified rejects an NA-containing stratum column", {
+  d <- make_em_ice_scm(n = 400, n_times = 2, seed = 1)
+  # Punch a hole in the baseline stratum column for one individual (both of
+  # its person-period rows) so `check_stratified()`'s completeness guard fires.
+  d$sexna <- d$sex
+  d$sexna[d$id == d$id[1]] <- NA
+  expect_error(
+    causat(
+      d,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~L0,
+      confounders_tv = ~L,
+      id = "id",
+      time = "time",
+      stratified = "sexna"
+    ),
+    class = "causatr_stratified_na"
+  )
+})
+
+
+# Test F2 — internal helper defensive branches ----------------------------
+#
+# Unit-test the per-stratum fit/predict helpers directly so the defensive
+# branches (a failed/absent stratum model, an all-stratum-term formula) are
+# deterministically exercised rather than relying on a degenerate end-to-end
+# DGP.
+test_that("strip_stratum_terms collapses to an intercept when all RHS terms reference G", {
+  # `~ G` has no term that survives stripping the stratum -> intercept only.
+  f <- strip_stratum_terms(Y ~ G, "G")
+  expect_equal(deparse(f), "Y ~ 1")
+  # A surviving non-stratum term is kept; only the G-referencing terms drop.
+  f2 <- strip_stratum_terms(Y ~ G + x + G:x, "G")
+  expect_equal(deparse(f2), "Y ~ x")
+})
+
+test_that("ice_predict_step skips a NULL-model stratum and an absent stratum", {
+  train <- data.frame(x = stats::rnorm(60))
+  train$y <- 1 + 2 * train$x + stats::rnorm(60)
+  m0 <- stats::glm(y ~ x, data = train)
+  # Stratum "1" failed to fit (NULL); stratum "2" was fit but has no rows in
+  # `newdata`. Both must be skipped, leaving stratum-"0" rows predicted and
+  # the NULL-stratum rows as NA.
+  models_k <- list("0" = m0, "1" = NULL, "2" = m0)
+  newdata <- data.table::data.table(
+    x = stats::rnorm(6),
+    G = c("0", "0", "0", "1", "1", "1")
+  )
+  preds <- ice_predict_step(models_k, newdata, "G")
+  expect_length(preds, 6L)
+  expect_true(all(is.finite(preds[1:3])))
+  expect_true(all(is.na(preds[4:6])))
+})
+
+test_that("print() surfaces the stratifying column for a stratified fit", {
+  d <- make_em_ice_scm(n = 300, n_times = 2, seed = 2)
+  fit_s <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    stratified = "sex"
+  )
+  expect_output(print(fit_s), "Stratified:\\s+sex")
+})
+
+
 # Test G — analytic sandwich variance --------------------------------------
 #
 # The per-stratum x per-time stacked-EE sandwich. Because G is baseline and
