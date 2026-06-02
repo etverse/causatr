@@ -210,10 +210,10 @@
 #'   when the outcome--treatment relationship differs structurally across
 #'   baseline subgroups (e.g. different functional form by sex). The column
 #'   must be discrete, complete, and constant within each individual.
-#'   Variance for stratified ICE is **bootstrap only**
-#'   (`ci_method = "bootstrap"` in [contrast()]); requesting the analytic
-#'   sandwich aborts with a classed error. Default `NULL` fits pooled
-#'   models. Ignored / rejected for point treatments and non-gcomp
+#'   Both variance paths are available in [contrast()]: the ID-cluster
+#'   bootstrap (`ci_method = "bootstrap"`) and the analytic per-stratum
+#'   stacked-EE sandwich (`ci_method = "sandwich"`). Default `NULL` fits
+#'   pooled models. Ignored / rejected for point treatments and non-gcomp
 #'   estimators.
 #' @param ... Additional arguments passed to the underlying estimation
 #'   function. For `estimator = "ipw"`, dots are forwarded into the

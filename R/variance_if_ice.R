@@ -9,6 +9,12 @@
 #' substitution of the block-triangular bread for the stacked
 #' \eqn{K{+}1}-model M-estimation system (vignette Section 5.4; D2).
 #'
+#' When `fit$details$stratified` is set, the per-step model is a list of
+#' per-stratum models and the assembly is delegated to
+#' `variance_if_ice_one_stratified()`, which runs the same Channel-2 chain
+#' once per stratum (block-diagonal across strata; see
+#' `R/variance_if_ice_stratified.R`).
+#'
 #' @param fit A `causatr_fit` of type `"longitudinal"`.
 #' @param ice_results Named list of `ice_iterate()` results, one per
 #'   intervention.
@@ -41,25 +47,35 @@ variance_if_ice <- function(
     cluster_vec[rows_first]
   }
 
+  # Pooled vs stratified ICE select different per-intervention IF
+  # assemblers. Both return a length-n per-individual IF; the downstream
+  # `vcov_from_if()` aggregation is identical.
+  is_stratified <- !is.null(fit$details$stratified)
   IF_list <- lapply(ice_results, function(res) {
-    variance_if_ice_one(fit, res, target_within_first)
+    if (is_stratified) {
+      variance_if_ice_one_stratified(fit, res, target_within_first)
+    } else {
+      variance_if_ice_one(fit, res, target_within_first)
+    }
   })
 
   vcov_from_if(IF_list, n, int_names, cluster = cluster_first)
 }
 
 
-#' Per-individual IF for one ICE intervention
+#' Per-individual IF for one (pooled) ICE intervention
 #'
 #' @description
-#' Workhorse called once per intervention by `variance_if_ice()`. Assembles
-#' the IF as
+#' Workhorse called once per intervention by `variance_if_ice()` for the
+#' pooled (non-stratified) case. Assembles the IF as
 #' \deqn{\mathrm{IF}_i = \frac{n}{n_t}\,t_i\,(\tilde Y_{0,i} - \hat\mu)
 #'       + \sum_{k=0}^{K} n_k\,d_{k,i}\,r^{\mathrm{score}}_{k,i}}
-#' by looping over the \eqn{K{+}1} outcome models. At each step, the
-#' previous step's per-individual sensitivity `d_{k-1,j}` weights the
-#' construction of `g_k`, then `correct_model(model_k, g_k, ...)` returns
-#' both the model-k correction and the new `d_k` for the next iteration.
+#' from a Channel-1 sampling term (`ice_if_setup()`) and a Channel-2
+#' nuisance-correction chain (`variance_if_ice_chain()`). The chain loops
+#' over the \eqn{K{+}1} outcome models; at each step the previous step's
+#' per-individual sensitivity `d_{k-1,j}` weights the construction of
+#' `g_k`, then `correct_model(model_k, g_k, ...)` returns both the model-k
+#' correction and the new `d_k` for the next iteration.
 #'
 #' Mirrors the closed-form back-substitution of the stacked-EE bread
 #' from vignette Section 5.4-5.6.
@@ -72,11 +88,44 @@ variance_if_ice <- function(
 #'
 #' @noRd
 variance_if_ice_one <- function(fit, ice_result, target) {
+  ctx <- ice_if_setup(fit, ice_result, target)
+  # Pooled path: one Channel-2 chain over all rows / all models, with no
+  # stratum restriction. Channel 1 is already in `ctx$IF_vec`.
+  ctx$IF_vec +
+    variance_if_ice_chain(ctx, ice_result$models, ice_result$fit_ids)
+}
+
+
+#' Assemble the Channel-1 IF and shared state for an ICE intervention
+#'
+#' @description
+#' Splits the intervention-independent bookkeeping out of
+#' `variance_if_ice_one()` so the pooled assembler and the stratified
+#' assembler (`variance_if_ice_one_stratified()`) share identical Channel-1
+#' construction, mean estimation, and weight lookups. The returned context
+#' carries everything `variance_if_ice_chain()` needs.
+#'
+#' Channel 1 is the sampling term
+#' \eqn{n\,(w_i / \sum w)\,(\tilde Y_{0,i} - \hat\mu)} over target rows. It
+#' is identical for pooled and stratified fits: the estimand
+#' \eqn{\hat\mu = E[Y^{\bar d}]} is marginal over all strata, so the
+#' centring mean and the target weighting never partition by stratum.
+#'
+#' @param fit A `causatr_fit` object (ICE estimator).
+#' @param ice_result Per-intervention ICE result from `ice_iterate()`.
+#' @param target Logical vector identifying target-population rows.
+#'
+#' @return A list (context) with the Channel-1 `IF_vec` plus all shared
+#'   state consumed by `variance_if_ice_chain()`: `fit`, `data`,
+#'   `data_iv`, `intervention`, `time_points`, `n_times`, `id_col`,
+#'   `time_col`, `all_ids`, `n`, `id_to_idx`, `target`, `w_t`,
+#'   `sum_w_target`, `has_weights`, `w_at_step`.
+#'
+#' @noRd
+ice_if_setup <- function(fit, ice_result, target) {
   data <- fit$data
   details <- fit$details
-  models <- ice_result$models
   data_iv <- ice_result$data_iv
-  fit_ids_list <- ice_result$fit_ids
   pseudo_final <- ice_result$pseudo_final
 
   time_points <- details$time_points
@@ -142,33 +191,128 @@ variance_if_ice_one <- function(fit, ice_result, target) {
     NULL
   }
 
+  list(
+    fit = fit,
+    data = data,
+    data_iv = data_iv,
+    intervention = ice_result$intervention,
+    time_points = time_points,
+    n_times = n_times,
+    id_col = id_col,
+    time_col = time_col,
+    all_ids = all_ids,
+    n = n,
+    id_to_idx = id_to_idx,
+    target = target,
+    w_t = w_t,
+    sum_w_target = sum_w_target,
+    has_weights = has_weights,
+    w_at_step = w_at_step,
+    IF_vec = IF_vec
+  )
+}
+
+
+#' Channel-2 nuisance-correction chain for an ICE model sequence
+#'
+#' @description
+#' Runs the backward per-step model-correction cascade for one ordered
+#' sequence of outcome models, returning the accumulated length-`n`
+#' Channel-2 IF (Channel 1 is added by the caller). At step `k > 1` the
+#' previous step's per-individual sensitivity `d_{k-1,j}` weights the
+#' construction of the gradient `g_k`; `correct_model()` then returns both
+#' the model-k correction (added to the IF) and the updated `d_k` (fed to
+#' step `k-1`). The sensitivity vector `d_vec` is local to the call, so a
+#' caller running several disjoint chains (one per stratum) keeps their
+#' cascades independent.
+#'
+#' `restrict` selects a row subset for stratified ICE. When non-`NULL` the
+#' current-time prediction frame is filtered to rows whose `restrict$col`
+#' equals `restrict$val`; the supplied `fit_ids_by_step` must already be
+#' the stratum's fit ids. With `restrict = NULL` the chain runs over all
+#' rows (the pooled path), behaviourally identical to the historical
+#' single-function implementation.
+#'
+#' @param ctx Context list from `ice_if_setup()`.
+#' @param models_by_step List of fitted models indexed by time step (one
+#'   pooled model per step, or a single stratum's per-step models).
+#' @param fit_ids_by_step List of character id vectors indexed by time
+#'   step -- the individuals in each step's fitting set (already restricted
+#'   to the stratum for the stratified path).
+#' @param restrict `NULL` (pooled) or `list(col = <stratum column>,
+#'   val = <stratum value as character>)` (stratified).
+#'
+#' @return Numeric vector of length `ctx$n`, the accumulated Channel-2 IF.
+#'
+#' @noRd
+variance_if_ice_chain <- function(
+  ctx,
+  models_by_step,
+  fit_ids_by_step,
+  restrict = NULL
+) {
+  fit <- ctx$fit
+  data <- ctx$data
+  data_iv <- ctx$data_iv
+  intervention <- ctx$intervention
+  time_points <- ctx$time_points
+  n_times <- ctx$n_times
+  id_col <- ctx$id_col
+  time_col <- ctx$time_col
+  all_ids <- ctx$all_ids
+  n <- ctx$n
+  id_to_idx <- ctx$id_to_idx
+  target <- ctx$target
+  w_t <- ctx$w_t
+  sum_w_target <- ctx$sum_w_target
+  has_weights <- ctx$has_weights
+  w_at_step <- ctx$w_at_step
+
+  # Stratum membership predicate over an arbitrary person-period frame.
+  # For the pooled path every row passes; for the stratified path only
+  # rows in the active stratum pass (the baseline stratum column is
+  # carried verbatim into `data_iv` and the re-drawn stochastic frames).
+  strat_ok <- function(frame) {
+    if (is.null(restrict)) {
+      rep(TRUE, nrow(frame))
+    } else {
+      as.character(frame[[restrict$col]]) == restrict$val
+    }
+  }
+
+  is_stoch <- has_stochastic_component(intervention)
+  IF_acc <- numeric(n)
   d_vec <- rep(0, n)
 
   for (step_i in seq_len(n_times)) {
-    model_k <- models[[step_i]]
+    model_k <- models_by_step[[step_i]]
     if (is.null(model_k)) {
       next
     }
 
     current_time <- time_points[step_i]
-    fit_ids_k <- fit_ids_list[[step_i]]
+    fit_ids_k <- fit_ids_by_step[[step_i]]
     if (length(fit_ids_k) == 0L) {
       next
     }
 
     # Subset the (already intervention-modified) longitudinal data to
-    # the rows at the current time step, and record which individuals
-    # are present (some may have been censored out before this step).
-    intervention <- ice_result$intervention
-    is_stoch <- has_stochastic_component(intervention)
+    # the rows at the current time step (and, when stratified, the active
+    # stratum), and record which individuals are present (some may have
+    # been censored out before this step).
     rows_iv_current <- data_iv[[time_col]] == current_time
     iv_data_current <- data_iv[rows_iv_current]
+    iv_data_current <- iv_data_current[strat_ok(iv_data_current)]
     iv_ids_current <- as.character(iv_data_current[[id_col]])
 
     if (step_i == 1L) {
       # Step 1 (earliest time): g_1 = (1/sum_w) sum_{target} w_i X*_{1,i} \mu'(\eta*_{1,i}).
       # This is \partial \hat{mu} / \partial \beta_1, the gradient of the ICE
-      # estimand w.r.t. the first outcome model's parameters.
+      # estimand w.r.t. the first outcome model's parameters. For stratified
+      # ICE the iv frame is already restricted to the stratum, so the sum
+      # naturally covers only target rows in this stratum -- exactly
+      # \partial \hat{mu} / \partial \beta_{g,1} -- while the normaliser
+      # sum_w_target stays global (the 1/n_t factor of the marginal mean).
       target_in_iv <- match(all_ids[target], iv_ids_current)
       valid_target <- !is.na(target_in_iv)
       target_in_iv <- target_in_iv[valid_target]
@@ -187,6 +331,7 @@ variance_if_ice_one <- function(fit, ice_result, target) {
             time_col
           )
           iv_cur_m <- dv_m[dv_m[[time_col]] == current_time]
+          iv_cur_m <- iv_cur_m[strat_ok(iv_cur_m)]
           X_m <- iv_design_matrix(model_k, iv_cur_m)
           eta_m <- as.numeric(X_m %*% coef_clean(model_k))
           mu_eta_m <- model_k$family$mu.eta(eta_m)
@@ -229,7 +374,7 @@ variance_if_ice_one <- function(fit, ice_result, target) {
       # d_{k-1,j} is the sensitivity of \hat{mu} to Q_{k-1,j}; it comes
       # from the previous correct_model() call. w_{k-1,j} is the external
       # weight at the previous time step (see w_at_step lookup above).
-      prev_fit_ids <- fit_ids_list[[step_i - 1L]]
+      prev_fit_ids <- fit_ids_by_step[[step_i - 1L]]
       idx_in_all <- id_to_idx[prev_fit_ids]
       rows_in_iv <- match(prev_fit_ids, iv_ids_current)
       keep <- !is.na(idx_in_all) & !is.na(rows_in_iv)
@@ -255,6 +400,7 @@ variance_if_ice_one <- function(fit, ice_result, target) {
               time_col
             )
             iv_cur_m <- dv_m[dv_m[[time_col]] == current_time]
+            iv_cur_m <- iv_cur_m[strat_ok(iv_cur_m)]
             X_m <- iv_design_matrix(model_k, iv_cur_m)
             eta_m <- as.numeric(X_m %*% coef_clean(model_k))
             mu_eta_m <- model_k$family$mu.eta(eta_m)
@@ -307,11 +453,12 @@ variance_if_ice_one <- function(fit, ice_result, target) {
     # correct_model() computes two outputs:
     #   $correction: per-individual model-k IF contribution (n-scaled)
     #   $d:          updated sensitivity vector d_k = d_{k-1} * (\partial Q_{k-1}/\partial Q_k)
-    # The correction is added to IF_vec; d_vec is passed to the next step.
+    # The correction is added to the accumulator; d_vec is passed to the
+    # next step.
     res <- correct_model(model_k, g_k, fit_id_idx, n)
-    IF_vec <- IF_vec + res$correction
+    IF_acc <- IF_acc + res$correction
     d_vec <- res$d
   }
 
-  IF_vec
+  IF_acc
 }

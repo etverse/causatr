@@ -1,7 +1,7 @@
 # Phase 22 — ICE Enhancements: Stratified ICE + Natural-History MTPs
 
 > **Status:**
-> - **22a Stratified ICE — SHIPPED** (bootstrap variance; analytic sandwich deferred, derivation below).
+> - **22a Stratified ICE — SHIPPED** (bootstrap variance **and** analytic per-stratum sandwich, §1.6).
 > - **22b Natural-history MTPs (`grace_period()` / `carry_forward()`) — DESIGNED, not yet implemented.**
 >   The original "thin `dynamic()` wrapper" plan was found to be theoretically unsound (see §3);
 >   this doc specifies the correct G-LMTP estimator for a future sub-phase.
@@ -83,24 +83,24 @@ equivalence is the load-bearing correctness fact (and the primary internal test 
 | censoring row-filter, external / IPCW weights | ✅ |
 | factor / character / low-cardinality strata | ✅ |
 | **variance — bootstrap (ID-cluster)** | ✅ |
-| **variance — analytic sandwich** | ❌ rejected (`causatr_stratified_ice_sandwich`); derivation §1.6 |
+| **variance — analytic sandwich** | ✅ (per-stratum block-diagonal stacked-EE, §1.6) |
 | point treatment / ipw / aipw / matching / snm | ❌ rejected (`causatr_stratified_not_ice`) |
 | time-varying / continuous / NA stratum column | ❌ rejected (`*_not_baseline` / `*_too_many` / `*_na`) |
 
 ### 1.4 Rejection classes
 
 `causatr_stratified_not_ice`, `causatr_stratified_not_found`, `causatr_stratified_na`,
-`causatr_stratified_not_baseline`, `causatr_stratified_too_many`, `causatr_stratified_ice_sandwich`.
+`causatr_stratified_not_baseline`, `causatr_stratified_too_many`.
 
 ### 1.5 Variance — bootstrap (shipped)
 
 The ID-cluster nonparametric bootstrap (`ice_variance_bootstrap()`) is correct for stratified ICE
 without modification beyond threading `stratified` into the per-replicate `fit_ice()` refit:
 resampling whole individuals preserves stratum membership and within-person dependence, and each
-replicate re-fits all per-stratum per-period models. This is the documented variance path
-(`ci_method = "bootstrap"`).
+replicate re-fits all per-stratum per-period models. It remains available via
+`ci_method = "bootstrap"` and is the variance path validated against the §1.6 analytic sandwich.
 
-### 1.6 Variance — analytic sandwich (DEFERRED; derivation)
+### 1.6 Variance — analytic sandwich (SHIPPED)
 
 The pooled ICE sandwich (`variance_if_ice_one()`) stacks $K{+}1$ outcome-model score equations into a
 block-triangular M-estimation system and back-substitutes the bread (vignette §5.4). Stratified ICE
@@ -127,15 +127,24 @@ Key structural facts that make the derivation tractable:
    gradient $g_{g,1}$ summed over **target rows in stratum $g$ only**; the per-stratum gradients
    concatenate into the full estimand row.
 
-**Implementation sketch (future sub-chunk).** Generalize `variance_if_ice_one()` to loop over
-$(g, k)$ instead of $k$: maintain a per-stratum sensitivity vector $d_g$, call `correct_model()` once
-per $(g,k)$ on the stratum's fit rows, accumulate corrections into the single length-$n$ IF, and feed
-$d_g$ forward to step $k-1$ within stratum $g$. Channel 1 uses `target & (G == g)` masks. The
-block-diagonal-in-$g$ structure means no new bread inversion machinery is needed — it is the pooled
-engine run $S$ times with disjoint row sets, plus a stratum-partitioned Channel 1. A failed-stratum
-model contributes a zero IF block (its rows already drop from the point estimate). Truth test: sandwich
-vs ID-cluster bootstrap parity on a 2-stratum DGP, and exact agreement with the pooled sandwich when
-$S = 1$.
+**Implementation (`R/variance_if_ice_stratified.R`).** `variance_if_ice_one_stratified()` realises the
+derivation directly. The shared Channel-1 term and all intervention-independent bookkeeping live in
+`ice_if_setup()`; the per-step Channel-2 correction cascade is factored into
+`variance_if_ice_chain(ctx, models, fit_ids, restrict)`. The pooled assembler calls the chain once over
+all rows; the stratified assembler calls it once per stratum $g$ with `restrict = list(col, val)`
+filtering the prediction frame to $G = g$ and a per-stratum sensitivity vector $d_g$ kept local to the
+call. Corrections accumulate into the single length-$n$ IF; Channel 1 stays global because $\hat\mu$ is
+marginal. A failed/absent stratum model is skipped (zero IF block; its rows already dropped from the
+point estimate). No new bread-inversion machinery — `correct_model()` is reused verbatim, so it is
+exactly the pooled engine run $S$ times on disjoint row sets plus the shared global Channel 1.
+
+**Validation (`tests/testthat/test-ice-stratified.R`, Test G).** Exact agreement with the pooled
+sandwich at $S = 1$ ($10^{-8}$); the per-stratum × per-time stacked M-estimation sandwich matches
+`delicatessen`'s `MEstimator` to $\sim10^{-7}$ on every per-arm mean / SE and the contrast SE for both a
+gaussian and a binomial DGP (the plug-in sandwich is the *same* estimator delicatessen computes, so this
+is an exact oracle); factor-vs-integer stratum coding is byte-identical; and ID-cluster bootstrap parity
+holds under continuous-treatment shift and external weights. The delicatessen stacks are in
+`data-raw/ice_stratified_reference.py`.
 
 ### 1.7 Oracle / test strategy (22a) — `tests/testthat/test-ice-stratified.R`
 
@@ -281,7 +290,6 @@ later sub-chunk (harder: the bread couples augmented replicate rows).
 
 ## Deferred items
 
-- Stratified-ICE analytic sandwich (§1.6 derivation done; implementation pending).
 - 22b G-LMTP engine (§3 design done; implementation pending).
 - Stratified × effect-modification interaction (smoke only).
 - Continuous-treatment G-LMTPs (paper covers discrete exposures only).

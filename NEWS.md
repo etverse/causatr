@@ -14,19 +14,23 @@ back into the recursion.
   running pooled ICE separately on each stratum subset — the target marginal
   $E[Y^{\bar d}]$ (and any `by` / `subset`) is unchanged. The within-stratum
   formula drops the constant stratum term automatically.
-* **Variance is bootstrap-only.** Use `ci_method = "bootstrap"` in `contrast()`;
-  the ID-cluster bootstrap refits all per-stratum per-period models on each
-  replicate. Requesting the analytic sandwich aborts with
-  `causatr_stratified_ice_sandwich` (the stacked-EE derivation is documented in
-  `PHASE_22_ICE_ENHANCEMENTS.md` for a future sub-chunk).
+* **Both variance paths.** `ci_method = "bootstrap"` (ID-cluster, refits all
+  per-stratum per-period models per replicate) and `ci_method = "sandwich"` (the
+  analytic per-stratum × per-time stacked-EE sandwich). Because `G` is baseline
+  and the stacked estimating equations are block-diagonal across strata, the
+  sandwich reuses the pooled IF engine: a global Channel-1 sampling term plus the
+  per-step nuisance-correction cascade run once per stratum on disjoint rows.
 * **Composes with** binary/continuous treatment, gaussian/binomial outcome,
   `static` / `shift` / `dynamic` / `stochastic` interventions, lags / TV
   confounders, censoring row-filter, and external/IPCW weights.
-* **Validated** by exact equivalence to per-stratum pooled ICE, a truth-based
-  binary DGP with documented Monte-Carlo truths, and an `lmtp` per-stratum
-  cross-check (`test-ice-stratified.R`). Misuse is rejected with classed errors
-  (`causatr_stratified_not_ice`, `_not_baseline`, `_too_many`, `_not_found`,
-  `_na`).
+* **Validated** by exact equivalence to per-stratum pooled ICE; an exact
+  reduction to the pooled sandwich at one stratum; agreement of the per-stratum
+  sandwich with `delicatessen`'s M-estimation `MEstimator` to ~1e-7 on every
+  per-arm mean / SE for gaussian and binomial DGPs (the same plug-in sandwich);
+  bootstrap parity under shift and weights; a truth-based binary DGP; and an
+  `lmtp` per-stratum point cross-check (`test-ice-stratified.R`). Misuse is
+  rejected with classed errors (`causatr_stratified_not_ice`, `_not_baseline`,
+  `_too_many`, `_not_found`, `_na`).
 
 This is Phase 22a. Phase 22b (natural-history modified treatment policies —
 grace periods, carry-forward) is **designed** in `PHASE_22_ICE_ENHANCEMENTS.md`

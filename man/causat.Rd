@@ -270,10 +270,10 @@ backward step instead of a single pooled model -- the right choice
 when the outcome--treatment relationship differs structurally across
 baseline subgroups (e.g. different functional form by sex). The column
 must be discrete, complete, and constant within each individual.
-Variance for stratified ICE is \strong{bootstrap only}
-(\code{ci_method = "bootstrap"} in \code{\link[=contrast]{contrast()}}); requesting the analytic
-sandwich aborts with a classed error. Default \code{NULL} fits pooled
-models. Ignored / rejected for point treatments and non-gcomp
+Both variance paths are available in \code{\link[=contrast]{contrast()}}: the ID-cluster
+bootstrap (\code{ci_method = "bootstrap"}) and the analytic per-stratum
+stacked-EE sandwich (\code{ci_method = "sandwich"}). Default \code{NULL} fits
+pooled models. Ignored / rejected for point treatments and non-gcomp
 estimators.}
 
 \item{...}{Additional arguments passed to the underlying estimation

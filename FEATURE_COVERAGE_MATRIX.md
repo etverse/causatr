@@ -232,23 +232,29 @@ Rejections (all ✅ tested):
 
 ### Stratified ICE (`stratified = "G"`, Phase 22a)
 
-Per-baseline-stratum outcome models at each backward step. Variance is bootstrap-only;
-the analytic sandwich is rejected (derivation in `PHASE_22_ICE_ENHANCEMENTS.md`).
+Per-baseline-stratum outcome models at each backward step. **Both** the ID-cluster
+bootstrap and the analytic per-stratum × per-time stacked-EE sandwich are supported
+(`R/variance_if_ice_stratified.R`; derivation in `PHASE_22_ICE_ENHANCEMENTS.md` §1.6).
 
 | Trt | Outcome | Intervention | Periods | Variance | Wt | Status | Test |
 |---|---|---|---|---|---|---|---|
 | bin | gauss | static/shift | 2 | (point) | — | ✅ exact vs per-stratum pooled | test-ice-stratified.R |
-| bin | binom | static | 2 | boot | — | ✅ truth + lmtp | test-ice-stratified.R |
+| bin | gauss | static | 2 | sandwich | — | ✅ exact vs pooled sandwich at S=1 | test-ice-stratified.R |
+| bin | gauss | static | 2 | sandwich | — | ✅ vs delicatessen ~1e-7 (mean/SE) | test-ice-stratified.R |
+| bin | binom | static | 2 | sandwich | — | ✅ vs delicatessen ~1e-7 (mean/SE) | test-ice-stratified.R |
+| cont | gauss | shift | 2 | sandwich | — | ✅ vs ID-cluster bootstrap | test-ice-stratified.R |
+| bin | gauss | static | 2 | sandwich | ext | ✅ vs ID-cluster bootstrap | test-ice-stratified.R |
+| bin | binom | static | 2 | boot | — | ✅ truth + lmtp; boot vs sandwich/delicatessen | test-ice-stratified.R |
 | cont | gauss | shift | 2 | boot | — | ✅ | test-ice-stratified.R |
 | bin | gauss | dynamic (cov) | 2 | (point) | — | ✅ | test-ice-stratified.R |
 | bin | gauss | static | 2 | (point) | ext / cens | ✅ | test-ice-stratified.R |
-| bin | binom | static | 2 | boot | — | ✅ CI covers truth | test-ice-stratified.R |
+| factor | gauss | static | 2 | sandwich | — | ✅ byte-identical to integer coding | test-ice-stratified.R |
 
 Rejections (all ✅ tested): ipsi $\to$ test-ice.R, ATT/ATC $\to$ test-ice.R.
 Stratified rejections (all ✅ tested, `test-ice-stratified.R`): non-ICE estimator / point treatment
 $\to$ `causatr_stratified_not_ice`; missing column $\to$ `causatr_stratified_not_found`;
 time-varying column $\to$ `causatr_stratified_not_baseline`; continuous column $\to$
-`causatr_stratified_too_many`; analytic sandwich $\to$ `causatr_stratified_ice_sandwich`.
+`causatr_stratified_too_many`.
 
 ---
 

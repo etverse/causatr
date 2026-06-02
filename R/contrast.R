@@ -1153,26 +1153,9 @@ compute_contrast <- function(
       names(mu_hat) <- int_names
 
       if (ci_method == "sandwich") {
-        # Stratified ICE fits one model per stratum per backward step;
-        # the analytic stacked-EE sandwich for that block structure is
-        # not yet implemented (the derivation lives in the phase doc).
-        # Reject rather than silently return a pooled-model sandwich that
-        # ignores the per-stratum bread. Bootstrap is correct and is the
-        # documented variance path for stratified ICE.
-        if (!is.null(fit$details$stratified)) {
-          rlang::abort(
-            c(
-              paste0(
-                "Analytic sandwich variance is not available for ",
-                "stratified ICE (`stratified = \"",
-                fit$details$stratified,
-                "\"`)."
-              ),
-              i = "Use `ci_method = \"bootstrap\"` for stratified ICE."
-            ),
-            class = "causatr_stratified_ice_sandwich"
-          )
-        }
+        # Stratified ICE routes through the same `variance_if()` entry as
+        # pooled ICE; `variance_if_ice()` dispatches to the per-stratum
+        # block-diagonal sandwich when `fit$details$stratified` is set.
         vcov_mat <- variance_if(
           fit,
           ice_results = ice_results,
