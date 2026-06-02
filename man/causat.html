@@ -597,6 +597,7 @@ window.Quarto = {
   sampling_model_fn = NULL,
   target_subset = c("target", "all"),
   treatment_free = NULL,
+  stratified = NULL,
   ...
 )
 </code></pre>
@@ -868,6 +869,14 @@ Character. Which rows define the target population for transportability/generali
 </td>
 <td>
 One-sided formula or <code>NULL</code>. SNM only. Specifies the treatment-free outcome model <span class="math inline">\(E[Y \mid L]\)</span>, a nuisance model whose predictions are subtracted from Y before g-estimation. This projects out the <span class="math inline">\(L \to Y\)</span> association and reduces the variance of <span class="math inline">\(\hat\psi\)</span> without changing the point estimate (both approaches are consistent). DTRreg calls this the <code>tf.mod</code> argument. The formula should contain only baseline confounders (no treatment or modifiers). Default <code>NULL</code> uses the standard residualized-treatment moment condition without a treatment-free model. Ignored for non-SNM estimators.
+</td>
+</tr>
+<tr>
+<td style="white-space: collapse; font-family: monospace; vertical-align: top">
+<code id="stratified">stratified</code>
+</td>
+<td>
+Character or <code>NULL</code>. Name of a baseline (time-invariant) column to stratify the ICE outcome models on. <strong>Longitudinal g-computation (ICE) only.</strong> When set, a separate outcome / pseudo-outcome model is fitted for each stratum at every backward step instead of a single pooled model – the right choice when the outcome–treatment relationship differs structurally across baseline subgroups (e.g.&nbsp;different functional form by sex). The column must be discrete, complete, and constant within each individual. Both variance paths are available in <code>contrast()</code>: the ID-cluster bootstrap (<code>ci_method = “bootstrap”</code>) and the analytic per-stratum stacked-EE sandwich (<code>ci_method = “sandwich”</code>). Default <code>NULL</code> fits pooled models. Ignored / rejected for point treatments and non-gcomp estimators.
 </td>
 </tr>
 <tr>
