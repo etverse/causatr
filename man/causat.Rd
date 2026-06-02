@@ -37,6 +37,7 @@ causat(
   sampling_model_fn = NULL,
   target_subset = c("target", "all"),
   treatment_free = NULL,
+  stratified = NULL,
   ...
 )
 }
@@ -260,6 +261,20 @@ are consistent). DTRreg calls this the \code{tf.mod} argument. The formula
 should contain only baseline confounders (no treatment or modifiers).
 Default \code{NULL} uses the standard residualized-treatment moment condition
 without a treatment-free model. Ignored for non-SNM estimators.}
+
+\item{stratified}{Character or \code{NULL}. Name of a baseline
+(time-invariant) column to stratify the ICE outcome models on.
+\strong{Longitudinal g-computation (ICE) only.} When set, a separate
+outcome / pseudo-outcome model is fitted for each stratum at every
+backward step instead of a single pooled model -- the right choice
+when the outcome--treatment relationship differs structurally across
+baseline subgroups (e.g. different functional form by sex). The column
+must be discrete, complete, and constant within each individual.
+Both variance paths are available in \code{\link[=contrast]{contrast()}}: the ID-cluster
+bootstrap (\code{ci_method = "bootstrap"}) and the analytic per-stratum
+stacked-EE sandwich (\code{ci_method = "sandwich"}). Default \code{NULL} fits
+pooled models. Ignored / rejected for point treatments and non-gcomp
+estimators.}
 
 \item{...}{Additional arguments passed to the underlying estimation
 function. For \code{estimator = "ipw"}, dots are forwarded into the

@@ -25,6 +25,9 @@
 #' @param censoring Character censoring column name or `NULL`.
 #' @param history Positive integer Markov order or `Inf`.
 #' @param target Character sampling indicator column name or `NULL`.
+#' @param stratified Character baseline column name to retain for
+#'   stratified ICE, or `NULL`. Added to the keep set so the column
+#'   survives column-stripping.
 #' @param call Caller environment for error messages.
 #' @return A data.table with only the needed columns (and lag columns for
 #'   longitudinal data).
@@ -47,6 +50,7 @@ prepare_data <- function(
   history = 1L,
   cluster = NULL,
   target = NULL,
+  stratified = NULL,
   call = rlang::caller_env()
 ) {
   # Coerce to data.table once, up front. Everything downstream
@@ -108,7 +112,8 @@ prepare_data <- function(
     time,
     censoring,
     cluster,
-    target
+    target,
+    stratified
   ))
   keep_cols <- intersect(keep_cols, names(data))
 

@@ -255,7 +255,8 @@ ice_variance_bootstrap <- function(
           model_fn = fit$details$model_fn,
           id = id_col,
           time = time_col,
-          call = fit$call
+          call = fit$call,
+          stratified = fit$details$stratified
         )
       ),
       error = function(e) NULL

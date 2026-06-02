@@ -1153,6 +1153,9 @@ compute_contrast <- function(
       names(mu_hat) <- int_names
 
       if (ci_method == "sandwich") {
+        # Stratified ICE routes through the same `variance_if()` entry as
+        # pooled ICE; `variance_if_ice()` dispatches to the per-stratum
+        # block-diagonal sandwich when `fit$details$stratified` is set.
         vcov_mat <- variance_if(
           fit,
           ice_results = ice_results,
