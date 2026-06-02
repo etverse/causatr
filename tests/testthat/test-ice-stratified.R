@@ -716,3 +716,56 @@ test_that("stratified ICE sandwich matches bootstrap under shift and weights", {
   )
   expect_equal(rw_sw$contrasts$se[1], rw_bt$contrasts$se[1], tolerance = 0.15)
 })
+
+
+# G7 — stochastic intervention through the per-stratum sandwich driver.
+#
+# Critical-review round 2026-06-02: the `is_stoch` branch of
+# variance_if_ice_chain() is the one path no other Test-G case exercises
+# through the stratified driver. Repro /tmp/causatr_repro_stoch_parity.R
+# confirmed the per-draw frame and the deterministic frame share the same
+# row set (intervention application is row-preserving), so the chain's
+# Monte-Carlo gradient is well-defined even with censoring (valid_target not
+# all TRUE). Pinned here by sandwich-vs-ID-cluster-bootstrap parity, a
+# two-sided numerical comparison.
+test_that("stratified ICE sandwich matches bootstrap for a stochastic intervention", {
+  skip_if_fast()
+  d <- make_em_ice_scm(n = 2500, n_times = 2, seed = 11)
+  # Censor 10% at the final period so target rows are absent at fit time and
+  # the chain's `valid_target` / `vt_m` masks are non-trivial.
+  d$C <- 0L
+  set.seed(11)
+  cens <- sample(unique(d$id), 250)
+  d$C[d$id %in% cens & d$time == 1] <- 1L
+  d$Y[d$id %in% cens & d$time == 1] <- NA_real_
+
+  samp <- function(data, treatment) stats::rbinom(nrow(data), 1, 0.5)
+  ivs <- list(s = stochastic(samp, n_mc = 30L), n = static(0))
+  fit_s <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    censoring = "C",
+    stratified = "sex"
+  )
+  sw <- contrast(
+    fit_s,
+    interventions = ivs,
+    type = "difference",
+    reference = "n",
+    ci_method = "sandwich"
+  )
+  bt <- contrast(
+    fit_s,
+    interventions = ivs,
+    type = "difference",
+    reference = "n",
+    ci_method = "bootstrap",
+    n_boot = 200
+  )
+  expect_equal(sw$contrasts$se[1], bt$contrasts$se[1], tolerance = 0.2)
+})
