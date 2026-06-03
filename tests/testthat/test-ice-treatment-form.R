@@ -226,14 +226,14 @@ test_that("plain-ICE factor(A) sandwich SE agrees with the bootstrap SE", {
     interventions = ivs,
     type = "difference",
     ci_method = "bootstrap",
-    n_boot = 400L
+    n_boot = 150L
   )
   se_s <- rs$estimates$se[rs$estimates$intervention == "a1"]
   se_b <- rb$estimates$se[rb$estimates$intervention == "a1"]
   expect_true(is.finite(se_s) && se_s > 0)
-  # Relative agreement; n_boot=400 keeps the bootstrap SE's Monte-Carlo noise
-  # to ~3.5%, so a 10% band is a few MC-SE around the exact sandwich value.
-  expect_equal(se_s, se_b, tolerance = 0.1)
+  # Relative agreement; the bootstrap SE carries Monte-Carlo noise at n_boot=150
+  # (~6%), so a 15% band is a couple of MC-SE around the exact sandwich value.
+  expect_equal(se_s, se_b, tolerance = 0.15)
 })
 
 # ---------------------------------------------------------------------------

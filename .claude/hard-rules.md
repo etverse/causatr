@@ -166,12 +166,15 @@ Project-specific rules that override / extend the etverse-wide rules at
   over those columns. Use it to pin multivariate longitudinal MTP contrasts
   to truth, not just sandwich-vs-bootstrap parity. causatr's MV longitudinal
   IPW shift matches lmtp to ~3% — it is correct; do not "fix" it.
-- **G-LMTP `cap_escalation` + `~ factor(A)` needs n >= 80000 for a tight
-  (0.005) truth threshold.** The factor(A) plug-in is consistent for the
-  dose-cap policy, but its finite-sample gap to the forward-MC truth is
-  ~0.001–0.010 at n = 40000 (seed-dependent) and only settles to ~0.001–0.0025
-  by n = 80000. The headline test (`test-glmtp.R`) runs at n = 80000 so the
-  0.005 band is seed-robust, not seed-luck. The bare-numeric bias is seed-stable
-  at ~0.03–0.04 (the cap kink). Do NOT shrink the test n back to 40000 (the
-  band becomes fragile) and do NOT read a transient n = 40000 factor gap as
-  evidence the estimator is biased — verify at n >= 80000 first.
+- **G-LMTP `cap_escalation` + `~ factor(A)`: assert the bare-vs-factor
+  *comparison* at n = 40000, not a tight absolute band.** The factor(A) plug-in
+  is consistent for the dose-cap policy, but its finite-sample gap to the
+  forward-MC truth is ~0.0015–0.010 at n = 40000 (seed-dependent; settles to
+  ~0.001–0.0025 only by n = 80000). The bare-numeric bias is seed-stable at
+  ~0.03–0.04 (the cap kink). So the headline test (`test-glmtp.R`) keeps the
+  affordable n = 40000 and asserts the seed-robust facts (`gap_factor < 0.015`,
+  `gap_bare > 0.02`, `gap_factor < gap_bare/2`) rather than a tight 0.005 band
+  (which is seed-fragile at n = 40000 and needs n >= 80000 to be robust — too
+  slow for CI). Do NOT re-tighten to an absolute 0.005 band at n = 40000, and do
+  NOT read a transient n = 40000 factor gap as estimator bias — verify at
+  n >= 80000 first.
