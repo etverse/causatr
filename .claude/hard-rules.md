@@ -64,6 +64,34 @@ Project-specific rules that override / extend the etverse-wide rules at
   cross-method divergence test in `test-multivariate-ipw.R` pins this as
   intentional.
 
+- **Natural-history MTPs (`grace_period()` / `carry_forward()`) are an
+  INTERVENTION TYPE, not an estimator.** They return class `causatr_glmtp`
+  (inheriting `causatr_intervention`); the estimator stays `gcomp`. There is no
+  `estimator = "glmtp"` (considered and rejected, PHASE_22 §3.4 — it would
+  duplicate ICE plumbing). When `contrast()` sees a `causatr_glmtp` intervention
+  it routes to the augmented-data sequential regression `glmtp_iterate()`
+  (`R/glmtp.R`) instead of `ice_iterate()`. Don't flag the absence of a glmtp
+  estimator.
+- **`glmtp_iterate()` keeps OBSERVED lag columns for conditioning and uses the
+  natural-history LABEL `s̄_t` (not the lags) as the policy input** — that
+  decoupling is the whole point of the augmented recursion. Don't flag "the
+  lags should be counterfactual"; the tower property integrates over the
+  observed distribution and the intervention enters only via the current-period
+  policy value. Verified by the forward-MC truth test (`test-glmtp.R`).
+- **`lmtp` is NOT a valid oracle for genuinely history-dependent G-LMTP
+  policies** — its one-shot shift computes the standard LMTP, a different
+  estimand. The truth oracle is forward Monte-Carlo of the natural-history
+  regime (Díaz et al. 2026 Proposition 1; `helper-glmtp-dgp.R`). Don't add an
+  lmtp cross-check for `grace_period()`/`carry_forward()`.
+- **G-LMTP sandwich is deferred by design.** `ci_method = "sandwich"` aborts
+  with `causatr_glmtp_sandwich`; bootstrap is the only variance path. Don't flag
+  the missing sandwich as a bug.
+- **`list[[""]]` returns `NULL` in R.** `glmtp_iterate()`'s final `q1 <- Q[[1L]]`
+  reads the single empty-label element positionally (its name is `""`, which
+  `[[` cannot match) behind a `length(Q) == 1L` guard. Do NOT "simplify" it to
+  an empty-string-key access — that silently returns `NULL` (the 2026-06-03
+  review caught exactly this).
+
 ### Invariants enforced by code — tests must exercise these, not flag them
 
 - **`na.action = na.exclude` is REJECTED** by `check_dots_na_action()` (error
