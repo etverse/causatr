@@ -364,8 +364,12 @@ test_that("the engine matches an independent hand-coded recursion for an ordinal
 TRUTH_CAP_W1 <- 4.0966
 
 test_that("factor(A) treatment term recovers the cap forward-MC truth; bare-numeric is biased", {
-  # Large n so the comparison is asymptotic (finite-sample noise << the bias).
-  d <- glmtp_ordinal_cap_data(n = 40000L, seed = 1L)$data
+  # n = 80000 so the factor(A) plug-in's finite-sample noise is comfortably
+  # below the 0.005 band (across seeds the gap is ~0.001-0.0025 at this n, vs
+  # ~0.001-0.010 at n = 40000 -- the smaller n passed only by seed luck). The
+  # bare-numeric bias is seed-stable at ~0.03-0.04 (the cap kink), so the two
+  # bands never overlap.
+  d <- glmtp_ordinal_cap_data(n = 80000L, seed = 1L)$data
   fit_bare <- glmtp_fit(d)
   fit_factor <- causat(
     d,
@@ -381,9 +385,10 @@ test_that("factor(A) treatment term recovers the cap forward-MC truth; bare-nume
   )
   mu_bare <- mean(glmtp_iterate(fit_bare, cap_escalation(1))$pseudo_final)
   mu_factor <- mean(glmtp_iterate(fit_factor, cap_escalation(1))$pseudo_final)
-  # factor(A) recovers the truth to sampling error (~0.0015 at this n).
+  # factor(A) recovers the truth to sampling error (~0.0011 here; <= ~0.0025
+  # across seeds at this n -- the plug-in is consistent under the flexible term).
   expect_lt(abs(mu_factor - TRUTH_CAP_W1), 0.005)
-  # Engine-necessity: the bare-numeric plug-in retains a ~0.034 asymptotic bias
+  # Engine-necessity: the bare-numeric plug-in retains a ~0.036 asymptotic bias
   # (the cap kink), and factor(A) is strictly closer (the term it fixes).
   expect_gt(abs(mu_bare - TRUTH_CAP_W1), 0.025)
   expect_lt(abs(mu_factor - TRUTH_CAP_W1), abs(mu_bare - TRUTH_CAP_W1))
