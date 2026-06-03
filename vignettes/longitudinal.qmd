@@ -1524,6 +1524,57 @@ effects. The sandwich variance engine requires no special handling --- the
 model matrices simply grow to accommodate the additional interaction columns,
 and the ICE cascade gradient propagates through them.
 
+## Stratified ICE (`stratified = "G"`)
+
+When the outcome--treatment relationship differs structurally across a
+**baseline** subgroup `G` --- a different functional form, different effect
+modification, or different dispersion in each subgroup --- a single pooled
+per-step outcome model is misspecified. `causat(..., stratified = "G")` fits one
+outcome / pseudo-outcome model **per level of `G`** at every backward step of the
+ICE recursion.
+
+Because `G` is time-invariant and individuals never cross strata, stratified ICE
+is **exactly** pooled ICE run separately on each stratum subset: the estimand ---
+the marginal counterfactual mean $E[Y^{\bar d}]$ (and any `by` / `subset`
+restriction) --- is unchanged. It is a *nuisance-model* choice, not an estimand
+change. `G` must be a baseline, complete, low-cardinality column (time-varying,
+continuous, or NA stratifiers are rejected with classed errors).
+
+```{r}
+set.seed(7)
+n <- 4000
+G <- rbinom(n, 1, 0.5) # baseline stratum; the treatment effect differs by G
+L0 <- rnorm(n)
+A0 <- rbinom(n, 1, plogis(0.3 * L0))
+L1 <- 0.5 * L0 + 0.4 * A0 + rnorm(n)
+A1 <- rbinom(n, 1, plogis(0.3 * L1))
+Y <- 2 + (1 + 2 * G) * (A0 + A1) + L0 + L1 + rnorm(n)
+d_strat <- rbind(
+  data.frame(id = 1:n, time = 0L, A = A0, L = 0, G = G, L0 = L0, Y = NA_real_),
+  data.frame(id = 1:n, time = 1L, A = A1, L = L1, G = G, L0 = L0, Y = Y)
+)
+
+fit_strat <- causat(
+  d_strat,
+  outcome = "Y", treatment = "A",
+  confounders = ~ L0 + G, confounders_tv = ~ L,
+  id = "id", time = "time", estimator = "gcomp",
+  stratified = "G"
+)
+
+contrast(
+  fit_strat,
+  interventions = list(always = static(1), never = static(0)),
+  reference = "never", ci_method = "sandwich", by = "G"
+)$contrasts
+```
+
+The two strata show markedly different effects (here the `G = 1` always-vs-never
+effect is roughly double the `G = 0` effect, by construction). Both variance
+paths work: the ID-cluster bootstrap **and** the analytic per-stratum × per-time
+stacked-EE sandwich (validated against `delicatessen`'s `MEstimator` to ~1e-7).
+The within-stratum formula automatically drops the constant `G` term.
+
 ## Natural-history modified treatment policies (grace periods)
 
 Some policies set the intervened treatment at time $t$ as a function of the
@@ -1574,6 +1625,7 @@ informative error.
 | Binary | Continuous | IPSI($\delta$) | ATE | Difference | Sandwich / bootstrap | none | ✅ +oracle (per-period Kennedy) |
 | Multivariate | Any | IPSI($\delta$) component | — | — | — | — | ⛔ binary-univariate only |
 | Binary | Any | IPSI($\delta$) | ATE | — | — | marginal | ⛔ no marginal numerator |
+| Binary | Continuous | Static, **stratified ICE** (`stratified = "G"`) | ATE / `by(G)` | Difference | Sandwich / bootstrap | none | ✅ vs per-stratum pooled + delicatessen |
 | Binary (absorbing) | Continuous / Binary | `grace_period` / `carry_forward` (natural-history MTP) | ATE | Difference | Bootstrap | none / cens / ext | ✅ vs forward-MC truth (Díaz et al. 2026 §6) |
 | Binary | Any | Natural-history MTP | ATE | — | Sandwich | — | ⛔ deferred (`causatr_glmtp_sandwich`) |
 | Binary | Any | Static / ATT | ATT | — | — | — | ⛔ ICE is ATE-only |

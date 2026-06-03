@@ -1,0 +1,193 @@
+---
+title: "Augmented IPW (doubly-robust estimation) with causatr"
+code-fold: show
+code-tools: true
+vignette: >
+  %\VignetteIndexEntry{Augmented IPW (doubly-robust estimation) with causatr}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r}
+#| include: false
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+```{r}
+#| message: false
+library(causatr)
+library(tinytable)
+```
+
+Augmented inverse probability weighting (AIPW) combines the two single-robust
+estimators — g-computation (an **outcome** model) and IPW (a **treatment**
+model) — into one **doubly-robust** estimator. For a binary treatment and
+intervention value $a$,
+
+$$
+\hat\psi_{\mathrm{AIPW}}(a) = \underbrace{\frac{1}{n}\sum_i \hat m(a, L_i)}_{\text{g-computation}}
+ + \underbrace{\frac{1}{n}\sum_i \frac{\mathbb 1\{A_i = a\}}{\hat g(a \mid L_i)}\,\bigl(Y_i - \hat m(A_i, L_i)\bigr)}_{\text{IPW augmentation}},
+$$
+
+where $\hat m$ is the fitted outcome regression and $\hat g$ the fitted
+propensity. The augmentation term has mean zero when *either* model is correct,
+so $\hat\psi_{\mathrm{AIPW}}$ is consistent if **either** the outcome model
+**or** the propensity model is correctly specified — not necessarily both. That
+is the **double-robustness** property.
+
+causatr fits both nuisances with the user's `model_fn` (outcome) and
+`propensity_model_fn` (treatment), assembles the doubly-robust functional per
+intervention, and computes the variance with the stacked influence-function
+sandwich (outcome block + propensity block + plug-in). This is the *classical
+analytical* AIPW — distinct from `lmtp`'s TMLE/SDR with cross-fitting and machine
+learning.
+
+## Double robustness, demonstrated
+
+The cleanest way to see double robustness is a simulated data generating process
+with a **known** average treatment effect, where a confounder $L$ enters both the
+propensity and the outcome **nonlinearly**. A model that omits the $L^2$ term is
+misspecified.
+
+```{r}
+set.seed(2)
+n <- 4000
+L <- rnorm(n)
+A <- rbinom(n, 1, plogis(-0.5 + 0.7 * L + 0.6 * L^2))
+Y <- 1 + 2 * A + 1.5 * L + 1.6 * L^2 + rnorm(n)
+d <- data.frame(Y, A, L)
+
+correct <- ~ L + I(L^2) # captures the L^2 confounding
+wrong <- ~ L # misspecified: omits L^2
+```
+
+The true ATE is **2**. causatr lets the outcome and treatment models carry
+*separate* confounder formulas (`confounders_outcome`, `confounders_treatment`),
+so we can misspecify one while keeping the other correct:
+
+```{r}
+ate <- function(estimator, co, ct) {
+  fit <- causat(
+    d, outcome = "Y", treatment = "A",
+    confounders_outcome = co, confounders_treatment = ct,
+    estimator = estimator, model_fn = stats::glm,
+    propensity_model_fn = stats::glm
+  )
+  contrast(fit, list(a1 = static(1), a0 = static(0)), reference = "a0")$contrasts$estimate[1]
+}
+
+results <- data.frame(
+  estimator = c(
+    "gcomp", "ipw",
+    "aipw", "aipw", "aipw", "aipw"
+  ),
+  outcome_model = c(
+    "wrong", "correct",
+    "wrong", "correct", "correct", "wrong"
+  ),
+  propensity_model = c(
+    "wrong", "wrong",
+    "correct", "wrong", "correct", "wrong"
+  ),
+  ATE_hat = c(
+    ate("gcomp", wrong, wrong),
+    ate("ipw", correct, wrong),
+    ate("aipw", wrong, correct),
+    ate("aipw", correct, wrong),
+    ate("aipw", correct, correct),
+    ate("aipw", wrong, wrong)
+  )
+)
+tt(results, digits = 3)
+```
+
+Reading the table: g-computation with a misspecified **outcome** model is biased,
+and IPW with a misspecified **propensity** is biased. But AIPW recovers the true
+ATE of 2 whenever **at least one** nuisance is correct — even though the other is
+wrong. Only when **both** are misspecified does AIPW lose consistency (last row):
+double robustness buys one free misspecification, not two.
+
+## Real-data example: NHEFS
+
+On observational data we never know the truth, but AIPW is the natural default
+when you are unsure which nuisance you trust. Using the NHEFS quit-smoking
+question (effect of `qsmk` on weight change `wt82_71`):
+
+```{r}
+data("nhefs")
+nhefs_complete <- nhefs[!is.na(nhefs$wt82_71) & !is.na(nhefs$education), ]
+
+conf <- ~ sex + age + I(age^2) + race + factor(education) +
+  smokeintensity + I(smokeintensity^2) + smokeyrs + I(smokeyrs^2) +
+  factor(exercise) + factor(active) + wt71 + I(wt71^2)
+
+fit_aipw <- causat(
+  nhefs_complete,
+  outcome = "wt82_71", treatment = "qsmk",
+  confounders = conf,
+  estimator = "aipw",
+  model_fn = stats::glm,
+  propensity_model_fn = stats::glm
+)
+
+res_aipw <- contrast(
+  fit_aipw,
+  interventions = list(quit = static(1), continue = static(0)),
+  reference = "continue",
+  type = "difference",
+  ci_method = "sandwich"
+)
+tt(tidy(res_aipw), digits = 3)
+```
+
+The point estimate sits between the pure g-computation and pure IPW estimates and
+shares their interpretation: the average weight change had everyone quit smoking
+versus had no one quit.
+
+## Variance
+
+The `"sandwich"` CI above is the stacked influence-function variance: the AIPW
+influence function is the sum of the outcome-model correction, the propensity
+correction, and the doubly-robust plug-in residual, aggregated by
+`variance_if()`. It is asymptotically exact under correct specification of the
+models being used. `ci_method = "bootstrap"` refits both nuisances on each
+resample and is available as a non-parametric alternative.
+
+```{r}
+res_boot <- contrast(
+  fit_aipw,
+  interventions = list(quit = static(1), continue = static(0)),
+  reference = "continue",
+  ci_method = "bootstrap", n_boot = 200L
+)
+tt(res_boot$contrasts[, c("comparison", "estimate", "se", "ci_lower", "ci_upper")], digits = 3)
+```
+
+## Where AIPW fits
+
+AIPW is a member of the methodological **triangle** alongside g-computation and
+IPW: same estimand, different reliance on the nuisance models. Reach for it when
+
+- you want a single estimate that is robust to misspecifying *one* of the two
+  nuisance models, or
+- you are triangulating: agreement between gcomp, IPW, and AIPW is reassuring,
+  and AIPW disagreeing with both flags a likely misspecification in one of them.
+
+causatr's AIPW supports the same surface as the other estimators — binary,
+continuous, categorical, and multivariate treatments; `static` / `shift` /
+`scale_by` / `dynamic` / `stochastic` interventions; difference / ratio / OR
+contrasts; `by`-stratified estimands; stabilized weights; and transportability.
+For the **longitudinal** doubly-robust estimator (ICE-AIPW, Bang & Robins 2005),
+see `vignette("longitudinal")`. For the triangulation workflow across all three
+estimators, see `vignette("triangulation")`.
+
+## References
+
+Robins JM, Rotnitzky A, Zhao LP (1994). Estimation of regression coefficients
+when some regressors are not always observed. *Journal of the American
+Statistical Association* 89:846–866.
+
+Bang H, Robins JM (2005). Doubly robust estimation in missing data and causal
+inference models. *Biometrics* 61:962–973.
+
+Hernán MA, Robins JM (2025). *Causal Inference: What If*. Chapman & Hall/CRC.

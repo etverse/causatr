@@ -8,6 +8,7 @@ articles:
     contents:
       - gcomp
       - ipw
+      - aipw
       - matching
       - snm
   - title: Interventions

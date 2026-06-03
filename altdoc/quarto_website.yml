@@ -31,6 +31,7 @@ website:
         contents:
           - vignettes/gcomp.qmd
           - vignettes/ipw.qmd
+          - vignettes/aipw.qmd
           - vignettes/matching.qmd
           - vignettes/snm.qmd
       - section: Interventions
