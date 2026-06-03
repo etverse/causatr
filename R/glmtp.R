@@ -157,6 +157,12 @@ glmtp_iterate <- function(fit, intervention) {
     Q[[li]] <- qv
   }
 
+  # Count per-label model fits that were attempted (had >= 1 valid response
+  # row) but failed (separation, rank deficiency). Their rows fall to NA and
+  # drop from later steps; a non-zero count is surfaced as a single classed
+  # warning after the recursion so the rare degrade-to-NA path is never silent.
+  n_failed_labels <- 0L
+
   # -- Backward steps t = tau-1 ... 1.
   for (step_i in seq(n_times - 1L, 1L, by = -1L)) {
     current_time <- time_points[step_i]
@@ -183,7 +189,10 @@ glmtp_iterate <- function(fit, intervention) {
     step_models <- stats::setNames(vector("list", length(labels_t)), step_keys)
     step_fit_ids <- stats::setNames(vector("list", length(labels_t)), step_keys)
     for (lj in seq_along(labels_t)) {
-      key_j <- step_keys[lj]
+      # `step_keys[lj]` is `glmtp_label_key(labels_t[[lj]])` by construction
+      # (same order); derive it directly so the response selection never relies
+      # on positional alignment between two separate vectors.
+      key_j <- glmtp_label_key(labels_t[[lj]])
       resp <- Q[[key_j]][cur_uncens_ids]
       has_pseudo <- !is.na(resp)
       if (sum(has_pseudo) == 0L) {
@@ -216,6 +225,10 @@ glmtp_iterate <- function(fit, intervention) {
         ),
         error = function(e) NULL
       )
+      # A label with valid rows that still failed to fit -> count it.
+      if (is.null(step_models[[lj]])) {
+        n_failed_labels <- n_failed_labels + 1L
+      }
     }
     models[[step_i]] <- step_models
     fit_ids[[step_i]] <- step_fit_ids
@@ -259,7 +272,40 @@ glmtp_iterate <- function(fit, intervention) {
     Q <- Q_new
   }
 
-  # After the loop Q holds the single empty label: q_1 per individual.
+  # Surface any per-label fit failures once. Their rows degraded to NA and
+  # dropped from later steps, so the estimate is over a subset -- warn rather
+  # than return a quietly-biased number.
+  if (n_failed_labels > 0L) {
+    rlang::warn(
+      c(
+        paste0(
+          n_failed_labels,
+          " per-label outcome model(s) failed to fit in the natural-history ",
+          "MTP recursion."
+        ),
+        i = paste0(
+          "Affected individuals received NA pseudo-outcomes and dropped from ",
+          "later steps; the counterfactual mean may be biased. Check for ",
+          "separation / sparse history cells, or fit with a regularised ",
+          "`model_fn`."
+        )
+      ),
+      class = "causatr_glmtp_label_fit_failed",
+      .frequency = "once",
+      .frequency_id = "causatr_glmtp_label_fit_failed"
+    )
+  }
+
+  # After the loop Q holds exactly the single empty-label element (its name is
+  # "", which R cannot index with `[[`), so read it positionally with an
+  # explicit guard against any future change that breaks the single-label
+  # invariant.
+  if (length(Q) != 1L) {
+    rlang::abort(
+      "Internal error: the G-LMTP recursion did not collapse to a single label.",
+      class = "causatr_glmtp_internal"
+    )
+  }
   q1 <- Q[[1L]]
   first_time <- time_points[1]
   first_ids <- as.character(data[data[[time_col]] == first_time][[id_col]])

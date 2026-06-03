@@ -276,6 +276,102 @@ test_that("glmtp composes with a censoring row-filter and external weights", {
   expect_true(all(is.finite(res$estimates$se) & res$estimates$se > 0))
 })
 
+# Ordinal (k > 2) treatment exercises the |A|^t label machinery, which the
+# binary tests above never reach. carry_forward() reduces to a baseline regime
+# for ANY discrete treatment, so it must equal the equivalent standard-ICE
+# dynamic rule exactly on a 3-level treatment.
+# (2026-06-03 critical review Issue #1: ordinal support was verified to 1e-14
+# but untested; /tmp/causatr_repro_glmtp_adversarial.R.)
+test_that("carry_forward equals the baseline regime for an ordinal (3-level) treatment", {
+  set.seed(20)
+  n <- 2500L
+  tau <- 3L
+  L0 <- stats::rnorm(n)
+  A <- matrix(0L, n, tau)
+  L <- matrix(0, n, tau)
+  Lprev <- L0
+  Aprev <- integer(n)
+  for (t in seq_len(tau)) {
+    Lt <- if (t == 1L) {
+      0.5 * L0 + stats::rnorm(n)
+    } else {
+      0.5 * Lprev + 0.3 * Aprev + stats::rnorm(n)
+    }
+    lam <- stats::plogis(-0.2 + 0.4 * Lt + 0.5 * Aprev) * 1.2
+    At <- pmin(2L, pmax(0L, stats::rpois(n, lambda = lam)))
+    A[, t] <- At
+    L[, t] <- Lt
+    Lprev <- Lt
+    Aprev <- At
+  }
+  # Confirm the treatment is genuinely 3-level (the |A|^t labels are exercised).
+  expect_setequal(sort(unique(as.vector(A))), c(0L, 1L, 2L))
+  Y <- 1 + 0.5 * rowSums(A) + 0.4 * L[, tau] - 0.3 * L0 + stats::rnorm(n)
+  d <- data.frame(
+    id = rep(seq_len(n), each = tau),
+    t = rep(seq_len(tau), n),
+    L0 = rep(L0, each = tau),
+    A = as.vector(t(A)),
+    L = as.vector(t(L)),
+    Y = NA_real_
+  )
+  d$Y[d$t == tau] <- Y
+  d$baseA <- rep(d$A[d$t == 1L], each = tau)
+  fit <- glmtp_fit(d)
+  fit2 <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~ L0 + baseA,
+    confounders_tv = ~L,
+    id = "id",
+    time = "t",
+    estimator = "gcomp",
+    history = Inf
+  )
+  mu_cf <- glmtp_point(fit, carry_forward())
+  mu_dyn <- mean(
+    ice_iterate(fit2, dynamic(function(x, trt) x$baseA))$pseudo_final
+  )
+  expect_equal(mu_cf, mu_dyn, tolerance = 1e-8)
+})
+
+test_that("a per-label fit failure surfaces a classed warning, not a silent estimate", {
+  # 2026-06-03 critical review Issue #3: a per-label model failure degrades the
+  # affected rows to NA and drops them from later steps. Force one failure with
+  # a flaky model_fn (errors on its 3rd call -- the base fit is call 1, so this
+  # hits a per-label pseudo-outcome fit) and confirm the classed warning fires.
+  d <- glmtp_delay_data(n = 800L, seed = 8L)$data
+  call_n <- 0L
+  # The base outcome model is fit first (call 1); per-label pseudo-outcome fits
+  # follow. Failing call 3 forces exactly one per-label failure. Extra args
+  # (incl. `weights` when present) flow through `...` as values, avoiding glm's
+  # non-standard evaluation of a re-passed `weights` symbol.
+  flaky <- function(formula, data, family, ...) {
+    call_n <<- call_n + 1L
+    if (call_n == 3L) {
+      rlang::abort("forced per-label fit failure")
+    }
+    stats::glm(formula, data = data, family = family, ...)
+  }
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    id = "id",
+    time = "t",
+    estimator = "gcomp",
+    model_fn = flaky,
+    history = Inf
+  )
+  expect_warning(
+    glmtp_iterate(fit, grace_period(1L)),
+    class = "causatr_glmtp_label_fit_failed"
+  )
+})
+
 # ---------------------------------------------------------------------------
 # Rejections at the contrast() boundary
 # ---------------------------------------------------------------------------
