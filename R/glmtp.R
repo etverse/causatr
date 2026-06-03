@@ -76,6 +76,10 @@ glmtp_iterate <- function(fit, intervention) {
   family_pseudo <- details$family_pseudo
   external_weights <- details$weights
   model_fn_dots <- details$dots
+  # Treatment design term(s) for the per-step formula (bare column name by
+  # default; transformed labels under a user `treatment_form`). The policy
+  # always sets the numeric treatment column -- only the design term changes.
+  treatment_terms <- details$treatment_terms
 
   # The natural-course reference (NULL) reuses the augmented machinery with the
   # identity policy so a contrast that mixes glmtp arms with a natural-course
@@ -119,7 +123,8 @@ glmtp_iterate <- function(fit, intervention) {
     final_idx,
     max_lag,
     fit_data,
-    em_info
+    em_info,
+    treatment_terms
   )
   w_final <- if (!is.null(external_weights)) external_weights[fit_mask]
   m_base <- ice_fit_step(
@@ -210,7 +215,8 @@ glmtp_iterate <- function(fit, intervention) {
         time_idx,
         max_lag,
         fit_data,
-        em_info
+        em_info,
+        treatment_terms
       )
       w_k <- if (!is.null(external_weights)) w_uncens[has_pseudo]
       step_models[[lj]] <- tryCatch(

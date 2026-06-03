@@ -1,5 +1,30 @@
 # causatr (development version)
 
+## 2026-06-03 — Phase 22b-5: Flexible-treatment ICE term (`treatment_form`)
+
+`causat()` gains a `treatment_form` argument for longitudinal g-computation
+(ICE), letting the treatment enter the per-step outcome models via a transformed
+term — `treatment_form = ~ factor(A)` (categorical / ordinal dose) or
+`~ splines::ns(A, df = 3)` (smooth dose-response) — instead of the default bare
+numeric main effect. The intervention (or natural-history policy) still sets the
+*numeric* treatment column; only the model's design term changes, so a nonlinear
+or kinked counterfactual response is no longer forced through a single linear
+slope. Lag terms are expanded automatically (`factor(A)` → `factor(lag1_A)`),
+reusing the same parse-tree substitution as transformed time-varying confounders.
+
+This is the *enabler* in the Phase 22b roadmap: it removes the bare-numeric
+misspecification of a kinked capped-dose response under the natural-history MTP
+engine — the `cap_escalation()` gap to the forward-MC truth closes from ≈0.034
+to ≈0.0015 under `~ factor(A)`. It benefits all of longitudinal ICE, not just
+G-LMTPs. `treatment_form = NULL` (the default) is byte-identical to the previous
+behaviour. The flexible term flows through both the standard ICE recursion and
+the augmented G-LMTP recursion, and through the ID-cluster bootstrap refit; the
+analytic ICE sandwich handles the wider design matrix transparently. Validated
+against exact analytic-contrast truths (categorical and continuous) and the
+G-LMTP forward-MC truth. Rejected for point treatments and non-gcomp estimators
+(`causatr_treatment_form_not_ice`) and for non-treatment terms / non-formula
+input (`causatr_treatment_form_bad`).
+
 ## 2026-06-03 — Phase 22b: Natural-history modified treatment policies (G-LMTPs)
 
 Two new intervention constructors, `grace_period()` and `carry_forward()`, add

@@ -35,6 +35,11 @@
 #'   column to stratify the per-step outcome models on, or `NULL` (pooled
 #'   models, the default). When set, `ice_iterate()` fits one model per
 #'   stratum at every backward step.
+#' @param treatment_form One-sided formula naming how the treatment enters
+#'   the per-step outcome models (e.g. `~ factor(A)`, `~ splines::ns(A, 3)`),
+#'   or `NULL` (the default) for a bare numeric main effect. The intervention
+#'   always sets the numeric treatment column; only the model's design term
+#'   changes. Validated upstream by `check_treatment_form()`.
 #' @param ... Passed to `model_fn`.
 #'
 #' @return A `causatr_fit` object with `model = NULL` and all needed
@@ -63,6 +68,7 @@ fit_ice <- function(
   confounders_tv_outcome = NULL,
   confounders_tv_treatment = NULL,
   stratified = NULL,
+  treatment_form = NULL,
   ...
 ) {
   # Guard against a silent collision with any causatr-reserved column.
@@ -109,6 +115,19 @@ fit_ice <- function(
     attr(stats::terms(confounders_tv), "term.labels")
   } else {
     character(0)
+  }
+
+  # Resolve how the treatment enters the per-step model. The default
+  # (`treatment_form = NULL`) is a bare numeric main effect, so
+  # `treatment_terms` is just the treatment column name(s). A user
+  # `treatment_form` (e.g. `~ factor(A)`) supplies transformed term labels;
+  # the lag versions are derived by parse-tree substitution in
+  # `ice_build_formula()`. The raw `treatment_form` is also stored so the
+  # bootstrap refit can re-pass it.
+  treatment_terms <- if (is.null(treatment_form)) {
+    treatment
+  } else {
+    attr(stats::terms(treatment_form), "term.labels")
   }
 
   # Resolve the Markov order. `history = Inf` means "full history" --
@@ -193,6 +212,8 @@ fit_ice <- function(
       family_pseudo = family_pseudo,
       weights = weights,
       stratified = stratified,
+      treatment_form = treatment_form,
+      treatment_terms = treatment_terms,
       dots = dots
     )
   )
@@ -290,6 +311,15 @@ term_vars <- function(term) {
 #'   used to check for all-`NA` columns.
 #' @param em_info A `causatr_em_info` object from `parse_effect_mod()`,
 #'   or `NULL` if no EM terms are present.
+#' @param treatment_terms Character vector of formula term labels for the
+#'   current-period treatment, or `NULL`. With `NULL` (the default) the
+#'   treatment enters as a bare numeric main effect (`treatment_terms ==
+#'   treatment`), the historical behaviour. A user `treatment_form`
+#'   (e.g. `~ factor(A)`, `~ splines::ns(A, 3)`) resolves to transformed term
+#'   labels here; the lag versions are derived by parse-tree variable
+#'   substitution (`factor(A)` -> `factor(lag1_A)`). The intervention always
+#'   sets the *numeric* treatment column -- only the model's design term is
+#'   affected.
 #'
 #' @return A formula object.
 #'
@@ -303,32 +333,42 @@ ice_build_formula <- function(
   time_idx,
   max_lag,
   data_at_time,
-  em_info = NULL
+  em_info = NULL,
+  treatment_terms = NULL
 ) {
   # The number of available lags at time index `k` is `min(k, max_lag)`:
   # at t = 0 there are zero lags regardless of max_lag; at t = 1 there
   # is one lag; and so on, capped by the user's Markov-order choice.
   available_lags <- min(time_idx, max_lag)
 
-  # RHS starts with the *current* time values of treatment and TV
-  # confounders. Treatment enters as bare column name (main effect);
-  # TV confounders enter as term labels to preserve transforms like
-  # `ns(L, 3)`.
-  rhs_dynamic <- c(treatment, tv_terms)
+  # Resolve the treatment design term(s). The default (`treatment_terms ==
+  # NULL`) enters the treatment as a bare numeric main effect, matching the
+  # historical behaviour; a user `treatment_form` supplies transformed term
+  # labels (`factor(A)`, `splines::ns(A, 3)`, ...).
+  if (is.null(treatment_terms)) {
+    treatment_terms <- treatment
+  }
 
-  # Append lag terms. For bare names, lag expansion is simple string
-  # concatenation: `L` -> `lag1_L`. For transformed terms, we walk
-  # the parse tree and substitute each variable:
-  # `ns(L, 3)` -> `ns(lag1_L, 3)`.
-  lag_vars <- c(treatment, tv_vars)
+  # RHS starts with the *current* time values of treatment and TV
+  # confounders. Both enter as term labels so transforms (`factor(A)`,
+  # `ns(L, 3)`) are preserved; for the bare-numeric default `treatment_terms`
+  # is just the treatment column name(s).
+  rhs_dynamic <- c(treatment_terms, tv_terms)
+
+  # Append lag terms. Treatment and TV confounder lags are both built by
+  # parse-tree variable substitution: each underlying variable `v` is
+  # replaced by `lagK_v`, so `factor(A)` -> `factor(lag1_A)` and
+  # `ns(L, 3)` -> `ns(lag1_L, 3)`. For a bare term this reduces to simple
+  # renaming (`A` -> `lag1_A`), identical to the historical behaviour.
   if (available_lags > 0L) {
     for (lag_k in seq_len(available_lags)) {
       prefix <- paste0("lag", lag_k, "_")
-      # Treatment lags are always bare column names
-      for (trt in treatment) {
-        rhs_dynamic <- c(rhs_dynamic, paste0(prefix, trt))
+      # Treatment lags: substitute the treatment variables in each term.
+      trt_map <- stats::setNames(paste0(prefix, treatment), treatment)
+      for (tt in treatment_terms) {
+        rhs_dynamic <- c(rhs_dynamic, substitute_vars_in_term(tt, trt_map))
       }
-      # TV confounder lags: substitute variables in term labels
+      # TV confounder lags: substitute variables in term labels.
       if (length(tv_terms) > 0L) {
         var_map <- stats::setNames(
           paste0(prefix, tv_vars),
@@ -552,6 +592,9 @@ ice_iterate <- function(fit, intervention) {
   # `ice_predict_step()` fit and predict one model per baseline stratum
   # at each backward step instead of a single pooled model.
   stratified <- details$stratified
+  # Treatment design term(s) for the per-step formula (bare column name(s)
+  # by default; transformed labels under a user `treatment_form`).
+  treatment_terms <- details$treatment_terms
   # User's stashed `...` for `model_fn`. The per-step `replay_fit()`
   # calls below take care of duplicate-key stripping in one place
   # (R/utils.R).
@@ -655,7 +698,8 @@ ice_iterate <- function(fit, intervention) {
     final_idx,
     max_lag,
     fit_data,
-    em_info
+    em_info,
+    treatment_terms
   )
 
   # Fit the final-time model, pooled or per-stratum. `ice_fit_step()`
@@ -780,7 +824,8 @@ ice_iterate <- function(fit, intervention) {
       time_idx,
       max_lag,
       fit_data,
-      em_info
+      em_info,
+      treatment_terms
     )
 
     # Fit the backward-step pseudo-outcome model, pooled or per-stratum.

@@ -215,6 +215,20 @@
 #'   stacked-EE sandwich (`ci_method = "sandwich"`). Default `NULL` fits
 #'   pooled models. Ignored / rejected for point treatments and non-gcomp
 #'   estimators.
+#' @param treatment_form One-sided formula or `NULL`. Controls how the
+#'   treatment enters the per-step ICE outcome models, e.g.
+#'   `~ factor(A)` (categorical / ordinal dose) or
+#'   `~ splines::ns(A, df = 3)` (smooth dose-response). **Longitudinal
+#'   g-computation (ICE) only**, including natural-history MTPs
+#'   ([grace_period()] / [carry_forward()]). The intervention always sets
+#'   the *numeric* treatment column; only the model's design term changes,
+#'   so a nonlinear or kinked counterfactual response (e.g. a capped dose)
+#'   is no longer forced through a single linear slope. Lag terms are
+#'   expanded automatically (`factor(A)` -> `factor(lag1_A)`). Every term
+#'   must reference a treatment column. Under `factor(A)` an intervention
+#'   must keep the treatment within observed levels. Default `NULL` enters
+#'   the treatment as a bare numeric main effect (the historical
+#'   behaviour). Rejected for point treatments and non-gcomp estimators.
 #' @param ... Additional arguments passed to the underlying estimation
 #'   function. For `estimator = "ipw"`, dots are forwarded into the
 #'   user's `propensity_model_fn` via `fit_treatment_model()` (e.g.
@@ -478,6 +492,7 @@ causat <- function(
   target_subset = c("target", "all"),
   treatment_free = NULL,
   stratified = NULL,
+  treatment_form = NULL,
   ...
 ) {
   stabilize <- rlang::arg_match(stabilize)
@@ -687,6 +702,12 @@ causat <- function(
   # here so a misuse is caught before any model is fitted.
   check_stratified(data, stratified, estimator, type, id, call = call)
 
+  # Flexible-treatment ICE term: validate `treatment_form` (ICE-only,
+  # one-sided formula referencing the treatment column(s)) before any model
+  # is fitted. The intervention still sets the numeric treatment column; only
+  # the per-step design term changes.
+  check_treatment_form(treatment_form, treatment, estimator, type, call = call)
+
   # NA check on treatment values: if any are missing, user must either
   # provide a censoring column (IPCW), use mice imputation, or remove
   # incomplete cases manually. We do this AFTER prepare_data() because
@@ -861,6 +882,7 @@ causat <- function(
       confounders_tv_outcome = confounders_tv_outcome,
       confounders_tv_treatment = confounders_tv_treatment,
       stratified = stratified,
+      treatment_form = treatment_form,
       ...
     ),
     ipw = fit_ipw(

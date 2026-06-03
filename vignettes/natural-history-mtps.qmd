@@ -246,9 +246,43 @@ Two practical points:
   rejected under IPW / AIPW / matching and for point treatments.
 - **Bootstrap variance.** The augmented-data sandwich is a planned future chunk;
   `ci_method = "sandwich"` aborts and points to the bootstrap.
-- **Nonlinear ordered policies** (e.g. a dose-escalation cap) need a flexible
-  dose model that causatr's ICE does not yet expose, so they are not part of the
-  public API (see `PHASE_22_ICE_ENHANCEMENTS.md` §3.7).
+- **Nonlinear ordered policies** (e.g. a dose-escalation cap) are estimated
+  consistently once the dose enters the per-step model flexibly — see *Flexible
+  dose models* below.
+
+## Flexible dose models for ordered treatments
+
+By default the treatment enters every per-step outcome model as a **bare numeric**
+main effect. For a binary treatment that is exactly saturated, but for an
+**ordered / ordinal dose** a single linear slope can misspecify a non-monotone or
+*kinked* counterfactual response — the canonical case being a *dose-escalation
+cap*, whose policy is piecewise-linear in the dose. The bare-numeric plug-in then
+carries a small but persistent asymptotic bias even though the augmented recursion
+is exactly correct.
+
+`treatment_form` lets the dose enter the per-step model via a transformed term,
+while the policy still sets the *numeric* dose column — only the model's design
+term changes:
+
+```r
+fit <- causat(
+  dose_data,
+  outcome = "Y", treatment = "dose",
+  confounders = ~ L0, confounders_tv = ~ L,
+  id = "id", time = "t", estimator = "gcomp",
+  treatment_form = ~ factor(dose)        # or ~ splines::ns(dose, df = 3)
+)
+contrast(fit, interventions = list(d = grace_period(1L)),
+         ci_method = "bootstrap")
+```
+
+With `~ factor(dose)` each dose level carries its own coefficient, so a kinked
+capped-dose response is recovered to sampling error rather than fit through one
+slope. Lag terms expand automatically (`factor(dose)` → `factor(lag1_dose)`). The
+flexible term is longitudinal-g-computation-only and benefits standard ICE
+regimes (`static` / `shift` / `dynamic`) as much as natural-history policies. Under
+`factor(dose)` an intervention must keep the dose within the observed levels (a
+new level makes prediction fail); `splines::ns(dose, df)` extrapolates smoothly.
 
 ## References
 

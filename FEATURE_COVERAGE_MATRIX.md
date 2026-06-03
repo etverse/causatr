@@ -256,6 +256,27 @@ $\to$ `causatr_stratified_not_ice`; missing column $\to$ `causatr_stratified_not
 time-varying column $\to$ `causatr_stratified_not_baseline`; continuous column $\to$
 `causatr_stratified_too_many`.
 
+### Flexible-treatment ICE term (`treatment_form = ~ factor(A)` / `~ ns(A)`, Phase 22b-5)
+
+By default the treatment enters every per-step ICE outcome model as a bare numeric main effect, so a
+non-monotone or curved counterfactual dose-response is misspecified. `treatment_form` lets the treatment
+enter via a transformed term while the intervention still sets the *numeric* treatment column; lag terms
+are expanded automatically (`factor(A)` $\to$ `factor(lag1_A)`). **Longitudinal g-computation (ICE) only**,
+including the natural-history MTPs above. Validated by exact analytic-contrast truths (DGPs with exogenous
+covariates, so the contrast cancels the model-independent baseline term).
+
+| Trt | Outcome | `treatment_form` | Intervention | Periods | Variance | Status | Test |
+|---|---|---|---|---|---|---|---|
+| categorical {0,1,2} | gauss | `~ factor(A)` | static(1) vs static(0) | 2 | (point) | ✅ recovers non-monotone truth (= 6); bare ~4.3 off | test-ice-treatment-form.R |
+| cont | gauss | `~ splines::ns(A, df)` | shift(0.5) vs shift(0) | 2 | (point) | ✅ recovers curved truth (= −1.5); linear ~0.5 off | test-ice-treatment-form.R |
+| categorical {0,1,2} | gauss | `~ factor(A)` | static | 2 | sandwich | ✅ vs ID-cluster bootstrap (~5%) | test-ice-treatment-form.R |
+| any | — | `NULL` / `~ A` | — | 2 | (point) | ✅ byte-identical to bare numeric (1e-12) | test-ice-treatment-form.R |
+
+Rejections (all ✅ tested, `test-ice-treatment-form.R`): non-ICE estimator / point treatment $\to$
+`causatr_treatment_form_not_ice`; non-treatment variable / two-sided formula / non-formula $\to$
+`causatr_treatment_form_bad`; intervention leaving the observed `factor(A)` support $\to$ native
+`predict()` "new level" error (documented constraint; `ns(A)` extrapolates).
+
 ### Natural-history MTPs (G-LMTPs, `grace_period()` / `carry_forward()`, Phase 22b)
 
 Modified treatment policies whose intervened value at time $t$ depends on the
@@ -278,12 +299,16 @@ Variance: ID-cluster **bootstrap** (the augmented-data sandwich is deferred).
 | bin | gauss | `grace_period(1)` | 4 | boot | ext / cens | ✅ composes (finite point + SE) | test-glmtp.R |
 | ordinal {0,1,2} | gauss | `carry_forward()` | 3 | (point) | — | ✅ exact vs baseline regime (1e-14) — `|A|^t` machinery | test-glmtp.R |
 | ordinal {0,1,2} | gauss | `cap_escalation` (internal) | 3 | (point) | — | ✅ engine == independent hand-coded recursion (1e-9) | test-glmtp.R |
+| ordinal {0,1,2} | gauss | `cap_escalation` + `treatment_form = ~ factor(A)` | 3 | (point) | — | ✅ recovers forward-MC truth (gap 0.0015 vs 0.034 bare) | test-glmtp.R |
+| bin | gauss | `grace_period(1)` + `~ factor(A)` | 4 | boot | — | ✅ composes (finite CI; == bare for binary) | test-glmtp.R |
 
 The engine handles **any single discrete treatment** ($|\mathcal{A}| \ge 2$); the ordinal rows pin the
 `|A|^t` label machinery. Public policy constructors are binary (`grace_period`) / any-discrete
-(`carry_forward`). **Deferred** (designed, `PHASE_22` §3.7): `cap_escalation()` public release (kept
-internal — the bare-numeric ICE dose term gives a ~3% bias when the cap binds; a `factor(dose)` model
-recovers the truth, so it needs a flexible-dose ICE term) and **multivariate** G-LMTP.
+(`carry_forward`). The **flexible-treatment ICE term** (`treatment_form =`, Phase 22b-5) lets the dose
+enter the per-step model as `factor(A)` / `splines::ns(A)`, removing the bare-numeric misspecification
+of a kinked capped-dose response (the cap-policy gap closes from $\approx0.034$ to $\approx0.0015$ vs the
+forward-MC truth). **Deferred** (designed, `PHASE_22` §3.7): `cap_escalation()` public release (22b-6,
+now unblocked by 22b-5) and **multivariate** G-LMTP (22b-7).
 
 Augment helpers (`glmtp_support`, `glmtp_enumerate_labels`, `glmtp_label_key`,
 `glmtp_check_tractable`) — all ✅ unit-tested (`test-glmtp.R`).

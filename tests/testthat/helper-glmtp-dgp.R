@@ -330,6 +330,61 @@ glmtp_ordinal_cap_data <- function(n = 6000L, seed = 1L) {
   list(data = long, support = c(0, 1, 2))
 }
 
+#' Forward-MC truth for the dose-escalation cap regime (Proposition 1)
+#'
+#' @description
+#' Simulates the natural-history regime forward under `cap_escalation(delta)` on
+#' the `glmtp_ordinal_cap_data()` SCM (tau = 3, support {0,1,2}) with the
+#' *correct* structural models on a large super-population, returning the true
+#' counterfactual mean \eqn{E[Y^d]}. At each period the natural dose escalates
+#' from the **intervened** prior dose (the absorbing/escalating process is
+#' anchored to \eqn{A^d_{t-1}}), the cap policy limits the natural per-period
+#' increase by comparing the natural dose at \eqn{t} to the natural dose at
+#' \eqn{t-1}, and the covariate feeds back from the **actual** (intervened)
+#' treatment. This is the paper's Proposition-1 truth computation for the cap
+#' policy and the oracle that the flexible-treatment (`~ factor(A)`) plug-in is
+#' validated against (the bare-numeric plug-in is misspecified for the kinked
+#' capped dose).
+#'
+#' @param delta Numeric cap on the per-period natural increase.
+#' @param n_mc Integer super-population size.
+#' @param seed Integer RNG seed.
+#'
+#' @return Numeric scalar, the true \eqn{E[Y^d]}.
+glmtp_cap_forward_truth <- function(delta, n_mc = 2e6, seed = 1L) {
+  tau <- 3L
+  m <- 2L
+  set.seed(seed)
+  L0 <- stats::rnorm(n_mc)
+  Lprev <- L0
+  Ad_prev <- integer(n_mc) # intervened dose at t-1
+  s_prev <- integer(n_mc) # natural dose at t-1
+  Ad <- matrix(0L, n_mc, tau) # intervened doses under the regime
+  L_tau <- numeric(n_mc)
+  for (t in seq_len(tau)) {
+    # Covariate feeds back from the intervened prior dose (matches the
+    # observed SCM, where it feeds from the actual prior dose).
+    Lt <- 0.5 * Lprev + 0.3 * Ad_prev + stats::rnorm(n_mc)
+    if (t == tau) {
+      L_tau <- Lt
+    }
+    # Natural dose at t escalates from the intervened prior dose.
+    step <- stats::rbinom(n_mc, 2L, stats::plogis(-0.2 + 0.6 * Lt))
+    s_t <- pmin(m, Ad_prev + step)
+    # Cap the increase of the natural dose at t over the natural dose at t-1.
+    Ad_t <- if (t == 1L) {
+      s_t
+    } else {
+      ifelse(s_t - s_prev > delta, s_prev + delta, s_t)
+    }
+    Ad[, t] <- Ad_t
+    Lprev <- Lt
+    Ad_prev <- Ad_t
+    s_prev <- s_t
+  }
+  mean(1 + 0.7 * rowSums(Ad) + 0.4 * L_tau - 0.5 * L0)
+}
+
 #' Independent hand-coded augmented recursion for the dose cap (tau = 3)
 #'
 #' @description

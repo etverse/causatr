@@ -749,6 +749,73 @@ res_mtp
 Structural truth for `shift(-1)` is $-3.85$ (see derivation above). The
 `shift_m1` estimate should be close to this value.
 
+## Flexible treatment terms (`treatment_form`)
+
+By default the treatment enters every per-step outcome model as a **bare numeric**
+main effect. For a binary treatment that is saturated, but for an **ordered /
+ordinal dose** a single linear slope can misspecify a *non-monotone* or *kinked*
+counterfactual dose-response. `treatment_form` lets the dose enter the per-step
+model via a transformed term — `~ factor(A)` or `~ splines::ns(A, df)` — while the
+intervention still sets the *numeric* dose column. Lag terms expand automatically
+(`factor(A)` → `factor(lag1_A)`).
+
+**DGM.** Two periods, a 3-level dose $A_k \in \{0, 1, 2\}$ confounded by an
+exogenous covariate, and a deliberately **non-monotone** level effect
+$f(0) = 0,\ f(1) = 3,\ f(2) = 1$ with $Y = 1 + f(A_0) + f(A_1) + 0.5\,L_0 +
+\varepsilon$. Because the covariate does not depend on past treatment, the
+contrast $E[Y^{\text{static}(1)}] - E[Y^{\text{static}(0)}] = 2\,(f(1) - f(0)) =
+6$ exactly.
+
+```{r}
+set.seed(1)
+n <- 4000
+f_lvl <- c(0, 3, 1) # f(0), f(1), f(2): non-monotone
+L0 <- rnorm(n)
+mk_period <- function() {
+  Lt <- 0.5 * L0 + rnorm(n)
+  At <- pmin(2L, rpois(n, exp(-0.3 + 0.5 * Lt)))
+  list(L = Lt, A = At)
+}
+p0 <- mk_period()
+p1 <- mk_period()
+Yv <- 1 + f_lvl[p0$A + 1] + f_lvl[p1$A + 1] + 0.5 * L0 + rnorm(n)
+
+dose_long <- data.frame(
+  id = rep(seq_len(n), each = 2),
+  time = rep(0:1, n),
+  A = c(rbind(p0$A, p1$A)),
+  L = c(rbind(p0$L, p1$L)),
+  Y = c(rbind(NA_real_, Yv))
+)
+
+fit_args <- list(
+  data = dose_long, outcome = "Y", treatment = "A",
+  confounders = ~1, confounders_tv = ~L,
+  id = "id", time = "time", estimator = "gcomp", model_fn = stats::glm
+)
+fit_bare <- do.call(causat, fit_args)
+fit_factor <- do.call(causat, c(fit_args, list(treatment_form = ~ factor(A))))
+
+ivs <- list(a1 = static(1), a0 = static(0))
+diff_of <- function(fit) {
+  r <- contrast(fit, interventions = ivs, type = "difference")
+  with(r$estimates, estimate[intervention == "a1"] - estimate[intervention == "a0"])
+}
+dose_compare <- data.frame(
+  model = c("bare numeric A", "factor(A)"),
+  contrast = c(diff_of(fit_bare), diff_of(fit_factor)),
+  truth = 6
+)
+tinytable::tt(dose_compare, digits = 3)
+```
+
+The bare-numeric model fits one slope through the non-monotone response and is
+far from the truth of 6; `~ factor(A)` gives each dose level its own coefficient
+and recovers it to sampling error. The flexible term is **longitudinal
+g-computation only** and also powers natural-history dose policies (see the
+*Natural-history MTPs* vignette). Under `factor(A)` an intervention must stay
+within the observed dose levels; `splines::ns(A, df)` extrapolates smoothly.
+
 ## Longitudinal IPW (sequential density-ratio weights)
 
 ICE g-computation models the **outcome** at each period and iterates

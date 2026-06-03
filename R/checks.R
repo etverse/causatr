@@ -588,6 +588,128 @@ check_stratified <- function(
   invisible(NULL)
 }
 
+#' Validate the flexible-treatment ICE term (`treatment_form`)
+#'
+#' @description
+#' `treatment_form` lets the treatment enter the per-step ICE outcome models
+#' via a transformed term (`~ factor(A)`, `~ splines::ns(A, 3)`, ...) instead
+#' of a bare numeric main effect, so a nonlinear or kinked counterfactual
+#' response is not forced through a single linear slope. The intervention
+#' still sets the numeric treatment column; only the model's design term
+#' changes. This gate, called from [causat()] before any model is fitted,
+#' enforces:
+#'
+#' 1. `treatment_form` is a one-sided formula. A two-sided formula or a
+#'    non-formula is rejected with class `causatr_treatment_form_bad`.
+#' 2. The flexible term is supported only for **longitudinal g-computation**
+#'    (`estimator = "gcomp"` with `id` / `time`) -- point g-computation and
+#'    the other estimators have no per-step ICE design matrix to retarget.
+#'    Rejected with class `causatr_treatment_form_not_ice`.
+#' 3. Every variable in the formula is a treatment column, and every treatment
+#'    column appears. A covariate transform belongs in `confounders` /
+#'    `confounders_tv`; an unreferenced treatment column would silently drop
+#'    the exposure from the model. Either is rejected with class
+#'    `causatr_treatment_form_bad`.
+#'
+#' @param treatment_form A one-sided formula, or `NULL` (the default, which is
+#'   a no-op: the treatment enters as a bare numeric main effect).
+#' @param treatment Character scalar or vector. Treatment column name(s).
+#' @param estimator Character. The resolved estimator.
+#' @param type Character. `"point"` or `"longitudinal"`.
+#' @param call Caller environment for error reporting.
+#'
+#' @return Invisibly `NULL`. Called for its validation side effects.
+#'
+#' @seealso [check_stratified()], [ice_build_formula()]
+#' @noRd
+check_treatment_form <- function(
+  treatment_form,
+  treatment,
+  estimator,
+  type,
+  call = rlang::caller_env()
+) {
+  if (is.null(treatment_form)) {
+    return(invisible(NULL))
+  }
+
+  # (1) Must be a one-sided formula (`~ rhs`, length 2). A two-sided formula
+  # (length 3) or a non-formula is a structural misuse -- reject before
+  # inspecting terms so the message is about the shape, not the contents.
+  if (!rlang::is_formula(treatment_form) || length(treatment_form) != 2L) {
+    rlang::abort(
+      c(
+        "`treatment_form` must be a one-sided formula.",
+        i = "For example `~ factor(A)` or `~ splines::ns(A, df = 3)`."
+      ),
+      class = "causatr_treatment_form_bad",
+      call = call
+    )
+  }
+
+  # (2) ICE-only. The flexible term retargets the per-step ICE design matrix;
+  # point g-computation and the other estimators have no such per-step model.
+  if (!(estimator == "gcomp" && type == "longitudinal")) {
+    rlang::abort(
+      c(
+        paste0(
+          "`treatment_form` is only supported for longitudinal ",
+          "g-computation (ICE)."
+        ),
+        i = "Use `estimator = \"gcomp\"` with `id` and `time`.",
+        x = paste0(
+          "Got estimator = \"",
+          estimator,
+          "\", type = \"",
+          type,
+          "\"."
+        )
+      ),
+      class = "causatr_treatment_form_not_ice",
+      call = call
+    )
+  }
+
+  # (3) Every term must reference a treatment column, and every treatment
+  # column must appear. A term over a non-treatment variable belongs in
+  # `confounders` / `confounders_tv`; an unreferenced treatment column would
+  # silently drop the exposure from the per-step model.
+  form_vars <- all.vars(treatment_form)
+  extra <- setdiff(form_vars, treatment)
+  if (length(extra) > 0L) {
+    rlang::abort(
+      c(
+        "`treatment_form` may only reference the treatment column(s).",
+        x = paste0(
+          "Non-treatment variable(s): ",
+          paste0("'", extra, "'", collapse = ", "),
+          "."
+        ),
+        i = "Put covariate transforms in `confounders` / `confounders_tv`."
+      ),
+      class = "causatr_treatment_form_bad",
+      call = call
+    )
+  }
+  missing_trt <- setdiff(treatment, form_vars)
+  if (length(missing_trt) > 0L) {
+    rlang::abort(
+      c(
+        "Every treatment column must appear in `treatment_form`.",
+        x = paste0(
+          "Unreferenced treatment column(s): ",
+          paste0("'", missing_trt, "'", collapse = ", "),
+          "."
+        )
+      ),
+      class = "causatr_treatment_form_bad",
+      call = call
+    )
+  }
+
+  invisible(NULL)
+}
+
 #' Validate natural-history MTP interventions against a fit
 #'
 #' @description

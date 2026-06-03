@@ -8,10 +8,16 @@
 >   `R/glmtp_augment.R`, `R/glmtp_interventions.R`, with ID-cluster bootstrap variance and
 >   forward-MC truth validation (`tests/testthat/test-glmtp.R`, replicating Díaz et al. §6). The
 >   engine handles **any single discrete treatment** (ordinal validated to ~1e-9 vs an independent
->   hand-coded recursion). **Four chunks remain — a planned roadmap, not deferred-and-forgotten
->   (§3.7):** 22b-4 augmented-data sandwich, 22b-5 flexible-treatment ICE term (enabler), 22b-6
->   `cap_escalation()` public release (today internal `@noRd`), 22b-7 multivariate G-LMTP. Tracked in
->   `CLAUDE.md` Pending.
+>   hand-coded recursion).
+> - **22b-5 Flexible-treatment ICE term (`treatment_form =`) — SHIPPED.** The treatment can now enter
+>   the per-step ICE / G-LMTP outcome models as `~ factor(A)` / `~ splines::ns(A, df)` instead of a bare
+>   numeric main effect, removing the kinked-capped-dose misspecification (the `cap_escalation()` gap to
+>   the forward-MC truth closes from ~0.034 to ~0.0015). `R/ice.R` (`fit_ice`, `ice_build_formula`),
+>   `R/glmtp.R`, `R/checks.R` (`check_treatment_form`), bootstrap refit threaded; tests in
+>   `test-ice-treatment-form.R` + `test-glmtp.R`.
+> - **Three chunks remain — a planned roadmap (§3.7):** 22b-4 augmented-data sandwich, 22b-6
+>   `cap_escalation()` public release (today internal `@noRd`, now unblocked by 22b-5), 22b-7
+>   multivariate G-LMTP. Tracked in `CLAUDE.md` Pending.
 >
 > **Depends on:** Phase 5 (longitudinal ICE), Phase 15 (ICE formula builder for transformed TV
 > confounders).
@@ -311,9 +317,9 @@ live roadmap for 22b's continuation (each is registered in `CLAUDE.md`'s Pending
 | Chunk | Title | Depends on | Status |
 |---|---|---|---|
 | **22b-4** | Augmented-data sandwich variance | — | PLANNED |
-| **22b-5** | Flexible-treatment ICE term (enabler) | — | PLANNED |
-| **22b-6** | `cap_escalation()` public release | 22b-5 | PLANNED |
-| **22b-7** | Multivariate (vector-treatment) G-LMTP | 22b-5 | PLANNED |
+| **22b-5** | Flexible-treatment ICE term (enabler) | — | **SHIPPED** |
+| **22b-6** | `cap_escalation()` public release | 22b-5 | PLANNED (unblocked) |
+| **22b-7** | Multivariate (vector-treatment) G-LMTP | 22b-5 | PLANNED (unblocked) |
 
 **Chunk 22b-4 — Augmented-data sandwich.** Stack the per-(time, label) GLM scores + the mean EE into a
 block-triangular M-estimation system; the bread couples augmented replicate rows across labels (the
@@ -321,15 +327,22 @@ cascade is the pooled-ICE chain run per label). Secondary oracle: `delicatessen`
 same plug-in M-estimation variance, as for 22a §1.6). Ship only on tight (`~1e-6`) delicatessen
 agreement; else keep the `causatr_glmtp_sandwich` abort. Independent of 22b-5/6/7.
 
-**Chunk 22b-5 — Flexible-treatment ICE term (the enabler).** *Root cause of the cap-policy bias.* ICE
-enters the treatment as a **bare numeric** term, so a kinked pseudo-response (piecewise-linear in a
-capped dose) is misspecified — confirmed by a $\sim3\%$ asymptotic point bias when the cap binds that
-**vanishes** under a `factor(dose)` model (gap $0.034 \to 0.0015$, same recursion; `test-glmtp.R`
-hand-code evidence). Deliverable: let the treatment enter the per-step formula flexibly —
-`factor(A)` / `splines::ns(A)` / a user `treatment_form = ` — in `ice_build_formula()` and the
-prediction frames of **both** `ice_iterate()` and `glmtp_iterate()` (the policy still sets the numeric
-`A` column; only the model term changes). Benefits all of ICE, not just G-LMTP. Validation: existing
-ICE/G-LMTP tests unchanged; `cap_escalation` gap → sampling error under `factor(A)`.
+**Chunk 22b-5 — Flexible-treatment ICE term (the enabler). SHIPPED.** *Root cause of the cap-policy
+bias.* ICE entered the treatment as a **bare numeric** term, so a kinked pseudo-response
+(piecewise-linear in a capped dose) was misspecified — a $\sim3\%$ asymptotic point bias when the cap
+binds that **vanishes** under a `factor(dose)` model (gap $0.034 \to 0.0015$, same recursion).
+**Delivered:** `causat(..., treatment_form = ~ factor(A))` / `~ splines::ns(A, df)` — a one-sided
+formula resolved to `treatment_terms` in `fit_ice()` (stored in `details`; the raw `treatment_form` is
+re-passed by the ID-cluster bootstrap refit). `ice_build_formula()` gains a `treatment_terms` argument
+and now expands the treatment term across lags by the same parse-tree substitution as transformed TV
+confounders (`factor(A)` $\to$ `factor(lag1_A)`); `treatment_terms = NULL` reproduces the bare-numeric
+string byte-for-byte. Consumed by **both** `ice_iterate()` and `glmtp_iterate()`; the policy still sets
+the numeric `A` column, only the model term changes. Validated by `check_treatment_form()` (ICE-only,
+`causatr_treatment_form_not_ice`; term must reference the treatment, `causatr_treatment_form_bad`).
+**Validation:** existing ICE/G-LMTP tests unchanged; exact analytic-contrast truths for a non-monotone
+categorical (`factor`) and a curved continuous (`ns`) dose-response; `cap_escalation` gap → sampling
+error under `factor(A)` vs the forward-MC truth; ICE sandwich vs ID-cluster bootstrap parity. Benefits
+all of ICE, not just G-LMTP. Tests: `test-ice-treatment-form.R` + `test-glmtp.R`.
 
 **Chunk 22b-6 — `cap_escalation()` public release.** Today internal (`@noRd`); engine + policy are
 correct (no-cap limit exact; hand-code match $10^{-9}$). Export + a forward-MC truth test that now
@@ -354,5 +367,6 @@ Depends on 22b-5 (non-static components are bare-numeric otherwise).
 - Stratified × effect-modification interaction (smoke only).
 - Continuous-treatment G-LMTPs (paper covers discrete exposures only; needs TMLE/SDR, `lmtp`).
 
-(22b's own remaining work — sandwich, flexible-treatment ICE, `cap_escalation`, multivariate — is the
-**planned roadmap in §3.7**, tracked in `CLAUDE.md` Pending, not a deferred-and-forgotten list.)
+(22b's own remaining work — augmented-data sandwich, `cap_escalation()` release, multivariate — is the
+**planned roadmap in §3.7**, tracked in `CLAUDE.md` Pending, not a deferred-and-forgotten list. The
+flexible-treatment ICE term, 22b-5, is now shipped.)
