@@ -33,7 +33,17 @@ support it, and demonstrates the calling pattern on real and simulated data.
 | `dynamic(rule)` | Apply a user-defined deterministic rule | All types | Binary, categorical | All types | --- |
 | `ipsi(d)` | Multiply odds of treatment by `d` | --- | Binary | --- | --- |
 | `stochastic(f)` | Draw treatment from user-supplied distribution | All types | --- | --- | --- |
+| `grace_period(w)` | Delay treatment initiation by `w` periods (natural-history MTP) | Longitudinal, discrete | --- | --- | --- |
+| `carry_forward()` | Carry the baseline treatment forward (LOCF; natural-history MTP) | Longitudinal, discrete | --- | --- | --- |
 | `NULL` | Natural course (observed values) | All types | All types | All types | --- |
+
+`grace_period()` and `carry_forward()` are **natural-history** modified
+treatment policies (G-LMTPs): the intervened treatment at time $t$ depends on
+the *counterfactual natural-value history* of treatment, so they cannot be
+written as `dynamic()` rules (which see only the observed lag). They are
+estimated by an augmented-data sequential regression and require a longitudinal
+g-computation fit with a discrete treatment — see the
+[longitudinal vignette](longitudinal.html) for runnable examples.
 
 ## Data: NHEFS
 

@@ -2,9 +2,13 @@
 
 > **Status:**
 > - **22a Stratified ICE — SHIPPED** (bootstrap variance **and** analytic per-stratum sandwich, §1.6).
-> - **22b Natural-history MTPs (`grace_period()` / `carry_forward()`) — DESIGNED, not yet implemented.**
->   The original "thin `dynamic()` wrapper" plan was found to be theoretically unsound (see §3);
->   this doc specifies the correct G-LMTP estimator for a future sub-phase.
+> - **22b Natural-history MTPs (`grace_period()` / `carry_forward()`) — SHIPPED (bootstrap variance).**
+>   The original "thin `dynamic()` wrapper" plan was found to be theoretically unsound (see §3); the
+>   correct G-LMTP augmented-data sequential regression (§3) is implemented in `R/glmtp.R`,
+>   `R/glmtp_augment.R`, `R/glmtp_interventions.R`, with ID-cluster bootstrap variance and
+>   forward-MC truth validation (`tests/testthat/test-glmtp.R`, replicating Díaz et al. §6). The
+>   **augmented-data sandwich (§3.6 chunk 4) remains deferred** — `ci_method = "sandwich"` aborts
+>   with `causatr_glmtp_sandwich`.
 >
 > **Depends on:** Phase 5 (longitudinal ICE), Phase 15 (ICE formula builder for transformed TV
 > confounders).
@@ -24,9 +28,9 @@ Two ICE-specific enhancements that modify the backward iteration in `ice_iterate
 - **22a — Stratified ICE** (`causat(..., stratified = "G")`): fit separate per-stratum outcome models
   at each backward step. **In scope, shipped.**
 - **22b — Natural-history modified treatment policies** (grace periods, carry-forward): regimes whose
-  intervened treatment at time $t$ depends on the *natural-value history* of treatment. **Designed
-  here; implementation is a future sub-phase** because it requires an augmented-data sequential
-  regression that the current ICE engine does not have.
+  intervened treatment at time $t$ depends on the *natural-value history* of treatment. **Shipped**
+  via the augmented-data sequential regression `glmtp_iterate()` (§3); ID-cluster bootstrap variance.
+  The augmented-data sandwich is the one remaining deferred sub-chunk (§3.6 chunk 4).
 
 ### Out of scope (whole phase)
 
@@ -278,18 +282,25 @@ later sub-chunk (harder: the bread couples augmented replicate rows).
 
 ### 3.6 Chunk plan (22b sub-phase)
 
-1. `glmtp_augment.R` — discrete sequence enumeration + augmented-frame construction (+ tractability
-   guard) with unit tests on the row layout.
-2. `glmtp.R` — `glmtp_iterate()` augmented backward recursion; `grace_period()` / `carry_forward()`
-   constructors; `contrast()` routing; classed rejections (continuous treatment, blow-up budget).
-3. Truth tests vs the paper's $\tau=5$ DGP + lmtp cross-check; limiting-case equivalences; bootstrap
-   variance.
-4. (Later) augmented-data sandwich.
+1. **[SHIPPED]** `glmtp_augment.R` — discrete sequence enumeration + augmented-frame construction
+   (+ tractability guard) with unit tests on the row layout.
+2. **[SHIPPED]** `glmtp.R` / `glmtp_interventions.R` — `glmtp_iterate()` augmented backward
+   recursion; `grace_period()` / `carry_forward()` constructors; `contrast()` routing; classed
+   rejections (continuous treatment, blow-up budget, non-ICE, mixing).
+3. **[SHIPPED]** Truth tests vs the paper's delay DGP (forward-MC Proposition-1 truth, replicating
+   §6); engine-necessity vs naive `dynamic(lag1_A)`; limiting-case equivalences (`carry_forward` ≡
+   baseline ICE, `grace_period(0)` ≡ natural course); ID-cluster bootstrap variance.
+   Note: `lmtp` is **not** a valid oracle for genuinely history-dependent policies (its one-shot
+   shift computes the standard LMTP), so the forward-MC truth replaces the lmtp cross-check.
+4. **[DEFERRED]** Augmented-data sandwich — the bread couples augmented replicate rows across
+   labels; `delicatessen`'s `MEstimator` is the intended secondary oracle (as for 22a §1.6).
 
 ---
 
 ## Deferred items
 
-- 22b G-LMTP engine (§3 design done; implementation pending).
+- 22b G-LMTP **augmented-data sandwich** (§3.6 chunk 4; bootstrap shipped, sandwich pending).
 - Stratified × effect-modification interaction (smoke only).
 - Continuous-treatment G-LMTPs (paper covers discrete exposures only).
+- Ordinal / multi-level G-LMTP policies beyond binary `grace_period()` / `carry_forward()`
+  (the engine handles ordinal support; only the public policy constructors are binary so far).

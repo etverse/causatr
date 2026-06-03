@@ -181,6 +181,13 @@ Intervention means
 
 Contrasts
 
+For longitudinal data, causatr also supports **natural-history** modified
+treatment policies — grace periods / delays (`grace_period()`) and carry-forward
+(`carry_forward()`) — whose intervened treatment depends on the counterfactual
+natural-value *history* of treatment. These use the augmented-data sequential
+regression of Díaz et al. (2026) and are not expressible as ordinary `dynamic()`
+rules. See the longitudinal vignette.
+
 ## Diagnostics
 
 Check covariate balance and positivity after fitting:

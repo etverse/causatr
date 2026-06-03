@@ -1,5 +1,36 @@
 # causatr (development version)
 
+## 2026-06-03 — Phase 22b: Natural-history modified treatment policies (G-LMTPs)
+
+Two new intervention constructors, `grace_period()` and `carry_forward()`, add
+support for **modified treatment policies that depend on the natural-value
+history of treatment** (delays, grace periods, last-observation-carried-forward)
+under longitudinal g-computation. These regimes are *not* expressible with
+`dynamic()`: the standard iterated-conditional-expectation recursion conditions
+on the observed lagged treatment, whereas the policy needs the *counterfactual*
+natural value, which under treatment-state feedback differs from the observed
+value — `dynamic(\(d, trt) d$lag1_A)` runs but silently targets the wrong
+estimand.
+
+The estimator is the augmented-data sequential regression of Díaz, Williams,
+Morzywołek & Rudolph (2026, *Modified treatment policies that depend on the
+natural history of treatment*, arXiv:2605.24167): each observation is augmented
+with every possible natural-treatment-history sequence, carried as a label
+through the backward recursion so the conditioning treatment value is decoupled
+from the policy-input value. causatr's parametric-GLM plug-in is √n-consistent
+under correct specification. `grace_period(window)` delays treatment initiation
+by `window` periods (the paper's Section-6 policy); `carry_forward()` is the
+degenerate LOCF policy.
+
+Supported for `estimator = "gcomp"` longitudinal fits with a discrete treatment;
+ID-cluster bootstrap variance. Validated against the forward Monte-Carlo truth
+(the paper's Proposition 1), replicating the Díaz et al. (2026) Section-6 delay
+result, with exact limiting-case agreement against standard ICE
+(`carry_forward()` ≡ a baseline regime; `grace_period(0)` ≡ the natural course).
+Rejections are classed (`causatr_glmtp_not_ice`, `_mixed`, `_continuous_trt`,
+`_too_many`). The augmented-data sandwich is deferred; `ci_method = "sandwich"`
+aborts with `causatr_glmtp_sandwich` and points to the bootstrap.
+
 ## 2026-06-02 — Phase 22a: Stratified ICE (`stratified = "G"`)
 
 `causat(..., stratified = "G")` adds stratified iterated-conditional-expectation
