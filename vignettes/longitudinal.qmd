@@ -1527,99 +1527,23 @@ and the ICE cascade gradient propagates through them.
 ## Natural-history modified treatment policies (grace periods)
 
 Some policies set the intervened treatment at time $t$ as a function of the
-**natural-value history of treatment** --- the treatment a patient *would* take
-absent the intervention, at $t$ *and* at earlier periods. The canonical example
-is a **grace period / delay**: postpone treatment initiation by one period
-relative to when the patient would naturally start. These are
-**G-LMTPs** (Díaz, Williams, Morzywołek & Rudolph 2026).
+**natural-value history of treatment** --- grace periods, delays, and
+carry-forward. These are **G-LMTPs** (Díaz, Williams, Morzywołek & Rudolph
+2026), and they are *not* expressible as `dynamic()` rules: the standard ICE
+recursion conditions on the *observed* lagged treatment, whereas the policy
+needs the *counterfactual* natural value, which under treatment-state feedback
+differs from the observed value (so `dynamic(\(d, trt) d$lag1_A)` runs but
+silently targets the wrong estimand). causatr estimates them with an
+augmented-data sequential regression via the `grace_period()` and
+`carry_forward()` constructors (longitudinal g-computation, discrete treatment,
+ID-cluster bootstrap).
 
-A grace period is **not** a `dynamic()` rule. The standard ICE recursion
-conditions on the *observed* lagged treatment (`lag1_A`), but under a delay the
-natural value at $t$ differs from the observed value once the policy has
-perturbed the trajectory (treatment-state feedback). Writing
-`dynamic(\(d, trt) d$lag1_A)` runs without error but silently targets the wrong
-estimand. causatr instead uses the paper's **augmented-data sequential
-regression**, carrying every possible natural-treatment-history sequence as a
-label through the backward recursion.
-
-Use `grace_period(window)` (delay initiation by `window` periods) or
-`carry_forward()` (hold everyone at their baseline level). They require a
-longitudinal g-computation fit with a **discrete** treatment, and are inferred
-with the ID-cluster bootstrap.
-
-**DGM.** A 4-period binary **absorbing** treatment (once started, stays on) with
-covariate feedback, so the natural history under a delay genuinely differs from
-the observed history:
-
-```{r}
-set.seed(1)
-n <- 2000L
-tau <- 4L
-L0 <- rnorm(n)
-A <- matrix(0L, n, tau)
-L <- matrix(0, n, tau)
-Lprev <- L0
-Aprev <- integer(n)
-for (t in seq_len(tau)) {
-  Lt <- if (t == 1L) 0.5 * L0 + rnorm(n) else 0.5 * Lprev + 0.8 * Aprev + rnorm(n)
-  At <- ifelse(Aprev == 1L, 1L, rbinom(n, 1L, plogis(-1 + 0.5 * Lt)))
-  A[, t] <- At; L[, t] <- Lt; Lprev <- Lt; Aprev <- At
-}
-Y <- 1 + 0.8 * rowSums(A) + 0.4 * L[, tau] - 0.5 * L0 + rnorm(n)
-d_glmtp <- data.frame(
-  id = rep(seq_len(n), each = tau),
-  time = rep(seq_len(tau), n),
-  L0 = rep(L0, each = tau),
-  A = as.vector(t(A)),
-  L = as.vector(t(L)),
-  Y = NA_real_
-)
-d_glmtp$Y[d_glmtp$time == tau] <- Y
-
-fit_glmtp <- causat(
-  d_glmtp,
-  outcome = "Y", treatment = "A",
-  confounders = ~ L0, confounders_tv = ~ L,
-  id = "id", time = "time", estimator = "gcomp", history = Inf
-)
-
-res_grace <- contrast(
-  fit_glmtp,
-  interventions = list(
-    delay1  = grace_period(1L),
-    locf    = carry_forward(),
-    natural = NULL
-  ),
-  reference = "natural",
-  ci_method = "bootstrap", n_boot = 200L
-)
-res_grace
-```
-
-```{r}
-#| label: fig-grace
-#| fig-cap: "Counterfactual means under a one-period delay, carry-forward, and the natural course, with ID-cluster bootstrap 95% CIs."
-#| fig-width: 6
-#| fig-height: 2.6
-library(tinytable)
-library(tinyplot)
-
-tt(res_grace$estimates)
-
-est <- res_grace$estimates
-with(est, tinyplot(
-  x = factor(intervention, levels = intervention), y = estimate,
-  ymin = ci_lower, ymax = ci_upper,
-  type = "pointrange", ylab = expression(E(Y^d)), xlab = ""
-))
-```
-
-Delaying initiation by one period lowers the counterfactual mean relative to the
-natural course (fewer treated person-periods); carry-forward (hold at baseline)
-lowers it further. The augmented engine reproduces the forward-simulation truth
-for these policies, whereas a naive `dynamic(lag1_A)` rule is off by tens of
-percent --- see `tests/testthat/test-glmtp.R`, which replicates the Díaz et al.
-(2026) Section-6 delay result.
+This family has its own article: see
+[**Natural-history MTPs (grace periods)**](natural-history-mtps.html) for the
+concept, a visual of how each policy assigns treatment, why `dynamic(lag1_A)` is
+wrong, the augmented-data intuition, worked examples validated against the
+forward-simulation truth (replicating the Díaz et al. 2026 Section-6 delay
+result), and the relationship to LMTPs and natural-value IPW.
 
 ## Summary of covered combinations
 

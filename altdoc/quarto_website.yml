@@ -37,6 +37,8 @@ website:
         contents:
           - text: "Intervention types"
             file: vignettes/interventions.qmd
+          - text: "Natural-history MTPs (grace periods)"
+            file: vignettes/natural-history-mtps.qmd
       - section: Advanced topics
         contents:
           - vignettes/triangulation.qmd
