@@ -14,7 +14,7 @@ delay from the paper.}
 
 \item{budget}{Positive integer. Maximum allowed worst-step natural-history
 enumeration \eqn{|\mathcal{A}|^{\tau-1}} before the augmentation is deemed
-intractable (see \code{\link[=glmtp_check_tractable]{glmtp_check_tractable()}}). Default \code{1024}.}
+intractable and aborted. Default \code{1024}.}
 }
 \value{
 A \code{causatr_glmtp} object (also inheriting \code{causatr_intervention})

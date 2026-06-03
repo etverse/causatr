@@ -27,7 +27,7 @@
 #'   delay from the paper.
 #' @param budget Positive integer. Maximum allowed worst-step natural-history
 #'   enumeration \eqn{|\mathcal{A}|^{\tau-1}} before the augmentation is deemed
-#'   intractable (see [glmtp_check_tractable()]). Default `1024`.
+#'   intractable and aborted. Default `1024`.
 #'
 #' @return A `causatr_glmtp` object (also inheriting `causatr_intervention`)
 #'   carrying the policy closure.
