@@ -2,13 +2,16 @@
 
 > **Status:**
 > - **22a Stratified ICE — SHIPPED** (bootstrap variance **and** analytic per-stratum sandwich, §1.6).
-> - **22b Natural-history MTPs (`grace_period()` / `carry_forward()`) — SHIPPED (bootstrap variance).**
+> - **22b Natural-history MTPs (`grace_period()` / `carry_forward()`) — CORE SHIPPED (bootstrap).**
 >   The original "thin `dynamic()` wrapper" plan was found to be theoretically unsound (see §3); the
 >   correct G-LMTP augmented-data sequential regression (§3) is implemented in `R/glmtp.R`,
 >   `R/glmtp_augment.R`, `R/glmtp_interventions.R`, with ID-cluster bootstrap variance and
 >   forward-MC truth validation (`tests/testthat/test-glmtp.R`, replicating Díaz et al. §6). The
->   **augmented-data sandwich (§3.6 chunk 4) remains deferred** — `ci_method = "sandwich"` aborts
->   with `causatr_glmtp_sandwich`.
+>   engine handles **any single discrete treatment** (ordinal validated to ~1e-9 vs an independent
+>   hand-coded recursion). **Four chunks remain — a planned roadmap, not deferred-and-forgotten
+>   (§3.7):** 22b-4 augmented-data sandwich, 22b-5 flexible-treatment ICE term (enabler), 22b-6
+>   `cap_escalation()` public release (today internal `@noRd`), 22b-7 multivariate G-LMTP. Tracked in
+>   `CLAUDE.md` Pending.
 >
 > **Depends on:** Phase 5 (longitudinal ICE), Phase 15 (ICE formula builder for transformed TV
 > confounders).
@@ -295,12 +298,61 @@ later sub-chunk (harder: the bread couples augmented replicate rows).
 4. **[DEFERRED]** Augmented-data sandwich — the bread couples augmented replicate rows across
    labels; `delicatessen`'s `MEstimator` is the intended secondary oracle (as for 22a §1.6).
 
+### 3.7 Remaining 22b chunks — planned roadmap (NOT yet implemented)
+
+Chunks 1–3 shipped `grace_period()` / `carry_forward()` with ID-cluster bootstrap. The engine
+(`glmtp_iterate()`) already handles **any single discrete treatment** ($|\mathcal{A}| \ge 2$): the
+recursion enumerates $\bar{\mathcal{A}}_t = \mathcal{A}^t$ and fits one model per label regardless of
+cardinality — validated for ordinal ($|\mathcal{A}|=3$) to numerical precision (`carry_forward()` vs
+baseline regime $10^{-14}$; engine vs independent hand-coded recursion $\sim10^{-9}$ for the dose cap,
+`glmtp_handcode_cap()`, `test-glmtp.R`). The following chunks are **planned, not done**; this is the
+live roadmap for 22b's continuation (each is registered in `CLAUDE.md`'s Pending list).
+
+| Chunk | Title | Depends on | Status |
+|---|---|---|---|
+| **22b-4** | Augmented-data sandwich variance | — | PLANNED |
+| **22b-5** | Flexible-treatment ICE term (enabler) | — | PLANNED |
+| **22b-6** | `cap_escalation()` public release | 22b-5 | PLANNED |
+| **22b-7** | Multivariate (vector-treatment) G-LMTP | 22b-5 | PLANNED |
+
+**Chunk 22b-4 — Augmented-data sandwich.** Stack the per-(time, label) GLM scores + the mean EE into a
+block-triangular M-estimation system; the bread couples augmented replicate rows across labels (the
+cascade is the pooled-ICE chain run per label). Secondary oracle: `delicatessen`'s `MEstimator` (the
+same plug-in M-estimation variance, as for 22a §1.6). Ship only on tight (`~1e-6`) delicatessen
+agreement; else keep the `causatr_glmtp_sandwich` abort. Independent of 22b-5/6/7.
+
+**Chunk 22b-5 — Flexible-treatment ICE term (the enabler).** *Root cause of the cap-policy bias.* ICE
+enters the treatment as a **bare numeric** term, so a kinked pseudo-response (piecewise-linear in a
+capped dose) is misspecified — confirmed by a $\sim3\%$ asymptotic point bias when the cap binds that
+**vanishes** under a `factor(dose)` model (gap $0.034 \to 0.0015$, same recursion; `test-glmtp.R`
+hand-code evidence). Deliverable: let the treatment enter the per-step formula flexibly —
+`factor(A)` / `splines::ns(A)` / a user `treatment_form = ` — in `ice_build_formula()` and the
+prediction frames of **both** `ice_iterate()` and `glmtp_iterate()` (the policy still sets the numeric
+`A` column; only the model term changes). Benefits all of ICE, not just G-LMTP. Validation: existing
+ICE/G-LMTP tests unchanged; `cap_escalation` gap → sampling error under `factor(A)`.
+
+**Chunk 22b-6 — `cap_escalation()` public release.** Today internal (`@noRd`); engine + policy are
+correct (no-cap limit exact; hand-code match $10^{-9}$). Export + a forward-MC truth test that now
+*passes tightly* because 22b-5 makes the plug-in consistent. Oracle: forward-MC Proposition-1 truth +
+the hand-coded recursion. Depends on 22b-5.
+
+**Chunk 22b-7 — Multivariate G-LMTP.** Díaz covers multivariate via binary coding. The support is the
+product **over components and time** $\bar{\mathcal{A}}_t = (\mathcal{A}^{(1)} \times \cdots \times
+\mathcal{A}^{(K)})^t$, so the worst-step count is $|\mathcal{A}^{(1)}\times\cdots\times\mathcal{A}^{(K)}|^{\tau-1}$
+— a factor $K$ faster in the exponent, so `glmtp_check_tractable()` gates on the **joint** per-period
+cardinality with a smaller default budget. `glmtp_support()` returns a per-component support list;
+`glmtp_enumerate_labels()` enumerates the joint product; the policy closure takes/returns a *vector*
+natural value; `glmtp_iterate()` groups prediction rows by the joint observed value and sets all $K$
+treatment columns. Lift the `check_glmtp_compat()` multivariate gate (`length(treatment) != 1`). Oracle:
+multivariate forward-MC truth + `lmtp::lmtp_sdr` MV where the policy is contemporaneous-reducible.
+Depends on 22b-5 (non-static components are bare-numeric otherwise).
+
 ---
 
-## Deferred items
+## Deferred items (out of scope for Phase 22 entirely)
 
-- 22b G-LMTP **augmented-data sandwich** (§3.6 chunk 4; bootstrap shipped, sandwich pending).
 - Stratified × effect-modification interaction (smoke only).
-- Continuous-treatment G-LMTPs (paper covers discrete exposures only).
-- Ordinal / multi-level G-LMTP policies beyond binary `grace_period()` / `carry_forward()`
-  (the engine handles ordinal support; only the public policy constructors are binary so far).
+- Continuous-treatment G-LMTPs (paper covers discrete exposures only; needs TMLE/SDR, `lmtp`).
+
+(22b's own remaining work — sandwich, flexible-treatment ICE, `cap_escalation`, multivariate — is the
+**planned roadmap in §3.7**, tracked in `CLAUDE.md` Pending, not a deferred-and-forgotten list.)

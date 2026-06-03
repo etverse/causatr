@@ -31,6 +31,18 @@ Rejections are classed (`causatr_glmtp_not_ice`, `_mixed`, `_continuous_trt`,
 `_too_many`). The augmented-data sandwich is deferred; `ci_method = "sandwich"`
 aborts with `causatr_glmtp_sandwich` and points to the bootstrap.
 
+The augmented engine handles any single **discrete** treatment, not just binary:
+the ordinal (`{0,1,2}`) path is validated to numerical precision — `carry_forward()`
+matches the equivalent baseline regime to 1e-14, and the engine matches an
+independent hand-coded recursion to 1e-9 for a dose-escalation cap. The public
+ordered-policy constructor (`cap_escalation()`) and multivariate G-LMTP are
+**deferred** (designed in `PHASE_22_ICE_ENHANCEMENTS.md` §3.7): the parametric
+plug-in is consistent for these only under a flexible-dose model that causatr's
+ICE does not yet expose (the treatment enters as a bare numeric term, which
+misspecifies the kinked pseudo-response and biases the point estimate ~3% when
+a dose cap binds — confirmed specification error, not a bug, since a
+`factor(dose)` model recovers the truth).
+
 ## 2026-06-02 — Phase 22a: Stratified ICE (`stratified = "G"`)
 
 `causat(..., stratified = "G")` adds stratified iterated-conditional-expectation

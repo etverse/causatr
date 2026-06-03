@@ -283,3 +283,133 @@ glmtp_paper_forward_truth <- function(window, n_mc = 2e6, seed = 1L) {
   cumAd <- rowSums(Ad)
   mean(stats::plogis(p$b0 + p$bA * cumAd + p$bL * L_tau))
 }
+
+# ---------------------------------------------------------------------------
+# Dose-escalation cap (ordered / ordinal treatment), tau = 3, support {0,1,2}.
+# A dose escalates from the ACTUAL (capped) prior dose; the cap policy limits the
+# natural per-period increase at delta, comparing the natural dose at t to the
+# natural dose at t-1. tau = 3 makes the policy genuinely irreducible. Used only
+# to validate the engine's ordinal natural-value-dependent path against an
+# independent hand-coded recursion (the public cap_escalation() release is
+# deferred -- see PHASE_22). The dose enters the outcome model numerically.
+# ---------------------------------------------------------------------------
+
+#' Ordered-dose escalation SCM, tau = 3, support {0,1,2} (observed data)
+#'
+#' @param n Integer number of individuals.
+#' @param seed Integer RNG seed.
+#' @return A list with `data` (long data.frame; dose column `A`) and `support`.
+glmtp_ordinal_cap_data <- function(n = 6000L, seed = 1L) {
+  tau <- 3L
+  m <- 2L
+  set.seed(seed)
+  L0 <- stats::rnorm(n)
+  A <- matrix(0L, n, tau)
+  L <- matrix(0, n, tau)
+  Lprev <- L0
+  Aprev <- integer(n)
+  for (t in seq_len(tau)) {
+    Lt <- 0.5 * Lprev + 0.3 * Aprev + stats::rnorm(n)
+    step <- stats::rbinom(n, 2L, stats::plogis(-0.2 + 0.6 * Lt))
+    At <- pmin(m, Aprev + step)
+    A[, t] <- At
+    L[, t] <- Lt
+    Lprev <- Lt
+    Aprev <- At
+  }
+  Y <- 1 + 0.7 * rowSums(A) + 0.4 * L[, tau] - 0.5 * L0 + stats::rnorm(n)
+  long <- data.frame(
+    id = rep(seq_len(n), each = tau),
+    t = rep(seq_len(tau), n),
+    L0 = rep(L0, each = tau),
+    A = as.vector(t(A)),
+    L = as.vector(t(L)),
+    Y = NA_real_
+  )
+  long$Y[long$t == tau] <- Y
+  list(data = long, support = c(0, 1, 2))
+}
+
+#' Independent hand-coded augmented recursion for the dose cap (tau = 3)
+#'
+#' @description
+#' A from-scratch re-implementation of the augmented-data sequential regression
+#' for the dose-escalation cap on a 3-period, 3-level treatment, structured
+#' differently from [glmtp_iterate()] (explicit nested label loops, bare-numeric
+#' `stats::glm`). It is the independent oracle proving the engine has no bug on
+#' the ordinal natural-value-dependent path: the two must agree to numerical
+#' precision. The cap compares the natural dose at \eqn{t} (here the value
+#' predicted at) with the natural dose at \eqn{t-1} (the last label entry).
+#'
+#' @param fit A `causatr_fit` from `glmtp_ordinal_cap_data()` (lag columns built).
+#' @param delta Numeric cap on the per-period natural increase.
+#' @return Numeric scalar, the plug-in estimate \eqn{\hat\theta}.
+glmtp_handcode_cap <- function(fit, delta) {
+  support <- c(0, 1, 2)
+  cap <- function(a_now, a_prev) {
+    ifelse(a_now - a_prev > delta, a_prev + delta, a_now)
+  }
+  d <- as.data.frame(fit$data)
+  by_t <- function(tt) d[d$t == tt, , drop = FALSE]
+  # Same per-step formulas the ICE builder produces for tau = 3, history = Inf.
+  f_base <- stats::as.formula(
+    "Y ~ A + lag1_A + lag2_A + L + lag1_L + lag2_L + L0"
+  )
+  f_s2 <- stats::as.formula(".py ~ A + lag1_A + L + lag1_L + L0")
+  f_s1 <- stats::as.formula(".py ~ A + L + L0")
+
+  d3 <- by_t(3)
+  m3 <- stats::glm(f_base, data = d3[!is.na(d3$Y), ])
+  q3 <- list()
+  for (s1 in support) {
+    for (s2 in support) {
+      nd <- d3
+      nd$A <- cap(d3$A, s2) # cap natural A3 (=obs) vs natural A2 (=s2)
+      q3[[paste(s1, s2)]] <- stats::setNames(
+        as.numeric(stats::predict(m3, nd)),
+        d3$id
+      )
+    }
+  }
+  d2 <- by_t(2)
+  m2 <- list()
+  for (s1 in support) {
+    for (s2 in support) {
+      k <- paste(s1, s2)
+      dd <- d2
+      dd$.py <- q3[[k]][as.character(d2$id)]
+      m2[[k]] <- stats::glm(f_s2, data = dd)
+    }
+  }
+  d1 <- by_t(1)
+  q2 <- list()
+  for (s1 in support) {
+    pr <- rep(NA_real_, nrow(d2))
+    for (a2 in support) {
+      ix <- which(d2$A == a2)
+      if (length(ix) == 0L) {
+        next
+      }
+      nd <- d2[ix, ]
+      nd$A <- cap(a2, s1) # cap natural A2 (=a2) vs natural A1 (=s1)
+      pr[ix] <- as.numeric(stats::predict(m2[[paste(s1, a2)]], nd))
+    }
+    q2[[as.character(s1)]] <- stats::setNames(pr, d2$id)
+  }
+  m1 <- list()
+  for (s1 in support) {
+    dd <- d1
+    dd$.py <- q2[[as.character(s1)]][as.character(d1$id)]
+    m1[[as.character(s1)]] <- stats::glm(f_s1, data = dd)
+  }
+  q1 <- rep(NA_real_, nrow(d1))
+  for (a1 in support) {
+    ix <- which(d1$A == a1)
+    if (length(ix) == 0L) {
+      next
+    }
+    # d_1 = A_1 (no prior dose to cap against at baseline).
+    q1[ix] <- as.numeric(stats::predict(m1[[as.character(a1)]], d1[ix, ]))
+  }
+  mean(q1)
+}

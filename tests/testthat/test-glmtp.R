@@ -336,6 +336,36 @@ test_that("carry_forward equals the baseline regime for an ordinal (3-level) tre
   expect_equal(mu_cf, mu_dyn, tolerance = 1e-8)
 })
 
+# cap_escalation() is internal/deferred (PHASE_22): the parametric plug-in is
+# consistent only under a flexible dose model causatr's ICE does not expose
+# (a factor-dose model recovers the forward-MC truth to ~1e-3; the bare-numeric
+# model is ~3% biased when the cap binds). The ENGINE, however, must be bug-free
+# on the ordinal natural-value-dependent path. A from-scratch hand-coded
+# recursion (different code structure, bare-numeric glm) is the independent
+# oracle: the two agree to numerical precision, proving the recursion -- not the
+# method -- is correct, before any "plug-in bias" attribution.
+# (2026-06-03 critical review; /tmp/causatr_glmtp_bugcheck.R.)
+test_that("the engine matches an independent hand-coded recursion for an ordinal dose-cap", {
+  d <- glmtp_ordinal_cap_data(n = 6000L, seed = 1L)$data
+  fit <- glmtp_fit(d)
+  for (delta in c(1, 10)) {
+    mu_engine <- mean(glmtp_iterate(fit, cap_escalation(delta))$pseudo_final)
+    mu_hand <- glmtp_handcode_cap(fit, delta)
+    expect_equal(mu_engine, mu_hand, tolerance = 1e-9)
+  }
+})
+
+test_that("cap_escalation with delta >= max increase reduces to the natural course", {
+  # When the cap never binds the augmented recursion reproduces the observed
+  # treatment exactly -- a tight check that the policy/prediction plumbing is
+  # correct independent of any model-misspecification bias.
+  d <- glmtp_ordinal_cap_data(n = 4000L, seed = 2L)$data
+  fit <- glmtp_fit(d)
+  mu_cap_big <- mean(glmtp_iterate(fit, cap_escalation(10))$pseudo_final)
+  mu_nat <- mean(glmtp_iterate(fit, NULL)$pseudo_final)
+  expect_equal(mu_cap_big, mu_nat, tolerance = 1e-10)
+})
+
 test_that("a per-label fit failure surfaces a classed warning, not a silent estimate", {
   # 2026-06-03 critical review Issue #3: a per-label model failure degrades the
   # affected rows to NA and drops them from later steps. Force one failure with

@@ -184,6 +184,86 @@ carry_forward <- function(seed = "baseline", budget = 1024L) {
 }
 
 
+#' Dose-escalation cap natural-history treatment policy (internal, deferred)
+#'
+#' @description
+#' **Not exported.** The augmented recursion estimates this policy correctly
+#' (validated against an independent hand-coded recursion to ~1e-14, and against
+#' the forward-MC truth under a flexible dose model), but causatr's ICE enters
+#' the treatment as a bare numeric term, which misspecifies the kinked
+#' pseudo-response when the cap binds (~3% asymptotic point bias on a linear-dose
+#' DGP; a `factor(dose)` model recovers the truth). The public release awaits a
+#' flexible-dose ICE term -- see `PHASE_22_ICE_ENHANCEMENTS.md` (22b deferred
+#' sub-phase). Retained internal so the engine's ordinal natural-value-dependent
+#' path stays under test.
+#'
+#' Creates a natural-history modified treatment policy for an **ordered /
+#' ordinal / count** treatment (a dose) that **caps the natural per-period
+#' increase at `delta`** (Diaz, Williams, Morzywolek & Rudolph 2026, the
+#' dose-escalation example). Comparing the natural dose at \eqn{t} with the
+#' natural dose at \eqn{t-1} (both under the regime),
+#' \deqn{A^d_t = \begin{cases} A_{t-1} + \delta & A_t - A_{t-1} > \delta \\
+#' A_t & \text{otherwise,}\end{cases}}
+#' so a patient may follow their natural dose unless it would jump by more than
+#' `delta` in one period, in which case the increase is capped. Because the cap
+#' reads the natural dose at the **previous** period (the natural-value history),
+#' it is a genuine G-LMTP and is estimated by the augmented engine, not
+#' [dynamic()].
+#'
+#' Intended for a discrete ordered exposure where `A_{t-1} + delta` stays within
+#' the observed support (e.g. integer dose levels with an integer `delta`); the
+#' per-label outcome models predict at the capped value, so a capped dose far
+#' outside the support would extrapolate.
+#'
+#' @param delta Positive numeric. Maximum allowed per-period increase in the
+#'   natural dose. Default `1`.
+#' @param budget Positive integer. Worst-step enumeration budget, as in
+#'   [grace_period()]. Default `1024`.
+#'
+#' @return A `causatr_glmtp` object (also inheriting `causatr_intervention`).
+#'
+#' @references
+#' Diaz I, Williams NT, Morzywolek P, Rudolph KE (2026). Modified treatment
+#' policies that depend on the natural history of treatment. arXiv:2605.24167.
+#'
+#' @seealso [grace_period()], [carry_forward()], [contrast()]
+#' @family glmtp
+#' @noRd
+cap_escalation <- function(delta = 1, budget = 1024L) {
+  if (
+    !(is.numeric(delta) && length(delta) == 1L && !is.na(delta) && delta > 0)
+  ) {
+    rlang::abort(
+      "`delta` must be a single positive number.",
+      class = "causatr_bad_intervention_arg"
+    )
+  }
+  if (!rlang::is_scalar_integerish(budget) || is.na(budget) || budget < 1L) {
+    rlang::abort(
+      "`budget` must be a single positive integer.",
+      class = "causatr_bad_intervention_arg"
+    )
+  }
+
+  # `s_prior` carries the natural-dose history (s_1, ..., s_{t-1}); its last
+  # entry is the natural dose at t-1. `a_now` is the (per-individual) natural
+  # dose at t. Cap the increase A_t - A_{t-1} at delta.
+  policy <- function(s_prior, a_now, h_data, t, n_times) {
+    if (length(s_prior) == 0L) {
+      # Baseline: there is no prior dose to cap an increase against.
+      return(a_now)
+    }
+    a_prev <- s_prior[length(s_prior)]
+    ifelse(a_now - a_prev > delta, a_prev + delta, a_now)
+  }
+
+  new_causatr_glmtp(
+    "cap_escalation",
+    list(delta = delta, budget = as.integer(budget), policy = policy)
+  )
+}
+
+
 #' Natural-course (identity) natural-history policy
 #'
 #' @description

@@ -276,6 +276,14 @@ Variance: ID-cluster **bootstrap** (the augmented-data sandwich is deferred).
 | bin | gauss | `grace_period(0)` | 4 | (point) | — | ✅ exact vs natural course (1e-9) | test-glmtp.R |
 | bin | gauss | `grace_period(1)` | 4 | boot | — | ✅ CI covers forward-MC truth | test-glmtp.R |
 | bin | gauss | `grace_period(1)` | 4 | boot | ext / cens | ✅ composes (finite point + SE) | test-glmtp.R |
+| ordinal {0,1,2} | gauss | `carry_forward()` | 3 | (point) | — | ✅ exact vs baseline regime (1e-14) — `|A|^t` machinery | test-glmtp.R |
+| ordinal {0,1,2} | gauss | `cap_escalation` (internal) | 3 | (point) | — | ✅ engine == independent hand-coded recursion (1e-9) | test-glmtp.R |
+
+The engine handles **any single discrete treatment** ($|\mathcal{A}| \ge 2$); the ordinal rows pin the
+`|A|^t` label machinery. Public policy constructors are binary (`grace_period`) / any-discrete
+(`carry_forward`). **Deferred** (designed, `PHASE_22` §3.7): `cap_escalation()` public release (kept
+internal — the bare-numeric ICE dose term gives a ~3% bias when the cap binds; a `factor(dose)` model
+recovers the truth, so it needs a flexible-dose ICE term) and **multivariate** G-LMTP.
 
 Augment helpers (`glmtp_support`, `glmtp_enumerate_labels`, `glmtp_label_key`,
 `glmtp_check_tractable`) — all ✅ unit-tested (`test-glmtp.R`).

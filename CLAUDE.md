@@ -7,7 +7,7 @@ Part of the [etverse](https://github.com/etverse) ecosystem.
 ## Guide files
 
 - `FEATURE_COVERAGE_MATRIX.md` — **single source of truth for "what works".** Every PR that changes a feature MUST update this file.
-- `PHASE_*.md` — per-phase implementation guides in the project root. Completed: 2–6, 8–21 (21a–21e + the longitudinal/IPCW combinations), 22a (stratified ICE), 22b (natural-history MTPs / G-LMTPs — bootstrap variance shipped; augmented-data sandwich deferred), 25. Pending: 23–24, 26 (design docs); Phase 21 vignette (21i) still to write.
+- `PHASE_*.md` — per-phase implementation guides in the project root. Completed: 2–6, 8–21 (21a–21e + the longitudinal/IPCW combinations), 22a (stratified ICE), 22b-core (natural-history MTPs / G-LMTPs — `grace_period()` / `carry_forward()`, bootstrap variance), 25. Pending: **22b-4** (G-LMTP augmented-data sandwich), **22b-5** (flexible-treatment ICE term — enables unbiased nonlinear ordered/multivariate policies), **22b-6** (`cap_escalation()` public release, today internal), **22b-7** (multivariate G-LMTP) — all designed with a chunk plan in `PHASE_22` §3.7; 23–24, 26 (design docs); Phase 21 vignette (21i) still to write.
 
 ## Project structure
 
