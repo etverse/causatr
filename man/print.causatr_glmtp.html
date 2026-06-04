@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>print.causatr_diag – causatr</title>
+<title>print.causatr_glmtp – causatr</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -107,7 +107,7 @@ ul.task-list li input[type="checkbox"] {
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../man/carry_forward.html">Reference</a></li><li class="breadcrumb-item"><a href="../man/print.causatr_diag.html">print.causatr_diag</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../man/carry_forward.html">Reference</a></li><li class="breadcrumb-item"><a href="../man/print.causatr_glmtp.html">print.causatr_glmtp</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -371,7 +371,7 @@ ul.task-list li input[type="checkbox"] {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../man/print.causatr_diag.html" class="sidebar-item-text sidebar-link active">
+  <a href="../man/print.causatr_diag.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">print.causatr_diag</span></a>
   </div>
 </li>
@@ -383,7 +383,7 @@ ul.task-list li input[type="checkbox"] {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../man/print.causatr_glmtp.html" class="sidebar-item-text sidebar-link">
+  <a href="../man/print.causatr_glmtp.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text">print.causatr_glmtp</span></a>
   </div>
 </li>
@@ -501,32 +501,31 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#print-causatr-diagnostics" id="toc-print-causatr-diagnostics" class="nav-link active" data-scroll-target="#print-causatr-diagnostics">Print causatr diagnostics</a>
+  <li><a href="#print-a-natural-history-g-lmtp-intervention" id="toc-print-a-natural-history-g-lmtp-intervention" class="nav-link active" data-scroll-target="#print-a-natural-history-g-lmtp-intervention">Print a natural-history (G-LMTP) intervention</a>
   <ul class="collapse">
   <li><a href="#description" id="toc-description" class="nav-link" data-scroll-target="#description">Description</a></li>
   <li><a href="#usage" id="toc-usage" class="nav-link" data-scroll-target="#usage">Usage</a></li>
   <li><a href="#arguments" id="toc-arguments" class="nav-link" data-scroll-target="#arguments">Arguments</a></li>
   <li><a href="#value" id="toc-value" class="nav-link" data-scroll-target="#value">Value</a></li>
-  <li><a href="#see-also" id="toc-see-also" class="nav-link" data-scroll-target="#see-also">See Also</a></li>
   </ul></li>
   </ul>
 <div class="quarto-code-links"><h2>Code Links</h2><ul><li><a href="undefined"><i class="bi bi-link-45deg"></i></a></li></ul></div></nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../man/carry_forward.html">Reference</a></li><li class="breadcrumb-item"><a href="../man/print.causatr_diag.html">print.causatr_diag</a></li></ol></nav></header>
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../man/carry_forward.html">Reference</a></li><li class="breadcrumb-item"><a href="../man/print.causatr_glmtp.html">print.causatr_glmtp</a></li></ol></nav></header>
 
 
 
 
-<section id="print-causatr-diagnostics" class="level2 unnumbered">
-<h2 class="unnumbered anchored" data-anchor-id="print-causatr-diagnostics">Print causatr diagnostics</h2>
+<section id="print-a-natural-history-g-lmtp-intervention" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="print-a-natural-history-g-lmtp-intervention">Print a natural-history (G-LMTP) intervention</h2>
 <section id="description" class="level3">
 <h3 class="anchored" data-anchor-id="description">Description</h3>
-<p>Displays positivity summaries, covariate balance tables, weight distributions (IPW), and match quality metrics (matching) from a causatr_diag object. Multi-panel diagnostics (built with a non-<code>NULL</code> <code style="white-space: pre;">interventions =</code> argument) print each panel in turn, headed by its intervention key.</p>
+<p>Displays the policy family and its scalar parameters; the policy closure is shown as a placeholder rather than deparsed.</p>
 </section>
 <section id="usage" class="level3">
 <h3 class="anchored" data-anchor-id="usage">Usage</h3>
-<pre><code class="language-R">## S3 method for class 'causatr_diag'
+<pre><code class="language-R">## S3 method for class 'causatr_glmtp'
 print(x, ...)
 </code></pre>
 </section>
@@ -538,7 +537,7 @@ print(x, ...)
 <code id="x">x</code>
 </td>
 <td>
-A <code>causatr_diag</code> object.
+A <code>causatr_glmtp</code> object.
 </td>
 </tr>
 <tr>
@@ -554,10 +553,6 @@ Currently unused.
 <section id="value" class="level3">
 <h3 class="anchored" data-anchor-id="value">Value</h3>
 <p>Invisibly returns <code>x</code>.</p>
-</section>
-<section id="see-also" class="level3">
-<h3 class="anchored" data-anchor-id="see-also">See Also</h3>
-<p><code>summary.causatr_diag()</code>, <code>diagnose()</code></p>
 
 
 </section>

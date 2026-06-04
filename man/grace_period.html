@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>print.causatr_diag – causatr</title>
+<title>grace_period – causatr</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -22,6 +22,41 @@ ul.task-list li input[type="checkbox"] {
   width: 0.8em;
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
 </style>
 
@@ -71,6 +106,35 @@ ul.task-list li input[type="checkbox"] {
   }
 }</script>
 
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
 
 </head>
 
@@ -107,7 +171,7 @@ ul.task-list li input[type="checkbox"] {
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../man/carry_forward.html">Reference</a></li><li class="breadcrumb-item"><a href="../man/print.causatr_diag.html">print.causatr_diag</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../man/carry_forward.html">Reference</a></li><li class="breadcrumb-item"><a href="../man/grace_period.html">grace_period</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -341,7 +405,7 @@ ul.task-list li input[type="checkbox"] {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../man/grace_period.html" class="sidebar-item-text sidebar-link">
+  <a href="../man/grace_period.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text">grace_period</span></a>
   </div>
 </li>
@@ -371,7 +435,7 @@ ul.task-list li input[type="checkbox"] {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../man/print.causatr_diag.html" class="sidebar-item-text sidebar-link active">
+  <a href="../man/print.causatr_diag.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">print.causatr_diag</span></a>
   </div>
 </li>
@@ -501,33 +565,38 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#print-causatr-diagnostics" id="toc-print-causatr-diagnostics" class="nav-link active" data-scroll-target="#print-causatr-diagnostics">Print causatr diagnostics</a>
+  <li><a href="#grace-period-delayed-initiation-natural-history-treatment-policy" id="toc-grace-period-delayed-initiation-natural-history-treatment-policy" class="nav-link active" data-scroll-target="#grace-period-delayed-initiation-natural-history-treatment-policy">Grace-period (delayed-initiation) natural-history treatment policy</a>
   <ul class="collapse">
   <li><a href="#description" id="toc-description" class="nav-link" data-scroll-target="#description">Description</a></li>
   <li><a href="#usage" id="toc-usage" class="nav-link" data-scroll-target="#usage">Usage</a></li>
   <li><a href="#arguments" id="toc-arguments" class="nav-link" data-scroll-target="#arguments">Arguments</a></li>
   <li><a href="#value" id="toc-value" class="nav-link" data-scroll-target="#value">Value</a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
   <li><a href="#see-also" id="toc-see-also" class="nav-link" data-scroll-target="#see-also">See Also</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   </ul></li>
   </ul>
 <div class="quarto-code-links"><h2>Code Links</h2><ul><li><a href="undefined"><i class="bi bi-link-45deg"></i></a></li></ul></div></nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../man/carry_forward.html">Reference</a></li><li class="breadcrumb-item"><a href="../man/print.causatr_diag.html">print.causatr_diag</a></li></ol></nav></header>
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../man/carry_forward.html">Reference</a></li><li class="breadcrumb-item"><a href="../man/grace_period.html">grace_period</a></li></ol></nav></header>
 
 
 
 
-<section id="print-causatr-diagnostics" class="level2 unnumbered">
-<h2 class="unnumbered anchored" data-anchor-id="print-causatr-diagnostics">Print causatr diagnostics</h2>
+<section id="grace-period-delayed-initiation-natural-history-treatment-policy" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="grace-period-delayed-initiation-natural-history-treatment-policy">Grace-period (delayed-initiation) natural-history treatment policy</h2>
 <section id="description" class="level3">
 <h3 class="anchored" data-anchor-id="description">Description</h3>
-<p>Displays positivity summaries, covariate balance tables, weight distributions (IPW), and match quality metrics (matching) from a causatr_diag object. Multi-panel diagnostics (built with a non-<code>NULL</code> <code style="white-space: pre;">interventions =</code> argument) print each panel in turn, headed by its intervention key.</p>
+<p>Creates a natural-history modified treatment policy (G-LMTP) that <strong>delays treatment initiation by <code>window</code> periods</strong>. Under the policy a patient initiates treatment exactly <code>window</code> periods after they would have initiated under their own natural treatment process, and treatment is absorbing once started (Diaz, Williams, Morzywolek &amp; Rudolph 2026; the policy used in their simulation study, Section 6). For binary treatment coded <code>1</code> = on treatment, the intervened value is</p>
+<p style="text-align: center;">
+</p><p><code class="reqn">A^d_t = { t - },</code></p>
+<p>which depends on the <strong>natural-value history of treatment</strong>, not just the contemporaneous natural value.</p>
+<p>This is <strong>not</strong> expressible as a <code>dynamic()</code> rule: the standard ICE recursion conditions on the <em>observed</em> lagged treatment, whereas the natural value at period <span class="math inline">\(t\)</span> under the regime differs from the observed value whenever the policy has already perturbed the treatment trajectory (treatment-state feedback). The estimate is produced by the augmented-data sequential regression and is only valid for <strong>longitudinal g-computation</strong> (<code>estimator = “gcomp”</code>) on a <strong>discrete</strong> treatment.</p>
 </section>
 <section id="usage" class="level3">
 <h3 class="anchored" data-anchor-id="usage">Usage</h3>
-<pre><code class="language-R">## S3 method for class 'causatr_diag'
-print(x, ...)
+<pre><code class="language-R">grace_period(window = 1L, budget = 1024L)
 </code></pre>
 </section>
 <section id="arguments" class="level3">
@@ -535,29 +604,48 @@ print(x, ...)
 <table role="presentation">
 <tbody><tr>
 <td style="white-space: collapse; font-family: monospace; vertical-align: top">
-<code id="x">x</code>
+<code id="window">window</code>
 </td>
 <td>
-A <code>causatr_diag</code> object.
+Non-negative integer. Number of periods by which initiation is delayed. <code>window = 0</code> makes initiation absorbing at the natural initiation time (a no-delay reference); <code>window = 1</code> is the canonical one-period delay from the paper.
 </td>
 </tr>
 <tr>
 <td style="white-space: collapse; font-family: monospace; vertical-align: top">
-<code id="...">…</code>
+<code id="budget">budget</code>
 </td>
 <td>
-Currently unused.
+Positive integer. Maximum allowed worst-step natural-history enumeration <span class="math inline">\(|\mathcal{A}|^{\tau-1}\)</span> before the augmentation is deemed intractable and aborted. Default <code>1024</code>.
 </td>
 </tr>
 </tbody></table>
 </section>
 <section id="value" class="level3">
 <h3 class="anchored" data-anchor-id="value">Value</h3>
-<p>Invisibly returns <code>x</code>.</p>
+<p>A <code>causatr_glmtp</code> object (also inheriting <code>causatr_intervention</code>) carrying the policy closure.</p>
+</section>
+<section id="references" class="level3">
+<h3 class="anchored" data-anchor-id="references">References</h3>
+<p>Diaz I, Williams NT, Morzywolek P, Rudolph KE (2026). Modified treatment policies that depend on the natural history of treatment. arXiv:2605.24167.</p>
 </section>
 <section id="see-also" class="level3">
 <h3 class="anchored" data-anchor-id="see-also">See Also</h3>
-<p><code>summary.causatr_diag()</code>, <code>diagnose()</code></p>
+<p><code>carry_forward()</code>, <code>contrast()</code>, <code>dynamic()</code></p>
+<p>Other glmtp: <code>carry_forward()</code></p>
+</section>
+<section id="examples" class="level3">
+<h3 class="anchored" data-anchor-id="examples">Examples</h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">"causatr"</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(long_data, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"A"</span>,</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>              <span class="at">confounders =</span> <span class="sc">~</span> L0, <span class="at">confounders_tv =</span> <span class="sc">~</span> L,</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>              <span class="at">id =</span> <span class="st">"id"</span>, <span class="at">time =</span> <span class="st">"t"</span>, <span class="at">estimator =</span> <span class="st">"gcomp"</span>)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit, <span class="at">interventions =</span> <span class="fu">list</span>(</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">delay1 =</span> <span class="fu">grace_period</span>(<span class="dv">1</span>),</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">natural =</span> <span class="cn">NULL</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>), <span class="at">ci_method =</span> <span class="st">"bootstrap"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
 
 
 </section>
