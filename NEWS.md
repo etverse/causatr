@@ -1,5 +1,48 @@
 # causatr (development version)
 
+## 2026-06-03 — Phase 22b: Natural-history modified treatment policies (G-LMTPs)
+
+Two new intervention constructors, `grace_period()` and `carry_forward()`, add
+support for **modified treatment policies that depend on the natural-value
+history of treatment** (delays, grace periods, last-observation-carried-forward)
+under longitudinal g-computation. These regimes are *not* expressible with
+`dynamic()`: the standard iterated-conditional-expectation recursion conditions
+on the observed lagged treatment, whereas the policy needs the *counterfactual*
+natural value, which under treatment-state feedback differs from the observed
+value — `dynamic(\(d, trt) d$lag1_A)` runs but silently targets the wrong
+estimand.
+
+The estimator is the augmented-data sequential regression of Díaz, Williams,
+Morzywołek & Rudolph (2026, *Modified treatment policies that depend on the
+natural history of treatment*, arXiv:2605.24167): each observation is augmented
+with every possible natural-treatment-history sequence, carried as a label
+through the backward recursion so the conditioning treatment value is decoupled
+from the policy-input value. causatr's parametric-GLM plug-in is √n-consistent
+under correct specification. `grace_period(window)` delays treatment initiation
+by `window` periods (the paper's Section-6 policy); `carry_forward()` is the
+degenerate LOCF policy.
+
+Supported for `estimator = "gcomp"` longitudinal fits with a discrete treatment;
+ID-cluster bootstrap variance. Validated against the forward Monte-Carlo truth
+(the paper's Proposition 1), replicating the Díaz et al. (2026) Section-6 delay
+result, with exact limiting-case agreement against standard ICE
+(`carry_forward()` ≡ a baseline regime; `grace_period(0)` ≡ the natural course).
+Rejections are classed (`causatr_glmtp_not_ice`, `_mixed`, `_continuous_trt`,
+`_too_many`). The augmented-data sandwich is deferred; `ci_method = "sandwich"`
+aborts with `causatr_glmtp_sandwich` and points to the bootstrap.
+
+The augmented engine handles any single **discrete** treatment, not just binary:
+the ordinal (`{0,1,2}`) path is validated to numerical precision — `carry_forward()`
+matches the equivalent baseline regime to 1e-14, and the engine matches an
+independent hand-coded recursion to 1e-9 for a dose-escalation cap. The public
+ordered-policy constructor (`cap_escalation()`) and multivariate G-LMTP are
+**deferred** (designed in `PHASE_22_ICE_ENHANCEMENTS.md` §3.7): the parametric
+plug-in is consistent for these only under a flexible-dose model that causatr's
+ICE does not yet expose (the treatment enters as a bare numeric term, which
+misspecifies the kinked pseudo-response and biases the point estimate ~3% when
+a dose cap binds — confirmed specification error, not a bug, since a
+`factor(dose)` model recovers the truth).
+
 ## 2026-06-02 — Phase 22a: Stratified ICE (`stratified = "G"`)
 
 `causat(..., stratified = "G")` adds stratified iterated-conditional-expectation

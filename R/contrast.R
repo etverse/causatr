@@ -414,6 +414,10 @@ contrast <- function(
   # Validate the interventions list -- names, types, and estimator
   # compatibility (IPW/matching only accept static(), ICE accepts all).
   check_intervention_list(interventions)
+  # Natural-history MTPs (grace_period / carry_forward) gate first so a glmtp
+  # misuse (wrong estimator, transport, mixing, continuous treatment) reports
+  # its specific classed error before the generic matching rejection.
+  check_glmtp_compat(fit, interventions)
   check_interventions_compat(fit$estimator, interventions)
 
   # Estimand x intervention gate.
@@ -1128,8 +1132,18 @@ compute_contrast <- function(
         n_target <- sum(target_within_first)
       }
 
+      # Natural-history MTPs (grace_period / carry_forward) replace the
+      # standard ICE backward recursion with the augmented-data sequential
+      # regression `glmtp_iterate()`. The marginal-mean assembly and target /
+      # weight handling are identical (both return per-individual
+      # `pseudo_final`); only the per-intervention iterate and the variance
+      # dispatch differ. `check_glmtp_compat()` already guaranteed every
+      # non-NULL intervention is a glmtp and that transport is inactive.
+      is_glmtp <- any_glmtp(interventions)
+      iter_fn <- if (is_glmtp) glmtp_iterate else ice_iterate
+
       ice_results <- stats::setNames(
-        lapply(interventions, function(iv) ice_iterate(fit, iv)),
+        lapply(interventions, function(iv) iter_fn(fit, iv)),
         int_names
       )
 
@@ -1153,6 +1167,24 @@ compute_contrast <- function(
       names(mu_hat) <- int_names
 
       if (ci_method == "sandwich") {
+        if (is_glmtp) {
+          # The augmented-data plug-in sandwich (whose bread couples augmented
+          # replicate rows across history labels) is a later sub-chunk; the
+          # ID-cluster bootstrap is the supported inference for now.
+          rlang::abort(
+            c(
+              paste0(
+                "Sandwich variance is not yet available for natural-history ",
+                "MTPs (`grace_period()` / `carry_forward()`)."
+              ),
+              i = paste0(
+                "Use `ci_method = \"bootstrap\"` for valid ID-cluster ",
+                "inference."
+              )
+            ),
+            class = "causatr_glmtp_sandwich"
+          )
+        }
         # Stratified ICE routes through the same `variance_if()` entry as
         # pooled ICE; `variance_if_ice()` dispatches to the per-stratum
         # block-diagonal sandwich when `fit$details$stratified` is set.
@@ -1163,7 +1195,12 @@ compute_contrast <- function(
           cluster_vec = cluster_vec
         )
       } else {
-        boot_res <- ice_variance_bootstrap(
+        boot_fn <- if (is_glmtp) {
+          glmtp_variance_bootstrap
+        } else {
+          ice_variance_bootstrap
+        }
+        boot_res <- boot_fn(
           fit,
           interventions,
           n_boot,

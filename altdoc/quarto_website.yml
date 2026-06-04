@@ -31,12 +31,15 @@ website:
         contents:
           - vignettes/gcomp.qmd
           - vignettes/ipw.qmd
+          - vignettes/aipw.qmd
           - vignettes/matching.qmd
           - vignettes/snm.qmd
       - section: Interventions
         contents:
           - text: "Intervention types"
             file: vignettes/interventions.qmd
+          - text: "Natural-history MTPs (grace periods)"
+            file: vignettes/natural-history-mtps.qmd
       - section: Advanced topics
         contents:
           - vignettes/triangulation.qmd

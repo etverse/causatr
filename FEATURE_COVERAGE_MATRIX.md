@@ -256,6 +256,43 @@ $\to$ `causatr_stratified_not_ice`; missing column $\to$ `causatr_stratified_not
 time-varying column $\to$ `causatr_stratified_not_baseline`; continuous column $\to$
 `causatr_stratified_too_many`.
 
+### Natural-history MTPs (G-LMTPs, `grace_period()` / `carry_forward()`, Phase 22b)
+
+Modified treatment policies whose intervened value at time $t$ depends on the
+**natural-value history of treatment** (delays, grace periods, carry-forward). The
+standard ICE recursion is provably wrong here (it conditions on the *observed* lag);
+the **augmented-data sequential regression** of Diaz, Williams, Morzywołek & Rudolph
+(2026, arXiv:2605.24167) carries every natural-history sequence $\bar{s}_t$ as a label
+through the backward recursion (`R/glmtp.R`, `R/glmtp_augment.R`,
+`R/glmtp_interventions.R`). **Longitudinal g-computation only, discrete treatment.**
+Variance: ID-cluster **bootstrap** (the augmented-data sandwich is deferred).
+
+| Trt | Outcome | Intervention | Periods | Variance | Wt | Status | Test |
+|---|---|---|---|---|---|---|---|
+| bin (absorbing) | gauss | `grace_period(1)` | 4 | (point) | — | ✅ vs forward-MC truth (Prop. 1) | test-glmtp.R |
+| bin (absorbing) | binom | `grace_period(1)` | 5 | (point) | — | ✅ replicates Diaz et al. (2026) §6 truth | test-glmtp.R |
+| bin | gauss | `grace_period(1)` vs naive `dynamic(lag1_A)` | 4 | (point) | — | ✅ engine necessity (naive off by ~56%) | test-glmtp.R |
+| bin | gauss | `carry_forward()` | 4 | (point) | — | ✅ exact vs standard-ICE baseline regime (1e-8) | test-glmtp.R |
+| bin | gauss | `grace_period(0)` | 4 | (point) | — | ✅ exact vs natural course (1e-9) | test-glmtp.R |
+| bin | gauss | `grace_period(1)` | 4 | boot | — | ✅ CI covers forward-MC truth | test-glmtp.R |
+| bin | gauss | `grace_period(1)` | 4 | boot | ext / cens | ✅ composes (finite point + SE) | test-glmtp.R |
+| ordinal {0,1,2} | gauss | `carry_forward()` | 3 | (point) | — | ✅ exact vs baseline regime (1e-14) — `|A|^t` machinery | test-glmtp.R |
+| ordinal {0,1,2} | gauss | `cap_escalation` (internal) | 3 | (point) | — | ✅ engine == independent hand-coded recursion (1e-9) | test-glmtp.R |
+
+The engine handles **any single discrete treatment** ($|\mathcal{A}| \ge 2$); the ordinal rows pin the
+`|A|^t` label machinery. Public policy constructors are binary (`grace_period`) / any-discrete
+(`carry_forward`). **Deferred** (designed, `PHASE_22` §3.7): `cap_escalation()` public release (kept
+internal — the bare-numeric ICE dose term gives a ~3% bias when the cap binds; a `factor(dose)` model
+recovers the truth, so it needs a flexible-dose ICE term) and **multivariate** G-LMTP.
+
+Augment helpers (`glmtp_support`, `glmtp_enumerate_labels`, `glmtp_label_key`,
+`glmtp_check_tractable`) — all ✅ unit-tested (`test-glmtp.R`).
+Rejections (all ✅ tested, `test-glmtp.R`): non-ICE estimator / point treatment / transport /
+stratified $\to$ `causatr_glmtp_not_ice`; mixing with a standard intervention $\to$
+`causatr_glmtp_mixed`; continuous / factor / multivariate treatment $\to$
+`causatr_glmtp_continuous_trt`; history blow-up $\to$ `causatr_glmtp_too_many`;
+`ci_method = "sandwich"` $\to$ `causatr_glmtp_sandwich` (deferred).
+
 ---
 
 ## Survival
@@ -622,8 +659,8 @@ Scalar-outcome IPCW for MAR censoring: internal censoring model, stabilized IPCW
 | ICE nonlinear DGP: ns() handles sin() confounding | ✅ | test-ice.R |
 | ICE lmtp cross-check: ns() on nonlinear DGP vs lmtp_sdr | ✅ | test-ice.R |
 | ICE lmtp cross-check: poly() on linear DGP vs lmtp_sdr | ✅ | test-ice.R |
-| Grace period / visit-process interventions | → Phase 22 | — |
-| Stratified ICE | → Phase 22 | — |
+| Grace period / delay / carry-forward (natural-history MTPs) | ✅ | test-glmtp.R |
+| Stratified ICE | ✅ | test-ice-stratified.R |
 | Multinomial outcomes | → Phase 23 | — |
 | Ordinal outcomes | → Phase 23 | — |
 

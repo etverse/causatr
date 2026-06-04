@@ -149,6 +149,12 @@ ipw_longitudinal_variance_bootstrap <- function(
 #'   first time) flagging the target population.
 #' @param est Character. Estimand string (`"ATE"` for longitudinal).
 #' @param subset Quoted expression or `NULL`.
+#' @param iterate_fn Function with signature `(fit, intervention)` returning a
+#'   list with `pseudo_final`. Defaults to [ice_iterate()]; the natural-history
+#'   MTP path passes [glmtp_iterate()] so the augmented engine is refit on each
+#'   replicate. The refit (`fit_ice()`), resampling, and target/weight handling
+#'   are identical for both engines, so only this per-intervention iterate
+#'   differs.
 #'
 #' @return A k x k variance-covariance matrix (k = number of
 #'   interventions).
@@ -163,7 +169,8 @@ ice_variance_bootstrap <- function(
   subset,
   parallel = "no",
   ncpus = 1L,
-  subset_env = parent.frame()
+  subset_env = parent.frame(),
+  iterate_fn = ice_iterate
 ) {
   data <- fit$data
   int_names <- names(interventions)
@@ -290,7 +297,7 @@ ice_variance_bootstrap <- function(
       interventions,
       function(iv) {
         res_b <- tryCatch(
-          ice_iterate(fit_b, iv),
+          iterate_fn(fit_b, iv),
           error = function(e) NULL
         )
         if (is.null(res_b)) {
@@ -316,6 +323,48 @@ ice_variance_bootstrap <- function(
   )
 
   process_boot_results(boot_res, int_names, n_boot)
+}
+
+
+#' Bootstrap variance for natural-history MTP g-computation (G-LMTP)
+#'
+#' @description
+#' ID-cluster nonparametric bootstrap for the augmented-data sequential
+#' regression ([glmtp_iterate()]). A thin wrapper over
+#' [ice_variance_bootstrap()] with `iterate_fn = glmtp_iterate`: resampling
+#' whole individuals preserves the natural-history feedback structure, and each
+#' replicate refits the per-(time, label) model chain. This is the supported
+#' inference for `grace_period()` / `carry_forward()` (the augmented-data
+#' sandwich is a separate sub-chunk).
+#'
+#' @inheritParams ice_variance_bootstrap
+#'
+#' @return A list with `vcov`, `boot_t`, `boot_info`.
+#'
+#' @noRd
+glmtp_variance_bootstrap <- function(
+  fit,
+  interventions,
+  n_boot,
+  target_within_first,
+  est,
+  subset,
+  parallel = "no",
+  ncpus = 1L,
+  subset_env = parent.frame()
+) {
+  ice_variance_bootstrap(
+    fit,
+    interventions,
+    n_boot,
+    target_within_first,
+    est,
+    subset,
+    parallel,
+    ncpus,
+    subset_env = subset_env,
+    iterate_fn = glmtp_iterate
+  )
 }
 
 
