@@ -34,6 +34,9 @@
 #' @param stratified Character scalar naming a baseline column to stratify
 #'   the per-step ICE outcome models on, or `NULL`. Longitudinal only;
 #'   forwarded to `fit_ice()`.
+#' @param treatment_form One-sided formula naming how the treatment enters the
+#'   per-step ICE outcome models (e.g. `~ factor(A)`), or `NULL` for a bare
+#'   numeric main effect. Longitudinal only; forwarded to `fit_ice()`.
 #' @param ... Passed to `model_fn`.
 #'
 #' @return A `causatr_fit` object.
@@ -63,6 +66,7 @@ fit_gcomp <- function(
   confounders_tv_outcome = NULL,
   confounders_tv_treatment = NULL,
   stratified = NULL,
+  treatment_form = NULL,
   ...
 ) {
   if (type == "longitudinal") {
@@ -88,6 +92,7 @@ fit_gcomp <- function(
       confounders_tv_outcome = confounders_tv_outcome,
       confounders_tv_treatment = confounders_tv_treatment,
       stratified = stratified,
+      treatment_form = treatment_form,
       ...
     )
   } else {

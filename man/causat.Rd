@@ -38,6 +38,7 @@ causat(
   target_subset = c("target", "all"),
   treatment_free = NULL,
   stratified = NULL,
+  treatment_form = NULL,
   ...
 )
 }
@@ -275,6 +276,21 @@ bootstrap (\code{ci_method = "bootstrap"}) and the analytic per-stratum
 stacked-EE sandwich (\code{ci_method = "sandwich"}). Default \code{NULL} fits
 pooled models. Ignored / rejected for point treatments and non-gcomp
 estimators.}
+
+\item{treatment_form}{One-sided formula or \code{NULL}. Controls how the
+treatment enters the per-step ICE outcome models, e.g.
+\code{~ factor(A)} (categorical / ordinal dose) or
+\code{~ splines::ns(A, df = 3)} (smooth dose-response). \strong{Longitudinal
+g-computation (ICE) only}, including natural-history MTPs
+(\code{\link[=grace_period]{grace_period()}} / \code{\link[=carry_forward]{carry_forward()}}). The intervention always sets
+the \emph{numeric} treatment column; only the model's design term changes,
+so a nonlinear or kinked counterfactual response (e.g. a capped dose)
+is no longer forced through a single linear slope. Lag terms are
+expanded automatically (\code{factor(A)} -> \code{factor(lag1_A)}). Every term
+must reference a treatment column. Under \code{factor(A)} an intervention
+must keep the treatment within observed levels. Default \code{NULL} enters
+the treatment as a bare numeric main effect (the historical
+behaviour). Rejected for point treatments and non-gcomp estimators.}
 
 \item{...}{Additional arguments passed to the underlying estimation
 function. For \code{estimator = "ipw"}, dots are forwarded into the

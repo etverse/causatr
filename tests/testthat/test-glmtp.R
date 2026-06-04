@@ -355,6 +355,79 @@ test_that("the engine matches an independent hand-coded recursion for an ordinal
   }
 })
 
+# Flexible-treatment ICE term (Phase 22b-5): the bare-numeric per-step model
+# misspecifies the kinked capped-dose pseudo-response (~0.8-1.1% asymptotic bias
+# when the cap binds), whereas `treatment_form = ~ factor(A)` lets each dose
+# level carry its own coefficient and recovers the forward-MC truth to sampling
+# error. The constant below is the Proposition-1 forward-MC truth at n_mc = 2e6,
+# seed = 1 (reconfirmed in the Tier-2 test so it cannot silently drift).
+TRUTH_CAP_W1 <- 4.0966
+
+test_that("factor(A) treatment term recovers the cap forward-MC truth; bare-numeric is biased", {
+  # n = 40000 keeps the test affordable on CI. The headline claim is the
+  # seed-robust *comparison*: factor(A) is far closer to the forward-MC truth
+  # than the bare-numeric plug-in. Across seeds 1-4 at this n the factor gap is
+  # 0.0015-0.0101 and the bare gap is 0.028-0.044 (ratio 3.1-22x), so the bounds
+  # below hold independent of seed. (factor(A) is consistent -- the gap settles
+  # to ~0.001-0.0025 by n = 80000 -- but a tight absolute band at n = 40000 is
+  # seed-fragile, hence the comparative assertion.)
+  d <- glmtp_ordinal_cap_data(n = 40000L, seed = 1L)$data
+  fit_bare <- glmtp_fit(d)
+  fit_factor <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    id = "id",
+    time = "t",
+    estimator = "gcomp",
+    history = Inf,
+    treatment_form = ~ factor(A)
+  )
+  gap_bare <- abs(
+    mean(glmtp_iterate(fit_bare, cap_escalation(1))$pseudo_final) - TRUTH_CAP_W1
+  )
+  gap_factor <- abs(
+    mean(glmtp_iterate(fit_factor, cap_escalation(1))$pseudo_final) -
+      TRUTH_CAP_W1
+  )
+  # factor(A) lands close to the truth; the bare-numeric plug-in keeps a
+  # seed-stable ~0.03-0.04 cap-kink bias; factor(A) is at least ~2x closer.
+  expect_lt(gap_factor, 0.015)
+  expect_gt(gap_bare, 0.02)
+  expect_lt(gap_factor, gap_bare / 2)
+})
+
+test_that("factor(A) composes with grace_period() end-to-end (bootstrap CI)", {
+  d <- glmtp_delay_data(n = 1500L, seed = 13L)$data
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    id = "id",
+    time = "t",
+    estimator = "gcomp",
+    history = Inf,
+    treatment_form = ~ factor(A)
+  )
+  res <- contrast(
+    fit,
+    interventions = list(delay1 = grace_period(1L), nat = NULL),
+    ci_method = "bootstrap",
+    n_boot = 40L
+  )
+  expect_true(all(is.finite(res$estimates$estimate)))
+  expect_true(all(is.finite(res$estimates$se) & res$estimates$se > 0))
+  # Binary support: factor(A) and bare numeric span the same two-point design,
+  # so the grace-period point estimate is unchanged (sanity, not a new claim).
+  mu_factor <- mean(glmtp_iterate(fit, grace_period(1L))$pseudo_final)
+  mu_bare <- mean(glmtp_iterate(glmtp_fit(d), grace_period(1L))$pseudo_final)
+  expect_equal(mu_factor, mu_bare, tolerance = 1e-8)
+})
+
 test_that("cap_escalation with delta >= max increase reduces to the natural course", {
   # When the cap never binds the augmented recursion reproduces the observed
   # treatment exactly -- a tight check that the policy/prediction plumbing is
@@ -477,6 +550,11 @@ test_that("hard-coded forward-MC truth constants match a fresh 2e6 simulation", 
   expect_equal(
     glmtp_paper_forward_truth(1L, n_mc = 2e6, seed = 1L),
     TRUTH_PAPER_W1,
+    tolerance = 1e-3
+  )
+  expect_equal(
+    glmtp_cap_forward_truth(1, n_mc = 2e6, seed = 1L),
+    TRUTH_CAP_W1,
     tolerance = 1e-3
   )
 })
