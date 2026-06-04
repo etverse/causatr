@@ -628,6 +628,7 @@ window.Quarto = {
   target_subset = c("target", "all"),
   treatment_free = NULL,
   stratified = NULL,
+  treatment_form = NULL,
   ...
 )
 </code></pre>
@@ -907,6 +908,14 @@ One-sided formula or <code>NULL</code>. SNM only. Specifies the treatment-free o
 </td>
 <td>
 Character or <code>NULL</code>. Name of a baseline (time-invariant) column to stratify the ICE outcome models on. <strong>Longitudinal g-computation (ICE) only.</strong> When set, a separate outcome / pseudo-outcome model is fitted for each stratum at every backward step instead of a single pooled model – the right choice when the outcome–treatment relationship differs structurally across baseline subgroups (e.g.&nbsp;different functional form by sex). The column must be discrete, complete, and constant within each individual. Both variance paths are available in <code>contrast()</code>: the ID-cluster bootstrap (<code>ci_method = “bootstrap”</code>) and the analytic per-stratum stacked-EE sandwich (<code>ci_method = “sandwich”</code>). Default <code>NULL</code> fits pooled models. Ignored / rejected for point treatments and non-gcomp estimators.
+</td>
+</tr>
+<tr>
+<td style="white-space: collapse; font-family: monospace; vertical-align: top">
+<code id="treatment_form">treatment_form</code>
+</td>
+<td>
+One-sided formula or <code>NULL</code>. Controls how the treatment enters the per-step ICE outcome models, e.g. <code>~ factor(A)</code> (categorical / ordinal dose) or <code>~ splines::ns(A, df = 3)</code> (smooth dose-response). <strong>Longitudinal g-computation (ICE) only</strong>, including natural-history MTPs (<code>grace_period()</code> / <code>carry_forward()</code>). The intervention always sets the <em>numeric</em> treatment column; only the model’s design term changes, so a nonlinear or kinked counterfactual response (e.g.&nbsp;a capped dose) is no longer forced through a single linear slope. Lag terms are expanded automatically (<code>factor(A)</code> -&gt; <code>factor(lag1_A)</code>). Every term must reference a treatment column. Under <code>factor(A)</code> an intervention must keep the treatment within observed levels. Default <code>NULL</code> enters the treatment as a bare numeric main effect (the historical behaviour). Rejected for point treatments and non-gcomp estimators.
 </td>
 </tr>
 <tr>
