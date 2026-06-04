@@ -385,8 +385,13 @@ test_that("factor(A) treatment term recovers the cap forward-MC truth; bare-nume
     history = Inf,
     treatment_form = ~ factor(A)
   )
-  gap_bare <- abs(mean(glmtp_iterate(fit_bare, cap_escalation(1))$pseudo_final) - TRUTH_CAP_W1)
-  gap_factor <- abs(mean(glmtp_iterate(fit_factor, cap_escalation(1))$pseudo_final) - TRUTH_CAP_W1)
+  gap_bare <- abs(
+    mean(glmtp_iterate(fit_bare, cap_escalation(1))$pseudo_final) - TRUTH_CAP_W1
+  )
+  gap_factor <- abs(
+    mean(glmtp_iterate(fit_factor, cap_escalation(1))$pseudo_final) -
+      TRUTH_CAP_W1
+  )
   # factor(A) lands close to the truth; the bare-numeric plug-in keeps a
   # seed-stable ~0.03-0.04 cap-kink bias; factor(A) is at least ~2x closer.
   expect_lt(gap_factor, 0.015)
