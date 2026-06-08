@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>plot.causatr_diag – causatr</title>
+<title>cap_escalation – causatr</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -22,6 +22,41 @@ ul.task-list li input[type="checkbox"] {
   width: 0.8em;
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
 </style>
 
@@ -71,6 +106,35 @@ ul.task-list li input[type="checkbox"] {
   }
 }</script>
 
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
 
 </head>
 
@@ -107,7 +171,7 @@ ul.task-list li input[type="checkbox"] {
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../man/cap_escalation.html">Reference</a></li><li class="breadcrumb-item"><a href="../man/plot.causatr_diag.html">plot.causatr_diag</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../man/cap_escalation.html">Reference</a></li><li class="breadcrumb-item"><a href="../man/cap_escalation.html">cap_escalation</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -287,7 +351,7 @@ ul.task-list li input[type="checkbox"] {
       <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../man/cap_escalation.html" class="sidebar-item-text sidebar-link">
+  <a href="../man/cap_escalation.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text">cap_escalation</span></a>
   </div>
 </li>
@@ -365,7 +429,7 @@ ul.task-list li input[type="checkbox"] {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../man/plot.causatr_diag.html" class="sidebar-item-text sidebar-link active">
+  <a href="../man/plot.causatr_diag.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">plot.causatr_diag</span></a>
   </div>
 </li>
@@ -507,52 +571,42 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#plot-diagnostics-for-a-causatr-fit" id="toc-plot-diagnostics-for-a-causatr-fit" class="nav-link active" data-scroll-target="#plot-diagnostics-for-a-causatr-fit">Plot diagnostics for a causatr fit</a>
+  <li><a href="#dose-escalation-cap-natural-history-treatment-policy" id="toc-dose-escalation-cap-natural-history-treatment-policy" class="nav-link active" data-scroll-target="#dose-escalation-cap-natural-history-treatment-policy">Dose-escalation cap natural-history treatment policy</a>
   <ul class="collapse">
   <li><a href="#description" id="toc-description" class="nav-link" data-scroll-target="#description">Description</a></li>
   <li><a href="#usage" id="toc-usage" class="nav-link" data-scroll-target="#usage">Usage</a></li>
   <li><a href="#arguments" id="toc-arguments" class="nav-link" data-scroll-target="#arguments">Arguments</a></li>
   <li><a href="#value" id="toc-value" class="nav-link" data-scroll-target="#value">Value</a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
   <li><a href="#see-also" id="toc-see-also" class="nav-link" data-scroll-target="#see-also">See Also</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   </ul></li>
   </ul>
 <div class="quarto-code-links"><h2>Code Links</h2><ul><li><a href="undefined"><i class="bi bi-link-45deg"></i></a></li></ul></div></nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../man/cap_escalation.html">Reference</a></li><li class="breadcrumb-item"><a href="../man/plot.causatr_diag.html">plot.causatr_diag</a></li></ol></nav></header>
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../man/cap_escalation.html">Reference</a></li><li class="breadcrumb-item"><a href="../man/cap_escalation.html">cap_escalation</a></li></ol></nav></header>
 
 
 
 
-<section id="plot-diagnostics-for-a-causatr-fit" class="level2 unnumbered">
-<h2 class="unnumbered anchored" data-anchor-id="plot-diagnostics-for-a-causatr-fit">Plot diagnostics for a causatr fit</h2>
+<section id="dose-escalation-cap-natural-history-treatment-policy" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="dose-escalation-cap-natural-history-treatment-policy">Dose-escalation cap natural-history treatment policy</h2>
 <section id="description" class="level3">
 <h3 class="anchored" data-anchor-id="description">Description</h3>
-<p>Produces diagnostic visualisations from a causatr_diag object. The <code>which</code> argument selects the plot type:</p>
-<ul>
-<li>
-<p><code>“balance”</code> (default): a Love plot showing standardised mean differences via <code>cobalt::love.plot()</code>. Requires <code>cobalt</code>.</p>
-</li>
-<li>
-<p><code>“weights”</code>: weight-distribution histograms (one panel per intervention). Binary treatments are faceted by arm (treated / control); non-binary show the overall distribution. Requires <code>tinyplot</code>.</p>
-</li>
-<li>
-<p><code>“positivity”</code>: propensity-score histogram for binary treatments; conditional density histogram for continuous / count treatments; per-level bar chart for categorical treatments. Requires <code>tinyplot</code>.</p>
-</li>
-</ul>
+<p>Creates a natural-history modified treatment policy (G-LMTP) for an <strong>ordered / ordinal / count</strong> treatment (a dose) that <strong>caps the natural per-period increase at <code>delta</code></strong> (Diaz, Williams, Morzywolek &amp; Rudolph 2026, the dose-escalation example). Comparing the natural dose at <span class="math inline">\(t\)</span> with the natural dose at <span class="math inline">\(t-1\)</span> (both under the regime),</p>
+<p style="text-align: center;">
+<code class="reqn">A^d_t =
+<span class="math display">\[\begin{cases} A_{t-1} + \delta &amp;amp; A_t - A_{t-1} &amp;gt; \delta \\
+A_t &amp;amp; \text{otherwise,}\end{cases}\]</span>
+</code></p><p></p>
+<p>so a patient may follow their natural dose unless it would jump by more than <code>delta</code> in one period, in which case the increase is capped. Because the cap reads the natural dose at the <strong>previous</strong> period (the natural-value history), it is a genuine G-LMTP and is estimated by the augmented engine, not <code>dynamic()</code>.</p>
+<p>For an ordered dose, enter the treatment flexibly via <code>treatment_form = ~ factor(dose)</code> (or <code>~ splines::ns(dose, df)</code>) in <code>causat()</code> so a kinked capped-dose response is not misspecified; with the default bare-numeric treatment term the per-step models fit the kink through a single slope and the plug-in carries a small asymptotic bias when the cap binds.</p>
+<p>Intended for a discrete ordered exposure where <code style="white-space: pre;">A_{t-1} + delta</code> stays within the observed support (e.g.&nbsp;integer dose levels with an integer <code>delta</code>); the per-label outcome models predict at the capped value, so a capped dose far outside the support would extrapolate.</p>
 </section>
 <section id="usage" class="level3">
 <h3 class="anchored" data-anchor-id="usage">Usage</h3>
-<pre><code class="language-R">## S3 method for class 'causatr_diag'
-plot(
-  x,
-  which = c("balance", "weights", "positivity"),
-  log_scale = FALSE,
-  stats = "m",
-  abs = TRUE,
-  thresholds = c(m = 0.1),
-  ...
-)
+<pre><code class="language-R">cap_escalation(delta = 1, budget = 1024L)
 </code></pre>
 </section>
 <section id="arguments" class="level3">
@@ -560,69 +614,70 @@ plot(
 <table role="presentation">
 <tbody><tr>
 <td style="white-space: collapse; font-family: monospace; vertical-align: top">
-<code id="x">x</code>
+<code id="delta">delta</code>
 </td>
 <td>
-A <code>causatr_diag</code> object returned by <code>diagnose()</code>.
+Positive numeric. Maximum allowed per-period increase in the natural dose. Default <code>1</code>.
 </td>
 </tr>
 <tr>
 <td style="white-space: collapse; font-family: monospace; vertical-align: top">
-<code id="which">which</code>
+<code id="budget">budget</code>
 </td>
 <td>
-Character. Type of diagnostic plot. One of <code>“balance”</code> (default), <code>“weights”</code>, or <code>“positivity”</code>.
-</td>
-</tr>
-<tr>
-<td style="white-space: collapse; font-family: monospace; vertical-align: top">
-<code id="log_scale">log_scale</code>
-</td>
-<td>
-Logical. For <code>which = “weights”</code>, apply log10 to the weight axis. Default <code>FALSE</code>.
-</td>
-</tr>
-<tr>
-<td style="white-space: collapse; font-family: monospace; vertical-align: top">
-<code id="stats">stats</code>
-</td>
-<td>
-Character. For <code>which = “balance”</code>, which balance statistic(s) to plot. Default <code>“m”</code> (standardised mean differences). See <code>cobalt::love.plot()</code> for options.
-</td>
-</tr>
-<tr>
-<td style="white-space: collapse; font-family: monospace; vertical-align: top">
-<code id="abs">abs</code>
-</td>
-<td>
-Logical. For <code>which = “balance”</code>, whether to plot absolute values. Default <code>TRUE</code>.
-</td>
-</tr>
-<tr>
-<td style="white-space: collapse; font-family: monospace; vertical-align: top">
-<code id="thresholds">thresholds</code>
-</td>
-<td>
-Named numeric vector. For <code>which = “balance”</code>, threshold lines to draw. Default <code>c(m = 0.1)</code>.
-</td>
-</tr>
-<tr>
-<td style="white-space: collapse; font-family: monospace; vertical-align: top">
-<code id="...">…</code>
-</td>
-<td>
-Additional arguments passed to the plotting backend (<code>cobalt::love.plot()</code> for balance; <code>tinyplot::plt()</code> for weights and positivity).
+Positive integer. Worst-step enumeration budget, as in <code>grace_period()</code>. Default <code>1024</code>.
 </td>
 </tr>
 </tbody></table>
 </section>
 <section id="value" class="level3">
 <h3 class="anchored" data-anchor-id="value">Value</h3>
-<p>Invisibly returns <code>x</code>.</p>
+<p>A <code>causatr_glmtp</code> object (also inheriting <code>causatr_intervention</code>).</p>
+</section>
+<section id="references" class="level3">
+<h3 class="anchored" data-anchor-id="references">References</h3>
+<p>Diaz I, Williams NT, Morzywolek P, Rudolph KE (2026). Modified treatment policies that depend on the natural history of treatment. arXiv:2605.24167.</p>
 </section>
 <section id="see-also" class="level3">
 <h3 class="anchored" data-anchor-id="see-also">See Also</h3>
-<p><code>diagnose()</code>, <code>print.causatr_diag()</code></p>
+<p><code>grace_period()</code>, <code>carry_forward()</code>, <code>contrast()</code></p>
+<p>Other glmtp: <code>carry_forward()</code>, <code>grace_period()</code></p>
+</section>
+<section id="examples" class="level3">
+<h3 class="anchored" data-anchor-id="examples">Examples</h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">"causatr"</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># The policy object is a fit-free constructor (runnable on its own):</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">cap_escalation</span>(<span class="at">delta =</span> <span class="dv">1</span>)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="co"># A small longitudinal ordinal-dose dataset (dose in {0, 1, 2}; outcome at the</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co"># final period). Enter the dose flexibly (`~ factor(dose)`) so the kinked</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="co"># capped response is not misspecified, then cap natural increases at 1/period.</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1</span>)</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">400</span>L</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>tau <span class="ot">&lt;-</span> <span class="dv">3</span>L</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>dose_data <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">id =</span> <span class="fu">rep</span>(<span class="fu">seq_len</span>(n), <span class="at">each =</span> tau),</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">t =</span> <span class="fu">rep</span>(<span class="fu">seq_len</span>(tau), <span class="at">times =</span> n),</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">L0 =</span> <span class="fu">rep</span>(<span class="fu">rnorm</span>(n), <span class="at">each =</span> tau),</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">L =</span> <span class="fu">rnorm</span>(n <span class="sc">*</span> tau)</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>dose_data<span class="sc">$</span>dose <span class="ot">&lt;-</span> <span class="fu">pmin</span>(<span class="dv">2</span>L, <span class="fu">rpois</span>(n <span class="sc">*</span> tau, <span class="at">lambda =</span> <span class="fl">0.8</span>))</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>dose_data<span class="sc">$</span>Y <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>  dose_data<span class="sc">$</span>t <span class="sc">==</span> tau,</span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>  <span class="dv">1</span> <span class="sc">+</span> <span class="fl">0.7</span> <span class="sc">*</span> dose_data<span class="sc">$</span>dose <span class="sc">+</span> <span class="fl">0.4</span> <span class="sc">*</span> dose_data<span class="sc">$</span>L <span class="sc">+</span> <span class="fu">rnorm</span>(n <span class="sc">*</span> tau),</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>  <span class="cn">NA_real_</span></span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">causat</span>(dose_data, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"dose"</span>,</span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>              <span class="at">confounders =</span> <span class="sc">~</span> L0, <span class="at">confounders_tv =</span> <span class="sc">~</span> L,</span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>              <span class="at">id =</span> <span class="st">"id"</span>, <span class="at">time =</span> <span class="st">"t"</span>, <span class="at">estimator =</span> <span class="st">"gcomp"</span>,</span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>              <span class="at">treatment_form =</span> <span class="sc">~</span> <span class="fu">factor</span>(dose))</span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a><span class="fu">contrast</span>(fit, <span class="at">interventions =</span> <span class="fu">list</span>(</span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>  <span class="at">cap =</span> <span class="fu">cap_escalation</span>(<span class="dv">1</span>),</span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>  <span class="at">natural =</span> <span class="cn">NULL</span></span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>), <span class="at">ci_method =</span> <span class="st">"bootstrap"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
 
 
 </section>
