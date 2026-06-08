@@ -756,8 +756,9 @@ check_glmtp_compat <- function(fit, interventions, call = rlang::caller_env()) {
     rlang::abort(
       c(
         paste0(
-          "Natural-history MTPs (`grace_period()` / `carry_forward()`) are ",
-          "only supported for longitudinal g-computation."
+          "Natural-history MTPs (`grace_period()` / `carry_forward()` / ",
+          "`cap_escalation()`) are only supported for longitudinal ",
+          "g-computation."
         ),
         i = paste0(
           "Fit with `estimator = \"gcomp\"` and `id` / `time` columns ",
@@ -786,7 +787,10 @@ check_glmtp_compat <- function(fit, interventions, call = rlang::caller_env()) {
           "Natural-history MTPs are not supported together with stratified ",
           "ICE (`stratified =`)."
         ),
-        i = "Refit without `stratified` to use `grace_period()` / `carry_forward()`."
+        i = paste0(
+          "Refit without `stratified` to use `grace_period()` / ",
+          "`carry_forward()` / `cap_escalation()`."
+        )
       ),
       class = "causatr_glmtp_not_ice",
       call = call
@@ -828,8 +832,9 @@ check_glmtp_compat <- function(fit, interventions, call = rlang::caller_env()) {
           "."
         ),
         i = paste0(
-          "Use only `grace_period()` / `carry_forward()` (a `NULL` ",
-          "natural-course reference is allowed), or run a separate contrast."
+          "Use only `grace_period()` / `carry_forward()` / `cap_escalation()` ",
+          "(a `NULL` natural-course reference is allowed), or run a separate ",
+          "contrast."
         )
       ),
       class = "causatr_glmtp_mixed",

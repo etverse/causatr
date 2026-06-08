@@ -146,6 +146,32 @@ test_that("grace_period / carry_forward validate args and carry the policy", {
   expect_output(print(g), "grace_period")
 })
 
+test_that("cap_escalation validates args and carries the policy", {
+  # delta must be a single positive number; budget a single positive integer.
+  expect_error(cap_escalation(0), class = "causatr_bad_intervention_arg")
+  expect_error(cap_escalation(-1), class = "causatr_bad_intervention_arg")
+  expect_error(cap_escalation("x"), class = "causatr_bad_intervention_arg")
+  expect_error(cap_escalation(c(1, 2)), class = "causatr_bad_intervention_arg")
+  expect_error(
+    cap_escalation(1, budget = 0L),
+    class = "causatr_bad_intervention_arg"
+  )
+  expect_error(
+    cap_escalation(1, budget = 1.5),
+    class = "causatr_bad_intervention_arg"
+  )
+
+  cap <- cap_escalation(2)
+  expect_s3_class(cap, "causatr_glmtp")
+  expect_s3_class(cap, "causatr_intervention")
+  expect_identical(cap$subtype, "cap_escalation")
+  expect_identical(cap$delta, 2)
+  expect_identical(cap$budget, 1024L)
+  expect_true(is.function(cap$policy))
+  expect_true(any_glmtp(list(a = cap, b = NULL)))
+  expect_output(print(cap), "cap_escalation")
+})
+
 # Truth oracle: forward Monte-Carlo of the natural-history regime (the paper's
 # Proposition 1). The constants below were computed at n_mc = 2e6, seed = 1 via
 # the helper-glmtp-dgp.R forward-simulators and are reconfirmed in a Tier-2 test
@@ -336,14 +362,15 @@ test_that("carry_forward equals the baseline regime for an ordinal (3-level) tre
   expect_equal(mu_cf, mu_dyn, tolerance = 1e-8)
 })
 
-# cap_escalation() is internal/deferred (PHASE_22): the parametric plug-in is
-# consistent only under a flexible dose model causatr's ICE does not expose
-# (a factor-dose model recovers the forward-MC truth to ~1e-3; the bare-numeric
-# model is ~3% biased when the cap binds). The ENGINE, however, must be bug-free
-# on the ordinal natural-value-dependent path. A from-scratch hand-coded
-# recursion (different code structure, bare-numeric glm) is the independent
-# oracle: the two agree to numerical precision, proving the recursion -- not the
-# method -- is correct, before any "plug-in bias" attribution.
+# cap_escalation() (public) caps the per-period increase of the natural dose.
+# The parametric plug-in is consistent under a flexible dose model
+# (`treatment_form = ~ factor(A)` recovers the forward-MC truth to ~1e-3); the
+# bare-numeric model is ~3% biased when the cap binds (a kinked pseudo-response
+# fit through one slope). The ENGINE, independent of that misspecification, must
+# be bug-free on the ordinal natural-value-dependent path: a from-scratch
+# hand-coded recursion (different code structure, bare-numeric glm) is the
+# independent oracle, and the two agree to numerical precision -- proving the
+# recursion, not the method, is correct, before any "plug-in bias" attribution.
 # (2026-06-03 critical review; /tmp/causatr_glmtp_bugcheck.R.)
 test_that("the engine matches an independent hand-coded recursion for an ordinal dose-cap", {
   d <- glmtp_ordinal_cap_data(n = 6000L, seed = 1L)$data
@@ -437,6 +464,129 @@ test_that("cap_escalation with delta >= max increase reduces to the natural cour
   mu_cap_big <- mean(glmtp_iterate(fit, cap_escalation(10))$pseudo_final)
   mu_nat <- mean(glmtp_iterate(fit, NULL)$pseudo_final)
   expect_equal(mu_cap_big, mu_nat, tolerance = 1e-10)
+})
+
+test_that("factor(A) recovers the cap forward-MC truth tightly at n = 80000", {
+  # The headline 22b-6 claim: under `treatment_form = ~ factor(A)` the augmented
+  # plug-in is *consistent* for the dose-cap policy, so it recovers the
+  # Proposition-1 forward-MC truth in absolute terms (the n = 40000 test above is
+  # seed-robust but only a comparison). Deterministic at the fixed seed; the gap
+  # to TRUTH_CAP_W1 settles to ~0.001-0.0025 by n = 80000 (measured 0.0011 /
+  # 0.0025 / 0.0017 for seeds 1 / 2 / 3), so the 0.0035 band covers the seed
+  # spread with margin yet is ~10x tighter than the 0.034 bare-numeric bias.
+  # Tier-2 (one ~5s fit) so it runs in CI but not on CRAN.
+  skip_on_cran()
+  d <- glmtp_ordinal_cap_data(n = 80000L, seed = 1L)$data
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    id = "id",
+    time = "t",
+    estimator = "gcomp",
+    history = Inf,
+    treatment_form = ~ factor(A)
+  )
+  est <- mean(glmtp_iterate(fit, cap_escalation(1))$pseudo_final)
+  expect_lt(abs(est - TRUTH_CAP_W1), 0.0035)
+})
+
+test_that("cap_escalation() bootstrap variance path matches the engine and yields a well-formed CI", {
+  # Validates the public contrast() bootstrap PLUMBING for cap_escalation -- the
+  # *consistency* of the factor(A) plug-in is owned by the tight n=80000 truth
+  # test above, NOT here. The load-bearing assertion is the exact agreement
+  # between the contrast() per-arm mean and the direct glmtp_iterate() engine call
+  # (1e-8): the public routing and the engine must compute the same number, over
+  # both a cap arm and a NULL natural-course reference. Finite positive SEs and a
+  # well-ordered CI that brackets the truth confirm the ID-cluster bootstrap
+  # produced a non-degenerate interval; at n=3000 the CI half-width (~0.05) far
+  # exceeds a consistent estimator's gap to truth, so the bracket is a sanity
+  # check on the variance path, not a discriminating consistency oracle. The
+  # bootstrap RNG is fixed with withr::with_seed so the draws are reproducible.
+  skip_on_cran()
+  d <- glmtp_ordinal_cap_data(n = 3000L, seed = 8L)$data
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    id = "id",
+    time = "t",
+    estimator = "gcomp",
+    history = Inf,
+    treatment_form = ~ factor(A)
+  )
+  res <- withr::with_seed(
+    101L,
+    contrast(
+      fit,
+      interventions = list(cap = cap_escalation(1), natural = NULL),
+      ci_method = "bootstrap",
+      n_boot = 40L
+    )
+  )
+  # Multi-arm bootstrap plumbing: both arms produce finite estimate + positive SE.
+  expect_true(all(is.finite(res$estimates$estimate)))
+  expect_true(all(is.finite(res$estimates$se) & res$estimates$se > 0))
+
+  # Load-bearing oracle: the public contrast() per-arm mean == the direct engine.
+  cap_row <- res$estimates[res$estimates$intervention == "cap", ]
+  mu_cap_direct <- mean(glmtp_iterate(fit, cap_escalation(1))$pseudo_final)
+  expect_equal(cap_row$estimate, mu_cap_direct, tolerance = 1e-8)
+
+  # Variance-path sanity: well-ordered interval that brackets the truth.
+  expect_lt(cap_row$ci_lower, cap_row$ci_upper)
+  expect_gte(TRUTH_CAP_W1, cap_row$ci_lower)
+  expect_lte(TRUTH_CAP_W1, cap_row$ci_upper)
+})
+
+test_that("cap_escalation inherits the G-LMTP rejections (sandwich, mixing, continuous, non-ICE)", {
+  d <- glmtp_ordinal_cap_data(n = 800L, seed = 4L)$data
+  fit <- glmtp_fit(d)
+  expect_error(
+    contrast(fit, list(cap = cap_escalation(1), s = static(1))),
+    class = "causatr_glmtp_mixed"
+  )
+  expect_error(
+    contrast(fit, list(cap = cap_escalation(1)), ci_method = "sandwich"),
+    class = "causatr_glmtp_sandwich"
+  )
+  # Non-integer treatment trips the discreteness gate.
+  dc <- d
+  dc$A <- dc$A + stats::runif(nrow(dc), 0, 0.3)
+  fit_c <- causat(
+    dc,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    id = "id",
+    time = "t",
+    estimator = "gcomp",
+    history = Inf
+  )
+  expect_error(
+    contrast(fit_c, list(cap = cap_escalation(1))),
+    class = "causatr_glmtp_continuous_trt"
+  )
+  # A non-longitudinal (IPW) fit is rejected for the natural-history engine.
+  fit_ipw <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    id = "id",
+    time = "t",
+    estimator = "ipw"
+  )
+  expect_error(
+    contrast(fit_ipw, list(cap = cap_escalation(1))),
+    class = "causatr_glmtp_not_ice"
+  )
 })
 
 test_that("a per-label fit failure surfaces a classed warning, not a silent estimate", {

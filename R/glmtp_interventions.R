@@ -184,21 +184,11 @@ carry_forward <- function(seed = "baseline", budget = 1024L) {
 }
 
 
-#' Dose-escalation cap natural-history treatment policy (internal, deferred)
+#' Dose-escalation cap natural-history treatment policy
 #'
 #' @description
-#' **Not exported.** The augmented recursion estimates this policy correctly
-#' (validated against an independent hand-coded recursion to ~1e-14, and against
-#' the forward-MC truth under a flexible dose model), but causatr's ICE enters
-#' the treatment as a bare numeric term, which misspecifies the kinked
-#' pseudo-response when the cap binds (~3% asymptotic point bias on a linear-dose
-#' DGP; a `factor(dose)` model recovers the truth). The public release awaits a
-#' flexible-dose ICE term -- see `PHASE_22_ICE_ENHANCEMENTS.md` (22b deferred
-#' sub-phase). Retained internal so the engine's ordinal natural-value-dependent
-#' path stays under test.
-#'
-#' Creates a natural-history modified treatment policy for an **ordered /
-#' ordinal / count** treatment (a dose) that **caps the natural per-period
+#' Creates a natural-history modified treatment policy (G-LMTP) for an **ordered
+#' / ordinal / count** treatment (a dose) that **caps the natural per-period
 #' increase at `delta`** (Diaz, Williams, Morzywolek & Rudolph 2026, the
 #' dose-escalation example). Comparing the natural dose at \eqn{t} with the
 #' natural dose at \eqn{t-1} (both under the regime),
@@ -209,6 +199,12 @@ carry_forward <- function(seed = "baseline", budget = 1024L) {
 #' reads the natural dose at the **previous** period (the natural-value history),
 #' it is a genuine G-LMTP and is estimated by the augmented engine, not
 #' [dynamic()].
+#'
+#' For an ordered dose, enter the treatment flexibly via
+#' `treatment_form = ~ factor(dose)` (or `~ splines::ns(dose, df)`) in [causat()]
+#' so a kinked capped-dose response is not misspecified; with the default
+#' bare-numeric treatment term the per-step models fit the kink through a single
+#' slope and the plug-in carries a small asymptotic bias when the cap binds.
 #'
 #' Intended for a discrete ordered exposure where `A_{t-1} + delta` stays within
 #' the observed support (e.g. integer dose levels with an integer `delta`); the
@@ -226,9 +222,42 @@ carry_forward <- function(seed = "baseline", budget = 1024L) {
 #' Diaz I, Williams NT, Morzywolek P, Rudolph KE (2026). Modified treatment
 #' policies that depend on the natural history of treatment. arXiv:2605.24167.
 #'
+#' @examples
+#' # The policy object is a fit-free constructor (runnable on its own):
+#' cap_escalation(delta = 1)
+#'
+#' \dontrun{
+#' # A small longitudinal ordinal-dose dataset (dose in {0, 1, 2}; outcome at the
+#' # final period). Enter the dose flexibly (`~ factor(dose)`) so the kinked
+#' # capped response is not misspecified, then cap natural increases at 1/period.
+#' set.seed(1)
+#' n <- 400L
+#' tau <- 3L
+#' dose_data <- data.frame(
+#'   id = rep(seq_len(n), each = tau),
+#'   t = rep(seq_len(tau), times = n),
+#'   L0 = rep(rnorm(n), each = tau),
+#'   L = rnorm(n * tau)
+#' )
+#' dose_data$dose <- pmin(2L, rpois(n * tau, lambda = 0.8))
+#' dose_data$Y <- ifelse(
+#'   dose_data$t == tau,
+#'   1 + 0.7 * dose_data$dose + 0.4 * dose_data$L + rnorm(n * tau),
+#'   NA_real_
+#' )
+#' fit <- causat(dose_data, outcome = "Y", treatment = "dose",
+#'               confounders = ~ L0, confounders_tv = ~ L,
+#'               id = "id", time = "t", estimator = "gcomp",
+#'               treatment_form = ~ factor(dose))
+#' contrast(fit, interventions = list(
+#'   cap = cap_escalation(1),
+#'   natural = NULL
+#' ), ci_method = "bootstrap")
+#' }
+#'
 #' @seealso [grace_period()], [carry_forward()], [contrast()]
 #' @family glmtp
-#' @noRd
+#' @export
 cap_escalation <- function(delta = 1, budget = 1024L) {
   if (
     !(is.numeric(delta) && length(delta) == 1L && !is.na(delta) && delta > 0)
@@ -300,7 +329,7 @@ glmtp_identity_policy <- function(s_prior, a_now, h_data, t, n_times) {
 #' it to the augmented engine and a `subtype` tag for printing.
 #'
 #' @param subtype Character. The policy family (`"grace_period"`,
-#'   `"carry_forward"`).
+#'   `"carry_forward"`, `"cap_escalation"`).
 #' @param params Named list of policy parameters, including the `policy`
 #'   closure with signature `function(s_prior, a_now, h_data, t, n_times)`.
 #'

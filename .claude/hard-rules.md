@@ -178,3 +178,14 @@ Project-specific rules that override / extend the etverse-wide rules at
   slow for CI). Do NOT re-tighten to an absolute 0.005 band at n = 40000, and do
   NOT read a transient n = 40000 factor gap as estimator bias — verify at
   n >= 80000 first.
+- **The `cap_escalation` *bootstrap* test (n = 3000) is plumbing-only; the
+  consistency oracle is the n = 80000 `~ factor(A)` tight-truth test.** At
+  n = 3000 the bootstrap CI half-width (~0.05) dwarfs a consistent estimator's
+  gap to the truth, so coverage there cannot distinguish the consistent
+  `factor(A)` plug-in from the biased bare-numeric one (the 2026-06-08 review
+  verified the *biased* estimator also "covers" and also satisfies a
+  `cap < natural` check). The load-bearing assertion in that test is the `1e-8`
+  agreement between `contrast()`'s per-arm mean and the direct `glmtp_iterate()`
+  engine call — do NOT flag it as redundant. Do NOT add coverage / one-sided
+  `cap < natural` assertions back as "consistency" checks (they are vacuous at
+  this n), and do NOT move the tight absolute truth band onto the bootstrap test.

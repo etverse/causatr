@@ -288,10 +288,11 @@ glmtp_paper_forward_truth <- function(window, n_mc = 2e6, seed = 1L) {
 # Dose-escalation cap (ordered / ordinal treatment), tau = 3, support {0,1,2}.
 # A dose escalates from the ACTUAL (capped) prior dose; the cap policy limits the
 # natural per-period increase at delta, comparing the natural dose at t to the
-# natural dose at t-1. tau = 3 makes the policy genuinely irreducible. Used only
-# to validate the engine's ordinal natural-value-dependent path against an
-# independent hand-coded recursion (the public cap_escalation() release is
-# deferred -- see PHASE_22). The dose enters the outcome model numerically.
+# natural dose at t-1. tau = 3 makes the policy genuinely irreducible. Used to
+# validate the public cap_escalation() policy: the engine's ordinal
+# natural-value-dependent path against an independent hand-coded recursion, and
+# the factor(A) plug-in against the forward-MC truth (the bare-numeric fit enters
+# the dose numerically; the consistent fit uses treatment_form = ~ factor(A)).
 # ---------------------------------------------------------------------------
 
 #' Ordered-dose escalation SCM, tau = 3, support {0,1,2} (observed data)

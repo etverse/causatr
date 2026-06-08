@@ -246,9 +246,9 @@ Two practical points:
   rejected under IPW / AIPW / matching and for point treatments.
 - **Bootstrap variance.** The augmented-data sandwich is a planned future chunk;
   `ci_method = "sandwich"` aborts and points to the bootstrap.
-- **Nonlinear ordered policies** (e.g. a dose-escalation cap) are estimated
-  consistently once the dose enters the per-step model flexibly — see *Flexible
-  dose models* below.
+- **Dose-escalation caps** (`cap_escalation()`) and other nonlinear ordered
+  policies are estimated consistently once the dose enters the per-step model
+  flexibly — see *Flexible dose models* below.
 
 ## Flexible dose models for ordered treatments
 
@@ -260,29 +260,59 @@ cap*, whose policy is piecewise-linear in the dose. The bare-numeric plug-in the
 carries a small but persistent asymptotic bias even though the augmented recursion
 is exactly correct.
 
-`treatment_form` lets the dose enter the per-step model via a transformed term,
-while the policy still sets the *numeric* dose column — only the model's design
-term changes:
+`cap_escalation(delta)` is the natural-history policy for exactly this case: it
+caps the per-period increase of the **natural** dose at `delta`, comparing the
+natural dose at $t$ with the natural dose at $t-1$. `treatment_form` lets the dose
+enter the per-step model via a transformed term, while the policy still sets the
+*numeric* dose column — only the model's design term changes. Here is a worked
+example on an ordinal dose `{0, 1, 2}` that escalates over three periods:
 
-```r
-fit <- causat(
-  dose_data,
-  outcome = "Y", treatment = "dose",
-  confounders = ~ L0, confounders_tv = ~ L,
-  id = "id", time = "t", estimator = "gcomp",
-  treatment_form = ~ factor(dose)        # or ~ splines::ns(dose, df = 3)
+```{r}
+#| label: cap-escalation
+set.seed(2)
+n <- 2000L; tau <- 3L; m <- 2L           # dose levels {0, 1, 2}
+L0 <- rnorm(n)
+dose <- matrix(0L, n, tau); L <- matrix(0, n, tau)
+Lprev <- L0; Aprev <- integer(n)
+for (t in seq_len(tau)) {
+  Lt <- 0.5 * Lprev + 0.3 * Aprev + rnorm(n)
+  step <- rbinom(n, 2L, plogis(-0.2 + 0.6 * Lt))
+  At <- pmin(m, Aprev + step)            # natural dose escalates, capped at 2
+  dose[, t] <- At; L[, t] <- Lt; Lprev <- Lt; Aprev <- At
+}
+Y <- 1 + 0.7 * rowSums(dose) + 0.4 * L[, tau] - 0.5 * L0 + rnorm(n)
+dose_data <- data.frame(
+  id = rep(seq_len(n), each = tau), t = rep(seq_len(tau), n),
+  L0 = rep(L0, each = tau), dose = as.vector(t(dose)),
+  L = as.vector(t(L)), Y = NA_real_
 )
-contrast(fit, interventions = list(d = grace_period(1L)),
-         ci_method = "bootstrap")
+dose_data$Y[dose_data$t == tau] <- Y
+
+fit_cap <- causat(
+  dose_data, outcome = "Y", treatment = "dose",
+  confounders = ~ L0, confounders_tv = ~ L,
+  id = "id", time = "t", estimator = "gcomp", history = Inf,
+  treatment_form = ~ factor(dose)        # each dose level its own coefficient
+)
+res_cap <- contrast(
+  fit_cap,
+  interventions = list(cap1 = cap_escalation(1), natural = NULL),
+  reference = "natural", ci_method = "bootstrap", n_boot = 100L
+)
+tt(res_cap$estimates)
 ```
 
-With `~ factor(dose)` each dose level carries its own coefficient, so a kinked
-capped-dose response is recovered to sampling error rather than fit through one
-slope. Lag terms expand automatically (`factor(dose)` → `factor(lag1_dose)`). The
-flexible term is longitudinal-g-computation-only and benefits standard ICE
-regimes (`static` / `shift` / `dynamic`) as much as natural-history policies. Under
-`factor(dose)` an intervention must keep the dose within the observed levels (a
-new level makes prediction fail); `splines::ns(dose, df)` extrapolates smoothly.
+Capping the per-period escalation at one level lowers the counterfactual mean
+relative to the natural course (a capped patient accrues fewer high-dose
+periods). With `~ factor(dose)` each dose level carries its own coefficient, so
+the kinked capped-dose response is recovered to sampling error rather than fit
+through one slope; the bare-numeric default would instead carry a small but
+seed-stable bias when the cap binds. Lag terms expand automatically
+(`factor(dose)` → `factor(lag1_dose)`). The flexible term is
+longitudinal-g-computation-only and benefits standard ICE regimes (`static` /
+`shift` / `dynamic`) as much as natural-history policies. Under `factor(dose)`
+an intervention must keep the dose within the observed levels (a new level makes
+prediction fail); `splines::ns(dose, df)` extrapolates smoothly.
 
 ## References
 

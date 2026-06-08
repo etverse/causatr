@@ -277,7 +277,7 @@ Rejections (all ✅ tested, `test-ice-treatment-form.R`): non-ICE estimator / po
 `causatr_treatment_form_bad`; intervention leaving the observed `factor(A)` support $\to$ native
 `predict()` "new level" error (documented constraint; `ns(A)` extrapolates).
 
-### Natural-history MTPs (G-LMTPs, `grace_period()` / `carry_forward()`, Phase 22b)
+### Natural-history MTPs (G-LMTPs, `grace_period()` / `carry_forward()` / `cap_escalation()`, Phase 22b)
 
 Modified treatment policies whose intervened value at time $t$ depends on the
 **natural-value history of treatment** (delays, grace periods, carry-forward). The
@@ -298,17 +298,21 @@ Variance: ID-cluster **bootstrap** (the augmented-data sandwich is deferred).
 | bin | gauss | `grace_period(1)` | 4 | boot | — | ✅ CI covers forward-MC truth | test-glmtp.R |
 | bin | gauss | `grace_period(1)` | 4 | boot | ext / cens | ✅ composes (finite point + SE) | test-glmtp.R |
 | ordinal {0,1,2} | gauss | `carry_forward()` | 3 | (point) | — | ✅ exact vs baseline regime (1e-14) — `|A|^t` machinery | test-glmtp.R |
-| ordinal {0,1,2} | gauss | `cap_escalation` (internal) | 3 | (point) | — | ✅ engine == independent hand-coded recursion (1e-9) | test-glmtp.R |
-| ordinal {0,1,2} | gauss | `cap_escalation` + `treatment_form = ~ factor(A)` | 3 | (point) | — | ✅ recovers forward-MC truth (gap 0.0015 vs 0.034 bare) | test-glmtp.R |
+| ordinal {0,1,2} | gauss | `cap_escalation` | 3 | (point) | — | ✅ engine == independent hand-coded recursion (1e-9) | test-glmtp.R |
+| ordinal {0,1,2} | gauss | `cap_escalation` + `treatment_form = ~ factor(A)` | 3 | (point) | — | ✅ vs forward-MC truth: comparative n=40000 (gap 0.0015 vs 0.034 bare) | test-glmtp.R |
+| ordinal {0,1,2} | gauss | `cap_escalation(1)` + `~ factor(A)` | 3 | (point) | — | ✅ tight vs forward-MC truth, n=80000 (gap <0.0035; Tier-2) | test-glmtp.R |
+| ordinal {0,1,2} | gauss | `cap_escalation(1)` + `~ factor(A)` | 3 | boot | — | ✅ CI covers forward-MC truth; `contrast()` == `glmtp_iterate()` | test-glmtp.R |
+| ordinal {0,1,2} | gauss | `cap_escalation()` ctor + rejections | 3 | (point) | — | ✅ arg validation + sandwich/mixed/continuous/non-ICE classed | test-glmtp.R |
 | bin | gauss | `grace_period(1)` + `~ factor(A)` | 4 | boot | — | ✅ composes (finite CI; == bare for binary) | test-glmtp.R |
 
 The engine handles **any single discrete treatment** ($|\mathcal{A}| \ge 2$); the ordinal rows pin the
-`|A|^t` label machinery. Public policy constructors are binary (`grace_period`) / any-discrete
-(`carry_forward`). The **flexible-treatment ICE term** (`treatment_form =`, Phase 22b-5) lets the dose
-enter the per-step model as `factor(A)` / `splines::ns(A)`, removing the bare-numeric misspecification
-of a kinked capped-dose response (the cap-policy gap closes from $\approx0.034$ to $\approx0.0015$ vs the
-forward-MC truth). **Deferred** (designed, `PHASE_22` §3.7): `cap_escalation()` public release (22b-6,
-now unblocked by 22b-5) and **multivariate** G-LMTP (22b-7).
+`|A|^t` label machinery. Public policy constructors: `grace_period` (binary delay), `carry_forward`
+(any-discrete LOCF), and `cap_escalation` (ordered-dose increase cap, 22b-6). The **flexible-treatment
+ICE term** (`treatment_form =`, Phase 22b-5) lets the dose enter the per-step model as `factor(A)` /
+`splines::ns(A)`, removing the bare-numeric misspecification of a kinked capped-dose response (the
+cap-policy gap closes from $\approx0.034$ to $\approx0.0015$ vs the forward-MC truth) — which is what
+makes `cap_escalation()` a consistent public estimator. **Deferred** (designed, `PHASE_22` §3.7):
+augmented-data sandwich (22b-4) and **multivariate** G-LMTP (22b-7).
 
 Augment helpers (`glmtp_support`, `glmtp_enumerate_labels`, `glmtp_label_key`,
 `glmtp_check_tractable`) — all ✅ unit-tested (`test-glmtp.R`).
