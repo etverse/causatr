@@ -1696,9 +1696,8 @@ informative error.
 | Multivariate | Any | IPSI($\delta$) component | — | — | — | — | ⛔ binary-univariate only |
 | Binary | Any | IPSI($\delta$) | ATE | — | — | marginal | ⛔ no marginal numerator |
 | Binary | Continuous | Static, **stratified ICE** (`stratified = "G"`) | ATE / `by(G)` | Difference | Sandwich / bootstrap | none | ✅ vs per-stratum pooled + delicatessen |
-| Binary (absorbing) | Continuous / Binary | `grace_period` / `carry_forward` (natural-history MTP) | ATE | Difference | Bootstrap | none / cens / ext | ✅ vs forward-MC truth (Díaz et al. 2026 §6) |
-| Ordinal dose `{0,1,2}` | Continuous | `cap_escalation` + `treatment_form = ~ factor(dose)` | ATE | Difference | Bootstrap | none | ✅ tight vs forward-MC truth (gap ≈0.0015) |
-| Binary | Any | Natural-history MTP | ATE | — | Sandwich | — | ⛔ deferred (`causatr_glmtp_sandwich`) |
+| Binary (absorbing) | Continuous / Binary | `grace_period` / `carry_forward` (natural-history MTP) | ATE | Difference | Bootstrap / Sandwich | none / cens / ext | ✅ vs forward-MC truth (Díaz et al. 2026 §6); sandwich validated vs Python oracle |
+| Ordinal dose `{0,1,2}` | Continuous | `cap_escalation` + `treatment_form = ~ factor(dose)` | ATE | Difference | Bootstrap / Sandwich | none | ✅ tight vs forward-MC truth (gap ≈0.0015) |
 | Binary | Any | Static / ATT | ATT | — | — | — | ⛔ ICE is ATE-only |
 
 See `FEATURE_COVERAGE_MATRIX.md`
