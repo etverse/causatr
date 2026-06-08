@@ -46,8 +46,24 @@ outside the support would extrapolate.
 cap_escalation(delta = 1)
 
 \dontrun{
-# Cap natural dose increases at one level per period. Enter the ordered dose
-# flexibly so a kinked capped response is not misspecified.
+# A small longitudinal ordinal-dose dataset (dose in {0, 1, 2}; outcome at the
+# final period). Enter the dose flexibly (`~ factor(dose)`) so the kinked
+# capped response is not misspecified, then cap natural increases at 1/period.
+set.seed(1)
+n <- 400L
+tau <- 3L
+dose_data <- data.frame(
+  id = rep(seq_len(n), each = tau),
+  t = rep(seq_len(tau), times = n),
+  L0 = rep(rnorm(n), each = tau),
+  L = rnorm(n * tau)
+)
+dose_data$dose <- pmin(2L, rpois(n * tau, lambda = 0.8))
+dose_data$Y <- ifelse(
+  dose_data$t == tau,
+  1 + 0.7 * dose_data$dose + 0.4 * dose_data$L + rnorm(n * tau),
+  NA_real_
+)
 fit <- causat(dose_data, outcome = "Y", treatment = "dose",
               confounders = ~ L0, confounders_tv = ~ L,
               id = "id", time = "t", estimator = "gcomp",

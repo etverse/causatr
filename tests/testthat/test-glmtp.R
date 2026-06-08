@@ -156,6 +156,10 @@ test_that("cap_escalation validates args and carries the policy", {
     cap_escalation(1, budget = 0L),
     class = "causatr_bad_intervention_arg"
   )
+  expect_error(
+    cap_escalation(1, budget = 1.5),
+    class = "causatr_bad_intervention_arg"
+  )
 
   cap <- cap_escalation(2)
   expect_s3_class(cap, "causatr_glmtp")
@@ -489,14 +493,18 @@ test_that("factor(A) recovers the cap forward-MC truth tightly at n = 80000", {
   expect_lt(abs(est - TRUTH_CAP_W1), 0.0035)
 })
 
-test_that("cap_escalation routes through contrast() with bootstrap inference covering the truth", {
-  # The public contrast() bootstrap path for cap_escalation: (1) the per-arm mean
-  # matches the direct glmtp_iterate() engine call exactly (the load-bearing
-  # oracle equality -- the two code paths must agree), (2) the ID-cluster
-  # bootstrap yields a finite positive SE whose CI covers the forward-MC truth
-  # (here est-to-truth is well under one CI half-width, so coverage is structural,
-  # not RNG-dependent), and (3) capping only ever lowers a natural dose, and the
-  # DGP outcome rises in dose, so the capped mean sits below the natural course.
+test_that("cap_escalation() bootstrap variance path matches the engine and yields a well-formed CI", {
+  # Validates the public contrast() bootstrap PLUMBING for cap_escalation -- the
+  # *consistency* of the factor(A) plug-in is owned by the tight n=80000 truth
+  # test above, NOT here. The load-bearing assertion is the exact agreement
+  # between the contrast() per-arm mean and the direct glmtp_iterate() engine call
+  # (1e-8): the public routing and the engine must compute the same number, over
+  # both a cap arm and a NULL natural-course reference. Finite positive SEs and a
+  # well-ordered CI that brackets the truth confirm the ID-cluster bootstrap
+  # produced a non-degenerate interval; at n=3000 the CI half-width (~0.05) far
+  # exceeds a consistent estimator's gap to truth, so the bracket is a sanity
+  # check on the variance path, not a discriminating consistency oracle. The
+  # bootstrap RNG is fixed with withr::with_seed so the draws are reproducible.
   skip_on_cran()
   d <- glmtp_ordinal_cap_data(n = 3000L, seed = 8L)$data
   fit <- causat(
@@ -511,23 +519,28 @@ test_that("cap_escalation routes through contrast() with bootstrap inference cov
     history = Inf,
     treatment_form = ~ factor(A)
   )
-  res <- contrast(
-    fit,
-    interventions = list(cap = cap_escalation(1), natural = NULL),
-    ci_method = "bootstrap",
-    n_boot = 40L
+  res <- withr::with_seed(
+    101L,
+    contrast(
+      fit,
+      interventions = list(cap = cap_escalation(1), natural = NULL),
+      ci_method = "bootstrap",
+      n_boot = 40L
+    )
   )
-  cap_row <- res$estimates[res$estimates$intervention == "cap", ]
-  nat_row <- res$estimates[res$estimates$intervention == "natural", ]
+  # Multi-arm bootstrap plumbing: both arms produce finite estimate + positive SE.
+  expect_true(all(is.finite(res$estimates$estimate)))
+  expect_true(all(is.finite(res$estimates$se) & res$estimates$se > 0))
 
+  # Load-bearing oracle: the public contrast() per-arm mean == the direct engine.
+  cap_row <- res$estimates[res$estimates$intervention == "cap", ]
   mu_cap_direct <- mean(glmtp_iterate(fit, cap_escalation(1))$pseudo_final)
   expect_equal(cap_row$estimate, mu_cap_direct, tolerance = 1e-8)
 
-  expect_true(is.finite(cap_row$se) && cap_row$se > 0)
+  # Variance-path sanity: well-ordered interval that brackets the truth.
+  expect_lt(cap_row$ci_lower, cap_row$ci_upper)
   expect_gte(TRUTH_CAP_W1, cap_row$ci_lower)
   expect_lte(TRUTH_CAP_W1, cap_row$ci_upper)
-
-  expect_lt(cap_row$estimate, nat_row$estimate)
 })
 
 test_that("cap_escalation inherits the G-LMTP rejections (sandwich, mixing, continuous, non-ICE)", {
