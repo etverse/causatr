@@ -83,9 +83,10 @@ Project-specific rules that override / extend the etverse-wide rules at
   estimand. The truth oracle is forward Monte-Carlo of the natural-history
   regime (Díaz et al. 2026 Proposition 1; `helper-glmtp-dgp.R`). Don't add an
   lmtp cross-check for `grace_period()`/`carry_forward()`.
-- **G-LMTP sandwich is deferred by design.** `ci_method = "sandwich"` aborts
-  with `causatr_glmtp_sandwich`; bootstrap is the only variance path. Don't flag
-  the missing sandwich as a bug.
+- **G-LMTP sandwich is implemented (22b-4).** `ci_method = "sandwich"` routes
+  to `variance_if_glmtp()` (`R/variance_if_glmtp.R`). Both bootstrap and analytic
+  sandwich are valid variance paths for G-LMTP; the `causatr_glmtp_sandwich` abort
+  was removed when 22b-4 shipped.
 - **`list[[""]]` returns `NULL` in R.** `glmtp_iterate()`'s final `q1 <- Q[[1L]]`
   reads the single empty-label element positionally (its name is `""`, which
   `[[` cannot match) behind a `length(Q) == 1L` guard. Do NOT "simplify" it to
