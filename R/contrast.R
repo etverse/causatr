@@ -1175,7 +1175,8 @@ compute_contrast <- function(
             c(
               paste0(
                 "Sandwich variance is not yet available for natural-history ",
-                "MTPs (`grace_period()` / `carry_forward()`)."
+                "MTPs (`grace_period()` / `carry_forward()` / ",
+                "`cap_escalation()`)."
               ),
               i = paste0(
                 "Use `ci_method = \"bootstrap\"` for valid ID-cluster ",

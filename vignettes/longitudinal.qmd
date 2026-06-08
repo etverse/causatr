@@ -1652,9 +1652,12 @@ recursion conditions on the *observed* lagged treatment, whereas the policy
 needs the *counterfactual* natural value, which under treatment-state feedback
 differs from the observed value (so `dynamic(\(d, trt) d$lag1_A)` runs but
 silently targets the wrong estimand). causatr estimates them with an
-augmented-data sequential regression via the `grace_period()` and
-`carry_forward()` constructors (longitudinal g-computation, discrete treatment,
-ID-cluster bootstrap).
+augmented-data sequential regression via the `grace_period()`,
+`carry_forward()`, and `cap_escalation()` constructors (longitudinal
+g-computation, discrete treatment, ID-cluster bootstrap). `cap_escalation(d)`
+caps the natural per-period increase of an ordered / count dose at `d`, and is
+consistent when the dose enters the per-step model flexibly
+(`treatment_form = ~ factor(dose)`).
 
 This family has its own article: see
 [**Natural-history MTPs (grace periods)**](natural-history-mtps.html) for the
@@ -1694,6 +1697,7 @@ informative error.
 | Binary | Any | IPSI($\delta$) | ATE | — | — | marginal | ⛔ no marginal numerator |
 | Binary | Continuous | Static, **stratified ICE** (`stratified = "G"`) | ATE / `by(G)` | Difference | Sandwich / bootstrap | none | ✅ vs per-stratum pooled + delicatessen |
 | Binary (absorbing) | Continuous / Binary | `grace_period` / `carry_forward` (natural-history MTP) | ATE | Difference | Bootstrap | none / cens / ext | ✅ vs forward-MC truth (Díaz et al. 2026 §6) |
+| Ordinal dose `{0,1,2}` | Continuous | `cap_escalation` + `treatment_form = ~ factor(dose)` | ATE | Difference | Bootstrap | none | ✅ tight vs forward-MC truth (gap ≈0.0015) |
 | Binary | Any | Natural-history MTP | ATE | — | Sandwich | — | ⛔ deferred (`causatr_glmtp_sandwich`) |
 | Binary | Any | Static / ATT | ATT | — | — | — | ⛔ ICE is ATE-only |
 

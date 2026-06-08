@@ -15,8 +15,12 @@
 >   the forward-MC truth closes from ~0.034 to ~0.0015). `R/ice.R` (`fit_ice`, `ice_build_formula`),
 >   `R/glmtp.R`, `R/checks.R` (`check_treatment_form`), bootstrap refit threaded; tests in
 >   `test-ice-treatment-form.R` + `test-glmtp.R`.
-> - **Three chunks remain — a planned roadmap (§3.7):** 22b-4 augmented-data sandwich, 22b-6
->   `cap_escalation()` public release (today internal `@noRd`, now unblocked by 22b-5), 22b-7
+> - **22b-6 `cap_escalation()` public release — SHIPPED.** The dose-escalation-cap G-LMTP
+>   constructor is now exported. It is consistent under `treatment_form = ~ factor(A)` and needed
+>   no engine change — it shares the augmented `glmtp_iterate()` path, the discreteness/tractability
+>   gates, and the ID-cluster bootstrap with the other policies. Tight forward-MC-truth + bootstrap-CI
+>   + arg-validation + rejection tests in `tests/testthat/test-glmtp.R`.
+> - **Two chunks remain — a planned roadmap (§3.7):** 22b-4 augmented-data sandwich and 22b-7
 >   multivariate G-LMTP. Tracked in `CLAUDE.md` Pending.
 >
 > **Depends on:** Phase 5 (longitudinal ICE), Phase 15 (ICE formula builder for transformed TV
@@ -318,7 +322,7 @@ live roadmap for 22b's continuation (each is registered in `CLAUDE.md`'s Pending
 |---|---|---|---|
 | **22b-4** | Augmented-data sandwich variance | — | PLANNED |
 | **22b-5** | Flexible-treatment ICE term (enabler) | — | **SHIPPED** |
-| **22b-6** | `cap_escalation()` public release | 22b-5 | PLANNED (unblocked) |
+| **22b-6** | `cap_escalation()` public release | 22b-5 | **SHIPPED** |
 | **22b-7** | Multivariate (vector-treatment) G-LMTP | 22b-5 | PLANNED (unblocked) |
 
 **Chunk 22b-4 — Augmented-data sandwich.** Stack the per-(time, label) GLM scores + the mean EE into a
@@ -344,10 +348,14 @@ categorical (`factor`) and a curved continuous (`ns`) dose-response; `cap_escala
 error under `factor(A)` vs the forward-MC truth; ICE sandwich vs ID-cluster bootstrap parity. Benefits
 all of ICE, not just G-LMTP. Tests: `test-ice-treatment-form.R` + `test-glmtp.R`.
 
-**Chunk 22b-6 — `cap_escalation()` public release.** Today internal (`@noRd`); engine + policy are
-correct (no-cap limit exact; hand-code match $10^{-9}$). Export + a forward-MC truth test that now
-*passes tightly* because 22b-5 makes the plug-in consistent. Oracle: forward-MC Proposition-1 truth +
-the hand-coded recursion. Depends on 22b-5.
+**Chunk 22b-6 — `cap_escalation()` public release. SHIPPED.** The dose-escalation-cap constructor is
+exported (`R/glmtp_interventions.R`). No engine/routing/check change was needed — `glmtp_iterate()`
+calls each policy closure generically, and the discreteness/tractability gates and the ID-cluster
+bootstrap are subtype-agnostic. The release adds public-API tests: a **tight** forward-MC-truth check
+under `~ factor(A)` at $n = 80000$ (gap $<0.0035$, Tier-2 `skip_on_cran`), bootstrap-CI coverage,
+`contrast()` == `glmtp_iterate()` path agreement, constructor arg-validation, and the inherited
+sandwich / mixing / continuous / non-ICE rejections. Oracle: forward-MC Proposition-1 truth + the
+hand-coded recursion ($10^{-9}$). Variance stays bootstrap-only.
 
 **Chunk 22b-7 — Multivariate G-LMTP.** Díaz covers multivariate via binary coding. The support is the
 product **over components and time** $\bar{\mathcal{A}}_t = (\mathcal{A}^{(1)} \times \cdots \times
@@ -367,6 +375,6 @@ Depends on 22b-5 (non-static components are bare-numeric otherwise).
 - Stratified × effect-modification interaction (smoke only).
 - Continuous-treatment G-LMTPs (paper covers discrete exposures only; needs TMLE/SDR, `lmtp`).
 
-(22b's own remaining work — augmented-data sandwich, `cap_escalation()` release, multivariate — is the
+(22b's own remaining work — augmented-data sandwich (22b-4) and multivariate (22b-7) — is the
 **planned roadmap in §3.7**, tracked in `CLAUDE.md` Pending, not a deferred-and-forgotten list. The
-flexible-treatment ICE term, 22b-5, is now shipped.)
+flexible-treatment ICE term (22b-5) and the `cap_escalation()` public release (22b-6) are now shipped.)

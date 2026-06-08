@@ -1,5 +1,34 @@
 # causatr (development version)
 
+## 2026-06-08 — Phase 22b-6: `cap_escalation()` public release
+
+`cap_escalation(delta)` is now exported. It is a natural-history modified
+treatment policy (G-LMTP) for an ordered / ordinal / count treatment (a dose)
+that caps the per-period increase of the *natural* dose at `delta`: a patient
+follows their natural dose unless it would jump by more than `delta` in one
+period, in which case the increase is held to `delta` (Díaz, Williams,
+Morzywołek & Rudolph 2026, the dose-escalation example). Because the cap reads
+the natural dose at the *previous* period, it is a genuine natural-history
+policy and is estimated by the augmented-data sequential regression, not
+`dynamic()`.
+
+The constructor was internal until now because the per-step outcome model
+entered the dose as a bare numeric term, which misspecifies the kinked
+capped-dose response (~3% point bias when the cap binds). The Phase 22b-5
+flexible-treatment ICE term removes that: with `treatment_form = ~ factor(A)`
+(or `~ splines::ns(A, df)`) each dose level carries its own coefficient and the
+plug-in becomes consistent — the gap to the Proposition-1 forward-MC truth
+closes from ≈0.034 (bare) to ≈0.0015 (factor) at n = 40000 and settles to
+≈0.001–0.0025 by n = 80000. No engine, routing, or validation change was
+needed: `cap_escalation()` shares the augmented `glmtp_iterate()` path, the
+discreteness/tractability gates, and the ID-cluster bootstrap with
+`grace_period()` / `carry_forward()`. Variance is bootstrap-only;
+`ci_method = "sandwich"` still aborts with `causatr_glmtp_sandwich` (the
+augmented-data sandwich is a separate planned chunk). Validated against the
+forward-MC truth (tight at n = 80000), an independent hand-coded recursion
+(1e-9), bootstrap CI coverage, and limiting-case agreement with the natural
+course when the cap never binds.
+
 ## 2026-06-03 — Phase 22b-5: Flexible-treatment ICE term (`treatment_form`)
 
 `causat()` gains a `treatment_form` argument for longitudinal g-computation

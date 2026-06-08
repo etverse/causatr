@@ -42,8 +42,8 @@ glmtp_support <- function(
   if (length(treatment) != 1L) {
     rlang::abort(
       paste0(
-        "Natural-history MTPs (`grace_period()` / `carry_forward()`) support ",
-        "a single discrete treatment column; got ",
+        "Natural-history MTPs (`grace_period()` / `carry_forward()` / ",
+        "`cap_escalation()`) support a single discrete treatment column; got ",
         length(treatment),
         " (multivariate treatment)."
       ),
