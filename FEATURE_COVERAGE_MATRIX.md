@@ -286,7 +286,8 @@ the **augmented-data sequential regression** of Diaz, Williams, Morzywołek & Ru
 (2026, arXiv:2605.24167) carries every natural-history sequence $\bar{s}_t$ as a label
 through the backward recursion (`R/glmtp.R`, `R/glmtp_augment.R`,
 `R/glmtp_interventions.R`). **Longitudinal g-computation only, discrete treatment.**
-Variance: ID-cluster **bootstrap** (the augmented-data sandwich is deferred).
+Variance: ID-cluster **bootstrap** and analytic **M-estimation sandwich**
+(`R/variance_if_glmtp.R`, 22b-4).
 
 | Trt | Outcome | Intervention | Periods | Variance | Wt | Status | Test |
 |---|---|---|---|---|---|---|---|
@@ -297,12 +298,17 @@ Variance: ID-cluster **bootstrap** (the augmented-data sandwich is deferred).
 | bin | gauss | `grace_period(0)` | 4 | (point) | — | ✅ exact vs natural course (1e-9) | test-glmtp.R |
 | bin | gauss | `grace_period(1)` | 4 | boot | — | ✅ CI covers forward-MC truth | test-glmtp.R |
 | bin | gauss | `grace_period(1)` | 4 | boot | ext / cens | ✅ composes (finite point + SE) | test-glmtp.R |
+| bin | gauss | `grace_period(1)` | 4 | sandwich | — | ✅ bootstrap parity (0.7% diff at n=1500) | test-glmtp.R |
+| bin | gauss | `grace_period(1)` | 2 | sandwich | — | ✅ +oracle Python M-estimation (SE ~1e-4) | test-glmtp.R |
+| bin | gauss | `grace_period(1)` vs `NULL` multi-arm | 4 | sandwich | — | ✅ finite contrasts + per-arm SEs | test-glmtp.R |
+| bin | gauss | `grace_period(1)` | 4 | sandwich | ext | ✅ finite SE with external weights | test-glmtp.R |
 | ordinal {0,1,2} | gauss | `carry_forward()` | 3 | (point) | — | ✅ exact vs baseline regime (1e-14) — `|A|^t` machinery | test-glmtp.R |
 | ordinal {0,1,2} | gauss | `cap_escalation` | 3 | (point) | — | ✅ engine == independent hand-coded recursion (1e-9) | test-glmtp.R |
 | ordinal {0,1,2} | gauss | `cap_escalation` + `treatment_form = ~ factor(A)` | 3 | (point) | — | ✅ vs forward-MC truth: comparative n=40000 (gap 0.0015 vs 0.034 bare) | test-glmtp.R |
 | ordinal {0,1,2} | gauss | `cap_escalation(1)` + `~ factor(A)` | 3 | (point) | — | ✅ tight vs forward-MC truth, n=80000 (gap <0.0035; Tier-2) | test-glmtp.R |
 | ordinal {0,1,2} | gauss | `cap_escalation(1)` + `~ factor(A)` | 3 | boot | — | ✅ CI covers forward-MC truth; `contrast()` == `glmtp_iterate()` | test-glmtp.R |
-| ordinal {0,1,2} | gauss | `cap_escalation()` ctor + rejections | 3 | (point) | — | ✅ arg validation + sandwich/mixed/continuous/non-ICE classed | test-glmtp.R |
+| ordinal {0,1,2} | gauss | `cap_escalation(1)` + `~ factor(A)` | 3 | sandwich | — | ✅ bootstrap parity (4.4% diff at n=1500) | test-glmtp.R |
+| ordinal {0,1,2} | gauss | `cap_escalation()` ctor + rejections | 3 | (point) | — | ✅ arg validation + mixed/continuous/non-ICE classed | test-glmtp.R |
 | bin | gauss | `grace_period(1)` + `~ factor(A)` | 4 | boot | — | ✅ composes (finite CI; == bare for binary) | test-glmtp.R |
 
 The engine handles **any single discrete treatment** ($|\mathcal{A}| \ge 2$); the ordinal rows pin the
@@ -311,16 +317,19 @@ The engine handles **any single discrete treatment** ($|\mathcal{A}| \ge 2$); th
 ICE term** (`treatment_form =`, Phase 22b-5) lets the dose enter the per-step model as `factor(A)` /
 `splines::ns(A)`, removing the bare-numeric misspecification of a kinked capped-dose response (the
 cap-policy gap closes from $\approx0.034$ to $\approx0.0015$ vs the forward-MC truth) — which is what
-makes `cap_escalation()` a consistent public estimator. **Deferred** (designed, `PHASE_22` §3.7):
-augmented-data sandwich (22b-4) and **multivariate** G-LMTP (22b-7).
+makes `cap_escalation()` a consistent public estimator. The **augmented-data sandwich** (22b-4,
+`R/variance_if_glmtp.R`) stacks per-(step, label) GLM scores + the estimand EE in the same
+block-triangular M-estimation structure as the ICE chain; validated against a Python M-estimation
+oracle (SE agreement ~1e-4) and against ID-cluster bootstrap parity (~0.7% at n=1500, ~4.4% for
+`cap_escalation + factor(A)`). **Deferred** (designed, `PHASE_22` §3.7):
+**multivariate** G-LMTP (22b-7).
 
 Augment helpers (`glmtp_support`, `glmtp_enumerate_labels`, `glmtp_label_key`,
 `glmtp_check_tractable`) — all ✅ unit-tested (`test-glmtp.R`).
 Rejections (all ✅ tested, `test-glmtp.R`): non-ICE estimator / point treatment / transport /
 stratified $\to$ `causatr_glmtp_not_ice`; mixing with a standard intervention $\to$
 `causatr_glmtp_mixed`; continuous / factor / multivariate treatment $\to$
-`causatr_glmtp_continuous_trt`; history blow-up $\to$ `causatr_glmtp_too_many`;
-`ci_method = "sandwich"` $\to$ `causatr_glmtp_sandwich` (deferred).
+`causatr_glmtp_continuous_trt`; history blow-up $\to$ `causatr_glmtp_too_many`.
 
 ---
 
@@ -688,7 +697,7 @@ Scalar-outcome IPCW for MAR censoring: internal censoring model, stabilized IPCW
 | ICE nonlinear DGP: ns() handles sin() confounding | ✅ | test-ice.R |
 | ICE lmtp cross-check: ns() on nonlinear DGP vs lmtp_sdr | ✅ | test-ice.R |
 | ICE lmtp cross-check: poly() on linear DGP vs lmtp_sdr | ✅ | test-ice.R |
-| Grace period / delay / carry-forward (natural-history MTPs) | ✅ | test-glmtp.R |
+| Grace period / delay / carry-forward (natural-history MTPs) — boot + sandwich | ✅ | test-glmtp.R |
 | Stratified ICE | ✅ | test-ice-stratified.R |
 | Multinomial outcomes | → Phase 23 | — |
 | Ordinal outcomes | → Phase 23 | — |

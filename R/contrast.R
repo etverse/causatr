@@ -1167,34 +1167,28 @@ compute_contrast <- function(
       names(mu_hat) <- int_names
 
       if (ci_method == "sandwich") {
-        if (is_glmtp) {
-          # The augmented-data plug-in sandwich (whose bread couples augmented
-          # replicate rows across history labels) is a later sub-chunk; the
-          # ID-cluster bootstrap is the supported inference for now.
-          rlang::abort(
-            c(
-              paste0(
-                "Sandwich variance is not yet available for natural-history ",
-                "MTPs (`grace_period()` / `carry_forward()` / ",
-                "`cap_escalation()`)."
-              ),
-              i = paste0(
-                "Use `ci_method = \"bootstrap\"` for valid ID-cluster ",
-                "inference."
-              )
-            ),
-            class = "causatr_glmtp_sandwich"
+        vcov_mat <- if (is_glmtp) {
+          # Augmented-data plug-in sandwich: stacks the per-(step, label) GLM
+          # scores alongside the estimand EE; the bread propagates sensitivities
+          # through the label tree in the same forward direction as the
+          # block-triangular ICE cascade.
+          variance_if_glmtp(
+            fit,
+            glmtp_results = ice_results,
+            target_within_first = target_within_first,
+            cluster_vec = cluster_vec
+          )
+        } else {
+          # Stratified ICE routes through the same `variance_if()` entry as
+          # pooled ICE; `variance_if_ice()` dispatches to the per-stratum
+          # block-diagonal sandwich when `fit$details$stratified` is set.
+          variance_if(
+            fit,
+            ice_results = ice_results,
+            target_within_first = target_within_first,
+            cluster_vec = cluster_vec
           )
         }
-        # Stratified ICE routes through the same `variance_if()` entry as
-        # pooled ICE; `variance_if_ice()` dispatches to the per-stratum
-        # block-diagonal sandwich when `fit$details$stratified` is set.
-        vcov_mat <- variance_if(
-          fit,
-          ice_results = ice_results,
-          target_within_first = target_within_first,
-          cluster_vec = cluster_vec
-        )
       } else {
         boot_fn <- if (is_glmtp) {
           glmtp_variance_bootstrap

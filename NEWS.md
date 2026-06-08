@@ -1,5 +1,20 @@
 # causatr (development version)
 
+## 2026-06-08 — Phase 22b-4: Analytic sandwich variance for natural-history MTPs
+
+`contrast(..., ci_method = "sandwich")` now works for all three G-LMTP
+interventions — `grace_period()`, `carry_forward()`, and `cap_escalation()` —
+via a new `R/variance_if_glmtp.R` engine. The estimator is an
+M-estimation (plug-in sandwich) that stacks the per-(time-step, natural-history
+label) GLM scores alongside the estimand estimating equation in the same
+block-triangular bread structure as the pooled ICE chain. The per-label
+sensitivity dictionary `D[s_t]` generalises the single `d_vec` of the ICE
+chain; `correct_model()`, `iv_design_matrix()`, and `coef_clean()` are reused
+verbatim. Validated against a Python M-estimation oracle (SE agreement ~1e-4 at
+n = 500, τ = 2) and against ID-cluster bootstrap parity (~0.7% at n = 1500 for
+`grace_period`, ~4.4% for `cap_escalation + factor(A)`). External survey
+weights and multi-arm contrasts compose transparently.
+
 ## 2026-06-08 — Phase 22b-6: `cap_escalation()` public release
 
 `cap_escalation(delta)` is now exported. It is a natural-history modified
@@ -22,9 +37,8 @@ closes from ≈0.034 (bare) to ≈0.0015 (factor) at n = 40000 and settles to
 ≈0.001–0.0025 by n = 80000. No engine, routing, or validation change was
 needed: `cap_escalation()` shares the augmented `glmtp_iterate()` path, the
 discreteness/tractability gates, and the ID-cluster bootstrap with
-`grace_period()` / `carry_forward()`. Variance is bootstrap-only;
-`ci_method = "sandwich"` still aborts with `causatr_glmtp_sandwich` (the
-augmented-data sandwich is a separate planned chunk). Validated against the
+`grace_period()` / `carry_forward()`. Both bootstrap and analytic sandwich
+variance (Phase 22b-4) are supported. Validated against the
 forward-MC truth (tight at n = 80000), an independent hand-coded recursion
 (1e-9), bootstrap CI coverage, and limiting-case agreement with the natural
 course when the cap never binds.

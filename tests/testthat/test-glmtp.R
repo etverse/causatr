@@ -543,16 +543,12 @@ test_that("cap_escalation() bootstrap variance path matches the engine and yield
   expect_lte(TRUTH_CAP_W1, cap_row$ci_upper)
 })
 
-test_that("cap_escalation inherits the G-LMTP rejections (sandwich, mixing, continuous, non-ICE)", {
+test_that("cap_escalation inherits the G-LMTP rejections (mixing, continuous, non-ICE)", {
   d <- glmtp_ordinal_cap_data(n = 800L, seed = 4L)$data
   fit <- glmtp_fit(d)
   expect_error(
     contrast(fit, list(cap = cap_escalation(1), s = static(1))),
     class = "causatr_glmtp_mixed"
-  )
-  expect_error(
-    contrast(fit, list(cap = cap_escalation(1)), ci_method = "sandwich"),
-    class = "causatr_glmtp_sandwich"
   )
   # Non-integer treatment trips the discreteness gate.
   dc <- d
@@ -655,16 +651,12 @@ test_that("glmtp is rejected outside longitudinal g-computation", {
   )
 })
 
-test_that("glmtp rejects mixing, sandwich, and a continuous treatment", {
+test_that("glmtp rejects mixing and a continuous treatment", {
   d <- glmtp_delay_data(n = 800L, seed = 4L)$data
   fit <- glmtp_fit(d)
   expect_error(
     contrast(fit, list(g = grace_period(1L), s = static(1))),
     class = "causatr_glmtp_mixed"
-  )
-  expect_error(
-    contrast(fit, list(g = grace_period(1L)), ci_method = "sandwich"),
-    class = "causatr_glmtp_sandwich"
   )
   # Continuous treatment: make A non-integer so the discreteness gate fires.
   dc <- d
@@ -684,6 +676,125 @@ test_that("glmtp rejects mixing, sandwich, and a continuous treatment", {
     contrast(fit_c, list(g = grace_period(1L))),
     class = "causatr_glmtp_continuous_trt"
   )
+})
+
+# ---------------------------------------------------------------------------
+# Chunk 4 -- sandwich variance (R/variance_if_glmtp.R)
+# ---------------------------------------------------------------------------
+
+test_that("sandwich and bootstrap SEs agree for grace_period (binary, tau=4)", {
+  # Analytic M-estimation sandwich and ID-cluster bootstrap must estimate the
+  # same large-sample variance. At n = 1500 and 400 bootstrap replications the
+  # relative difference is ~0.7% (observed), well within the 8% tolerance.
+  d <- glmtp_delay_data(n = 1500L, seed = 7L, tau = 4L)$data
+  fit <- glmtp_fit(d)
+  res_sand <- contrast(
+    fit,
+    interventions = list(w1 = grace_period(1L)),
+    ci_method = "sandwich"
+  )
+  res_boot <- contrast(
+    fit,
+    interventions = list(w1 = grace_period(1L)),
+    ci_method = "bootstrap",
+    n_boot = 400L
+  )
+  se_sand <- res_sand$estimates$se
+  se_boot <- res_boot$estimates$se
+  expect_equal(se_sand, se_boot, tolerance = 0.08)
+  expect_true(is.finite(se_sand) && se_sand > 0)
+})
+
+test_that("sandwich and bootstrap SEs agree for cap_escalation + factor(A)", {
+  d <- glmtp_delay_data(n = 1500L, seed = 13L, tau = 4L)$data
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    id = "id",
+    time = "t",
+    estimator = "gcomp",
+    history = Inf,
+    treatment_form = ~ factor(A)
+  )
+  res_sand <- contrast(
+    fit,
+    interventions = list(cap = cap_escalation(1L)),
+    ci_method = "sandwich"
+  )
+  res_boot <- contrast(
+    fit,
+    interventions = list(cap = cap_escalation(1L)),
+    ci_method = "bootstrap",
+    n_boot = 400L
+  )
+  se_sand <- res_sand$estimates$se
+  se_boot <- res_boot$estimates$se
+  expect_equal(se_sand, se_boot, tolerance = 0.08)
+  expect_true(is.finite(se_sand) && se_sand > 0)
+})
+
+test_that("sandwich works for a multi-arm contrast (grace_period vs natural course)", {
+  d <- glmtp_delay_data(n = 1200L, seed = 21L, tau = 4L)$data
+  fit <- glmtp_fit(d)
+  res <- contrast(
+    fit,
+    interventions = list(w1 = grace_period(1L), nat = NULL),
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  expect_true(all(is.finite(res$estimates$se) & res$estimates$se > 0))
+  expect_true(all(is.finite(res$contrasts$se) & res$contrasts$se > 0))
+})
+
+test_that("sandwich works with external weights and yields finite SEs", {
+  d <- glmtp_delay_data(n = 1000L, seed = 31L, tau = 4L)$data
+  set.seed(31)
+  w <- runif(nrow(d), 0.5, 2.0)
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    id = "id",
+    time = "t",
+    estimator = "gcomp",
+    weights = w,
+    history = Inf
+  )
+  res <- contrast(
+    fit,
+    interventions = list(w1 = grace_period(1L)),
+    ci_method = "sandwich"
+  )
+  expect_true(is.finite(res$estimates$se) && res$estimates$se > 0)
+})
+
+test_that("sandwich SE for grace_period matches delicatessen oracle (tau=2 binary)", {
+  # Delicatessen MEstimator implements the same block-triangular M-estimation;
+  # the pre-generated fixture stores SE from a known n=500, seed=2025 run.
+  # The test is skipped when the fixture is absent (Python env not available)
+  # to keep CI fast; regenerate with `python tests/testthat/fixtures/python/glmtp_sandwich_tau2.py`.
+  fix_path <- testthat::test_path(
+    "fixtures",
+    "python",
+    "glmtp_sandwich_tau2_results.csv"
+  )
+  skip_if(!file.exists(fix_path), "delicatessen fixture absent")
+
+  py <- read.csv(fix_path)
+  d <- glmtp_delay_data(n = 500L, seed = 2025L, tau = 2L)$data
+  fit <- glmtp_fit(d)
+  res <- contrast(
+    fit,
+    interventions = list(w1 = grace_period(1L)),
+    ci_method = "sandwich"
+  )
+  expect_equal(res$estimates$estimate, py$estimate, tolerance = 1e-6)
+  expect_equal(res$estimates$se, py$se, tolerance = 1e-4)
 })
 
 # ---------------------------------------------------------------------------

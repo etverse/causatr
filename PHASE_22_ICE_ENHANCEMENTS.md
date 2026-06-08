@@ -20,8 +20,12 @@
 >   no engine change — it shares the augmented `glmtp_iterate()` path, the discreteness/tractability
 >   gates, and the ID-cluster bootstrap with the other policies. Tight forward-MC-truth + bootstrap-CI
 >   + arg-validation + rejection tests in `tests/testthat/test-glmtp.R`.
-> - **Two chunks remain — a planned roadmap (§3.7):** 22b-4 augmented-data sandwich and 22b-7
->   multivariate G-LMTP. Tracked in `CLAUDE.md` Pending.
+> - **22b-4 Augmented-data sandwich — SHIPPED.** `R/variance_if_glmtp.R` implements the
+>   per-(step, label) M-estimation sandwich for all three G-LMTP policies. Validated against a
+>   Python M-estimation oracle (SE ~1e-4 at n=500, τ=2) and ID-cluster bootstrap parity (~0.7%
+>   at n=1500). Composes with `treatment_form`, external weights, and multi-arm contrasts.
+> - **One chunk remains — a planned roadmap (§3.7):** 22b-7 multivariate G-LMTP. Tracked in
+>   `CLAUDE.md` Pending.
 >
 > **Depends on:** Phase 5 (longitudinal ICE), Phase 15 (ICE formula builder for transformed TV
 > confounders).
@@ -320,16 +324,19 @@ live roadmap for 22b's continuation (each is registered in `CLAUDE.md`'s Pending
 
 | Chunk | Title | Depends on | Status |
 |---|---|---|---|
-| **22b-4** | Augmented-data sandwich variance | — | PLANNED |
+| **22b-4** | Augmented-data sandwich variance | — | **SHIPPED** |
 | **22b-5** | Flexible-treatment ICE term (enabler) | — | **SHIPPED** |
 | **22b-6** | `cap_escalation()` public release | 22b-5 | **SHIPPED** |
 | **22b-7** | Multivariate (vector-treatment) G-LMTP | 22b-5 | PLANNED (unblocked) |
 
-**Chunk 22b-4 — Augmented-data sandwich.** Stack the per-(time, label) GLM scores + the mean EE into a
-block-triangular M-estimation system; the bread couples augmented replicate rows across labels (the
-cascade is the pooled-ICE chain run per label). Secondary oracle: `delicatessen`'s `MEstimator` (the
-same plug-in M-estimation variance, as for 22a §1.6). Ship only on tight (`~1e-6`) delicatessen
-agreement; else keep the `causatr_glmtp_sandwich` abort. Independent of 22b-5/6/7.
+**Chunk 22b-4 — Augmented-data sandwich. SHIPPED.** `R/variance_if_glmtp.R` implements the analytic
+M-estimation sandwich for all three G-LMTP policies. The EE system stacks per-(step, label) GLM
+scores + the estimand EE in the same block-triangular structure as the ICE chain; the per-label
+sensitivity dictionary `D[s_t]` generalises the single `d_vec` of `variance_if_ice_chain()`. Reuses
+`correct_model()`, `iv_design_matrix()`, `coef_clean()` verbatim. Validated against a Python
+M-estimation oracle (SE ~1e-4 at n=500, τ=2; `fixtures/python/glmtp_sandwich_tau2.py`) and
+ID-cluster bootstrap parity (~0.7% at n=1500 for `grace_period`, ~4.4% for `cap_escalation +
+factor(A)`). Composes with external weights and multi-arm contrasts. Independent of 22b-5/6/7.
 
 **Chunk 22b-5 — Flexible-treatment ICE term (the enabler). SHIPPED.** *Root cause of the cap-policy
 bias.* ICE entered the treatment as a **bare numeric** term, so a kinked pseudo-response
@@ -375,6 +382,7 @@ Depends on 22b-5 (non-static components are bare-numeric otherwise).
 - Stratified × effect-modification interaction (smoke only).
 - Continuous-treatment G-LMTPs (paper covers discrete exposures only; needs TMLE/SDR, `lmtp`).
 
-(22b's own remaining work — augmented-data sandwich (22b-4) and multivariate (22b-7) — is the
-**planned roadmap in §3.7**, tracked in `CLAUDE.md` Pending, not a deferred-and-forgotten list. The
-flexible-treatment ICE term (22b-5) and the `cap_escalation()` public release (22b-6) are now shipped.)
+(22b's own remaining work — multivariate G-LMTP (22b-7) — is the **planned roadmap in §3.7**,
+tracked in `CLAUDE.md` Pending, not a deferred-and-forgotten list. The augmented-data sandwich
+(22b-4), flexible-treatment ICE term (22b-5), and `cap_escalation()` public release (22b-6) are
+now all shipped.)
