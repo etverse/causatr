@@ -1830,3 +1830,88 @@ simulate_mi_uncongenial <- function(n = 2000, seed = 42) {
   L_obs[R_L == 0] <- NA
   data.frame(Y = Y, A = A, L = L_obs, L_full = L)
 }
+
+# ---------------------------------------------------------------------------
+# Longitudinal outcome-family DGPs (Phase 13 extended to ICE)
+# ---------------------------------------------------------------------------
+
+# DGP-ICE-POIS: Longitudinal Poisson ICE — binary treatment, tau = 2.
+#   L0 ~ N(0,1); L1 | L0 ~ N(0.5*L0, 1) [no A -> L feedback -> clean truth];
+#   A1 | L0 ~ Bernoulli(expit(0.3*L0)); A2 | L1 ~ Bernoulli(expit(0.3*L1));
+#   Y | A1, A2, L1 ~ Poisson(exp(0.5 + 0.8*(A1+A2) + 0.4*L1)).
+#
+#   Marginal truth (static interventions, log-normal moment formula):
+#     L1 ~ N(0, sqrt(1.25)) marginally => E[exp(0.4*L1)] = exp(0.16*1.25/2) = exp(0.1)
+#     E[Y^{A=1}] = exp(0.5 + 1.6 + 0.1) = exp(2.2) ~ 9.025
+#     E[Y^{A=0}] = exp(0.5 + 0.0 + 0.1) = exp(0.6) ~ 1.822
+#     ATE = exp(2.2) - exp(0.6) ~ 7.203
+simulate_longitudinal_poisson <- function(n = 2000L, seed = 42L) {
+  set.seed(seed)
+  L0 <- rnorm(n)
+  L1 <- 0.5 * L0 + rnorm(n)
+  A1 <- rbinom(n, 1L, plogis(0.3 * L0))
+  A2 <- rbinom(n, 1L, plogis(0.3 * L1))
+  mu <- exp(0.5 + 0.8 * (A1 + A2) + 0.4 * L1)
+  Y  <- rpois(n, mu)
+  data.table::data.table(
+    id = rep(seq_len(n), each = 2L),
+    t  = rep(1:2, n),
+    L0 = rep(L0, each = 2L),
+    L  = c(rbind(L0, L1)),
+    A  = c(rbind(A1, A2)),
+    Y  = c(rbind(rep(NA_real_, n), as.numeric(Y)))
+  )
+}
+
+# DGP-ICE-GAMMA: Longitudinal Gamma ICE — continuous treatment, tau = 2.
+#   L0 ~ N(0,1); L1 | L0 ~ N(0.5*L0, 1) [no A -> L feedback];
+#   A1 | L0 ~ N(0.5*L0, 1); A2 | L1 ~ N(0.5*L1, 1);
+#   Y | A1, A2, L1 ~ Gamma(log-link, mean = exp(0.3 + 0.3*(A1+A2) + 0.2*L1), shape = 4).
+#
+#   Shift(0.5) exact multiplicative identity: E[Y^{A+0.5}] = E[Y] * exp(0.3*1) = E[Y] * exp(0.3).
+#   Use lmtp::lmtp_sdr(outcome_type = "continuous") as oracle (no closed-form for E[Y]
+#   due to correlated A and L).
+simulate_longitudinal_gamma <- function(n = 2000L, seed = 42L) {
+  set.seed(seed)
+  L0 <- rnorm(n)
+  L1 <- 0.5 * L0 + rnorm(n)
+  A1 <- 0.5 * L0 + rnorm(n)
+  A2 <- 0.5 * L1 + rnorm(n)
+  mu  <- exp(0.3 + 0.3 * (A1 + A2) + 0.2 * L1)
+  Y   <- rgamma(n, shape = 4, rate = 4 / mu)
+  data.table::data.table(
+    id = rep(seq_len(n), each = 2L),
+    t  = rep(1:2, n),
+    L0 = rep(L0, each = 2L),
+    L  = c(rbind(L0, L1)),
+    A  = c(rbind(A1, A2)),
+    Y  = c(rbind(rep(NA_real_, n), Y))
+  )
+}
+
+# DGP-ICE-BETA: Longitudinal beta-regression ICE — binary treatment, tau = 2.
+#   Same structural skeleton as DGP-ICE-POIS; outcome on (0,1) for betareg.
+#   L0 ~ N(0,1); L1 | L0 ~ N(0.5*L0, 1);
+#   A1 | L0 ~ Bernoulli(expit(0.3*L0)); A2 | L1 ~ Bernoulli(expit(0.3*L1));
+#   mu = expit(-0.5 + 0.6*(A1+A2) + 0.3*L1); phi = 4;
+#   Y ~ Beta(mu*phi, (1-mu)*phi) clipped to (0,1) open interval.
+#   Smoke test only; no analytical truth.
+simulate_longitudinal_betareg <- function(n = 2000L, seed = 42L) {
+  set.seed(seed)
+  L0 <- rnorm(n)
+  L1 <- 0.5 * L0 + rnorm(n)
+  A1 <- rbinom(n, 1L, plogis(0.3 * L0))
+  A2 <- rbinom(n, 1L, plogis(0.3 * L1))
+  phi <- 4
+  mu  <- plogis(-0.5 + 0.6 * (A1 + A2) + 0.3 * L1)
+  Y   <- rbeta(n, mu * phi, (1 - mu) * phi)
+  Y   <- pmax(1e-6, pmin(1 - 1e-6, Y))
+  data.table::data.table(
+    id = rep(seq_len(n), each = 2L),
+    t  = rep(1:2, n),
+    L0 = rep(L0, each = 2L),
+    L  = c(rbind(L0, L1)),
+    A  = c(rbind(A1, A2)),
+    Y  = c(rbind(rep(NA_real_, n), Y))
+  )
+}

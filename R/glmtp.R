@@ -227,7 +227,8 @@ glmtp_iterate <- function(fit, intervention) {
           family_pseudo,
           w_k,
           model_fn_dots,
-          NULL
+          NULL,
+          is_pseudo = TRUE
         ),
         error = function(e) NULL
       )

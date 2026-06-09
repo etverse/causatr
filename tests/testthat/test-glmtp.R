@@ -176,9 +176,13 @@ test_that("cap_escalation validates args and carries the policy", {
 # Proposition 1). The constants below were computed at n_mc = 2e6, seed = 1 via
 # the helper-glmtp-dgp.R forward-simulators and are reconfirmed in a Tier-2 test
 # so they cannot silently drift.
-TRUTH_GAUSS_W1 <- 2.30313
+TRUTH_GAUSS_W1  <- 2.30313
 TRUTH_GAUSS_NAT <- 2.98045
-TRUTH_PAPER_W1 <- 0.55472
+TRUTH_PAPER_W1  <- 0.55472
+# Poisson/Gamma truth: E[exp(lp)] under grace_period(1) using the same SCM.
+# Both families have log-link mean, so the truth is identical.
+# Computed via glmtp_delay_forward_truth_family(1, "poisson", n_mc=2e6, seed=1).
+TRUTH_LOG_W1    <- 23.0509
 
 test_that("glmtp grace_period recovers the forward-MC truth (gaussian)", {
   # Linear-gaussian absorbing-treatment SCM: every augmented per-step
@@ -818,4 +822,103 @@ test_that("hard-coded forward-MC truth constants match a fresh 2e6 simulation", 
     TRUTH_CAP_W1,
     tolerance = 1e-3
   )
+  expect_equal(
+    glmtp_delay_forward_truth_family(1L, "poisson", n_mc = 2e6, seed = 1L),
+    TRUTH_LOG_W1,
+    tolerance = 0.1,
+    label = "Poisson/Gamma G-LMTP truth constant is stable"
+  )
+})
+
+# ---------------------------------------------------------------------------
+# G-LMTP with non-gaussian outcome families
+# ---------------------------------------------------------------------------
+
+test_that("G-LMTP: Poisson outcome — grace_period(1) matches forward-MC truth", {
+  d <- glmtp_delay_data_family("poisson", n = 4000L, seed = 1L)
+  fit <- causat(
+    d$data,
+    outcome        = "Y",
+    treatment      = "A",
+    confounders    = ~L0,
+    confounders_tv = ~L,
+    id             = "id",
+    time           = "t",
+    estimator      = "gcomp",
+    family         = "poisson"
+  )
+  res <- contrast(
+    fit,
+    interventions = list(w1 = grace_period(1L)),
+    type          = "difference",
+    ci_method     = "sandwich"
+  )
+  est <- res$estimates$estimate[1]
+
+  expect_equal(est, TRUTH_LOG_W1, tolerance = 1.5,
+               label = "G-LMTP Poisson grace_period(1) vs forward-MC truth")
+  expect_true(all(is.finite(res$estimates$se)))
+  expect_true(all(res$estimates$se > 0))
+  # CI must cover truth
+  expect_true(
+    res$estimates$ci_lower[1] < TRUTH_LOG_W1 &&
+      TRUTH_LOG_W1 < res$estimates$ci_upper[1],
+    label = "G-LMTP Poisson CI covers forward-MC truth"
+  )
+})
+
+test_that("G-LMTP: Poisson outcome — sandwich parity with bootstrap", {
+  skip_on_cran()
+  d <- glmtp_delay_data_family("poisson", n = 1500L, seed = 2L)
+  fit <- causat(
+    d$data,
+    outcome        = "Y",
+    treatment      = "A",
+    confounders    = ~L0,
+    confounders_tv = ~L,
+    id             = "id",
+    time           = "t",
+    estimator      = "gcomp",
+    family         = "poisson"
+  )
+  r_sw <- contrast(fit, interventions = list(w1 = grace_period(1L)),
+                   type = "difference", ci_method = "sandwich")
+  r_bt <- contrast(fit, interventions = list(w1 = grace_period(1L)),
+                   type = "difference", ci_method = "bootstrap",
+                   n_boot = 200L, seed = 99L)
+  se_sw <- r_sw$estimates$se[1]
+  se_bt <- r_bt$estimates$se[1]
+  se_ratio <- se_sw / se_bt
+  expect_true(is.finite(se_sw) && se_sw > 0)
+  expect_true(is.finite(se_bt) && se_bt > 0)
+  expect_equal(se_ratio, 1, tolerance = 0.25,
+               label = "G-LMTP Poisson sandwich SE within 25% of bootstrap SE")
+})
+
+test_that("G-LMTP: Gamma outcome — grace_period(1) matches forward-MC truth", {
+  # Gamma log-link mean = exp(lp); truth is the same as Poisson (TRUTH_LOG_W1).
+  d <- glmtp_delay_data_family("gamma", n = 4000L, seed = 1L)
+  fit <- causat(
+    d$data,
+    outcome        = "Y",
+    treatment      = "A",
+    confounders    = ~L0,
+    confounders_tv = ~L,
+    id             = "id",
+    time           = "t",
+    estimator      = "gcomp",
+    family         = Gamma(link = "log")
+  )
+  res <- contrast(
+    fit,
+    interventions = list(w1 = grace_period(1L)),
+    type          = "difference",
+    ci_method     = "sandwich"
+  )
+  est <- res$estimates$estimate[1]
+
+  expect_equal(est, TRUTH_LOG_W1, tolerance = 3.0,
+               label = "G-LMTP Gamma grace_period(1) vs forward-MC truth")
+  expect_true(all(is.finite(res$estimates$se)))
+  expect_true(all(res$estimates$se > 0))
 })
