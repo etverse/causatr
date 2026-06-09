@@ -891,13 +891,13 @@ test_that("G-LMTP: Poisson outcome — sandwich parity with bootstrap", {
     type = "difference",
     ci_method = "sandwich"
   )
+  set.seed(99L)
   r_bt <- contrast(
     fit,
     interventions = list(w1 = grace_period(1L)),
     type = "difference",
     ci_method = "bootstrap",
-    n_boot = 200L,
-    seed = 99L
+    n_boot = 200L
   )
   se_sw <- r_sw$estimates$se[1]
   se_bt <- r_bt$estimates$se[1]
