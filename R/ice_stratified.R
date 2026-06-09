@@ -34,6 +34,12 @@
 #'   [replay_fit()].
 #' @param stratified Character scalar naming the baseline stratum column,
 #'   or `NULL` for a pooled fit.
+#' @param is_pseudo Logical. When `TRUE` the response column is a
+#'   predicted expected value (non-integer), not an observed count. Count
+#'   families such as `MASS::glm.nb` emit "non-integer x" warnings from
+#'   their log-likelihood evaluation and "iteration limit reached" from
+#'   dispersion estimation on non-integer inputs; these are muffled when
+#'   `is_pseudo = TRUE` since the warnings are expected and harmless.
 #'
 #' @return Either a single fitted model object (pooled) or a named list of
 #'   fitted model objects / `NULL` keyed by stratum value (stratified).
@@ -46,8 +52,32 @@ ice_fit_step <- function(
   family,
   weights,
   dots,
-  stratified
+  stratified,
+  is_pseudo = FALSE
 ) {
+  fit_one <- function(args) {
+    do_fit <- function() replay_fit(model_fn, args, dots)
+    if (is_pseudo) {
+      # Count-family model_fns (e.g. MASS::glm.nb) emit "non-integer x"
+      # and "iteration limit reached" when fitting on non-integer
+      # expected values. These are harmless at pseudo-steps; muffle them.
+      withCallingHandlers(
+        do_fit(),
+        warning = function(w) {
+          msg <- conditionMessage(w)
+          if (
+            grepl("non-integer x", msg, fixed = TRUE) ||
+              grepl("iteration limit reached", msg, fixed = TRUE)
+          ) {
+            invokeRestart("muffleWarning")
+          }
+        }
+      )
+    } else {
+      do_fit()
+    }
+  }
+
   if (is.null(stratified)) {
     model_args <- list(formula = formula, data = fit_data)
     if (fn_accepts_family(model_fn)) {
@@ -56,7 +86,7 @@ ice_fit_step <- function(
     if (!is.null(weights)) {
       model_args$weights <- weights
     }
-    return(replay_fit(model_fn, model_args, dots))
+    return(fit_one(model_args))
   }
 
   # Stratified fit: split rows by stratum value and fit one model each.
@@ -82,7 +112,7 @@ ice_fit_step <- function(
     # whole ICE chain: rows in a failed stratum become NA pseudo-outcomes
     # and drop from the next step, mirroring the censored-row contract.
     models[[g]] <- tryCatch(
-      replay_fit(model_fn, args_g, dots),
+      fit_one(args_g),
       error = function(e) NULL
     )
   }

@@ -1,9 +1,16 @@
 # Phase 13 — Beta Regression, Negative Binomial, and Extended Outcome Types
 
-> **Status: DONE (2026-05-04)**
+> **Status: DONE (2026-05-04). Longitudinal ICE + G-LMTP extension: DONE (2026-06-09)**
 >
 > **Depends on:** Phase 2 (point gcomp) is done. Phases 3–5 provide the
 > IPW / matching / ICE engines that also benefit.
+>
+> **Extension (2026-06-09):** Poisson, Gamma, NB, and betareg outcome support extended to
+> longitudinal ICE and G-LMTP. Key change: `family_pseudo` switch in `fit_ice()` now maps
+> `"poisson" → quasipoisson` so that ICE pseudo-steps avoid "non-integer counts" warnings.
+> NB pseudo-step "non-integer x" warnings from MASS are suppressed via `is_pseudo = TRUE`
+> in `ice_fit_step()`. betareg uses bootstrap (not sandwich) for longitudinal ICE due to
+> its non-standard coefficient structure. `fit_ice()` handles `confounders = NULL` gracefully.
 
 ## Motivation
 

@@ -229,6 +229,10 @@ Rejections (all ✅ tested):
 | bin | gauss | dynamic + EM | 2 | sandwich | — | 🟡 | test-effect-modification.R |
 | bin | binom | static + EM | 2 | sandwich | — | ✅ | test-effect-modification.R |
 | multi | gauss | static + EM | 2 | sandwich | — | 🟡 | test-effect-modification.R |
+| bin | poisson | static | 2 | sandwich | — | ✅ vs analytical truth + Python M-estimation | test-ice-outcome-types.R |
+| cont | gamma | shift | 2 | sandwich | — | ✅ finite + lmtp cross-check | test-ice-outcome-types.R |
+| bin | glm.nb | static | 2 | sandwich | — | ✅ vs analytical truth + lmtp cross-check | test-ice-outcome-types.R |
+| bin | betareg | static | 2 | boot | — | 🟡 smoke (betareg coef structure not sandwich-compatible) | test-ice-outcome-types.R |
 
 ### Stratified ICE (`stratified = "G"`, Phase 22a)
 
@@ -310,6 +314,9 @@ Variance: ID-cluster **bootstrap** and analytic **M-estimation sandwich**
 | ordinal {0,1,2} | gauss | `cap_escalation(1)` + `~ factor(A)` | 3 | sandwich | — | ✅ bootstrap parity (4.4% diff at n=1500) | test-glmtp.R |
 | ordinal {0,1,2} | gauss | `cap_escalation()` ctor + rejections | 3 | (point) | — | ✅ arg validation + mixed/continuous/non-ICE classed | test-glmtp.R |
 | bin | gauss | `grace_period(1)` + `~ factor(A)` | 4 | boot | — | ✅ composes (finite CI; == bare for binary) | test-glmtp.R |
+| bin (absorbing) | poisson | `grace_period(1)` | 4 | (point) | — | ✅ vs forward-MC truth | test-glmtp.R |
+| bin (absorbing) | poisson | `grace_period(1)` | 4 | sandwich | — | ✅ bootstrap parity | test-glmtp.R |
+| bin (absorbing) | gamma | `grace_period(1)` | 4 | (point) | — | ✅ vs forward-MC truth | test-glmtp.R |
 
 The engine handles **any single discrete treatment** ($|\mathcal{A}| \ge 2$); the ordinal rows pin the
 `|A|^t` label machinery. Public policy constructors: `grace_period` (binary delay), `carry_forward`

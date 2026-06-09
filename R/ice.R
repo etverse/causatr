@@ -90,7 +90,11 @@ fit_ice <- function(
   # names). This preserves transformations like `I(age^2)` and
   # `factor(education)` -- we want the RHS expressions as written in the
   # user's `confounders = ~ ...` formula, not the base variable names.
-  baseline_terms <- attr(stats::terms(confounders), "term.labels")
+  baseline_terms <- if (!is.null(confounders)) {
+    attr(stats::terms(confounders), "term.labels")
+  } else {
+    character(0L)
+  }
 
   # Parse effect-modification terms so `ice_build_formula()` can expand
   # `A:modifier` to include `lag1_A:modifier`, `lag2_A:modifier`, etc.
@@ -164,11 +168,21 @@ fit_ice <- function(
   # the integer check and estimates dispersion freely. This is the
   # fractional-logistic-regression approach of Papke & Wooldridge (1996),
   # applied to g-computation by Zivich et al. (2024, Section 3.2).
-  family_pseudo <- if (family_obj$family == "binomial") {
-    stats::quasibinomial(link = family_obj$link)
-  } else {
+  # For families where pseudo-outcomes (predicted expected values) are
+  # non-integer, use the quasi-counterpart for pseudo-steps to avoid
+  # "non-integer counts" warnings from the integer-checking GLM families.
+  # Same logic as binomial -> quasibinomial (Papke & Wooldridge 1996;
+  # Zivich et al. 2024, Section 3.2): the quasi-family uses identical IWLS
+  # equations but drops the integrality assertion.
+  # Families where `fn_accepts_family()` returns FALSE (MASS::glm.nb,
+  # betareg::betareg) never receive the family argument, so the switch
+  # has no effect on them -- they use the same model_fn at every step.
+  family_pseudo <- switch(
+    family_obj$family,
+    "binomial" = stats::quasibinomial(link = family_obj$link),
+    "poisson" = stats::quasipoisson(link = family_obj$link),
     family_obj
-  }
+  )
 
   # Capture user `...` so ICE bootstrap can replay the same model_fn
   # extras (e.g. mgcv::gam `method`, `gamma`) per-step. See B2.
@@ -845,7 +859,8 @@ ice_iterate <- function(fit, intervention) {
       family_pseudo,
       w_k,
       model_fn_dots,
-      stratified
+      stratified,
+      is_pseudo = TRUE
     )
 
     # Predict Q_k under the intervention for ALL individuals at the
