@@ -24,31 +24,43 @@ test_that("longitudinal ICE: Poisson — point estimates match analytical truth"
   dat <- simulate_longitudinal_poisson(n = 3000L, seed = 1L)
   fit <- causat(
     dat,
-    outcome        = "Y",
-    treatment      = "A",
-    confounders    = ~L0,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
     confounders_tv = ~L,
-    id             = "id",
-    time           = "t",
-    estimator      = "gcomp",
-    family         = "poisson"
+    id = "id",
+    time = "t",
+    estimator = "gcomp",
+    family = "poisson"
   )
   res <- contrast(
     fit,
     interventions = list(a1 = static(1L), a0 = static(0L)),
-    reference     = "a0",
-    type          = "difference",
-    ci_method     = "sandwich"
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
   )
   ate <- res$contrasts$estimate[1]
   est <- res$estimates
 
-  expect_equal(ate, exp(2.2) - exp(0.6), tolerance = 0.35,
-               label = "ICE Poisson ATE vs analytical truth")
-  expect_equal(est$estimate[est$intervention == "a1"], exp(2.2), tolerance = 0.25,
-               label = "ICE Poisson E[Y^{A=1}] vs truth")
-  expect_equal(est$estimate[est$intervention == "a0"], exp(0.6), tolerance = 0.15,
-               label = "ICE Poisson E[Y^{A=0}] vs truth")
+  expect_equal(
+    ate,
+    exp(2.2) - exp(0.6),
+    tolerance = 0.35,
+    label = "ICE Poisson ATE vs analytical truth"
+  )
+  expect_equal(
+    est$estimate[est$intervention == "a1"],
+    exp(2.2),
+    tolerance = 0.25,
+    label = "ICE Poisson E[Y^{A=1}] vs truth"
+  )
+  expect_equal(
+    est$estimate[est$intervention == "a0"],
+    exp(0.6),
+    tolerance = 0.15,
+    label = "ICE Poisson E[Y^{A=0}] vs truth"
+  )
   expect_true(is.finite(res$contrasts$ci_lower[1]))
   expect_true(is.finite(res$contrasts$ci_upper[1]))
   # 95% CI must cover the true ATE
@@ -65,19 +77,23 @@ test_that("longitudinal ICE: Poisson — no non-integer counts warnings at pseud
   dat <- simulate_longitudinal_poisson(n = 500L, seed = 2L)
   fit <- causat(
     dat,
-    outcome        = "Y",
-    treatment      = "A",
-    confounders    = ~L0,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
     confounders_tv = ~L,
-    id             = "id",
-    time           = "t",
-    estimator      = "gcomp",
-    family         = "poisson"
+    id = "id",
+    time = "t",
+    estimator = "gcomp",
+    family = "poisson"
   )
   saw_integer_warning <- FALSE
   withCallingHandlers(
-    contrast(fit, interventions = list(a1 = static(1L)),
-             type = "difference", ci_method = "sandwich"),
+    contrast(
+      fit,
+      interventions = list(a1 = static(1L)),
+      type = "difference",
+      ci_method = "sandwich"
+    ),
     warning = function(w) {
       if (grepl("non-integer", conditionMessage(w), fixed = TRUE)) {
         saw_integer_warning <<- TRUE
@@ -85,33 +101,39 @@ test_that("longitudinal ICE: Poisson — no non-integer counts warnings at pseud
       invokeRestart("muffleWarning")
     }
   )
-  expect_false(saw_integer_warning,
-               label = "No 'non-integer counts' from Poisson ICE pseudo-steps")
+  expect_false(
+    saw_integer_warning,
+    label = "No 'non-integer counts' from Poisson ICE pseudo-steps"
+  )
 })
 
 test_that("longitudinal ICE: Poisson — Python M-estimation cross-check", {
-  fix_path <- testthat::test_path("fixtures", "python", "ice_poisson_tau2_results.csv")
+  fix_path <- testthat::test_path(
+    "fixtures",
+    "python",
+    "ice_poisson_tau2_results.csv"
+  )
   skip_if(!file.exists(fix_path), "Python ICE Poisson fixture absent")
 
   py <- read.csv(fix_path)
   dat <- simulate_longitudinal_poisson(n = 300L, seed = 2025L)
   fit <- causat(
     dat,
-    outcome        = "Y",
-    treatment      = "A",
-    confounders    = ~L0,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
     confounders_tv = ~L,
-    id             = "id",
-    time           = "t",
-    estimator      = "gcomp",
-    family         = "poisson"
+    id = "id",
+    time = "t",
+    estimator = "gcomp",
+    family = "poisson"
   )
   res <- contrast(
     fit,
     interventions = list(a1 = static(1L), a0 = static(0L)),
-    reference     = "a0",
-    type          = "difference",
-    ci_method     = "sandwich"
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
   )
   r_a1 <- res$estimates[res$estimates$intervention == "a1", ]
   r_a0 <- res$estimates[res$estimates$intervention == "a0", ]
@@ -119,15 +141,31 @@ test_that("longitudinal ICE: Poisson — Python M-estimation cross-check", {
   py_a0 <- py[py$arm == "a0", ]
 
   # Point estimates: same data, small deviation from different column handling
-  expect_equal(r_a1$estimate, py_a1$estimate, tolerance = 1e-2,
-               label = "ICE Poisson a1 estimate vs Python M-estimation")
-  expect_equal(r_a0$estimate, py_a0$estimate, tolerance = 1e-2,
-               label = "ICE Poisson a0 estimate vs Python M-estimation")
+  expect_equal(
+    r_a1$estimate,
+    py_a1$estimate,
+    tolerance = 1e-2,
+    label = "ICE Poisson a1 estimate vs Python M-estimation"
+  )
+  expect_equal(
+    r_a0$estimate,
+    py_a0$estimate,
+    tolerance = 1e-2,
+    label = "ICE Poisson a0 estimate vs Python M-estimation"
+  )
   # SEs: same plug-in sandwich should agree within 1%
-  expect_equal(r_a1$se, py_a1$se, tolerance = 1e-2,
-               label = "ICE Poisson a1 SE vs Python M-estimation")
-  expect_equal(r_a0$se, py_a0$se, tolerance = 1e-2,
-               label = "ICE Poisson a0 SE vs Python M-estimation")
+  expect_equal(
+    r_a1$se,
+    py_a1$se,
+    tolerance = 1e-2,
+    label = "ICE Poisson a1 SE vs Python M-estimation"
+  )
+  expect_equal(
+    r_a0$se,
+    py_a0$se,
+    tolerance = 1e-2,
+    label = "ICE Poisson a0 SE vs Python M-estimation"
+  )
 })
 
 test_that("longitudinal ICE: Poisson — lmtp cross-check (static binary)", {
@@ -136,32 +174,32 @@ test_that("longitudinal ICE: Poisson — lmtp cross-check (static binary)", {
   dat <- simulate_longitudinal_poisson(n = 2000L, seed = 3L)
   fit <- causat(
     dat,
-    outcome        = "Y",
-    treatment      = "A",
-    confounders    = ~L0,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
     confounders_tv = ~L,
-    id             = "id",
-    time           = "t",
-    estimator      = "gcomp",
-    family         = "poisson"
+    id = "id",
+    time = "t",
+    estimator = "gcomp",
+    family = "poisson"
   )
   res <- contrast(
     fit,
     interventions = list(a1 = static(1L), a0 = static(0L)),
-    reference     = "a0",
-    type          = "difference",
-    ci_method     = "sandwich"
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
   )
   ate_causatr <- res$contrasts$estimate[1]
 
   # Reshape to wide for lmtp
   d_wide <- reshape(
     as.data.frame(dat),
-    idvar     = "id",
-    timevar   = "t",
+    idvar = "id",
+    timevar = "t",
     direction = "wide",
-    v.names   = c("A", "L", "Y"),
-    sep       = "_"
+    v.names = c("A", "L", "Y"),
+    sep = "_"
   )
   d_wide <- d_wide[, c("id", "L0", "A_1", "A_2", "L_1", "L_2", "Y_2")]
 
@@ -169,32 +207,44 @@ test_that("longitudinal ICE: Poisson — lmtp cross-check (static binary)", {
   run_lmtp <- function(shift_fn) {
     tryCatch(
       suppressWarnings(suppressMessages(lmtp::lmtp_sdr(
-        data             = d_wide,
-        trt              = c("A_1", "A_2"),
-        outcome          = "Y_2",
-        baseline         = "L0",
-        time_vary        = list(c("L_1"), c("L_2")),
-        shift            = shift_fn,
-        outcome_type     = "count",
-        learners_trt     = "SL.glm",
+        data = d_wide,
+        trt = c("A_1", "A_2"),
+        outcome = "Y_2",
+        baseline = "L0",
+        time_vary = list(c("L_1"), c("L_2")),
+        shift = shift_fn,
+        outcome_type = "count",
+        learners_trt = "SL.glm",
         learners_outcome = "SL.glm",
-        folds            = 1
+        folds = 1
       ))),
       error = function(e) NULL
     )
   }
   r_always <- run_lmtp(function(data, trt) rep(1, nrow(data)))
-  r_never  <- run_lmtp(function(data, trt) rep(0, nrow(data)))
+  r_never <- run_lmtp(function(data, trt) rep(0, nrow(data)))
   skip_if(is.null(r_always) || is.null(r_never), "lmtp::lmtp_sdr() failed")
 
   ate_lmtp <- theta_of(r_always) - theta_of(r_never)
 
-  expect_equal(ate_causatr, exp(2.2) - exp(0.6), tolerance = 0.4,
-               label = "causatr ICE Poisson vs analytical truth")
-  expect_equal(ate_lmtp, exp(2.2) - exp(0.6), tolerance = 0.5,
-               label = "lmtp_sdr Poisson vs analytical truth")
-  expect_equal(ate_causatr, ate_lmtp, tolerance = 0.5,
-               label = "causatr ICE Poisson vs lmtp_sdr")
+  expect_equal(
+    ate_causatr,
+    exp(2.2) - exp(0.6),
+    tolerance = 0.4,
+    label = "causatr ICE Poisson vs analytical truth"
+  )
+  expect_equal(
+    ate_lmtp,
+    exp(2.2) - exp(0.6),
+    tolerance = 0.5,
+    label = "lmtp_sdr Poisson vs analytical truth"
+  )
+  expect_equal(
+    ate_causatr,
+    ate_lmtp,
+    tolerance = 0.5,
+    label = "causatr ICE Poisson vs lmtp_sdr"
+  )
 })
 
 # ---------------------------------------------------------------------------
@@ -207,31 +257,31 @@ test_that("longitudinal ICE: Gamma — lmtp cross-check (continuous shift)", {
   dat <- simulate_longitudinal_gamma(n = 2000L, seed = 4L)
   fit <- causat(
     dat,
-    outcome        = "Y",
-    treatment      = "A",
-    confounders    = ~L0,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
     confounders_tv = ~L,
-    id             = "id",
-    time           = "t",
-    estimator      = "gcomp",
-    family         = Gamma(link = "log")
+    id = "id",
+    time = "t",
+    estimator = "gcomp",
+    family = Gamma(link = "log")
   )
   res <- contrast(
     fit,
     interventions = list(shifted = shift(0.5), natural = shift(0)),
-    reference     = "natural",
-    type          = "difference",
-    ci_method     = "sandwich"
+    reference = "natural",
+    type = "difference",
+    ci_method = "sandwich"
   )
   ate_causatr <- res$contrasts$estimate[1]
 
   d_wide <- reshape(
     as.data.frame(dat),
-    idvar     = "id",
-    timevar   = "t",
+    idvar = "id",
+    timevar = "t",
     direction = "wide",
-    v.names   = c("A", "L", "Y"),
-    sep       = "_"
+    v.names = c("A", "L", "Y"),
+    sep = "_"
   )
   d_wide <- d_wide[, c("id", "L0", "A_1", "A_2", "L_1", "L_2", "Y_2")]
 
@@ -239,16 +289,16 @@ test_that("longitudinal ICE: Gamma — lmtp cross-check (continuous shift)", {
   run_lmtp <- function(shift_fn) {
     tryCatch(
       suppressWarnings(suppressMessages(lmtp::lmtp_sdr(
-        data             = d_wide,
-        trt              = c("A_1", "A_2"),
-        outcome          = "Y_2",
-        baseline         = "L0",
-        time_vary        = list(c("L_1"), c("L_2")),
-        shift            = shift_fn,
-        outcome_type     = "continuous",
-        learners_trt     = "SL.glm",
+        data = d_wide,
+        trt = c("A_1", "A_2"),
+        outcome = "Y_2",
+        baseline = "L0",
+        time_vary = list(c("L_1"), c("L_2")),
+        shift = shift_fn,
+        outcome_type = "continuous",
+        learners_trt = "SL.glm",
         learners_outcome = "SL.glm",
-        folds            = 1
+        folds = 1
       ))),
       error = function(e) NULL
     )
@@ -260,32 +310,36 @@ test_that("longitudinal ICE: Gamma — lmtp cross-check (continuous shift)", {
   ate_lmtp <- theta_of(r_shifted) - theta_of(r_natural)
 
   expect_true(is.finite(ate_causatr), label = "causatr ICE Gamma ATE is finite")
-  expect_true(is.finite(ate_lmtp),    label = "lmtp_sdr Gamma ATE is finite")
+  expect_true(is.finite(ate_lmtp), label = "lmtp_sdr Gamma ATE is finite")
   # Both should be positive (shift increases Y on log-link Gamma)
   expect_true(ate_causatr > 0, label = "causatr ICE Gamma ATE is positive")
-  expect_equal(ate_causatr, ate_lmtp, tolerance = 0.4,
-               label = "causatr ICE Gamma vs lmtp_sdr")
+  expect_equal(
+    ate_causatr,
+    ate_lmtp,
+    tolerance = 0.4,
+    label = "causatr ICE Gamma vs lmtp_sdr"
+  )
 })
 
 test_that("longitudinal ICE: Gamma — sandwich CI is finite and SE is positive", {
   dat <- simulate_longitudinal_gamma(n = 1000L, seed = 5L)
   fit <- causat(
     dat,
-    outcome        = "Y",
-    treatment      = "A",
-    confounders    = ~L0,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
     confounders_tv = ~L,
-    id             = "id",
-    time           = "t",
-    estimator      = "gcomp",
-    family         = Gamma(link = "log")
+    id = "id",
+    time = "t",
+    estimator = "gcomp",
+    family = Gamma(link = "log")
   )
   res <- contrast(
     fit,
     interventions = list(shifted = shift(0.5), natural = shift(0)),
-    reference     = "natural",
-    type          = "difference",
-    ci_method     = "sandwich"
+    reference = "natural",
+    type = "difference",
+    ci_method = "sandwich"
   )
   expect_true(all(is.finite(res$estimates$estimate)))
   expect_true(all(is.finite(res$estimates$se)))
@@ -306,31 +360,31 @@ test_that("longitudinal ICE: MASS::glm.nb — lmtp cross-check (static binary)",
   dat <- simulate_longitudinal_poisson(n = 2000L, seed = 12L)
   fit <- causat(
     dat,
-    outcome        = "Y",
-    treatment      = "A",
-    confounders    = ~L0,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
     confounders_tv = ~L,
-    id             = "id",
-    time           = "t",
-    estimator      = "gcomp",
-    model_fn       = MASS::glm.nb
+    id = "id",
+    time = "t",
+    estimator = "gcomp",
+    model_fn = MASS::glm.nb
   )
   res <- contrast(
     fit,
     interventions = list(a1 = static(1L), a0 = static(0L)),
-    reference     = "a0",
-    type          = "difference",
-    ci_method     = "sandwich"
+    reference = "a0",
+    type = "difference",
+    ci_method = "sandwich"
   )
   ate_causatr <- res$contrasts$estimate[1]
 
   d_wide <- reshape(
     as.data.frame(dat),
-    idvar     = "id",
-    timevar   = "t",
+    idvar = "id",
+    timevar = "t",
     direction = "wide",
-    v.names   = c("A", "L", "Y"),
-    sep       = "_"
+    v.names = c("A", "L", "Y"),
+    sep = "_"
   )
   d_wide <- d_wide[, c("id", "L0", "A_1", "A_2", "L_1", "L_2", "Y_2")]
 
@@ -338,30 +392,38 @@ test_that("longitudinal ICE: MASS::glm.nb — lmtp cross-check (static binary)",
   run_lmtp <- function(shift_fn) {
     tryCatch(
       suppressWarnings(suppressMessages(lmtp::lmtp_sdr(
-        data             = d_wide,
-        trt              = c("A_1", "A_2"),
-        outcome          = "Y_2",
-        baseline         = "L0",
-        time_vary        = list(c("L_1"), c("L_2")),
-        shift            = shift_fn,
-        outcome_type     = "count",
-        learners_trt     = "SL.glm",
+        data = d_wide,
+        trt = c("A_1", "A_2"),
+        outcome = "Y_2",
+        baseline = "L0",
+        time_vary = list(c("L_1"), c("L_2")),
+        shift = shift_fn,
+        outcome_type = "count",
+        learners_trt = "SL.glm",
         learners_outcome = "SL.glm",
-        folds            = 1
+        folds = 1
       ))),
       error = function(e) NULL
     )
   }
   r_always <- run_lmtp(function(data, trt) rep(1, nrow(data)))
-  r_never  <- run_lmtp(function(data, trt) rep(0, nrow(data)))
+  r_never <- run_lmtp(function(data, trt) rep(0, nrow(data)))
   skip_if(is.null(r_always) || is.null(r_never), "lmtp::lmtp_sdr() failed")
 
   ate_lmtp <- theta_of(r_always) - theta_of(r_never)
 
-  expect_equal(ate_causatr, exp(2.2) - exp(0.6), tolerance = 0.4,
-               label = "causatr ICE NB vs analytical truth")
-  expect_equal(ate_causatr, ate_lmtp, tolerance = 0.5,
-               label = "causatr ICE NB vs lmtp_sdr")
+  expect_equal(
+    ate_causatr,
+    exp(2.2) - exp(0.6),
+    tolerance = 0.4,
+    label = "causatr ICE NB vs analytical truth"
+  )
+  expect_equal(
+    ate_causatr,
+    ate_lmtp,
+    tolerance = 0.5,
+    label = "causatr ICE NB vs lmtp_sdr"
+  )
 })
 
 # ---------------------------------------------------------------------------
@@ -381,31 +443,32 @@ test_that("longitudinal ICE: betareg — smoke test (point + bootstrap)", {
   # point-gcomp Tier 1 numeric fallback for betareg).
   fit <- causat(
     dat,
-    outcome        = "Y",
-    treatment      = "A",
+    outcome = "Y",
+    treatment = "A",
     confounders_tv = ~L,
-    id             = "id",
-    time           = "t",
-    estimator      = "gcomp",
-    model_fn       = betareg::betareg
+    id = "id",
+    time = "t",
+    estimator = "gcomp",
+    model_fn = betareg::betareg
   )
   res <- contrast(
     fit,
     interventions = list(a1 = static(1L), a0 = static(0L)),
-    reference     = "a0",
-    type          = "difference",
-    ci_method     = "bootstrap",
-    n_boot        = 50L
+    reference = "a0",
+    type = "difference",
+    ci_method = "bootstrap",
+    n_boot = 50L
   )
   ate <- res$contrasts$estimate[1]
-  se  <- res$estimates$se
+  se <- res$estimates$se
 
-  expect_true(is.finite(ate),     label = "betareg ICE ATE is finite")
-  expect_true(ate > 0,            label = "betareg ICE ATE is positive (A=1 > A=0)")
+  expect_true(is.finite(ate), label = "betareg ICE ATE is finite")
+  expect_true(ate > 0, label = "betareg ICE ATE is positive (A=1 > A=0)")
   expect_true(all(is.finite(se)), label = "betareg ICE SEs are finite")
-  expect_true(all(se > 0),        label = "betareg ICE SEs are positive")
+  expect_true(all(se > 0), label = "betareg ICE SEs are positive")
   expect_true(
-    is.finite(res$contrasts$ci_lower[1]) && is.finite(res$contrasts$ci_upper[1]),
+    is.finite(res$contrasts$ci_lower[1]) &&
+      is.finite(res$contrasts$ci_upper[1]),
     label = "betareg ICE CI bounds are finite"
   )
 })

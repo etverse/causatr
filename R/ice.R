@@ -180,7 +180,7 @@ fit_ice <- function(
   family_pseudo <- switch(
     family_obj$family,
     "binomial" = stats::quasibinomial(link = family_obj$link),
-    "poisson"  = stats::quasipoisson(link = family_obj$link),
+    "poisson" = stats::quasipoisson(link = family_obj$link),
     family_obj
   )
 

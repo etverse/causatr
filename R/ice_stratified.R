@@ -65,8 +65,10 @@ ice_fit_step <- function(
         do_fit(),
         warning = function(w) {
           msg <- conditionMessage(w)
-          if (grepl("non-integer x", msg, fixed = TRUE) ||
-              grepl("iteration limit reached", msg, fixed = TRUE)) {
+          if (
+            grepl("non-integer x", msg, fixed = TRUE) ||
+              grepl("iteration limit reached", msg, fixed = TRUE)
+          ) {
             invokeRestart("muffleWarning")
           }
         }

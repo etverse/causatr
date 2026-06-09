@@ -408,21 +408,24 @@ glmtp_delay_data_family <- function(
   tau = NULL
 ) {
   family <- match.arg(family)
-  out   <- glmtp_delay_data(n = n, seed = seed, tau = tau)
-  dat   <- out$data
-  p     <- out$params
+  out <- glmtp_delay_data(n = n, seed = seed, tau = tau)
+  dat <- out$data
+  p <- out$params
   tau_v <- p$tau
 
   final_rows <- which(dat$t == tau_v)
   cumA <- tapply(dat$A, dat$id, sum)[dat$id[final_rows]]
-  lp   <- p$b0 + p$bA * cumA + p$bL * dat$L[final_rows] + p$bL0 * dat$L0[final_rows]
+  lp <- p$b0 +
+    p$bA * cumA +
+    p$bL * dat$L[final_rows] +
+    p$bL0 * dat$L0[final_rows]
 
   # Different seed so Y-noise is independent of the A/L simulation.
   set.seed(seed + 99991L)
   dat$Y[final_rows] <- switch(
     family,
     "poisson" = stats::rpois(length(final_rows), exp(lp)),
-    "gamma"   = stats::rgamma(length(final_rows), shape = 2, rate = 2 / exp(lp))
+    "gamma" = stats::rgamma(length(final_rows), shape = 2, rate = 2 / exp(lp))
   )
   list(data = dat, params = p)
 }
@@ -444,27 +447,29 @@ glmtp_delay_forward_truth_family <- function(
   seed = 1L,
   params = NULL
 ) {
-  family <- match.arg(family)  # validate; output identical for both
-  p  <- params %||% glmtp_delay_params()
+  family <- match.arg(family) # validate; output identical for both
+  p <- params %||% glmtp_delay_params()
   tau <- p$tau
   set.seed(seed)
 
   L0 <- stats::rnorm(n_mc)
   Lprev <- L0
   Ad_prev <- integer(n_mc)
-  s_hist  <- matrix(0L, n_mc, tau)
-  Ad      <- matrix(0L, n_mc, tau)
+  s_hist <- matrix(0L, n_mc, tau)
+  Ad <- matrix(0L, n_mc, tau)
   L_at_tau <- numeric(n_mc)
   for (t in seq_len(tau)) {
     eps <- stats::rnorm(n_mc, sd = p$sdL)
-    Lt  <- if (t == 1L) {
+    Lt <- if (t == 1L) {
       p$rho * L0 + eps
     } else {
       p$aL * Lprev + p$gamma * Ad_prev + eps
     }
-    if (t == tau) L_at_tau <- Lt
+    if (t == tau) {
+      L_at_tau <- Lt
+    }
     p_nat <- stats::plogis(p$a0 + p$a1 * Lt)
-    s_t   <- ifelse(Ad_prev == 1L, 1L, stats::rbinom(n_mc, 1L, p_nat))
+    s_t <- ifelse(Ad_prev == 1L, 1L, stats::rbinom(n_mc, 1L, p_nat))
     s_hist[, t] <- s_t
     k <- t - window
     Ad_t <- if (k <= 0L) {
@@ -473,11 +478,11 @@ glmtp_delay_forward_truth_family <- function(
       as.integer(glmtp_row_any_initiated(s_hist[, seq_len(k), drop = FALSE]))
     }
     Ad[, t] <- Ad_t
-    Lprev   <- Lt
+    Lprev <- Lt
     Ad_prev <- Ad_t
   }
   cumAd <- rowSums(Ad)
-  lp    <- p$b0 + p$bA * cumAd + p$bL * L_at_tau + p$bL0 * L0
+  lp <- p$b0 + p$bA * cumAd + p$bL * L_at_tau + p$bL0 * L0
   mean(exp(lp))
 }
 

@@ -1852,14 +1852,14 @@ simulate_longitudinal_poisson <- function(n = 2000L, seed = 42L) {
   A1 <- rbinom(n, 1L, plogis(0.3 * L0))
   A2 <- rbinom(n, 1L, plogis(0.3 * L1))
   mu <- exp(0.5 + 0.8 * (A1 + A2) + 0.4 * L1)
-  Y  <- rpois(n, mu)
+  Y <- rpois(n, mu)
   data.table::data.table(
     id = rep(seq_len(n), each = 2L),
-    t  = rep(1:2, n),
+    t = rep(1:2, n),
     L0 = rep(L0, each = 2L),
-    L  = c(rbind(L0, L1)),
-    A  = c(rbind(A1, A2)),
-    Y  = c(rbind(rep(NA_real_, n), as.numeric(Y)))
+    L = c(rbind(L0, L1)),
+    A = c(rbind(A1, A2)),
+    Y = c(rbind(rep(NA_real_, n), as.numeric(Y)))
   )
 }
 
@@ -1877,15 +1877,15 @@ simulate_longitudinal_gamma <- function(n = 2000L, seed = 42L) {
   L1 <- 0.5 * L0 + rnorm(n)
   A1 <- 0.5 * L0 + rnorm(n)
   A2 <- 0.5 * L1 + rnorm(n)
-  mu  <- exp(0.3 + 0.3 * (A1 + A2) + 0.2 * L1)
-  Y   <- rgamma(n, shape = 4, rate = 4 / mu)
+  mu <- exp(0.3 + 0.3 * (A1 + A2) + 0.2 * L1)
+  Y <- rgamma(n, shape = 4, rate = 4 / mu)
   data.table::data.table(
     id = rep(seq_len(n), each = 2L),
-    t  = rep(1:2, n),
+    t = rep(1:2, n),
     L0 = rep(L0, each = 2L),
-    L  = c(rbind(L0, L1)),
-    A  = c(rbind(A1, A2)),
-    Y  = c(rbind(rep(NA_real_, n), Y))
+    L = c(rbind(L0, L1)),
+    A = c(rbind(A1, A2)),
+    Y = c(rbind(rep(NA_real_, n), Y))
   )
 }
 
@@ -1903,15 +1903,15 @@ simulate_longitudinal_betareg <- function(n = 2000L, seed = 42L) {
   A1 <- rbinom(n, 1L, plogis(0.3 * L0))
   A2 <- rbinom(n, 1L, plogis(0.3 * L1))
   phi <- 4
-  mu  <- plogis(-0.5 + 0.6 * (A1 + A2) + 0.3 * L1)
-  Y   <- rbeta(n, mu * phi, (1 - mu) * phi)
-  Y   <- pmax(1e-6, pmin(1 - 1e-6, Y))
+  mu <- plogis(-0.5 + 0.6 * (A1 + A2) + 0.3 * L1)
+  Y <- rbeta(n, mu * phi, (1 - mu) * phi)
+  Y <- pmax(1e-6, pmin(1 - 1e-6, Y))
   data.table::data.table(
     id = rep(seq_len(n), each = 2L),
-    t  = rep(1:2, n),
+    t = rep(1:2, n),
     L0 = rep(L0, each = 2L),
-    L  = c(rbind(L0, L1)),
-    A  = c(rbind(A1, A2)),
-    Y  = c(rbind(rep(NA_real_, n), Y))
+    L = c(rbind(L0, L1)),
+    A = c(rbind(A1, A2)),
+    Y = c(rbind(rep(NA_real_, n), Y))
   )
 }
