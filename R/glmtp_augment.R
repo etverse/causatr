@@ -17,8 +17,11 @@
 #'
 #' @param data data.table with the (already lag-expanded) person-period rows.
 #' @param treatment Character scalar. Treatment column name. Multivariate
-#'   treatment is not supported here (the paper's augmentation is defined for
-#'   a scalar discrete exposure) and is rejected upstream.
+#'   (vector-valued) treatment is rejected with the classed error
+#'   `causatr_glmtp_multivariate`: the paper's augmented-data sequential
+#'   regression is developed only for a scalar discrete exposure, and the
+#'   joint-support enumeration it would require blows up as the joint
+#'   cardinality raised to the number of periods.
 #' @param censoring Character scalar naming the censoring indicator column, or
 #'   `NULL`. Censored rows are excluded from the support scan because their
 #'   treatment values do not enter any per-step model.
@@ -39,15 +42,30 @@ glmtp_support <- function(
   censoring = NULL,
   call = rlang::caller_env()
 ) {
+  # Multivariate (vector-valued) treatment is rejected by design, not merely
+  # unimplemented. The augmented-data sequential regression enumerates the
+  # natural-treatment-history support; Diaz et al. (2026) develop it only for a
+  # scalar discrete exposure, and a joint multivariate support would enumerate
+  # |A^(1) x ... x A^(K)|^(tau-1) labels at the worst step -- the explicit-
+  # enumeration blow-up the paper's conclusion itself flags as the reason these
+  # richer settings need density-ratio / Riesz estimators (TMLE / SDR) instead.
   if (length(treatment) != 1L) {
     rlang::abort(
-      paste0(
-        "Natural-history MTPs (`grace_period()` / `carry_forward()` / ",
-        "`cap_escalation()`) support a single discrete treatment column; got ",
-        length(treatment),
-        " (multivariate treatment)."
+      c(
+        paste0(
+          "Natural-history MTPs (`grace_period()` / `carry_forward()` / ",
+          "`cap_escalation()`) support a single discrete treatment column; got ",
+          length(treatment),
+          " (multivariate treatment)."
+        ),
+        i = paste0(
+          "Multivariate natural-history policies are not supported: the ",
+          "augmented-data sequential regression is developed for a scalar ",
+          "discrete exposure only, and its joint-support enumeration is ",
+          "intractable for vector treatment."
+        )
       ),
-      class = "causatr_glmtp_continuous_trt",
+      class = "causatr_glmtp_multivariate",
       call = call
     )
   }

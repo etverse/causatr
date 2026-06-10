@@ -87,6 +87,18 @@ Project-specific rules that override / extend the etverse-wide rules at
   to `variance_if_glmtp()` (`R/variance_if_glmtp.R`). Both bootstrap and analytic
   sandwich are valid variance paths for G-LMTP; the `causatr_glmtp_sandwich` abort
   was removed when 22b-4 shipped.
+- **Multivariate (vector-treatment) G-LMTP is REJECTED by design (22b-7), not
+  unimplemented.** `glmtp_support()` rejects `length(treatment) != 1` with class
+  `causatr_glmtp_multivariate`. The Díaz et al. (2026) natural-history augmentation
+  is developed for a **scalar discrete exposure only** (every definition/example is
+  scalar; the abstract's "multivariate exposures" is the general 2023 LMTP
+  density-ratio framework, not the history-dependent case), and a joint discrete
+  support enumerates `|A^(1) x ... x A^(K)|^(tau-1)` labels — the explicit-
+  enumeration blow-up the paper's own conclusion relegates to TMLE/SDR. Do NOT flag
+  the absence of a multivariate natural-history path as a missing feature, and do
+  NOT "add multivariate support" by joint-coding — it is intractable beyond a couple
+  of binary components and has no external oracle (`lmtp` computes only
+  contemporaneous LMTPs).
 - **`list[[""]]` returns `NULL` in R.** `glmtp_iterate()`'s final `q1 <- Q[[1L]]`
   reads the single empty-label element positionally (its name is `""`, which
   `[[` cannot match) behind a `length(Q) == 1L` guard. Do NOT "simplify" it to

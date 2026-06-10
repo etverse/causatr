@@ -1,5 +1,42 @@
 # causatr (development version)
 
+## 2026-06-10 — Phase 22b-7 (multivariate G-LMTP): rejected by design
+
+Multivariate (vector-treatment) natural-history modified treatment policies are
+**not supported**, and the gate is now a dedicated classed error
+(`causatr_glmtp_multivariate`) instead of the shared `causatr_glmtp_continuous_trt`.
+The natural-history augmented-data sequential regression of Díaz, Williams,
+Morzywołek & Rudolph (2026, arXiv:2605.24167) is developed for a **scalar discrete
+exposure only** — every definition, worked example, and simulation in the paper is
+scalar, and its conclusion relegates richer enumeration-heavy settings to future
+work using density-ratio / Riesz estimators (TMLE / SDR). A joint discrete support
+would enumerate the joint cardinality raised to the (τ − 1) power in history labels
+at the worst backward step — intractable beyond a couple of binary components — with
+no external oracle for genuinely history-dependent vector policies (`lmtp` computes
+only contemporaneous LMTPs). With this rejection recorded, **Phase 22 is complete**.
+
+## 2026-06-09 — Longitudinal ICE / G-LMTP: Poisson, Gamma, NB, and betareg outcomes
+
+Longitudinal ICE (`estimator = "gcomp"` with `id` / `time`) and the natural-history
+G-LMTP engine now support Poisson, Gamma, negative-binomial (`MASS::glm.nb`), and
+beta-regression (`betareg::betareg`) outcome families, matching the point-treatment
+outcome-family coverage. The `family_pseudo` switch in `fit_ice()` maps poisson →
+quasipoisson at the pseudo-outcome steps (mirroring binomial → quasibinomial): the
+backward-recursion pseudo-responses are predicted expected values, so a true Poisson
+GLM would emit spurious "non-integer counts" warnings while quasipoisson uses the
+identical IWLS equations without the integrality check (Papke & Wooldridge 1996;
+Zivich et al. 2024). `ice_fit_step()` gains an `is_pseudo` flag that muffles the
+intrinsic non-integer / iteration-limit warnings from `MASS::glm.nb` at pseudo-steps
+(NB has no quasi analogue). `fit_ice()` now guards `baseline_terms` for callers that
+pass `confounders_tv` without `confounders`.
+
+Variance: the analytic ICE / G-LMTP sandwich covers Poisson, Gamma, and NB;
+`betareg`'s mu/precision coefficient structure is non-conformable with the analytic
+score matrix, so the longitudinal betareg path is bootstrap-only. Validated against
+a Python M-estimation cross-check (ICE Poisson, agreement <1% on point and SE) and
+forward-MC truth + sandwich parity for G-LMTP Poisson and Gamma (`test-glmtp.R`,
+`test-ice-outcome-types.R`).
+
 ## 2026-06-08 — Phase 22b-4: Analytic sandwich variance for natural-history MTPs
 
 `contrast(..., ci_method = "sandwich")` now works for all three G-LMTP
