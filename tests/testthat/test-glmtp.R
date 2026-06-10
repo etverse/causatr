@@ -33,10 +33,12 @@ test_that("glmtp_support rejects continuous, factor, and multivariate treatment"
   fac <- data.table::data.table(A = factor(c("lo", "hi", "lo")))
   expect_error(glmtp_support(fac, "A"), class = "causatr_glmtp_continuous_trt")
 
+  # Multivariate (vector-valued) treatment is rejected by design with its own
+  # class -- the augmented enumeration is scalar-discrete only (Diaz et al. 2026).
   mv <- data.table::data.table(A1 = c(0, 1), A2 = c(1, 0))
   expect_error(
     glmtp_support(mv, c("A1", "A2")),
-    class = "causatr_glmtp_continuous_trt"
+    class = "causatr_glmtp_multivariate"
   )
 })
 

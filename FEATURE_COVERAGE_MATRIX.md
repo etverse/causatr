@@ -328,15 +328,18 @@ makes `cap_escalation()` a consistent public estimator. The **augmented-data san
 `R/variance_if_glmtp.R`) stacks per-(step, label) GLM scores + the estimand EE in the same
 block-triangular M-estimation structure as the ICE chain; validated against a Python M-estimation
 oracle (SE agreement ~1e-4) and against ID-cluster bootstrap parity (~0.7% at n=1500, ~4.4% for
-`cap_escalation + factor(A)`). **Deferred** (designed, `PHASE_22` §3.7):
-**multivariate** G-LMTP (22b-7).
+`cap_escalation + factor(A)`). **Rejected by design** (`PHASE_22` §3.7):
+**multivariate** (vector-treatment) G-LMTP (22b-7) — the paper develops the augmented-data
+enumeration for a scalar discrete exposure only, and the joint-support blow-up
+$|\mathcal{A}^{(1)}\times\cdots\times\mathcal{A}^{(K)}|^{\tau-1}$ is intractable.
 
 Augment helpers (`glmtp_support`, `glmtp_enumerate_labels`, `glmtp_label_key`,
 `glmtp_check_tractable`) — all ✅ unit-tested (`test-glmtp.R`).
 Rejections (all ✅ tested, `test-glmtp.R`): non-ICE estimator / point treatment / transport /
 stratified $\to$ `causatr_glmtp_not_ice`; mixing with a standard intervention $\to$
-`causatr_glmtp_mixed`; continuous / factor / multivariate treatment $\to$
-`causatr_glmtp_continuous_trt`; history blow-up $\to$ `causatr_glmtp_too_many`.
+`causatr_glmtp_mixed`; continuous / factor treatment $\to$
+`causatr_glmtp_continuous_trt`; multivariate (vector) treatment $\to$
+`causatr_glmtp_multivariate`; history blow-up $\to$ `causatr_glmtp_too_many`.
 
 ---
 

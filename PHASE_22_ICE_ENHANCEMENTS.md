@@ -24,8 +24,13 @@
 >   per-(step, label) M-estimation sandwich for all three G-LMTP policies. Validated against a
 >   Python M-estimation oracle (SE ~1e-4 at n=500, τ=2) and ID-cluster bootstrap parity (~0.7%
 >   at n=1500). Composes with `treatment_form`, external weights, and multi-arm contrasts.
-> - **One chunk remains — a planned roadmap (§3.7):** 22b-7 multivariate G-LMTP. Tracked in
->   `CLAUDE.md` Pending.
+> - **22b-7 multivariate G-LMTP — REJECTED by design (§3.7).** The paper (arXiv:2605.24167)
+>   develops the augmented-data sequential regression for a **scalar discrete** exposure only — every
+>   definition, example, and simulation is scalar — and its own conclusion flags explicit
+>   treatment-history enumeration as intractable for richer settings (which it relegates to future
+>   work using density-ratio / Riesz estimators, i.e. TMLE / SDR). Multivariate natural-history
+>   policies are rejected with the classed error `causatr_glmtp_multivariate`. With this rejection
+>   recorded, **Phase 22 is complete.**
 >
 > **Depends on:** Phase 5 (longitudinal ICE), Phase 15 (ICE formula builder for transformed TV
 > confounders).
@@ -46,8 +51,9 @@ Two ICE-specific enhancements that modify the backward iteration in `ice_iterate
   at each backward step. **In scope, shipped.**
 - **22b — Natural-history modified treatment policies** (grace periods, carry-forward): regimes whose
   intervened treatment at time $t$ depends on the *natural-value history* of treatment. **Shipped**
-  via the augmented-data sequential regression `glmtp_iterate()` (§3); ID-cluster bootstrap variance.
-  The augmented-data sandwich is the one remaining deferred sub-chunk (§3.6 chunk 4).
+  via the augmented-data sequential regression `glmtp_iterate()` (§3); ID-cluster bootstrap variance
+  **and** the analytic per-(step, label) M-estimation sandwich (§3.6 chunk 4, shipped). Multivariate
+  natural-history policies are rejected by design (§3.7).
 
 ### Out of scope (whole phase)
 
@@ -309,25 +315,26 @@ later sub-chunk (harder: the bread couples augmented replicate rows).
    baseline ICE, `grace_period(0)` ≡ natural course); ID-cluster bootstrap variance.
    Note: `lmtp` is **not** a valid oracle for genuinely history-dependent policies (its one-shot
    shift computes the standard LMTP), so the forward-MC truth replaces the lmtp cross-check.
-4. **[DEFERRED]** Augmented-data sandwich — the bread couples augmented replicate rows across
-   labels; `delicatessen`'s `MEstimator` is the intended secondary oracle (as for 22a §1.6).
+4. **[SHIPPED]** Augmented-data sandwich (`R/variance_if_glmtp.R`) — the bread couples augmented
+   replicate rows across labels; validated against a `delicatessen` `MEstimator` oracle and
+   ID-cluster bootstrap parity (as for 22a §1.6).
 
-### 3.7 Remaining 22b chunks — planned roadmap (NOT yet implemented)
+### 3.7 22b sub-chunk outcomes (all resolved)
 
 Chunks 1–3 shipped `grace_period()` / `carry_forward()` with ID-cluster bootstrap. The engine
 (`glmtp_iterate()`) already handles **any single discrete treatment** ($|\mathcal{A}| \ge 2$): the
 recursion enumerates $\bar{\mathcal{A}}_t = \mathcal{A}^t$ and fits one model per label regardless of
 cardinality — validated for ordinal ($|\mathcal{A}|=3$) to numerical precision (`carry_forward()` vs
 baseline regime $10^{-14}$; engine vs independent hand-coded recursion $\sim10^{-9}$ for the dose cap,
-`glmtp_handcode_cap()`, `test-glmtp.R`). The following chunks are **planned, not done**; this is the
-live roadmap for 22b's continuation (each is registered in `CLAUDE.md`'s Pending list).
+`glmtp_handcode_cap()`, `test-glmtp.R`). Chunks 22b-4/5/6 are **shipped**; chunk 22b-7 (multivariate)
+is **rejected by design** — see below.
 
 | Chunk | Title | Depends on | Status |
 |---|---|---|---|
 | **22b-4** | Augmented-data sandwich variance | — | **SHIPPED** |
 | **22b-5** | Flexible-treatment ICE term (enabler) | — | **SHIPPED** |
 | **22b-6** | `cap_escalation()` public release | 22b-5 | **SHIPPED** |
-| **22b-7** | Multivariate (vector-treatment) G-LMTP | 22b-5 | PLANNED (unblocked) |
+| **22b-7** | Multivariate (vector-treatment) G-LMTP | — | **REJECTED by design** (scalar-only in the paper) |
 
 **Chunk 22b-4 — Augmented-data sandwich. SHIPPED.** `R/variance_if_glmtp.R` implements the analytic
 M-estimation sandwich for all three G-LMTP policies. The EE system stacks per-(step, label) GLM
@@ -364,16 +371,30 @@ under `~ factor(A)` at $n = 80000$ (gap $<0.0035$, Tier-2 `skip_on_cran`), boots
 sandwich / mixing / continuous / non-ICE rejections. Oracle: forward-MC Proposition-1 truth + the
 hand-coded recursion ($10^{-9}$). Variance stays bootstrap-only.
 
-**Chunk 22b-7 — Multivariate G-LMTP.** Díaz covers multivariate via binary coding. The support is the
-product **over components and time** $\bar{\mathcal{A}}_t = (\mathcal{A}^{(1)} \times \cdots \times
-\mathcal{A}^{(K)})^t$, so the worst-step count is $|\mathcal{A}^{(1)}\times\cdots\times\mathcal{A}^{(K)}|^{\tau-1}$
-— a factor $K$ faster in the exponent, so `glmtp_check_tractable()` gates on the **joint** per-period
-cardinality with a smaller default budget. `glmtp_support()` returns a per-component support list;
-`glmtp_enumerate_labels()` enumerates the joint product; the policy closure takes/returns a *vector*
-natural value; `glmtp_iterate()` groups prediction rows by the joint observed value and sets all $K$
-treatment columns. Lift the `check_glmtp_compat()` multivariate gate (`length(treatment) != 1`). Oracle:
-multivariate forward-MC truth + `lmtp::lmtp_sdr` MV where the policy is contemporaneous-reducible.
-Depends on 22b-5 (non-static components are bare-numeric otherwise).
+**Chunk 22b-7 — Multivariate G-LMTP. REJECTED by design.** An earlier sketch proposed extending the
+augmented engine to vector treatment, asserting "Díaz covers multivariate via binary coding." **That
+claim is wrong.** The paper (arXiv:2605.24167) develops the natural-history augmented-data sequential
+regression for a **scalar discrete exposure only**: it defines $A_t$ as a single "discrete exposure
+variable," enumerates over a scalar support $\bar{\mathcal{A}}_t = \mathcal{A}^t$, and every worked
+example and simulation (the $\{0,1,2\}$ oxygen-delay policy, the single-dose escalation cap, the binary
+simulation, the dichotomized opioid application) is scalar. The "continuous or multivariate exposures"
+phrase in the abstract describes the *general* LMTP framework (Díaz et al. 2023, handled there by a
+**density-ratio / sequential-MTP** construction, not enumeration); it is **not** carried to the
+history-dependent case. The paper's own conclusion relegates such richer settings to future work
+"avoiding explicit enumeration of treatment histories and replacing conditional mass-function ratios
+with appropriate density-ratio or Riesz representers" — i.e. TMLE / SDR, not the plug-in enumeration
+causatr uses.
+
+A multivariate *discrete* G-LMTP could in principle be re-coded as a scalar G-LMTP over the joint
+support $\mathcal{A}^{(1)}\times\cdots\times\mathcal{A}^{(K)}$, but the worst-step enumeration is then
+$|\mathcal{A}^{(1)}\times\cdots\times\mathcal{A}^{(K)}|^{\tau-1}$ — exactly the blow-up the authors flag
+as intractable (the realistic envelope is ~2 binary components over a short horizon), with **no external
+oracle** for genuinely history-dependent vector policies (`lmtp` only computes contemporaneous LMTPs).
+A scalar-only method, an undemonstrated extension, a niche-of-a-niche usable envelope, and no
+cross-check together make this not worth shipping. `glmtp_support()` rejects multivariate treatment
+with the classed error `causatr_glmtp_multivariate`; the `check_glmtp_compat()` /
+`length(treatment) != 1` gate stays. Continuous-treatment G-LMTPs remain rejected for the same
+enumeration reason (see Deferred items).
 
 ---
 
@@ -382,7 +403,7 @@ Depends on 22b-5 (non-static components are bare-numeric otherwise).
 - Stratified × effect-modification interaction (smoke only).
 - Continuous-treatment G-LMTPs (paper covers discrete exposures only; needs TMLE/SDR, `lmtp`).
 
-(22b's own remaining work — multivariate G-LMTP (22b-7) — is the **planned roadmap in §3.7**,
-tracked in `CLAUDE.md` Pending, not a deferred-and-forgotten list. The augmented-data sandwich
-(22b-4), flexible-treatment ICE term (22b-5), and `cap_escalation()` public release (22b-6) are
-now all shipped.)
+(Multivariate G-LMTP (22b-7) is **rejected by design** (§3.7) — the paper is scalar-only and the
+joint-support enumeration is intractable. The augmented-data sandwich (22b-4), flexible-treatment
+ICE term (22b-5), and `cap_escalation()` public release (22b-6) are all shipped, so **Phase 22 is
+complete** with no remaining chunks.)

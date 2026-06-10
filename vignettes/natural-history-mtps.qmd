@@ -238,14 +238,19 @@ Two practical points:
 
 ## Scope and limits
 
-- **Discrete treatment only.** The augmentation enumerates the natural-history
-  support, which is finite only for a discrete exposure. Continuous treatments
-  are rejected (`shift()` / `scale_by()` are the continuous MTPs); the augmented
-  engine handles binary **and** ordinal/count.
+- **Single scalar discrete treatment only.** The augmentation enumerates the
+  natural-history support, which is finite only for a discrete exposure. Continuous
+  treatments are rejected (`shift()` / `scale_by()` are the continuous MTPs); the
+  augmented engine handles binary **and** ordinal/count. Multivariate
+  (vector-valued) treatment is also rejected (`causatr_glmtp_multivariate`): the
+  paper develops the augmentation for a scalar exposure only, and a joint discrete
+  support would enumerate the joint cardinality raised to the number of periods —
+  intractable, and the limitation the paper's own conclusion flags.
 - **Longitudinal g-computation only.** `grace_period()` / `carry_forward()` are
   rejected under IPW / AIPW / matching and for point treatments.
-- **Bootstrap variance.** The augmented-data sandwich is a planned future chunk;
-  `ci_method = "sandwich"` aborts and points to the bootstrap.
+- **Bootstrap *and* sandwich variance.** Both `ci_method = "bootstrap"`
+  (ID-cluster) and `ci_method = "sandwich"` (analytic per-(step, label)
+  M-estimation) are supported.
 - **Dose-escalation caps** (`cap_escalation()`) and other nonlinear ordered
   policies are estimated consistently once the dose enters the per-step model
   flexibly — see *Flexible dose models* below.
