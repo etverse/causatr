@@ -922,9 +922,9 @@ Figure&nbsp;3: Counterfactual means under a one-period delay and carry-forward, 
 <section id="scope-and-limits" class="level2">
 <h2 class="anchored" data-anchor-id="scope-and-limits">Scope and limits</h2>
 <ul>
-<li><strong>Discrete treatment only.</strong> The augmentation enumerates the natural-history support, which is finite only for a discrete exposure. Continuous treatments are rejected (<code>shift()</code> / <code>scale_by()</code> are the continuous MTPs); the augmented engine handles binary <strong>and</strong> ordinal/count.</li>
+<li><strong>Single scalar discrete treatment only.</strong> The augmentation enumerates the natural-history support, which is finite only for a discrete exposure. Continuous treatments are rejected (<code>shift()</code> / <code>scale_by()</code> are the continuous MTPs); the augmented engine handles binary <strong>and</strong> ordinal/count. Multivariate (vector-valued) treatment is also rejected (<code>causatr_glmtp_multivariate</code>): the paper develops the augmentation for a scalar exposure only, and a joint discrete support would enumerate the joint cardinality raised to the number of periods — intractable, and the limitation the paper’s own conclusion flags.</li>
 <li><strong>Longitudinal g-computation only.</strong> <code>grace_period()</code> / <code>carry_forward()</code> are rejected under IPW / AIPW / matching and for point treatments.</li>
-<li><strong>Bootstrap variance.</strong> The augmented-data sandwich is a planned future chunk; <code>ci_method = "sandwich"</code> aborts and points to the bootstrap.</li>
+<li><strong>Bootstrap <em>and</em> sandwich variance.</strong> Both <code>ci_method = "bootstrap"</code> (ID-cluster) and <code>ci_method = "sandwich"</code> (analytic per-(step, label) M-estimation) are supported.</li>
 <li><strong>Dose-escalation caps</strong> (<code>cap_escalation()</code>) and other nonlinear ordered policies are estimated consistently once the dose enters the per-step model flexibly — see <em>Flexible dose models</em> below.</li>
 </ul>
 </section>
@@ -1739,94 +1739,99 @@ Figure&nbsp;3: Counterfactual means under a one-period delay and carry-forward, 
 <span id="cb7-248"><a href="#cb7-248" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-249"><a href="#cb7-249" aria-hidden="true" tabindex="-1"></a><span class="fu">## Scope and limits</span></span>
 <span id="cb7-250"><a href="#cb7-250" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-251"><a href="#cb7-251" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Discrete treatment only.** The augmentation enumerates the natural-history</span>
-<span id="cb7-252"><a href="#cb7-252" aria-hidden="true" tabindex="-1"></a>  support, which is finite only for a discrete exposure. Continuous treatments</span>
-<span id="cb7-253"><a href="#cb7-253" aria-hidden="true" tabindex="-1"></a>  are rejected (<span class="in">`shift()`</span> / <span class="in">`scale_by()`</span> are the continuous MTPs); the augmented</span>
-<span id="cb7-254"><a href="#cb7-254" aria-hidden="true" tabindex="-1"></a>  engine handles binary **and** ordinal/count.</span>
-<span id="cb7-255"><a href="#cb7-255" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Longitudinal g-computation only.** <span class="in">`grace_period()`</span> / <span class="in">`carry_forward()`</span> are</span>
-<span id="cb7-256"><a href="#cb7-256" aria-hidden="true" tabindex="-1"></a>  rejected under IPW / AIPW / matching and for point treatments.</span>
-<span id="cb7-257"><a href="#cb7-257" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Bootstrap variance.** The augmented-data sandwich is a planned future chunk;</span>
-<span id="cb7-258"><a href="#cb7-258" aria-hidden="true" tabindex="-1"></a>  <span class="in">`ci_method = "sandwich"`</span> aborts and points to the bootstrap.</span>
-<span id="cb7-259"><a href="#cb7-259" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Dose-escalation caps** (<span class="in">`cap_escalation()`</span>) and other nonlinear ordered</span>
-<span id="cb7-260"><a href="#cb7-260" aria-hidden="true" tabindex="-1"></a>  policies are estimated consistently once the dose enters the per-step model</span>
-<span id="cb7-261"><a href="#cb7-261" aria-hidden="true" tabindex="-1"></a>  flexibly — see *Flexible dose models* below.</span>
-<span id="cb7-262"><a href="#cb7-262" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-263"><a href="#cb7-263" aria-hidden="true" tabindex="-1"></a><span class="fu">## Flexible dose models for ordered treatments</span></span>
-<span id="cb7-264"><a href="#cb7-264" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-265"><a href="#cb7-265" aria-hidden="true" tabindex="-1"></a>By default the treatment enters every per-step outcome model as a **bare numeric**</span>
-<span id="cb7-266"><a href="#cb7-266" aria-hidden="true" tabindex="-1"></a>main effect. For a binary treatment that is exactly saturated, but for an</span>
-<span id="cb7-267"><a href="#cb7-267" aria-hidden="true" tabindex="-1"></a>**ordered / ordinal dose** a single linear slope can misspecify a non-monotone or</span>
-<span id="cb7-268"><a href="#cb7-268" aria-hidden="true" tabindex="-1"></a>*kinked* counterfactual response — the canonical case being a *dose-escalation</span>
-<span id="cb7-269"><a href="#cb7-269" aria-hidden="true" tabindex="-1"></a>cap*, whose policy is piecewise-linear in the dose. The bare-numeric plug-in then</span>
-<span id="cb7-270"><a href="#cb7-270" aria-hidden="true" tabindex="-1"></a>carries a small but persistent asymptotic bias even though the augmented recursion</span>
-<span id="cb7-271"><a href="#cb7-271" aria-hidden="true" tabindex="-1"></a>is exactly correct.</span>
-<span id="cb7-272"><a href="#cb7-272" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-273"><a href="#cb7-273" aria-hidden="true" tabindex="-1"></a><span class="in">`cap_escalation(delta)`</span> is the natural-history policy for exactly this case: it</span>
-<span id="cb7-274"><a href="#cb7-274" aria-hidden="true" tabindex="-1"></a>caps the per-period increase of the **natural** dose at <span class="in">`delta`</span>, comparing the</span>
-<span id="cb7-275"><a href="#cb7-275" aria-hidden="true" tabindex="-1"></a>natural dose at $t$ with the natural dose at $t-1$. <span class="in">`treatment_form`</span> lets the dose</span>
-<span id="cb7-276"><a href="#cb7-276" aria-hidden="true" tabindex="-1"></a>enter the per-step model via a transformed term, while the policy still sets the</span>
-<span id="cb7-277"><a href="#cb7-277" aria-hidden="true" tabindex="-1"></a>*numeric* dose column — only the model's design term changes. Here is a worked</span>
-<span id="cb7-278"><a href="#cb7-278" aria-hidden="true" tabindex="-1"></a>example on an ordinal dose <span class="in">`{0, 1, 2}`</span> that escalates over three periods:</span>
-<span id="cb7-279"><a href="#cb7-279" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-282"><a href="#cb7-282" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb7-283"><a href="#cb7-283" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: cap-escalation</span></span>
-<span id="cb7-284"><a href="#cb7-284" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">2</span>)</span>
-<span id="cb7-285"><a href="#cb7-285" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">2000</span>L; tau <span class="ot">&lt;-</span> <span class="dv">3</span>L; m <span class="ot">&lt;-</span> <span class="dv">2</span>L           <span class="co"># dose levels {0, 1, 2}</span></span>
-<span id="cb7-286"><a href="#cb7-286" aria-hidden="true" tabindex="-1"></a>L0 <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
-<span id="cb7-287"><a href="#cb7-287" aria-hidden="true" tabindex="-1"></a>dose <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="dv">0</span>L, n, tau); L <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="dv">0</span>, n, tau)</span>
-<span id="cb7-288"><a href="#cb7-288" aria-hidden="true" tabindex="-1"></a>Lprev <span class="ot">&lt;-</span> L0; Aprev <span class="ot">&lt;-</span> <span class="fu">integer</span>(n)</span>
-<span id="cb7-289"><a href="#cb7-289" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (t <span class="cf">in</span> <span class="fu">seq_len</span>(tau)) {</span>
-<span id="cb7-290"><a href="#cb7-290" aria-hidden="true" tabindex="-1"></a>  Lt <span class="ot">&lt;-</span> <span class="fl">0.5</span> <span class="sc">*</span> Lprev <span class="sc">+</span> <span class="fl">0.3</span> <span class="sc">*</span> Aprev <span class="sc">+</span> <span class="fu">rnorm</span>(n)</span>
-<span id="cb7-291"><a href="#cb7-291" aria-hidden="true" tabindex="-1"></a>  step <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">2</span>L, <span class="fu">plogis</span>(<span class="sc">-</span><span class="fl">0.2</span> <span class="sc">+</span> <span class="fl">0.6</span> <span class="sc">*</span> Lt))</span>
-<span id="cb7-292"><a href="#cb7-292" aria-hidden="true" tabindex="-1"></a>  At <span class="ot">&lt;-</span> <span class="fu">pmin</span>(m, Aprev <span class="sc">+</span> step)            <span class="co"># natural dose escalates, capped at 2</span></span>
-<span id="cb7-293"><a href="#cb7-293" aria-hidden="true" tabindex="-1"></a>  dose[, t] <span class="ot">&lt;-</span> At; L[, t] <span class="ot">&lt;-</span> Lt; Lprev <span class="ot">&lt;-</span> Lt; Aprev <span class="ot">&lt;-</span> At</span>
-<span id="cb7-294"><a href="#cb7-294" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb7-295"><a href="#cb7-295" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">+</span> <span class="fl">0.7</span> <span class="sc">*</span> <span class="fu">rowSums</span>(dose) <span class="sc">+</span> <span class="fl">0.4</span> <span class="sc">*</span> L[, tau] <span class="sc">-</span> <span class="fl">0.5</span> <span class="sc">*</span> L0 <span class="sc">+</span> <span class="fu">rnorm</span>(n)</span>
-<span id="cb7-296"><a href="#cb7-296" aria-hidden="true" tabindex="-1"></a>dose_data <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
-<span id="cb7-297"><a href="#cb7-297" aria-hidden="true" tabindex="-1"></a>  <span class="at">id =</span> <span class="fu">rep</span>(<span class="fu">seq_len</span>(n), <span class="at">each =</span> tau), <span class="at">t =</span> <span class="fu">rep</span>(<span class="fu">seq_len</span>(tau), n),</span>
-<span id="cb7-298"><a href="#cb7-298" aria-hidden="true" tabindex="-1"></a>  <span class="at">L0 =</span> <span class="fu">rep</span>(L0, <span class="at">each =</span> tau), <span class="at">dose =</span> <span class="fu">as.vector</span>(<span class="fu">t</span>(dose)),</span>
-<span id="cb7-299"><a href="#cb7-299" aria-hidden="true" tabindex="-1"></a>  <span class="at">L =</span> <span class="fu">as.vector</span>(<span class="fu">t</span>(L)), <span class="at">Y =</span> <span class="cn">NA_real_</span></span>
-<span id="cb7-300"><a href="#cb7-300" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb7-301"><a href="#cb7-301" aria-hidden="true" tabindex="-1"></a>dose_data<span class="sc">$</span>Y[dose_data<span class="sc">$</span>t <span class="sc">==</span> tau] <span class="ot">&lt;-</span> Y</span>
-<span id="cb7-302"><a href="#cb7-302" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-303"><a href="#cb7-303" aria-hidden="true" tabindex="-1"></a>fit_cap <span class="ot">&lt;-</span> <span class="fu">causat</span>(</span>
-<span id="cb7-304"><a href="#cb7-304" aria-hidden="true" tabindex="-1"></a>  dose_data, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"dose"</span>,</span>
-<span id="cb7-305"><a href="#cb7-305" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> <span class="sc">~</span> L0, <span class="at">confounders_tv =</span> <span class="sc">~</span> L,</span>
-<span id="cb7-306"><a href="#cb7-306" aria-hidden="true" tabindex="-1"></a>  <span class="at">id =</span> <span class="st">"id"</span>, <span class="at">time =</span> <span class="st">"t"</span>, <span class="at">estimator =</span> <span class="st">"gcomp"</span>, <span class="at">history =</span> <span class="cn">Inf</span>,</span>
-<span id="cb7-307"><a href="#cb7-307" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment_form =</span> <span class="sc">~</span> <span class="fu">factor</span>(dose)        <span class="co"># each dose level its own coefficient</span></span>
-<span id="cb7-308"><a href="#cb7-308" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb7-309"><a href="#cb7-309" aria-hidden="true" tabindex="-1"></a>res_cap <span class="ot">&lt;-</span> <span class="fu">contrast</span>(</span>
-<span id="cb7-310"><a href="#cb7-310" aria-hidden="true" tabindex="-1"></a>  fit_cap,</span>
-<span id="cb7-311"><a href="#cb7-311" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">cap1 =</span> <span class="fu">cap_escalation</span>(<span class="dv">1</span>), <span class="at">natural =</span> <span class="cn">NULL</span>),</span>
-<span id="cb7-312"><a href="#cb7-312" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="st">"natural"</span>, <span class="at">ci_method =</span> <span class="st">"bootstrap"</span>, <span class="at">n_boot =</span> <span class="dv">100</span>L</span>
+<span id="cb7-251"><a href="#cb7-251" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Single scalar discrete treatment only.** The augmentation enumerates the</span>
+<span id="cb7-252"><a href="#cb7-252" aria-hidden="true" tabindex="-1"></a>  natural-history support, which is finite only for a discrete exposure. Continuous</span>
+<span id="cb7-253"><a href="#cb7-253" aria-hidden="true" tabindex="-1"></a>  treatments are rejected (<span class="in">`shift()`</span> / <span class="in">`scale_by()`</span> are the continuous MTPs); the</span>
+<span id="cb7-254"><a href="#cb7-254" aria-hidden="true" tabindex="-1"></a>  augmented engine handles binary **and** ordinal/count. Multivariate</span>
+<span id="cb7-255"><a href="#cb7-255" aria-hidden="true" tabindex="-1"></a>  (vector-valued) treatment is also rejected (<span class="in">`causatr_glmtp_multivariate`</span>): the</span>
+<span id="cb7-256"><a href="#cb7-256" aria-hidden="true" tabindex="-1"></a>  paper develops the augmentation for a scalar exposure only, and a joint discrete</span>
+<span id="cb7-257"><a href="#cb7-257" aria-hidden="true" tabindex="-1"></a>  support would enumerate the joint cardinality raised to the number of periods —</span>
+<span id="cb7-258"><a href="#cb7-258" aria-hidden="true" tabindex="-1"></a>  intractable, and the limitation the paper's own conclusion flags.</span>
+<span id="cb7-259"><a href="#cb7-259" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Longitudinal g-computation only.** <span class="in">`grace_period()`</span> / <span class="in">`carry_forward()`</span> are</span>
+<span id="cb7-260"><a href="#cb7-260" aria-hidden="true" tabindex="-1"></a>  rejected under IPW / AIPW / matching and for point treatments.</span>
+<span id="cb7-261"><a href="#cb7-261" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Bootstrap *and* sandwich variance.** Both <span class="in">`ci_method = "bootstrap"`</span></span>
+<span id="cb7-262"><a href="#cb7-262" aria-hidden="true" tabindex="-1"></a>  (ID-cluster) and <span class="in">`ci_method = "sandwich"`</span> (analytic per-(step, label)</span>
+<span id="cb7-263"><a href="#cb7-263" aria-hidden="true" tabindex="-1"></a>  M-estimation) are supported.</span>
+<span id="cb7-264"><a href="#cb7-264" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Dose-escalation caps** (<span class="in">`cap_escalation()`</span>) and other nonlinear ordered</span>
+<span id="cb7-265"><a href="#cb7-265" aria-hidden="true" tabindex="-1"></a>  policies are estimated consistently once the dose enters the per-step model</span>
+<span id="cb7-266"><a href="#cb7-266" aria-hidden="true" tabindex="-1"></a>  flexibly — see *Flexible dose models* below.</span>
+<span id="cb7-267"><a href="#cb7-267" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-268"><a href="#cb7-268" aria-hidden="true" tabindex="-1"></a><span class="fu">## Flexible dose models for ordered treatments</span></span>
+<span id="cb7-269"><a href="#cb7-269" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-270"><a href="#cb7-270" aria-hidden="true" tabindex="-1"></a>By default the treatment enters every per-step outcome model as a **bare numeric**</span>
+<span id="cb7-271"><a href="#cb7-271" aria-hidden="true" tabindex="-1"></a>main effect. For a binary treatment that is exactly saturated, but for an</span>
+<span id="cb7-272"><a href="#cb7-272" aria-hidden="true" tabindex="-1"></a>**ordered / ordinal dose** a single linear slope can misspecify a non-monotone or</span>
+<span id="cb7-273"><a href="#cb7-273" aria-hidden="true" tabindex="-1"></a>*kinked* counterfactual response — the canonical case being a *dose-escalation</span>
+<span id="cb7-274"><a href="#cb7-274" aria-hidden="true" tabindex="-1"></a>cap*, whose policy is piecewise-linear in the dose. The bare-numeric plug-in then</span>
+<span id="cb7-275"><a href="#cb7-275" aria-hidden="true" tabindex="-1"></a>carries a small but persistent asymptotic bias even though the augmented recursion</span>
+<span id="cb7-276"><a href="#cb7-276" aria-hidden="true" tabindex="-1"></a>is exactly correct.</span>
+<span id="cb7-277"><a href="#cb7-277" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-278"><a href="#cb7-278" aria-hidden="true" tabindex="-1"></a><span class="in">`cap_escalation(delta)`</span> is the natural-history policy for exactly this case: it</span>
+<span id="cb7-279"><a href="#cb7-279" aria-hidden="true" tabindex="-1"></a>caps the per-period increase of the **natural** dose at <span class="in">`delta`</span>, comparing the</span>
+<span id="cb7-280"><a href="#cb7-280" aria-hidden="true" tabindex="-1"></a>natural dose at $t$ with the natural dose at $t-1$. <span class="in">`treatment_form`</span> lets the dose</span>
+<span id="cb7-281"><a href="#cb7-281" aria-hidden="true" tabindex="-1"></a>enter the per-step model via a transformed term, while the policy still sets the</span>
+<span id="cb7-282"><a href="#cb7-282" aria-hidden="true" tabindex="-1"></a>*numeric* dose column — only the model's design term changes. Here is a worked</span>
+<span id="cb7-283"><a href="#cb7-283" aria-hidden="true" tabindex="-1"></a>example on an ordinal dose <span class="in">`{0, 1, 2}`</span> that escalates over three periods:</span>
+<span id="cb7-284"><a href="#cb7-284" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-287"><a href="#cb7-287" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb7-288"><a href="#cb7-288" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: cap-escalation</span></span>
+<span id="cb7-289"><a href="#cb7-289" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">2</span>)</span>
+<span id="cb7-290"><a href="#cb7-290" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">2000</span>L; tau <span class="ot">&lt;-</span> <span class="dv">3</span>L; m <span class="ot">&lt;-</span> <span class="dv">2</span>L           <span class="co"># dose levels {0, 1, 2}</span></span>
+<span id="cb7-291"><a href="#cb7-291" aria-hidden="true" tabindex="-1"></a>L0 <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb7-292"><a href="#cb7-292" aria-hidden="true" tabindex="-1"></a>dose <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="dv">0</span>L, n, tau); L <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="dv">0</span>, n, tau)</span>
+<span id="cb7-293"><a href="#cb7-293" aria-hidden="true" tabindex="-1"></a>Lprev <span class="ot">&lt;-</span> L0; Aprev <span class="ot">&lt;-</span> <span class="fu">integer</span>(n)</span>
+<span id="cb7-294"><a href="#cb7-294" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (t <span class="cf">in</span> <span class="fu">seq_len</span>(tau)) {</span>
+<span id="cb7-295"><a href="#cb7-295" aria-hidden="true" tabindex="-1"></a>  Lt <span class="ot">&lt;-</span> <span class="fl">0.5</span> <span class="sc">*</span> Lprev <span class="sc">+</span> <span class="fl">0.3</span> <span class="sc">*</span> Aprev <span class="sc">+</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb7-296"><a href="#cb7-296" aria-hidden="true" tabindex="-1"></a>  step <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">2</span>L, <span class="fu">plogis</span>(<span class="sc">-</span><span class="fl">0.2</span> <span class="sc">+</span> <span class="fl">0.6</span> <span class="sc">*</span> Lt))</span>
+<span id="cb7-297"><a href="#cb7-297" aria-hidden="true" tabindex="-1"></a>  At <span class="ot">&lt;-</span> <span class="fu">pmin</span>(m, Aprev <span class="sc">+</span> step)            <span class="co"># natural dose escalates, capped at 2</span></span>
+<span id="cb7-298"><a href="#cb7-298" aria-hidden="true" tabindex="-1"></a>  dose[, t] <span class="ot">&lt;-</span> At; L[, t] <span class="ot">&lt;-</span> Lt; Lprev <span class="ot">&lt;-</span> Lt; Aprev <span class="ot">&lt;-</span> At</span>
+<span id="cb7-299"><a href="#cb7-299" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb7-300"><a href="#cb7-300" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">+</span> <span class="fl">0.7</span> <span class="sc">*</span> <span class="fu">rowSums</span>(dose) <span class="sc">+</span> <span class="fl">0.4</span> <span class="sc">*</span> L[, tau] <span class="sc">-</span> <span class="fl">0.5</span> <span class="sc">*</span> L0 <span class="sc">+</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb7-301"><a href="#cb7-301" aria-hidden="true" tabindex="-1"></a>dose_data <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb7-302"><a href="#cb7-302" aria-hidden="true" tabindex="-1"></a>  <span class="at">id =</span> <span class="fu">rep</span>(<span class="fu">seq_len</span>(n), <span class="at">each =</span> tau), <span class="at">t =</span> <span class="fu">rep</span>(<span class="fu">seq_len</span>(tau), n),</span>
+<span id="cb7-303"><a href="#cb7-303" aria-hidden="true" tabindex="-1"></a>  <span class="at">L0 =</span> <span class="fu">rep</span>(L0, <span class="at">each =</span> tau), <span class="at">dose =</span> <span class="fu">as.vector</span>(<span class="fu">t</span>(dose)),</span>
+<span id="cb7-304"><a href="#cb7-304" aria-hidden="true" tabindex="-1"></a>  <span class="at">L =</span> <span class="fu">as.vector</span>(<span class="fu">t</span>(L)), <span class="at">Y =</span> <span class="cn">NA_real_</span></span>
+<span id="cb7-305"><a href="#cb7-305" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb7-306"><a href="#cb7-306" aria-hidden="true" tabindex="-1"></a>dose_data<span class="sc">$</span>Y[dose_data<span class="sc">$</span>t <span class="sc">==</span> tau] <span class="ot">&lt;-</span> Y</span>
+<span id="cb7-307"><a href="#cb7-307" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-308"><a href="#cb7-308" aria-hidden="true" tabindex="-1"></a>fit_cap <span class="ot">&lt;-</span> <span class="fu">causat</span>(</span>
+<span id="cb7-309"><a href="#cb7-309" aria-hidden="true" tabindex="-1"></a>  dose_data, <span class="at">outcome =</span> <span class="st">"Y"</span>, <span class="at">treatment =</span> <span class="st">"dose"</span>,</span>
+<span id="cb7-310"><a href="#cb7-310" aria-hidden="true" tabindex="-1"></a>  <span class="at">confounders =</span> <span class="sc">~</span> L0, <span class="at">confounders_tv =</span> <span class="sc">~</span> L,</span>
+<span id="cb7-311"><a href="#cb7-311" aria-hidden="true" tabindex="-1"></a>  <span class="at">id =</span> <span class="st">"id"</span>, <span class="at">time =</span> <span class="st">"t"</span>, <span class="at">estimator =</span> <span class="st">"gcomp"</span>, <span class="at">history =</span> <span class="cn">Inf</span>,</span>
+<span id="cb7-312"><a href="#cb7-312" aria-hidden="true" tabindex="-1"></a>  <span class="at">treatment_form =</span> <span class="sc">~</span> <span class="fu">factor</span>(dose)        <span class="co"># each dose level its own coefficient</span></span>
 <span id="cb7-313"><a href="#cb7-313" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb7-314"><a href="#cb7-314" aria-hidden="true" tabindex="-1"></a><span class="fu">tt</span>(res_cap<span class="sc">$</span>estimates)</span>
-<span id="cb7-315"><a href="#cb7-315" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb7-316"><a href="#cb7-316" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-317"><a href="#cb7-317" aria-hidden="true" tabindex="-1"></a>Capping the per-period escalation at one level lowers the counterfactual mean</span>
-<span id="cb7-318"><a href="#cb7-318" aria-hidden="true" tabindex="-1"></a>relative to the natural course (a capped patient accrues fewer high-dose</span>
-<span id="cb7-319"><a href="#cb7-319" aria-hidden="true" tabindex="-1"></a>periods). With <span class="in">`~ factor(dose)`</span> each dose level carries its own coefficient, so</span>
-<span id="cb7-320"><a href="#cb7-320" aria-hidden="true" tabindex="-1"></a>the kinked capped-dose response is recovered to sampling error rather than fit</span>
-<span id="cb7-321"><a href="#cb7-321" aria-hidden="true" tabindex="-1"></a>through one slope; the bare-numeric default would instead carry a small but</span>
-<span id="cb7-322"><a href="#cb7-322" aria-hidden="true" tabindex="-1"></a>seed-stable bias when the cap binds. Lag terms expand automatically</span>
-<span id="cb7-323"><a href="#cb7-323" aria-hidden="true" tabindex="-1"></a>(<span class="in">`factor(dose)`</span> → <span class="in">`factor(lag1_dose)`</span>). The flexible term is</span>
-<span id="cb7-324"><a href="#cb7-324" aria-hidden="true" tabindex="-1"></a>longitudinal-g-computation-only and benefits standard ICE regimes (<span class="in">`static`</span> /</span>
-<span id="cb7-325"><a href="#cb7-325" aria-hidden="true" tabindex="-1"></a><span class="in">`shift`</span> / <span class="in">`dynamic`</span>) as much as natural-history policies. Under <span class="in">`factor(dose)`</span></span>
-<span id="cb7-326"><a href="#cb7-326" aria-hidden="true" tabindex="-1"></a>an intervention must keep the dose within the observed levels (a new level makes</span>
-<span id="cb7-327"><a href="#cb7-327" aria-hidden="true" tabindex="-1"></a>prediction fail); <span class="in">`splines::ns(dose, df)`</span> extrapolates smoothly.</span>
-<span id="cb7-328"><a href="#cb7-328" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-329"><a href="#cb7-329" aria-hidden="true" tabindex="-1"></a><span class="fu">## References</span></span>
-<span id="cb7-330"><a href="#cb7-330" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-331"><a href="#cb7-331" aria-hidden="true" tabindex="-1"></a>Díaz I, Williams NT, Morzywołek P, Rudolph KE (2026). Modified treatment</span>
-<span id="cb7-332"><a href="#cb7-332" aria-hidden="true" tabindex="-1"></a>policies that depend on the natural history of treatment. *arXiv:2605.24167*.</span>
+<span id="cb7-314"><a href="#cb7-314" aria-hidden="true" tabindex="-1"></a>res_cap <span class="ot">&lt;-</span> <span class="fu">contrast</span>(</span>
+<span id="cb7-315"><a href="#cb7-315" aria-hidden="true" tabindex="-1"></a>  fit_cap,</span>
+<span id="cb7-316"><a href="#cb7-316" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">cap1 =</span> <span class="fu">cap_escalation</span>(<span class="dv">1</span>), <span class="at">natural =</span> <span class="cn">NULL</span>),</span>
+<span id="cb7-317"><a href="#cb7-317" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="st">"natural"</span>, <span class="at">ci_method =</span> <span class="st">"bootstrap"</span>, <span class="at">n_boot =</span> <span class="dv">100</span>L</span>
+<span id="cb7-318"><a href="#cb7-318" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb7-319"><a href="#cb7-319" aria-hidden="true" tabindex="-1"></a><span class="fu">tt</span>(res_cap<span class="sc">$</span>estimates)</span>
+<span id="cb7-320"><a href="#cb7-320" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-321"><a href="#cb7-321" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-322"><a href="#cb7-322" aria-hidden="true" tabindex="-1"></a>Capping the per-period escalation at one level lowers the counterfactual mean</span>
+<span id="cb7-323"><a href="#cb7-323" aria-hidden="true" tabindex="-1"></a>relative to the natural course (a capped patient accrues fewer high-dose</span>
+<span id="cb7-324"><a href="#cb7-324" aria-hidden="true" tabindex="-1"></a>periods). With <span class="in">`~ factor(dose)`</span> each dose level carries its own coefficient, so</span>
+<span id="cb7-325"><a href="#cb7-325" aria-hidden="true" tabindex="-1"></a>the kinked capped-dose response is recovered to sampling error rather than fit</span>
+<span id="cb7-326"><a href="#cb7-326" aria-hidden="true" tabindex="-1"></a>through one slope; the bare-numeric default would instead carry a small but</span>
+<span id="cb7-327"><a href="#cb7-327" aria-hidden="true" tabindex="-1"></a>seed-stable bias when the cap binds. Lag terms expand automatically</span>
+<span id="cb7-328"><a href="#cb7-328" aria-hidden="true" tabindex="-1"></a>(<span class="in">`factor(dose)`</span> → <span class="in">`factor(lag1_dose)`</span>). The flexible term is</span>
+<span id="cb7-329"><a href="#cb7-329" aria-hidden="true" tabindex="-1"></a>longitudinal-g-computation-only and benefits standard ICE regimes (<span class="in">`static`</span> /</span>
+<span id="cb7-330"><a href="#cb7-330" aria-hidden="true" tabindex="-1"></a><span class="in">`shift`</span> / <span class="in">`dynamic`</span>) as much as natural-history policies. Under <span class="in">`factor(dose)`</span></span>
+<span id="cb7-331"><a href="#cb7-331" aria-hidden="true" tabindex="-1"></a>an intervention must keep the dose within the observed levels (a new level makes</span>
+<span id="cb7-332"><a href="#cb7-332" aria-hidden="true" tabindex="-1"></a>prediction fail); <span class="in">`splines::ns(dose, df)`</span> extrapolates smoothly.</span>
 <span id="cb7-333"><a href="#cb7-333" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-334"><a href="#cb7-334" aria-hidden="true" tabindex="-1"></a>Díaz I, Williams N, Hoffman KL, Schenck EJ (2023). Non-parametric causal effects</span>
-<span id="cb7-335"><a href="#cb7-335" aria-hidden="true" tabindex="-1"></a>based on longitudinal modified treatment policies. *Journal of the American</span>
-<span id="cb7-336"><a href="#cb7-336" aria-hidden="true" tabindex="-1"></a>Statistical Association* 118:846–857.</span>
-<span id="cb7-337"><a href="#cb7-337" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-338"><a href="#cb7-338" aria-hidden="true" tabindex="-1"></a>Young JG, Hernán MA, Robins JM (2014). Identification, estimation and</span>
-<span id="cb7-339"><a href="#cb7-339" aria-hidden="true" tabindex="-1"></a>approximation of risk under interventions that depend on the natural value of</span>
-<span id="cb7-340"><a href="#cb7-340" aria-hidden="true" tabindex="-1"></a>treatment using observational data. *Epidemiologic Methods* 3:1–19.</span>
+<span id="cb7-334"><a href="#cb7-334" aria-hidden="true" tabindex="-1"></a><span class="fu">## References</span></span>
+<span id="cb7-335"><a href="#cb7-335" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-336"><a href="#cb7-336" aria-hidden="true" tabindex="-1"></a>Díaz I, Williams NT, Morzywołek P, Rudolph KE (2026). Modified treatment</span>
+<span id="cb7-337"><a href="#cb7-337" aria-hidden="true" tabindex="-1"></a>policies that depend on the natural history of treatment. *arXiv:2605.24167*.</span>
+<span id="cb7-338"><a href="#cb7-338" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-339"><a href="#cb7-339" aria-hidden="true" tabindex="-1"></a>Díaz I, Williams N, Hoffman KL, Schenck EJ (2023). Non-parametric causal effects</span>
+<span id="cb7-340"><a href="#cb7-340" aria-hidden="true" tabindex="-1"></a>based on longitudinal modified treatment policies. *Journal of the American</span>
+<span id="cb7-341"><a href="#cb7-341" aria-hidden="true" tabindex="-1"></a>Statistical Association* 118:846–857.</span>
+<span id="cb7-342"><a href="#cb7-342" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-343"><a href="#cb7-343" aria-hidden="true" tabindex="-1"></a>Young JG, Hernán MA, Robins JM (2014). Identification, estimation and</span>
+<span id="cb7-344"><a href="#cb7-344" aria-hidden="true" tabindex="-1"></a>approximation of risk under interventions that depend on the natural value of</span>
+<span id="cb7-345"><a href="#cb7-345" aria-hidden="true" tabindex="-1"></a>treatment using observational data. *Epidemiologic Methods* 3:1–19.</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->
