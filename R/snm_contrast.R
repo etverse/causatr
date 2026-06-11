@@ -101,6 +101,7 @@ compute_snm_contrast <- function(
   # averaged-blip replicate matrix when bootstrapping (NULL under sandwich),
   # and is the basis for percentile CIs.
   boot_t_snm <- NULL
+  boot_info_snm <- NULL
   if (ci_method == "sandwich") {
     if (fit$type == "longitudinal") {
       # Longitudinal variance uses the ID structure for clustering internally.
@@ -119,6 +120,7 @@ compute_snm_contrast <- function(
     )
     vcov_psi <- boot_res$vcov
     boot_t_snm <- boot_res$boot_t
+    boot_info_snm <- boot_res$boot_info
   }
   # Percentile bootstrap CIs come from the stored blip-parameter / averaged-blip
   # replicate columns; `normal` (and sandwich) keep the Wald bounds from the
@@ -331,6 +333,12 @@ compute_snm_contrast <- function(
     family = fit$family,
     fit_type = fit$type,
     vcov = vcov_out,
+    # Carry the replicate matrix so confint()/tidy() honour the percentile
+    # flavour, matching the stored CIs. Path C (`by`-stratified averaged blip)
+    # has only the pooled-average replicate column, which does not align with
+    # the per-stratum rows, so it stores no replicates and stays Wald.
+    boot_t = if (is.null(by)) boot_t_snm else NULL,
+    boot_info = if (is.null(by)) boot_info_snm else NULL,
     boot_ci = boot_ci,
     call = call
   )

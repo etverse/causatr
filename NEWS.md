@@ -20,6 +20,9 @@ recorded convention. `confint(res, boot_ci = ...)` overrides it on demand;
 bootstrap path (g-computation, IPW, AIPW, longitudinal, `by`-stratified, and
 SNM blip parameters / pooled averaged blip). The SNM by-stratified averaged
 blip keeps its delta-method (Wald) interval — it has no per-stratum replicates.
+SNM results now carry their bootstrap replicates so `confint()` / `tidy()`
+honour the flavour (matching the stored table), and `confint()` labels SNM rows
+by blip parameter instead of leaving them unlabeled.
 
 Validated against the empirical replicate quantiles and `boot::boot.ci()`
 (`test-bootstrap-ci.R`).

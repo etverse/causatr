@@ -133,6 +133,13 @@ confint.causatr_result <- function(
       upper = est + z * se
     )
   }
-  rownames(ci) <- object$estimates$intervention
+  # SNM results label rows by blip `parameter` rather than `intervention`;
+  # use whichever the estimates table carries so the CI rows are never left
+  # unlabeled.
+  rownames(ci) <- if ("parameter" %in% names(object$estimates)) {
+    object$estimates$parameter
+  } else {
+    object$estimates$intervention
+  }
   ci
 }

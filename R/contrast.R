@@ -86,7 +86,11 @@
 #'   come from the same replicates at no extra resampling cost; the point
 #'   estimate, SE, and vcov are identical either way. Ignored for
 #'   `ci_method = "sandwich"`. [confint()] and [tidy()] honour the stored choice
-#'   but accept a `boot_ci` override.
+#'   but accept a `boot_ci` override. For `type = "ratio"` / `"or"`, the
+#'   percentile interval can be wide or erratic when the bootstrap means
+#'   approach zero (e.g. a Gaussian outcome), because individual replicates
+#'   drive the denominator toward zero; for ratios prefer a binomial / Poisson /
+#'   Gamma family (or `type = "difference"`), as for the point estimate.
 #' @param by Character or `NULL`. Name of a variable to stratify estimates by
 #'   (effect modification). If provided, E\[Y^a\] is computed within each
 #'   level of `by`.

@@ -94,7 +94,11 @@ the bootstrap standard error (\eqn{\hat\theta \pm z\,\widehat{sd}}). Both
 come from the same replicates at no extra resampling cost; the point
 estimate, SE, and vcov are identical either way. Ignored for
 \code{ci_method = "sandwich"}. \code{\link[=confint]{confint()}} and \code{\link[=tidy]{tidy()}} honour the stored choice
-but accept a \code{boot_ci} override.}
+but accept a \code{boot_ci} override. For \code{type = "ratio"} / \code{"or"}, the
+percentile interval can be wide or erratic when the bootstrap means
+approach zero (e.g. a Gaussian outcome), because individual replicates
+drive the denominator toward zero; for ratios prefer a binomial / Poisson /
+Gamma family (or \code{type = "difference"}), as for the point estimate.}
 
 \item{by}{Character or \code{NULL}. Name of a variable to stratify estimates by
 (effect modification). If provided, E[Y^a] is computed within each

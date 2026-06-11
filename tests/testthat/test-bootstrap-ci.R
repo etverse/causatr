@@ -362,6 +362,62 @@ test_that("SNM honours boot_ci for the blip parameters (Path A)", {
   expect_equal(ep$se, en$se)
   # Percentile and normal differ (the percentile interval is asymmetric).
   expect_false(isTRUE(all.equal(ep$ci_lower, en$ci_lower)))
+
+  # confint() must agree with the stored CIs (the SNM result carries boot_t so
+  # confint recomputes the same percentile bounds) and label rows by the blip
+  # parameter, not a missing `intervention` column.
+  ci_p <- confint(rp)
+  expect_equal(rownames(ci_p), ep$parameter)
+  expect_equal(
+    unname(ci_p),
+    unname(cbind(ep$ci_lower, ep$ci_upper)),
+    tolerance = 1e-12
+  )
+  ci_n <- confint(rn)
+  expect_equal(
+    unname(ci_n[1, ]),
+    en$estimate[1] + c(-1, 1) * z975 * en$se[1],
+    tolerance = 1e-12
+  )
+})
+
+test_that("SNM by-stratified averaged blip stays Wald and is labelled", {
+  set.seed(7)
+  n <- 2000
+  L <- stats::rnorm(n)
+  G <- factor(ifelse(L > 0, "hi", "lo"))
+  A <- stats::rbinom(n, 1L, stats::plogis(0.2 * L))
+  Y <- 0.5 + 1.0 * A + 0.8 * A * L + 0.4 * L + stats::rnorm(n)
+  d <- data.frame(Y = Y, A = A, L = L, G = G)
+  fit <- causat(
+    d,
+    "Y",
+    "A",
+    confounders = ~ L + G + A:L,
+    estimator = "snm",
+    propensity_model_fn = stats::glm
+  )
+  # Path C has only the pooled-average replicate column (no per-stratum
+  # replicates), so it carries no boot_t and its CIs are the delta-method
+  # (Wald) interval regardless of boot_ci -- and confint() must match.
+  set.seed(2)
+  rc <- contrast(
+    fit,
+    treatment_values = c(0, 1),
+    by = "G",
+    ci_method = "bootstrap",
+    n_boot = 300,
+    boot_ci = "percentile"
+  )
+  expect_null(rc$boot_t)
+  ec <- as.data.frame(rc$estimates)
+  ci <- confint(rc)
+  expect_equal(rownames(ci), ec$parameter)
+  expect_equal(
+    unname(ci),
+    unname(cbind(ec$ci_lower, ec$ci_upper)),
+    tolerance = 1e-12
+  )
 })
 
 test_that("an invalid boot_ci value is rejected", {
