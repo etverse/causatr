@@ -187,9 +187,20 @@ print.causatr_result <- function(x, ...) {
     if (
       is.list(bi) && !all(c("n_requested", "n_ok", "n_fail") %in% names(bi))
     ) {
-      # by-stratum list-of-lists: collapse to totals.
-      n_req <- sum(vapply(bi, function(b) b$n_requested %||% 0L, integer(1)))
-      n_fail <- sum(vapply(bi, function(b) b$n_fail %||% 0L, integer(1)))
+      # by-stratum list-of-lists: collapse to totals. `n_requested` carries
+      # the user's `n_boot`, which is a double when passed as a bare numeric
+      # (`n_boot = 40`), so coerce before the integer-typed vapply -- otherwise
+      # the collapse aborts on any by-stratified bootstrap result.
+      n_req <- sum(vapply(
+        bi,
+        function(b) as.integer(b$n_requested %||% 0L),
+        integer(1)
+      ))
+      n_fail <- sum(vapply(
+        bi,
+        function(b) as.integer(b$n_fail %||% 0L),
+        integer(1)
+      ))
     } else {
       n_req <- bi$n_requested
       n_fail <- bi$n_fail

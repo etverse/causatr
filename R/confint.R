@@ -64,14 +64,19 @@ confint.causatr_result <- function(object, parm, level = 0.95, ...) {
     # We iterate in the order of the levels as they appear in
     # `object$estimates$by` to guarantee the returned CI rows line
     # up with the estimates table row-for-row.
-    n_int <- length(unique(object$estimates$intervention))
     by_levels <- unique(object$estimates$by)
+    # Rows the CI must emit per stratum. For a scalar outcome this is the
+    # number of interventions; for a multinomial outcome each stratum's
+    # `boot_t` is the flat (intervention x class) matrix, so it is
+    # interventions x classes. Deriving it from the estimates table (which is
+    # balanced across strata) covers both without special-casing.
+    n_rows_per_stratum <- nrow(object$estimates) / length(by_levels)
     ci_list <- lapply(by_levels, function(lev) {
       bt <- object$boot_t[[as.character(lev)]]
       if (is.null(bt) || nrow(bt) < 2L) {
         # Degenerate stratum -- return NA so downstream code
         # (print/tidy) still has a well-formed matrix to work with.
-        na_row <- matrix(NA_real_, nrow = n_int, ncol = 2)
+        na_row <- matrix(NA_real_, nrow = n_rows_per_stratum, ncol = 2)
         colnames(na_row) <- c("lower", "upper")
         return(na_row)
       }

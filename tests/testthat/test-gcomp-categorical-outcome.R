@@ -347,6 +347,70 @@ test_that("by-stratified multinomial yields per-stratum per-class tables", {
   }
 })
 
+test_that("by-stratified multinomial bootstrap result prints and confints", {
+  # The by-stratified boot_info is a list-of-lists, and its `n_requested`
+  # carries the user's `n_boot = 40` (a double); the print collapse must
+  # coerce it before an integer-typed vapply. confint() over the same result
+  # must emit one CI row per (by, intervention, class).
+  d <- sim_multinom_binary(n = 6000, seed = 11)
+  d$G <- factor(ifelse(d$L > 0, "hi", "lo"))
+  fit <- causat(
+    d,
+    "Y",
+    "A",
+    confounders = ~ L + G,
+    estimator = "gcomp",
+    model_fn = nnet::multinom,
+    trace = FALSE
+  )
+  res <- contrast(
+    fit,
+    list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    by = "G",
+    ci_method = "bootstrap",
+    n_boot = 40
+  )
+  expect_no_error(capture.output(print(res)))
+  ci <- confint(res)
+  expect_equal(nrow(ci), 2L * 2L * 3L)
+  expect_true(all(ci[, "lower"] <= ci[, "upper"]))
+})
+
+test_that("confint handles a degenerate by-stratum for a multinomial result", {
+  # A by-stratum with fewer than two successful bootstrap replicates takes the
+  # NA fallback, which must emit the per-stratum row count (interventions x
+  # classes), not the intervention count, or the CI rownames assignment aborts.
+  d <- sim_multinom_binary(n = 6000, seed = 11)
+  d$G <- factor(ifelse(d$L > 0, "hi", "lo"))
+  fit <- causat(
+    d,
+    "Y",
+    "A",
+    confounders = ~ L + G,
+    estimator = "gcomp",
+    model_fn = nnet::multinom,
+    trace = FALSE
+  )
+  res <- contrast(
+    fit,
+    list(a1 = static(1), a0 = static(0)),
+    reference = "a0",
+    by = "G",
+    ci_method = "bootstrap",
+    n_boot = 40
+  )
+  # Force one stratum degenerate (a single retained replicate).
+  res$boot_t[["hi"]] <- res$boot_t[["hi"]][1, , drop = FALSE]
+  ci <- confint(res)
+  expect_equal(nrow(ci), nrow(res$estimates))
+  expect_equal(
+    rownames(ci),
+    paste(res$estimates$intervention, res$estimates$class, sep = ":")
+  )
+  expect_true(all(is.na(ci[res$estimates$by == "hi", ])))
+})
+
 test_that("external weights give a weighted multinomial g-formula", {
   skip_if_not_installed("marginaleffects")
   set.seed(7)

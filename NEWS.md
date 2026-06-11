@@ -1,5 +1,17 @@
 # causatr (development version)
 
+## 2026-06-11 — Fixes: by-stratified bootstrap result print / confint
+
+`print()` on any `by`-stratified bootstrap result aborted ("values must be type
+'integer'") because the per-stratum `boot_info` collapse ran an integer-typed
+`vapply()` over `n_requested`, which is a double whenever `n_boot` is passed as a
+bare numeric (`n_boot = 40`). The collapse now coerces to integer. Separately,
+`confint()` on a `by` + per-class (multinomial) result with a degenerate stratum
+(fewer than two successful replicates) sized its NA fallback by the intervention
+count instead of interventions × classes, so the CI rows no longer matched the
+estimates table and the rownames assignment aborted; the fallback is now sized
+from the per-stratum estimate-row count.
+
 ## 2026-06-11 — Phase 23a-1: categorical (multinomial) outcomes for point g-computation
 
 Point g-computation now supports a **single categorical outcome** — one factor
