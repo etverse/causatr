@@ -78,6 +78,15 @@
 #' @param n_boot Integer. Number of bootstrap replications when
 #'   `ci_method = "bootstrap"`. Default `500`.
 #' @param conf_level Numeric. Confidence level for intervals. Default `0.95`.
+#' @param boot_ci Character. Bootstrap confidence-interval flavour, used only
+#'   when `ci_method = "bootstrap"`: `"percentile"` (default) takes empirical
+#'   quantiles of the bootstrap replicates (transformation-respecting, bounded
+#'   by the estimand's support), while `"normal"` uses the Wald interval from
+#'   the bootstrap standard error (\eqn{\hat\theta \pm z\,\widehat{sd}}). Both
+#'   come from the same replicates at no extra resampling cost; the point
+#'   estimate, SE, and vcov are identical either way. Ignored for
+#'   `ci_method = "sandwich"`. [confint()] and [tidy()] honour the stored choice
+#'   but accept a `boot_ci` override.
 #' @param by Character or `NULL`. Name of a variable to stratify estimates by
 #'   (effect modification). If provided, E\[Y^a\] is computed within each
 #'   level of `by`.
@@ -270,6 +279,7 @@ contrast <- function(
   ci_method = c("sandwich", "bootstrap"),
   n_boot = 500L,
   conf_level = 0.95,
+  boot_ci = c("percentile", "normal"),
   by = NULL,
   parallel = getOption("boot.parallel", "no"),
   ncpus = getOption("boot.ncpus", 1L),
@@ -305,6 +315,10 @@ contrast <- function(
   # are guaranteed scalar after these lines.
   type <- rlang::arg_match(type)
   ci_method <- rlang::arg_match(ci_method)
+  # Bootstrap CI flavour. Only consumed on the bootstrap path; for the
+  # sandwich path the stored Wald/delta bounds are used regardless, so we
+  # validate but otherwise ignore it there.
+  boot_ci <- rlang::arg_match(boot_ci)
 
   if (!is.numeric(trim) || length(trim) != 1L || trim <= 0 || trim > 1) {
     rlang::abort(
@@ -389,6 +403,7 @@ contrast <- function(
       ci_method = ci_method,
       conf_level = conf_level,
       n_boot = n_boot,
+      boot_ci = boot_ci,
       parallel = parallel,
       ncpus = ncpus,
       cluster_vec = snm_cluster_vec,
@@ -496,7 +511,8 @@ contrast <- function(
     call,
     subset_env,
     cluster_vec = cluster_vec,
-    trim = trim
+    trim = trim,
+    boot_ci = boot_ci
   )
 }
 
@@ -822,7 +838,8 @@ compute_contrast <- function(
   call,
   subset_env = parent.frame(),
   cluster_vec = NULL,
-  trim = 1
+  trim = 1,
+  boot_ci = "percentile"
 ) {
   data <- fit$data
   int_names <- names(interventions)
@@ -915,7 +932,8 @@ compute_contrast <- function(
           call,
           subset_env = subset_env,
           cluster_vec = cluster_vec,
-          trim = trim
+          trim = trim,
+          boot_ci = boot_ci
         ),
         error = function(e) {
           # Match on the classed abort from build_point_channel_pieces()
@@ -989,6 +1007,7 @@ compute_contrast <- function(
         vcov = lapply(results_list, function(r) r$vcov),
         boot_t = lapply(results_list, function(r) r$boot_t),
         boot_info = lapply(results_list, function(r) r$boot_info),
+        boot_ci = boot_ci,
         call = call
       )
     )
@@ -1523,13 +1542,36 @@ compute_contrast <- function(
   # the right half-width for any conf_level without hand-coding 1.96.
   z <- stats::qnorm((1 + conf_level) / 2)
 
+  # Bootstrap CI flavour. `percentile` reads empirical quantiles off the
+  # stored replicate matrix `boot_t`; `normal` (and the entire sandwich path)
+  # keeps the Wald/delta bounds from the vcov. Only bootstrap + percentile
+  # touches `boot_t`, so everything else is byte-identical to before.
+  use_perc <- ci_method == "bootstrap" &&
+    boot_ci == "percentile" &&
+    is.matrix(boot_t)
+
+  if (use_perc) {
+    means_ci <- vapply(
+      int_names,
+      function(nm) {
+        boot_ci_block(boot_t[, nm], mu_hat[[nm]], conf_level, "percentile")
+      },
+      numeric(2)
+    )
+    ci_lower_means <- means_ci["lower", ]
+    ci_upper_means <- means_ci["upper", ]
+  } else {
+    ci_lower_means <- mu_hat - z * se_means
+    ci_upper_means <- mu_hat + z * se_means
+  }
+
   # First output: per-intervention marginal-mean table.
   estimates_dt <- data.table::data.table(
     intervention = int_names,
     estimate = mu_hat,
     se = se_means,
-    ci_lower = mu_hat - z * se_means,
-    ci_upper = mu_hat + z * se_means
+    ci_lower = ci_lower_means,
+    ci_upper = ci_upper_means
   )
 
   # Reference for pairwise contrasts. If the user didn't name one,
@@ -1691,6 +1733,26 @@ compute_contrast <- function(
       ci_hi <- exp(log(est_c) + z * se_log)
     }
 
+    # Percentile bootstrap CI: take quantiles of the contrast evaluated on each
+    # replicate's per-intervention means. Quantiles are transform-equivariant,
+    # so the one recipe covers difference / ratio / OR and stays inside the
+    # estimand's support. The point estimate and SE above are unchanged -- only
+    # the interval bounds switch to the empirical replicate quantiles.
+    if (use_perc) {
+      reps_a <- boot_t[, nm]
+      reps_ref <- boot_t[, ref_name]
+      reps_c <- if (type == "difference") {
+        reps_a - reps_ref
+      } else if (type == "ratio") {
+        reps_a / reps_ref
+      } else {
+        (reps_a / (1 - reps_a)) / (reps_ref / (1 - reps_ref))
+      }
+      pci <- boot_ci_block(reps_c, est_c, conf_level, "percentile")
+      ci_lo <- pci[["lower"]]
+      ci_hi <- pci[["upper"]]
+    }
+
     data.table::data.table(
       comparison = paste0(nm, " vs ", ref_name),
       estimate = est_c,
@@ -1727,6 +1789,7 @@ compute_contrast <- function(
     vcov = vcov_mat,
     boot_t = boot_t,
     boot_info = boot_info,
+    boot_ci = boot_ci,
     call = call
   )
 }

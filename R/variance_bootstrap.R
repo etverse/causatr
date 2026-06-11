@@ -202,6 +202,53 @@ process_boot_results <- function(boot_res, int_names, n_boot) {
   )
 }
 
+#' Confidence-interval bounds from a bootstrap replicate vector
+#'
+#' @description
+#' Computes a lower/upper confidence bound from a vector of bootstrap
+#' replicate statistics, by one of two standard methods (Efron & Tibshirani
+#' 1993, ch. 13; Davison & Hinkley 1997, sec. 5.2):
+#'
+#' \itemize{
+#'   \item `"percentile"`: the empirical \eqn{\alpha/2} and \eqn{1-\alpha/2}
+#'     quantiles of the replicates. Transformation-respecting and bounded by
+#'     the estimand's support, so it is appropriate for probabilities, ratios,
+#'     and odds ratios.
+#'   \item `"normal"`: \eqn{\hat\theta \pm z_{1-\alpha/2}\,\widehat{sd}}, where
+#'     \eqn{\widehat{sd}} is the standard deviation of the replicates. Symmetric;
+#'     equals the Wald interval built from the bootstrap standard error.
+#' }
+#'
+#' Both are computed from the same replicate vector, so offering both costs no
+#' extra resampling.
+#'
+#' @param reps Numeric vector of bootstrap replicate statistics (one per
+#'   successful replicate). Non-finite entries are dropped.
+#' @param estimate Numeric scalar. The point estimate, used to centre the
+#'   `"normal"` interval (ignored for `"percentile"`).
+#' @param level Numeric scalar in (0, 1). Confidence level.
+#' @param method `"percentile"` or `"normal"`.
+#' @returns A length-2 numeric vector named `c("lower", "upper")`. Returns
+#'   `c(NA, NA)` when fewer than two finite replicates are available.
+#' @noRd
+boot_ci_block <- function(reps, estimate, level, method) {
+  alpha <- (1 - level) / 2
+  reps <- reps[is.finite(reps)]
+  if (length(reps) < 2L) {
+    return(c(lower = NA_real_, upper = NA_real_))
+  }
+  bounds <- if (method == "percentile") {
+    stats::quantile(reps, c(alpha, 1 - alpha), names = FALSE)
+  } else {
+    # Normal approximation: centre on the point estimate (not the replicate
+    # mean) so the interval is the Wald CI from the bootstrap SE -- this keeps
+    # `boot_ci = "normal"` identical to the legacy vcov-based bounds.
+    z <- stats::qnorm(1 - alpha)
+    estimate + c(-1, 1) * z * stats::sd(reps)
+  }
+  c(lower = bounds[1], upper = bounds[2])
+}
+
 #' Bootstrap variance-covariance matrix for marginal means
 #'
 #' @description

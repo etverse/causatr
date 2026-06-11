@@ -51,6 +51,7 @@ compute_snm_contrast <- function(
   ci_method,
   conf_level,
   n_boot = 500L,
+  boot_ci = "percentile",
   parallel = "no",
   ncpus = 1L,
   cluster_vec = NULL,
@@ -96,7 +97,10 @@ compute_snm_contrast <- function(
   z <- stats::qnorm((1 + conf_level) / 2)
   n_target <- snm_result$n_obs
 
-  # Variance: sandwich or bootstrap
+  # Variance: sandwich or bootstrap. `boot_t_snm` holds the per-parameter /
+  # averaged-blip replicate matrix when bootstrapping (NULL under sandwich),
+  # and is the basis for percentile CIs.
+  boot_t_snm <- NULL
   if (ci_method == "sandwich") {
     if (fit$type == "longitudinal") {
       # Longitudinal variance uses the ID structure for clustering internally.
@@ -114,19 +118,43 @@ compute_snm_contrast <- function(
       ncpus = ncpus
     )
     vcov_psi <- boot_res$vcov
+    boot_t_snm <- boot_res$boot_t
   }
+  # Percentile bootstrap CIs come from the stored blip-parameter / averaged-blip
+  # replicate columns; `normal` (and sandwich) keep the Wald bounds from the
+  # vcov. The by-stratified averaged blip (Path C) has no per-stratum
+  # replicates -- its bootstrap SE is the delta method on the global vcov -- so
+  # it stays Wald regardless.
+  use_perc_snm <- ci_method == "bootstrap" &&
+    boot_ci == "percentile" &&
+    !is.null(boot_t_snm) &&
+    is.matrix(boot_t_snm)
 
   if (is.null(treatment_values)) {
     # Path A: blip parameter table — one row per parameter.
     # For longitudinal fits, psi_hat contains per-stage parameters
     # (e.g. stage0_psi_intercept, stage1_psi_intercept, ...).
     se_psi <- sqrt(pmax(diag(vcov_psi), 0))
+    if (use_perc_snm) {
+      pa <- vapply(
+        names(psi_hat),
+        function(p) {
+          boot_ci_block(boot_t_snm[, p], psi_hat[[p]], conf_level, "percentile")
+        },
+        numeric(2)
+      )
+      ci_lo_psi <- pa["lower", ]
+      ci_hi_psi <- pa["upper", ]
+    } else {
+      ci_lo_psi <- psi_hat - z * se_psi
+      ci_hi_psi <- psi_hat + z * se_psi
+    }
     estimates_dt <- data.table::data.table(
       parameter = names(psi_hat),
       estimate = as.numeric(psi_hat),
       se = se_psi,
-      ci_lower = psi_hat - z * se_psi,
-      ci_upper = psi_hat + z * se_psi
+      ci_lower = ci_lo_psi,
+      ci_upper = ci_hi_psi
     )
     contrasts_dt <- data.table::data.table(
       comparison = character(0),
@@ -211,19 +239,34 @@ compute_snm_contrast <- function(
       avg_effect <- out$avg
       se_effect <- out$se
 
+      if (use_perc_snm) {
+        # The bootstrap statistic for Path B is the averaged blip itself, so
+        # its replicate column is the percentile basis directly.
+        ab <- boot_ci_block(
+          boot_t_snm[, 1L],
+          avg_effect,
+          conf_level,
+          "percentile"
+        )
+        ci_lo_eff <- ab[["lower"]]
+        ci_hi_eff <- ab[["upper"]]
+      } else {
+        ci_lo_eff <- avg_effect - z * se_effect
+        ci_hi_eff <- avg_effect + z * se_effect
+      }
       estimates_dt <- data.table::data.table(
         parameter = "avg_blip_effect",
         estimate = avg_effect,
         se = se_effect,
-        ci_lower = avg_effect - z * se_effect,
-        ci_upper = avg_effect + z * se_effect
+        ci_lower = ci_lo_eff,
+        ci_upper = ci_hi_eff
       )
       contrasts_dt <- data.table::data.table(
         comparison = comparison_label,
         estimate = avg_effect,
         se = se_effect,
-        ci_lower = avg_effect - z * se_effect,
-        ci_upper = avg_effect + z * se_effect
+        ci_lower = ci_lo_eff,
+        ci_upper = ci_hi_eff
       )
       vcov_out <- vcov_psi
     } else {
@@ -288,6 +331,7 @@ compute_snm_contrast <- function(
     family = fit$family,
     fit_type = fit$type,
     vcov = vcov_out,
+    boot_ci = boot_ci,
     call = call
   )
 }

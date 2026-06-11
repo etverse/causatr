@@ -4,7 +4,7 @@
 \alias{confint.causatr_result}
 \title{Confidence intervals for a causatr result}
 \usage{
-\method{confint}{causatr_result}(object, parm, level = 0.95, ...)
+\method{confint}{causatr_result}(object, parm, level = 0.95, boot_ci = NULL, ...)
 }
 \arguments{
 \item{object}{A \code{causatr_result} object.}
@@ -12,6 +12,11 @@
 \item{parm}{Ignored. Intervals are returned for all interventions.}
 
 \item{level}{Numeric. Confidence level. Default \code{0.95}.}
+
+\item{boot_ci}{Character or \code{NULL}. Override the bootstrap CI flavour:
+\code{"percentile"} (empirical replicate quantiles) or \code{"normal"} (Wald from
+the bootstrap SE). \code{NULL} (default) uses the convention recorded on the
+result by \code{\link[=contrast]{contrast()}}. Ignored for sandwich results.}
 
 \item{...}{Currently unused.}
 }

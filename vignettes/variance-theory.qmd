@@ -2536,10 +2536,53 @@ For Tier 2 models, `ci_method = "bootstrap"` gives exact coverage.
 If unsure, run with `ci_method = "sandwich"` first — if you see a
 `causatr_tier2_fallback` warning, the model is on Tier 2.
 
+## Bootstrap confidence-interval flavour
+
+When `ci_method = "bootstrap"`, `contrast()` resamples the whole pipeline and
+stores the per-intervention replicate matrix. Two standard intervals can be
+read off those replicates (Efron & Tibshirani 1993, ch. 13; Davison & Hinkley
+1997, sec. 5.2), selected with `boot_ci`:
+
+- **`"percentile"` (default)** — the empirical $\alpha/2$ and $1-\alpha/2$
+  quantiles of the replicates. It is transformation-respecting and bounded by
+  the estimand's support, so a relative risk or odds ratio gets a strictly
+  positive interval and a probability stays in $[0, 1]$. Contrast intervals use
+  the quantiles of the contrast evaluated on each replicate's per-intervention
+  means, so difference / ratio / odds-ratio are all handled by the one recipe.
+- **`"normal"`** — the Wald interval from the bootstrap standard error,
+  $\hat\theta \pm z_{1-\alpha/2}\,\widehat{sd}$. Symmetric; best when the
+  bootstrap distribution is roughly Gaussian.
+
+Both come from the same replicates, so the choice costs nothing extra and
+leaves the point estimate, SE, and vcov untouched — only the interval bounds
+move. Every surface (`print()`, `plot()`, the `estimates` / `contrasts`
+tables, `tidy()`) honours the recorded choice; `confint(res, boot_ci = ...)`
+overrides it on demand.
+
+```{r}
+#| eval: false
+res_perc <- contrast(
+  fit,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  ci_method = "bootstrap",
+  boot_ci = "percentile"
+)
+# pull the symmetric interval from the same fit without re-bootstrapping
+confint(res_perc, boot_ci = "normal")
+```
+
+For the SNM blip parameters and the pooled population-averaged blip, `boot_ci`
+applies the same way; the `by`-stratified averaged blip keeps its delta-method
+(normal) interval because it has no per-stratum replicates.
+
 ## References
 
 - Bang H, Robins JM (2005). Doubly robust estimation in missing data and
   causal inference models. *Biometrics* 61:962–973.
+- Davison AC, Hinkley DV (1997). *Bootstrap Methods and Their Application*.
+  Cambridge University Press.
+- Efron B, Tibshirani RJ (1993). *An Introduction to the Bootstrap*.
+  Chapman & Hall.
 - Hampel FR, Ronchetti EM, Rousseeuw PJ, Stahel WA (1986). *Robust
   Statistics: The Approach Based on Influence Functions*. Wiley.
 - Hirano K, Imbens GW, Ridder G (2003). Efficient estimation of average

@@ -10,6 +10,10 @@
 #' @param object A `causatr_result` object.
 #' @param parm Ignored. Intervals are returned for all interventions.
 #' @param level Numeric. Confidence level. Default `0.95`.
+#' @param boot_ci Character or `NULL`. Override the bootstrap CI flavour:
+#'   `"percentile"` (empirical replicate quantiles) or `"normal"` (Wald from
+#'   the bootstrap SE). `NULL` (default) uses the convention recorded on the
+#'   result by [contrast()]. Ignored for sandwich results.
 #' @param ... Currently unused.
 #'
 #' @return A matrix with columns `"lower"` and `"upper"` and one row per
@@ -24,9 +28,26 @@
 #'
 #' @seealso [coef.causatr_result()], [contrast()]
 #' @export
-confint.causatr_result <- function(object, parm, level = 0.95, ...) {
+confint.causatr_result <- function(
+  object,
+  parm,
+  level = 0.95,
+  boot_ci = NULL,
+  ...
+) {
   # Half-alpha for two-sided CI: 0.95 level -> alpha = 0.025 per tail.
   alpha <- (1 - level) / 2
+
+  # Resolve the bootstrap CI flavour: an explicit override, else the
+  # convention recorded on the result, else percentile. Percentile reads
+  # empirical replicate quantiles; normal falls through to the Wald branch
+  # (estimate +/- z * bootstrap SE), so it shares the sandwich reconstruction.
+  bc <- if (!is.null(boot_ci)) {
+    rlang::arg_match(boot_ci, c("percentile", "normal"))
+  } else {
+    object$boot_ci %||% "percentile"
+  }
+  use_perc <- !is.null(object$boot_t) && bc == "percentile"
 
   # Multiple-imputation results (`ci_method = "rubin"` / `"boot_mi"`) carry
   # per-row degrees of freedom in the "mi_details" attribute. Reconstruct
@@ -59,7 +80,7 @@ confint.causatr_result <- function(object, parm, level = 0.95, ...) {
   # reading `object$estimates$ci_lower/ci_upper` because the stored
   # CIs were computed at the original `conf_level` passed to
   # `contrast()`, not the current `level` argument.
-  if (!is.null(object$boot_t) && is.list(object$boot_t)) {
+  if (use_perc && is.list(object$boot_t)) {
     # Stratified bootstrap: boot_t is a named list keyed by by-level.
     # We iterate in the order of the levels as they appear in
     # `object$estimates$by` to guarantee the returned CI rows line
@@ -88,7 +109,7 @@ confint.causatr_result <- function(object, parm, level = 0.95, ...) {
       ci_lev
     })
     ci <- do.call(rbind, ci_list)
-  } else if (!is.null(object$boot_t) && is.matrix(object$boot_t)) {
+  } else if (use_perc && is.matrix(object$boot_t)) {
     # Unstratified bootstrap -- same percentile formula applied once
     # to the full (R x k) replicate matrix.
     ci <- t(apply(
@@ -100,10 +121,10 @@ confint.causatr_result <- function(object, parm, level = 0.95, ...) {
     ))
     colnames(ci) <- c("lower", "upper")
   } else {
-    # Sandwich path: no replicates stored, so we Wald-reconstruct
-    # from the stored point estimate and SE. This respects the
-    # user's `level` argument, unlike the stored ci_lower/ci_upper
-    # which are frozen at contrast()'s conf_level.
+    # Sandwich path, or bootstrap with `boot_ci = "normal"`: Wald-reconstruct
+    # from the stored point estimate and SE (the bootstrap SE under the normal
+    # flavour). This respects the user's `level` argument, unlike the stored
+    # ci_lower/ci_upper which are frozen at contrast()'s conf_level.
     est <- object$estimates$estimate
     se <- object$estimates$se
     z <- stats::qnorm(1 - alpha)

@@ -117,6 +117,9 @@ new_causatr_fit <- function(
 #' @param n Integer sample size used for estimation.
 #' @param estimator Character causal estimator.
 #' @param vcov Variance-covariance matrix of marginal means.
+#' @param boot_ci Character. Bootstrap CI flavour recorded on the result
+#'   (`"percentile"` or `"normal"`); honoured by `confint()` / `tidy()`.
+#'   Meaningful only when `ci_method = "bootstrap"`.
 #' @param call The original `contrast()` call environment.
 #' @return A list with class `"causatr_result"`.
 #' @noRd
@@ -135,6 +138,7 @@ new_causatr_result <- function(
   vcov,
   boot_t = NULL,
   boot_info = NULL,
+  boot_ci = "percentile",
   call
 ) {
   structure(
@@ -151,6 +155,7 @@ new_causatr_result <- function(
       family = family,
       fit_type = fit_type,
       vcov = vcov,
+      boot_ci = boot_ci,
       boot_t = boot_t,
       # NULL when ci_method = "sandwich"; otherwise a 3-element list of
       # `n_requested`, `n_ok`, `n_fail` carried up from
