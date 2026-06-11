@@ -255,19 +255,28 @@ print.causatr_result <- function(x, ...) {
     # (rather than a separate slot) lets `print()` adapt without requiring
     # callers to pass any extra flag.
     has_by <- "by" %in% names(x$estimates)
+    # A multinomial outcome carries a `class` column: the table holds
+    # P(Y = class | do(A = a)) per intervention rather than a single mean.
+    has_class <- "class" %in% names(x$estimates)
 
-    if (has_by) {
-      cat("\nIntervention means (by subgroup):\n")
+    means_header <- if (has_by) {
+      "\nIntervention means (by subgroup):\n"
+    } else if (has_class) {
+      "\nClass probabilities by intervention:\n"
     } else {
-      cat("\nIntervention means:\n")
+      "\nIntervention means:\n"
     }
+    cat(means_header)
     print(x$estimates, digits = 3)
 
-    if (has_by) {
-      cat("\nContrasts (by subgroup):\n")
+    contrasts_header <- if (has_by) {
+      "\nContrasts (by subgroup):\n"
+    } else if (has_class) {
+      "\nContrasts (per class):\n"
     } else {
-      cat("\nContrasts:\n")
+      "\nContrasts:\n"
     }
+    cat(contrasts_header)
     print(x$contrasts, digits = 3)
     invisible(x)
   }

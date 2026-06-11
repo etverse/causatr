@@ -164,7 +164,8 @@
 #'   \itemize{
 #'     \item `"none"` (default): numerator conditions on the same
 #'       covariates as the denominator. Per-component weight is
-#'       \eqn{f_k(d_k^{-1}(A_k) \mid A_{1..k-1}^{\mathrm{obs}}, L) \cdot |\mathrm{Jac}| / f_k(A_k \mid A_{1..k-1}^{\mathrm{obs}}, L)}.
+#'       \eqn{f_k(d_k^{-1}(A_k) \mid A_{1..k-1}^{\mathrm{obs}}, L) \cdot
+#'       |\mathrm{Jac}| / f_k(A_k \mid A_{1..k-1}^{\mathrm{obs}}, L)}.
 #'     \item `"marginal"`: numerator drops \eqn{L}, conditioning only
 #'       on prior treatments (Robins, Hernán, Brumback 2000). Fits a
 #'       second per-component density model \eqn{g_k(A_k \mid A_{1..k-1})}
@@ -616,6 +617,13 @@ causat <- function(
     time = time,
     history = history
   )
+
+  # Categorical outcome (factor / character with >2 levels): gate to point
+  # g-computation before `prepare_data()` materialises lags or any model is
+  # fitted, so SNM / IPW / matching / longitudinal / transport misuse
+  # surfaces a clear classed error rather than a downstream model-fitting
+  # failure or an unrelated structural warning. A no-op for scalar outcomes.
+  check_categorical_outcome(data, outcome, estimator, type, target, call = call)
 
   # `weights = svydesign_obj` path: unpack the sampling weights into a
   # numeric vector and adopt the design's first-stage cluster (PSU) as

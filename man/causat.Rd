@@ -220,7 +220,8 @@ numerator density in each per-component weight factor.
 \itemize{
 \item \code{"none"} (default): numerator conditions on the same
 covariates as the denominator. Per-component weight is
-\eqn{f_k(d_k^{-1}(A_k) \mid A_{1..k-1}^{\mathrm{obs}}, L) \cdot |\mathrm{Jac}| / f_k(A_k \mid A_{1..k-1}^{\mathrm{obs}}, L)}.
+\eqn{f_k(d_k^{-1}(A_k) \mid A_{1..k-1}^{\mathrm{obs}}, L) \cdot
+      |\mathrm{Jac}| / f_k(A_k \mid A_{1..k-1}^{\mathrm{obs}}, L)}.
 \item \code{"marginal"}: numerator drops \eqn{L}, conditioning only
 on prior treatments (Robins, Hernán, Brumback 2000). Fits a
 second per-component density model \eqn{g_k(A_k \mid A_{1..k-1})}

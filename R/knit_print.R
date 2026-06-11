@@ -58,6 +58,8 @@ knit_print.causatr_result <- function(x, ...) {
 
   est_caption <- if (x$estimator == "snm") {
     "Blip parameters"
+  } else if (!is.null(x$class_labels)) {
+    "Class probabilities by intervention"
   } else {
     "Intervention means"
   }

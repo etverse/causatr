@@ -710,6 +710,101 @@ check_treatment_form <- function(
   invisible(NULL)
 }
 
+#' Gate a categorical outcome to the supported estimator / timing
+#'
+#' @description
+#' A categorical outcome -- a factor or character column with more than two
+#' distinct levels -- makes the estimand a K-vector of class probabilities
+#' \eqn{P(Y = k \mid do(A = a))}. Point g-computation with a multinomial
+#' outcome model (`nnet::multinom`) supports this; the other estimators /
+#' timings do not yet. This gate, called from [causat()] on the prepared
+#' data, enforces:
+#'
+#' 1. `estimator = "snm"` is rejected by design -- the additive structural-mean
+#'    blip is defined for a real-valued outcome, not a simplex of class
+#'    probabilities (class `causatr_snm_categorical_outcome`).
+#' 2. Any non-`"gcomp"` estimator, longitudinal timing, or transport
+#'    (`target =`) is not yet implemented for a categorical outcome and is
+#'    rejected with class `causatr_categorical_outcome_unsupported`, pointing
+#'    the user to point g-computation.
+#'
+#' A no-op for binary / continuous / count outcomes (the common case), so the
+#' scalar pipeline is untouched.
+#'
+#' @param data The prepared `data.table`.
+#' @param outcome Character. Outcome column name.
+#' @param estimator Character. The causal estimator.
+#' @param type Character. `"point"` or `"longitudinal"`.
+#' @param target Character or `NULL`. Transport sampling-indicator column.
+#' @param call Caller environment for error messages.
+#'
+#' @return `NULL` invisibly; aborts on any unsupported combination.
+#'
+#' @noRd
+check_categorical_outcome <- function(
+  data,
+  outcome,
+  estimator,
+  type,
+  target = NULL,
+  call = rlang::caller_env()
+) {
+  y <- data[[outcome]]
+  # Only a factor / character column with >2 levels is "categorical" here. A
+  # numeric outcome (continuous / count / 0-1 binary) and a 2-level factor
+  # (binomial) take the scalar path untouched.
+  is_categorical <- (is.factor(y) || is.character(y)) &&
+    length(unique(stats::na.omit(y))) > 2L
+  if (!is_categorical) {
+    return(invisible(NULL))
+  }
+
+  if (estimator == "snm") {
+    rlang::abort(
+      c(
+        paste0(
+          "A categorical outcome is not supported for ",
+          "`estimator = \"snm\"`."
+        ),
+        i = paste0(
+          "SNM g-estimation targets an additive structural-mean blip on a ",
+          "real-valued outcome; a multi-class probability vector has no such ",
+          "blip. Use `estimator = \"gcomp\"` for a categorical outcome."
+        )
+      ),
+      class = "causatr_snm_categorical_outcome",
+      call = call
+    )
+  }
+
+  if (estimator != "gcomp" || type == "longitudinal" || !is.null(target)) {
+    rlang::abort(
+      c(
+        paste0(
+          "A categorical outcome is currently supported only for point ",
+          "g-computation."
+        ),
+        i = paste0(
+          "Use `estimator = \"gcomp\"` with a point treatment and ",
+          "`model_fn = nnet::multinom`."
+        ),
+        x = paste0(
+          "Got estimator = \"",
+          estimator,
+          "\", type = \"",
+          type,
+          "\"",
+          if (!is.null(target)) ", with transport (`target =`)." else "."
+        )
+      ),
+      class = "causatr_categorical_outcome_unsupported",
+      call = call
+    )
+  }
+
+  invisible(NULL)
+}
+
 #' Validate natural-history MTP interventions against a fit
 #'
 #' @description

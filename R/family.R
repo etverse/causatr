@@ -92,6 +92,34 @@ fn_accepts_family <- function(fn) {
   "family" %in% names(formals(fn))
 }
 
+#' Check whether a fitted outcome model is multinomial
+#'
+#' @description
+#' A multinomial outcome model (currently `nnet::multinom`) predicts an
+#' n-by-K matrix of class probabilities rather than a length-n vector, so
+#' the g-computation estimand is the K-vector \eqn{P(Y = k \mid do(A = a))}
+#' per intervention instead of a scalar mean. `contrast()` and the bootstrap
+#' branch on this to assemble the per-class result.
+#'
+#' @param model A fitted outcome model object, or `NULL`.
+#' @return Logical scalar. `TRUE` for `nnet::multinom` fits.
+#' @noRd
+is_multinom_outcome <- function(model) {
+  inherits(model, "multinom")
+}
+
+#' Class labels of a multinomial outcome model
+#'
+#' @param model A fitted `nnet::multinom` object.
+#' @return Character vector of the K outcome class labels, in the column
+#'   order that `predict(model, type = "probs")` returns.
+#' @noRd
+multinom_class_labels <- function(model) {
+  # nnet::multinom stores the response factor levels in `$lev`, in the same
+  # order as the columns of `predict(type = "probs")`.
+  model$lev
+}
+
 #' Check whether a family describes a binary outcome
 #'
 #' @param family A character string, family object, or function.

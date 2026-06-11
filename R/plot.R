@@ -80,8 +80,15 @@ plot.causatr_result <- function(x, which = c("contrasts", "means"), ...) {
   # These are all derivable from the stored result slots rather than
   # requiring the caller to pass format flags.
   has_by <- "by" %in% names(x$estimates)
+  is_multinom <- !is.null(x$class_labels)
   is_binary_outcome <- is_binary_family(x$family)
-  outcome_noun <- if (is_binary_outcome) "Risk" else "Mean"
+  outcome_noun <- if (is_multinom) {
+    "Probability"
+  } else if (is_binary_outcome) {
+    "Risk"
+  } else {
+    "Mean"
+  }
 
   if (which == "contrasts") {
     # Contrast plot: one row per pairwise comparison. Reference
@@ -154,8 +161,23 @@ plot.causatr_result <- function(x, which = c("contrasts", "means"), ...) {
     forrest_args$ref_line <- ref_line
   }
 
-  if (has_by) {
+  # Section (facet) the forest plot by subgroup or by outcome class. forrest
+  # sections on a single column, so when both are present we facet by class
+  # and warn -- the per-class probabilities are the headline of a multinomial
+  # result, and a two-way facet would need a different layout.
+  if (has_by && is_multinom) {
+    rlang::warn(
+      paste0(
+        "Both `by` subgroups and outcome classes are present; ",
+        "faceting the plot by outcome class only. ",
+        "Use `tidy()` for the full by-stratified per-class table."
+      )
+    )
+    forrest_args$section <- "class"
+  } else if (has_by) {
     forrest_args$section <- "by"
+  } else if (is_multinom) {
+    forrest_args$section <- "class"
   }
 
   # Late-bind user overrides. Anything passed in `...` overwrites

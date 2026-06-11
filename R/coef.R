@@ -26,6 +26,10 @@ coef.causatr_result <- function(object, ...) {
   # linear combinations.
   name_col <- if ("parameter" %in% names(object$estimates)) {
     object$estimates$parameter
+  } else if ("class" %in% names(object$estimates)) {
+    # Multinomial outcome: one estimate per (intervention, class), so the
+    # intervention label alone is not unique -- combine with the class.
+    paste(object$estimates$intervention, object$estimates$class, sep = ":")
   } else {
     object$estimates$intervention
   }

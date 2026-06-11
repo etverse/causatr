@@ -112,6 +112,13 @@ confint.causatr_result <- function(object, parm, level = 0.95, ...) {
       upper = est + z * se
     )
   }
-  rownames(ci) <- object$estimates$intervention
+  # Multinomial outcome: rows are (intervention, class) pairs, and the
+  # bootstrap `boot_t` columns are in the same class-major order as the
+  # `estimates` rows, so combine both labels to keep the CI rows unique.
+  rownames(ci) <- if ("class" %in% names(object$estimates)) {
+    paste(object$estimates$intervention, object$estimates$class, sep = ":")
+  } else {
+    object$estimates$intervention
+  }
   ci
 }

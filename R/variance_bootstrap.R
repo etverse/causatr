@@ -511,6 +511,146 @@ variance_bootstrap <- function(
   process_boot_results(boot_res, int_names, n_boot)
 }
 
+#' Bootstrap variance for a multinomial-outcome g-computation
+#'
+#' @description
+#' The multinomial analogue of [variance_bootstrap()]. Each replicate refits
+#' the `nnet::multinom` outcome model and, for every intervention, averages
+#' the predicted class probabilities over the target rows to obtain a
+#' K-vector \eqn{P(Y = k \mid do(A = a))}. The replicate statistic is the
+#' full \eqn{k_{int} \times K} surface flattened in class-major order (class
+#' outer, intervention inner), so the shared [process_boot_results()] engine
+#' computes one big covariance from which the per-class \eqn{k_{int} \times
+#' k_{int}} blocks are sliced. Per-class contrasts only need the within-class
+#' block, so the cross-class covariance is not retained.
+#'
+#' @param fit A `causatr_fit` with a multinomial outcome model.
+#' @param interventions Named list of `causatr_intervention` objects.
+#' @param n_boot Positive integer. Number of replicates.
+#' @param target_idx Logical vector flagging target-population rows.
+#' @param est Estimand string.
+#' @param subset Quoted subset expression or `NULL`.
+#' @param parallel,ncpus Parallelism controls forwarded to [dispatch_boot()].
+#' @param class_labels Character vector of the K outcome class labels.
+#' @param int_names Character vector of intervention names.
+#' @param subset_env Environment for resolving `subset`.
+#' @return A list with `vcov` (named list of K per-class \eqn{k_{int} \times
+#'   k_{int}} matrices), `boot_t` (named list of K replicate matrices, one per
+#'   class), and `boot_info`.
+#' @noRd
+variance_bootstrap_multinom <- function(
+  fit,
+  interventions,
+  n_boot,
+  target_idx,
+  est,
+  subset,
+  parallel = "no",
+  ncpus = 1L,
+  class_labels,
+  int_names,
+  subset_env = parent.frame()
+) {
+  data <- fit$data
+  treatment <- fit$treatment
+  k_int <- length(int_names)
+  k_class <- length(class_labels)
+
+  boot_fn <- function(d, indices) {
+    tryCatch(
+      {
+        d_b <- d[indices]
+        orig_w <- fit$details$weights
+        w_b <- if (!is.null(orig_w)) orig_w[indices] else NULL
+
+        # Muffle the same near-singular / separation warnings the scalar
+        # bootstrap demotes; everything else surfaces so users can spot
+        # pipeline instability instead of a silent NA column.
+        model_b <- withCallingHandlers(
+          refit_model(fit, d_b, weights = w_b),
+          warning = function(w) {
+            if (inherits(w, "causatr_singular_bread")) {
+              invokeRestart("muffleWarning")
+            }
+            msg <- conditionMessage(w)
+            if (
+              grepl(
+                "fitted probabilities numerically 0 or 1",
+                msg,
+                fixed = TRUE
+              )
+            ) {
+              invokeRestart("muffleWarning")
+            }
+          }
+        )
+
+        target_idx_b <- get_target_idx(
+          d_b,
+          treatment,
+          est,
+          subset,
+          subset_env = subset_env
+        )
+
+        # Per intervention: average each class column over valid target rows.
+        per_int <- lapply(interventions, function(iv) {
+          data_a_b <- apply_intervention(d_b, treatment, iv)
+          probs_b <- predict_outcome(model_b, data_a_b)
+          valid <- target_idx_b & !apply(is.na(probs_b), 1L, any)
+          apply(probs_b[valid, , drop = FALSE], 2L, function(col) {
+            maybe_weighted_mean(col, if (!is.null(w_b)) w_b[valid])
+          })
+        })
+
+        # Flatten class-major (class outer, intervention inner) so the
+        # class-c block occupies positions (c-1)*k_int + (1:k_int).
+        unlist(lapply(seq_len(k_class), function(ci) {
+          vapply(per_int, `[`, numeric(1), ci)
+        }))
+      },
+      error = function(e) rep(NA_real_, k_int * k_class)
+    )
+  }
+
+  boot_res <- dispatch_boot(
+    data = data,
+    statistic = boot_fn,
+    R = n_boot,
+    parallel = parallel,
+    ncpus = ncpus
+  )
+
+  # Class-major flat labels matching boot_fn's ordering.
+  flat_names <- paste(
+    rep(int_names, times = k_class),
+    rep(class_labels, each = k_int),
+    sep = ":"
+  )
+  processed <- process_boot_results(boot_res, flat_names, n_boot)
+
+  # Slice the big covariance into per-class k_int-by-k_int blocks keyed by
+  # class label (per-class contrasts only need the within-class covariance),
+  # restoring intervention names on the rows/cols. The flat replicate matrix
+  # `boot_t` is kept whole (class-major columns) so `confint()` can read
+  # percentile intervals that line up row-for-row with the class-major
+  # `estimates` table.
+  vcov_list <- vector("list", k_class)
+  names(vcov_list) <- class_labels
+  for (ci in seq_len(k_class)) {
+    idx_c <- (ci - 1L) * k_int + seq_len(k_int)
+    block <- processed$vcov[idx_c, idx_c, drop = FALSE]
+    dimnames(block) <- list(int_names, int_names)
+    vcov_list[[ci]] <- block
+  }
+
+  list(
+    vcov = vcov_list,
+    boot_t = processed$boot_t,
+    boot_info = processed$boot_info
+  )
+}
+
 #' Refit the full estimation pipeline on a bootstrap sample
 #'
 #' @description

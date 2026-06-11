@@ -116,6 +116,20 @@ tidy.causatr_result <- function(
     contrasts_df$by <- x$contrasts$by
   }
 
+  # Carry the outcome `class` column through for a multinomial result, the
+  # same way `by` rides along, so `tidy()` + `dplyr::filter(class == "...")`
+  # works per outcome class. The contrasts table may be empty (single
+  # intervention), so only assign when it has rows.
+  has_class <- "class" %in% names(x$estimates)
+  if (has_class) {
+    means_df$class <- x$estimates$class
+    if (nrow(contrasts_df) > 0L) {
+      contrasts_df$class <- x$contrasts$class
+    } else {
+      contrasts_df$class <- character(0)
+    }
+  }
+
   # Switch on the requested shape. `"all"` rbinds means first then
   # contrasts, consistent with how print.causatr_result shows them.
   result <- switch(
@@ -155,13 +169,25 @@ tidy.causatr_result <- function(
 #' @seealso [coef.causatr_result()]
 #' @export
 glance.causatr_result <- function(x, ...) {
-  data.frame(
+  out <- data.frame(
     estimator = x$estimator,
     estimand = x$estimand,
     contrast_type = x$type,
     ci_method = x$ci_method,
     n = x$n,
-    n_interventions = nrow(x$estimates),
+    # For a multinomial result `estimates` has K rows per intervention, so
+    # count distinct interventions rather than table rows; `length(unique())`
+    # equals `nrow()` for the scalar / by-stratified shapes, leaving those
+    # outputs unchanged.
+    n_interventions = if (is.null(x$class_labels)) {
+      nrow(x$estimates)
+    } else {
+      length(unique(x$estimates$intervention))
+    },
     stringsAsFactors = FALSE
   )
+  if (!is.null(x$class_labels)) {
+    out$n_classes <- length(x$class_labels)
+  }
+  out
 }

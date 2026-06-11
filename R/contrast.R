@@ -588,26 +588,64 @@ check_interventions_compat <- function(
 #' @param iv A `causatr_intervention` or `NULL`.
 #'
 #' @return A list with:
-#'   - `preds`: length-n numeric prediction vector (MC-averaged for stochastic).
+#'   - `preds`: length-n numeric prediction vector (MC-averaged for stochastic),
+#'     or an n-by-K probability matrix for a multinomial outcome model.
 #'   - `data_a`: one counterfactual data.table (last MC draw for stochastic).
 #'
 #' @noRd
 predict_under_intervention <- function(model, data, treatment, iv) {
   if (!has_stochastic_component(iv)) {
     data_a <- apply_intervention(data, treatment, iv)
-    preds <- stats::predict(model, newdata = data_a, type = "response")
+    preds <- predict_outcome(model, data_a)
     return(list(preds = preds, data_a = data_a))
   }
 
   n_mc <- get_stochastic_n_mc(iv)
   one_draw <- function(m) {
     data_a_m <- apply_intervention(data, treatment, iv)
-    stats::predict(model, newdata = data_a_m, type = "response")
+    predict_outcome(model, data_a_m)
   }
   preds_mat <- mc_sapply(seq_len(n_mc), one_draw, n_rows = nrow(data))
   data_a_last <- apply_intervention(data, treatment, iv)
   preds_avg <- rowMeans(preds_mat, na.rm = TRUE)
   list(preds = preds_avg, data_a = data_a_last)
+}
+
+#' Predict outcome-model values, reshaping multinomial probabilities
+#'
+#' @description
+#' Wraps `stats::predict()` for the outcome model. For an ordinary GLM/GAM
+#' this returns the length-n response vector (`type = "response"`). For a
+#' multinomial model (`nnet::multinom`) it returns an n-by-K matrix of class
+#' probabilities (`type = "probs"`), normalising the two shapes
+#' `nnet::multinom` can return: a length-n vector when K = 2 (P of the second
+#' level), and a length-K vector when `newdata` has a single row.
+#'
+#' @param model A fitted outcome model.
+#' @param newdata A data.table of counterfactual rows.
+#' @return A length-n numeric vector, or an n-by-K probability matrix with
+#'   class labels as column names for a multinomial model.
+#' @noRd
+predict_outcome <- function(model, newdata) {
+  if (!is_multinom_outcome(model)) {
+    return(stats::predict(model, newdata = newdata, type = "response"))
+  }
+
+  probs <- stats::predict(model, newdata = newdata, type = "probs")
+  lev <- multinom_class_labels(model)
+  if (is.null(dim(probs))) {
+    # `nnet::multinom` drops the matrix to a vector in two cases. With K = 2
+    # it returns the length-n vector P(Y = level_2); rebuild the full n-by-2
+    # matrix. With a single `newdata` row and K > 2 it returns the length-K
+    # vector of that row's class probabilities; reshape to a 1-by-K matrix.
+    if (length(lev) == 2L) {
+      probs <- cbind(1 - probs, probs)
+    } else {
+      probs <- matrix(probs, nrow = 1L)
+    }
+  }
+  colnames(probs) <- lev
+  probs
 }
 
 
@@ -989,6 +1027,10 @@ compute_contrast <- function(
         vcov = lapply(results_list, function(r) r$vcov),
         boot_t = lapply(results_list, function(r) r$boot_t),
         boot_info = lapply(results_list, function(r) r$boot_info),
+        # Carry class labels up for a multinomial outcome (NULL otherwise) so
+        # the per-class `class` column the stitched tables already hold is
+        # recognised by the S3 methods.
+        class_labels = results_list[[1]]$class_labels,
         call = call
       )
     )
@@ -1378,6 +1420,35 @@ compute_contrast <- function(
     target_idx <- transport_target_idx(data, fit$target, fit$target_subset) %||%
       target_idx
 
+    # Multinomial outcome model (nnet::multinom): predictions are an n-by-K
+    # matrix of class probabilities, so the estimand is the K-vector
+    # P(Y = k | do(A = a)) per intervention rather than a scalar mean. The
+    # scalar predict-average-contrast assembly below cannot represent a
+    # vector-valued mean, so route to the dedicated per-class path and return
+    # early -- the scalar code object is never reached for this fit.
+    if (is_multinom_outcome(model)) {
+      return(compute_contrast_multinom(
+        fit = fit,
+        model = model,
+        data = data,
+        interventions = interventions,
+        int_names = int_names,
+        target_idx = target_idx,
+        type = type,
+        reference = reference,
+        conf_level = conf_level,
+        ci_method = ci_method,
+        n_boot = n_boot,
+        est = est,
+        subset = subset,
+        parallel = parallel,
+        ncpus = ncpus,
+        subset_env = subset_env,
+        cluster_vec = cluster_vec,
+        call = call
+      ))
+    }
+
     # Predict E[Y | A = a(L_i), L_i] under each intervention. For
     # deterministic interventions this is a single apply + predict; for
     # stochastic interventions, MC-average over n_mc draws.
@@ -1537,6 +1608,69 @@ compute_contrast <- function(
   # users conventionally write `list(treat, control)` with the
   # control as the second element.
   ref_name <- if (!is.null(reference)) reference else int_names[1]
+
+  # Pairwise contrasts a_j vs a_ref via the delta method on the vcov.
+  # The vcov is on the (mu_1, ..., mu_k) scale: differences read the
+  # variance off directly; ratios / ORs project through a gradient and
+  # use a log-scale CI. The same helper serves the multinomial path
+  # per outcome class, so the contrast math lives in one place.
+  contrasts_dt <- compute_pairwise_contrasts(
+    mu_hat,
+    vcov_mat,
+    type = type,
+    ref_name = ref_name,
+    conf_level = conf_level
+  )
+
+  new_causatr_result(
+    estimates = estimates_dt,
+    contrasts = contrasts_dt,
+    type = type,
+    estimand = if (!is.null(subset)) "subset" else est,
+    ci_method = ci_method,
+    reference = ref_name,
+    interventions = interventions,
+    n = n_target,
+    estimator = fit$estimator,
+    family = fit$family,
+    fit_type = fit$type,
+    vcov = vcov_mat,
+    boot_t = boot_t,
+    boot_info = boot_info,
+    call = call
+  )
+}
+
+#' Pairwise contrasts from marginal means via the delta method
+#'
+#' @description
+#' Builds the contrasts table (one row per non-reference intervention vs the
+#' reference) from a named vector of marginal means and their vcov. For
+#' `type = "difference"` the variance is read straight off the vcov; for
+#' `"ratio"` / `"or"` a log-scale delta-method CI is used. Boundary checks
+#' reject ratios / odds ratios that are undefined (non-positive means, means
+#' outside (0, 1) for ORs). The scalar g-computation / IPW / matching path and
+#' the per-class multinomial path both call this so the contrast math cannot
+#' diverge.
+#'
+#' @param mu_hat Named numeric vector of marginal means (names are the
+#'   intervention labels; the vcov rows/cols follow the same order).
+#' @param vcov_mat A k-by-k variance-covariance matrix of `mu_hat`.
+#' @param type Character. `"difference"`, `"ratio"`, or `"or"`.
+#' @param ref_name Character. Name of the reference intervention.
+#' @param conf_level Numeric. Confidence level for the CIs.
+#' @return A data.table with columns `comparison`, `estimate`, `se`,
+#'   `ci_lower`, `ci_upper` (zero rows when there is only the reference).
+#' @noRd
+compute_pairwise_contrasts <- function(
+  mu_hat,
+  vcov_mat,
+  type,
+  ref_name,
+  conf_level
+) {
+  z <- stats::qnorm((1 + conf_level) / 2)
+  int_names <- names(mu_hat)
   non_ref <- setdiff(int_names, ref_name)
   mu_ref <- mu_hat[ref_name]
   idx_ref <- which(int_names == ref_name)
@@ -1617,10 +1751,6 @@ compute_contrast <- function(
     }
   }
 
-  # Pairwise contrasts a_j vs a_ref via the delta method on the vcov.
-  # The vcov from `variance_if()` is on the (mu_1, mu_2, ..., mu_k)
-  # scale, so for differences we can read the variance straight off;
-  # for ratios / ORs we project through the appropriate gradient.
   contrasts_list <- lapply(non_ref, function(nm) {
     mu_a <- mu_hat[nm]
     idx_a <- which(int_names == nm)
@@ -1700,7 +1830,7 @@ compute_contrast <- function(
     )
   })
 
-  contrasts_dt <- if (length(contrasts_list) > 0) {
+  if (length(contrasts_list) > 0) {
     data.table::rbindlist(contrasts_list)
   } else {
     data.table::data.table(
@@ -1711,6 +1841,193 @@ compute_contrast <- function(
       ci_upper = numeric(0)
     )
   }
+}
+
+#' Per-class contrast for a multinomial-outcome g-computation
+#'
+#' @description
+#' Computes \eqn{P(Y = k \mid do(A = a))} for every intervention `a` and
+#' outcome class `k` from a fitted `nnet::multinom` outcome model, then forms
+#' per-class pairwise contrasts. The estimand is vector-valued (one
+#' probability per class), so the returned `causatr_result` carries a `class`
+#' column on its `estimates` / `contrasts` tables and a per-class list of vcov
+#' blocks. Variance is bootstrap-only in this path; the analytic sandwich is
+#' rejected with a classed error.
+#'
+#' @param fit A `causatr_fit` with a multinomial outcome model.
+#' @param model The fitted `nnet::multinom` outcome model (`fit$model`).
+#' @param data The prepared data.table.
+#' @param interventions Named list of `causatr_intervention` objects.
+#' @param int_names Character vector of intervention names.
+#' @param target_idx Logical vector flagging target-population rows.
+#' @param type Contrast type (`"difference"`, `"ratio"`, `"or"`).
+#' @param reference Character or `NULL`. Reference intervention.
+#' @param conf_level Numeric confidence level.
+#' @param ci_method `"sandwich"` (rejected here) or `"bootstrap"`.
+#' @param n_boot Number of bootstrap replicates.
+#' @param est Estimand string.
+#' @param subset Quoted subset expression or `NULL`.
+#' @param parallel,ncpus Bootstrap parallelism controls.
+#' @param subset_env Environment for resolving `subset`.
+#' @param cluster_vec Cluster ids or `NULL` (unused here; bootstrap resamples
+#'   rows).
+#' @param call The originating call.
+#' @return A `causatr_result` whose `estimates`/`contrasts` carry a `class`
+#'   column, with `vcov` a per-class named list of matrices and a
+#'   `class_labels` slot recording the K outcome levels.
+#' @noRd
+compute_contrast_multinom <- function(
+  fit,
+  model,
+  data,
+  interventions,
+  int_names,
+  target_idx,
+  type,
+  reference,
+  conf_level,
+  ci_method,
+  n_boot,
+  est,
+  subset,
+  parallel,
+  ncpus,
+  subset_env,
+  cluster_vec,
+  call
+) {
+  # Stochastic interventions and transport need the MC-marginalisation path,
+  # which is not yet wired for matrix-valued predictions; gate them so the
+  # user gets a clear pointer instead of a downstream shape error.
+  if (any(vapply(interventions, has_stochastic_component, logical(1)))) {
+    rlang::abort(
+      c(
+        "Stochastic interventions are not yet supported for a categorical outcome.",
+        i = "Use a deterministic intervention (static, shift, dynamic, ...)."
+      ),
+      class = "causatr_categorical_outcome_unsupported",
+      call = call
+    )
+  }
+  if (isTRUE(fit$details$transport)) {
+    rlang::abort(
+      c(
+        "Transport (`target =`) is not yet supported for a categorical outcome.",
+        i = "Fit without `target =` for a categorical outcome under g-computation."
+      ),
+      class = "causatr_categorical_outcome_unsupported",
+      call = call
+    )
+  }
+  if (ci_method == "sandwich") {
+    rlang::abort(
+      c(
+        "Analytic sandwich variance is not yet available for a categorical outcome.",
+        i = "Use `ci_method = \"bootstrap\"` for a multinomial g-computation."
+      ),
+      class = "causatr_categorical_outcome_sandwich",
+      call = call
+    )
+  }
+
+  class_labels <- multinom_class_labels(model)
+  k_class <- length(class_labels)
+
+  # Predict the n-by-K class-probability matrix under each intervention.
+  preds_list <- lapply(interventions, function(iv) {
+    predict_outcome(model, apply_intervention(data, fit$treatment, iv))
+  })
+
+  # A row is usable only if its prediction is non-NA in every class under
+  # every intervention (e.g. rows with missing confounders are dropped).
+  valid_preds <- Reduce(
+    `&`,
+    lapply(preds_list, function(p) !apply(is.na(p), 1L, any)),
+    init = rep(TRUE, nrow(data))
+  )
+  n_dropped <- sum(!valid_preds & target_idx)
+  if (n_dropped > 0L) {
+    rlang::inform(
+      paste0(
+        n_dropped,
+        " row(s) with NA predictions excluded from the target population."
+      )
+    )
+  }
+  target_idx <- target_idx & valid_preds
+  n_target <- sum(target_idx)
+
+  # Marginal class probabilities: per intervention, average each class column
+  # over the target rows (weighted by external weights when present). Result
+  # is a (k_int x K) matrix of P(Y = class | do(A = a)).
+  ext_w <- fit$details$weights
+  w_target <- if (!is.null(ext_w)) ext_w[target_idx] else NULL
+  mu_mat <- t(vapply(
+    preds_list,
+    function(p) {
+      apply(p[target_idx, , drop = FALSE], 2L, function(col) {
+        maybe_weighted_mean(col, w_target)
+      })
+    },
+    numeric(k_class)
+  ))
+  dimnames(mu_mat) <- list(int_names, class_labels)
+
+  # Bootstrap the full (k_int x K) probability surface; returns one vcov
+  # block per class plus the per-class replicate matrices for percentile CIs.
+  boot_res <- variance_bootstrap_multinom(
+    fit,
+    interventions,
+    n_boot,
+    target_idx,
+    est,
+    subset,
+    parallel,
+    ncpus,
+    class_labels = class_labels,
+    int_names = int_names,
+    subset_env = subset_env
+  )
+
+  ref_name <- if (!is.null(reference)) reference else int_names[1]
+  z <- stats::qnorm((1 + conf_level) / 2)
+
+  # Assemble per-class estimates and contrasts. Each class reuses the shared
+  # delta-method helper with that class's k_int-by-k_int vcov block, so the
+  # contrast math is identical to the scalar path.
+  est_blocks <- vector("list", k_class)
+  con_blocks <- vector("list", k_class)
+  for (ci in seq_len(k_class)) {
+    cl <- class_labels[ci]
+    mu_c <- stats::setNames(mu_mat[, ci], int_names)
+    vcov_c <- boot_res$vcov[[cl]]
+    se_c <- sqrt(pmax(diag(vcov_c), 0))
+
+    est_blocks[[ci]] <- data.table::data.table(
+      intervention = int_names,
+      class = cl,
+      estimate = mu_c,
+      se = se_c,
+      ci_lower = mu_c - z * se_c,
+      ci_upper = mu_c + z * se_c
+    )
+
+    con_c <- compute_pairwise_contrasts(
+      mu_c,
+      vcov_c,
+      type = type,
+      ref_name = ref_name,
+      conf_level = conf_level
+    )
+    if (nrow(con_c) > 0L) {
+      con_c[, class := cl]
+      data.table::setcolorder(con_c, c("comparison", "class"))
+    }
+    con_blocks[[ci]] <- con_c
+  }
+
+  estimates_dt <- data.table::rbindlist(est_blocks)
+  contrasts_dt <- data.table::rbindlist(con_blocks)
 
   new_causatr_result(
     estimates = estimates_dt,
@@ -1724,9 +2041,10 @@ compute_contrast <- function(
     estimator = fit$estimator,
     family = fit$family,
     fit_type = fit$type,
-    vcov = vcov_mat,
-    boot_t = boot_t,
-    boot_info = boot_info,
+    vcov = boot_res$vcov,
+    boot_t = boot_res$boot_t,
+    boot_info = boot_res$boot_info,
+    class_labels = class_labels,
     call = call
   )
 }

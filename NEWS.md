@@ -1,5 +1,37 @@
 # causatr (development version)
 
+## 2026-06-11 — Phase 23a-1: categorical (multinomial) outcomes for point g-computation
+
+Point g-computation now supports a **single categorical outcome** — one factor
+with K > 2 levels — via `model_fn = nnet::multinom`. The estimand is the
+K-vector `P(Y = k | do(A = a))` per intervention, so a `causatr_result` gains a
+`class` column on its `estimates` / `contrasts` tables, a per-class list of vcov
+blocks, and a `class_labels` slot; difference / ratio / odds-ratio contrasts are
+formed per class. The scalar path is byte-identical (no `class` column, matrix
+`vcov`, `class_labels = NULL`).
+
+The implementation is additive: a multinomial outcome is detected post-fit
+(`inherits(model, "multinom")`) and `contrast()` routes to a dedicated per-class
+assembly, reusing the scalar delta-method contrast helper so the math cannot
+diverge. Variance is **bootstrap** (`variance_bootstrap_multinom()`); the
+analytic IF sandwich is the follow-up Phase 23a-2. All S3 methods
+(`print` / `summary` / `tidy` / `coef` / `confint` / `plot` / `knit_print`)
+render per class; `plot()` facets the forest plot by outcome class.
+
+Validated against the large-n softmax g-computation truth and — exactly, to
+~1e-15 — against `marginaleffects::avg_predictions()` run on causatr's own
+multinom fit, across binary / continuous / categorical treatments, static /
+shift interventions, K = 3 and K = 4, difference / ratio / OR, and complex
+designs (ATT, `by`-strata, survey weights, `subset`, IPCW, ≥ 3 interventions,
+spline confounders).
+
+Unsupported combinations are gated with classed errors:
+`causatr_snm_categorical_outcome` (SNM, by design),
+`causatr_categorical_outcome_unsupported` (IPW / AIPW / matching / longitudinal /
+transport / stochastic interventions — each lifted by a later Phase 23a chunk),
+and `causatr_categorical_outcome_sandwich` (`ci_method = "sandwich"`, until
+23a-2). Ordinal outcomes (`MASS::polr`) are Phase 23b.
+
 ## 2026-06-10 — Phase 22b-7 (multivariate G-LMTP): rejected by design
 
 Multivariate (vector-treatment) natural-history modified treatment policies are

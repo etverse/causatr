@@ -116,7 +116,12 @@ new_causatr_fit <- function(
 #' @param interventions Named list of `causatr_intervention` objects.
 #' @param n Integer sample size used for estimation.
 #' @param estimator Character causal estimator.
-#' @param vcov Variance-covariance matrix of marginal means.
+#' @param vcov Variance-covariance matrix of marginal means. For a multinomial
+#'   outcome this is a per-class named list of matrices.
+#' @param class_labels Character vector of outcome class labels, or `NULL`.
+#'   Non-`NULL` only for a multinomial-outcome result, where the estimand is
+#'   the K-vector of class probabilities; S3 methods branch on this to render
+#'   the per-class `class` column.
 #' @param call The original `contrast()` call environment.
 #' @return A list with class `"causatr_result"`.
 #' @noRd
@@ -135,6 +140,7 @@ new_causatr_result <- function(
   vcov,
   boot_t = NULL,
   boot_info = NULL,
+  class_labels = NULL,
   call
 ) {
   structure(
@@ -151,6 +157,7 @@ new_causatr_result <- function(
       family = family,
       fit_type = fit_type,
       vcov = vcov,
+      class_labels = class_labels,
       boot_t = boot_t,
       # NULL when ci_method = "sandwich"; otherwise a 3-element list of
       # `n_requested`, `n_ok`, `n_fail` carried up from

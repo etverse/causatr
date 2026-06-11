@@ -1007,6 +1007,85 @@ The odds ratio is valid because the outcome is in (0, 1):
 tt(tidy(res_beta), digits = 3)
 ```
 
+## Categorical (multinomial) outcome
+
+When the outcome is a single **unordered factor with more than two
+levels** --- a symptom grade, a disease subtype, a discrete choice ---
+the causal estimand is no longer a scalar mean but the **K-vector of
+class probabilities** $P(Y = k \mid do(A = a))$, one per level, summing
+to 1. Pass `model_fn = nnet::multinom`; g-computation then standardises
+the predicted class-probability matrix over the target population.
+
+The result carries a `class` column: each intervention has one row per
+outcome level, and contrasts (difference = risk difference, ratio =
+relative risk, odds ratio) are formed **per class**. Variance is by
+bootstrap (the analytic sandwich for multinomial outcomes is planned).
+
+**DGM.** A confounded binary treatment with a three-level outcome drawn
+from a softmax (reference level "none").
+
+$$
+\begin{aligned}
+  L &\sim N(0,1) \\
+  A &\sim \text{Bernoulli}\!\bigl(\text{logit}^{-1}(0.3\,L)\bigr) \\
+  Y &\sim \text{Categorical}\bigl(\text{softmax}(\eta_{\text{none}},
+       \eta_{\text{mild}}, \eta_{\text{severe}})\bigr), \\
+  \eta_{\text{none}} &= 0, \quad
+  \eta_{\text{mild}} = -0.4 + 0.9\,A + 0.6\,L, \quad
+  \eta_{\text{severe}} = -0.8 + 0.5\,A - 0.4\,L
+\end{aligned}
+$$
+
+```{r}
+set.seed(11)
+n <- 4000
+L <- rnorm(n)
+A <- rbinom(n, 1, plogis(0.3 * L))
+eta_mild <- -0.4 + 0.9 * A + 0.6 * L
+eta_sev <- -0.8 + 0.5 * A - 0.4 * L
+den <- 1 + exp(eta_mild) + exp(eta_sev)
+probs <- cbind(none = 1 / den, mild = exp(eta_mild) / den, severe = exp(eta_sev) / den)
+Y <- factor(
+  c("none", "mild", "severe")[apply(probs, 1, function(p) sample.int(3, 1, prob = p))],
+  levels = c("none", "mild", "severe")
+)
+mn_df <- data.frame(Y = Y, A = A, L = L)
+
+fit_mn <- causat(
+  mn_df,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L,
+  model_fn = nnet::multinom,
+  trace = FALSE
+)
+
+res_mn <- contrast(
+  fit_mn,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  reference = "a0",
+  type = "difference",
+  ci_method = "bootstrap",
+  n_boot = 200
+)
+res_mn
+```
+
+Within each intervention the class probabilities sum to 1, and the
+per-class risk differences sum to 0 --- moving treatment shifts mass
+between outcome levels:
+
+```{r}
+tt(tidy(res_mn, which = "means"), digits = 3)
+```
+
+A forest plot facets by outcome class automatically:
+
+```{r}
+#| fig-height: 5
+plot(res_mn, which = "contrasts")
+```
+
 ## GLM with splines
 
 For flexible confounder adjustment without the overhead of a full GAM, use
