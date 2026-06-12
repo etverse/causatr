@@ -78,6 +78,19 @@
 #' @param n_boot Integer. Number of bootstrap replications when
 #'   `ci_method = "bootstrap"`. Default `500`.
 #' @param conf_level Numeric. Confidence level for intervals. Default `0.95`.
+#' @param boot_ci Character. Bootstrap confidence-interval flavour, used only
+#'   when `ci_method = "bootstrap"`: `"percentile"` (default) takes empirical
+#'   quantiles of the bootstrap replicates (transformation-respecting, bounded
+#'   by the estimand's support), while `"normal"` uses the Wald interval from
+#'   the bootstrap standard error (\eqn{\hat\theta \pm z\,\widehat{sd}}). Both
+#'   come from the same replicates at no extra resampling cost; the point
+#'   estimate, SE, and vcov are identical either way. Ignored for
+#'   `ci_method = "sandwich"`. [confint()] and [tidy()] honour the stored choice
+#'   but accept a `boot_ci` override. For `type = "ratio"` / `"or"`, the
+#'   percentile interval can be wide or erratic when the bootstrap means
+#'   approach zero (e.g. a Gaussian outcome), because individual replicates
+#'   drive the denominator toward zero; for ratios prefer a binomial / Poisson /
+#'   Gamma family (or `type = "difference"`), as for the point estimate.
 #' @param by Character or `NULL`. Name of a variable to stratify estimates by
 #'   (effect modification). If provided, E\[Y^a\] is computed within each
 #'   level of `by`.
@@ -270,6 +283,7 @@ contrast <- function(
   ci_method = c("sandwich", "bootstrap"),
   n_boot = 500L,
   conf_level = 0.95,
+  boot_ci = c("percentile", "normal"),
   by = NULL,
   parallel = getOption("boot.parallel", "no"),
   ncpus = getOption("boot.ncpus", 1L),
@@ -305,6 +319,10 @@ contrast <- function(
   # are guaranteed scalar after these lines.
   type <- rlang::arg_match(type)
   ci_method <- rlang::arg_match(ci_method)
+  # Bootstrap CI flavour. Only consumed on the bootstrap path; for the
+  # sandwich path the stored Wald/delta bounds are used regardless, so we
+  # validate but otherwise ignore it there.
+  boot_ci <- rlang::arg_match(boot_ci)
 
   if (!is.numeric(trim) || length(trim) != 1L || trim <= 0 || trim > 1) {
     rlang::abort(
@@ -389,6 +407,7 @@ contrast <- function(
       ci_method = ci_method,
       conf_level = conf_level,
       n_boot = n_boot,
+      boot_ci = boot_ci,
       parallel = parallel,
       ncpus = ncpus,
       cluster_vec = snm_cluster_vec,
@@ -496,7 +515,8 @@ contrast <- function(
     call,
     subset_env,
     cluster_vec = cluster_vec,
-    trim = trim
+    trim = trim,
+    boot_ci = boot_ci
   )
 }
 
@@ -860,7 +880,8 @@ compute_contrast <- function(
   call,
   subset_env = parent.frame(),
   cluster_vec = NULL,
-  trim = 1
+  trim = 1,
+  boot_ci = "percentile"
 ) {
   data <- fit$data
   int_names <- names(interventions)
@@ -953,7 +974,8 @@ compute_contrast <- function(
           call,
           subset_env = subset_env,
           cluster_vec = cluster_vec,
-          trim = trim
+          trim = trim,
+          boot_ci = boot_ci
         ),
         error = function(e) {
           # Match on the classed abort from build_point_channel_pieces()
@@ -1031,6 +1053,7 @@ compute_contrast <- function(
         # the per-class `class` column the stitched tables already hold is
         # recognised by the S3 methods.
         class_labels = results_list[[1]]$class_labels,
+        boot_ci = boot_ci,
         call = call
       )
     )
@@ -1445,6 +1468,7 @@ compute_contrast <- function(
         ncpus = ncpus,
         subset_env = subset_env,
         cluster_vec = cluster_vec,
+        boot_ci = boot_ci,
         call = call
       ))
     }
@@ -1594,13 +1618,36 @@ compute_contrast <- function(
   # the right half-width for any conf_level without hand-coding 1.96.
   z <- stats::qnorm((1 + conf_level) / 2)
 
+  # Bootstrap CI flavour. `percentile` reads empirical quantiles off the
+  # stored replicate matrix `boot_t`; `normal` (and the entire sandwich path)
+  # keeps the Wald/delta bounds from the vcov. Only bootstrap + percentile
+  # touches `boot_t`, so everything else is byte-identical to before.
+  use_perc <- ci_method == "bootstrap" &&
+    boot_ci == "percentile" &&
+    is.matrix(boot_t)
+
+  if (use_perc) {
+    means_ci <- vapply(
+      int_names,
+      function(nm) {
+        boot_ci_block(boot_t[, nm], mu_hat[[nm]], conf_level, "percentile")
+      },
+      numeric(2)
+    )
+    ci_lower_means <- means_ci["lower", ]
+    ci_upper_means <- means_ci["upper", ]
+  } else {
+    ci_lower_means <- mu_hat - z * se_means
+    ci_upper_means <- mu_hat + z * se_means
+  }
+
   # First output: per-intervention marginal-mean table.
   estimates_dt <- data.table::data.table(
     intervention = int_names,
     estimate = mu_hat,
     se = se_means,
-    ci_lower = mu_hat - z * se_means,
-    ci_upper = mu_hat + z * se_means
+    ci_lower = ci_lower_means,
+    ci_upper = ci_upper_means
   )
 
   # Reference for pairwise contrasts. If the user didn't name one,
@@ -1621,6 +1668,20 @@ compute_contrast <- function(
     ref_name = ref_name,
     conf_level = conf_level
   )
+  # Percentile bootstrap: replace the delta-method contrast CIs with empirical
+  # quantiles of the per-replicate contrast (`boot_t` columns are intervention
+  # names). Means above already switched; this keeps contrasts consistent.
+  if (use_perc && nrow(contrasts_dt) > 0L) {
+    non_ref <- setdiff(int_names, ref_name)
+    contrasts_dt <- percentile_contrast_override(
+      contrasts_dt,
+      non_ref,
+      boot_t[, ref_name],
+      lapply(non_ref, function(nm) boot_t[, nm]),
+      type,
+      conf_level
+    )
+  }
 
   new_causatr_result(
     estimates = estimates_dt,
@@ -1637,6 +1698,7 @@ compute_contrast <- function(
     vcov = vcov_mat,
     boot_t = boot_t,
     boot_info = boot_info,
+    boot_ci = boot_ci,
     call = call
   )
 }
@@ -1843,6 +1905,59 @@ compute_pairwise_contrasts <- function(
   }
 }
 
+#' Override pairwise-contrast CIs with per-replicate percentile bounds
+#'
+#' @description
+#' Replaces the delta-method CIs in a contrasts table with empirical quantiles
+#' of the contrast evaluated on each bootstrap replicate's per-intervention
+#' means. The contrast (difference / ratio / odds ratio) is computed per
+#' replicate from the reference and alternative replicate columns, then
+#' [boot_ci_block()] takes the percentile interval. Quantiles are
+#' transform-equivariant, so one recipe covers all three scales and the
+#' interval stays inside the estimand's support. The scalar and per-class
+#' multinomial paths share this so the percentile contrast math lives in one
+#' place; the point estimate and SE are untouched.
+#'
+#' @param contrasts_dt The delta-method contrasts data.table, rows in `non_ref`
+#'   order. Modified in place and returned.
+#' @param non_ref Character vector of non-reference intervention labels, in the
+#'   same order as `contrasts_dt`'s rows.
+#' @param ref_reps Numeric vector of the reference intervention's replicates.
+#' @param alt_reps List of numeric vectors (one per `non_ref` entry) of that
+#'   alternative's replicates.
+#' @param type `"difference"`, `"ratio"`, or `"or"`.
+#' @param conf_level Numeric confidence level.
+#' @returns `contrasts_dt` with `ci_lower` / `ci_upper` replaced by the
+#'   percentile bounds.
+#' @noRd
+percentile_contrast_override <- function(
+  contrasts_dt,
+  non_ref,
+  ref_reps,
+  alt_reps,
+  type,
+  conf_level
+) {
+  pci <- vapply(
+    seq_along(non_ref),
+    function(k) {
+      ra <- alt_reps[[k]]
+      reps_c <- if (type == "difference") {
+        ra - ref_reps
+      } else if (type == "ratio") {
+        ra / ref_reps
+      } else {
+        (ra / (1 - ra)) / (ref_reps / (1 - ref_reps))
+      }
+      boot_ci_block(reps_c, contrasts_dt$estimate[k], conf_level, "percentile")
+    },
+    numeric(2)
+  )
+  contrasts_dt[, ci_lower := pci["lower", ]]
+  contrasts_dt[, ci_upper := pci["upper", ]]
+  contrasts_dt
+}
+
 #' Per-class contrast for a multinomial-outcome g-computation
 #'
 #' @description
@@ -1894,6 +2009,7 @@ compute_contrast_multinom <- function(
   ncpus,
   subset_env,
   cluster_vec,
+  boot_ci = "percentile",
   call
 ) {
   # Stochastic interventions and transport need the MC-marginalisation path,
@@ -1994,7 +2110,14 @@ compute_contrast_multinom <- function(
 
   # Assemble per-class estimates and contrasts. Each class reuses the shared
   # delta-method helper with that class's k_int-by-k_int vcov block, so the
-  # contrast math is identical to the scalar path.
+  # contrast math is identical to the scalar path. The bootstrap CI flavour is
+  # honoured the same way too: percentile reads quantiles off the flat
+  # (intervention x class) replicate matrix `boot_res$boot_t` (class-major
+  # columns named "intervention:class"); normal keeps the Wald / delta bounds.
+  use_perc <- boot_ci == "percentile"
+  bt <- boot_res$boot_t
+  non_ref <- setdiff(int_names, ref_name)
+
   est_blocks <- vector("list", k_class)
   con_blocks <- vector("list", k_class)
   for (ci in seq_len(k_class)) {
@@ -2003,13 +2126,32 @@ compute_contrast_multinom <- function(
     vcov_c <- boot_res$vcov[[cl]]
     se_c <- sqrt(pmax(diag(vcov_c), 0))
 
+    if (use_perc) {
+      mci <- vapply(
+        int_names,
+        function(nm) {
+          boot_ci_block(
+            bt[, paste(nm, cl, sep = ":")],
+            mu_c[[nm]],
+            conf_level,
+            "percentile"
+          )
+        },
+        numeric(2)
+      )
+      ci_lo_m <- mci["lower", ]
+      ci_hi_m <- mci["upper", ]
+    } else {
+      ci_lo_m <- mu_c - z * se_c
+      ci_hi_m <- mu_c + z * se_c
+    }
     est_blocks[[ci]] <- data.table::data.table(
       intervention = int_names,
       class = cl,
       estimate = mu_c,
       se = se_c,
-      ci_lower = mu_c - z * se_c,
-      ci_upper = mu_c + z * se_c
+      ci_lower = ci_lo_m,
+      ci_upper = ci_hi_m
     )
 
     con_c <- compute_pairwise_contrasts(
@@ -2020,6 +2162,18 @@ compute_contrast_multinom <- function(
       conf_level = conf_level
     )
     if (nrow(con_c) > 0L) {
+      if (use_perc) {
+        # Per-replicate percentile within this class, from the class's columns
+        # of the flat replicate matrix (named "intervention:class").
+        con_c <- percentile_contrast_override(
+          con_c,
+          non_ref,
+          bt[, paste(ref_name, cl, sep = ":")],
+          lapply(non_ref, function(nm) bt[, paste(nm, cl, sep = ":")]),
+          type,
+          conf_level
+        )
+      }
       con_c[, class := cl]
       data.table::setcolorder(con_c, c("comparison", "class"))
     }
@@ -2045,6 +2199,7 @@ compute_contrast_multinom <- function(
     boot_t = boot_res$boot_t,
     boot_info = boot_res$boot_info,
     class_labels = class_labels,
+    boot_ci = boot_ci,
     call = call
   )
 }

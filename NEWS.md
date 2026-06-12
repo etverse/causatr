@@ -44,6 +44,33 @@ transport / stochastic interventions — each lifted by a later Phase 23a chunk)
 and `causatr_categorical_outcome_sandwich` (`ci_method = "sandwich"`, until
 23a-2). Ordinal outcomes (`MASS::polr`) are Phase 23b.
 
+## 2026-06-11 — Selectable bootstrap CI flavour (`boot_ci`)
+
+`contrast()` gains a `boot_ci = c("percentile", "normal")` argument
+(`ci_method = "bootstrap"` only). `"percentile"` (the new default) takes
+empirical quantiles of the bootstrap replicates — transformation-respecting and
+bounded by the estimand's support, so risk differences, relative risks, and
+odds ratios get intervals that stay on the right scale. `"normal"` is the Wald
+interval from the bootstrap standard error
+(\eqn{\hat\theta \pm z\,\widehat{sd}}), reproducing the previous behaviour. Both
+are computed from the same replicates at no extra resampling cost; the point
+estimate, SE, and vcov are identical either way — only the interval bounds move.
+
+This removes a prior inconsistency where `confint()` reported percentile
+intervals while the stored `estimates` / `contrasts` tables (and `print()`,
+`plot()`, `tidy()`) reported Wald intervals. Every surface now honours one
+recorded convention. `confint(res, boot_ci = ...)` overrides it on demand;
+`tidy()` reads the result's stored convention. The change spans every
+bootstrap path (g-computation, IPW, AIPW, longitudinal, `by`-stratified, and
+SNM blip parameters / pooled averaged blip). The SNM by-stratified averaged
+blip keeps its delta-method (Wald) interval — it has no per-stratum replicates.
+SNM results now carry their bootstrap replicates so `confint()` / `tidy()`
+honour the flavour (matching the stored table), and `confint()` labels SNM rows
+by blip parameter instead of leaving them unlabeled.
+
+Validated against the empirical replicate quantiles and `boot::boot.ci()`
+(`test-bootstrap-ci.R`).
+
 ## 2026-06-10 — Phase 22b-7 (multivariate G-LMTP): rejected by design
 
 Multivariate (vector-treatment) natural-history modified treatment policies are

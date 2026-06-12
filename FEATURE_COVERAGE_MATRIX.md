@@ -460,6 +460,13 @@ remain in this matrix.
 
 | Concern | Status | Test |
 |---|---|---|
+| `boot_ci = "percentile"` (default) — means = replicate quantiles | ✅ | test-bootstrap-ci.R |
+| `boot_ci = "percentile"` — diff/ratio/OR = per-replicate-contrast quantiles | ✅ | test-bootstrap-ci.R |
+| `boot_ci = "normal"` — Wald from bootstrap SE (= legacy) | ✅ | test-bootstrap-ci.R |
+| `boot_ci` point/SE/vcov invariant; cross-check vs `boot::boot.ci` | ✅ | test-bootstrap-ci.R |
+| `boot_ci` honoured by `confint()` (+ override) and `tidy()` | ✅ | test-bootstrap-ci.R |
+| `boot_ci` composes with IPW / AIPW / SNM (blip Path A) bootstrap | ✅ | test-bootstrap-ci.R |
+| `boot_ci` invalid value rejected | ⛔ | test-bootstrap-ci.R |
 | `to_person_period()` round-trip | ✅ | test-simulation.R |
 | `to_person_period()` rejects dup ids / mismatched lengths | ✅ | test-simulation.R |
 | `causat()` type auto-detection | ✅ | test-causat.R |

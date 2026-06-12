@@ -75,9 +75,20 @@ tidy.causatr_result <- function(
     type = row_type,
     stringsAsFactors = FALSE
   )
+  # Bootstrap results carry CIs that already honour the result's `boot_ci`
+  # convention (percentile or normal) at contrast()'s conf_level. Re-levelling
+  # a percentile interval needs the replicates, so for bootstrap we read the
+  # stored bounds (keeping tidy() consistent with print/plot/confint); the
+  # conf.level argument is honoured for the Wald/delta sandwich and MI paths.
+  is_boot <- identical(x$ci_method, "bootstrap") && !is_mi
   if (conf.int) {
-    means_df$conf.low <- means_df$estimate - z_means * means_df$std.error
-    means_df$conf.high <- means_df$estimate + z_means * means_df$std.error
+    if (is_boot) {
+      means_df$conf.low <- x$estimates$ci_lower
+      means_df$conf.high <- x$estimates$ci_upper
+    } else {
+      means_df$conf.low <- means_df$estimate - z_means * means_df$std.error
+      means_df$conf.high <- means_df$estimate + z_means * means_df$std.error
+    }
   }
 
   # Contrast CIs: for difference contrasts, recompute at the user's
@@ -93,7 +104,11 @@ tidy.causatr_result <- function(
     stringsAsFactors = FALSE
   )
   if (conf.int) {
-    if (x$type == "difference") {
+    if (is_boot) {
+      # Read the stored bootstrap contrast CIs (percentile or normal).
+      contrasts_df$conf.low <- x$contrasts$ci_lower
+      contrasts_df$conf.high <- x$contrasts$ci_upper
+    } else if (x$type == "difference") {
       contrasts_df$conf.low <- x$contrasts$estimate - z_contr * x$contrasts$se
       contrasts_df$conf.high <- x$contrasts$estimate + z_contr * x$contrasts$se
     } else {
