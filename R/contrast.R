@@ -1668,9 +1668,12 @@ compute_contrast <- function(
     ref_name = ref_name,
     conf_level = conf_level
   )
-  # Percentile bootstrap: replace the delta-method contrast CIs with empirical
-  # quantiles of the per-replicate contrast (`boot_t` columns are intervention
-  # names). Means above already switched; this keeps contrasts consistent.
+  # `compute_pairwise_contrasts()` above always returns the delta-method
+  # (normal) CIs, which is exactly what `boot_ci = "normal"` and the sandwich
+  # path want. ONLY when the user selected `boot_ci = "percentile"` do we swap
+  # the contrast bounds for the empirical quantiles of the per-replicate
+  # contrast (`boot_t` columns are intervention names) -- both flavours stay
+  # available and the point estimate / SE are unchanged either way.
   if (use_perc && nrow(contrasts_dt) > 0L) {
     non_ref <- setdiff(int_names, ref_name)
     contrasts_dt <- percentile_contrast_override(
