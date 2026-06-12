@@ -17,6 +17,12 @@ generics::tidy
 generics::glance
 
 utils::globalVariables(c(
-  "prev_event", ".pseudo_y", "by", "label", "n_by", "N",
-  "ci_lower", "ci_upper"
+  "prev_event",
+  ".pseudo_y",
+  "by",
+  "label",
+  "n_by",
+  "N",
+  "ci_lower",
+  "ci_upper"
 ))
