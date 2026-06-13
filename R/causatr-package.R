@@ -16,4 +16,13 @@ generics::tidy
 #' @export
 generics::glance
 
-utils::globalVariables(c("prev_event", ".pseudo_y", "by", "label", "n_by", "N"))
+utils::globalVariables(c(
+  "prev_event",
+  ".pseudo_y",
+  "by",
+  "label",
+  "n_by",
+  "N",
+  "ci_lower",
+  "ci_upper"
+))

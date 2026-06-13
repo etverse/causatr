@@ -57,6 +57,39 @@ References: lmtp (`lmtp_tmle`, `lmtp_sdr`), Hernán & Robins book values, closed
 
 Rejections: invalid family string ✅, missing outcome/treatment col ✅ (test-gcomp.R, test-causat.R).
 
+### Categorical (multinomial) outcome — point g-comp (Phase 23a-1)
+
+Single K-level factor outcome via `model_fn = nnet::multinom`. Estimand is the
+K-vector `P(Y = k | do(A = a))` per intervention; `estimates` / `contrasts` gain
+a `class` column. Variance is **bootstrap** (analytic sandwich is Phase 23a-2).
+Oracles: large-n softmax g-computation truth + exact `marginaleffects::avg_predictions()`
+on causatr's own multinom fit (point parity ~1e-15). All rows `test-gcomp-categorical-outcome.R`.
+
+| Trt | Outcome | Intervention | Estimand | Contrast | Variance | Extra | Status |
+|---|---|---|---|---|---|---|---|
+| bin | 3-class | static | ATE | diff | boot | — | ✅ (truth + marginaleffects) |
+| bin | 3-class | static | ATE | ratio | boot | — | ✅ (exact fn of means) |
+| bin | 3-class | static | ATE | or | boot | — | ✅ (exact fn of means) |
+| cont | 3-class | shift | ATE | diff | boot | — | ✅ (truth + marginaleffects) |
+| cat | 3-class | static | ATE | diff | boot | — | ✅ (marginaleffects) |
+| bin | 4-class | static | ATE | diff | boot | — | ✅ (schema + marginaleffects) |
+| bin | 3-class | static | ATT | diff | boot | — | ✅ (treated-standardised oracle) |
+| bin | 3-class | static | by(G) | diff | boot | — | ✅ (per-stratum oracle) |
+| bin | 3-class | static | subset | diff | boot | — | ✅ (subset oracle) |
+| bin | 3-class | static | ATE | diff | boot | survey wts | ✅ (weighted oracle) |
+| bin | 3-class | static | ATE | diff | boot | IPCW | ✅ (MAR de-biasing → truth) |
+| cont | 3-class | shift(×3) | ATE | diff | boot | ≥3 interventions | ✅ |
+| bin | 3-class | static | ATE | diff | boot | spline confounders | ✅ |
+
+S3 layer (coef / confint / tidy / glance / print / plot per-class) ✅.
+Scalar byte-identical guard ✅. Bootstrap reproducibility + SE-vs-delta sanity ✅.
+
+Rejections (all ✅, `test-gcomp-categorical-outcome.R`): `snm` ⛔
+(`causatr_snm_categorical_outcome`); `ipw` / `aipw` / `matching` / longitudinal /
+transport ⛔ (`causatr_categorical_outcome_unsupported`); `ci_method = "sandwich"`
+⛔ (`causatr_categorical_outcome_sandwich`, until 23a-2); stochastic intervention
+⛔ (`causatr_categorical_outcome_unsupported`, until 23a-4b).
+
 ---
 
 ## IPW (point)
@@ -427,6 +460,13 @@ remain in this matrix.
 
 | Concern | Status | Test |
 |---|---|---|
+| `boot_ci = "percentile"` (default) — means = replicate quantiles | ✅ | test-bootstrap-ci.R |
+| `boot_ci = "percentile"` — diff/ratio/OR = per-replicate-contrast quantiles | ✅ | test-bootstrap-ci.R |
+| `boot_ci = "normal"` — Wald from bootstrap SE (= legacy) | ✅ | test-bootstrap-ci.R |
+| `boot_ci` point/SE/vcov invariant; cross-check vs `boot::boot.ci` | ✅ | test-bootstrap-ci.R |
+| `boot_ci` honoured by `confint()` (+ override) and `tidy()` | ✅ | test-bootstrap-ci.R |
+| `boot_ci` composes with IPW / AIPW / SNM (blip Path A) bootstrap | ✅ | test-bootstrap-ci.R |
+| `boot_ci` invalid value rejected | ⛔ | test-bootstrap-ci.R |
 | `to_person_period()` round-trip | ✅ | test-simulation.R |
 | `to_person_period()` rejects dup ids / mismatched lengths | ✅ | test-simulation.R |
 | `causat()` type auto-detection | ✅ | test-causat.R |

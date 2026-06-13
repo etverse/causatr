@@ -14,6 +14,7 @@ contrast(
   ci_method = c("sandwich", "bootstrap"),
   n_boot = 500L,
   conf_level = 0.95,
+  boot_ci = c("percentile", "normal"),
   by = NULL,
   parallel = getOption("boot.parallel", "no"),
   ncpus = getOption("boot.ncpus", 1L),
@@ -84,6 +85,20 @@ or \code{"bootstrap"}.}
 \code{ci_method = "bootstrap"}. Default \code{500}.}
 
 \item{conf_level}{Numeric. Confidence level for intervals. Default \code{0.95}.}
+
+\item{boot_ci}{Character. Bootstrap confidence-interval flavour, used only
+when \code{ci_method = "bootstrap"}: \code{"percentile"} (default) takes empirical
+quantiles of the bootstrap replicates (transformation-respecting, bounded
+by the estimand's support), while \code{"normal"} uses the Wald interval from
+the bootstrap standard error (\eqn{\hat\theta \pm z\,\widehat{sd}}). Both
+come from the same replicates at no extra resampling cost; the point
+estimate, SE, and vcov are identical either way. Ignored for
+\code{ci_method = "sandwich"}. \code{\link[=confint]{confint()}} and \code{\link[=tidy]{tidy()}} honour the stored choice
+but accept a \code{boot_ci} override. For \code{type = "ratio"} / \code{"or"}, the
+percentile interval can be wide or erratic when the bootstrap means
+approach zero (e.g. a Gaussian outcome), because individual replicates
+drive the denominator toward zero; for ratios prefer a binomial / Poisson /
+Gamma family (or \code{type = "difference"}), as for the point estimate.}
 
 \item{by}{Character or \code{NULL}. Name of a variable to stratify estimates by
 (effect modification). If provided, E[Y^a] is computed within each
