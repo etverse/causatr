@@ -1,5 +1,28 @@
 # causatr (development version)
 
+## 2026-06-14 — CI: faster pull-request feedback (no test coverage lost)
+
+Continuous-integration restructure that cuts pull-request latency without
+dropping any test from the suite (the full suite still runs locally, always, and
+on every PR). Three structural changes, no tiering / no skipped tests:
+
+- **Coverage off the PR hot path.** The covr-instrumented full suite (the
+  slowest job, and redundant with R-CMD-check for correctness) now runs on push
+  to the default branch, a weekly cron, and manual dispatch — not on pull
+  requests.
+- **Conditional check matrix.** Pull requests run a single Linux config
+  (ubuntu-release) running the *complete* suite; the full three-config matrix
+  (macOS + ubuntu release + ubuntu oldrel) runs on push to the default branch,
+  the weekly cron, and manual dispatch. The package is pure R, so cross-platform
+  divergence is low-risk and verified at merge cadence.
+- **Effective file-level parallelism.** The three slowest test files were split
+  into balanced thematic files (`test-aipw*.R`, `test-longitudinal-ipw*.R`,
+  `test-ipcw-variance*.R`) so testthat's per-file parallelism (already enabled
+  via `Config/testthat/parallel`) is no longer bottlenecked by a single long
+  file — the slow `lmtp` SDR cross-checks now live in their own worker. No tests
+  were added or removed; the 1543 `test_that` blocks are unchanged, only
+  regrouped across files.
+
 ## 2026-06-11 — Fixes: by-stratified bootstrap result print / confint
 
 `print()` on any `by`-stratified bootstrap result aborted ("values must be type

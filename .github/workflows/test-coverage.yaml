@@ -1,14 +1,18 @@
 # Workflow derived from https://github.com/r-lib/actions/tree/v2/examples
+#
+# Coverage runs a covr-instrumented full suite, which is the single slowest
+# job and offers no extra correctness signal over R-CMD-check. It is therefore
+# kept off the per-PR hot path: it runs on push to the default branch, on a
+# weekly cron, and on manual dispatch — not on pull requests.
 on:
   push:
     branches: [main, master]
     paths-ignore:
       - "altdoc/**"
       - "docs/**"
-  pull_request:
-    paths-ignore:
-      - "altdoc/**"
-      - "docs/**"
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
 
 name: test-coverage.yaml
 
