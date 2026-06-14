@@ -9,23 +9,47 @@ on:
     paths-ignore:
       - "altdoc/**"
       - "docs/**"
+  # Weekly full-matrix safety net so the cross-platform / oldrel configs that
+  # PRs skip are still exercised regularly.
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
 
 name: R-CMD-check.yaml
 
 permissions: read-all
 
 jobs:
+  # Pull requests run a single, fast Linux config for quick feedback; the full
+  # suite still runs on every PR (no tests are skipped), just on one OS. The
+  # full three-config matrix (macOS + ubuntu release + ubuntu oldrel) runs on
+  # push to the default branch, on the weekly cron, and on manual dispatch.
+  # The package is pure R (no compiled code), so cross-platform divergence is
+  # low-risk and verifying it at merge cadence rather than per-PR-push is a
+  # sound trade.
+  matrix-setup:
+    runs-on: ubuntu-latest
+    outputs:
+      configs: ${{ steps.set.outputs.configs }}
+    steps:
+      - id: set
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo 'configs=[{"os":"ubuntu-latest","r":"release"}]' >> "$GITHUB_OUTPUT"
+          else
+            echo 'configs=[{"os":"macos-latest","r":"release"},{"os":"ubuntu-latest","r":"release"},{"os":"ubuntu-latest","r":"oldrel-1"}]' >> "$GITHUB_OUTPUT"
+          fi
+
   R-CMD-check:
+    needs: matrix-setup
     runs-on: ${{ matrix.config.os }}
     name: ${{ matrix.config.os }} (${{ matrix.config.r }})
 
     strategy:
       fail-fast: false
       matrix:
-        config:
-          - { os: macos-latest, r: "release" }
-          - { os: ubuntu-latest, r: "release" }
-          - { os: ubuntu-latest, r: "oldrel-1" }
+        config: ${{ fromJSON(needs.matrix-setup.outputs.configs) }}
 
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
