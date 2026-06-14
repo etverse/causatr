@@ -183,5 +183,3 @@ test_that("matching IPCW: sandwich vs bootstrap SE ratio in [0.5, 2.0]", {
   expect_gt(ratio, 0.5)
   expect_lt(ratio, 2.0)
 })
-
-

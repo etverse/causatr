@@ -1315,5 +1315,3 @@ test_that("longitudinal AIPW: IPSI rejection", {
     class = "causatr_longitudinal_ipsi_pending"
   )
 })
-
-

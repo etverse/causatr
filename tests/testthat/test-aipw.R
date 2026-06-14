@@ -528,5 +528,3 @@ test_that("AIPW works with categorical treatment", {
   expect_equal(result$contrasts$estimate[1], 2, tolerance = 0.05)
   expect_true(is.finite(result$contrasts$se[1]) && result$contrasts$se[1] > 0)
 })
-
-

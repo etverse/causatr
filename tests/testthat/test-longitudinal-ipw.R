@@ -1309,4 +1309,3 @@ test_that("longitudinal IPW + trim agrees with lmtp_sdr", {
   expect_lt(abs(res_no$estimates$estimate - est_lmtp_no), 0.5)
   expect_lt(abs(res_99$estimates$estimate - est_lmtp_99), 0.5)
 })
-

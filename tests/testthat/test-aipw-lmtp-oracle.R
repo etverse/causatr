@@ -262,5 +262,3 @@ test_that("longitudinal AIPW: lmtp cross-check (binary outcome)", {
   expect_gt(se_ratio, 0.15)
   expect_lt(se_ratio, 5.0)
 })
-
-
