@@ -76,11 +76,16 @@ jobs:
           needs: check
       # Pull requests: skip the vignette rebuild for speed (vignettes are still
       # built + checked on push to the default branch and the nightly cron).
+      # `error-on: error` tolerates the two WARNINGs that --no-build-vignettes
+      # intentionally produces (vignette sources present but not built); genuine
+      # ERRORs still fail the PR, and the full strict warning-level check runs on
+      # push to the default branch and the nightly cron.
       - uses: r-lib/actions/check-r-package@v2
         with:
           upload-snapshots: true
           build_args: 'c("--no-manual","--no-build-vignettes")'
-          args: 'c("--no-manual", "--as-cran", "--no-vignettes")'
+          args: 'c("--no-manual", "--no-vignettes")'
+          error-on: '"error"'
         if: github.event_name == 'pull_request'
       # Push to default branch / nightly cron / manual dispatch: full check
       # including vignette build + re-build check.
