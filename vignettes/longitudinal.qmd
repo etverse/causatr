@@ -6,6 +6,7 @@ vignette: >
   %\VignetteIndexEntry{Longitudinal treatments: ICE g-computation}
   %\VignetteEngine{quarto::html}
   %\VignetteEncoding{UTF-8}
+bibliography: references.bib
 ---
 
 ```{r}
@@ -15,15 +16,15 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 
 When treatment and confounders vary over time, standard regression methods give
 biased estimates even when adjusted for all confounders. G-methods solve this.
-causatr implements ICE (iterated conditional expectation) g-computation (Zivich
-et al., 2024), which requires models for the outcome only --- no models for
+causatr implements ICE (iterated conditional expectation) g-computation
+[@zivich2024ice], which requires models for the outcome only --- no models for
 time-varying confounders are needed.
 
 ::: {.callout-tip}
 ## Doubly-robust longitudinal estimation
 
-For doubly-robust protection, use `estimator = "aipw"`. ICE-AIPW (Bang &
-Robins 2005) augments each backward regression step with a propensity-weighted
+For doubly-robust protection, use `estimator = "aipw"`. ICE-AIPW
+[@bang2005doubly] augments each backward regression step with a propensity-weighted
 residual correction, giving a consistent estimator if *either* the outcome
 regression *or* the propensity model at each time point is correctly specified.
 The same `causat()` + `contrast()` API applies; sandwich and bootstrap
@@ -66,7 +67,7 @@ $\mathbb{E}[Y^{a_0, a_1}]$:
 
 ## Table 20.1: the null paradox
 
-We reconstruct the dataset from Table 20.1 of Hernan & Robins (2025), scaled
+We reconstruct the dataset from Table 20.1 of @hernan_whatif, scaled
 to 3,200 individuals observed at 2 time points. (The original table has
 32,000; we use 1/10th for faster vignette rendering.) The DGP has a very
 specific property: **every joint regime $(a_0, a_1)$ has the same marginal
@@ -135,7 +136,7 @@ time point. `L` is a time-varying confounder (only measured at time 1).
 
 ## Demonstrating bias from naive methods
 
-Hernan & Robins (2025, Ch. 20) uses this table to make a pointed argument:
+@hernan_whatif, Ch. 20, uses this table to make a pointed argument:
 *neither* of the two conventional regression strategies recovers the null.
 Truth is $\mathbb{E}[Y^{1,1}] - \mathbb{E}[Y^{0,0}] = 0$, and in fact all
 four joint regimes have the same marginal counterfactual mean of $60$.
@@ -256,7 +257,7 @@ abline(h = 0, lty = 2, col = "grey40")
 ## Sandwich SE: stacked estimating equations
 
 The default `ci_method = "sandwich"` uses the empirical sandwich estimator for
-stacked estimating equations (Zivich et al., 2024). This accounts for
+stacked estimating equations [@zivich2024ice]. This accounts for
 uncertainty from all K sequential outcome models, not just the final model.
 
 ```{r}
@@ -835,8 +836,8 @@ W_i = \prod_{k=0}^{K} \frac{f_k\bigl(d(A_{k,i}, L_{k,i}) \mid \bar A_{k-1,i}^{\m
 $$
 
 Both numerator and denominator condition on **observed** upstream
-treatments — the sequential-MTP semantics of Robins, Hernán, Brumback
-(2000) and Díaz et al. (2023). The MSM is intercept-only Hájek on
+treatments — the sequential-MTP semantics of @robins2000msmepi and
+@diaz2023lmtp. The MSM is intercept-only Hájek on
 the final-period rows, weighted by the per-id cumulative product;
 the (sole) coefficient is $E[Y^d]$.
 
@@ -983,7 +984,7 @@ contrast(
 )
 ```
 
-**Known limitation (Robins 2000).** Under longitudinal IPW, the
+**Known limitation [@robins2000msmepi].** Under longitudinal IPW, the
 modifier MUST be a **baseline** covariate. A time-varying modifier
 in an MSM conditions on a post-treatment variable, which biases the
 estimand via mediator and collider paths. causatr does not enforce
@@ -1005,7 +1006,7 @@ to `Y ~ 1 + modifier`. Specify the interaction once per component, e.g.
 
 For **binary** time-varying treatment, `ipsi(delta)` shifts the
 treatment odds at every period by a factor $\delta$ rather than fixing a
-counterfactual value. Kennedy's (2019) closed-form weight extends to a
+counterfactual value. Kennedy's [-@kennedy2019ipsi] closed-form weight extends to a
 per-period product:
 
 $$
@@ -1100,7 +1101,7 @@ IPSI — use `estimator = "ipw"`.
 With $T$ time periods, the cumulative product $\prod_{t=1}^{T} w_t$ of
 per-period density ratios can develop heavy tails. The `trim` argument on
 `contrast()` winsorizes density ratios at a given quantile *before* the
-cumulative product (Cole & Hernán 2008). `trim = 0.999` clips each
+cumulative product [@cole2008constructing]. `trim = 0.999` clips each
 per-period ratio at its 99.9th percentile --- the default in
 [`lmtp`](https://cran.r-project.org/package=lmtp).
 
@@ -1247,7 +1248,7 @@ res_mv_long_stab
 ### Doubly-robust multivariate longitudinal AIPW
 
 For doubly-robust protection on joint time-varying treatments, switch
-`estimator = "aipw"`. The ICE-AIPW recursion (Bang & Robins 2005) augments
+`estimator = "aipw"`. The ICE-AIPW recursion [@bang2005doubly] augments
 the sequential outcome models with the multivariate per-period density-ratio
 weight — the same per-period $\times$ per-component chain used by the IPW
 path. The estimator is consistent if **either** the sequence of outcome
@@ -1282,7 +1283,7 @@ tt(tidy(res_mv_long_aipw), digits = 3)
 The point estimate recovers the same structural truth (`both_on −
 both_off = 4.9`) as the IPW and g-computation fits above — under a static
 contrast the multivariate IPW, g-computation, and AIPW estimands coincide
-(Díaz et al. 2023). The sandwich SE comes from a $T \times K$ block-diagonal
+[@diaz2023lmtp]. The sandwich SE comes from a $T \times K$ block-diagonal
 stacked estimating-equation system (one propensity block per period $\times$
 component, plus the outcome cascade).
 
@@ -1450,7 +1451,7 @@ effective sample size at each step.
 
 ## How ICE works
 
-ICE g-computation (Zivich et al., 2024) works **backward** in time:
+ICE g-computation [@zivich2024ice] works **backward** in time:
 
 1. **Final time K**: Fit E[Y | A_K, L_K, baseline] among uncensored individuals.
    Predict under the intervention to get pseudo-outcomes.
@@ -1515,7 +1516,7 @@ For a full enumeration of the sandwich-vs-bootstrap, continuous/binary,
 external-weights, censoring, multivariate-treatment, and ipsi-rejection
 combinations, see `FEATURE_COVERAGE_MATRIX.md` §"Method 4 — ICE longitudinal
 g-computation" (20+ truth-pinned rows against `lmtp::lmtp_tmle` / analytic
-targets / Hernán & Robins Table 20.1).
+targets / @hernan_whatif Table 20.1).
 
 ## Effect modification across time
 
@@ -1646,8 +1647,8 @@ The within-stratum formula automatically drops the constant `G` term.
 
 Some policies set the intervened treatment at time $t$ as a function of the
 **natural-value history of treatment** --- grace periods, delays, and
-carry-forward. These are **G-LMTPs** (Díaz, Williams, Morzywołek & Rudolph
-2026), and they are *not* expressible as `dynamic()` rules: the standard ICE
+carry-forward. These are **G-LMTPs** [@diaz2026glmtp], and they are *not*
+expressible as `dynamic()` rules: the standard ICE
 recursion conditions on the *observed* lagged treatment, whereas the policy
 needs the *counterfactual* natural value, which under treatment-state feedback
 differs from the observed value (so `dynamic(\(d, trt) d$lag1_A)` runs but
@@ -1663,7 +1664,7 @@ This family has its own article: see
 [**Natural-history MTPs (grace periods)**](natural-history-mtps.html) for the
 concept, a visual of how each policy assigns treatment, why `dynamic(lag1_A)` is
 wrong, the augmented-data intuition, worked examples validated against the
-forward-simulation truth (replicating the Díaz et al. 2026 Section-6 delay
+forward-simulation truth (replicating the @diaz2026glmtp Section-6 delay
 result), and the relationship to LMTPs and natural-value IPW.
 
 ## Summary of covered combinations
@@ -1696,7 +1697,7 @@ informative error.
 | Multivariate | Any | IPSI($\delta$) component | — | — | — | — | ⛔ binary-univariate only |
 | Binary | Any | IPSI($\delta$) | ATE | — | — | marginal | ⛔ no marginal numerator |
 | Binary | Continuous | Static, **stratified ICE** (`stratified = "G"`) | ATE / `by(G)` | Difference | Sandwich / bootstrap | none | ✅ vs per-stratum pooled + delicatessen |
-| Binary (absorbing) | Continuous / Binary | `grace_period` / `carry_forward` (natural-history MTP) | ATE | Difference | Bootstrap / Sandwich | none / cens / ext | ✅ vs forward-MC truth (Díaz et al. 2026 §6); sandwich validated vs Python oracle |
+| Binary (absorbing) | Continuous / Binary | `grace_period` / `carry_forward` (natural-history MTP) | ATE | Difference | Bootstrap / Sandwich | none / cens / ext | ✅ vs forward-MC truth [@diaz2026glmtp, §6]; sandwich validated vs Python oracle |
 | Ordinal dose `{0,1,2}` | Continuous | `cap_escalation` + `treatment_form = ~ factor(dose)` | ATE | Difference | Bootstrap / Sandwich | none | ✅ tight vs forward-MC truth (gap ≈0.0015) |
 | Binary | Any | Static / ATT | ATT | — | — | — | ⛔ ICE is ATE-only |
 
@@ -1706,15 +1707,5 @@ for the authoritative coverage status of every method × treatment × outcome
 
 ## References
 
-Hernan MA, Robins JM (2025). *Causal Inference: What If*. Chapman & Hall/CRC.
-Chapters 19--21: Time-varying treatments.
-
-Zivich PN, Ross RK, Shook-Sa BE, Cole SR, Edwards JK (2024). Empirical
-sandwich variance estimator for iterated conditional expectation
-g-computation. *Statistics in Medicine* 43:5562--5572.
-
-Bang H, Robins JM (2005). Doubly robust estimation in missing data and causal
-inference models. *Biometrics* 61:962--973.
-
-Díaz I, Williams NT, Morzywołek P, Rudolph KE (2026). Modified treatment
-policies that depend on the natural history of treatment. *arXiv:2605.24167*.
+::: {#refs}
+:::

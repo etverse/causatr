@@ -14,11 +14,11 @@
 #' and lets each stratum carry its own functional form. Because G is
 #' constant within a stratum, any formula term that references G is dropped
 #' before the per-stratum fit (it would be aliased / rank-deficient) via
-#' [strip_stratum_terms()].
+#' `strip_stratum_terms()`.
 #'
 #' A stratum whose model fails to fit (e.g. too few rows, separation)
 #' yields a `NULL` entry rather than aborting the whole chain; rows in
-#' that stratum then receive `NA` predictions from [ice_predict_step()]
+#' that stratum then receive `NA` predictions from `ice_predict_step()`
 #' and drop out of the next backward step exactly like censored rows.
 #'
 #' @param model_fn Function. The per-step fitter (e.g. `stats::glm`).
@@ -31,7 +31,7 @@
 #' @param weights Numeric vector aligned row-for-row with `fit_data`, or
 #'   `NULL`. Subset per stratum in the stratified branch.
 #' @param dots List of user `...` extras replayed into `model_fn` via
-#'   [replay_fit()].
+#'   `replay_fit()`.
 #' @param stratified Character scalar naming the baseline stratum column,
 #'   or `NULL` for a pooled fit.
 #' @param is_pseudo Logical. When `TRUE` the response column is a
@@ -123,7 +123,7 @@ ice_fit_step <- function(
 #' Predict one ICE backward-step model, pooled or stratified
 #'
 #' @description
-#' Companion to [ice_fit_step()]. For a pooled model this is a thin
+#' Companion to `ice_fit_step()`. For a pooled model this is a thin
 #' wrapper over `stats::predict(type = "response")`. For a stratified
 #' model list it predicts each stratum's rows with that stratum's model
 #' and merges the results back into a single vector aligned row-for-row

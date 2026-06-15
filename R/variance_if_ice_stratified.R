@@ -1,7 +1,7 @@
 #' Per-individual IF for one stratified ICE intervention
 #'
 #' @description
-#' Stratified counterpart of [variance_if_ice_one()]. When
+#' Stratified counterpart of `variance_if_ice_one()`. When
 #' `causat(..., stratified = "G")` is used, each backward step fits one
 #' outcome / pseudo-outcome model per level of the baseline stratum `G`,
 #' so the stacked estimating-equation system is **per-stratum x per-time**
@@ -17,17 +17,17 @@
 #' 2. **Global Channel 1.** The estimand \eqn{\hat\mu = E[Y^{\bar d}]} is
 #'    marginal over all strata, so the sampling term and the centring mean
 #'    are computed once over the whole target population (in
-#'    [ice_if_setup()]); only the nuisance correction partitions by
+#'    `ice_if_setup()`); only the nuisance correction partitions by
 #'    stratum. The first-step gradient \eqn{\partial\hat\mu/\partial
 #'    \beta_{g,1}} sums over target rows in stratum `g` but keeps the
-#'    global \eqn{1/n_t} normaliser -- which [variance_if_ice_chain()]
+#'    global \eqn{1/n_t} normaliser -- which `variance_if_ice_chain()`
 #'    obtains automatically once its prediction frame is restricted to the
 #'    stratum.
 #'
 #' Equivalently, this is the pooled ICE sandwich run `S` times on disjoint
 #' row sets, plus the shared global Channel 1 -- mirroring the exact
 #' point-estimate equivalence "stratified ICE == pooled ICE per stratum
-#' subset" that [ice_fit_step()] relies on.
+#' subset" that `ice_fit_step()` relies on.
 #'
 #' @param fit A `causatr_fit` object (ICE estimator, `stratified` set).
 #' @param ice_result Per-intervention ICE result from `ice_iterate()`.

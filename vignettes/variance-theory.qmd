@@ -7,6 +7,9 @@ vignette: >
   %\VignetteIndexEntry{Variance estimation for causal effects}
   %\VignetteEngine{quarto::html}
   %\VignetteEncoding{UTF-8}
+bibliography: references.bib
+nocite: |
+  @hernan_whatif, @vdl2003unified, @zivich2022delicatessen
 ---
 
 ```{=html}
@@ -273,8 +276,8 @@ against this misspecification.
 ### 1.3 The general M-estimation framework
 
 All three routes produce estimators of the same form: find $\hat\beta$ solving
-$\sum_i \psi(O_i; \hat\beta) = 0$. The M-estimation framework (Huber, 1964;
-Stefanski & Boos, 2002) unifies them under two conditions:
+$\sum_i \psi(O_i; \hat\beta) = 0$. The M-estimation framework
+[@huber1964robust; @stefanski2002mestimation] unifies them under two conditions:
 
 1. **Unbiasedness**: $E[\psi(O_i; \beta_0)] = 0$ at the true $\beta_0$. This
    guarantees that the estimating equation has the right solution in
@@ -291,8 +294,8 @@ The "M" stands for "maximum" (as in maximum-likelihood), but the framework is
 much broader. Any estimator defined as the root of a sum of functions of the
 data and parameters is an M-estimator — this includes MLE, weighted least
 squares, quantile regression, robust regression (Huber loss), generalised
-estimating equations, and the causal estimators in Sections 4–5 (Stefanski &
-Boos, 2002).
+estimating equations, and the causal estimators in Sections 4–5
+[@stefanski2002mestimation].
 :::
 
 ### 1.4 Asymptotic variance of M-estimators
@@ -438,7 +441,7 @@ usual model-based variance. But if the variance function is wrong, $A \neq B$:
 the bread still captures the curvature correctly (it only depends on the mean
 model), while the meat captures the *actual* variability of the scores. The
 sandwich remains consistent regardless — this is the Huber–White robustness
-property (Huber, 1967; White, 1982).
+property [@huber1967behavior; @white1982maximum].
 :::
 
 ::: {.panel-tabset}
@@ -532,7 +535,7 @@ sandwich_variance <- function(X, Y, beta_hat, family) {
 ### In practice
 You almost never code this yourself. In R, `sandwich::sandwich(model)` computes
 $\hat A^{-1} \hat B (\hat A^{-1})^T$ from any `glm` object. The `sandwich`
-package (Zeileis, 2004, 2006) provides variants for clustered data
+package [@zeileis2004econometric; @zeileis2006object] provides variants for clustered data
 (`vcovCL()`), panel data (`vcovPL()`), and heteroscedasticity-autocorrelation
 (`vcovHAC()`).
 :::
@@ -600,7 +603,7 @@ $$
 \underset{p \times p}{\color{#3182BD}{(X^TX)^{-1}}}
 $$
 
-This is the *HC0* heteroscedasticity-consistent estimator (White, 1980).
+This is the *HC0* heteroscedasticity-consistent estimator [@white1980heteroskedasticity].
 
 **What if homoscedasticity holds?** If $\text{Var}(\varepsilon_i \mid X_i) =
 \sigma^2$ for all $i$, then $E[\hat{e}_i^2 X_i X_i^T] = \sigma^2 E[X_i
@@ -1504,8 +1507,8 @@ The true variability of $\hat\beta$ has two sources:
 The naive sandwich captures only the first. The direction of the bias depends
 on the estimand: for the **ATE**, using estimated (rather than known) propensity
 scores actually *reduces* the asymptotic variance, so the naive sandwich is
-conservative — it **overestimates** the SE (Hirano et al., 2003; Lunceford &
-Davidian, 2004). For the **ATT**, the effect can go either direction.
+conservative — it **overestimates** the SE [@hirano2003efficient; @lunceford2004stratification].
+For the **ATT**, the effect can go either direction.
 
 #### The correct approach: joint M-estimation
 
@@ -1902,7 +1905,7 @@ compute $\hat\mu_a$). What happens with **multiple models in a chain**, where
 each model's response is a prediction from the next? The same logic applies
 recursively. If $\hat\mu = f(\hat\beta_0, \hat\beta_1, \ldots, \hat\beta_K)$
 and each $\hat\beta_k$ is an M-estimator with bread $\color{#3182BD}{A_k}$ and
-score $\psi_k$, the IF of $\hat\mu$ is (Hampel et al., 1986; Huber, 1981):
+score $\psi_k$, the IF of $\hat\mu$ is [@hampel1986robust; @huber1981robust]:
 
 $$
 \text{IF}_i(\hat\mu)
@@ -1924,10 +1927,10 @@ model $k$) times the IF of model $k$'s parameters
 ### Connections to other frameworks
 This IF-based approach is equivalent to:
 
-1. **Stacked estimating equations** (Stefanski & Boos, 2002; Zivich et al.,
-   2024): concatenate all models' estimating equations and apply the generic
+1. **Stacked estimating equations** [@stefanski2002mestimation; @zivich2024ice]:
+   concatenate all models' estimating equations and apply the generic
    sandwich to the full stack.
-2. **Semiparametric efficiency theory** (Tsiatis, 2006): derive the efficient
+2. **Semiparametric efficiency theory** [@tsiatis2006semiparametric]: derive the efficient
    influence function (EIF) and project onto the parametric model.
 
 All yield the same variance estimate.
@@ -1936,8 +1939,8 @@ All yield the same variance estimate.
 ### 5.2 ICE g-computation: the motivating example
 
 Iterated conditional expectation (ICE) g-computation estimates the
-counterfactual mean under a treatment strategy in longitudinal data (Robins,
-1986; Bang & Robins, 2005; Zivich et al., 2024). It fits $K+1$ outcome models
+counterfactual mean under a treatment strategy in longitudinal data
+[@robins1986newapproach; @bang2005doubly; @zivich2024ice]. It fits $K+1$ outcome models
 backward in time:
 
 ```{mermaid}
@@ -2396,7 +2399,7 @@ A_{\beta\beta}^{-1} J_\mu^T$ projects the marginal-mean gradient through
 the outcome model bread.
 
 The minus sign on the censoring correction is deliberate:
-Robins, Rotnitzky & Zhao (1994) showed this correction **reduces** variance
+@robins1994aipw showed this correction **reduces** variance
 by accounting for the information in the censoring model. Ignoring it
 (treating IPCW weights as known) is conservative.
 
@@ -2425,7 +2428,7 @@ For longitudinal treatments with per-period censoring models $\gamma_1,
 \ldots, \gamma_K$, the full correction requires cross-derivatives
 $A_{\beta_k, \gamma_j}$ for all $k \geq j$, projected through the ICE
 cascade's accumulated sensitivity $d_k$. This is technically supported by
-stacked M-estimation theory (Stefanski & Boos 2002; Tsiatis 2006, Ch. 10),
+stacked M-estimation theory [@stefanski2002mestimation; @tsiatis2006semiparametric, Ch. 10],
 but the cascade's $d_k$ vectors are built incrementally during the
 backward loop and cannot be evaluated inside a `numDeriv` closure.
 
@@ -2540,8 +2543,8 @@ If unsure, run with `ci_method = "sandwich"` first — if you see a
 
 When `ci_method = "bootstrap"`, `contrast()` resamples the whole pipeline and
 stores the per-intervention replicate matrix. Two standard intervals can be
-read off those replicates (Efron & Tibshirani 1993, ch. 13; Davison & Hinkley
-1997, sec. 5.2), selected with `boot_ci`:
+read off those replicates [@efron1993bootstrap, ch. 13; @davison1997bootstrap, sec. 5.2],
+selected with `boot_ci`:
 
 - **`"percentile"` (default)** — the empirical $\alpha/2$ and $1-\alpha/2$
   quantiles of the replicates. It is transformation-respecting and bounded by
@@ -2577,47 +2580,5 @@ applies the same way; the `by`-stratified averaged blip keeps its delta-method
 
 ## References
 
-- Bang H, Robins JM (2005). Doubly robust estimation in missing data and
-  causal inference models. *Biometrics* 61:962–973.
-- Davison AC, Hinkley DV (1997). *Bootstrap Methods and Their Application*.
-  Cambridge University Press.
-- Efron B, Tibshirani RJ (1993). *An Introduction to the Bootstrap*.
-  Chapman & Hall.
-- Hampel FR, Ronchetti EM, Rousseeuw PJ, Stahel WA (1986). *Robust
-  Statistics: The Approach Based on Influence Functions*. Wiley.
-- Hirano K, Imbens GW, Ridder G (2003). Efficient estimation of average
-  treatment effects using the estimated propensity score.
-  *Econometrica* 71:1161–1189.
-- Hernán MA, Robins JM (2025). *Causal Inference: What If*.
-  Chapman & Hall/CRC.
-- Huber PJ (1967). The behavior of maximum likelihood estimates under
-  nonstandard conditions. *Proceedings of the Fifth Berkeley Symposium*
-  1:221–233.
-- Huber PJ (1981). *Robust Statistics*. Wiley.
-- Lunceford JK, Davidian M (2004). Stratification and weighting via the
-  propensity score in estimation of causal treatment effects: a comparative
-  study. *Statistics in Medicine* 23:2937–2960.
-- Robins JM (1986). A new approach to causal inference in mortality studies
-  with a sustained exposure period. *Mathematical Modelling* 7:1393–1512.
-- Robins JM, Rotnitzky A, Zhao LP (1994). Estimation of regression
-  coefficients when some regressors are not always observed. *Journal of
-  the American Statistical Association* 89:846–866.
-- Stefanski LA, Boos DD (2002). The calculus of M-estimation.
-  *The American Statistician* 56:29–38.
-- Tsiatis AA (2006). *Semiparametric Theory and Missing Data*. Springer.
-- van der Laan MJ, Robins JM (2003). *Unified Methods for Censored
-  Longitudinal Data and Causality*. Springer.
-- White H (1980). A heteroskedasticity-consistent covariance matrix estimator
-  and a direct test for heteroskedasticity. *Econometrica* 48:817–838.
-- White H (1982). Maximum likelihood estimation of misspecified models.
-  *Econometrica* 50:1–25.
-- Zeileis A (2004). Econometric computing with HC and HAC covariance matrix
-  estimators. *Journal of Statistical Software* 11(10):1–17.
-- Zeileis A (2006). Object-oriented computation of sandwich estimators.
-  *Journal of Statistical Software* 16(9):1–16.
-- Zivich PN, Klose M, Cole SR, Edwards JK, Shook-Sa BE (2022).
-  Delicatessen: M-Estimation in Python. *arXiv preprint*
-  arXiv:2203.11300.
-- Zivich PN, Ross RK, Shook-Sa BE, Cole SR, Edwards JK (2024). Empirical
-  sandwich variance estimator for iterated conditional expectation
-  g-computation. *Statistics in Medicine* 43:5562–5572.
+::: {#refs}
+:::

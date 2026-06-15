@@ -6,6 +6,7 @@ vignette: >
   %\VignetteIndexEntry{Propensity score matching with causatr}
   %\VignetteEngine{quarto::html}
   %\VignetteEncoding{UTF-8}
+bibliography: references.bib
 ---
 
 ```{r}
@@ -16,14 +17,14 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 Propensity score matching estimates causal effects by pairing treated and
 control individuals with similar propensity scores, then comparing outcomes
 within matched sets. causatr delegates match construction to
-[MatchIt](https://kosukeimai.github.io/MatchIt/) and fits the outcome model
+[MatchIt](https://kosukeimai.github.io/MatchIt/) [@ho2011matchit] and fits the outcome model
 on the matched sample. Inference runs through the unified influence-function
 variance engine (`variance_if()`): IFs are computed on the matched sample and
 aggregated **cluster-robustly** on the matched-pair subclass — the IF analogue
 of `sandwich::vcovCL()`, derived in `vignettes/variance-theory.qmd` §4.3.
 
 This vignette demonstrates propensity score matching in causatr using the NHEFS
-dataset from Hernán & Robins (2025), covering every supported combination of
+dataset from @hernan_whatif, covering every supported combination of
 treatment type, outcome type, contrast scale, and inference method for
 time-fixed treatments.
 
@@ -37,7 +38,7 @@ g-computation (see `vignette("gcomp")`).
 
 ## Data: NHEFS
 
-All examples use the **NHEFS** dataset (Hernán & Robins, 2025). The
+All examples use the **NHEFS** dataset [@hernan_whatif]. The
 assumed causal structure is:
 
 - **Treatment ($A$):** `qsmk` — quit smoking between 1971 and 1982 (binary: 0/1).
@@ -74,7 +75,7 @@ nhefs_complete$sex <- factor(
 ## Binary treatment, continuous outcome
 
 Matching estimate of the effect of quitting smoking on weight change, following
-the approach in Chapter 15 of Hernán & Robins.
+the approach in Chapter 15 of @hernan_whatif.
 
 ### ATT with sandwich SE
 
@@ -425,8 +426,8 @@ Any extra arguments passed to `causat()` flow through `...` straight into
 `MatchIt::matchit()`. Because the causatr argument is now `estimator` (not
 `method`), MatchIt's own `method = "..."` is free and you can pick a
 non-default matching algorithm. The example below swaps the default
-nearest-neighbor matcher for **coarsened exact matching** (Iacus, King &
-Porro, 2012), which is built into MatchIt and needs no extra packages.
+nearest-neighbor matcher for **coarsened exact matching** [@iacus2012cem],
+which is built into MatchIt and needs no extra packages.
 Other forwardable values include `"optimal"` (needs `optmatch`),
 `"genetic"` (needs `Matching`), `"cardinality"` (needs an LP solver), and
 the full MatchIt method list.
@@ -578,8 +579,5 @@ for the authoritative coverage status of every method × treatment × outcome
 
 ## References
 
-Hernán MA, Robins JM (2025). *Causal Inference: What If*. Chapman & Hall/CRC.
-Chapter 15: Outcome regression and propensity scores.
-
-Ho DE, Imai K, King G, Stuart EA (2011). MatchIt: Nonparametric Preprocessing
-for Parametric Causal Inference. *Journal of Statistical Software* 42(8):1-28.
+::: {#refs}
+:::

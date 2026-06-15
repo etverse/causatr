@@ -2,7 +2,7 @@
 #'
 #' @description
 #' Combines the point estimates and variances from a set of per-imputation
-#' [contrast()] results into a single pooled [causatr_result] using Rubin's
+#' [contrast()] results into a single pooled `causatr_result` using Rubin's
 #' (1987) rules. Each row of the intervention-means table and each row of the
 #' contrasts table is pooled independently: difference contrasts and means are
 #' pooled on the natural scale, while ratio / odds-ratio contrasts are pooled
@@ -16,7 +16,7 @@
 #' @param conf_level Numeric scalar confidence level for the pooled intervals.
 #'   Default `0.95`.
 #'
-#' @returns A [causatr_result] with `ci_method = "rubin"`. The `estimates` and
+#' @returns A `causatr_result` with `ci_method = "rubin"`. The `estimates` and
 #'   `contrasts` data.tables hold the pooled point estimate, total-variance
 #'   standard error, and Barnard-Rubin \eqn{t}-based confidence bounds. The
 #'   per-row pooling diagnostics (between/within variance, degrees of freedom,
@@ -43,7 +43,7 @@
 #' Barnard J, Rubin DB (1999). Small-sample degrees of freedom with multiple
 #' imputation. *Biometrika* 86:948-955.
 #'
-#' @seealso [causat_mice()], [pool_boot_mi()]
+#' @seealso [causat_mice()], `pool_boot_mi()`
 #' @noRd
 pool_rubin <- function(collected, conf_level = 0.95) {
   m <- collected$m

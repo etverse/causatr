@@ -6,6 +6,9 @@ vignette: >
   %\VignetteIndexEntry{Transportability and generalizability}
   %\VignetteEngine{quarto::html}
   %\VignetteEncoding{UTF-8}
+bibliography: references.bib
+nocite: |
+  @cole2010generalizing, @vanderweele2013versions
 ---
 
 ```{r}
@@ -552,7 +555,7 @@ Key diagnostics to check:
 
 ## Identification assumptions
 
-Transport estimates require four assumptions (Dahabreh et al. 2020):
+Transport estimates require four assumptions [@dahabreh2020extending]:
 
 1. **Conditional exchangeability in the study:**
    $Y^a \perp A \mid L, S = 1$.
@@ -639,10 +642,5 @@ for the full test-level coverage breakdown.
 
 ## References
 
-- Dahabreh IJ, Robertson SE, Steingrimsson JA, Stuart EA, Hernán MA
-  (2020). Extending inferences from a randomized trial to a new target
-  population. *Stat Med* 39:1999--2014.
-- Cole SR, Stuart EA (2010). Generalizing evidence from randomized
-  clinical trials to target populations. *Am J Epidemiol* 172:107--115.
-- Hernán MA, VanderWeele TJ (2017). Causal inference under multiple
-  versions of treatment. *J Causal Inf* 5(2):20160014.
+::: {#refs}
+:::

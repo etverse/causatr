@@ -6,6 +6,7 @@ vignette: >
   %\VignetteIndexEntry{Natural-history modified treatment policies (grace periods)}
   %\VignetteEngine{quarto::html}
   %\VignetteEncoding{UTF-8}
+bibliography: references.bib
 ---
 
 ```{r}
@@ -23,7 +24,7 @@ library(tinyplot)
 Most interventions assign treatment as a function of **covariates** — `static(1)`
 ignores everything, `dynamic(rule)` reads the covariate history, `shift(δ)` nudges
 the observed value. **Natural-history modified treatment policies** (G-LMTPs;
-Díaz, Williams, Morzywołek & Rudolph 2026) are different: the treatment assigned
+[@diaz2026glmtp]) are different: the treatment assigned
 at time *t* depends on the **natural value of treatment** — the treatment a
 patient *would* take absent the intervention — at *t* **and at earlier periods**.
 
@@ -44,7 +45,7 @@ the treatment that *would be observed* at *t* if the intervention were stopped
 just before *t*, given the regime was followed through *t−1*. It is the formal
 version of "what the patient would do on their own."
 
-- A **standard LMTP** (Díaz et al. 2023) assigns $A^d_t = d_t(A_t, H_t)$ — it may
+- A **standard LMTP** [@diaz2023lmtp] assigns $A^d_t = d_t(A_t, H_t)$ — it may
   use the *contemporaneous* natural value $A_t$ and the covariate history $H_t$.
   `shift()`, `scale_by()`, `threshold()` are of this kind.
 - A **natural-history MTP (G-LMTP)** assigns
@@ -146,7 +147,7 @@ c(grace_period = mu_grace, naive_dynamic_lag = mu_naive)
 On this data generating process the true one-period-delay mean is ≈ 2.30; the
 augmented engine recovers it to within ~1%, while the naive `dynamic(lag1_A)`
 rule is off by tens of percent. The `tests/testthat/test-glmtp.R` suite pins
-this against the forward-simulation truth and replicates the Díaz et al. (2026)
+this against the forward-simulation truth and replicates the @diaz2026glmtp
 Section-6 delay result.
 
 ## How causatr estimates it: augmented data
@@ -216,7 +217,7 @@ Natural-value interventions have a lineage. The table below places the causatr
 G-LMTP engine alongside the standard LMTP framework and the original IPW
 treatment.
 
-| | Young, Hernán & Robins (2014) | LMTP (Díaz et al. 2023) | G-LMTP (Díaz et al. 2026) |
+| | @young2014natural | LMTP [@diaz2023lmtp] | G-LMTP [@diaz2026glmtp] |
 |---|---|---|---|
 | Policy reads | natural value (foundational) | **contemporaneous** natural value $A_t$ + $H_t$ | natural-value **history** $\bar A_t$ + $H_t$ |
 | Estimation | IPW (density ratio $g^d/g$) | g-comp / IPW / **doubly-robust** TMLE/SDR | **augmented-data** sequential regression |
@@ -321,13 +322,5 @@ prediction fail); `splines::ns(dose, df)` extrapolates smoothly.
 
 ## References
 
-Díaz I, Williams NT, Morzywołek P, Rudolph KE (2026). Modified treatment
-policies that depend on the natural history of treatment. *arXiv:2605.24167*.
-
-Díaz I, Williams N, Hoffman KL, Schenck EJ (2023). Non-parametric causal effects
-based on longitudinal modified treatment policies. *Journal of the American
-Statistical Association* 118:846–857.
-
-Young JG, Hernán MA, Robins JM (2014). Identification, estimation and
-approximation of risk under interventions that depend on the natural value of
-treatment using observational data. *Epidemiologic Methods* 3:1–19.
+::: {#refs}
+:::

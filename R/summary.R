@@ -90,7 +90,7 @@ summary.causatr_fit <- function(object, ...) {
 #'
 #' @description
 #' Displays intervention-specific marginal means and pairwise contrasts with
-#' standard errors and confidence intervals from a [causatr_result][contrast]
+#' standard errors and confidence intervals from a `causatr_result`
 #' object.
 #'
 #' @param object A `causatr_result` object.

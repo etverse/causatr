@@ -6,6 +6,7 @@ vignette: >
   %\VignetteIndexEntry{Inverse probability weighting with causatr}
   %\VignetteEngine{quarto::html}
   %\VignetteEncoding{UTF-8}
+bibliography: references.bib
 ---
 
 ```{r}
@@ -20,8 +21,8 @@ fits the conditional treatment density via the user's `propensity_model_fn`
 (default `stats::glm`) and builds per-intervention Hájek weights for an
 intercept-only marginal structural model (MSM) refit inside `contrast()`.
 
-This vignette demonstrates IPW in causatr using the NHEFS dataset from Hernán
-& Robins (2025), covering every supported combination of treatment type,
+This vignette demonstrates IPW in causatr using the NHEFS dataset from
+@hernan_whatif, covering every supported combination of treatment type,
 outcome type, contrast scale, and inference method for time-fixed treatments.
 
 For non-static interventions (shift, scale, dynamic, IPSI), see
@@ -37,7 +38,7 @@ in `contrast()` to obtain stratum-specific estimates.
 
 The examples in this vignette use the **NHEFS** (National Health and
 Nutrition Examination Survey --- Epidemiologic Follow-up Study) dataset,
-the running example in Hernán & Robins (2025). The assumed causal
+the running example in @hernan_whatif. The assumed causal
 structure is:
 
 - **Treatment ($A$):** `qsmk` --- quit smoking between 1971 and 1982 (binary: 0/1).
@@ -87,7 +88,7 @@ nhefs_complete$sex <- factor(
 
 ## Binary treatment, continuous outcome
 
-This replicates the IPW analysis from Chapter 12 of Hernán & Robins: the
+This replicates the IPW analysis from @hernan_whatif, Ch. 12: the
 average causal effect of quitting smoking (`qsmk`) on weight change
 (`wt82_71`). By default, `confounders` specifies the same covariate
 set for the propensity model. Use `confounders_treatment` to specify
@@ -360,7 +361,7 @@ tt(tidy(res_dyn), digits = 3)
 ## IPSI --- incremental propensity score intervention
 
 `ipsi(delta)` multiplies each individual's odds of treatment by `delta`
-(Kennedy 2019). It is a smooth stochastic intervention that avoids
+[@kennedy2019ipsi]. It is a smooth stochastic intervention that avoids
 positivity violations --- no one is forced to a treatment value they
 would never take.
 
@@ -906,7 +907,7 @@ When propensity models yield extreme density ratios --- due to near-positivity
 violations, heavy confounding, or the cumulative product over many components or
 time periods --- the resulting IPW estimator can be unstable with inflated
 variance. The `trim` argument on `contrast()` winsorizes density-ratio weights
-at a given quantile (Cole & Hernán 2008; Spreafico et al. 2025). This is a
+at a given quantile [@cole2008constructing; @spreafico2025positivity]. This is a
 per-density-ratio operation applied *before* any multivariate or longitudinal
 product, following the approach used internally by
 [`lmtp`](https://cran.r-project.org/package=lmtp) (default 0.999).
@@ -971,8 +972,8 @@ changes:
 
 $$w_k(\alpha_k) = \frac{f_k\bigl(d_k^{-1}(A_k) \mid A_{1..k-1}^{\mathrm{obs}}, L; \alpha_k\bigr) \cdot |\mathrm{Jac}|}{f_k\bigl(A_k \mid A_{1..k-1}^{\mathrm{obs}}, L; \alpha_k\bigr)}.$$
 
-This is the *sequential MTP* estimand of Díaz, Williams, Hoffman,
-Schenck (2023), the standard in the causal-inference MTP literature.
+This is the *sequential MTP* estimand of @diaz2023lmtp, the standard in
+the causal-inference MTP literature.
 Sandwich variance routes through a stacked propensity bread that is
 block-diagonal across the $K$ models (each component is fit
 independently), so the propensity correction sums $K$ single-model
@@ -1039,8 +1040,8 @@ matching remains rejected because `MatchIt` is binary-only.
 
 Pass `stabilize = "marginal"` to swap the per-component numerator for
 a separately-fit model $g_k(A_k \mid A_{1..k-1})$ that drops $L$ from
-the conditioning (Robins, Hernán, Brumback 2000, extended to
-multivariate). The per-component weight becomes
+the conditioning [@robins2000msmepi] (extended to the multivariate
+case). The per-component weight becomes
 
 $$
 w_k^{s}(\alpha_k) = \frac{g_k\bigl(d_k^{-1}(A_k) \mid A_{1..k-1}\bigr) \cdot |\mathrm{Jac}|}{f_k(A_k \mid A_{1..k-1}, L; \alpha_k)}.
@@ -1176,13 +1177,5 @@ for the authoritative coverage status of every method × treatment × outcome
 
 ## References
 
-Hernán MA, Robins JM (2025). *Causal Inference: What If*. Chapman & Hall/CRC.
-Chapter 12: IP weighting and marginal structural models.
-
-Kennedy EH (2019). Nonparametric causal effects based on incremental
-propensity score interventions. *Journal of the American Statistical
-Association* 114:645--656.
-
-Díaz I, Williams N, Hoffman KL, Schenck EJ (2023). Non-parametric causal
-effects based on longitudinal modified treatment policies. *Journal of the
-American Statistical Association* 118:846--857.
+::: {#refs}
+:::

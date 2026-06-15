@@ -17,7 +17,7 @@
 #'
 #' @return A named `k x k` variance-covariance matrix.
 #'
-#' @seealso [variance_if_glmtp_one()], [glmtp_iterate()], [variance_if_ice()]
+#' @seealso `variance_if_glmtp_one()`, `glmtp_iterate()`, `variance_if_ice()`
 #' @family glmtp
 #' @noRd
 variance_if_glmtp <- function(
@@ -66,7 +66,7 @@ variance_if_glmtp <- function(
 #'
 #' @return Numeric vector of length `n` (individuals), the per-individual IF.
 #'
-#' @seealso [glmtp_if_setup()], [variance_if_glmtp_chain()]
+#' @seealso `glmtp_if_setup()`, `variance_if_glmtp_chain()`
 #' @family glmtp
 #' @noRd
 variance_if_glmtp_one <- function(fit, glmtp_result, target) {
@@ -111,7 +111,7 @@ variance_if_glmtp_one <- function(fit, glmtp_result, target) {
 #'   `id_to_idx`, `target`, `w_t`, `sum_w_target`, `has_weights`, `w_at_step`,
 #'   `IF_vec`.
 #'
-#' @seealso [ice_if_setup()]
+#' @seealso `ice_if_setup()`
 #' @family glmtp
 #' @noRd
 glmtp_if_setup <- function(fit, glmtp_result, target) {
@@ -223,7 +223,7 @@ glmtp_if_setup <- function(fit, glmtp_result, target) {
 #'
 #' @return Numeric vector of length `ctx$n`, the accumulated Channel-2 IF.
 #'
-#' @seealso [variance_if_glmtp_one()], [variance_if_ice_chain()]
+#' @seealso `variance_if_glmtp_one()`, `variance_if_ice_chain()`
 #' @family glmtp
 #' @noRd
 variance_if_glmtp_chain <- function(

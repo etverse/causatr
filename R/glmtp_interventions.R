@@ -300,7 +300,7 @@ cap_escalation <- function(delta = 1, budget = 1024L) {
 #' (\eqn{A^d_t = A_t}) at every period. Used to route a `NULL` (natural-course)
 #' reference through the augmented engine uniformly with the other G-LMTP
 #' interventions, so a glmtp contrast that includes a natural-course arm does
-#' not have to mix two iteration engines. Reproduces [ice_iterate()] under the
+#' not have to mix two iteration engines. Reproduces `ice_iterate()` under the
 #' natural course exactly (every per-label model collapses to the single pooled
 #' model).
 #'
@@ -312,7 +312,7 @@ cap_escalation <- function(delta = 1, budget = 1024L) {
 #'
 #' @return `a_now` unchanged.
 #'
-#' @seealso [glmtp_iterate()]
+#' @seealso `glmtp_iterate()`
 #' @family glmtp
 #' @noRd
 glmtp_identity_policy <- function(s_prior, a_now, h_data, t, n_times) {
