@@ -989,6 +989,7 @@ test_that("trim on multivariate IPW: per-component truncation", {
 })
 
 test_that("trim on point IPW: sandwich SE agrees with bootstrap", {
+  skip_if_fast()
   set.seed(47)
   n <- 300
   L <- rnorm(n)
@@ -1109,6 +1110,7 @@ test_that("trim on AIPW: doubly-robust property preserved", {
 # ---- lmtp cross-checks for trim (Phase 19-trim) -------------------------
 
 test_that("multivariate IPW + trim: point estimates agree with lmtp_sdr", {
+  skip_if_fast()
   skip_if_not_installed("lmtp")
   skip_if_not_installed("SuperLearner")
 
@@ -1188,6 +1190,7 @@ test_that("multivariate IPW + trim: point estimates agree with lmtp_sdr", {
 # ---- MV continuous sandwich with natural course (NULL) -----------------
 
 test_that("MV continuous IPW sandwich works with NULL intervention", {
+  skip_if_fast()
   set.seed(42)
   n <- 300
   L <- rnorm(n)

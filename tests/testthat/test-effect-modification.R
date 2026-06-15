@@ -318,6 +318,7 @@ test_that("IPW EM agrees with gcomp EM on same DGP (DGP 4)", {
 
 # Bootstrap: IPW EM bootstrap CIs cover the truth.
 test_that("IPW EM bootstrap covers stratum-specific ATEs (DGP 4)", {
+  skip_if_fast()
   d <- simulate_effect_mod(n = 3000, seed = 42)
   fit <- causat(
     d,
@@ -352,6 +353,7 @@ test_that("IPW EM bootstrap covers stratum-specific ATEs (DGP 4)", {
 # creates a centering mismatch in Ch1 that biases the sandwich SE.
 # The fix restricts the prediction and averaging to fit_rows.
 test_that("IPW EM sandwich agrees with bootstrap under NA outcomes (B2)", {
+  skip_if_fast()
   set.seed(42)
   n <- 5000
   L <- rnorm(n)
@@ -542,6 +544,7 @@ test_that("matching EM agrees with gcomp EM on same DGP (DGP 4)", {
 
 # Bootstrap: matching EM bootstrap CIs cover the truth.
 test_that("matching EM bootstrap covers stratum-specific ATEs (DGP 4)", {
+  skip_if_fast()
   skip_if_not_installed("MatchIt")
   skip_if_not_installed("optmatch")
   d <- simulate_effect_mod(n = 3000, seed = 42)
@@ -831,6 +834,7 @@ test_that("ICE EM handles multiple EM terms (A:sex + A:age)", {
 
 # Bootstrap: ICE EM bootstrap CIs cover the truth (2-period DGP).
 test_that("ICE EM bootstrap covers sex-specific ATEs (2-period DGP)", {
+  skip_if_fast()
   d <- make_em_ice_scm(n = 3000, n_times = 2, seed = 42)
   fit <- causat(
     d,
@@ -1179,6 +1183,7 @@ test_that("ICE EM x multivariate trt produces finite sex-differentiated estimate
 # Validates causatr ICE EM against lmtp::lmtp_sdr() on per-stratum
 # point estimates. Uses the same DGP and seed for both.
 test_that("ICE EM binary: causatr agrees with lmtp per-stratum (DGP-EM-ICE)", {
+  skip_if_fast()
   skip_if_not_installed("lmtp")
 
   d <- make_em_ice_scm(n = 3000, n_times = 2, seed = 42)

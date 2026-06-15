@@ -85,6 +85,7 @@ test_that("gcomp × nonlinear confounding × GAM recovers ATE", {
 # ============================================================
 
 test_that("gcomp × GAM × sandwich vs bootstrap SE agreement", {
+  skip_if_fast()
   skip_if_not_installed("mgcv")
   d <- simulate_nonlinear(n = 2000, seed = 42)
   fit <- causat(
@@ -112,6 +113,7 @@ test_that("gcomp × GAM × sandwich vs bootstrap SE agreement", {
 })
 
 test_that("gcomp × GLM with splines × sandwich vs bootstrap SE agreement", {
+  skip_if_fast()
   d <- simulate_nonlinear(n = 2000, seed = 42)
   fit <- causat(
     d,

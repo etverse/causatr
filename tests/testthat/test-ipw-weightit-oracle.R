@@ -32,6 +32,7 @@ make_het_binary_dgp <- function(n = 2000, seed = 1) {
 }
 
 test_that("T-oracle1: causatr ATE ≈ WeightIt ATE (static binary, glm PS)", {
+  skip_if_fast()
   skip_if_not_installed("WeightIt")
 
   d <- make_het_binary_dgp()
@@ -76,6 +77,7 @@ test_that("T-oracle1: causatr ATE ≈ WeightIt ATE (static binary, glm PS)", {
 })
 
 test_that("T-oracle2: causatr ATT ≈ WeightIt ATT (static binary, glm PS)", {
+  skip_if_fast()
   skip_if_not_installed("WeightIt")
 
   d <- make_het_binary_dgp()
@@ -120,6 +122,7 @@ test_that("T-oracle2: causatr ATT ≈ WeightIt ATT (static binary, glm PS)", {
 })
 
 test_that("T-oracle3: causatr ATC ≈ WeightIt ATC (static binary, glm PS)", {
+  skip_if_fast()
   skip_if_not_installed("WeightIt")
 
   d <- make_het_binary_dgp()
@@ -157,6 +160,7 @@ test_that("T-oracle3: causatr ATC ≈ WeightIt ATC (static binary, glm PS)", {
 })
 
 test_that("T-oracle4: causatr ATE with mgcv::gam PS runs and sanity-matches glm PS", {
+  skip_if_fast()
   skip_if_not_installed("WeightIt")
   skip_if_not_installed("mgcv")
 

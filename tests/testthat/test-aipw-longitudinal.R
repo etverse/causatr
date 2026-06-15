@@ -27,6 +27,7 @@ test_that("longitudinal AIPW: binary static, sandwich, ATE ~ 5", {
 })
 
 test_that("longitudinal AIPW: binary static, bootstrap, ATE ~ 5", {
+  skip_if_fast()
   d <- make_linear_scm(n = 2000, n_times = 2, seed = 43)
   fit <- causat(
     d,
@@ -100,6 +101,7 @@ test_that("longitudinal AIPW: continuous shift, sandwich", {
 })
 
 test_that("longitudinal AIPW: continuous shift, bootstrap", {
+  skip_if_fast()
   d <- make_continuous_scm(n = 2000, seed = 42)
   fit <- causat(
     d,
@@ -292,6 +294,7 @@ test_that("longitudinal AIPW vs ICE: continuous shift agreement", {
 })
 
 test_that("longitudinal AIPW DR: wrong outcome, correct propensity", {
+  skip_if_fast()
   d <- make_linear_scm(n = 3000, n_times = 2, seed = 47)
   # Misspecify outcome by dropping TV confounders
   fit <- causat(
@@ -318,6 +321,7 @@ test_that("longitudinal AIPW DR: wrong outcome, correct propensity", {
 })
 
 test_that("longitudinal AIPW DR: correct outcome, wrong propensity", {
+  skip_if_fast()
   d <- make_linear_scm(n = 3000, n_times = 2, seed = 48)
   # Misspecify propensity by omitting L from confounders
   # (outcome still includes L0 which is baseline, but misses L
@@ -391,6 +395,7 @@ test_that("longitudinal AIPW: sandwich SE finite and positive", {
 })
 
 test_that("longitudinal AIPW: bootstrap SE finite and positive", {
+  skip_if_fast()
   d <- make_linear_scm(n = 2000, n_times = 2, seed = 50)
   fit <- causat(
     d,
@@ -415,6 +420,7 @@ test_that("longitudinal AIPW: bootstrap SE finite and positive", {
 })
 
 test_that("longitudinal AIPW: sandwich vs bootstrap SE agreement", {
+  skip_if_fast()
   d <- make_linear_scm(n = 3000, n_times = 2, seed = 51)
   fit <- causat(
     d,
@@ -679,6 +685,7 @@ test_that("T-long-mv-aipw1: MV longitudinal AIPW static recovers analytical trut
 })
 
 test_that("T-long-mv-aipw2: MV longitudinal AIPW sandwich vs bootstrap SE parity", {
+  skip_if_fast()
   d <- make_em_mv_long_scm(n = 3000, seed = 2502)
   d <- data.table::as.data.table(d)
 
@@ -780,6 +787,7 @@ test_that("T-long-mv-aipw3: MV longitudinal AIPW cross-method agreement with ICE
 })
 
 test_that("T-long-mv-aipw4: MV longitudinal AIPW double-robustness under one-sided misspecification", {
+  skip_if_fast()
   # DR property: with EITHER the outcome model OR the propensity model
   # correctly specified, the AIPW estimator recovers the truth. We hold
   # the EM baseline (`confounders`, driving the MSM expansion and EM
@@ -848,6 +856,7 @@ test_that("T-long-mv-aipw4: MV longitudinal AIPW double-robustness under one-sid
 })
 
 test_that("T-long-mv-aipw5: MV longitudinal AIPW continuous shift finite + SE parity", {
+  skip_if_fast()
   # No closed-form truth under a non-static shift (MV AIPW and g-comp
   # estimands diverge by design, Diaz et al. 2023), so we check only
   # finiteness and sandwich-vs-bootstrap SE parity on a 2-period x
@@ -1025,6 +1034,7 @@ test_that("longitudinal AIPW: ATT rejected", {
 # --- Plan gap tests (added post-16i) -----------------------------------
 
 test_that("longitudinal AIPW DR caveat: sandwich SE under misspecified outcome", {
+  skip_if_fast()
   d <- make_linear_scm(n = 3000, n_times = 2, seed = 70)
   # Misspecify outcome by dropping TV confounders
   fit <- causat(
@@ -1118,6 +1128,7 @@ test_that("longitudinal AIPW: EM agreement with long-IPW", {
 })
 
 test_that("longitudinal AIPW: 3-period sandwich vs bootstrap SE agreement", {
+  skip_if_fast()
   d <- make_linear_scm(n = 3000, n_times = 3, seed = 72)
   fit <- causat(
     d,

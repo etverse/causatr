@@ -313,6 +313,7 @@ test_that("IPCW details are stashed on the fit object", {
 # ── Sandwich vs bootstrap SE agreement (DGP-M2b) ─────────────────
 
 test_that("gcomp IPCW: sandwich and bootstrap SE agree", {
+  skip_if_fast()
   d <- simulate_mar_outcome_complex(n = 3000, seed = 207)
   dt <- data.table::as.data.table(d)
 
@@ -348,6 +349,7 @@ test_that("gcomp IPCW: sandwich and bootstrap SE agree", {
 })
 
 test_that("IPW IPCW: sandwich and bootstrap SE agree", {
+  skip_if_fast()
   d <- simulate_mar_outcome_complex(n = 3000, seed = 209)
   dt <- data.table::as.data.table(d)
 
@@ -480,6 +482,7 @@ test_that("ICE + IPCW: sandwich SE and CI cover truth", {
 })
 
 test_that("ICE + IPCW: sandwich and bootstrap SE agree", {
+  skip_if_fast()
   d <- simulate_longitudinal_mar_outcome(n = 2000, seed = 302)
   dt <- data.table::as.data.table(d)
 

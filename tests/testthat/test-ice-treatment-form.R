@@ -211,6 +211,7 @@ test_that("splines::ns(A) recovers a curved continuous dose-response; linear doe
 # ---------------------------------------------------------------------------
 
 test_that("plain-ICE factor(A) sandwich SE agrees with the bootstrap SE", {
+  skip_if_fast()
   d <- make_cat_ice(3000L, 5L)
   fit <- fit_tf(d, ~ factor(A))
   ivs <- list(a1 = static(1), a0 = static(0))

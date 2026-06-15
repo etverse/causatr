@@ -1,16 +1,16 @@
 # Test-time parallelism and tier configuration.
 #
 # CAUSATR_TEST_TIER controls which tests run:
-#   "fast"  — skips bootstrap / large-n simulation tests (~30s total)
-#   "full"  — runs everything (~20 min, default for CI / pre-commit)
+#   "fast"  — skips the heavy bootstrap / external-oracle / large-n blocks
+#             (~4 CPU-min); used for pull-request CI to give fast feedback.
+#   "full"  — runs everything (default; local, push-to-default-branch, nightly).
 #
 # Usage:
 #   CAUSATR_TEST_TIER=fast Rscript -e 'devtools::test()'
 #   devtools::test(filter = "gcomp")  # targeted filter is always fast
 #
-# The four slowest files (effect-modification, aipw, ice, variance-reference)
-# account for ~95% of the total runtime. Within those files, individual
-# bootstrap/large-n blocks call skip_if_fast() to opt out.
+# Heavy blocks across the suite call skip_if_fast() as their first statement.
+# In full mode skip_if_fast() is a no-op, so local and main runs are unaffected.
 
 #' Skip a test block when CAUSATR_TEST_TIER is "fast".
 #' @noRd

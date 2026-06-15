@@ -113,6 +113,7 @@ test_that("mv AIPW: cross-checks gcomp and IPW", {
 })
 
 test_that("mv AIPW: bootstrap parity with sandwich", {
+  skip_if_fast()
   df <- sim_bb_aipw(n = 1000, seed = 99)
   fit <- causat(
     df,
@@ -486,6 +487,7 @@ test_that("aipw x bin trt x negbin x ratio x sandwich", {
 })
 
 test_that("aipw x bin trt x beta x diff x bootstrap", {
+  skip_if_fast()
   skip_if_not_installed("betareg")
   # DGP: mu = plogis(0.2 + 0.5*A + 0.3*L), Y ~ Beta(mu*10, (1-mu)*10)
   set.seed(16207)
@@ -534,6 +536,7 @@ test_that("aipw x bin trt x beta x diff x bootstrap", {
 })
 
 test_that("aipw x bin trt x beta x ratio x bootstrap", {
+  skip_if_fast()
   skip_if_not_installed("betareg")
   set.seed(16208)
   n <- 3000
@@ -611,6 +614,7 @@ test_that("aipw x external weights x sandwich recovers ATE", {
 })
 
 test_that("aipw x external weights x bootstrap SE agreement", {
+  skip_if_fast()
   set.seed(16210)
   n <- 1500
   L <- stats::rnorm(n)
@@ -873,6 +877,7 @@ test_that("aipw x MCAR outcome NAs x censoring x sandwich", {
 })
 
 test_that("aipw x MCAR outcome NAs x bootstrap SE agreement", {
+  skip_if_fast()
   df <- simulate_mcar_outcome(n = 1500, p_cens = 0.15, seed = 16217)
 
   fit <- causat(
@@ -1125,6 +1130,7 @@ test_that("aipw x GAM propensity DR: wrong outcome, correct GAM propensity", {
 })
 
 test_that("aipw x GAM outcome+propensity x sandwich vs bootstrap SE", {
+  skip_if_fast()
   skip_if_not_installed("mgcv")
   set.seed(16224)
   n <- 2000

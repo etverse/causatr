@@ -88,6 +88,7 @@ test_that("replay_fit: unnamed entry alongside named works (name kept)", {
 })
 
 test_that("gcomp bootstrap replays user `...` via replay_fit (end to end)", {
+  skip_if_fast()
   df <- simulate_binary_continuous(n = 300, seed = 11L)
   df$Y <- pmax(0, round(df$Y + 5))
   fit <- causat(
@@ -133,6 +134,7 @@ test_that("replay_fit: R3 — base R catches unknown dots at fit time", {
 })
 
 test_that("replay_fit: R5 — old fit objects without $dots still bootstrap", {
+  skip_if_fast()
   # Backward compatibility: a fit restored from a saved RDS that
   # predates the `$dots` field must not abort at bootstrap time.
   df <- simulate_binary_continuous(n = 200, seed = 14L)

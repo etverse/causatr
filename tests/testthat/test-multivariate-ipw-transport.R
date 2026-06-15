@@ -121,6 +121,7 @@ test_that("mv IPW transport (generalizability): recovers marginal ATE", {
 })
 
 test_that("mv IPW transport: sandwich SE plausible vs bootstrap", {
+  skip_if_fast()
   # Verify that the gamma-block correction lands the sandwich SE within
   # a reasonable range of the bootstrap SE. A large discrepancy would
   # indicate the sampling-model correction is wrong.
@@ -159,6 +160,7 @@ test_that("mv IPW transport: sandwich SE plausible vs bootstrap", {
 })
 
 test_that("mv IPW transport: bootstrap point estimate near truth", {
+  skip_if_fast()
   d <- simulate_mv_transport(n = 4000, seed = 5)
   truth_transport <- 3.5 + mean(d$L[d$S == 0])
 

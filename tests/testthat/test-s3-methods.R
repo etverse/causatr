@@ -47,6 +47,7 @@ test_that("format_family() returns '<custom>' for unrecognised inputs", {
 # tests because all use sandwich SE on point fits without `by`.
 
 test_that("print.causatr_result() shows bootstrap replicate count", {
+  skip_if_fast()
   set.seed(421)
   d <- simulate_binary_continuous(n = 200, seed = 421)
   fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L)
@@ -573,6 +574,7 @@ test_that("confint() level argument changes the CI width consistently", {
 
 
 test_that("confint() respects level for both sandwich and bootstrap paths", {
+  skip_if_fast()
   # Coverage gap from FEATURE_COVERAGE_MATRIX: the bootstrap branch
   # reads `$boot_t` and recomputes percentile CIs at the requested
   # `level`; the sandwich branch reconstructs Wald CIs from the
@@ -637,6 +639,7 @@ test_that("confint() respects level for both sandwich and bootstrap paths", {
 
 
 test_that("bootstrap result carries boot_info and print() surfaces it", {
+  skip_if_fast()
   # Issue 5: previously, bootstrap failures were warned transiently
   # and lost. `boot_info` now lives on the result so users can see
   # the success/failure split at print time and post-hoc.
@@ -698,6 +701,7 @@ test_that("bootstrap result carries boot_info and print() surfaces it", {
 
 
 test_that("ICE × bootstrap × external weights gives finite SE matching sandwich", {
+  skip_if_fast()
   # Coverage gap: ICE+bootstrap+weights had no test. This is a
   # cross-cut of three previously-undertested features. Asserts:
   # (1) bootstrap runs without error with weights threaded through,

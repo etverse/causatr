@@ -226,6 +226,7 @@ test_that("AIPW transport: 2-of-3 DR — wrong sampling model", {
 })
 
 test_that("AIPW transport: sandwich SE plausible (ratio to bootstrap)", {
+  skip_if_fast()
   d <- simulate_transport(n = 3000, seed = 11)
   fit <- causat(
     d,
@@ -262,6 +263,7 @@ test_that("AIPW transport: sandwich SE plausible (ratio to bootstrap)", {
 })
 
 test_that("AIPW transport: bootstrap point estimate near truth", {
+  skip_if_fast()
   d <- simulate_transport(n = 6000, seed = 61)
   fit <- causat(
     d,
@@ -322,6 +324,7 @@ test_that("AIPW transport: continuous treatment with shift (binary S column)", {
 })
 
 test_that("AIPW transport: dynamic intervention", {
+  skip_if_fast()
   d <- simulate_transport(n = 6000, seed = 72)
   fit <- causat(
     d,

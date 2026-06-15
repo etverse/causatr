@@ -17,6 +17,7 @@
 # brackets the true value.
 
 test_that("gcomp transport bootstrap (transportability): point estimate near truth", {
+  skip_if_fast()
   d <- simulate_transport(n = 4000, seed = 42)
   truth_ate <- 3 + mean(d$L[d$S == 0])
 
@@ -43,6 +44,7 @@ test_that("gcomp transport bootstrap (transportability): point estimate near tru
 })
 
 test_that("gcomp transport bootstrap (generalizability): point estimate near truth", {
+  skip_if_fast()
   d <- simulate_transport(n = 4000, seed = 99)
   truth_ate <- 3 + mean(d$L)
 
@@ -68,6 +70,7 @@ test_that("gcomp transport bootstrap (generalizability): point estimate near tru
 })
 
 test_that("gcomp transport bootstrap: CI brackets truth", {
+  skip_if_fast()
   d <- simulate_transport(n = 4000, seed = 13)
   truth_ate <- 3 + mean(d$L[d$S == 0])
 
@@ -95,6 +98,7 @@ test_that("gcomp transport bootstrap: CI brackets truth", {
 })
 
 test_that("gcomp transport bootstrap: point estimate equals sandwich estimate", {
+  skip_if_fast()
   # ci_method controls only the variance; the plug-in mean is identical.
   d <- simulate_transport(n = 2000, seed = 7)
   fit <- causat(
@@ -126,6 +130,7 @@ test_that("gcomp transport bootstrap: point estimate equals sandwich estimate", 
 })
 
 test_that("IPW transport bootstrap (transportability): point estimate near truth", {
+  skip_if_fast()
   # IPW is noisier than gcomp; larger n and wider tolerance.
   d <- simulate_transport(n = 10000, seed = 42)
   truth_ate <- 3 + mean(d$L[d$S == 0])
@@ -153,6 +158,7 @@ test_that("IPW transport bootstrap (transportability): point estimate near truth
 })
 
 test_that("IPW transport bootstrap (generalizability): point estimate near truth", {
+  skip_if_fast()
   d <- simulate_transport(n = 10000, seed = 99)
   truth_ate <- 3 + mean(d$L)
 
@@ -178,6 +184,7 @@ test_that("IPW transport bootstrap (generalizability): point estimate near truth
 })
 
 test_that("IPW transport bootstrap: CI brackets truth", {
+  skip_if_fast()
   d <- simulate_transport(n = 8000, seed = 17)
   truth_ate <- 3 + mean(d$L[d$S == 0])
 
@@ -227,6 +234,7 @@ test_that("IPW transport bootstrap: sampling model refitted per replicate", {
 })
 
 test_that("gcomp vs IPW transport bootstrap: point estimates agree", {
+  skip_if_fast()
   d <- simulate_transport(n = 10000, seed = 55)
   ivs <- list(a1 = static(1), a0 = static(0))
 

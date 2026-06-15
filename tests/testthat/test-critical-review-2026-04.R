@@ -29,6 +29,7 @@ test_that("B1: subset expression resolves session-scoped variables", {
 })
 
 test_that("B1: subset works inside bootstrap workers too", {
+  skip_if_fast()
   df <- simulate_binary_continuous(n = 400, seed = 2L)
   fit <- causat(
     df,
@@ -75,6 +76,7 @@ test_that("B1: subset length mismatch aborts with a clear message", {
 })
 
 test_that("B2: bootstrap refit replays user's ... (gcomp quasipoisson)", {
+  skip_if_fast()
   # Pre-fix: refit_gcomp dropped user `...`, so a gcomp fit with a
   # non-default family silently bootstrapped with the default family.
   df <- simulate_binary_continuous(n = 400, seed = 4L)

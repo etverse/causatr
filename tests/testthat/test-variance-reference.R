@@ -581,6 +581,7 @@ test_that("AIPW split confounders matches stdReg2 DR — binary outcome, split",
 # ── 2. Tightened bootstrap-sandwich agreement ────────────────────────────────
 
 test_that("point gcomp: sandwich ≈ bootstrap within 15% (continuous, large n)", {
+  skip_if_fast()
   skip_on_os("windows")
   df <- simulate_binary_continuous(n = 5000, seed = 700)
 
@@ -617,6 +618,7 @@ test_that("point gcomp: sandwich ≈ bootstrap within 15% (continuous, large n)"
 
 
 test_that("point gcomp: sandwich ≈ bootstrap within 15% (binary outcome)", {
+  skip_if_fast()
   skip_on_os("windows")
   df <- simulate_binary_binary(n = 5000, seed = 701)
 
@@ -655,6 +657,7 @@ test_that("point gcomp: sandwich ≈ bootstrap within 15% (binary outcome)", {
 
 
 test_that("ICE: sandwich ≈ bootstrap within 20% (large n)", {
+  skip_if_fast()
   skip_on_os("windows")
   long <- make_linear_scm(n = 5000, n_times = 2, seed = 702)
 

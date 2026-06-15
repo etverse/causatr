@@ -492,6 +492,7 @@ test_that("vcov returns per-stratum list with by + estimand", {
 # ============================================================
 
 test_that("gcomp × by × ATT × bootstrap works", {
+  skip_if_fast()
   df <- simulate_het_effect(n = 2000)
   fit <- causat(
     df,

@@ -8,6 +8,7 @@
 # ── Point gcomp: sandwich vs bootstrap agreement ─────────────────
 
 test_that("gcomp IPCW: sandwich vs bootstrap SE agree", {
+  skip_if_fast()
   d <- simulate_mar_outcome(n = 3000, seed = 600)
   dt <- data.table::as.data.table(d)
 
@@ -43,6 +44,7 @@ test_that("gcomp IPCW: sandwich vs bootstrap SE agree", {
 
 
 test_that("IPW IPCW: sandwich vs bootstrap SE agree", {
+  skip_if_fast()
   d <- simulate_mar_outcome(n = 3000, seed = 601)
   dt <- data.table::as.data.table(d)
 
@@ -152,6 +154,7 @@ test_that("numDeriv jacobian matches manual finite differences for gcomp", {
 # ── Sandwich vs bootstrap for more estimators ───────────────────
 
 test_that("matching IPCW: sandwich vs bootstrap SE ratio in [0.5, 2.0]", {
+  skip_if_fast()
   d <- simulate_mar_outcome(n = 3000, seed = 604)
   dt <- data.table::as.data.table(d)
 

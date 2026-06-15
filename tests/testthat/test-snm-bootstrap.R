@@ -3,6 +3,7 @@
 # point / longitudinal / treatment-free / treatment_values paths.
 
 test_that("SNM point bootstrap: SE consistent with sandwich", {
+  skip_if_fast()
   set.seed(42)
   n <- 1000
   L <- rnorm(n)
@@ -39,6 +40,7 @@ test_that("SNM point bootstrap: SE consistent with sandwich", {
 
 
 test_that("SNM point bootstrap: no EM (single psi)", {
+  skip_if_fast()
   set.seed(42)
   n <- 800
   L <- rnorm(n)
@@ -70,6 +72,7 @@ test_that("SNM point bootstrap: no EM (single psi)", {
 
 
 test_that("SNM point bootstrap + treatment-free: SE consistent", {
+  skip_if_fast()
   set.seed(42)
   n <- 1000
   L <- rnorm(n)
@@ -110,6 +113,7 @@ test_that("SNM point bootstrap + treatment-free: SE consistent", {
 
 
 test_that("SNM point bootstrap with treatment_values", {
+  skip_if_fast()
   set.seed(42)
   n <- 1000
   L <- rnorm(n)
@@ -150,6 +154,7 @@ test_that("SNM point bootstrap with treatment_values", {
 
 
 test_that("SNM point bootstrap: binary treatment + EM", {
+  skip_if_fast()
   set.seed(42)
   n <- 1000
   L <- rnorm(n)
@@ -180,6 +185,7 @@ test_that("SNM point bootstrap: binary treatment + EM", {
 
 
 test_that("SNM longitudinal bootstrap: SE consistent with sandwich", {
+  skip_if_fast()
   dgp <- simulate_snm_longitudinal(n = 800, seed = 42)
 
   expect_message(
@@ -219,6 +225,7 @@ test_that("SNM longitudinal bootstrap: SE consistent with sandwich", {
 
 
 test_that("SNM longitudinal bootstrap + TF: SE consistent", {
+  skip_if_fast()
   dgp <- simulate_snm_longitudinal(n = 800, seed = 42)
 
   expect_message(
@@ -250,6 +257,7 @@ test_that("SNM longitudinal bootstrap + TF: SE consistent", {
 
 
 test_that("SNM longitudinal bootstrap with TV-EM", {
+  skip_if_fast()
   dgp <- simulate_snm_longitudinal_tv_em(n = 800, seed = 42)
 
   fit <- causat(
@@ -279,6 +287,7 @@ test_that("SNM longitudinal bootstrap with TV-EM", {
 
 
 test_that("SNM bootstrap no longer rejected", {
+  skip_if_fast()
   set.seed(42)
   n <- 100
   L <- rnorm(n)

@@ -681,6 +681,7 @@ test_that("stratified ICE sandwich matches delicatessen (binomial, 2 strata)", {
 # the fit, so the per-arm sandwich SEs must be byte-identical. A tight equality
 # oracle (1e-10) for the factor-coded split path -- not a finite/positive check.
 test_that("stratified ICE sandwich is invariant to factor vs integer stratum coding", {
+  skip_if_fast()
   d <- make_em_ice_scm(n = 2000, n_times = 2, seed = 6)
   d$sexf <- factor(d$sex, labels = c("F", "M"))
   ivs <- list(a1 = static(1), a0 = static(0))

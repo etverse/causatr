@@ -63,6 +63,7 @@ test_that("AIPW agrees with gcomp and IPW on well-specified DGP", {
 })
 
 test_that("AIPW bootstrap agrees with sandwich (within 30%)", {
+  skip_if_fast()
   d <- simulate_binary_continuous(n = 1000, seed = 123)
   fit <- causat(
     d,

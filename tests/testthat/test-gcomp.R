@@ -55,6 +55,7 @@ test_that("g-computation replicates NHEFS ATE ≈ 3.5 kg (Ch. 13)", {
 })
 
 test_that("g-comp sandwich SE and bootstrap SE are within 20%", {
+  skip_if_fast()
   data("nhefs", package = "causatr")
 
   fit <- causat(

@@ -17,6 +17,7 @@ fake_boot_result <- function(t_mat) {
 }
 
 test_that("process_boot_results() warns and returns NA vcov when < 2 replicates succeed", {
+  skip_if_fast()
   # All-NA `t` matrix simulates the case where every replicate failed
   # (e.g. factor-level mismatch in every resample).
   t_mat <- matrix(NA_real_, nrow = 100, ncol = 2)
@@ -33,6 +34,7 @@ test_that("process_boot_results() warns and returns NA vcov when < 2 replicates 
 })
 
 test_that("process_boot_results() emits the gentle warning when failure rate <= 20%", {
+  skip_if_fast()
   # 10 of 100 (= 10%) replicates failed -- under the 20% threshold so
   # the message is the "discarded" variant rather than "may be unreliable".
   set.seed(41)
@@ -50,6 +52,7 @@ test_that("process_boot_results() emits the gentle warning when failure rate <= 
 })
 
 test_that("process_boot_results() emits the strong warning when failure rate > 20%", {
+  skip_if_fast()
   # 30 of 100 (= 30%) replicates failed -- triggers the
   # "may be unreliable" wording that signals model instability.
   set.seed(42)
@@ -64,6 +67,7 @@ test_that("process_boot_results() emits the strong warning when failure rate > 2
 })
 
 test_that("process_boot_results() succeeds silently when no replicates fail", {
+  skip_if_fast()
   set.seed(43)
   t_mat <- matrix(rnorm(200), nrow = 100, ncol = 2)
   br <- fake_boot_result(t_mat)

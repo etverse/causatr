@@ -128,6 +128,7 @@ test_that("IPW transport corrects study bias vs. naive study-only estimate", {
 })
 
 test_that("IPW transport: sandwich SE plausible (ratio to bootstrap)", {
+  skip_if_fast()
   d <- simulate_transport(n = 3000, seed = 11)
   fit <- causat(
     d,
@@ -179,6 +180,7 @@ test_that("IPW transport: target rows with NA outcome/treatment handled", {
 })
 
 test_that("IPW transport cross-check: matches TransportHealth::transportIP()", {
+  skip_if_fast()
   # TransportHealth::transportIP() fits the same models: P(A=1|L) logistic for
   # confounding, P(S=1|L) logistic for sampling, then a weighted MSM Y ~ A on
   # study rows. For binary A the MSM coefficient equals the Hajek ATE, matching

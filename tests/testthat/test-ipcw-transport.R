@@ -151,6 +151,7 @@ test_that("IPW + IPCW + transport (generalizability): recovers marginal ATE", {
 })
 
 test_that("IPW + IPCW + transport: sandwich SE plausible vs bootstrap", {
+  skip_if_fast()
   d <- simulate_ipcw_transport(n = 5000, seed = 210)
 
   fit <- causat(
@@ -271,6 +272,7 @@ test_that("AIPW + IPCW + transport: 2-of-3 DR — wrong outcome model", {
 })
 
 test_that("AIPW + IPCW + transport: sandwich vs bootstrap SE agreement", {
+  skip_if_fast()
   d <- simulate_ipcw_transport(n = 5000, seed = 320)
 
   fit <- causat(
@@ -427,6 +429,7 @@ test_that("IPCW + transport corrects bias vs naive complete-case transport", {
 # --- Bootstrap replays all models ---------------------------------------------
 
 test_that("Bootstrap refits sampling + censoring + propensity per replicate", {
+  skip_if_fast()
   d <- simulate_ipcw_transport(n = 3000, seed = 420)
 
   fit <- causat(
@@ -496,6 +499,7 @@ test_that("IPCW + transport details are correctly stashed on fit", {
 # --- External cross-check: TransportHealth -----------------------------------
 
 test_that("gcomp + IPCW + transport: TransportHealth cross-check", {
+  skip_if_fast()
   # TransportHealth does not handle IPCW natively. We pre-compute IPCW
   # weights, pass them as case weights to the outcome model, then compare
   # the TransportHealth TATE against causatr's integrated estimate.

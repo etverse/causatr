@@ -14,6 +14,15 @@ Single source of truth for what works, what's tested, and at what fidelity.
 
 References: lmtp (`lmtp_tmle`, `lmtp_sdr`), Hernán & Robins book values, closed-form analytical truth, WeightIt oracles, `delicatessen`.
 
+## Test-file organization
+
+A few large test files are split into thematic siblings purely for CI test-file
+parallelism; the estimand coverage and the rows below are unchanged.
+
+- `test-aipw.R` (point AIPW) + `test-aipw-longitudinal.R` (ICE-AIPW + multivariate longitudinal) + `test-aipw-lmtp-oracle.R` (`lmtp` SDR cross-checks) + `test-aipw-point-extra.R` (non-Gaussian families, external/survey/cluster weights, missing data, subset, GAM)
+- `test-longitudinal-ipw.R` (univariate) + `test-longitudinal-ipw-mv.R` (multivariate)
+- `test-ipcw-variance.R` (sandwich-vs-bootstrap + jacobian) + `test-ipcw-variance-coverage.R` (95% CI coverage)
+
 ---
 
 ## G-comp (point)

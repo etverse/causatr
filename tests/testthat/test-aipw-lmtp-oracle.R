@@ -2,6 +2,7 @@
 # Split from test-aipw.R so these slow blocks run on their own parallel worker.
 
 test_that("longitudinal AIPW: lmtp cross-check (binary static)", {
+  skip_if_fast()
   skip_if_not_installed("lmtp")
   skip_if_not_installed("SuperLearner")
 
@@ -83,6 +84,7 @@ test_that("longitudinal AIPW: lmtp cross-check (binary static)", {
 })
 
 test_that("longitudinal AIPW: lmtp cross-check (continuous shift)", {
+  skip_if_fast()
   skip_if_not_installed("lmtp")
   skip_if_not_installed("SuperLearner")
 
@@ -164,6 +166,7 @@ test_that("longitudinal AIPW: lmtp cross-check (continuous shift)", {
 })
 
 test_that("longitudinal AIPW: lmtp cross-check (binary outcome)", {
+  skip_if_fast()
   skip_if_not_installed("lmtp")
   skip_if_not_installed("SuperLearner")
 

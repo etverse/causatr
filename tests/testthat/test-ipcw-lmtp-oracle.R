@@ -117,6 +117,7 @@ test_that("IPW without IPCW is biased; with IPCW is corrected", {
 # ── lmtp cross-checks on DGP-M2b ─────────────────────────────────
 
 test_that("gcomp+IPCW agrees with lmtp_sdr on DGP-M2b", {
+  skip_if_fast()
   skip_if_not_installed("lmtp")
 
   d <- simulate_mar_outcome_complex(n = 5000, seed = 402)
@@ -193,6 +194,7 @@ test_that("gcomp+IPCW agrees with lmtp_sdr on DGP-M2b", {
 
 
 test_that("IPW+IPCW agrees with lmtp_sdr on DGP-M2b", {
+  skip_if_fast()
   skip_if_not_installed("lmtp")
 
   d <- simulate_mar_outcome_complex(n = 5000, seed = 403)
@@ -392,6 +394,7 @@ dgp_m5_to_lmtp_wide <- function(d) {
 
 
 test_that("longitudinal lmtp cross-check: ICE+IPCW agrees with lmtp_sdr", {
+  skip_if_fast()
   skip_if_not_installed("lmtp")
 
   d <- simulate_longitudinal_mar_outcome(n = 5000, seed = 500)
@@ -468,6 +471,7 @@ test_that("longitudinal lmtp cross-check: ICE+IPCW agrees with lmtp_sdr", {
 
 
 test_that("longitudinal lmtp cross-check: IPW+IPCW agrees with lmtp_sdr", {
+  skip_if_fast()
   skip_if_not_installed("lmtp")
 
   d <- simulate_longitudinal_mar_outcome(n = 5000, seed = 501)

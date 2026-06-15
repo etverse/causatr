@@ -114,6 +114,7 @@ test_that("AIPW + IPCW reduces bias vs naive complete-case AIPW", {
 })
 
 test_that("AIPW + IPCW: sandwich vs bootstrap SE ratio in (0.5, 2.0)", {
+  skip_if_fast()
   d <- simulate_mar_outcome_complex(n = 2000, seed = 320)
   dt <- data.table::as.data.table(d)
 
@@ -149,6 +150,7 @@ test_that("AIPW + IPCW: sandwich vs bootstrap SE ratio in (0.5, 2.0)", {
 })
 
 test_that("AIPW + IPCW DR: wrong outcome model still recovers truth", {
+  skip_if_fast()
   d <- simulate_mar_outcome_complex(n = 5000, seed = 330)
   dt <- data.table::as.data.table(d)
   # Misspecify outcome: omit the interaction and quadratic terms
@@ -241,6 +243,7 @@ test_that("AIPW + IPCW stashes correct details", {
 # Critical review round 2026-05-17, Issue #1.
 # Repro: /tmp/causatr_repro_ipcw_transport.R
 test_that("AIPW + IPCW + transport: sandwich SE runs and agrees with bootstrap", {
+  skip_if_fast()
   set.seed(500)
   n <- 2000
   L <- rnorm(n)
