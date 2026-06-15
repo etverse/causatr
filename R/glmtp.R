@@ -3,7 +3,7 @@
 #' @description
 #' Runs the augmented-data g-computation of Diaz, Williams, Morzywolek &
 #' Rudolph (2026, arXiv:2605.24167) for a modified treatment policy that depends
-#' on the **natural-value history of treatment**. Unlike [ice_iterate()] (which
+#' on the **natural-value history of treatment**. Unlike `ice_iterate()` (which
 #' conditions on the observed lagged treatment), this engine decouples the
 #' *conditioning* treatment value from the *policy-input* value by carrying an
 #' auxiliary natural-treatment-history sequence \eqn{\bar{s}_t} as a label
@@ -27,7 +27,7 @@
 #' }
 #' The estimand is \eqn{\hat\theta = n^{-1} \sum_i q_1(A_{1,i}, H_{1,i})}.
 #' Binary outcomes use `quasibinomial` for the pseudo steps (fractional
-#' responses), exactly as [ice_iterate()]. Censoring and external weights flow
+#' responses), exactly as `ice_iterate()`. Censoring and external weights flow
 #' through every per-(time, label) fit.
 #'
 #' @param fit A `causatr_fit` of type `"longitudinal"`, `estimator = "gcomp"`
@@ -42,7 +42,7 @@
 #'       individual at the first time point.}
 #'     \item{`models`}{List indexed by time point. The final element is the
 #'       single label-independent base model; each earlier element is a named
-#'       list of per-label models keyed by [glmtp_label_key()].}
+#'       list of per-label models keyed by `glmtp_label_key()`.}
 #'     \item{`fit_ids`}{Parallel structure of fitting-set ids (for variance).}
 #'     \item{`support`}{The discrete treatment support used.}
 #'     \item{`intervention`}{The intervention (or `NULL`).}
@@ -52,7 +52,7 @@
 #' Diaz I, Williams NT, Morzywolek P, Rudolph KE (2026). Modified treatment
 #' policies that depend on the natural history of treatment. arXiv:2605.24167.
 #'
-#' @seealso [grace_period()], [carry_forward()], [ice_iterate()]
+#' @seealso [grace_period()], [carry_forward()], `ice_iterate()`
 #' @family glmtp
 #' @noRd
 glmtp_iterate <- function(fit, intervention) {

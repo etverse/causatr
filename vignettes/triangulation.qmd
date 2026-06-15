@@ -6,6 +6,7 @@ vignette: >
   %\VignetteIndexEntry{Methodological triangulation: g-computation, IPW, AIPW, matching, and SNM}
   %\VignetteEngine{quarto::html}
   %\VignetteEncoding{UTF-8}
+bibliography: references.bib
 ---
 
 ```{r}
@@ -28,7 +29,7 @@ This vignette compares all five methods on the NHEFS dataset:
 
 ## Data: NHEFS
 
-All examples use the **NHEFS** dataset (Hernán & Robins, 2025). The
+All examples use the **NHEFS** dataset [@hernan_whatif]. The
 assumed causal structure is:
 
 - **Treatment ($A$):** `qsmk` — quit smoking between 1971 and 1982 (binary: 0/1).
@@ -377,7 +378,7 @@ misspecification in one or more methods.
 Under IPW, AIPW, and matching, the modifier in `A:modifier` must be a
 **baseline** (pre-treatment) variable. A time-varying modifier in a marginal
 structural model conditions on a post-treatment variable, which biases the
-estimand via mediator and collider paths (Robins, Hernán, Brumback 2000).
+estimand via mediator and collider paths [@robins2000msmepi].
 G-computation has no such restriction because it models the outcome, not
 the treatment.
 
@@ -461,4 +462,5 @@ all components at once.
 
 ## References
 
-Hernán MA, Robins JM (2025). *Causal Inference: What If*. Chapman & Hall/CRC.
+::: {#refs}
+:::

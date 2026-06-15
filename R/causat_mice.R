@@ -295,7 +295,7 @@ mi_extract <- function(res) {
 #' @param imp A `mids` object.
 #' @param fit_args,contrast_args Argument bundles for `mi_fit_one()`.
 #' @param call The originating `causat_mice()` call, stored on the result.
-#' @returns A `collected` list consumed by [pool_rubin()]: stacked `m x p`
+#' @returns A `collected` list consumed by `pool_rubin()`: stacked `m x p`
 #'   estimate / SE matrices for means and contrasts, the label vectors, and
 #'   the metadata needed to rebuild a `causatr_result`.
 #' @noRd
@@ -384,7 +384,7 @@ mi_assert_enough <- function(n_ok, m, failures) {
 #' @param per_imp List of `mi_extract()` outputs, one per surviving
 #'   imputation.
 #' @param call The originating `causat_mice()` call.
-#' @returns A `collected` list for [pool_rubin()].
+#' @returns A `collected` list for `pool_rubin()`.
 #' @noRd
 mi_stack <- function(per_imp, call) {
   first <- per_imp[[1L]]

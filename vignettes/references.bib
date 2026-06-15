@@ -1,0 +1,584 @@
+% references.bib --- single source of truth for causatr documentation citations.
+% Cited from the Quarto vignettes via @key / [@key]; mirrored as plain-text
+% roxygen @references in R/ and as prose in the design docs. Every entry carries a
+% DOI or arXiv URL so it can be verified independently. Keys follow the scheme
+% firstauthorYYYYkeyword.
+
+% Books and monographs
+
+@book{hernan_whatif,
+  author    = {Hernán, Miguel A. and Robins, James M.},
+  title     = {Causal Inference: What If},
+  year      = {2025},
+  publisher = {Chapman \& Hall/CRC},
+  address   = {Boca Raton, FL},
+  note      = {Online edition},
+  url       = {https://www.hsph.harvard.edu/miguel-hernan/causal-inference-book/}
+}
+
+@book{little2019missing,
+  author    = {Little, Roderick J. A. and Rubin, Donald B.},
+  title     = {Statistical Analysis with Missing Data},
+  year      = {2019},
+  edition   = {3rd},
+  publisher = {Wiley},
+  address   = {Hoboken, NJ},
+  doi       = {10.1002/9781119482260}
+}
+
+@book{rubin1987mi,
+  author    = {Rubin, Donald B.},
+  title     = {Multiple Imputation for Nonresponse in Surveys},
+  year      = {1987},
+  publisher = {Wiley},
+  address   = {New York},
+  doi       = {10.1002/9780470316696}
+}
+
+@book{vanbuuren2018flexible,
+  author    = {van Buuren, Stef},
+  title     = {Flexible Imputation of Missing Data},
+  year      = {2018},
+  edition   = {2nd},
+  publisher = {CRC Press},
+  address   = {Boca Raton, FL},
+  doi       = {10.1201/9780429492259}
+}
+
+@book{davison1997bootstrap,
+  author    = {Davison, Anthony C. and Hinkley, David V.},
+  title     = {Bootstrap Methods and Their Application},
+  year      = {1997},
+  publisher = {Cambridge University Press},
+  address   = {Cambridge},
+  doi       = {10.1017/CBO9780511802843}
+}
+
+@book{efron1993bootstrap,
+  author    = {Efron, Bradley and Tibshirani, Robert J.},
+  title     = {An Introduction to the Bootstrap},
+  year      = {1993},
+  publisher = {Chapman \& Hall},
+  address   = {New York},
+  doi       = {10.1201/9780429246593}
+}
+
+@book{hampel1986robust,
+  author    = {Hampel, Frank R. and Ronchetti, Elvezio M. and Rousseeuw, Peter J. and Stahel, Werner A.},
+  title     = {Robust Statistics: The Approach Based on Influence Functions},
+  year      = {1986},
+  publisher = {Wiley},
+  address   = {New York},
+  doi       = {10.1002/9781118186435}
+}
+
+@book{huber1981robust,
+  author    = {Huber, Peter J.},
+  title     = {Robust Statistics},
+  year      = {1981},
+  publisher = {Wiley},
+  address   = {New York},
+  doi       = {10.1002/0471725250}
+}
+
+@book{tsiatis2006semiparametric,
+  author    = {Tsiatis, Anastasios A.},
+  title     = {Semiparametric Theory and Missing Data},
+  year      = {2006},
+  publisher = {Springer},
+  address   = {New York},
+  doi       = {10.1007/0-387-37345-4}
+}
+
+@book{vdl2003unified,
+  author    = {van der Laan, Mark J. and Robins, James M.},
+  title     = {Unified Methods for Censored Longitudinal Data and Causality},
+  year      = {2003},
+  publisher = {Springer},
+  address   = {New York},
+  doi       = {10.1007/978-0-387-21700-0}
+}
+
+@book{vdl2011targeted,
+  author    = {van der Laan, Mark J. and Rose, Sherri},
+  title     = {Targeted Learning: Causal Inference for Observational and Experimental Data},
+  year      = {2011},
+  publisher = {Springer},
+  address   = {New York},
+  doi       = {10.1007/978-1-4419-9782-1}
+}
+
+% Identification, g-computation, and causal-inference foundations
+
+@article{robins1986newapproach,
+  author  = {Robins, James M.},
+  title   = {A new approach to causal inference in mortality studies with a sustained exposure period---application to control of the healthy worker survivor effect},
+  journal = {Mathematical Modelling},
+  year    = {1986},
+  volume  = {7},
+  number  = {9--12},
+  pages   = {1393--1512},
+  doi     = {10.1016/0270-0255(86)90088-6}
+}
+
+@article{robins2000msmepi,
+  author  = {Robins, James M. and Hernán, Miguel A. and Brumback, Babette},
+  title   = {Marginal structural models and causal inference in epidemiology},
+  journal = {Epidemiology},
+  year    = {2000},
+  volume  = {11},
+  number  = {5},
+  pages   = {550--560},
+  doi     = {10.1097/00001648-200009000-00011}
+}
+
+@article{bang2005doubly,
+  author  = {Bang, Heejung and Robins, James M.},
+  title   = {Doubly robust estimation in missing data and causal inference models},
+  journal = {Biometrics},
+  year    = {2005},
+  volume  = {61},
+  number  = {4},
+  pages   = {962--973},
+  doi     = {10.1111/j.1541-0420.2005.00377.x}
+}
+
+@article{robins1994aipw,
+  author  = {Robins, James M. and Rotnitzky, Andrea and Zhao, Lue Ping},
+  title   = {Estimation of regression coefficients when some regressors are not always observed},
+  journal = {Journal of the American Statistical Association},
+  year    = {1994},
+  volume  = {89},
+  number  = {427},
+  pages   = {846--866},
+  doi     = {10.1080/01621459.1994.10476818}
+}
+
+@article{rotnitzky2012improved,
+  author  = {Rotnitzky, Andrea and Lei, Quanhong and Sued, Mariela and Robins, James M.},
+  title   = {Improved double-robust estimation in missing data and causal inference models},
+  journal = {Biometrika},
+  year    = {2012},
+  volume  = {99},
+  number  = {2},
+  pages   = {439--456},
+  doi     = {10.1093/biomet/ass013}
+}
+
+% Interventions, MTPs, and incremental propensity scores
+
+@article{diaz2012population,
+  author  = {Díaz, Iván and van der Laan, Mark J.},
+  title   = {Population intervention causal effects based on stochastic interventions},
+  journal = {Biometrics},
+  year    = {2012},
+  volume  = {68},
+  number  = {2},
+  pages   = {541--549},
+  doi     = {10.1111/j.1541-0420.2011.01685.x}
+}
+
+@article{kennedy2019ipsi,
+  author  = {Kennedy, Edward H.},
+  title   = {Nonparametric causal effects based on incremental propensity score interventions},
+  journal = {Journal of the American Statistical Association},
+  year    = {2019},
+  volume  = {114},
+  number  = {526},
+  pages   = {645--656},
+  doi     = {10.1080/01621459.2017.1422737}
+}
+
+@article{diaz2023lmtp,
+  author  = {Díaz, Iván and Williams, Nicholas and Hoffman, Katherine L. and Schenck, Edward J.},
+  title   = {Nonparametric causal effects based on longitudinal modified treatment policies},
+  journal = {Journal of the American Statistical Association},
+  year    = {2023},
+  volume  = {118},
+  number  = {542},
+  pages   = {846--857},
+  doi     = {10.1080/01621459.2021.1955691}
+}
+
+@article{diaz2026glmtp,
+  author  = {Díaz, Iván and Williams, Nicholas T. and Morzywołek, Paweł and Rudolph, Kara E.},
+  title   = {Modified treatment policies that depend on the natural history of treatment},
+  journal = {arXiv preprint arXiv:2605.24167},
+  year    = {2026},
+  url     = {https://arxiv.org/abs/2605.24167}
+}
+
+@article{haneuse2013mtp,
+  author  = {Haneuse, Sebastien and Rotnitzky, Andrea},
+  title   = {Estimation of the effect of interventions that modify the received treatment},
+  journal = {Statistics in Medicine},
+  year    = {2013},
+  volume  = {32},
+  number  = {30},
+  pages   = {5260--5277},
+  doi     = {10.1002/sim.5907}
+}
+
+@article{young2014natural,
+  author  = {Young, Jessica G. and Hernán, Miguel A. and Robins, James M.},
+  title   = {Identification, estimation and approximation of risk under interventions that depend on the natural value of treatment using observational data},
+  journal = {Epidemiologic Methods},
+  year    = {2014},
+  volume  = {3},
+  number  = {1},
+  pages   = {1--19},
+  doi     = {10.1515/em-2012-0001}
+}
+
+% Structural nested mean models and g-estimation
+
+@article{robins1994snm,
+  author  = {Robins, James M.},
+  title   = {Correcting for non-compliance in randomized trials using structural nested mean models},
+  journal = {Communications in Statistics --- Theory and Methods},
+  year    = {1994},
+  volume  = {23},
+  number  = {8},
+  pages   = {2379--2412},
+  doi     = {10.1080/03610929408831393}
+}
+
+@article{vansteelandt2014snm,
+  author  = {Vansteelandt, Stijn and Joffe, Marshall},
+  title   = {Structural nested models and {G}-estimation: the partially realized promise},
+  journal = {Statistical Science},
+  year    = {2014},
+  volume  = {29},
+  number  = {4},
+  pages   = {707--731},
+  doi     = {10.1214/14-STS493}
+}
+
+@incollection{robins2000msmvssnm,
+  author    = {Robins, James M.},
+  title     = {Marginal structural models versus structural nested models as tools for causal inference},
+  booktitle = {Statistical Models in Epidemiology, the Environment, and Clinical Trials},
+  editor    = {Halloran, M. Elizabeth and Berry, Donald},
+  year      = {2000},
+  pages     = {95--133},
+  publisher = {Springer},
+  address   = {New York},
+  doi       = {10.1007/978-1-4612-1284-3_2}
+}
+
+% Inverse probability weighting and propensity scores
+
+@article{hirano2003efficient,
+  author  = {Hirano, Keisuke and Imbens, Guido W. and Ridder, Geert},
+  title   = {Efficient estimation of average treatment effects using the estimated propensity score},
+  journal = {Econometrica},
+  year    = {2003},
+  volume  = {71},
+  number  = {4},
+  pages   = {1161--1189},
+  doi     = {10.1111/1468-0262.00442}
+}
+
+@article{imbens2004nonparametric,
+  author  = {Imbens, Guido W.},
+  title   = {Nonparametric estimation of average treatment effects under exogeneity: a review},
+  journal = {Review of Economics and Statistics},
+  year    = {2004},
+  volume  = {86},
+  number  = {1},
+  pages   = {4--29},
+  doi     = {10.1162/003465304323023651}
+}
+
+@article{lunceford2004stratification,
+  author  = {Lunceford, Jared K. and Davidian, Marie},
+  title   = {Stratification and weighting via the propensity score in estimation of causal treatment effects: a comparative study},
+  journal = {Statistics in Medicine},
+  year    = {2004},
+  volume  = {23},
+  number  = {19},
+  pages   = {2937--2960},
+  doi     = {10.1002/sim.1903}
+}
+
+@article{cole2008constructing,
+  author  = {Cole, Stephen R. and Hernán, Miguel A.},
+  title   = {Constructing inverse probability weights for marginal structural models},
+  journal = {American Journal of Epidemiology},
+  year    = {2008},
+  volume  = {168},
+  number  = {6},
+  pages   = {656--664},
+  doi     = {10.1093/aje/kwn164}
+}
+
+@article{spreafico2025positivity,
+  author  = {Spreafico, Marta},
+  title   = {Impact of near-positivity violations on {IPTW}-estimated marginal structural survival models with time-dependent confounding},
+  journal = {Biometrical Journal},
+  year    = {2025},
+  volume  = {67},
+  number  = {6},
+  pages   = {e70093},
+  doi     = {10.1002/bimj.70093}
+}
+
+@article{crump2009overlap,
+  author  = {Crump, Richard K. and Hotz, V. Joseph and Imbens, Guido W. and Mitnik, Oscar A.},
+  title   = {Dealing with limited overlap in estimation of average treatment effects},
+  journal = {Biometrika},
+  year    = {2009},
+  volume  = {96},
+  number  = {1},
+  pages   = {187--199},
+  doi     = {10.1093/biomet/asn055}
+}
+
+% Matching
+
+@article{ho2011matchit,
+  author  = {Ho, Daniel E. and Imai, Kosuke and King, Gary and Stuart, Elizabeth A.},
+  title   = {{MatchIt}: nonparametric preprocessing for parametric causal inference},
+  journal = {Journal of Statistical Software},
+  year    = {2011},
+  volume  = {42},
+  number  = {8},
+  pages   = {1--28},
+  doi     = {10.18637/jss.v042.i08}
+}
+
+@article{rosenbaum1985constructing,
+  author  = {Rosenbaum, Paul R. and Rubin, Donald B.},
+  title   = {Constructing a control group using multivariate matched sampling methods that incorporate the propensity score},
+  journal = {The American Statistician},
+  year    = {1985},
+  volume  = {39},
+  number  = {1},
+  pages   = {33--38},
+  doi     = {10.1080/00031305.1985.10479383}
+}
+
+@article{iacus2012cem,
+  author  = {Iacus, Stefano M. and King, Gary and Porro, Giuseppe},
+  title   = {Causal inference without balance checking: coarsened exact matching},
+  journal = {Political Analysis},
+  year    = {2012},
+  volume  = {20},
+  number  = {1},
+  pages   = {1--24},
+  doi     = {10.1093/pan/mpr013}
+}
+
+% Transportability and generalizability
+
+@article{dahabreh2020extending,
+  author  = {Dahabreh, Issa J. and Robertson, Sarah E. and Steingrimsson, Jon A. and Stuart, Elizabeth A. and Hernán, Miguel A.},
+  title   = {Extending inferences from a randomized trial to a new target population},
+  journal = {Statistics in Medicine},
+  year    = {2020},
+  volume  = {39},
+  number  = {14},
+  pages   = {1999--2014},
+  doi     = {10.1002/sim.8426}
+}
+
+@article{cole2010generalizing,
+  author  = {Cole, Stephen R. and Stuart, Elizabeth A.},
+  title   = {Generalizing evidence from randomized clinical trials to target populations: the {ACTG} 320 trial},
+  journal = {American Journal of Epidemiology},
+  year    = {2010},
+  volume  = {172},
+  number  = {1},
+  pages   = {107--115},
+  doi     = {10.1093/aje/kwq084}
+}
+
+@article{vanderweele2013versions,
+  author  = {VanderWeele, Tyler J. and Hernán, Miguel A.},
+  title   = {Causal inference under multiple versions of treatment},
+  journal = {Journal of Causal Inference},
+  year    = {2013},
+  volume  = {1},
+  number  = {1},
+  pages   = {1--20},
+  doi     = {10.1515/jci-2012-0002}
+}
+
+% Sandwich / M-estimation variance theory
+
+@article{stefanski2002mestimation,
+  author  = {Stefanski, Leonard A. and Boos, Dennis D.},
+  title   = {The calculus of {M}-estimation},
+  journal = {The American Statistician},
+  year    = {2002},
+  volume  = {56},
+  number  = {1},
+  pages   = {29--38},
+  doi     = {10.1198/000313002753631330}
+}
+
+@article{huber1964robust,
+  author  = {Huber, Peter J.},
+  title   = {Robust estimation of a location parameter},
+  journal = {The Annals of Mathematical Statistics},
+  year    = {1964},
+  volume  = {35},
+  number  = {1},
+  pages   = {73--101},
+  doi     = {10.1214/aoms/1177703732}
+}
+
+@inproceedings{huber1967behavior,
+  author    = {Huber, Peter J.},
+  title     = {The behavior of maximum likelihood estimates under nonstandard conditions},
+  booktitle = {Proceedings of the Fifth Berkeley Symposium on Mathematical Statistics and Probability},
+  year      = {1967},
+  volume    = {1},
+  pages     = {221--233},
+  publisher = {University of California Press},
+  address   = {Berkeley, CA}
+}
+
+@article{white1980heteroskedasticity,
+  author  = {White, Halbert},
+  title   = {A heteroskedasticity-consistent covariance matrix estimator and a direct test for heteroskedasticity},
+  journal = {Econometrica},
+  year    = {1980},
+  volume  = {48},
+  number  = {4},
+  pages   = {817--838},
+  doi     = {10.2307/1912934}
+}
+
+@article{white1982maximum,
+  author  = {White, Halbert},
+  title   = {Maximum likelihood estimation of misspecified models},
+  journal = {Econometrica},
+  year    = {1982},
+  volume  = {50},
+  number  = {1},
+  pages   = {1--25},
+  doi     = {10.2307/1912526}
+}
+
+@article{liang1986longitudinal,
+  author  = {Liang, Kung-Yee and Zeger, Scott L.},
+  title   = {Longitudinal data analysis using generalized linear models},
+  journal = {Biometrika},
+  year    = {1986},
+  volume  = {73},
+  number  = {1},
+  pages   = {13--22},
+  doi     = {10.1093/biomet/73.1.13}
+}
+
+@article{zeileis2004econometric,
+  author  = {Zeileis, Achim},
+  title   = {Econometric computing with {HC} and {HAC} covariance matrix estimators},
+  journal = {Journal of Statistical Software},
+  year    = {2004},
+  volume  = {11},
+  number  = {10},
+  pages   = {1--17},
+  doi     = {10.18637/jss.v011.i10}
+}
+
+@article{zeileis2006object,
+  author  = {Zeileis, Achim},
+  title   = {Object-oriented computation of sandwich estimators},
+  journal = {Journal of Statistical Software},
+  year    = {2006},
+  volume  = {16},
+  number  = {9},
+  pages   = {1--16},
+  doi     = {10.18637/jss.v016.i09}
+}
+
+@article{zivich2024ice,
+  author  = {Zivich, Paul N. and Ross, Rachael K. and Shook-Sa, Bonnie E. and Cole, Stephen R. and Edwards, Jessie K.},
+  title   = {Empirical sandwich variance estimator for iterated conditional expectation g-computation},
+  journal = {Statistics in Medicine},
+  year    = {2024},
+  volume  = {43},
+  number  = {29},
+  pages   = {5562--5572},
+  doi     = {10.1002/sim.10255}
+}
+
+@article{shooksa2025drvariance,
+  author  = {Shook-Sa, Bonnie E. and Zivich, Paul N. and Lee, Chanhwa and Xue, Keyi and Ross, Rachael K. and Edwards, Jessie K. and Stringer, Jeffrey S. A. and Cole, Stephen R.},
+  title   = {Double robust variance estimation with parametric working models},
+  journal = {Biometrics},
+  year    = {2025},
+  volume  = {81},
+  number  = {2},
+  pages   = {ujaf054},
+  doi     = {10.1093/biomtc/ujaf054}
+}
+
+@article{zivich2022delicatessen,
+  author  = {Zivich, Paul N. and Klose, Mark and Cole, Stephen R. and Edwards, Jessie K. and Shook-Sa, Bonnie E.},
+  title   = {Delicatessen: {M}-estimation in {Python}},
+  journal = {arXiv preprint arXiv:2203.11300},
+  year    = {2022},
+  url     = {https://arxiv.org/abs/2203.11300}
+}
+
+% Multiple imputation
+
+@article{barnard1999df,
+  author  = {Barnard, John and Rubin, Donald B.},
+  title   = {Small-sample degrees of freedom with multiple imputation},
+  journal = {Biometrika},
+  year    = {1999},
+  volume  = {86},
+  number  = {4},
+  pages   = {948--955},
+  doi     = {10.1093/biomet/86.4.948}
+}
+
+@article{meng1994uncongenial,
+  author  = {Meng, Xiao-Li},
+  title   = {Multiple-imputation inferences with uncongenial sources of input},
+  journal = {Statistical Science},
+  year    = {1994},
+  volume  = {9},
+  number  = {4},
+  pages   = {538--558},
+  doi     = {10.1214/ss/1177010269}
+}
+
+@article{bartlett2020bootstrap,
+  author  = {Bartlett, Jonathan W. and Hughes, Rachael A.},
+  title   = {Bootstrap inference for multiple imputation under uncongeniality and misspecification},
+  journal = {Statistical Methods in Medical Research},
+  year    = {2020},
+  volume  = {29},
+  number  = {12},
+  pages   = {3533--3546},
+  doi     = {10.1177/0962280220932189}
+}
+
+@article{vonhippel2020howmany,
+  author  = {von Hippel, Paul T.},
+  title   = {How many imputations do you need? A two-stage calculation using a quadratic rule},
+  journal = {Sociological Methods \& Research},
+  year    = {2020},
+  volume  = {49},
+  number  = {3},
+  pages   = {699--718},
+  doi     = {10.1177/0049124117747303}
+}
+
+% Outcome models
+
+@article{papke1996fractional,
+  author  = {Papke, Leslie E. and Wooldridge, Jeffrey M.},
+  title   = {Econometric methods for fractional response variables with an application to 401(k) plan participation rates},
+  journal = {Journal of Applied Econometrics},
+  year    = {1996},
+  volume  = {11},
+  number  = {6},
+  pages   = {619--632},
+  doi     = {10.1002/(SICI)1099-1255(199611)11:6<619::AID-JAE418>3.0.CO;2-1}
+}

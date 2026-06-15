@@ -561,12 +561,12 @@ variance_bootstrap <- function(
 #' Bootstrap variance for a multinomial-outcome g-computation
 #'
 #' @description
-#' The multinomial analogue of [variance_bootstrap()]. Each replicate refits
+#' The multinomial analogue of `variance_bootstrap()`. Each replicate refits
 #' the `nnet::multinom` outcome model and, for every intervention, averages
 #' the predicted class probabilities over the target rows to obtain a
 #' K-vector \eqn{P(Y = k \mid do(A = a))}. The replicate statistic is the
 #' full \eqn{k_{int} \times K} surface flattened in class-major order (class
-#' outer, intervention inner), so the shared [process_boot_results()] engine
+#' outer, intervention inner), so the shared `process_boot_results()` engine
 #' computes one big covariance from which the per-class \eqn{k_{int} \times
 #' k_{int}} blocks are sliced. Per-class contrasts only need the within-class
 #' block, so the cross-class covariance is not retained.
@@ -577,7 +577,7 @@ variance_bootstrap <- function(
 #' @param target_idx Logical vector flagging target-population rows.
 #' @param est Estimand string.
 #' @param subset Quoted subset expression or `NULL`.
-#' @param parallel,ncpus Parallelism controls forwarded to [dispatch_boot()].
+#' @param parallel,ncpus Parallelism controls forwarded to `dispatch_boot()`.
 #' @param class_labels Character vector of the K outcome class labels.
 #' @param int_names Character vector of intervention names.
 #' @param subset_env Environment for resolving `subset`.

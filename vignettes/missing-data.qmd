@@ -6,6 +6,9 @@ vignette: >
   %\VignetteIndexEntry{Handling missing data}
   %\VignetteEngine{quarto::html}
   %\VignetteEncoding{UTF-8}
+bibliography: references.bib
+nocite: |
+  @hernan_whatif, @little2019missing
 ---
 
 ```{r}
@@ -341,8 +344,8 @@ mi_res
 ```
 
 The pooled standard error reflects both the within-imputation sampling
-variability and the between-imputation uncertainty, via Rubin's (1987) rules
-with Barnard-Rubin (1999) degrees of freedom. The per-imputation diagnostics
+variability and the between-imputation uncertainty, via Rubin's [-@rubin1987mi] rules
+with Barnard-Rubin [-@barnard1999df] degrees of freedom. The per-imputation diagnostics
 (including the fraction of missing information) live in the `"mi_details"`
 attribute:
 
@@ -466,8 +469,8 @@ regression) and pass the `mids` object on.
 The default `pool_method = "rubin"` is exactly valid when the imputation and
 analysis models are *congenial*. Causal estimands are often uncongenial with the
 `mice` model, and under uncongeniality Rubin's variance can be biased in either
-direction (Meng 1994; Bartlett & Hughes 2020) — not reliably conservative.
-`pool_method = "boot_mi"` (von Hippel 2020) replaces Rubin's variance
+direction [@meng1994uncongenial; @bartlett2020bootstrap] — not reliably conservative.
+`pool_method = "boot_mi"` [@vonhippel2020howmany] replaces Rubin's variance
 decomposition with a bootstrap-then-impute resampling variance:
 
 ```{r}
@@ -496,9 +499,9 @@ model.
 
 A bootstrap (and Rubin's rules) corrects the *variance*, not *bias* in the point
 estimate. Both pooling rules attain approximately nominal coverage **only when
-the causal estimator stays consistent** (Bartlett & Hughes 2020). The single
+the causal estimator stays consistent** [@bartlett2020bootstrap]. The single
 most important way to keep it consistent is to **include the outcome `Y` as a
-predictor in the imputation model** (van Buuren 2018, ch. 6): omitting it
+predictor in the imputation model** [@vanbuuren2018flexible, ch. 6]: omitting it
 produces biased imputed covariates, which biases the causal estimate — and no
 pooling rule can repair that.
 
@@ -1094,26 +1097,5 @@ tt(summary_df)
 
 ## References
 
-Hernán MA, Robins JM (2025). *Causal Inference: What If*. Chapman & Hall/CRC.
-Chapter 12 (IP weighting under censoring) and Chapter 19 (censoring in
-longitudinal studies).
-
-Little RJA, Rubin DB (2019). *Statistical Analysis with Missing Data*. 3rd ed.
-Wiley.
-
-Rubin DB (1987). *Multiple Imputation for Nonresponse in Surveys*. Wiley.
-
-Barnard J, Rubin DB (1999). Small-sample degrees of freedom with multiple
-imputation. *Biometrika* 86(4):948-955.
-
-Meng XL (1994). Multiple-imputation inferences with uncongenial sources of
-input. *Statistical Science* 9(4):538-558.
-
-van Buuren S (2018). *Flexible Imputation of Missing Data*. 2nd ed. CRC Press.
-
-Bartlett JW, Hughes RA (2020). Bootstrap inference for multiple imputation under
-uncongeniality and misspecification. *Statistical Methods in Medical Research*
-29(12):3533-3546.
-
-von Hippel PT (2020). How many imputations do you need? A two-stage calculation
-using a quadratic rule. *Sociological Methods & Research* 49(3):699-718.
+::: {#refs}
+:::

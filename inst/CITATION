@@ -1,0 +1,19 @@
+# Citation metadata for the causatr package. `citation("causatr")` reads this.
+# Version and year are pulled from DESCRIPTION via `meta` so they stay in sync.
+
+year <- sub("-.*", "", meta$Date)
+if (length(year) == 0L || is.na(year) || !nzchar(year)) {
+  year <- format(Sys.Date(), "%Y")
+}
+note <- sprintf("R package version %s", meta$Version)
+
+citHeader("To cite causatr in publications use:")
+
+bibentry(
+  bibtype = "Manual",
+  title   = "{causatr}: Unified Causal Effect Estimation for Methodological Triangulation",
+  author  = person("Lorenzo", "Fabbri", comment = c(ORCID = "0000-0003-3031-322X")),
+  year    = year,
+  note    = note,
+  url     = "https://github.com/etverse/causatr"
+)

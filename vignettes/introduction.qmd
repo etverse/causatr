@@ -6,6 +6,7 @@ vignette: >
   %\VignetteIndexEntry{Introduction to causatr}
   %\VignetteEngine{quarto::html}
   %\VignetteEncoding{UTF-8}
+bibliography: references.bib
 ---
 
 ```{r}
@@ -51,8 +52,8 @@ result <- contrast(fit,
 ## Quick example
 
 The example below uses the **NHEFS** (National Health and Nutrition
-Examination Survey — Epidemiologic Follow-up Study) dataset from Hernán &
-Robins (2025). The assumed causal structure is:
+Examination Survey — Epidemiologic Follow-up Study) dataset from
+@hernan_whatif. The assumed causal structure is:
 
 - **Treatment ($A$):** `qsmk` — whether the individual quit smoking between
   baseline (1971) and follow-up (1982). Binary (0 = continued, 1 = quit).
@@ -192,7 +193,7 @@ fit <- causat(nhefs, outcome = "wt82_71", treatment = "qsmk",
 
 **Cluster-robust sandwich.** Use `cluster = "col"` on `causat()` (or
 `contrast()`) to aggregate per-individual influence functions
-within-cluster before squaring (Liang & Zeger 1986). Numerically
+within-cluster before squaring [@liang1986longitudinal]. Numerically
 equivalent to `sandwich::vcovCL(type = "HC0")` applied to the final
 predict-then-average step. Supported for gcomp / IPW / ICE; rejected
 for matching (subclass clustering is already structural).
@@ -272,7 +273,7 @@ predictive fit, not causal identification, and can:
 
 Use [`dagitty`](https://cran.r-project.org/package=dagitty) to encode your DAG
 and query it for the minimal sufficient adjustment set
-(`dagitty::adjustmentSets()`). See Hernán & Robins (2025), Ch. 18.
+(`dagitty::adjustmentSets()`). See @hernan_whatif, Ch. 18.
 :::
 
 ## Learning more
@@ -281,3 +282,8 @@ causatr includes detailed vignettes for each estimation method: g-computation,
 IPW, matching, longitudinal ICE, transportability, and methodological
 triangulation. Use `vignette(package = "causatr")` to see all available
 vignettes.
+
+## References
+
+::: {#refs}
+:::

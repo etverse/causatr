@@ -6,6 +6,9 @@ vignette: >
   %\VignetteIndexEntry{Intervention types in causatr}
   %\VignetteEngine{quarto::html}
   %\VignetteEncoding{UTF-8}
+bibliography: references.bib
+nocite: |
+  @diaz2012population, @diaz2023lmtp
 ---
 
 ```{r}
@@ -51,7 +54,7 @@ see the [longitudinal vignette](longitudinal.html) and the
 
 ## Data: NHEFS
 
-All examples use the **NHEFS** dataset (Hernán & Robins, 2025):
+All examples use the **NHEFS** dataset [@hernan_whatif]:
 
 - **Binary treatment ($A$):** `qsmk` — quit smoking (0/1). Used for
   `static()`, `dynamic()`, and `ipsi()` examples.
@@ -445,7 +448,7 @@ the rule as a smooth `shift()` or `scale_by()`, or use
 
 ## `ipsi()` --- incremental propensity score intervention (IPW only)
 
-Kennedy (2019)'s incremental propensity score intervention multiplies each
+Kennedy [-@kennedy2019ipsi]'s incremental propensity score intervention multiplies each
 individual's *odds of treatment* by `delta`. It is a stochastic MTP that
 never materialises a specific counterfactual treatment value --- instead,
 it shifts the entire propensity score distribution.
@@ -701,15 +704,5 @@ gaps.
 
 ## References
 
-Hernán MA, Robins JM (2025). *Causal Inference: What If*. Chapman & Hall/CRC.
-
-Kennedy EH (2019). Nonparametric causal effects based on incremental
-propensity score interventions. *Journal of the American Statistical
-Association* 114:645--656.
-
-Díaz I, van der Laan MJ (2012). Population intervention causal effects
-based on stochastic interventions. *Biometrics* 68:541--549.
-
-Díaz I, Williams N, Hoffman KL, Schenck EJ (2023). Non-parametric causal
-effects based on longitudinal modified treatment policies. *Journal of the
-American Statistical Association* 118:846--857.
+::: {#refs}
+:::

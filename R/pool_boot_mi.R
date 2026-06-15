@@ -25,7 +25,7 @@
 #' @param seed Optional integer seed for reproducibility.
 #' @param call The originating `causat_mice()` call.
 #'
-#' @returns A [causatr_result] with `ci_method = "boot_mi"`.
+#' @returns A `causatr_result` with `ci_method = "boot_mi"`.
 #'
 #' @details
 #' For parameter column with per-cell estimate \eqn{\theta_{b,j}} (bootstrap
@@ -46,7 +46,7 @@
 #' under uncongeniality and misspecification. *Statistical Methods in Medical
 #' Research* 29(12):3533-3546.
 #'
-#' @seealso [causat_mice()], [pool_rubin()]
+#' @seealso [causat_mice()], `pool_rubin()`
 #' @noRd
 pool_boot_mi <- function(
   imp,

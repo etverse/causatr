@@ -6,6 +6,7 @@ vignette: >
   %\VignetteIndexEntry{Structural nested mean models with causatr}
   %\VignetteEngine{quarto::html}
   %\VignetteEncoding{UTF-8}
+bibliography: references.bib
 ---
 
 ```{r}
@@ -22,16 +23,16 @@ The headline feature: SNMMs correctly handle **time-varying effect
 modification** — modifiers that are themselves affected by treatment. IPW-MSM
 and matching require modifiers to be baseline (pre-treatment) variables;
 conditioning on a post-treatment modifier in an MSM opens collider paths and
-biases the estimand (Robins 2000). SNMMs identify the blip under
+biases the estimand [@robins2000msmvssnm]. SNMMs identify the blip under
 treatment-model correctness alone, so post-treatment modifiers are valid
-(Vansteelandt & Joffe 2014).
+[@vansteelandt2014snm].
 
 ## What SNMs estimate vs what MSMs estimate
 
 Before diving into settings where only SNMs work, it helps to see what makes
 them *different* — even in settings where both estimators are perfectly valid.
 
-The core distinction (Robins 2000):
+The core distinction [@robins2000msmvssnm]:
 
 - **MSMs** answer: "What would the population mean outcome be if everyone
   received treatment $a$?" The estimand is $E[Y(a)]$, a marginal
@@ -409,8 +410,8 @@ contrast(fit, ci_method = "sandwich")
 ### Treatment-free model for efficiency
 
 The `treatment_free` argument specifies an outcome model $E[Y \mid L]$ that
-absorbs the $L \to Y$ variance, improving efficiency (Vansteelandt & Joffe
-2014). It does not change the point estimates when the blip is correctly
+absorbs the $L \to Y$ variance, improving efficiency
+[@vansteelandt2014snm]. It does not change the point estimates when the blip is correctly
 specified — only the standard errors shrink:
 
 ```{r}
@@ -461,7 +462,7 @@ distribution.
 ## Longitudinal SNM
 
 SNMs extend naturally to time-varying treatments. The backward-sequential
-g-estimation algorithm (Robins 1994) estimates per-stage blip parameters
+g-estimation algorithm [@robins1994snm] estimates per-stage blip parameters
 $\psi_k$ by iterating from the last time point backward:
 
 1. At stage $K$, solve the blip equation for $\psi_K$ using the observed
@@ -639,9 +640,5 @@ tidy(r_demo, which = "means")
 
 ## References
 
-- Robins JM (1994). Correcting for non-compliance using structural nested mean
-  models. *Comm Stat Theory Methods* 23:2379--2412.
-- Vansteelandt S, Joffe M (2014). Structural nested models and G-estimation:
-  the partially realized promise. *Stat Sci* 29(4):707--731.
-- Robins JM (2000). Marginal structural models versus structural nested models
-  as tools for causal inference. In *Statistical Models in Epidemiology*.
+::: {#refs}
+:::

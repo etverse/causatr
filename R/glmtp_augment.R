@@ -33,7 +33,7 @@
 #' Diaz I, Williams NT, Morzywolek P, Rudolph KE (2026). Modified treatment
 #' policies that depend on the natural history of treatment. arXiv:2605.24167.
 #'
-#' @seealso [glmtp_enumerate_labels()], [glmtp_check_tractable()]
+#' @seealso `glmtp_enumerate_labels()`, `glmtp_check_tractable()`
 #' @family glmtp
 #' @noRd
 glmtp_support <- function(
@@ -136,7 +136,7 @@ glmtp_support <- function(
 #' \eqn{\bar{\mathcal{A}}_t = \mathcal{A}^t} as the full product of the
 #' per-period support `support`. Each enumerated sequence \eqn{\bar{s}_t} is a
 #' label that indexes one per-step regression \eqn{m_t(\bar{s}_t, \cdot,
-#' \cdot)} in [glmtp_iterate()]. The empty label (`t = 0`) is the single
+#' \cdot)} in `glmtp_iterate()`. The empty label (`t = 0`) is the single
 #' base-of-recursion sequence and is returned as a length-zero numeric vector.
 #'
 #' Sequences are ordered so the first coordinate varies slowest (the column
@@ -145,14 +145,14 @@ glmtp_support <- function(
 #' on.
 #'
 #' @param support Numeric vector. The discrete treatment support from
-#'   [glmtp_support()].
+#'   `glmtp_support()`.
 #' @param t Non-negative integer. The sequence length (number of periods in
 #'   the history). `t = 0` returns the single empty label.
 #'
 #' @return A list of numeric vectors, each a length-`t` history sequence.
 #'   Length \eqn{|\mathcal{A}|^t}.
 #'
-#' @seealso [glmtp_support()], [glmtp_label_key()]
+#' @seealso `glmtp_support()`, `glmtp_label_key()`
 #' @family glmtp
 #' @noRd
 glmtp_enumerate_labels <- function(support, t) {
@@ -182,7 +182,7 @@ glmtp_enumerate_labels <- function(support, t) {
 #'
 #' @return A character scalar key.
 #'
-#' @seealso [glmtp_enumerate_labels()]
+#' @seealso `glmtp_enumerate_labels()`
 #' @family glmtp
 #' @noRd
 glmtp_label_key <- function(seq) {
@@ -214,7 +214,7 @@ glmtp_label_key <- function(seq) {
 #' @return Invisibly the worst-step label count when within budget; otherwise
 #'   aborts.
 #'
-#' @seealso [glmtp_support()], [glmtp_iterate()]
+#' @seealso `glmtp_support()`, `glmtp_iterate()`
 #' @family glmtp
 #' @noRd
 glmtp_check_tractable <- function(

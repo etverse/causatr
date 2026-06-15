@@ -6,6 +6,9 @@ vignette: >
   %\VignetteIndexEntry{Augmented IPW (doubly-robust estimation) with causatr}
   %\VignetteEngine{quarto::html}
   %\VignetteEncoding{UTF-8}
+bibliography: references.bib
+nocite: |
+  @robins1994aipw, @hernan_whatif
 ---
 
 ```{r}
@@ -177,17 +180,11 @@ causatr's AIPW supports the same surface as the other estimators — binary,
 continuous, categorical, and multivariate treatments; `static` / `shift` /
 `scale_by` / `dynamic` / `stochastic` interventions; difference / ratio / OR
 contrasts; `by`-stratified estimands; stabilized weights; and transportability.
-For the **longitudinal** doubly-robust estimator (ICE-AIPW, Bang & Robins 2005),
+For the **longitudinal** doubly-robust estimator (ICE-AIPW) [@bang2005doubly],
 see `vignette("longitudinal")`. For the triangulation workflow across all three
 estimators, see `vignette("triangulation")`.
 
 ## References
 
-Robins JM, Rotnitzky A, Zhao LP (1994). Estimation of regression coefficients
-when some regressors are not always observed. *Journal of the American
-Statistical Association* 89:846–866.
-
-Bang H, Robins JM (2005). Doubly robust estimation in missing data and causal
-inference models. *Biometrics* 61:962–973.
-
-Hernán MA, Robins JM (2025). *Causal Inference: What If*. Chapman & Hall/CRC.
+::: {#refs}
+:::

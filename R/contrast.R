@@ -1915,7 +1915,7 @@ compute_pairwise_contrasts <- function(
 #' of the contrast evaluated on each bootstrap replicate's per-intervention
 #' means. The contrast (difference / ratio / odds ratio) is computed per
 #' replicate from the reference and alternative replicate columns, then
-#' [boot_ci_block()] takes the percentile interval. Quantiles are
+#' `boot_ci_block()` takes the percentile interval. Quantiles are
 #' transform-equivariant, so one recipe covers all three scales and the
 #' interval stays inside the estimand's support. The scalar and per-class
 #' multinomial paths share this so the percentile contrast math lives in one

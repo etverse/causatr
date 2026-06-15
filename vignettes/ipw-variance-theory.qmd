@@ -7,6 +7,9 @@ vignette: >
   %\VignetteIndexEntry{IPW density-ratio weights and variance theory}
   %\VignetteEngine{quarto::html}
   %\VignetteEncoding{UTF-8}
+bibliography: references.bib
+nocite: |
+  @diaz2023lmtp, @haneuse2013mtp
 ---
 
 ```{=html}
@@ -85,7 +88,7 @@ propensity score.
 
 The ATE targets the whole population; ATT and ATC target subpopulations.
 To recover $E[Y^a \mid A = A^*]$ from observed data, the standard
-Bayes-rule rewrite (Imbens 2004; Hernán & Robins Ch. 12) gives a
+Bayes-rule rewrite [@imbens2004nonparametric; @hernan_whatif, Ch. 12] gives a
 per-individual numerator $f^*_i$:
 
 $$
@@ -193,9 +196,9 @@ $\delta_{d(L_i)}$ per individual --- a degenerate "density" with zero
 Lebesgue density. The weight is zero almost surely. Users should rewrite
 the rule as a smooth `shift()` or `scale_by()`, or switch to `gcomp`.
 
-### 1.3 IPSI closed form (Kennedy 2019) {#sec-ipsi}
+### 1.3 IPSI closed form [@kennedy2019ipsi] {#sec-ipsi}
 
-Incremental propensity-score interventions (Kennedy 2019) act on the
+Incremental propensity-score interventions [@kennedy2019ipsi] act on the
 **propensity score** rather than on the treatment value. The intervention
 multiplies the odds of treatment by a factor $\delta > 0$:
 
@@ -338,7 +341,7 @@ is block-diagonal in $(\alpha, \sigma)$). Fixing $\sigma$ at its MLE and
 treating only $\alpha$ as the propensity nuisance is equivalent to
 profiling out $\sigma$ --- the resulting sandwich is asymptotically
 correct for $\hat\mu_a$ up to an $O(n^{-1})$ term from the profiled
-$\sigma$ uncertainty (Liang & Zeger 1986). In practice the effect on the
+$\sigma$ uncertainty [@liang1986longitudinal]. In practice the effect on the
 SE is negligible because $\sigma$ enters the weight ratio only through the
 Normal pdf, where it cancels to leading order.
 :::
@@ -554,7 +557,7 @@ The numerical result is the same.
 ### When does the propensity correction matter?
 
 For static binary ATE, the propensity correction **reduces** the SE
-(Lunceford & Davidian 2004; Hirano et al. 2003). Using estimated rather
+[@lunceford2004stratification; @hirano2003efficient]. Using estimated rather
 than known propensity scores is more efficient, so the naive sandwich
 (which ignores propensity uncertainty) is conservative.
 
@@ -600,7 +603,7 @@ framework:
   density for the ratio.
 - **`dynamic()` on continuous**: a deterministic per-individual rule
   is a Dirac per individual. Same pushforward degeneracy as `threshold()`.
-- **`ipsi()` on non-binary**: Kennedy's (2019) closed-form formula
+- **`ipsi()` on non-binary**: Kennedy's [-@kennedy2019ipsi] closed-form formula
   (@eq-ipsi-weight) is Bernoulli-specific.
 
 All rejections point the user to the right alternative (typically
@@ -608,22 +611,5 @@ All rejections point the user to the right alternative (typically
 
 ## References
 
-- Hernán MA, Robins JM (2025). *Causal Inference: What If.* Chapman &
-  Hall/CRC. Ch. 12 (IP weighting).
-- Hirano K, Imbens GW, Ridder G (2003). Efficient estimation of average
-  treatment effects using the estimated propensity score. *Econometrica*
-  71:1161--1189.
-- Imbens GW (2004). Nonparametric estimation of average treatment
-  effects under exogeneity: a review. *Review of Economics and
-  Statistics* 86:4--29.
-- Kennedy EH (2019). Nonparametric causal effects based on incremental
-  propensity score interventions. *JASA* 114:645--656.
-- Lunceford JK, Davidian M (2004). Stratification and weighting via the
-  propensity score in estimation of causal treatment effects: a
-  comparative study. *Statistics in Medicine* 23:2937--2960.
-- Díaz I, Williams N, Hoffman KL, Schenck EJ (2023). Non-parametric
-  causal effects based on longitudinal modified treatment policies.
-  *JASA* 118:846--857.
-- Haneuse S, Rotnitzky A (2013). Estimation of the effect of
-  interventions that modify the received treatment. *Statistics in
-  Medicine* 32:5260--5277.
+::: {#refs}
+:::

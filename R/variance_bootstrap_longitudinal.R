@@ -150,8 +150,8 @@ ipw_longitudinal_variance_bootstrap <- function(
 #' @param est Character. Estimand string (`"ATE"` for longitudinal).
 #' @param subset Quoted expression or `NULL`.
 #' @param iterate_fn Function with signature `(fit, intervention)` returning a
-#'   list with `pseudo_final`. Defaults to [ice_iterate()]; the natural-history
-#'   MTP path passes [glmtp_iterate()] so the augmented engine is refit on each
+#'   list with `pseudo_final`. Defaults to `ice_iterate()`; the natural-history
+#'   MTP path passes `glmtp_iterate()` so the augmented engine is refit on each
 #'   replicate. The refit (`fit_ice()`), resampling, and target/weight handling
 #'   are identical for both engines, so only this per-intervention iterate
 #'   differs.
@@ -331,8 +331,8 @@ ice_variance_bootstrap <- function(
 #'
 #' @description
 #' ID-cluster nonparametric bootstrap for the augmented-data sequential
-#' regression ([glmtp_iterate()]). A thin wrapper over
-#' [ice_variance_bootstrap()] with `iterate_fn = glmtp_iterate`: resampling
+#' regression (`glmtp_iterate()`). A thin wrapper over
+#' `ice_variance_bootstrap()` with `iterate_fn = glmtp_iterate`: resampling
 #' whole individuals preserves the natural-history feedback structure, and each
 #' replicate refits the per-(time, label) model chain. This is the supported
 #' inference for `grace_period()` / `carry_forward()` (the augmented-data

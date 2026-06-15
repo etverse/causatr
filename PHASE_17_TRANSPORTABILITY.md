@@ -10,7 +10,7 @@
 
 Every causal effect estimated in causatr today is an effect in the **study population** — the sample `data` supplied to `causat()`. In applied work this is almost never what is scientifically relevant. The question is usually "what is the effect of treatment in *my* target population (clinic, country, cohort)?" — a different population from the study. Moving the estimand from study to target is the job of **transportability and generalizability weights**, and it composes naturally with the self-contained density-ratio IPW engine because the sampling model is just another density to reweight by.
 
-**Generalizability** (Cole & Stuart 2010; Hernán & VanderWeele 2017): the study sample is drawn *from* the target population, possibly with non-random selection. Upweight under-represented subgroups.
+**Generalizability** (Cole & Stuart 2010; Hernán & VanderWeele 2011): the study sample is drawn *from* the target population, possibly with non-random selection. Upweight under-represented subgroups.
 
 **Transportability** (Pearl & Bareinboim 2011; Dahabreh et al. 2020): the study sample is *external* to the target (different cohort, clinic, country). Reweight based on covariate-distribution differences.
 
@@ -212,7 +212,7 @@ Same as above but target is S = 0 only and the interaction makes study $\neq$ ta
 
 - Cole SR, Stuart EA (2010). Generalizing evidence from randomized clinical trials to target populations. *Am J Epidemiol* 172:107–115.
 - Pearl J, Bareinboim E (2011). Transportability of causal and statistical relations. *AAAI*.
-- Hernán MA, VanderWeele TJ (2017). Compound treatments and transportability of causal inference. *Epidemiology* 22:368–377.
+- Hernán MA, VanderWeele TJ (2011). Compound treatments and transportability of causal inference. *Epidemiology* 22(3):368–377.
 - Dahabreh IJ, Robertson SE, Tchetgen EJ, Stuart EA, Hernán MA (2019). Generalizing causal inferences from individuals in randomized trials to all trial-eligible individuals. *Biometrics* 75:685–694.
 - Dahabreh IJ, Robertson SE, Steingrimsson JA, Stuart EA, Hernán MA (2020). Extending inferences from a randomized trial to a new target population. *Stat Med* 39:1999–2014.
 - Westreich D, Edwards JK, Lesko CR, Stuart EA, Cole SR (2017). Transportability of trial results using inverse odds of sampling weights. *Am J Epidemiol* 186:1010–1014.

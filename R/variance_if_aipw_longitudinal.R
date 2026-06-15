@@ -2,9 +2,9 @@
 #'
 #' @description
 #' Analytic sandwich for the ICE-AIPW estimator (Bang & Robins 2005).
-#' Derives from composition of Zivich et al. (2024, *Stat in Med*,
-#' arXiv:2306.10976) for the ICE outcome model chain and Zivich et al.
-#' (2024, *Biometrics* 81(2), arXiv:2404.16166) for the point-treatment
+#' Derives from composition of Zivich et al. (2024, *Stat. Med.* 43:5562-5572,
+#' arXiv:2306.10976) for the ICE outcome model chain and Shook-Sa et al.
+#' (2025, *Biometrics* 81(2):ujaf054, arXiv:2404.16166) for the point-treatment
 #' AIPW propensity correction.
 #'
 #' **DR caveat:** This sandwich SE is consistent only when **both**

@@ -16,7 +16,7 @@ Invisibly returns \code{object}.
 }
 \description{
 Displays intervention-specific marginal means and pairwise contrasts with
-standard errors and confidence intervals from a \link[=contrast]{causatr_result}
+standard errors and confidence intervals from a \code{causatr_result}
 object.
 }
 \seealso{

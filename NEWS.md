@@ -791,7 +791,7 @@ variance.
 The sandwich variance engine (`variance_if_snm()`) implements the full
 stacked M-estimation system: treatment model score block + blip estimating
 equation block + cross-derivative A_{ψ,α} via `numDeriv::jacobian()`.
-Validated against `delicatessen` (Zivich et al. 2024) on three DGPs
+Validated against `delicatessen` (Zivich et al. 2022) on three DGPs
 (continuous treatment + single modifier, binary treatment + single modifier,
 continuous treatment + two modifiers) with point estimate and SE agreement
 to 0.01 tolerance.

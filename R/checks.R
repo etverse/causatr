@@ -620,7 +620,7 @@ check_stratified <- function(
 #'
 #' @return Invisibly `NULL`. Called for its validation side effects.
 #'
-#' @seealso [check_stratified()], [ice_build_formula()]
+#' @seealso `check_stratified()`, `ice_build_formula()`
 #' @noRd
 check_treatment_form <- function(
   treatment_form,
@@ -810,7 +810,7 @@ check_categorical_outcome <- function(
 #' @description
 #' Natural-history modified treatment policies ([grace_period()] /
 #' [carry_forward()]) are estimated by the augmented-data sequential regression
-#' ([glmtp_iterate()]), which only exists for **longitudinal g-computation** on
+#' (`glmtp_iterate()`), which only exists for **longitudinal g-computation** on
 #' a **discrete** treatment. This gate, called from [contrast()] when any
 #' intervention is a `causatr_glmtp`, enforces:
 #'
@@ -824,8 +824,8 @@ check_categorical_outcome <- function(
 #'    routed through the identity policy). Rejected with class
 #'    `causatr_glmtp_mixed`.
 #' 4. The treatment is discrete with a tractable history enumeration -- delegated
-#'    to [glmtp_support()] (class `causatr_glmtp_continuous_trt`) and
-#'    [glmtp_check_tractable()] (class `causatr_glmtp_too_many`).
+#'    to `glmtp_support()` (class `causatr_glmtp_continuous_trt`) and
+#'    `glmtp_check_tractable()` (class `causatr_glmtp_too_many`).
 #'
 #' A no-op when no intervention is a `causatr_glmtp`.
 #'
