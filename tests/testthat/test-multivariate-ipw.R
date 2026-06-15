@@ -137,6 +137,7 @@ test_that("mv IPW: binary x binary cross-checks against gcomp", {
 })
 
 test_that("mv IPW: binary x binary bootstrap parity", {
+  skip_if_fast()
   df <- sim_bb(n = 1000)
   ivs <- list(
     both = list(A1 = static(1), A2 = static(1)),
@@ -859,6 +860,7 @@ test_that("mv IPW: stabilized shift+shift recovers sequential-MTP truth", {
 })
 
 test_that("mv IPW: stabilize bootstrap refit works and SE is finite", {
+  skip_if_fast()
   # Bootstrap refits both numerator and denominator models per
   # replicate, so it captures the full uncertainty (including gamma)
   # that the nuisance-fixed sandwich understates.

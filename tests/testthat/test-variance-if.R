@@ -275,6 +275,7 @@ test_that("variance_if_numeric() Tier 1 matches the analytic IF on a logistic gl
 # ── correct_propensity() Branch A — IPW WeightIt path ──
 
 test_that("IPW sandwich matches WeightIt stacked-M oracle on static binary", {
+  skip_if_fast()
   skip_if_not_installed("WeightIt")
   set.seed(909)
   n <- 1000
@@ -725,6 +726,7 @@ test_that("iv_design_matrix() handles data.table and data.frame identically", {
 # ── build_point_channel_pieces() — shared shape for g-comp and IPW ──
 
 test_that("build_point_channel_pieces() returns the right Ch1/grad shapes", {
+  skip_if_fast()
   skip_if_not_installed("WeightIt")
   set.seed(4444)
   n <- 500

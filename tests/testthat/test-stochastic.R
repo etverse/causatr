@@ -150,6 +150,7 @@ test_that("stochastic gcomp: binary treatment, gaussian outcome", {
 })
 
 test_that("stochastic gcomp: binary/gaussian, bootstrap CI covers truth", {
+  skip_if_fast()
   skip_on_cran()
   dgp <- simulate_stochastic_binary_gaussian(n = 500, seed = 99)
   fit <- causat(
@@ -610,6 +611,7 @@ test_that("stochastic ICE: binary treatment, gaussian, 2 periods", {
 })
 
 test_that("stochastic ICE: binary/gaussian, bootstrap CI covers truth", {
+  skip_if_fast()
   skip_on_cran()
   dgp <- simulate_stochastic_ice_binary_gaussian(n = 200, seed = 99)
   fit <- causat(
@@ -721,6 +723,7 @@ test_that("stochastic ICE: mixed interventions (stochastic vs static)", {
 # -- Chunk 3: Sandwich vs bootstrap agreement ---------------------------------
 
 test_that("stochastic gcomp: sandwich and bootstrap SEs agree (point)", {
+  skip_if_fast()
   skip_on_cran()
   dgp <- simulate_stochastic_binary_gaussian(n = 2000, seed = 42)
   fit <- causat(
@@ -772,6 +775,7 @@ test_that("stochastic gcomp: sandwich and bootstrap SEs agree (point)", {
 })
 
 test_that("stochastic gcomp: sandwich and bootstrap SEs agree (binomial)", {
+  skip_if_fast()
   skip_on_cran()
   dgp <- simulate_stochastic_binary_binomial(n = 3000, seed = 42)
   fit <- causat(
@@ -803,6 +807,7 @@ test_that("stochastic gcomp: sandwich and bootstrap SEs agree (binomial)", {
 })
 
 test_that("stochastic gcomp: sandwich and bootstrap SEs agree (continuous)", {
+  skip_if_fast()
   skip_on_cran()
   dgp <- simulate_stochastic_continuous_gaussian(n = 2000, seed = 42)
   fit <- causat(
@@ -838,6 +843,7 @@ test_that("stochastic gcomp: sandwich and bootstrap SEs agree (continuous)", {
 })
 
 test_that("stochastic gcomp: sandwich and bootstrap SEs agree (categorical)", {
+  skip_if_fast()
   skip_on_cran()
   dgp <- simulate_stochastic_categorical_gaussian(
     n = 2000,
@@ -876,6 +882,7 @@ test_that("stochastic gcomp: sandwich and bootstrap SEs agree (categorical)", {
 })
 
 test_that("stochastic gcomp: sandwich and bootstrap SEs agree (multivariate)", {
+  skip_if_fast()
   skip_on_cran()
   dgp <- simulate_stochastic_multivariate_gaussian(
     n = 2000,
@@ -926,6 +933,7 @@ test_that("stochastic gcomp: sandwich and bootstrap SEs agree (multivariate)", {
 # -- Chunk 5: Sandwich vs bootstrap agreement (ICE) ---------------------------
 
 test_that("stochastic ICE: sandwich and bootstrap SEs agree", {
+  skip_if_fast()
   skip_on_cran()
   dgp <- simulate_stochastic_ice_binary_gaussian(n = 1000, seed = 42)
   fit <- causat(
@@ -971,6 +979,7 @@ test_that("stochastic ICE: sandwich and bootstrap SEs agree", {
 # -- Cross-package: lmtp oracle -----------------------------------------------
 
 test_that("stochastic gcomp: agrees with lmtp_sdr (point)", {
+  skip_if_fast()
   skip_on_cran()
   skip_if_not_installed("lmtp")
   skip_if_not_installed("SuperLearner")
@@ -1028,6 +1037,7 @@ test_that("stochastic gcomp: agrees with lmtp_sdr (point)", {
 })
 
 test_that("stochastic ICE: agrees with lmtp_sdr (longitudinal)", {
+  skip_if_fast()
   skip_on_cran()
   skip_if_not_installed("lmtp")
   skip_if_not_installed("SuperLearner")

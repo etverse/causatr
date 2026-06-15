@@ -235,6 +235,7 @@ test_that("T-long-transport3: long IPW transport agrees with gcomp transport", {
 # ---------- T-long-transport4: sandwich SE plausibility ---------------------
 
 test_that("T-long-transport4: long IPW transport sandwich SE is plausible", {
+  skip_if_fast()
   skip_if_not_installed("data.table")
   d <- make_long_transport_data(n = 3000, seed = 204)
 
@@ -275,6 +276,7 @@ test_that("T-long-transport4: long IPW transport sandwich SE is plausible", {
 # ---------- T-long-transport5: bootstrap refits sampling model ---------------
 
 test_that("T-long-transport5: bootstrap refits sampling model per replicate", {
+  skip_if_fast()
   skip_if_not_installed("data.table")
   d <- make_long_transport_data(n = 2000, seed = 205)
 

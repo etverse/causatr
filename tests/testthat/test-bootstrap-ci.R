@@ -21,6 +21,7 @@ sim_boot_ci_dgp <- function(n = 1500, seed = 42) {
 z975 <- stats::qnorm(0.975)
 
 test_that("percentile bootstrap CIs equal the empirical replicate quantiles", {
+  skip_if_fast()
   d <- sim_boot_ci_dgp()
   fit <- causat(
     d,
@@ -59,6 +60,7 @@ test_that("percentile bootstrap CIs equal the empirical replicate quantiles", {
 })
 
 test_that("normal bootstrap CIs equal the Wald interval from the bootstrap SE", {
+  skip_if_fast()
   d <- sim_boot_ci_dgp()
   fit <- causat(
     d,
@@ -118,6 +120,7 @@ test_that("normal bootstrap CIs equal the Wald interval from the bootstrap SE", 
 })
 
 test_that("ratio / OR percentile CIs are the replicate quantiles on each scale", {
+  skip_if_fast()
   d <- sim_boot_ci_dgp()
   fit <- causat(
     d,
@@ -161,6 +164,7 @@ test_that("ratio / OR percentile CIs are the replicate quantiles on each scale",
 })
 
 test_that("percentile CIs cross-check against boot::boot.ci", {
+  skip_if_fast()
   skip_if_not_installed("boot")
   d <- sim_boot_ci_dgp(n = 2000, seed = 3)
   fit <- causat(
@@ -208,6 +212,7 @@ test_that("percentile CIs cross-check against boot::boot.ci", {
 })
 
 test_that("confint() and tidy() honour the stored boot_ci convention", {
+  skip_if_fast()
   d <- sim_boot_ci_dgp()
   fit <- causat(
     d,
@@ -253,6 +258,7 @@ test_that("confint() and tidy() honour the stored boot_ci convention", {
 })
 
 test_that("boot_ci defaults to percentile and is recorded on the result", {
+  skip_if_fast()
   d <- sim_boot_ci_dgp()
   fit <- causat(
     d,
@@ -289,6 +295,7 @@ test_that("boot_ci defaults to percentile and is recorded on the result", {
 })
 
 test_that("boot_ci composes with the IPW and AIPW bootstrap paths", {
+  skip_if_fast()
   d <- sim_boot_ci_dgp()
   ivs <- list(a1 = static(1), a0 = static(0))
   for (est_kind in c("ipw", "aipw")) {
@@ -324,6 +331,7 @@ test_that("boot_ci composes with the IPW and AIPW bootstrap paths", {
 })
 
 test_that("SNM honours boot_ci for the blip parameters (Path A)", {
+  skip_if_fast()
   set.seed(7)
   n <- 1500
   L <- stats::rnorm(n)
@@ -382,6 +390,7 @@ test_that("SNM honours boot_ci for the blip parameters (Path A)", {
 })
 
 test_that("SNM by-stratified averaged blip stays Wald and is labelled", {
+  skip_if_fast()
   set.seed(7)
   n <- 2000
   L <- stats::rnorm(n)
@@ -421,6 +430,7 @@ test_that("SNM by-stratified averaged blip stays Wald and is labelled", {
 })
 
 test_that("an invalid boot_ci value is rejected", {
+  skip_if_fast()
   d <- sim_boot_ci_dgp(n = 400)
   fit <- causat(
     d,

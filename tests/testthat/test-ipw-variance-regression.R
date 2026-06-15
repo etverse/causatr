@@ -175,6 +175,7 @@ test_that("T-non-static (IPSI): propensity correction materially changes SE", {
 # Bootstrap parity (shift): sandwich SE ~ bootstrap SE
 
 test_that("Bootstrap parity (shift): sandwich and bootstrap SEs agree", {
+  skip_if_fast()
   skip_if_not_installed("numDeriv")
 
   d <- simulate_continuous_continuous(n = 1000, seed = 601)
@@ -227,6 +228,7 @@ test_that("Bootstrap parity (shift): sandwich and bootstrap SEs agree", {
 # Bootstrap parity (IPSI): sandwich SE ~ bootstrap SE
 
 test_that("Bootstrap parity (IPSI): sandwich and bootstrap SEs agree", {
+  skip_if_fast()
   skip_if_not_installed("numDeriv")
 
   d <- simulate_binary_continuous(n = 1000, seed = 603)

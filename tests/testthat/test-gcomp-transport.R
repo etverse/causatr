@@ -168,6 +168,7 @@ test_that("gcomp transport corrects study bias vs. naive study-only estimate", {
 })
 
 test_that("gcomp transport: sandwich SE is plausible (ratio to bootstrap in (0.5, 2))", {
+  skip_if_fast()
   d <- simulate_transport(n = 2000, seed = 11)
   fit <- causat(
     d,
@@ -221,6 +222,7 @@ test_that("gcomp transport: target rows with NA outcome/treatment are handled", 
 })
 
 test_that("gcomp transport cross-check: matches TransportHealth::transportGC()", {
+  skip_if_fast()
   # TransportHealth (CoreClinicalSciences/TransportHealth) implements the same
   # Dahabreh 2020 standardization: fit outcome model on study (S=1) rows,
   # predict counterfactuals, average over target (S=0) rows.

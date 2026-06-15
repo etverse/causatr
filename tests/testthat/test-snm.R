@@ -365,6 +365,7 @@ test_that("SNM treatment_values returns averaged blip effect", {
 })
 
 test_that("SNM sandwich SE matches bootstrap SE (consistency check)", {
+  skip_if_fast()
   dgp <- simulate_snm_point_no_em(n = 2000, seed = 505)
   fit <- causat(
     dgp$data,
@@ -407,6 +408,7 @@ test_that("SNM sandwich SE matches bootstrap SE (consistency check)", {
 # --- DTRreg cross-check ------------------------------------------------------
 
 test_that("SNM matches DTRreg on binary treatment (no EM)", {
+  skip_if_fast()
   skip_if_not_installed("DTRreg")
   # No-EM case: causatr and DTRreg solve equivalent EEs, so point
   # estimates and SEs should match closely. The EM case uses structurally
@@ -448,6 +450,7 @@ test_that("SNM matches DTRreg on binary treatment (no EM)", {
 })
 
 test_that("SNM sandwich SE matches DTRreg (no-EM, binary)", {
+  skip_if_fast()
   skip_if_not_installed("DTRreg")
   # No-EM case: both implementations reduce to the same EE, so SEs
   # should match closely. The EM case has structurally different
@@ -663,6 +666,7 @@ test_that("contrast() rejects interventions for SNM fit (updated message)", {
 })
 
 test_that("SNM bootstrap produces valid result (point)", {
+  skip_if_fast()
   dgp <- simulate_snm_point_no_em(n = 500, seed = 42)
   fit <- causat(
     dgp$data,
@@ -827,6 +831,7 @@ test_that("SNM with TF model + treatment_values returns averaged blip", {
 # --- DTRreg cross-checks with treatment-free model ----------------------------
 
 test_that("SNM with TF model matches DTRreg (binary trt, EM case)", {
+  skip_if_fast()
   skip_if_not_installed("DTRreg")
   # With the joint estimation approach, causatr and DTRreg should
   # match exactly even in the EM case (both use treatment-free model).
@@ -872,6 +877,7 @@ test_that("SNM with TF model matches DTRreg (binary trt, EM case)", {
 })
 
 test_that("SNM with TF model matches DTRreg (binary trt, no EM)", {
+  skip_if_fast()
   skip_if_not_installed("DTRreg")
   set.seed(808)
   n <- 5000
@@ -1065,6 +1071,7 @@ test_that("TF model reduces SEs across all DGPs", {
 # --- Treatment-free model sandwich vs bootstrap consistency -------------------
 
 test_that("TF model sandwich SE matches bootstrap SE", {
+  skip_if_fast()
   dgp <- simulate_snm_point_no_em(n = 2000, seed = 505)
   fit <- causat(
     dgp$data,
@@ -1375,6 +1382,7 @@ test_that("SNM TF sandwich matches delicatessen — binary trt, TV modifier", {
 # --- DTRreg cross-check: TV modifier with TF model ----------------------------
 
 test_that("SNM with TF matches DTRreg on TV modifier DGP", {
+  skip_if_fast()
   skip_if_not_installed("DTRreg")
   # DTRreg's tf.mod jointly estimates (beta, psi), matching causatr's
   # treatment_free approach. Both should agree on the TV modifier DGP.
@@ -1692,6 +1700,7 @@ test_that("Longitudinal SNM: history = 0 produces no lag terms", {
 
 
 test_that("Longitudinal SNM: DTRreg cross-check, binary treatment", {
+  skip_if_fast()
   skip_if_not_installed("DTRreg")
 
   dgp <- simulate_snm_longitudinal(n = 5000, seed = 42)
@@ -1922,6 +1931,7 @@ test_that("Longitudinal SNM: n_obs and fit metadata", {
 
 
 test_that("Longitudinal SNM: bootstrap produces valid result", {
+  skip_if_fast()
   dgp <- simulate_snm_longitudinal(n = 500, seed = 42)
 
   fit <- causat(
@@ -1946,6 +1956,7 @@ test_that("Longitudinal SNM: bootstrap produces valid result", {
 
 
 test_that("Longitudinal SNM: sandwich SE matches cluster bootstrap SE", {
+  skip_if_fast()
   dgp <- simulate_snm_longitudinal(n = 2000, seed = 42)
 
   fit <- causat(
@@ -2107,6 +2118,7 @@ test_that("Longitudinal SNM with TV-EM + TF: same truth, tighter SEs", {
 
 
 test_that("Longitudinal SNM with TV-EM: DTRreg cross-check (history=0)", {
+  skip_if_fast()
   skip_if_not_installed("DTRreg")
 
   # Use history=0 to match DTRreg's per-stage treatment model exactly:
@@ -2260,6 +2272,7 @@ test_that("Longitudinal SNM with TV-EM: vcov is PSD and correctly sized", {
 
 
 test_that("Longitudinal SNM with TV-EM: sandwich SE matches cluster bootstrap", {
+  skip_if_fast()
   dgp <- simulate_snm_longitudinal_tv_em(n = 2000, seed = 42)
 
   fit <- causat(
@@ -2373,6 +2386,7 @@ test_that("SNM recovers blip params: Poisson count treatment, with EM", {
 
 
 test_that("SNM Poisson sandwich SE matches bootstrap SE", {
+  skip_if_fast()
   set.seed(719)
   n <- 800
   L <- rnorm(n)
@@ -2592,6 +2606,7 @@ test_that("SNM recovers blip params: categorical treatment with EM", {
 
 
 test_that("SNM categorical sandwich SE matches bootstrap SE", {
+  skip_if_fast()
   set.seed(732)
   n <- 1000
   L <- rnorm(n)

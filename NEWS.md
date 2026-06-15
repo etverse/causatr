@@ -1,5 +1,25 @@
 # causatr (development version)
 
+## 2026-06-15 — CI: fast test tier on pull requests
+
+Follow-up to the 2026-06-14 CI restructure. Measuring the actual runner timings
+showed the previous structural changes (coverage off the PR path, single-config
+PR matrix, file splits) did **not** meaningfully cut PR latency: a single
+config's `R CMD check` is ~4 h, dominated by ~187 wall-min of tests (683
+CPU-min, already running ~3.6× parallel — the suite is *core-bound*, not
+*pole-bound*, so the file splits bought little). The only lever that shrinks PR
+test time is running less of it on PRs.
+
+Pull requests now run a **fast test tier**: the heavy bootstrap, external-oracle
+(`lmtp` / `DTRreg` / `WeightIt` / `TransportHealth`), and large-n cluster-
+bootstrap blocks call `skip_if_fast()` and are skipped when
+`CAUSATR_TEST_TIER=fast` (set for `pull_request` events in CI). The fast tier is
+~4 CPU-min (≈1 min wall) instead of ~187. PR checks also skip the vignette
+rebuild (`--no-build-vignettes`). The **full tier runs locally (always), on push
+to the default branch (every merge), and on a nightly cron** — so every skipped
+block is still exercised regularly, just off the PR hot path. `skip_if_fast()`
+is a no-op outside fast mode, so local and main runs are unchanged.
+
 ## 2026-06-14 — CI: faster pull-request feedback (no test coverage lost)
 
 Continuous-integration restructure that cuts pull-request latency without

@@ -11,6 +11,7 @@
 # --- Point estimates: truth + marginaleffects parity -----------------------
 
 test_that("multinomial point estimates match softmax truth and marginaleffects", {
+  skip_if_fast()
   skip_if_not_installed("marginaleffects")
   d <- sim_multinom_binary(n = 8000, seed = 11)
   fit <- causat(
@@ -69,6 +70,7 @@ test_that("multinomial point estimates match softmax truth and marginaleffects",
 })
 
 test_that("per-class difference contrasts match marginaleffects avg_comparisons", {
+  skip_if_fast()
   skip_if_not_installed("marginaleffects")
   d <- sim_multinom_binary(n = 8000, seed = 11)
   fit <- causat(
@@ -106,6 +108,7 @@ test_that("per-class difference contrasts match marginaleffects avg_comparisons"
 # --- Contrast scales: ratio and OR -----------------------------------------
 
 test_that("per-class ratio and OR contrasts are exact functions of the means", {
+  skip_if_fast()
   d <- sim_multinom_binary(n = 8000, seed = 11)
   fit <- causat(
     d,
@@ -170,6 +173,7 @@ test_that("per-class ratio and OR contrasts are exact functions of the means", {
 # --- Treatment-type composition --------------------------------------------
 
 test_that("multinomial composes with a continuous treatment + shift MTP", {
+  skip_if_fast()
   skip_if_not_installed("marginaleffects")
   # A shift MTP extrapolates the fitted multinom to A + delta, so finite-sample
   # error against the softmax truth is larger than for a static intervention
@@ -219,6 +223,7 @@ test_that("multinomial composes with a continuous treatment + shift MTP", {
 })
 
 test_that("multinomial composes with a categorical (3-level) treatment", {
+  skip_if_fast()
   skip_if_not_installed("marginaleffects")
   d <- sim_multinom_cat_trt(n = 7000, seed = 13)
   fit <- causat(
@@ -247,6 +252,7 @@ test_that("multinomial composes with a categorical (3-level) treatment", {
 })
 
 test_that("the result schema generalises to K = 4 outcome classes", {
+  skip_if_fast()
   skip_if_not_installed("marginaleffects")
   d <- sim_multinom_binary(
     n = 7000,
@@ -285,6 +291,7 @@ test_that("the result schema generalises to K = 4 outcome classes", {
 # --- Complex study designs --------------------------------------------------
 
 test_that("ATT standardises a multinomial outcome over the treated", {
+  skip_if_fast()
   skip_if_not_installed("marginaleffects")
   d <- sim_multinom_binary(n = 9000, seed = 11)
   fit <- causat(
@@ -314,6 +321,7 @@ test_that("ATT standardises a multinomial outcome over the treated", {
 })
 
 test_that("by-stratified multinomial yields per-stratum per-class tables", {
+  skip_if_fast()
   skip_if_not_installed("marginaleffects")
   d <- sim_multinom_binary(n = 9000, seed = 11)
   d$G <- factor(ifelse(d$L > 0, "hi", "lo"))
@@ -348,6 +356,7 @@ test_that("by-stratified multinomial yields per-stratum per-class tables", {
 })
 
 test_that("by-stratified multinomial bootstrap result prints and confints", {
+  skip_if_fast()
   # The by-stratified boot_info is a list-of-lists, and its `n_requested`
   # carries the user's `n_boot = 40` (a double); the print collapse must
   # coerce it before an integer-typed vapply. confint() over the same result
@@ -378,6 +387,7 @@ test_that("by-stratified multinomial bootstrap result prints and confints", {
 })
 
 test_that("confint handles a degenerate by-stratum for a multinomial result", {
+  skip_if_fast()
   # A by-stratum with fewer than two successful bootstrap replicates takes the
   # NA fallback, which must emit the per-stratum row count (interventions x
   # classes), not the intervention count, or the CI rownames assignment aborts.
@@ -412,6 +422,7 @@ test_that("confint handles a degenerate by-stratum for a multinomial result", {
 })
 
 test_that("external weights give a weighted multinomial g-formula", {
+  skip_if_fast()
   skip_if_not_installed("marginaleffects")
   set.seed(7)
   d <- sim_multinom_binary(n = 8000, seed = 11)
@@ -448,6 +459,7 @@ test_that("external weights give a weighted multinomial g-formula", {
 })
 
 test_that("IPCW de-biases a MAR-censored multinomial outcome", {
+  skip_if_fast()
   d <- sim_multinom_binary(n = 10000, seed = 11)
   # Cens = 1 marks a censored (missing) outcome; missingness depends on L
   # (MAR), so a complete-case fit would be biased and IPCW must repair it.
@@ -489,6 +501,7 @@ test_that("IPCW de-biases a MAR-censored multinomial outcome", {
 })
 
 test_that("subset estimand restricts the multinomial standardisation set", {
+  skip_if_fast()
   skip_if_not_installed("marginaleffects")
   d <- sim_multinom_binary(n = 9000, seed = 11)
   fit <- causat(
@@ -517,6 +530,7 @@ test_that("subset estimand restricts the multinomial standardisation set", {
 })
 
 test_that("more than two interventions produce K rows each", {
+  skip_if_fast()
   d <- sim_multinom_continuous(n = 7000, seed = 12)
   fit <- causat(
     d,
@@ -545,6 +559,7 @@ test_that("more than two interventions produce K rows each", {
 })
 
 test_that("spline confounders fit and standardise for a multinomial outcome", {
+  skip_if_fast()
   skip_if_not_installed("marginaleffects")
   d <- sim_multinom_binary(n = 8000, seed = 11)
   fit <- causat(
@@ -620,6 +635,7 @@ test_that("bootstrap variance is reproducible and near the delta-method SE", {
 })
 
 test_that("confint() returns per-(intervention,class) percentile intervals", {
+  skip_if_fast()
   d <- sim_multinom_binary(n = 6000, seed = 11)
   fit <- causat(
     d,
@@ -649,6 +665,7 @@ test_that("confint() returns per-(intervention,class) percentile intervals", {
 # --- S3 layer ---------------------------------------------------------------
 
 test_that("S3 methods render the multinomial result", {
+  skip_if_fast()
   d <- sim_multinom_binary(n = 6000, seed = 11)
   fit <- causat(
     d,
@@ -796,6 +813,7 @@ test_that("categorical outcome rejects longitudinal and transport designs", {
 })
 
 test_that("categorical outcome rejects sandwich and stochastic at contrast()", {
+  skip_if_fast()
   d <- sim_multinom_binary(n = 1500, seed = 11)
   fit <- causat(
     d,

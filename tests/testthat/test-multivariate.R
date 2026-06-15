@@ -378,6 +378,7 @@ test_that("mv point: sandwich SE is positive and finite", {
 })
 
 test_that("mv point: bootstrap SE agrees with sandwich", {
+  skip_if_fast()
   df <- simulate_mv_point(n = 500)
   fit <- causat(df, "Y", c("A1", "A2"), ~L)
 
@@ -533,6 +534,7 @@ test_that("mv longitudinal ICE: sandwich SE is positive", {
 })
 
 test_that("mv longitudinal ICE: bootstrap works", {
+  skip_if_fast()
   long <- simulate_mv_long(n = 200)
   fit <- causat(
     long,

@@ -23,6 +23,7 @@ get_contrast_est <- function(res) {
 # -- Gcomp + shift + transportability: truth recovery --------------------
 
 test_that("gcomp + shift + transport: recovers analytical truth", {
+  skip_if_fast()
   d <- simulate_mtp_transport(n = 8000, seed = 101)
   delta <- 1
 
@@ -45,6 +46,7 @@ test_that("gcomp + shift + transport: recovers analytical truth", {
 # -- Gcomp + scale_by + transportability: truth recovery ------------------
 
 test_that("gcomp + scale_by + transport: recovers truth", {
+  skip_if_fast()
   d <- simulate_mtp_transport(n = 8000, seed = 102)
   # scale_by(2): A_d = 2*A. Y(a,L) = 2 + 3a + 1.5L + aL
   # Y(2a,L) - Y(a,L) = 3a + aL = a(3 + L)
@@ -72,6 +74,7 @@ test_that("gcomp + scale_by + transport: recovers truth", {
 # -- Gcomp + threshold + transportability: smoke test ---------------------
 
 test_that("gcomp + threshold + transport: runs without error", {
+  skip_if_fast()
   d <- simulate_mtp_transport(n = 4000, seed = 103)
 
   fit <- causat(d, "Y", "A", ~ L + A:L, target = "S")
@@ -91,6 +94,7 @@ test_that("gcomp + threshold + transport: runs without error", {
 # -- Gcomp + dynamic + transportability: truth recovery -------------------
 
 test_that("gcomp + dynamic + transport: recovers truth", {
+  skip_if_fast()
   # dynamic() that doubles treatment: d(data, trt) = 2 * trt
   # Same truth as scale_by(2).
   d <- simulate_mtp_transport(n = 8000, seed = 104)
@@ -117,6 +121,7 @@ test_that("gcomp + dynamic + transport: recovers truth", {
 # -- Gcomp + shift + generalizability: truth recovery ---------------------
 
 test_that("gcomp + shift + generalizability: recovers truth", {
+  skip_if_fast()
   d <- simulate_mtp_transport(n = 8000, seed = 105)
   delta <- 1
 
@@ -196,6 +201,7 @@ test_that("IPW + ipsi + transport: runs and produces finite estimates", {
 # -- AIPW + shift + transportability: truth recovery ----------------------
 
 test_that("AIPW + shift + transport: recovers truth", {
+  skip_if_fast()
   d <- simulate_mtp_transport(n = 8000, seed = 108)
   delta <- 1
 
@@ -225,6 +231,7 @@ test_that("AIPW + shift + transport: recovers truth", {
 # -- AIPW + shift DR: wrong outcome, still consistent --------------------
 
 test_that("AIPW + shift + transport: DR under wrong outcome model", {
+  skip_if_fast()
   set.seed(109)
   n <- 8000
   L <- rnorm(n)
@@ -267,6 +274,7 @@ test_that("AIPW + shift + transport: DR under wrong outcome model", {
 # -- AIPW + shift + transportability: smoke test --------------------------
 
 test_that("AIPW + shift + transport: smoke test runs without error", {
+  skip_if_fast()
   d <- simulate_mtp_transport(n = 4000, seed = 110)
 
   fit <- causat(
@@ -294,6 +302,7 @@ test_that("AIPW + shift + transport: smoke test runs without error", {
 # -- Cross-estimator agreement: gcomp shift ~ IPW shift -------------------
 
 test_that("gcomp shift ~ IPW shift under correct specification", {
+  skip_if_fast()
   d <- simulate_mtp_transport(n = 8000, seed = 111)
   delta <- 1
 
@@ -325,6 +334,7 @@ test_that("gcomp shift ~ IPW shift under correct specification", {
 # -- Bootstrap SE is finite and reasonable --------------------------------
 
 test_that("gcomp + shift + transport: bootstrap SE is finite and reasonable", {
+  skip_if_fast()
   d <- simulate_mtp_transport(n = 6000, seed = 112)
 
   fit <- causat(d, "Y", "A", ~ L + A:L, target = "S")
@@ -426,6 +436,7 @@ test_that("gcomp + static + transport: sandwich still works (no MC needed)", {
 # -- Binary treatment + dynamic + transport: exact marginalization --------
 
 test_that("gcomp + dynamic + binary treatment + transport: exact marginalization", {
+  skip_if_fast()
   set.seed(117)
   n <- 6000
   L <- rnorm(n)

@@ -65,6 +65,7 @@ test_that("IPW IPCW sandwich 95% CI covers truth (ATE = 3)", {
 # ── Longitudinal IPCW: sandwich is conservative ────────────────
 
 test_that("longitudinal ICE IPCW: sandwich SE >= bootstrap SE (conservative)", {
+  skip_if_fast()
   d <- simulate_longitudinal_mar_outcome(n = 3000, seed = 607)
   dt <- data.table::as.data.table(d)
 

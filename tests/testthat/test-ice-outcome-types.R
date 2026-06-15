@@ -169,6 +169,7 @@ test_that("longitudinal ICE: Poisson — Python M-estimation cross-check", {
 })
 
 test_that("longitudinal ICE: Poisson — lmtp cross-check (static binary)", {
+  skip_if_fast()
   skip_if_not_installed("lmtp")
 
   dat <- simulate_longitudinal_poisson(n = 2000L, seed = 3L)
@@ -252,6 +253,7 @@ test_that("longitudinal ICE: Poisson — lmtp cross-check (static binary)", {
 # ---------------------------------------------------------------------------
 
 test_that("longitudinal ICE: Gamma — lmtp cross-check (continuous shift)", {
+  skip_if_fast()
   skip_if_not_installed("lmtp")
 
   dat <- simulate_longitudinal_gamma(n = 2000L, seed = 4L)
@@ -353,6 +355,7 @@ test_that("longitudinal ICE: Gamma — sandwich CI is finite and SE is positive"
 # ---------------------------------------------------------------------------
 
 test_that("longitudinal ICE: MASS::glm.nb — lmtp cross-check (static binary)", {
+  skip_if_fast()
   skip_if_not_installed("lmtp")
   skip_if_not_installed("MASS")
 
@@ -431,6 +434,7 @@ test_that("longitudinal ICE: MASS::glm.nb — lmtp cross-check (static binary)",
 # ---------------------------------------------------------------------------
 
 test_that("longitudinal ICE: betareg — smoke test (point + bootstrap)", {
+  skip_if_fast()
   skip_if_not_installed("betareg")
 
   dat <- simulate_longitudinal_betareg(n = 500L, seed = 7L)

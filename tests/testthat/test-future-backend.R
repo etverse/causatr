@@ -20,6 +20,7 @@ skip_if_not_future <- function() {
 
 # ── Sequential future vs boot::boot(parallel = "no") ──
 test_that("parallel = 'future' under plan(sequential) matches parallel = 'no' in MC tolerance", {
+  skip_if_fast()
   skip_if_not_future()
   suppressPackageStartupMessages(future::plan(future::sequential))
   on.exit(future::plan(future::sequential), add = TRUE)
@@ -70,6 +71,7 @@ test_that("parallel = 'future' under plan(sequential) matches parallel = 'no' in
 
 # ── Multisession plan: end-to-end ──
 test_that("parallel = 'future' + plan(multisession) produces a sensible SE for gcomp", {
+  skip_if_fast()
   skip_if_not_future()
   suppressPackageStartupMessages(future::plan(
     future::multisession,
@@ -104,6 +106,7 @@ test_that("parallel = 'future' + plan(multisession) produces a sensible SE for g
 
 # ── Multisession plan: ICE (longitudinal, cluster-bootstrap by id) ──
 test_that("parallel = 'future' + plan(multisession) works for ICE (cluster bootstrap by id)", {
+  skip_if_fast()
   skip_if_not_future()
   suppressPackageStartupMessages(future::plan(
     future::multisession,
@@ -149,6 +152,7 @@ test_that("parallel = 'future' + plan(multisession) works for ICE (cluster boots
 
 # ── Invalid `parallel` rejected by match.arg ──
 test_that("unknown parallel value is rejected", {
+  skip_if_fast()
   d <- data.frame(Y = rnorm(50), A = rbinom(50, 1, 0.5), L = rnorm(50))
   fit <- causat(d, outcome = "Y", treatment = "A", confounders = ~L)
   expect_error(

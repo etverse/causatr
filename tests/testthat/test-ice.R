@@ -55,6 +55,7 @@ test_that("ICE recovers ATE with TV confounder only (no baseline confounder)", {
 
 
 test_that("ICE sandwich SE is valid with TV confounder only", {
+  skip_if_fast()
   long <- make_tv_only_scm(n = 5000, seed = 42)
 
   fit <- causat(
@@ -167,6 +168,7 @@ test_that("ICE sandwich SE is finite and positive", {
 
 
 test_that("ICE bootstrap gives finite SE", {
+  skip_if_fast()
   long <- make_table201(scale = 1 / 800)
   fit <- causat(
     long,
@@ -453,6 +455,7 @@ test_that("ICE with continuous treatment and shift (LMTP) intervention", {
 
 
 test_that("ICE bootstrap and sandwich agree on linear SCM", {
+  skip_if_fast()
   long <- make_linear_scm(n = 2000, n_times = 2, seed = 606)
   fit <- causat(
     long,
@@ -485,6 +488,7 @@ test_that("ICE bootstrap and sandwich agree on linear SCM", {
 
 
 test_that("parallel bootstrap works for point-treatment gcomp", {
+  skip_if_fast()
   skip_on_os("windows")
   data("nhefs", package = "causatr")
   fit <- causat(
@@ -880,6 +884,7 @@ test_that("ICE with ns() handles nonlinear DGP better than bare L", {
 # to each other.
 
 test_that("ICE with ns() agrees with lmtp_sdr on nonlinear DGP", {
+  skip_if_fast()
   skip_if_not_installed("lmtp")
 
   long <- make_nonlinear_scm(n = 3000, seed = 400)
@@ -957,6 +962,7 @@ test_that("ICE with ns() agrees with lmtp_sdr on nonlinear DGP", {
 
 
 test_that("ICE with poly() agrees with lmtp_sdr on linear DGP", {
+  skip_if_fast()
   skip_if_not_installed("lmtp")
 
   long <- make_tv_only_scm(n = 3000, seed = 401)

@@ -15,6 +15,7 @@
 # ── Point treatment (no EM, no TF) ────────────────────────────────────────
 
 test_that("SNM point × binary × no EM: causatr psi agrees with DTRreg", {
+  skip_if_fast()
   skip_if_not_installed("DTRreg")
 
   set.seed(11)
@@ -56,6 +57,7 @@ test_that("SNM point × binary × no EM: causatr psi agrees with DTRreg", {
 # ── Point treatment with EM + TF model ────────────────────────────────────
 
 test_that("SNM point × binary × EM + TF: causatr matches DTRreg (point + SE)", {
+  skip_if_fast()
   skip_if_not_installed("DTRreg")
 
   set.seed(22)
@@ -145,6 +147,7 @@ test_that("SNM point × continuous × EM: truth recovery (no DTRreg — linear b
 # ── Missing outcomes (MCAR) ───────────────────────────────────────────────
 
 test_that("SNM point × MCAR outcomes: complete-case estimate matches DTRreg", {
+  skip_if_fast()
   skip_if_not_installed("DTRreg")
 
   set.seed(44)

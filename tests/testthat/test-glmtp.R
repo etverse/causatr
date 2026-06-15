@@ -262,6 +262,7 @@ test_that("glmtp replicates the Diaz et al. (2026) Section-6 delay result", {
 })
 
 test_that("bootstrap CI covers the forward-MC truth (gaussian)", {
+  skip_if_fast()
   d <- glmtp_delay_data(n = 1500L, seed = 11L)$data
   fit <- glmtp_fit(d)
   res <- contrast(
@@ -277,6 +278,7 @@ test_that("bootstrap CI covers the forward-MC truth (gaussian)", {
 })
 
 test_that("glmtp composes with a censoring row-filter and external weights", {
+  skip_if_fast()
   d <- glmtp_delay_data(n = 2500L, seed = 5L)$data
   # Light random censoring at the final period (row filter), plus survey weights.
   set.seed(99)
@@ -433,6 +435,7 @@ test_that("factor(A) treatment term recovers the cap forward-MC truth; bare-nume
 })
 
 test_that("factor(A) composes with grace_period() end-to-end (bootstrap CI)", {
+  skip_if_fast()
   d <- glmtp_delay_data(n = 1500L, seed = 13L)$data
   fit <- causat(
     d,
@@ -500,6 +503,7 @@ test_that("factor(A) recovers the cap forward-MC truth tightly at n = 80000", {
 })
 
 test_that("cap_escalation() bootstrap variance path matches the engine and yields a well-formed CI", {
+  skip_if_fast()
   # Validates the public contrast() bootstrap PLUMBING for cap_escalation -- the
   # *consistency* of the factor(A) plug-in is owned by the tight n=80000 truth
   # test above, NOT here. The load-bearing assertion is the exact agreement
@@ -689,6 +693,7 @@ test_that("glmtp rejects mixing and a continuous treatment", {
 # ---------------------------------------------------------------------------
 
 test_that("sandwich and bootstrap SEs agree for grace_period (binary, tau=4)", {
+  skip_if_fast()
   # Analytic M-estimation sandwich and ID-cluster bootstrap must estimate the
   # same large-sample variance. At n = 1500 and 400 bootstrap replications the
   # relative difference is ~0.7% (observed), well within the 8% tolerance.
@@ -712,6 +717,7 @@ test_that("sandwich and bootstrap SEs agree for grace_period (binary, tau=4)", {
 })
 
 test_that("sandwich and bootstrap SEs agree for cap_escalation + factor(A)", {
+  skip_if_fast()
   d <- glmtp_delay_data(n = 1500L, seed = 13L, tau = 4L)$data
   fit <- causat(
     d,
@@ -874,6 +880,7 @@ test_that("G-LMTP: Poisson outcome — grace_period(1) matches forward-MC truth"
 })
 
 test_that("G-LMTP: Poisson outcome — sandwich parity with bootstrap", {
+  skip_if_fast()
   skip_on_cran()
   d <- glmtp_delay_data_family("poisson", n = 1500L, seed = 2L)
   fit <- causat(

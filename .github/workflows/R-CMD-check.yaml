@@ -9,10 +9,10 @@ on:
     paths-ignore:
       - "altdoc/**"
       - "docs/**"
-  # Weekly full-matrix safety net so the cross-platform / oldrel configs that
-  # PRs skip are still exercised regularly.
+  # Nightly full-tier, full-matrix safety net: runs the heavy tests PRs skip
+  # (full tier) and the cross-platform / oldrel configs PRs skip, every day.
   schedule:
-    - cron: "0 6 * * 1"
+    - cron: "0 6 * * *"
   workflow_dispatch:
 
 name: R-CMD-check.yaml
@@ -54,6 +54,11 @@ jobs:
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
+      # Pull requests run the fast test tier (heavy bootstrap / external-oracle /
+      # large-n blocks call skip_if_fast() and are skipped); push to the default
+      # branch, the nightly cron, and manual dispatch run the full tier. The
+      # variable is inherited by the test subprocess R CMD check spawns.
+      CAUSATR_TEST_TIER: ${{ github.event_name == 'pull_request' && 'fast' || 'full' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -69,15 +74,18 @@ jobs:
         with:
           extra-packages: any::rcmdcheck, any::mice
           needs: check
-      - uses: r-lib/actions/check-r-package@v2
-        with:
-          upload-snapshots: true
-          build_args: 'c("--no-manual","--compact-vignettes=gs+qpdf")'
-        if: runner.os != 'Windows'
+      # Pull requests: skip the vignette rebuild for speed (vignettes are still
+      # built + checked on push to the default branch and the nightly cron).
       - uses: r-lib/actions/check-r-package@v2
         with:
           upload-snapshots: true
           build_args: 'c("--no-manual","--no-build-vignettes")'
           args: 'c("--no-manual", "--as-cran", "--no-vignettes")'
-          error-on: '"error"'
-        if: runner.os == 'Windows'
+        if: github.event_name == 'pull_request'
+      # Push to default branch / nightly cron / manual dispatch: full check
+      # including vignette build + re-build check.
+      - uses: r-lib/actions/check-r-package@v2
+        with:
+          upload-snapshots: true
+          build_args: 'c("--no-manual","--compact-vignettes=gs+qpdf")'
+        if: github.event_name != 'pull_request'

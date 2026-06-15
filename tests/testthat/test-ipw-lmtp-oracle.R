@@ -19,6 +19,7 @@
 # See PHASE_4_INTERVENTIONS_SELF_IPW.md §9 for the oracle design rationale.
 
 test_that("T-oracle5: causatr shift(1) ≈ lmtp::lmtp_sdr shift (continuous trt)", {
+  skip_if_fast()
   skip_if_not_installed("lmtp")
 
   # DGP 3: L ~ N(0,1), A = 1 + 0.5*L + N(0,1), Y = 1 + 2*A + L + N(0,1).

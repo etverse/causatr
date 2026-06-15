@@ -149,6 +149,7 @@ test_that("T-long-ipw2: longitudinal IPW static recovers ICE on binary DGP", {
 # T-long-ipw3: bootstrap variance ≈ sandwich variance
 # ----------------------------------------------------------------------
 test_that("T-long-ipw3: longitudinal IPW bootstrap SE within MC tolerance of sandwich SE", {
+  skip_if_fast()
   # Bootstrap resamples ids (entire person-period trajectories
   # together). With B = 200 we expect ~30% MC tolerance on the SE.
   set.seed(7003)
@@ -204,6 +205,7 @@ test_that("T-long-ipw3: longitudinal IPW bootstrap SE within MC tolerance of san
 # T-long-ipw4: lmtp_sdr point-estimate cross-check (continuous shift)
 # ----------------------------------------------------------------------
 test_that("T-long-ipw4: longitudinal IPW shift point estimate agrees with lmtp::lmtp_sdr", {
+  skip_if_fast()
   skip_if_not_installed("lmtp")
   skip_if_not_installed("SuperLearner")
 
@@ -497,6 +499,7 @@ test_that("R-long-ipw5: longitudinal IPSI matches per-period Kennedy oracle", {
 })
 
 test_that("R-long-ipw5b: longitudinal IPSI sandwich SE matches bootstrap", {
+  skip_if_fast()
   # Sandwich (stacked per-period propensity correction + numDeriv
   # cross-derivative) vs bootstrap parity for univariate IPSI. The two
   # variance estimators target the same M-estimation sandwich, so they
@@ -828,6 +831,7 @@ test_that("T-long-ipw-stab3: stabilized shift contrast recovers ICE point on bas
 
 
 test_that("T-long-ipw-stab4: bootstrap captures gamma uncertainty under stabilization", {
+  skip_if_fast()
   # Bootstrap refits both numerator (gamma) and denominator (alpha)
   # on every replicate, so the bootstrap SE picks up gamma uncertainty
   # the sandwich (which holds gamma fixed) does not. For a static
@@ -911,6 +915,7 @@ test_that("T-long-ipw-stab5: custom numerator = ~ baseline keeps treatment lags 
 
 
 test_that("T-long-ipw-stab6: stabilized scale_by + trim sandwich matches bootstrap", {
+  skip_if_fast()
   # Exercises the stabilized continuous-treatment `scale_by` branch of
   # `make_long_stabilized_period_closure()` together with the per-period
   # trim-threshold precompute in `make_weight_fn_longitudinal()`. The
@@ -1161,6 +1166,7 @@ test_that("longitudinal IPW: trim reduces cumulative max weight", {
 })
 
 test_that("longitudinal IPW: sandwich and bootstrap agree under trim", {
+  skip_if_fast()
   # Regression test for the per-period vs post-product truncation fix.
   # Before the fix, sandwich used post-product truncation (on the
   # cumulative weight) while bootstrap used per-period truncation
@@ -1197,6 +1203,7 @@ test_that("longitudinal IPW: sandwich and bootstrap agree under trim", {
 })
 
 test_that("longitudinal IPW: trim + bootstrap works", {
+  skip_if_fast()
   d <- data.table::as.data.table(make_continuous_scm(n = 300, seed = 7201))
   fit <- causat(
     d,
@@ -1224,6 +1231,7 @@ test_that("longitudinal IPW: trim + bootstrap works", {
 # ---- lmtp cross-check: longitudinal IPW + trim --------------------------
 
 test_that("longitudinal IPW + trim agrees with lmtp_sdr", {
+  skip_if_fast()
   skip_if_not_installed("lmtp")
   skip_if_not_installed("SuperLearner")
 

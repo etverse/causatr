@@ -156,6 +156,7 @@ test_that("gcomp: MCAR outcome NAs, binomial outcome (DGP-M1 variant)", {
 })
 
 test_that("gcomp: MCAR outcome NAs, bootstrap", {
+  skip_if_fast()
   d <- simulate_mcar_outcome(n = 1000, p_cens = 0.10, seed = 12)
   fit <- causat(
     d,
@@ -499,6 +500,7 @@ test_that("ICE: MCAR outcome NAs at final time (DGP-M4, sandwich)", {
 })
 
 test_that("ICE: MCAR outcome NAs at final time (DGP-M4, bootstrap)", {
+  skip_if_fast()
   d <- simulate_longitudinal_mcar_outcome(n = 1000, p_cens = 0.10, seed = 51)
   fit <- causat(
     d,
@@ -600,6 +602,7 @@ test_that("matching: covariate NAs handled by MatchIt", {
 })
 
 test_that("ICE: MCAR time-varying covariate NAs (bootstrap)", {
+  skip_if_fast()
   # ICE sandwich has a known cascade-gradient alignment issue with
   # partial covariate NAs across time steps. Bootstrap handles it.
   d <- make_linear_scm(n = 3000, n_times = 2, seed = 65)

@@ -43,6 +43,7 @@ test_that("IPW with external weights stores in details", {
 })
 
 test_that("IPW bootstrap with external weights gives finite SE", {
+  skip_if_fast()
   d <- simulate_binary_continuous(n = 500, seed = 42)
   w <- runif(nrow(d), 0.5, 2)
   fit <- suppressWarnings(causat(

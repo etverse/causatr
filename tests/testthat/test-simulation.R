@@ -356,6 +356,7 @@ test_that("matching × binary × gamma(log) outcome × sandwich recovers exp(bet
 
 
 test_that("gcomp × binary trt × poisson × ratio × bootstrap recovers exp(beta_A)", {
+  skip_if_fast()
   # Truth-based companion to test-gcomp.R's sandwich Poisson test.
   # DGP: Y | A, L ~ Poisson(exp(0.5 + 0.4*A + 0.2*L)).
   # Marginal rate ratio = exp(0.4) ≈ 1.49 (Jensen factor from
@@ -389,6 +390,7 @@ test_that("gcomp × binary trt × poisson × ratio × bootstrap recovers exp(bet
 
 
 test_that("ipw × binary × ATT × bootstrap recovers ATE = 3 (constant effect)", {
+  skip_if_fast()
   # IPW ATT with bootstrap variance. simulate_binary_continuous has
   # a constant treatment effect of 3 so ATE = ATT = ATC = 3. This
   # upgrades the previously-missing bootstrap cell on the ATT path.
@@ -416,6 +418,7 @@ test_that("ipw × binary × ATT × bootstrap recovers ATE = 3 (constant effect)"
 
 
 test_that("matching × binary × ATC × bootstrap runs with finite SE", {
+  skip_if_fast()
   # Cross-cut: matching + ATC + bootstrap. Previously only the
   # sandwich ATC cell was tested.
   set.seed(88)
@@ -683,6 +686,7 @@ test_that("gcomp × binary trt × subset estimand (L > 0)", {
 # ============================================================
 
 test_that("gcomp × binary trt × continuous outcome × sandwich vs bootstrap", {
+  skip_if_fast()
   df <- simulate_binary_continuous(n = 1000)
   fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L)
 
@@ -801,6 +805,7 @@ test_that("matching × binary trt × continuous outcome × difference × sandwic
 })
 
 test_that("matching × binary trt × continuous outcome × difference × bootstrap: SE finite", {
+  skip_if_fast()
   df <- simulate_binary_continuous(n = 500)
   fit <- causat(
     df,
@@ -850,6 +855,7 @@ test_that("ipw × binary trt × continuous outcome × difference × sandwich: AT
 })
 
 test_that("ipw × binary trt × continuous outcome × difference × bootstrap: SE finite", {
+  skip_if_fast()
   df <- simulate_binary_continuous(n = 500)
   fit <- causat(
     df,
@@ -1261,6 +1267,7 @@ test_that("matching × continuous outcome × gaussian family recovers ATE", {
 # ============================================================
 
 test_that("ipw × binary trt × continuous outcome × sandwich vs bootstrap", {
+  skip_if_fast()
   df <- simulate_binary_continuous(n = 1000)
   fit <- causat(
     df,
@@ -1367,6 +1374,7 @@ test_that("matching × binary trt × binary outcome × ratio × sandwich", {
 # ============================================================
 
 test_that("matching × binary trt × continuous outcome × sandwich vs bootstrap", {
+  skip_if_fast()
   df <- simulate_binary_continuous(n = 1000)
   fit <- causat(
     df,
@@ -1549,6 +1557,7 @@ test_that("matching × binary trt × continuous outcome × ATE × sandwich ≈ 3
 })
 
 test_that("matching × binary trt × continuous outcome × ATE × bootstrap", {
+  skip_if_fast()
   df <- simulate_binary_continuous(n = 1000)
   fit <- causat(
     df,
@@ -1681,6 +1690,7 @@ test_that("matching × binary trt × binary outcome × or × sandwich", {
 # ============================================================
 
 test_that("gcomp × binary trt × binary outcome × sandwich vs bootstrap", {
+  skip_if_fast()
   df <- simulate_binary_binary(n = 1500)
   fit <- causat(
     df,
@@ -1920,6 +1930,7 @@ test_that("matching × binary trt × binary outcome × ATE × sandwich", {
 # ============================================================
 
 test_that("ipw × binary trt × binary outcome × bootstrap SE finite", {
+  skip_if_fast()
   df <- simulate_binary_binary(n = 1000)
   fit <- causat(
     df,
@@ -1946,6 +1957,7 @@ test_that("ipw × binary trt × binary outcome × bootstrap SE finite", {
 # ============================================================
 
 test_that("matching × binary trt × binary outcome × bootstrap SE finite", {
+  skip_if_fast()
   df <- simulate_binary_binary(n = 1000)
   fit <- causat(
     df,
@@ -1973,6 +1985,7 @@ test_that("matching × binary trt × binary outcome × bootstrap SE finite", {
 # ============================================================
 
 test_that("gcomp × continuous trt × shift × bootstrap SE finite", {
+  skip_if_fast()
   df <- simulate_continuous_continuous(n = 1000)
   fit <- causat(df, outcome = "Y", treatment = "A", confounders = ~L)
   result <- contrast(
@@ -2089,6 +2102,7 @@ test_that("matching × binary outcome × ratio: log-scale CI positive", {
 # ============================================================
 
 test_that("gcomp × external weights + bootstrap recovers the structural ATE", {
+  skip_if_fast()
   # Upgraded from smoke to truth. simulate_binary_continuous has
   # constant treatment effect 3 (true ATE = E[Y^1] - E[Y^0] = 3)
   # regardless of the weighted target population. With iid survey
@@ -2413,6 +2427,7 @@ test_that("ICE × continuous TV treatment × threshold recovers 2 * E[max(A, 0)]
 
 
 test_that("ICE × continuous TV treatment × shift × bootstrap recovers 2*delta", {
+  skip_if_fast()
   # Bootstrap companion to the ICE × shift sandwich truth test
   # below. Same DGP (E[A_t] unrestricted, Y = 1 + A_0 + A_1 + 0.5*L_1).
   # Structural contrast against shift(0) is 2*delta.
@@ -2457,6 +2472,7 @@ test_that("ICE × continuous TV treatment × shift × bootstrap recovers 2*delta
 
 
 test_that("ICE × binary TV × static × bootstrap × survey weights runs", {
+  skip_if_fast()
   # Cross-cut: ICE + external weights + bootstrap. Previously
   # untested. Verifies the bootstrap pipeline threads the weights
   # through every resampled refit and returns a finite SE that is
@@ -2569,6 +2585,7 @@ test_that("ICE × continuous TV treatment × scale_by recovers 2*(c-1) (vs lmtp)
 # ============================================================
 
 test_that("confint with by + bootstrap returns correctly ordered CIs", {
+  skip_if_fast()
   d <- simulate_effect_mod(n = 2000, seed = 42)
   fit <- causat(
     d,
@@ -2722,6 +2739,7 @@ test_that("gcomp x bin trt x poisson x OR x sandwich rejects (mu > 1)", {
 })
 
 test_that("gcomp x bin trt x poisson x diff x bootstrap SE agreement", {
+  skip_if_fast()
   set.seed(103)
   n <- 2000
   L <- stats::rnorm(n)
@@ -2975,6 +2993,7 @@ test_that("gcomp x bin trt x gamma(log) x OR x sandwich rejects (mu > 1)", {
 })
 
 test_that("gcomp x bin trt x gamma(log) x diff x bootstrap SE agreement", {
+  skip_if_fast()
   set.seed(203)
   n <- 2000
   L <- stats::rnorm(n)
@@ -3274,6 +3293,7 @@ test_that("gcomp x bin trt x quasibinom x OR x sandwich", {
 })
 
 test_that("gcomp x bin trt x quasibinom x diff x bootstrap SE agreement", {
+  skip_if_fast()
   set.seed(303)
   n <- 2000
   L <- stats::rnorm(n)
@@ -3557,6 +3577,7 @@ test_that("gcomp x bin trt x negbin x OR x sandwich rejects (mu >= 1)", {
 })
 
 test_that("gcomp x bin trt x negbin x diff x bootstrap SE agreement", {
+  skip_if_fast()
   skip_if_not_installed("MASS")
   set.seed(404)
   n <- 2000
@@ -3934,6 +3955,7 @@ test_that("gcomp x bin trt x beta x OR x sandwich", {
 })
 
 test_that("gcomp x bin trt x beta x diff x bootstrap SE agreement", {
+  skip_if_fast()
   skip_if_not_installed("betareg")
   set.seed(504)
   n <- 2000

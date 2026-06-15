@@ -8,6 +8,7 @@
 # with block-diagonal stacked sandwich.
 
 test_that("T-long-mv-ipw1: binary MV longitudinal IPW static, sandwich vs bootstrap", {
+  skip_if_fast()
   # DGP: 2 periods, 2 binary treatments
   # f(A1,A2 | L) = f(A1|L) * f(A2|A1,L)
   # Y = 2 + 0.5*L + psi1*A1_T + psi2*A2_T + eps
@@ -105,6 +106,7 @@ test_that("T-long-mv-ipw1: binary MV longitudinal IPW static, sandwich vs bootst
 
 
 test_that("T-long-mv-ipw2: continuous MV longitudinal IPW shift, sandwich vs bootstrap", {
+  skip_if_fast()
   # DGP: 2 periods, 2 continuous treatments
   # Y = 2 + 0.5*L + psi1*A1_T + psi2*A2_T + eps
   set.seed(19002)
@@ -182,6 +184,7 @@ test_that("T-long-mv-ipw2: continuous MV longitudinal IPW shift, sandwich vs boo
 
 
 test_that("T-long-mv-ipw2b: continuous MV longitudinal IPW shift + trim, sandwich vs bootstrap", {
+  skip_if_fast()
   # Same DGP as T-long-mv-ipw2 but with `trim < 1`, which exercises the
   # multivariate per-period trim-threshold precompute loop in
   # `make_weight_fn_longitudinal()` (the `is_mv` branch). Sandwich and
@@ -445,6 +448,7 @@ test_that("T-long-mv-stab2: stabilized + static binary MV recovers identical est
 
 
 test_that("T-long-mv-stab3: stabilized MV shift SE close to bootstrap and natural course is exact sample mean", {
+  skip_if_fast()
   # For shift on continuous treatments the stabilized natural-course
   # arm carries non-unit numerator/denominator ratios, so the sandwich
   # must propagate uncertainty through the denominator alpha (numerator
