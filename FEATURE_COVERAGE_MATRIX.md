@@ -66,16 +66,18 @@ parallelism; the estimand coverage and the rows below are unchanged.
 
 Rejections: invalid family string ✅, missing outcome/treatment col ✅ (test-gcomp.R, test-causat.R).
 
-### Categorical (multinomial) outcome — point g-comp (Phase 23a-1 / 23a-2a)
+### Categorical (multinomial) outcome — point g-comp (Phase 23a-1 / 23a-2a / 23a-2b)
 
 Single K-level factor outcome via `model_fn = nnet::multinom`. Estimand is the
 K-vector `P(Y = k | do(A = a))` per intervention; `estimates` / `contrasts` gain
 a `class` column. Variance is **bootstrap** (23a-1) or the analytic per-class IF
-**sandwich** (23a-2a, complete-case; `variance_if_gcomp_multinom()`). Oracles:
+**sandwich** (23a-2a complete-case + 23a-2b survey/external-weighted;
+`variance_if_gcomp_multinom()`). Oracles:
 large-n softmax g-computation truth + exact `marginaleffects::avg_predictions()`
 on causatr's own multinom fit (point parity ~1e-15); the sandwich SE is pinned to
-a Python M-estimation stack (`fixtures/python/multinom_gcomp_sandwich.py`,
-~1e-7 / ~1e-10). All rows `test-gcomp-categorical-outcome.R`.
+a Python M-estimation stack (`fixtures/python/multinom_gcomp_sandwich.py` and the
+weighted `multinom_gcomp_weighted_sandwich.py`, ~1e-7 / ~1e-10). All rows
+`test-gcomp-categorical-outcome.R`.
 
 | Trt | Outcome | Intervention | Estimand | Contrast | Variance | Extra | Status |
 |---|---|---|---|---|---|---|---|
@@ -111,15 +113,29 @@ Scalar byte-identical guard ✅. Bootstrap reproducibility + SE-vs-delta sanity 
 
 Sandwich SE is the full M-estimation IF (Channel 1 empirical-distribution +
 Channel 2 nuisance); `marginaleffects` omits Channel 1, so the tight SE oracle is
-the Python `delicatessen`-style stack. **Weighted** and **IPCW** sandwiches stay
-on the bootstrap (23a-2b / 23a-2c).
+the Python `delicatessen`-style stack.
+
+#### Analytic sandwich — survey / external weights (Phase 23a-2b)
+
+The outcome `nnet::multinom` is a weighted MLE, so the sandwich generalises by
+weighting the stacked bread `H = Σ wᵢ (diag(pᵢ) − pᵢpᵢᵀ) ⊗ XᵢXᵢᵀ`, the score
+residual (`r_score = wᵢ`), Channel 1 (`(n/Σw) wᵢ (p_{k,i} − μ)`), and the softmax
+marginal-mean gradient (`(1/Σw) Σ wᵢ p_{k,i}(δ − p_{l+1,i}) Xᵢ*`). With `w ≡ 1`
+all four collapse to the 23a-2a complete-case formulas byte-for-byte.
+
+| Trt | Outcome | Intervention | Estimand | Contrast | Extra | Status |
+|---|---|---|---|---|---|---|
+| bin | 3-class | static | ATE | diff / ratio / or | survey wts | ✅ weighted delicatessen M-est stack ~1e-7 |
+| bin | 3-class | static | ATE | diff | survey wts | ✅ weighted sandwich vs weighted bootstrap (≤10%) |
+| bin | 3-class | static | ATE | diff | `weights = NULL` ≡ ones | ✅ byte-identical to complete-case vcov (1e-12) |
+
+**IPCW** sandwich stays on the bootstrap (23a-2c).
 
 Rejections (all ✅, `test-gcomp-categorical-outcome.R`): `snm` ⛔
 (`causatr_snm_categorical_outcome`); `ipw` / `aipw` / `matching` / longitudinal /
 transport ⛔ (`causatr_categorical_outcome_unsupported`); `ci_method = "sandwich"`
-with external weights or IPCW ⛔ (`causatr_categorical_outcome_sandwich`, until
-23a-2b / 23a-2c); stochastic intervention ⛔
-(`causatr_categorical_outcome_unsupported`, until 23a-4b).
+with IPCW ⛔ (`causatr_categorical_outcome_sandwich`, until 23a-2c); stochastic
+intervention ⛔ (`causatr_categorical_outcome_unsupported`, until 23a-4b).
 
 ---
 

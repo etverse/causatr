@@ -5,7 +5,7 @@
 > into three dependency-ordered sub-chunks that together cover **every**
 > variance scenario the multinomial point-gcomp surface can present:
 > **23a-2a** (complete-case, SHIPPED), **23a-2b** (survey/external weights,
-> PENDING), **23a-2c** (IPCW, PENDING). All other chunks below are PENDING.
+> SHIPPED), **23a-2c** (IPCW, PENDING). All other chunks below are PENDING.
 >
 > **Depends on:** Phase 2 (point gcomp), Phase 13 (extended outcome types)
 
@@ -55,7 +55,7 @@ S3 layer.
 
 | Estimator | Timing | Decision | Chunk |
 |---|---|---|---|
-| gcomp | point | **Supported** — bootstrap (23a-1); sandwich complete-case (23a-2a), weighted (23a-2b), IPCW (23a-2c) | 23a-1 / 23a-2a–c |
+| gcomp | point | **Supported** — bootstrap (23a-1); sandwich complete-case (23a-2a) + weighted (23a-2b); IPCW sandwich pending (23a-2c) | 23a-1 / 23a-2a–c |
 | gcomp | longitudinal (ICE) | Deferred (per-class pseudo-outcome recursion) | 23a-5 |
 | ipw | point | Deferred (per-class Hájek mean of `I(Y=k)`) | 23a-3 |
 | ipw | longitudinal | Deferred | 23a-6 |
@@ -91,11 +91,17 @@ S3 layer.
     and `marginaleffects::avg_predictions()` (tight point; its delta-method SE
     omits the Channel-1 empirical-distribution term, so it is a point oracle,
     not the SE oracle).
-  - **23a-2b (survey / external weights)** — generalise the multinomial
-    score / bread to prior weights `w_i`: weighted residuals and weighted
-    information `H = sum_i w_i (diag(p_i) - p_i p_i^T) kron X_i X_i^T`.
-    Channel 1 already carries `ext_w`. Lifts the weights + sandwich gate.
-    Oracle: a weighted `delicatessen` stack. [23a-2a]
+  - **23a-2b (survey / external weights) — SHIPPED.** Generalises the
+    multinomial score / bread to prior weights `w_i`: `prepare_model_if_multinom(weights=)`
+    builds the weighted information `H = sum_i w_i (diag(p_i) - p_i p_i^T) kron
+    X_i X_i^T` and sets `r_score = w_i`; `variance_if_gcomp_multinom(weights=)`
+    weights Channel 1 (`(n/sum_w) w_i (p_k - mu)`) and the marginal-mean gradient
+    (`(1/sum_w) sum_i w_i p_k (delta - p_{l+1}) X*`). `weights = NULL` (or `w == 1`)
+    reproduces the 23a-2a complete-case sandwich byte-for-byte. Lifts the weights
+    slice of the sandwich gate (keyed now on `fit$details$ipcw` only). Oracle: a
+    weighted `delicatessen`-style stack (`multinom_gcomp_weighted_sandwich.py`),
+    matched to ~1e-7 (estimates) / ~1e-8 (SEs), plus weighted sandwich-vs-bootstrap
+    parity. [23a-2a]
   - **23a-2c (IPCW)** — multinomial-aware censoring cross-term: a
     `phi_bar_cens(gamma)` closure built on the stacked weighted multinomial
     score, its Jacobian in `gamma`, projected through the stacked outcome
@@ -182,10 +188,11 @@ matrix, `class_labels = NULL`.
   estimator / timing not yet shipped (matching / IPW / AIPW / longitudinal /
   transport, and stochastic interventions). Each later chunk lifts its slice.
 - **`causatr_categorical_outcome_sandwich`** — analytic sandwich is 23a-2. From
-  23a-2a the **complete-case** path is supported; the error remains only as a
-  transitional gate for the still-unlanded sandwich slices (weighted → 23a-2b,
-  IPCW → 23a-2c), where it points the user to `ci_method = "bootstrap"`. The
-  gate is removed entirely when 23a-2c ships.
+  23a-2a the **complete-case** path is supported, and from 23a-2b the
+  **survey/external-weighted** path; the error remains only as a transitional
+  gate for the still-unlanded IPCW sandwich slice (→ 23a-2c, keyed on
+  `fit$details$ipcw`), where it points the user to `ci_method = "bootstrap"`.
+  The gate is removed entirely when 23a-2c ships.
 
 ## 23a-2 design (multinomial sandwich)
 
@@ -266,9 +273,17 @@ not new variance code.
 | sandwich vs bootstrap SE agreement | both variance paths on one DGP | internal MC cross-check (large n) |
 | scalar (binomial/gaussian) outcome | early branch never taken | byte-identical guard (unchanged) |
 
-**23a-2b — survey / external weights.** Weighted score `w_i s_i`, weighted
-information `H_w = sum_i w_i (...) kron X_i X_i^T`; Channel 1 already weights by
-`ext_w`. Oracle: weighted `delicatessen` stack.
+**23a-2b — survey / external weights (SHIPPED).** Weighted score `w_i s_i`,
+weighted information `H_w = sum_i w_i (...) kron X_i X_i^T`; Channel 1 and the
+marginal-mean gradient weight by `w_i` and normalise by `sum_w`. `weights = NULL`
+collapses to 23a-2a. Oracle: weighted `delicatessen`-style stack
+(`multinom_gcomp_weighted_sandwich.py`) + weighted sandwich-vs-bootstrap parity.
+
+| Scenario | Mechanism | Test / oracle |
+|---|---|---|
+| binary trt, static, weighted, means + diff/ratio/OR | weighted bread/score/Ch1/grad | weighted delicatessen stack ~1e-7 |
+| weighted sandwich vs weighted bootstrap | both paths, one DGP | SE ratio in (0.9, 1.1) |
+| `weights = NULL` ≡ ones | weighted formulas collapse | per-class vcov identical to 1e-12 |
 
 **23a-2c — IPCW (missing Y).** Stacked multinomial censoring cross-term added to
 the per-class IF; reuses the `make_ipcw_weight_fn()` / `numDeriv::jacobian`
@@ -289,5 +304,8 @@ multinomial-outcome + IPCW M-estimation).
 ### Transitional classed gates (removed as each slice lands)
 
 - `causatr_categorical_outcome_sandwich` — raised at `contrast()` when
-  `ci_method == "sandwich"` **and** (external weights present → until 23a-2b) or
-  (`ipcw == TRUE` → until 23a-2c). Complete-case sandwich no longer raises it.
+  `ci_method == "sandwich"` **and** `isTRUE(fit$details$ipcw)` (until 23a-2c).
+  Complete-case (23a-2a) and survey/external-weighted (23a-2b) sandwiches no
+  longer raise it. The gate keys on the explicit `ipcw` flag rather than on
+  weight presence because IPCW also populates `fit$details$weights` (the
+  combined survey × IPCW weight). Removed entirely when 23a-2c ships.

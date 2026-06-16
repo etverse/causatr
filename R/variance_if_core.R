@@ -365,10 +365,22 @@ prepare_model_if <- function(model, fit_idx, n_total) {
 #'
 #' The multinomial logit score for observation i and non-reference
 #' class k is
-#' \deqn{s_{ik} = (I(A_i = k) - p_{ik}) X_i,}
-#' stacked into a (K-1)*p vector. The expected information (bread) is
-#' \deqn{H = \sum_i \mathrm{diag}(p_i) - p_i p_i^T) \otimes X_i X_i^T,}
+#' \deqn{s_{ik} = w_i (I(A_i = k) - p_{ik}) X_i,}
+#' stacked into a (K-1)*p vector, with prior weight \eqn{w_i} (1 for the
+#' unweighted complete-case fit). The expected information (bread) is the
+#' matching weighted sum
+#' \deqn{H = \sum_i w_i (\mathrm{diag}(p_i) - p_i p_i^T) \otimes X_i X_i^T,}
 #' where the Kronecker product is over the K-1 non-reference classes.
+#'
+#' The weight enters two places only: the information `H` (so the bread is
+#' the weighted Fisher information of the weighted MLE) and `r_score`, which
+#' carries \eqn{w_i} so `apply_model_correction()` forms the weighted score
+#' correction \eqn{n\,w_i\,(X^{\mathrm{stack}}_i)^\top h}. The stacked design
+#' rows themselves stay the *unweighted* residual score \eqn{(I(A_i=k)-p_{ik})
+#' X_i}; the weight multiplies in through `r_score`, exactly as the scalar GLM
+#' bread carries the prior weight through its IWLS working weights. With
+#' `weights = NULL` every weight is 1 and the return value is byte-identical to
+#' the complete-case path.
 #'
 #' The return value has the same shape as `prepare_model_if()` so
 #' `apply_model_correction()` can consume it transparently.
@@ -376,16 +388,36 @@ prepare_model_if <- function(model, fit_idx, n_total) {
 #' @param model A fitted `nnet::multinom` model.
 #' @param fit_idx Integer vector. Row indices in `1..n_total`.
 #' @param n_total Integer. Total row count for scaling.
+#' @param weights Numeric vector of fit-row prior weights aligned to the model
+#'   rows (`model.matrix(model)` order), or `NULL` for the unweighted
+#'   complete-case bread.
 #'
 #' @return A list with `model`, `X_fit`, `B_inv`, `r_score`, `fit_idx`,
 #'   `n_total`. `X_fit` is the n x ((K-1)*p) stacked design matrix so
 #'   the standard `apply_model_correction()` algebra works.
 #'
 #' @noRd
-prepare_model_if_multinom <- function(model, fit_idx, n_total) {
+prepare_model_if_multinom <- function(model, fit_idx, n_total, weights = NULL) {
   X_base <- stats::model.matrix(model)
   n <- nrow(X_base)
   p <- ncol(X_base)
+
+  # Prior weights for the weighted-MLE fit. The complete-case path passes
+  # `weights = NULL`, which collapses to all-ones so every weighted expression
+  # below reproduces the unweighted bread/score byte-for-byte.
+  w <- if (is.null(weights)) rep(1, n) else weights
+  if (length(w) != n) {
+    rlang::abort(
+      paste0(
+        "prepare_model_if_multinom(): `weights` length (",
+        length(w),
+        ") does not match the ",
+        n,
+        " model rows."
+      ),
+      class = "causatr_variance_row_mismatch"
+    )
+  }
 
   # Predicted probabilities: n x K matrix.
   prob_raw <- stats::predict(model, type = "probs")
@@ -429,11 +461,12 @@ prepare_model_if_multinom <- function(model, fit_idx, n_total) {
     X_stacked[, cols] <- X_base * R_mat[, k]
   }
 
-  # Bread: information matrix of the multinomial logit. For the (j,k)
-  # block (p x p each):
-  #   H_{jk} = -sum_i (delta_{jk} * p_{ij} - p_{ij} * p_{ik}) * X_i X_i'
-  # where j, k are 1-indexed non-reference classes.
-  # We build H as a (Km1*p) x (Km1*p) matrix.
+  # Bread: information matrix of the (weighted) multinomial logit. For the
+  # (j,k) block (p x p each):
+  #   H_{jk} = sum_i w_i (delta_{jk} * p_{ij} - p_{ij} * p_{ik}) * X_i X_i'
+  # where j, k are 1-indexed non-reference classes and w_i is the prior
+  # weight (1 for the complete-case fit). We build H as a (Km1*p) x (Km1*p)
+  # matrix.
   H <- matrix(0, nrow = Km1 * p, ncol = Km1 * p)
   for (j in seq_len(Km1)) {
     for (k in seq_len(Km1)) {
@@ -444,7 +477,7 @@ prepare_model_if_multinom <- function(model, fit_idx, n_total) {
       } else {
         w_jk <- -P_non_ref[, j] * P_non_ref[, k]
       }
-      H[j_cols, k_cols] <- crossprod(X_base, X_base * w_jk)
+      H[j_cols, k_cols] <- crossprod(X_base, X_base * (w_jk * w))
     }
   }
 
@@ -468,9 +501,11 @@ prepare_model_if_multinom <- function(model, fit_idx, n_total) {
   # For a GLM, X_fit holds the design matrix and r_score holds the scalar
   # score residual, so X_fit[i,] %*% h scales the score by the bread-projected
   # gradient. For the stacked multinomial system each row of X_stacked
-  # already IS the per-obs score vector (residual tensor-producted with X_i),
-  # so we set r_score = 1 to avoid double-multiplying the score.
-  r_score <- rep(1, n)
+  # already IS the *unweighted* per-obs score vector (residual tensor-producted
+  # with X_i), so r_score carries only the prior weight w_i: the weighted score
+  # is w_i * X_stacked[i,] and the correction becomes n * w_i * (X_stacked[i,]
+  # %*% h). For the complete-case fit w_i = 1, reproducing the unit r_score.
+  r_score <- w
 
   list(
     model = model,

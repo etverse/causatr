@@ -1024,8 +1024,9 @@ outcome level, and contrasts (difference = risk difference, ratio =
 relative risk, odds ratio) are formed **per class**. Variance is available
 both as the **analytic per-class influence-function sandwich**
 (`ci_method = "sandwich"`) and by **bootstrap**; the two agree up to
-Monte-Carlo error for a correctly specified model. (External-weighted and
-IPCW multinomial sandwiches are still bootstrap-only.)
+Monte-Carlo error for a correctly specified model. The sandwich covers the
+complete-case and **survey/external-weighted** paths (see below); the IPCW
+multinomial sandwich is still bootstrap-only.
 
 **DGM.** A confounded binary treatment with a three-level outcome drawn
 from a softmax (reference level "none").
@@ -1105,6 +1106,36 @@ res_mn_sw <- contrast(
   ci_method = "sandwich"
 )
 tt(tidy(res_mn_sw, which = "means"), digits = 3)
+```
+
+### Survey-weighted multinomial sandwich
+
+With survey or external weights (`weights =`), the outcome `nnet::multinom`
+is a weighted MLE. The analytic sandwich carries the weights through the
+weighted multinomial bread, the score residual, the Channel-1
+empirical-distribution term, and the softmax marginal-mean gradient, so
+`ci_method = "sandwich"` works directly --- no bootstrap fallback needed:
+
+```{r}
+set.seed(21)
+mn_df$sw <- runif(nrow(mn_df), 0.5, 2)
+fit_mn_w <- causat(
+  mn_df,
+  outcome = "Y",
+  treatment = "A",
+  confounders = ~ L,
+  model_fn = nnet::multinom,
+  trace = FALSE,
+  weights = mn_df$sw
+)
+res_mn_w <- contrast(
+  fit_mn_w,
+  interventions = list(a1 = static(1), a0 = static(0)),
+  reference = "a0",
+  type = "difference",
+  ci_method = "sandwich"
+)
+tt(tidy(res_mn_w, which = "means"), digits = 3)
 ```
 
 ## GLM with splines

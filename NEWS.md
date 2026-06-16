@@ -1,5 +1,30 @@
 # causatr (development version)
 
+## 2026-06-16 — Survey/external-weighted multinomial-outcome sandwich (23a-2b)
+
+`contrast(..., ci_method = "sandwich")` now works for a categorical
+(multinomial) outcome under point g-computation **with survey / external
+weights** (`causat(..., weights = w)`), where previously a weighted multinomial
+fit forced the bootstrap. The outcome `nnet::multinom` is already a weighted MLE,
+so `variance_if_gcomp_multinom()` generalises its per-class influence-function
+sandwich by carrying the prior weights `wᵢ` through all four ingredients: the
+stacked multinomial bread `H = Σ wᵢ (diag(pᵢ) − pᵢpᵢᵀ) ⊗ XᵢXᵢᵀ`
+(`prepare_model_if_multinom(weights = ...)`), the score residual, the Channel-1
+empirical-distribution term `(n/Σw) wᵢ (p_{k,i} − μ)`, and the softmax
+marginal-mean gradient `(1/Σw) Σ wᵢ p_{k,i}(δ − p_{l+1,i}) Xᵢ*`. With unit weights
+every expression collapses to the 23a-2a complete-case sandwich byte-for-byte, so
+the unweighted path is provably unchanged.
+
+Validated to ~1e-7 (estimates) / ~1e-8 (SEs) against an independent **weighted**
+Python M-estimation stack that scales every per-observation estimating function
+by `wᵢ` (`tests/testthat/fixtures/python/multinom_gcomp_weighted_sandwich.py`),
+and to Monte-Carlo error against the weighted bootstrap.
+
+The IPCW multinomial sandwich (a stacked censoring cross-term) remains on the
+bootstrap: `ci_method = "sandwich"` with `ipcw = TRUE` on a categorical outcome
+still raises the classed `causatr_categorical_outcome_sandwich` error pointing to
+the bootstrap. It lands in 23a-2c.
+
 ## 2026-06-16 — Analytic sandwich for multinomial-outcome g-computation (23a-2a)
 
 `contrast(..., ci_method = "sandwich")` now works for a categorical

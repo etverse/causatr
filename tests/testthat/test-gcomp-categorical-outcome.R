@@ -1044,6 +1044,175 @@ test_that("the S3 layer renders a multinomial sandwich result", {
   expect_true(all(is.finite(ci)))
 })
 
+# --- Weighted (survey / external) sandwich variance (23a-2b) ---------------
+
+# The outcome `nnet::multinom` is a *weighted* MLE, so its score equation is the
+# weighted multinomial score. The sandwich generalises by weighting the bread,
+# the score residual, Channel 1, and the marginal-mean gradient by w_i. The
+# tight SE oracle is the weighted Python M-estimation stack in
+# `fixtures/python/multinom_gcomp_weighted_sandwich.py`, which scales every
+# per-observation estimating function by w_i and reads the *same* weighted data
+# fixture causatr fits on -- so the per-class weighted means, their SEs, and the
+# diff/ratio/OR contrast SEs must agree to the precision of the shared MLE.
+test_that("weighted multinomial sandwich matches the weighted delicatessen stack", {
+  data_csv <- test_path(
+    "fixtures",
+    "python",
+    "multinom_gcomp_weighted_data.csv"
+  )
+  res_csv <- test_path(
+    "fixtures",
+    "python",
+    "multinom_gcomp_weighted_sandwich_results.csv"
+  )
+  skip_if(!file.exists(data_csv) || !file.exists(res_csv))
+
+  d <- utils::read.csv(data_csv)
+  d$Y <- factor(d$Y, levels = mo_labels3)
+  # Tight convergence so causatr's weighted `nnet::multinom` MLE coincides with
+  # the Python weighted-score root; otherwise the two solvers' coefficient gap
+  # amplifies into a relative-tolerance miss on the near-zero "severe" contrast.
+  fit <- causat(
+    d,
+    "Y",
+    "A",
+    confounders = ~L,
+    estimator = "gcomp",
+    model_fn = nnet::multinom,
+    trace = FALSE,
+    weights = d$w,
+    reltol = 1e-13,
+    maxit = 2000
+  )
+  py <- utils::read.csv(res_csv, stringsAsFactors = FALSE)
+
+  # Per-(intervention, class) weighted marginal means + sandwich SE.
+  res_d <- contrast(
+    fit,
+    list(a1 = static(1), a0 = static(0)),
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  pm <- py[py$kind == "mean", ]
+  for (i in seq_len(nrow(res_d$estimates))) {
+    row <- res_d$estimates[i, ]
+    k <- which(pm$intervention == row$intervention & pm$class == row$class)
+    expect_equal(row$estimate, pm$estimate[k], tolerance = 1e-5)
+    expect_equal(row$se, pm$se[k], tolerance = 1e-5)
+  }
+
+  # Difference / ratio / OR contrast point + linear-scale delta SE per class.
+  # Compared on an *absolute* scale (gap vs 0): the "severe" difference contrast
+  # is near zero (~0.0037), where a relative tolerance is pathological -- the
+  # R `nnet` BFGS and the Python `scipy` weighted-score solver agree on the
+  # multinomial MLE only to ~1e-7 absolute, which is ~2e-5 relative on a
+  # near-zero contrast. The probability-scale absolute agreement (~1e-7) is the
+  # tight, meaningful metric and holds across all classes and contrast scales.
+  for (ty in c("difference", "ratio", "or")) {
+    kind <- switch(ty, difference = "diff", ratio = "ratio", or = "or")
+    pc <- py[py$kind == kind, ]
+    res_c <- contrast(
+      fit,
+      list(a1 = static(1), a0 = static(0)),
+      type = ty,
+      ci_method = "sandwich"
+    )
+    for (i in seq_len(nrow(res_c$contrasts))) {
+      row <- res_c$contrasts[i, ]
+      k <- which(pc$class == row$class)
+      expect_equal(row$estimate - pc$estimate[k], 0, tolerance = 1e-5)
+      expect_equal(row$se - pc$se[k], 0, tolerance = 1e-5)
+    }
+  }
+})
+
+test_that("weighted multinomial sandwich SE agrees with the weighted bootstrap", {
+  skip_if_fast()
+  d <- sim_multinom_binary(n = 4000, seed = 11)
+  set.seed(21)
+  w <- stats::runif(nrow(d), 0.5, 2)
+  fit <- causat(
+    d,
+    "Y",
+    "A",
+    confounders = ~L,
+    estimator = "gcomp",
+    model_fn = nnet::multinom,
+    trace = FALSE,
+    weights = w
+  )
+  ivs <- list(a1 = static(1), a0 = static(0))
+  rs <- contrast(fit, ivs, type = "difference", ci_method = "sandwich")
+  set.seed(7)
+  rb <- contrast(
+    fit,
+    ivs,
+    type = "difference",
+    ci_method = "bootstrap",
+    n_boot = 1000
+  )
+  # Same weighted fit -> identical point estimates on both variance paths.
+  expect_equal(rs$estimates$estimate, rb$estimates$estimate, tolerance = 1e-10)
+  expect_equal(rs$contrasts$estimate, rb$contrasts$estimate, tolerance = 1e-10)
+  # SE agreement within the Monte-Carlo error of 1000 weighted replicates.
+  expect_equal(rs$estimates$se / rb$estimates$se, rep(1, 6L), tolerance = 0.1)
+  expect_equal(rs$contrasts$se / rb$contrasts$se, rep(1, 3L), tolerance = 0.1)
+})
+
+# A NULL weight vector must reproduce the complete-case sandwich byte-for-byte:
+# the weighted formulas collapse (w_i = 1, sum_w = n_t) to the 23a-2a path, so
+# routing through the new weighted code on an unweighted fit cannot perturb it.
+test_that("unweighted multinomial sandwich is unchanged by the weighted path", {
+  d <- sim_multinom_binary(n = 2500, seed = 14)
+  fit <- causat(
+    d,
+    "Y",
+    "A",
+    confounders = ~L,
+    estimator = "gcomp",
+    model_fn = nnet::multinom,
+    trace = FALSE
+  )
+  ivs <- list(a1 = static(1), a0 = static(0))
+  res <- contrast(fit, ivs, type = "difference", ci_method = "sandwich")
+
+  # Recompute the per-class vcov directly with an explicit all-ones weight: it
+  # must equal the NULL-weight (complete-case) vcov to machine precision.
+  data_a_list <- lapply(ivs, function(iv) {
+    apply_intervention(fit$data, fit$treatment, iv)
+  })
+  preds_list <- lapply(data_a_list, function(da) predict_outcome(fit$model, da))
+  target_idx <- rep(TRUE, nrow(fit$data))
+  class_labels <- multinom_class_labels(fit$model)
+  mu_mat <- t(vapply(
+    preds_list,
+    function(p) colMeans(p[target_idx, , drop = FALSE]),
+    numeric(length(class_labels))
+  ))
+  dimnames(mu_mat) <- list(names(ivs), class_labels)
+  v_null <- variance_if_gcomp_multinom(
+    fit,
+    data_a_list,
+    preds_list,
+    mu_mat,
+    target_idx,
+    class_labels,
+    weights = NULL
+  )
+  v_ones <- variance_if_gcomp_multinom(
+    fit,
+    data_a_list,
+    preds_list,
+    mu_mat,
+    target_idx,
+    class_labels,
+    weights = rep(1, nrow(fit$data))
+  )
+  for (cl in class_labels) {
+    expect_equal(v_null[[cl]], v_ones[[cl]], tolerance = 1e-12)
+  }
+})
+
 # --- Byte-identical guard for the scalar path ------------------------------
 
 test_that("a scalar-outcome gcomp result is unchanged by the multinomial path", {
@@ -1149,7 +1318,7 @@ test_that("categorical outcome rejects longitudinal and transport designs", {
   )
 })
 
-test_that("categorical outcome gates weighted/IPCW sandwich and stochastic", {
+test_that("categorical outcome gates IPCW sandwich and stochastic", {
   skip_if_fast()
   d <- sim_multinom_binary(n = 1500, seed = 11)
   d$w <- stats::runif(nrow(d), 0.5, 2)
@@ -1162,8 +1331,8 @@ test_that("categorical outcome gates weighted/IPCW sandwich and stochastic", {
     model_fn = nnet::multinom,
     trace = FALSE
   )
-  # Complete-case sandwich is supported (23a-2a); only the weighted and IPCW
-  # sandwiches stay gated until their slices land.
+  # Complete-case (23a-2a) and weighted (23a-2b) sandwiches are supported; only
+  # the IPCW sandwich stays gated until its slice (23a-2c) lands.
   expect_no_error(
     contrast(fit, list(a1 = static(1), a0 = static(0)), ci_method = "sandwich")
   )
@@ -1178,9 +1347,36 @@ test_that("categorical outcome gates weighted/IPCW sandwich and stochastic", {
     trace = FALSE,
     weights = d$w
   )
-  expect_error(
+  # Weighted sandwich now runs (no classed abort).
+  expect_no_error(
     contrast(
       fit_w,
+      list(a1 = static(1), a0 = static(0)),
+      ci_method = "sandwich"
+    )
+  )
+
+  # IPCW + sandwich is still routed to the bootstrap via the classed gate. The
+  # MAR-censored DGP mirrors the IPCW bootstrap test above.
+  d_c <- sim_multinom_binary(n = 1500, seed = 11)
+  d_c$Cens <- stats::rbinom(nrow(d_c), 1L, stats::plogis(-0.5 - 0.8 * d_c$L))
+  d_c$Yobs <- d_c$Y
+  d_c$Yobs[d_c$Cens == 1L] <- NA
+  fit_ipcw <- causat(
+    d_c,
+    "Yobs",
+    "A",
+    confounders = ~L,
+    estimator = "gcomp",
+    model_fn = nnet::multinom,
+    trace = FALSE,
+    censoring = "Cens",
+    ipcw = TRUE,
+    confounders_censoring = ~L
+  )
+  expect_error(
+    contrast(
+      fit_ipcw,
       list(a1 = static(1), a0 = static(0)),
       ci_method = "sandwich"
     ),

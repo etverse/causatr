@@ -30,6 +30,7 @@ an additional dependency. The math is identical to `delicatessen.MEstimator`.
 | `glmtp_sandwich_tau2.py` | `glmtp_sandwich_tau2_results.csv` | G-LMTP grace_period(1), tau=2, binary Gaussian, n=500, seed=2025 |
 | `ice_poisson_tau2.py` | `ice_poisson_tau2_results.csv` | ICE Poisson, static(1)/static(0), tau=2, n=300, seed=2025 |
 | `multinom_gcomp_sandwich.py` | `multinom_gcomp_sandwich_results.csv` | Multinomial-outcome point g-comp, static(1)/static(0), K=3, n=2000, seed=2025 (means + diff/ratio/OR SEs) |
+| `multinom_gcomp_weighted_sandwich.py` | `multinom_gcomp_weighted_sandwich_results.csv` | **Weighted** (survey/external) multinomial-outcome point g-comp, static(1)/static(0), K=3, n=2000, seed=2025 + weight seed=4242 (weighted means + diff/ratio/OR SEs) |
 
 ## Regenerating
 
@@ -39,6 +40,7 @@ Run from the repository root:
 python tests/testthat/fixtures/python/glmtp_sandwich_tau2.py
 python tests/testthat/fixtures/python/ice_poisson_tau2.py
 python tests/testthat/fixtures/python/multinom_gcomp_sandwich.py
+python tests/testthat/fixtures/python/multinom_gcomp_weighted_sandwich.py
 ```
 
 ### G-LMTP sandwich fixture
@@ -90,4 +92,28 @@ devtools::load_all()
 source("tests/testthat/helper-multinom-oracle.R")
 d <- sim_multinom_binary(n=2000L, seed=2025L)
 write.csv(d, "tests/testthat/fixtures/python/multinom_gcomp_data.csv", row.names=FALSE)
+```
+
+### Weighted multinomial g-computation sandwich fixture
+
+The weighted script reads `multinom_gcomp_weighted_data.csv` (the same
+`Y`/`A`/`L` columns as the complete-case fixture plus a positive `w` survey
+weight) and writes `multinom_gcomp_weighted_sandwich_results.csv`. It solves
+the *weighted* multinomial score equations and stacks the weighted
+per-(intervention, class) marginal means; every per-observation estimating
+function is scaled by `w_i`, so the sandwich is the weighted M-estimator's
+variance. This is the tight SE oracle for the survey-weighted path of
+`variance_if_gcomp_multinom()`.
+
+Regenerate the data CSV from R (the `(Y, A, L)` draws reuse the complete-case
+seed so the two fixtures share an outcome model; the weights use a separate
+seed):
+
+```r
+devtools::load_all()
+source("tests/testthat/helper-multinom-oracle.R")
+d <- sim_multinom_binary(n=2000L, seed=2025L)
+set.seed(4242L)
+d$w <- stats::runif(nrow(d), 0.4, 2.5)
+write.csv(d, "tests/testthat/fixtures/python/multinom_gcomp_weighted_data.csv", row.names=FALSE)
 ```
