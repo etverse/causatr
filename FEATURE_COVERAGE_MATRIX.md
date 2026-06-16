@@ -66,13 +66,16 @@ parallelism; the estimand coverage and the rows below are unchanged.
 
 Rejections: invalid family string ✅, missing outcome/treatment col ✅ (test-gcomp.R, test-causat.R).
 
-### Categorical (multinomial) outcome — point g-comp (Phase 23a-1)
+### Categorical (multinomial) outcome — point g-comp (Phase 23a-1 / 23a-2a)
 
 Single K-level factor outcome via `model_fn = nnet::multinom`. Estimand is the
 K-vector `P(Y = k | do(A = a))` per intervention; `estimates` / `contrasts` gain
-a `class` column. Variance is **bootstrap** (analytic sandwich is Phase 23a-2).
-Oracles: large-n softmax g-computation truth + exact `marginaleffects::avg_predictions()`
-on causatr's own multinom fit (point parity ~1e-15). All rows `test-gcomp-categorical-outcome.R`.
+a `class` column. Variance is **bootstrap** (23a-1) or the analytic per-class IF
+**sandwich** (23a-2a, complete-case; `variance_if_gcomp_multinom()`). Oracles:
+large-n softmax g-computation truth + exact `marginaleffects::avg_predictions()`
+on causatr's own multinom fit (point parity ~1e-15); the sandwich SE is pinned to
+a Python M-estimation stack (`fixtures/python/multinom_gcomp_sandwich.py`,
+~1e-7 / ~1e-10). All rows `test-gcomp-categorical-outcome.R`.
 
 | Trt | Outcome | Intervention | Estimand | Contrast | Variance | Extra | Status |
 |---|---|---|---|---|---|---|---|
@@ -93,11 +96,30 @@ on causatr's own multinom fit (point parity ~1e-15). All rows `test-gcomp-catego
 S3 layer (coef / confint / tidy / glance / print / plot per-class) ✅.
 Scalar byte-identical guard ✅. Bootstrap reproducibility + SE-vs-delta sanity ✅.
 
+#### Analytic sandwich (Phase 23a-2a, complete-case)
+
+| Trt | Outcome | Intervention | Estimand | Contrast | Extra | Status |
+|---|---|---|---|---|---|---|
+| bin | 3-class | static | ATE | diff / ratio / or | — | ✅ delicatessen M-est stack ~1e-7 / ~1e-10 |
+| bin | 3-class | static | ATE | diff | — | ✅ sandwich vs bootstrap (≤10%) |
+| cont | 3-class | shift | ATE | diff | — | ✅ marginaleffects point + boot SE parity |
+| cat | 3-class | static | ATE | diff | — | ✅ sandwich vs bootstrap |
+| bin | 4-class | static | ATE | diff | — | ✅ schema + boot SE parity |
+| bin | 3-class | static | ATT | diff | — | ✅ treated-standardised point + boot SE |
+| bin | 3-class | static | by(G) / subset | diff | spline confounders | ✅ per-stratum / subset sandwich + boot SE |
+| bin | 3-class | static | ATE | diff | S3 (boot_t NULL) | ✅ print / summary / tidy / coef / confint |
+
+Sandwich SE is the full M-estimation IF (Channel 1 empirical-distribution +
+Channel 2 nuisance); `marginaleffects` omits Channel 1, so the tight SE oracle is
+the Python `delicatessen`-style stack. **Weighted** and **IPCW** sandwiches stay
+on the bootstrap (23a-2b / 23a-2c).
+
 Rejections (all ✅, `test-gcomp-categorical-outcome.R`): `snm` ⛔
 (`causatr_snm_categorical_outcome`); `ipw` / `aipw` / `matching` / longitudinal /
 transport ⛔ (`causatr_categorical_outcome_unsupported`); `ci_method = "sandwich"`
-⛔ (`causatr_categorical_outcome_sandwich`, until 23a-2); stochastic intervention
-⛔ (`causatr_categorical_outcome_unsupported`, until 23a-4b).
+with external weights or IPCW ⛔ (`causatr_categorical_outcome_sandwich`, until
+23a-2b / 23a-2c); stochastic intervention ⛔
+(`causatr_categorical_outcome_unsupported`, until 23a-4b).
 
 ---
 
