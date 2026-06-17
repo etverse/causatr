@@ -51,6 +51,18 @@ Project-specific rules that override / extend the etverse-wide rules at
   weighted fit. Dropping this factor underestimates SE by ~2x. The fit-row
   bread × target-row gradient is correct by the delta method; don't flag it
   as a "scope mismatch" without running sandwich vs bootstrap numerically.
+- **ICE cascade frames are restricted to model-complete rows.**
+  `variance_if_ice_chain()` calls `ice_model_complete_rows(model_k, frame)`
+  before building each step's counterfactual design, because
+  `iv_design_matrix()` → `model.matrix()` silently `na.omit`-drops rows with a
+  missing model term and would otherwise desync the design from the id-indexed
+  `match()` vectors (raw "subscript out of bounds" under time-varying covariate
+  missingness). Dropped ids are exactly those absent from step k's gated score
+  (`I(C_{i,k}=0)`, Zivich et al. 2024) — do NOT "add them back" to the gradient.
+  The baseline pseudo-outcome stays defined for everyone, so the point estimate
+  and Channel 1 are unchanged; the fix is variance-only and MCAR-valid only.
+  Don't re-flag the missing-L sandwich as broken — it matches bootstrap/jackknife
+  to ~1.0 (`test-missing-data.R`).
 - **Matching is binary-only.** MatchIt rejects non-binary; `fit_matching()`
   intercepts upstream with a clear error pointing to `gcomp` / `ipw`.
 - **WeightIt is test-only (Suggests).** Never on the runtime path.

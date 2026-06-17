@@ -485,7 +485,8 @@ remain in this matrix.
 | Y final (10%) | static | sandwich | ✅ | test-missing-data.R |
 | time-varying L (8%) | static | boot | ✅ | test-missing-data.R |
 | Y final (10%) | static | boot | ✅ | test-missing-data.R |
-| time-varying L | static | sandwich | ❌ (cascade gradient alignment) | — |
+| time-varying L (8%) | static | sandwich | ✅ (cascade restricted to model-complete rows; matches bootstrap/jackknife ~1.0) | test-missing-data.R |
+| time-varying L, 3-period intermediate NA | static | sandwich | ✅ (two-step cascade) | test-missing-data.R |
 
 ### MAR outcome / IPCW
 

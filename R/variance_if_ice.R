@@ -213,6 +213,43 @@ ice_if_setup <- function(fit, ice_result, target) {
 }
 
 
+#' Rows a fitted model can predict on (no NA in any model term)
+#'
+#' @description
+#' `iv_design_matrix()` builds the counterfactual design via
+#' `model.matrix()`, whose underlying `model.frame()` silently `na.omit`-drops
+#' any row with a missing model term (e.g. a missing time-varying confounder).
+#' That dropping desyncs the design matrix from the id-indexed `match()` vectors
+#' the cascade gradient uses, overrunning the design and aborting with a raw
+#' "subscript out of bounds". Pre-filtering the prediction frame to the rows the
+#' model can actually score keeps the design row-aligned with the surviving ids.
+#'
+#' Individuals removed here are exactly those absent from step `k`'s gated
+#' estimating equation -- the `I(C_{i,k}=0)` / observed-indicator factor of the
+#' ICE stacked score (Zivich et al. 2024, Stat. Med. \doi{10.1002/sim.10255},
+#' Eq. 3) -- so they contribute zero to that step's gradient, consistent with the
+#' point estimate (whose baseline pseudo-outcome is still defined for them).
+#'
+#' With no missing data every row is complete, so the result is all-`TRUE` and
+#' the cascade is byte-identical to the historical path.
+#'
+#' @param model A fitted model (GLM or GAM) used for the step.
+#' @param frame A `data.table`/`data.frame` of candidate prediction rows.
+#'
+#' @return Logical vector (length `nrow(frame)`); `TRUE` for rows with no NA in
+#'   any term of `model`.
+#'
+#' @noRd
+ice_model_complete_rows <- function(model, frame) {
+  vars <- all.vars(stats::delete.response(stats::terms(model)))
+  vars <- intersect(vars, names(frame))
+  if (length(vars) == 0L) {
+    return(rep(TRUE, nrow(frame)))
+  }
+  stats::complete.cases(frame[, vars, with = FALSE])
+}
+
+
 #' Channel-2 nuisance-correction chain for an ICE model sequence
 #'
 #' @description
@@ -303,6 +340,12 @@ variance_if_ice_chain <- function(
     rows_iv_current <- data_iv[[time_col]] == current_time
     iv_data_current <- data_iv[rows_iv_current]
     iv_data_current <- iv_data_current[strat_ok(iv_data_current)]
+    # Keep only rows the step-k model can score. `iv_design_matrix()` would
+    # otherwise na.omit-drop missing-term rows inside `model.matrix()`,
+    # desyncing the design from the id-indexed match() vectors below.
+    iv_data_current <- iv_data_current[
+      ice_model_complete_rows(model_k, iv_data_current)
+    ]
     iv_ids_current <- as.character(iv_data_current[[id_col]])
 
     if (step_i == 1L) {
@@ -332,6 +375,7 @@ variance_if_ice_chain <- function(
           )
           iv_cur_m <- dv_m[dv_m[[time_col]] == current_time]
           iv_cur_m <- iv_cur_m[strat_ok(iv_cur_m)]
+          iv_cur_m <- iv_cur_m[ice_model_complete_rows(model_k, iv_cur_m)]
           X_m <- iv_design_matrix(model_k, iv_cur_m)
           eta_m <- as.numeric(X_m %*% coef_clean(model_k))
           mu_eta_m <- model_k$family$mu.eta(eta_m)
@@ -401,6 +445,7 @@ variance_if_ice_chain <- function(
             )
             iv_cur_m <- dv_m[dv_m[[time_col]] == current_time]
             iv_cur_m <- iv_cur_m[strat_ok(iv_cur_m)]
+            iv_cur_m <- iv_cur_m[ice_model_complete_rows(model_k, iv_cur_m)]
             X_m <- iv_design_matrix(model_k, iv_cur_m)
             eta_m <- as.numeric(X_m %*% coef_clean(model_k))
             mu_eta_m <- model_k$family$mu.eta(eta_m)

@@ -603,8 +603,9 @@ test_that("matching: covariate NAs handled by MatchIt", {
 
 test_that("ICE: MCAR time-varying covariate NAs (bootstrap)", {
   skip_if_fast()
-  # ICE sandwich has a known cascade-gradient alignment issue with
-  # partial covariate NAs across time steps. Bootstrap handles it.
+  # MCAR missingness in a time-varying confounder: complete-case ICE stays
+  # consistent (the baseline pseudo-outcome is defined for everyone) and both
+  # variance paths apply. The analytic-sandwich parity is asserted below.
   d <- make_linear_scm(n = 3000, n_times = 2, seed = 65)
   t1_rows <- which(d$time == 1)
   set.seed(65)
@@ -627,6 +628,103 @@ test_that("ICE: MCAR time-varying covariate NAs (bootstrap)", {
     n_boot = 80L
   )
   expect_equal(result$contrasts$estimate[1], 5.0, tolerance = 0.05)
+})
+
+# The ICE analytic sandwich under MCAR time-varying-covariate missingness.
+# `iv_design_matrix()` na.omit-drops missing-term rows inside `model.matrix()`;
+# the cascade gradient must restrict each step's frame to model-complete rows so
+# the design stays aligned with its id-indexed match() vectors (the dropped ids
+# are absent from that step's gated score, Zivich et al. 2024, Stat. Med.). The
+# baseline pseudo-outcome is still defined for everyone, so the point estimate is
+# unchanged and the sandwich must match the bootstrap. Validated additionally
+# against the delete-one-id jackknife (sandwich/jack ratio ~1.0; too slow to run
+# in-suite).
+test_that("ICE: MCAR time-varying covariate NAs (sandwich matches bootstrap)", {
+  skip_if_fast()
+  d <- make_linear_scm(n = 3000, n_times = 2, seed = 65)
+  t1_rows <- which(d$time == 1)
+  set.seed(65)
+  d$L[sample(t1_rows, floor(length(t1_rows) * 0.08))] <- NA
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time"
+  )
+  ivs <- list(always = static(1), never = static(0))
+  # Sandwich runs (previously aborted with "subscript out of bounds").
+  res_s <- contrast(
+    fit,
+    interventions = ivs,
+    reference = "never",
+    ci_method = "sandwich"
+  )
+  set.seed(7)
+  res_b <- contrast(
+    fit,
+    interventions = ivs,
+    reference = "never",
+    ci_method = "bootstrap",
+    n_boot = 600L
+  )
+  # Point estimate unchanged across variance paths and recovers the truth.
+  expect_equal(res_s$contrasts$estimate[1], 5.0, tolerance = 0.05)
+  expect_equal(
+    res_s$contrasts$estimate[1],
+    res_b$contrasts$estimate[1],
+    tolerance = 1e-10
+  )
+  # Tight two-sided sandwich-vs-bootstrap SE agreement (no longer the loose
+  # band that let the cascade bug hide): both estimate the same asymptotic
+  # variance, agreeing to bootstrap Monte-Carlo error at n = 3000.
+  ratio <- res_s$contrasts$se[1] / res_b$contrasts$se[1]
+  expect_equal(ratio, 1.0, tolerance = 0.1)
+})
+
+# Intermediate-period missingness (NA at t = 1 of a 3-period panel) exercises
+# the cascade across TWO backward steps -- the case the row-space misalignment
+# overran. Truth ATE = 2*3 (per-period) + 2 (L feedback at t=1,2) = 8.
+test_that("ICE: 3-period intermediate-time covariate NAs (sandwich)", {
+  skip_if_fast()
+  d <- make_linear_scm(n = 3000, n_times = 3, seed = 71)
+  t1_rows <- which(d$time == 1)
+  set.seed(71)
+  d$L[sample(t1_rows, floor(length(t1_rows) * 0.08))] <- NA
+  fit <- causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time"
+  )
+  ivs <- list(always = static(1), never = static(0))
+  res_s <- contrast(
+    fit,
+    interventions = ivs,
+    reference = "never",
+    ci_method = "sandwich"
+  )
+  set.seed(7)
+  res_b <- contrast(
+    fit,
+    interventions = ivs,
+    reference = "never",
+    ci_method = "bootstrap",
+    n_boot = 600L
+  )
+  expect_equal(res_s$contrasts$estimate[1], 8.0, tolerance = 0.08)
+  expect_equal(
+    res_s$contrasts$estimate[1],
+    res_b$contrasts$estimate[1],
+    tolerance = 1e-10
+  )
+  ratio <- res_s$contrasts$se[1] / res_b$contrasts$se[1]
+  expect_equal(ratio, 1.0, tolerance = 0.12)
 })
 
 
