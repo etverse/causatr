@@ -1,5 +1,52 @@
 # causatr (development version)
 
+## 2026-06-17 — Longitudinal AIPW sandwich aborts on unbalanced panels (was silently ~50% low)
+
+The longitudinal AIPW analytic sandwich (`ci_method = "sandwich"`) previously
+returned a **silently low** standard error on an unbalanced panel (monotone
+dropout / censoring row-filter) — documented as "~15% low" but in fact up to
+**~50% low**, scaling with the dropout fraction. Diagnosis: on a *balanced*
+panel the doubly-robust property makes Channel 1 (the pseudo-outcome deviation)
+equal the efficient influence function, so the analytic sandwich is exactly
+correct (now asserted by a tight bootstrap-agreement test, replacing a former
+"finite and positive" smoke test and a factor-of-2 tolerance band that let the
+bug hide). Under the selected sub-sample of an unbalanced panel that property
+breaks, and the forward-cascade approximation of the block-triangular bread
+inverse drops the dominant baseline-pseudo-regression block. This was confirmed
+to be a real, fixable bug — not a fundamental limitation — by a hand-built
+stacked-EE M-estimation sandwich (faithful to ~1e-11) and the delete-one-id
+jackknife, both of which recover the larger truth that the bootstrap matches.
+
+Until the full fix lands (replacing the forward cascade with the stacked-EE
+sandwich, which is correct and consistent on balanced and unbalanced panels),
+`variance_if_aipw_longitudinal()` now **aborts** on an unbalanced panel
+(`causatr_longitudinal_aipw_unbalanced_sandwich`) and steers users to
+`ci_method = "bootstrap"` (correct here) rather than return a wrong SE. The
+analytic sandwich on **balanced** panels is unchanged and correct.
+
+## 2026-06-17 — Fix: ICE analytic sandwich under time-varying covariate missingness
+
+`contrast(..., ci_method = "sandwich")` on a longitudinal ICE (gcomp) fit with
+**MCAR missingness in a time-varying confounder** previously aborted with a raw
+`subscript out of bounds`. The cascade gradient built its per-step counterfactual
+design via `iv_design_matrix()` → `model.matrix()`, which silently `na.omit`-drops
+rows with a missing model term, desyncing the design from the id-indexed `match()`
+vectors that drive the backward sensitivity recursion. The fix restricts each
+step's prediction frame to the rows the step model can actually score
+(`ice_model_complete_rows()`); those individuals are exactly the ones absent from
+that step's gated estimating equation (the `I(C_{i,k}=0)` factor of the ICE
+stacked score, Zivich et al. 2024, *Stat. Med.* 43:5562), so they contribute zero
+to that step's gradient — while the baseline pseudo-outcome stays defined for
+everyone, so the point estimate is unchanged. With no missing data the frame is
+unchanged, so the validated complete-data sandwich is byte-identical.
+
+The analytic sandwich now matches the bootstrap and the delete-one-id jackknife to
+Monte-Carlo error (ratio ~1.0) under MCAR missingness, including 3-period panels
+with NA at an intermediate period (a two-step cascade). The fix is shared by the
+stratified-ICE chain. **Validity is MCAR-only**: under MAR a complete-case ICE
+point estimate is itself biased — use `causat_mice()` (multiple imputation) or
+IPCW, which already pool/weight correctly.
+
 ## 2026-06-16 — Survey/external-weighted multinomial-outcome sandwich (23a-2b)
 
 `contrast(..., ci_method = "sandwich")` now works for a categorical
