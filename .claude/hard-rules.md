@@ -132,16 +132,25 @@ Project-specific rules that override / extend the etverse-wide rules at
 - **Effect modifier in IPW / matching must be a baseline covariate.** Not
   enforced at runtime (time-varying status isn't inferable from data) — doc-
   level constraint only. Do not flag this as a "missing check".
-- **Longitudinal AIPW sandwich SE underestimates on unbalanced panels by
-  design.** When the panel is unbalanced (monotone dropout / censoring
-  row-filter), `variance_if_aipw_longitudinal()` emits a classed warning
-  (`causatr_longitudinal_aipw_unbalanced_sandwich`, `.frequency = "once"`)
-  and the SE is ~15% low (Monte-Carlo verified, 300 reps). This is a known
-  limitation of the row-filtering IF: dropped ids contribute zero to
-  later-period channels instead of their unobserved counterfactual, and a
-  constant `n / n_period_k` rescale cannot repair it. The bootstrap is
-  correct. Do NOT flag the low sandwich SE as a fixable bug — the contract
-  is the warning + bootstrap fallback, not a re-derived IF.
+- **Longitudinal AIPW sandwich ABORTS on unbalanced panels (known bug, fixable
+  — not "by design").** When the panel is unbalanced (monotone dropout /
+  censoring row-filter), `variance_if_aipw_longitudinal()` aborts with class
+  `causatr_longitudinal_aipw_unbalanced_sandwich`, steering to the bootstrap.
+  Mechanism (diagnosed, not speculative): on a *balanced* panel the doubly-robust
+  property makes Channel 1 (the pseudo-outcome deviation) equal the efficient
+  influence function, so the analytic sandwich is exactly correct. Under the
+  selected sub-sample of an unbalanced panel that property breaks, and the
+  forward-cascade approximation of the block-triangular bread inverse drops the
+  dominant baseline-pseudo-regression block — underestimating the SE by ~50%
+  (the magnitude scales with the dropout fraction; the old "~15%" was a mild
+  single-DGP figure). This is a REAL, FIXABLE bug, not a fundamental limitation:
+  a hand-built stacked-EE M-estimation sandwich (faithful to ~1e-11, validated
+  in the unbalanced-panel test) and the delete-one-id jackknife both recover the
+  larger truth, which the bootstrap matches. The correct fix is to replace the
+  forward cascade with the full stacked-EE sandwich (general, consistent for
+  balanced and unbalanced); until that lands the abort + bootstrap is the honest
+  contract. Do NOT re-document this as "by design" or restore the silent ~15%
+  warning. The balanced-panel cascade is correct and unchanged.
 
 ### Implementation conventions
 

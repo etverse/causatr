@@ -1,5 +1,29 @@
 # causatr (development version)
 
+## 2026-06-17 — Longitudinal AIPW sandwich aborts on unbalanced panels (was silently ~50% low)
+
+The longitudinal AIPW analytic sandwich (`ci_method = "sandwich"`) previously
+returned a **silently low** standard error on an unbalanced panel (monotone
+dropout / censoring row-filter) — documented as "~15% low" but in fact up to
+**~50% low**, scaling with the dropout fraction. Diagnosis: on a *balanced*
+panel the doubly-robust property makes Channel 1 (the pseudo-outcome deviation)
+equal the efficient influence function, so the analytic sandwich is exactly
+correct (now asserted by a tight bootstrap-agreement test, replacing a former
+"finite and positive" smoke test and a factor-of-2 tolerance band that let the
+bug hide). Under the selected sub-sample of an unbalanced panel that property
+breaks, and the forward-cascade approximation of the block-triangular bread
+inverse drops the dominant baseline-pseudo-regression block. This was confirmed
+to be a real, fixable bug — not a fundamental limitation — by a hand-built
+stacked-EE M-estimation sandwich (faithful to ~1e-11) and the delete-one-id
+jackknife, both of which recover the larger truth that the bootstrap matches.
+
+Until the full fix lands (replacing the forward cascade with the stacked-EE
+sandwich, which is correct and consistent on balanced and unbalanced panels),
+`variance_if_aipw_longitudinal()` now **aborts** on an unbalanced panel
+(`causatr_longitudinal_aipw_unbalanced_sandwich`) and steers users to
+`ci_method = "bootstrap"` (correct here) rather than return a wrong SE. The
+analytic sandwich on **balanced** panels is unchanged and correct.
+
 ## 2026-06-17 — Fix: ICE analytic sandwich under time-varying covariate missingness
 
 `contrast(..., ci_method = "sandwich")` on a longitudinal ICE (gcomp) fit with

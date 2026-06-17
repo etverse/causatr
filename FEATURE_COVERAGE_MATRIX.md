@@ -858,6 +858,8 @@ Composes Phase 2 gcomp + Phase 4 IPW into the classical analytical doubly-robust
 
 **Rejections (longitudinal AIPW):** multivariate longitudinal AIPW → supported (Phase 25) ✅ (see the MV longitudinal AIPW block below); ATT/ATC → rejected ✅; `stabilize = "marginal"` → rejected ✅ (`causatr_stabilize_longitudinal_aipw`; use `estimator = "ipw"` for stabilized longitudinal weights).
 
+**Known bug — longitudinal AIPW sandwich on UNBALANCED panels (`ci_method = "sandwich"` aborts):** on a balanced panel the analytic sandwich is the correct full M-estimation variance (the doubly-robust pseudo-outcome deviation equals the EIF — tightly validated vs bootstrap, `test-aipw-longitudinal.R`). Under monotone dropout / censoring row-filter the DR property breaks and the forward cascade drops the dominant baseline-pseudo-regression block, underestimating the SE by ~50% (diagnosed; scales with dropout). Rather than return a silently-wrong SE, the sandwich **aborts** (`causatr_longitudinal_aipw_unbalanced_sandwich`) and steers to the **bootstrap** (correct ✅). The validated fix is a full stacked-EE sandwich (faithful oracle ~1e-11; jackknife/bootstrap confirm the truth) replacing the cascade — pending. | ✅ abort + bootstrap | test-aipw-longitudinal.R |
+
 **Chunk 25 — Multivariate longitudinal AIPW**
 
 Joint time-varying treatments `treatment = c("A1", "A2")` with `id =`/`time =`

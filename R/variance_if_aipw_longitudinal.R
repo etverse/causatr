@@ -48,31 +48,34 @@ variance_if_aipw_longitudinal <- function(
   n <- length(all_ids)
   id_to_idx <- stats::setNames(seq_len(n), all_ids)
 
-  # Unbalanced-panel sandwich caveat. When some individuals are not
-  # observed at every period (monotone dropout, censoring row-filter), a
-  # period's propensity/outcome models are fit on fewer than `n` rows and
-  # the per-period IF contributions are embedded into id-space with the
-  # `n / n_period_k` rescale below. A Monte-Carlo study shows this
-  # rescaled sandwich underestimates the true SE by ~15% under informative
-  # dropout, because dropped ids contribute exactly zero to later-period
-  # channels rather than their (unobserved) counterfactual contribution —
-  # a limitation of the row-filtering IF that a constant rescale cannot
-  # repair. The bootstrap reproduces the truth. Warn and steer users to
-  # `ci_method = "bootstrap"` rather than return a silently-low SE.
+  # Unbalanced-panel sandwich: the forward-cascade IF is provably wrong here.
+  # When some individuals are not observed at every period (monotone dropout,
+  # censoring row-filter), a period's outcome/propensity models are fit on a
+  # selected sub-sample. The doubly-robust property (which makes Channel 1 --
+  # the pseudo-outcome deviation -- equal to the efficient influence function on
+  # a balanced panel) breaks under that selection: the forward cascade then
+  # drops the dominant baseline-pseudo-regression block of the block-triangular
+  # bread inverse, so the analytic SE underestimates the truth -- by ~50% under
+  # heavy informative dropout (the magnitude scales with the dropout fraction,
+  # not the documented "~15%"). The correct fix is the full stacked-EE
+  # M-estimation sandwich (validated to ~1e-11 against a hand-built oracle; see
+  # the unbalanced-panel test); until that lands, the bootstrap is the only
+  # correct path. Rather than return a silently-wrong SE we abort and steer the
+  # user there. The cascade below is still correct on balanced panels.
   n_by_period <- vapply(fit_data_by_time, nrow, integer(1))
   if (any(n_by_period != n)) {
-    rlang::warn(
+    rlang::abort(
       c(
-        "Longitudinal AIPW sandwich SE is unreliable on an unbalanced panel.",
+        "Longitudinal AIPW sandwich variance is not valid on an unbalanced panel.",
         i = paste0(
-          "Some individuals are not observed at every period, so the ",
-          "sandwich SE can underestimate the truth by ~15%."
+          "Some individuals are not observed at every period (monotone ",
+          "dropout / censoring row-filter), where the doubly-robust ",
+          "influence-function shortcut breaks and the analytic SE can ",
+          "underestimate the truth by ~50%."
         ),
-        i = "Use `ci_method = 'bootstrap'` for valid inference here."
+        i = "Use `ci_method = \"bootstrap\"` for valid inference here."
       ),
-      class = "causatr_longitudinal_aipw_unbalanced_sandwich",
-      .frequency = "once",
-      .frequency_id = "causatr_longitudinal_aipw_unbalanced_sandwich"
+      class = "causatr_longitudinal_aipw_unbalanced_sandwich"
     )
   }
 

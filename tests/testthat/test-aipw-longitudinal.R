@@ -371,7 +371,12 @@ test_that("longitudinal AIPW DR: correct outcome, wrong propensity", {
   expect_equal(res_m$contrasts$estimate[1], 5, tolerance = 0.05)
 })
 
-test_that("longitudinal AIPW: sandwich SE finite and positive", {
+test_that("longitudinal AIPW: sandwich SE matches bootstrap (balanced panel)", {
+  skip_if_fast()
+  # Balanced panel: the analytic sandwich is the correct full M-estimation
+  # variance (the DR pseudo-outcome deviation equals the EIF), so it must agree
+  # tightly with the bootstrap. This replaces a former "finite and positive"
+  # smoke test that asserted essentially nothing.
   d <- make_linear_scm(n = 3000, n_times = 2, seed = 49)
   fit <- causat(
     d,
@@ -385,13 +390,20 @@ test_that("longitudinal AIPW: sandwich SE finite and positive", {
     id = "id",
     time = "time"
   )
-  res <- contrast(
+  ivs <- list(a1 = static(1), a0 = static(0))
+  res <- contrast(fit, interventions = ivs, ci_method = "sandwich")
+  set.seed(11)
+  res_b <- contrast(
     fit,
-    interventions = list(a1 = static(1), a0 = static(0)),
-    ci_method = "sandwich"
+    interventions = ivs,
+    ci_method = "bootstrap",
+    n_boot = 600
   )
-  sds <- sqrt(diag(res$vcov))
-  expect_true(all(sds > 0 & is.finite(sds)))
+  expect_equal(
+    unname(sqrt(diag(res$vcov)) / sqrt(diag(res_b$vcov))),
+    rep(1, 2L),
+    tolerance = 0.12
+  )
 })
 
 test_that("longitudinal AIPW: bootstrap SE finite and positive", {
@@ -436,16 +448,20 @@ test_that("longitudinal AIPW: sandwich vs bootstrap SE agreement", {
   )
   ivs <- list(a1 = static(1), a0 = static(0))
   res_s <- contrast(fit, interventions = ivs, ci_method = "sandwich")
+  set.seed(7)
   res_b <- contrast(
     fit,
     interventions = ivs,
     ci_method = "bootstrap",
-    n_boot = 200
+    n_boot = 600
   )
   se_sand <- sqrt(diag(res_s$vcov))
   se_boot <- sqrt(diag(res_b$vcov))
-  ratio <- se_sand / se_boot
-  expect_true(all(ratio > 0.5 & ratio < 2.0))
+  # Tight two-sided agreement on a BALANCED panel, where the analytic sandwich
+  # is the correct full M-estimation variance (validated to ratio ~1.0 against a
+  # stacked-EE oracle). The previous 0.5-2.0 band was wide enough to hide the
+  # ~50% unbalanced-panel underestimate; bound it to bootstrap Monte-Carlo error.
+  expect_equal(unname(se_sand / se_boot), rep(1, 2L), tolerance = 0.12)
 })
 
 test_that("longitudinal AIPW: effect modification by baseline (sex)", {
@@ -939,15 +955,16 @@ test_that("R-long-mv-aipw1: stabilize rejected for longitudinal AIPW", {
   )
 })
 
-test_that("R-long-aipw-unbalanced: sandwich warns on unbalanced panel", {
-  # Critical review 2026-05-30, Issue #5
-  # (repro: /tmp/causatr_repro_unbalanced_se.R).
-  # Under monotone dropout a period's models are fit on fewer than n rows;
-  # a Monte-Carlo study (300 reps) showed the rescaled longitudinal AIPW
-  # sandwich underestimates the true SE by ~15% (empirical SD 0.0695 vs
-  # mean sandwich SE 0.0590). The honest contract is a classed warning
-  # steering to the bootstrap, not a silently-low SE. This test pins the
-  # warning contract: it fires iff the panel is unbalanced.
+test_that("R-long-aipw-unbalanced: sandwich aborts on unbalanced panel", {
+  # The longitudinal-AIPW analytic sandwich is provably wrong on an unbalanced
+  # panel: under monotone dropout the doubly-robust property breaks (the
+  # pseudo-outcome deviation no longer equals the EIF) and the forward cascade
+  # drops the dominant baseline-pseudo-regression block, underestimating the SE
+  # by ~50% (a hand-built stacked-EE oracle, faithful to ~1e-11, and the
+  # delete-one-id jackknife both give the larger truth; the bootstrap matches
+  # it). Until the full stacked-EE sandwich lands, the honest contract is to
+  # ABORT rather than return a silently-wrong SE, steering to the bootstrap.
+  # The cascade is still correct on balanced panels.
   gen <- function(n, dropout, seed) {
     set.seed(seed)
     L0 <- rbinom(n, 1, 0.5)
@@ -969,8 +986,8 @@ test_that("R-long-aipw-unbalanced: sandwich warns on unbalanced panel", {
     d[]
   }
 
-  run <- function(d) {
-    fit <- causat(
+  fit_of <- function(d) {
+    causat(
       d,
       outcome = "Y",
       treatment = "A",
@@ -982,31 +999,42 @@ test_that("R-long-aipw-unbalanced: sandwich warns on unbalanced panel", {
       propensity_model_fn = stats::glm,
       family = "gaussian"
     )
+  }
+  ivs <- list(a = static(1), z = static(0))
+
+  # Balanced panel: sandwich is valid (no abort).
+  expect_no_error(
     contrast(
-      fit,
-      interventions = list(a = static(1), z = static(0)),
+      fit_of(gen(800, FALSE, 101)),
+      interventions = ivs,
       reference = "z",
       type = "difference",
       ci_method = "sandwich"
     )
-  }
-
-  # Balanced panel: no warning.
-  rlang::reset_warning_verbosity(
-    "causatr_longitudinal_aipw_unbalanced_sandwich"
   )
-  expect_no_condition(
-    run(gen(800, dropout = FALSE, seed = 101)),
+
+  # Unbalanced panel (informative monotone dropout): sandwich aborts.
+  expect_error(
+    contrast(
+      fit_of(gen(800, TRUE, 101)),
+      interventions = ivs,
+      reference = "z",
+      type = "difference",
+      ci_method = "sandwich"
+    ),
     class = "causatr_longitudinal_aipw_unbalanced_sandwich"
   )
 
-  # Unbalanced panel (informative monotone dropout): warning fires.
-  rlang::reset_warning_verbosity(
-    "causatr_longitudinal_aipw_unbalanced_sandwich"
-  )
-  expect_warning(
-    run(gen(800, dropout = TRUE, seed = 101)),
-    class = "causatr_longitudinal_aipw_unbalanced_sandwich"
+  # The bootstrap remains available and correct on the unbalanced panel.
+  expect_no_error(
+    contrast(
+      fit_of(gen(800, TRUE, 101)),
+      interventions = ivs,
+      reference = "z",
+      type = "difference",
+      ci_method = "bootstrap",
+      n_boot = 50L
+    )
   )
 })
 
