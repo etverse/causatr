@@ -38,6 +38,21 @@ For strategy Ā* = (a₀*, a₁*, ..., a*_K):
 - [x] Dynamic interventions for longitudinal data (static, shift, scale, threshold, dynamic, NULL)
 - [x] `parallel` / `ncpus` arguments for `contrast()` bootstrap
 - [x] Vignette: `longitudinal.qmd` (Table 20.1 treatment-confounder feedback demo)
+- [x] **Fix: ICE sandwich under time-varying covariate missingness.** With MCAR
+  missingness in a time-varying confounder, the sandwich aborted with a raw
+  `subscript out of bounds`: the cascade gradient built each step's
+  counterfactual design via `iv_design_matrix()` → `model.matrix()`, which
+  silently `na.omit`-drops missing-term rows, desyncing the design from the
+  id-indexed `match()` vectors in `variance_if_ice_chain()`. Fix:
+  `ice_model_complete_rows()` restricts each step's prediction frame to the rows
+  the step model can score — exactly the individuals present in that step's
+  gated estimating equation (the `I(C_{i,k}=0)` factor of the ICE stacked score,
+  Zivich et al. 2024, *Stat. Med.* 43:5562). The baseline pseudo-outcome stays
+  defined for everyone (point estimate and Channel 1 unchanged), and with no
+  missing data the frame is byte-identical to before. Validity is **MCAR-only**;
+  under MAR use `causat_mice()` or IPCW. Shared by the stratified-ICE chain.
+  Validated: sandwich matches bootstrap + delete-one-id jackknife (~1.0) on
+  2-period and 3-period (intermediate-NA) panels (`test-missing-data.R`).
 
 ## Deferred to other phases
 

@@ -152,6 +152,49 @@ where $\tilde Y_{k+1}$ is the pseudo-outcome from the $(k+1)$-th AIPW step and $
 
 **Depends on Phase 10 (longitudinal IPW) and Phase 5 (ICE).** Chunk 16g.
 
+### Longitudinal AIPW sandwich on unbalanced panels (bug + planned full fix)
+
+**Status: safe interim shipped; full fix pending.** On a **balanced** panel the
+longitudinal-AIPW analytic sandwich is exactly correct: the doubly-robust
+property makes Channel 1 (the pseudo-outcome deviation $\tilde Y_{0,i}-\hat\mu$)
+equal the efficient influence function, so the forward-cascade assembly recovers
+the full M-estimation variance (now asserted by tight sandwich-vs-bootstrap
+agreement tests, `test-aipw-longitudinal.R`).
+
+On an **unbalanced** panel (monotone dropout / censoring row-filter) it was
+**wrong** — silently underestimating the SE by up to ~50% (the magnitude scales
+with the dropout fraction; an earlier note's "~15%" was a mild single-DGP
+figure). **Diagnosis** (validated, not speculative): under the *selected*
+sub-sample the DR property breaks, so $\tilde Y_{0,i}-\hat\mu$ no longer equals
+the EIF; the forward-cascade approximation of the block-triangular bread inverse
+then drops the **dominant baseline-pseudo-regression block** ($B^{-1}[\mu,
+\beta_1]\,\psi_{\beta_1}$, the largest term under censoring). A hand-built
+**stacked-EE M-estimation sandwich** (faithful to $\sim10^{-11}$: it reproduces
+causatr's exact fitted $\hat\theta$ and $\hat\mu$, and its summed estimating
+equations vanish there) and the **delete-one-id jackknife** both recover the
+larger truth that the bootstrap matches — confirming a real, fixable bug, not a
+fundamental limitation.
+
+**Safe interim (shipped):** `variance_if_aipw_longitudinal()` now **aborts** on
+an unbalanced panel (class `causatr_longitudinal_aipw_unbalanced_sandwich`) and
+steers to `ci_method = "bootstrap"` (correct here), rather than return a
+silently-wrong SE. The balanced-panel cascade is unchanged.
+
+**Full fix (planned):** replace the forward-cascade IF assembly with the full
+**stacked-EE sandwich** $V = B^{-1} M B^{-\top}/n$, where $\psi(\theta)$ stacks
+the per-period propensity scores, the per-step outcome scores, and the
+marginal-mean equation $\tilde Y_{0,i}-\mu$; the numerical bread (Jacobian of the
+summed $\psi$) captures every block-triangular cross-term — including the
+baseline-pseudo-regression block — correctly for **both** balanced and
+unbalanced panels, i.e. one consistent, general variance path. This follows
+Zivich et al. (2024, *Stat. Med.*) for the ICE outcome-model chain composed with
+the AIPW propensity correction. A validated 2-period oracle and a generic
+T-period prototype (matching the bootstrap on balanced + unbalanced, $T=2,3$)
+de-risk the rewrite; the production implementation must generalise across
+intervention types (shift / dynamic / scale_by / MV), effect modification,
+binary-outcome clipping, external weights and families, and keep all existing
+longitudinal-AIPW tests green.
+
 ## Composition with pending phases
 
 - **Phase 8 (multivariate treatment IPW) × AIPW.** Shipped as chunk 16m. Joint outcome model `Y ~ A1 + A2 + L` (Phase 2) + joint density (Phase 8) composed in the AIPW functional. Includes stabilized weights, DR tests, sandwich + bootstrap variance.
@@ -190,6 +233,7 @@ where $\tilde Y_{k+1}$ is the pseudo-outcome from the $(k+1)$-th AIPW step and $
 - AIPW sandwich SE MUST be ≤ IPW sandwich SE and ≤ gcomp sandwich SE when both nuisances are correctly specified on a large-$n$ DGP (chunk 16f). Violations indicate either a sandwich bug or misspecification.
 - AIPW MUST reject the same intervention / treatment / estimand combinations that IPW rejects — the outcome-model augmentation does not rescue Dirac-style point-mass interventions on continuous treatment.
 - AIPW MUST NOT hard-abort when the outcome model is a GAM (`mgcv::gam`); the sandwich cross-derivative uses `numDeriv::jacobian` as the IPW engine already does.
+- The longitudinal-AIPW analytic sandwich MUST abort (class `causatr_longitudinal_aipw_unbalanced_sandwich`) on an unbalanced panel until the stacked-EE rewrite lands — never return the forward-cascade SE there (it underestimates by ~50%). On a balanced panel the cascade sandwich MUST agree tightly with the bootstrap (the DR pseudo-outcome deviation is the EIF). See the unbalanced-panel subsection above.
 
 ## DGP for truth-based tests
 
