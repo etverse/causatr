@@ -1322,6 +1322,37 @@ test_that("R-long-aipw-gam-sandwich: GAM nuisance sandwich is an explicit limita
   )
 })
 
+test_that("R-long-aipw-missing-covariate: missing time-varying covariate is rejected (classed)", {
+  # Longitudinal AIPW has no complete-case fallback for a covariate missing
+  # WITHIN an observed person-period: the per-period propensity model would
+  # `na.omit`-drop the row, desyncing the density-ratio weight vector from the
+  # id index (the raw "number of items to replace" recycling error). Reject
+  # with a clear classed error pointing to `causat_mice()` instead. Missing Y
+  # is a separate concern (IPCW); missing L / A is the multiple-imputation path.
+  set.seed(1)
+  n <- 300
+  id <- rep(seq_len(n), each = 2L)
+  time <- rep(0:1, n)
+  L <- rnorm(2 * n)
+  A <- rbinom(2 * n, 1, plogis(0.2 * L))
+  Y <- rep(NA_real_, 2 * n)
+  Y[time == 1] <- rnorm(n, 2 + A[time == 1] + L[time == 1])
+  L[5] <- NA_real_ # MCAR missingness in a time-varying confounder
+  d <- data.table::data.table(id = id, time = time, A = A, L = L, Y = Y)
+  fit <- causat(
+    d, outcome = "Y", treatment = "A", confounders = ~1, confounders_tv = ~L,
+    id = "id", time = "time", estimator = "aipw",
+    propensity_model_fn = stats::glm, family = "gaussian"
+  )
+  expect_error(
+    contrast(
+      fit, interventions = list(a = static(1), z = static(0)),
+      reference = "z", ci_method = "sandwich"
+    ),
+    class = "causatr_longitudinal_aipw_missing_covariate"
+  )
+})
+
 test_that("longitudinal AIPW: ATT rejected", {
   d <- make_linear_scm(n = 300, n_times = 2, seed = 58)
   expect_error(

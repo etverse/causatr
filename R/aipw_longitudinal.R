@@ -391,6 +391,34 @@ ice_aipw_iterate <- function(fit, intervention, trim = 1) {
     }
 
     idx_k <- id_to_idx[ids_k]
+    # A length mismatch means the per-period propensity model dropped rows
+    # (`na.omit`) because a model covariate is missing within an *observed*
+    # person-period. Unlike pooled ICE -- whose per-step stacked score gates
+    # on model-complete rows -- the ICE-AIPW recursion has no complete-case
+    # fallback for a missing time-varying covariate, so the raw recycling
+    # error from the assignment below is replaced with a clear classed
+    # rejection. Missing time-varying covariates should be multiply imputed
+    # upstream with `causat_mice()`, or incomplete person-periods removed.
+    if (length(w_k) != length(idx_k)) {
+      rlang::abort(
+        c(
+          paste0(
+            "Longitudinal AIPW cannot handle a missing model covariate ",
+            "within an observed person-period (time = ",
+            time_points[k],
+            ")."
+          ),
+          i = paste0(
+            "The period propensity model dropped ",
+            length(idx_k) - length(w_k),
+            " row(s) with a missing covariate. Multiply impute missing ",
+            "time-varying covariates upstream with `causat_mice()`, or ",
+            "remove incomplete person-periods before fitting."
+          )
+        ),
+        class = "causatr_longitudinal_aipw_missing_covariate"
+      )
+    }
     W_period[idx_k, k] <- w_k
 
     if (k == 1L) {

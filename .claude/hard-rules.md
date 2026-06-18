@@ -163,6 +163,15 @@ Project-specific rules that override / extend the etverse-wide rules at
   dynamic / scale_by, gaussian / binomial, T = 2 / 3, multivariate, effect
   modification, and external weights. Do NOT re-introduce a forward-cascade
   shortcut or an unbalanced-panel abort.
+- **Longitudinal AIPW rejects a covariate missing WITHIN an observed
+  person-period (classed, by design).** `ice_aipw_iterate()` aborts with
+  `causatr_longitudinal_aipw_missing_covariate` when a per-period propensity
+  model `na.omit`-drops a row (weight vector shorter than the id index) — the
+  ICE-AIPW recursion has no complete-case fallback there (unlike pooled ICE,
+  which gates its per-step stacked score on model-complete rows). Missing
+  time-varying covariates are the multiple-imputation path (`causat_mice()`);
+  missing Y is IPCW. Do NOT "add complete-case handling" to the longitudinal
+  AIPW recursion to silence this — it is a deliberate classed rejection.
 
 ### Implementation conventions
 

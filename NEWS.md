@@ -1,5 +1,17 @@
 # causatr (development version)
 
+## 2026-06-18 — Longitudinal AIPW: classed rejection for a within-period missing covariate
+
+A time-varying covariate missing *within an observed person-period* previously
+crashed longitudinal AIPW with a raw "number of items to replace is not a
+multiple of replacement length" error: the per-period propensity model
+`na.omit`-drops the row, leaving the density-ratio weight vector shorter than
+the id index. The ICE-AIPW recursion has no complete-case fallback there
+(unlike pooled ICE), so it now aborts with the classed
+`causatr_longitudinal_aipw_missing_covariate` and points to `causat_mice()`
+(multiple imputation) or removing incomplete person-periods. Missing Y remains
+a separate concern (IPCW).
+
 ## 2026-06-17 — Longitudinal AIPW sandwich: full stacked-EE rewrite (correct on unbalanced panels)
 
 The longitudinal AIPW analytic sandwich (`ci_method = "sandwich"`) is now the

@@ -636,10 +636,14 @@ aipw_long_stacked_if <- function(
   psi_hat <- psi_fn(theta_hat)
 
   # Faithfulness gate: the summed estimating equation must vanish at the
-  # fitted theta (to GLM convergence). A gross violation means the
+  # fitted theta (to model convergence). A gross violation means the
   # reconstructed EE does not match the fitted nuisances (an unsupported
   # configuration), where returning a sandwich SE would be silently
-  # wrong -- abort and steer to the bootstrap instead.
+  # wrong -- abort and steer to the bootstrap instead. The 1e-3 tolerance is
+  # set by the loosest-converging supported block: GLM/glm.nb scores vanish to
+  # ~1e-10 (IRLS), but a `nnet::multinom` propensity only reaches ~1e-4
+  # (its BFGS `reltol`), so the threshold leaves that block ~7x of headroom
+  # while still catching an order-of-magnitude reconstruction mismatch.
   col_sums <- colSums(psi_hat)
   col_scale <- sqrt(colSums(psi_hat^2))
   ratio <- abs(col_sums) / pmax(col_scale, 1e-8)
