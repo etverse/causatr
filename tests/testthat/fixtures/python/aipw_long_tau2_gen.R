@@ -61,5 +61,10 @@ utils::write.csv(
   row.names = FALSE
 )
 
-cat("wrote balanced (n =", n, ") and unbalanced (dropout =",
-  sum(wide$R1 == 0L), ") data sets\n")
+cat(
+  "wrote balanced (n =",
+  n,
+  ") and unbalanced (dropout =",
+  sum(wide$R1 == 0L),
+  ") data sets\n"
+)

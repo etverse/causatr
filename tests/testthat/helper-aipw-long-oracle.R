@@ -20,15 +20,19 @@ jackknife_aipw_long_var <- function(data, fit_fn, ivs, reference, arm) {
   data <- data.table::as.data.table(data)
   ids <- unique(data[["id"]])
   m <- length(ids)
-  est <- vapply(ids, function(i) {
-    di <- data[data[["id"]] != i]
-    fi <- fit_fn(di)
-    tp <- fi$details$time_points
-    rf <- fi$data[[fi$time]] == tp[1]
-    tw <- rep(TRUE, sum(rf))
-    res <- compute_aipw_contrast_longitudinal(fi, ivs, tw, trim = 1)
-    unname(res$mu_hat[[arm]] - res$mu_hat[[reference]])
-  }, numeric(1))
+  est <- vapply(
+    ids,
+    function(i) {
+      di <- data[data[["id"]] != i]
+      fi <- fit_fn(di)
+      tp <- fi$details$time_points
+      rf <- fi$data[[fi$time]] == tp[1]
+      tw <- rep(TRUE, sum(rf))
+      res <- compute_aipw_contrast_longitudinal(fi, ivs, tw, trim = 1)
+      unname(res$mu_hat[[arm]] - res$mu_hat[[reference]])
+    },
+    numeric(1)
+  )
   # Jackknife variance of the contrast: (m-1)/m * sum (theta_{-i} - mean)^2.
   (m - 1) / m * sum((est - mean(est))^2)
 }
@@ -40,11 +44,18 @@ jackknife_aipw_long_var <- function(data, fit_fn, ivs, reference, arm) {
 build_aipw_long_pp <- function(wide) {
   present <- !is.na(wide$A1)
   pp0 <- data.table::data.table(
-    id = wide$id, time = 0L, L = wide$L0, A = wide$A0, Y = NA_real_
+    id = wide$id,
+    time = 0L,
+    L = wide$L0,
+    A = wide$A0,
+    Y = NA_real_
   )
   pp1 <- data.table::data.table(
-    id = wide$id[present], time = 1L, L = wide$L1[present],
-    A = wide$A1[present], Y = wide$Y[present]
+    id = wide$id[present],
+    time = 1L,
+    L = wide$L1[present],
+    A = wide$A1[present],
+    Y = wide$Y[present]
   )
   data.table::setorder(rbind(pp0, pp1), id, time)[]
 }

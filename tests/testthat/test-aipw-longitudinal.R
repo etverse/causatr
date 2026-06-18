@@ -1013,17 +1013,23 @@ test_that("T-long-aipw-unbalanced: sandwich runs and matches bootstrap + jackkni
   d_bal <- gen_aipw_unb(1200, FALSE, 101)
   res_bal_s <- contrast(
     fit_aipw_unb(d_bal),
-    interventions = ivs, reference = "z", type = "difference",
+    interventions = ivs,
+    reference = "z",
+    type = "difference",
     ci_method = "sandwich"
   )
   set.seed(11)
   res_bal_b <- contrast(
     fit_aipw_unb(d_bal),
-    interventions = ivs, reference = "z", type = "difference",
-    ci_method = "bootstrap", n_boot = 350
+    interventions = ivs,
+    reference = "z",
+    type = "difference",
+    ci_method = "bootstrap",
+    n_boot = 350
   )
   expect_equal(
-    res_bal_s$contrasts$se[1] / res_bal_b$contrasts$se[1], 1,
+    res_bal_s$contrasts$se[1] / res_bal_b$contrasts$se[1],
+    1,
     tolerance = 0.13
   )
 
@@ -1033,17 +1039,23 @@ test_that("T-long-aipw-unbalanced: sandwich runs and matches bootstrap + jackkni
   d_unb <- gen_aipw_unb(1200, TRUE, 101)
   res_unb_s <- contrast(
     fit_aipw_unb(d_unb),
-    interventions = ivs, reference = "z", type = "difference",
+    interventions = ivs,
+    reference = "z",
+    type = "difference",
     ci_method = "sandwich"
   )
   set.seed(12)
   res_unb_b <- contrast(
     fit_aipw_unb(d_unb),
-    interventions = ivs, reference = "z", type = "difference",
-    ci_method = "bootstrap", n_boot = 350
+    interventions = ivs,
+    reference = "z",
+    type = "difference",
+    ci_method = "bootstrap",
+    n_boot = 350
   )
   expect_equal(
-    res_unb_s$contrasts$se[1] / res_unb_b$contrasts$se[1], 1,
+    res_unb_s$contrasts$se[1] / res_unb_b$contrasts$se[1],
+    1,
     tolerance = 0.13
   )
 
@@ -1051,12 +1063,15 @@ test_that("T-long-aipw-unbalanced: sandwich runs and matches bootstrap + jackkni
   d_jk <- gen_aipw_unb(300, TRUE, 202)
   res_jk_s <- contrast(
     fit_aipw_unb(d_jk),
-    interventions = ivs, reference = "z", type = "difference",
+    interventions = ivs,
+    reference = "z",
+    type = "difference",
     ci_method = "sandwich"
   )
   jk_var <- jackknife_aipw_long_var(d_jk, fit_aipw_unb, ivs, "z", "a")
   expect_equal(
-    res_jk_s$contrasts$se[1] / sqrt(jk_var), 1,
+    res_jk_s$contrasts$se[1] / sqrt(jk_var),
+    1,
     tolerance = 0.15
   )
 })
@@ -1064,26 +1079,41 @@ test_that("T-long-aipw-unbalanced: sandwich runs and matches bootstrap + jackkni
 test_that("T-long-aipw-delicatessen: stacked-EE sandwich matches delicatessen (balanced + unbalanced)", {
   skip_if(
     !file.exists(test_path(
-      "fixtures", "python", "aipw_long_tau2_delicatessen_results.csv"
+      "fixtures",
+      "python",
+      "aipw_long_tau2_delicatessen_results.csv"
     ))
   )
   ref <- utils::read.csv(test_path(
-    "fixtures", "python", "aipw_long_tau2_delicatessen_results.csv"
+    "fixtures",
+    "python",
+    "aipw_long_tau2_delicatessen_results.csv"
   ))
 
   for (panel in c("balanced", "unbalanced")) {
     wide <- utils::read.csv(test_path(
-      "fixtures", "python", paste0("aipw_long_tau2_", panel, "_data.csv")
+      "fixtures",
+      "python",
+      paste0("aipw_long_tau2_", panel, "_data.csv")
     ))
     pp <- build_aipw_long_pp(wide)
     fit <- causat(
-      pp, outcome = "Y", treatment = "A", confounders = ~1,
-      confounders_tv = ~L, id = "id", time = "time", estimator = "aipw",
-      propensity_model_fn = stats::glm, family = "gaussian"
+      pp,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~1,
+      confounders_tv = ~L,
+      id = "id",
+      time = "time",
+      estimator = "aipw",
+      propensity_model_fn = stats::glm,
+      family = "gaussian"
     )
     res <- contrast(
-      fit, interventions = list(a1 = static(1), a0 = static(0)),
-      reference = "a0", ci_method = "sandwich"
+      fit,
+      interventions = list(a1 = static(1), a0 = static(0)),
+      reference = "a0",
+      ci_method = "sandwich"
     )
     r <- ref[ref$panel == panel, ]
     mu_1 <- res$estimates$estimate[res$estimates$intervention == "a1"]
@@ -1118,8 +1148,10 @@ test_that("T-long-aipw-unb-complex: 3-period, binomial, and near-positivity unba
   A2 <- rbinom(n, 1, plogis(0.1 + 0.5 * L2 + 0.3 * A1))
   Y <- rnorm(n, 2 + A0 + A1 + 1.5 * A2 + 0.5 * L2)
   d3 <- data.table::data.table(
-    id = rep(seq_len(n), each = 3L), time = rep(0:2, n),
-    A = c(rbind(A0, A1, A2)), L = c(rbind(L0, L1, L2)),
+    id = rep(seq_len(n), each = 3L),
+    time = rep(0:2, n),
+    A = c(rbind(A0, A1, A2)),
+    L = c(rbind(L0, L1, L2)),
     Y = c(rbind(NA_real_, NA_real_, Y))
   )
   # Informative monotone dropout: leave t=0, drop later periods.
@@ -1127,15 +1159,35 @@ test_that("T-long-aipw-unb-complex: 3-period, binomial, and near-positivity unba
   d2 <- which(A1 == 1 & runif(n) < 0.3)
   d3 <- d3[!(id %in% d1 & time >= 1L) & !(id %in% d2 & time >= 2L)]
   f3 <- function(dd) {
-    causat(dd, outcome = "Y", treatment = "A", confounders = ~1,
-      confounders_tv = ~L, id = "id", time = "time", estimator = "aipw",
-      propensity_model_fn = stats::glm, family = "gaussian")
+    causat(
+      dd,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~1,
+      confounders_tv = ~L,
+      id = "id",
+      time = "time",
+      estimator = "aipw",
+      propensity_model_fn = stats::glm,
+      family = "gaussian"
+    )
   }
-  r3s <- contrast(f3(d3), interventions = ivs, reference = "z",
-    type = "difference", ci_method = "sandwich")
+  r3s <- contrast(
+    f3(d3),
+    interventions = ivs,
+    reference = "z",
+    type = "difference",
+    ci_method = "sandwich"
+  )
   set.seed(31)
-  r3b <- contrast(f3(d3), interventions = ivs, reference = "z",
-    type = "difference", ci_method = "bootstrap", n_boot = 300)
+  r3b <- contrast(
+    f3(d3),
+    interventions = ivs,
+    reference = "z",
+    type = "difference",
+    ci_method = "bootstrap",
+    n_boot = 300
+  )
   expect_equal(r3s$contrasts$se[1] / r3b$contrasts$se[1], 1, tolerance = 0.15)
 
   # Binomial outcome, unbalanced.
@@ -1147,22 +1199,44 @@ test_that("T-long-aipw-unb-complex: 3-period, binomial, and near-positivity unba
   A1b <- rbinom(n, 1, plogis(0.1 + 0.4 * L1b + 0.3 * A0b))
   Yb <- rbinom(n, 1, plogis(-0.5 + 0.6 * A0b + 0.6 * A1b + 0.3 * L1b))
   db <- data.table::data.table(
-    id = rep(seq_len(n), each = 2L), time = rep(0:1, n),
-    A = c(rbind(A0b, A1b)), L = c(rbind(L0b, L1b)),
+    id = rep(seq_len(n), each = 2L),
+    time = rep(0:1, n),
+    A = c(rbind(A0b, A1b)),
+    L = c(rbind(L0b, L1b)),
     Y = c(rbind(NA_real_, Yb))
   )
   drop_b <- which(A0b == 1 & runif(n) < 0.35)
   db <- db[!(id %in% drop_b & time == 1L)]
   fb <- function(dd) {
-    causat(dd, outcome = "Y", treatment = "A", confounders = ~1,
-      confounders_tv = ~L, id = "id", time = "time", estimator = "aipw",
-      propensity_model_fn = stats::glm, family = "binomial")
+    causat(
+      dd,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~1,
+      confounders_tv = ~L,
+      id = "id",
+      time = "time",
+      estimator = "aipw",
+      propensity_model_fn = stats::glm,
+      family = "binomial"
+    )
   }
-  rbs <- contrast(fb(db), interventions = ivs, reference = "z",
-    type = "difference", ci_method = "sandwich")
+  rbs <- contrast(
+    fb(db),
+    interventions = ivs,
+    reference = "z",
+    type = "difference",
+    ci_method = "sandwich"
+  )
   set.seed(41)
-  rbb <- contrast(fb(db), interventions = ivs, reference = "z",
-    type = "difference", ci_method = "bootstrap", n_boot = 300)
+  rbb <- contrast(
+    fb(db),
+    interventions = ivs,
+    reference = "z",
+    type = "difference",
+    ci_method = "bootstrap",
+    n_boot = 300
+  )
   expect_equal(rbs$contrasts$se[1] / rbb$contrasts$se[1], 1, tolerance = 0.18)
 })
 
@@ -1173,21 +1247,42 @@ test_that("T-long-aipw-unb-mv-em: multivariate + effect-modification unbalanced 
   d_em <- data.table::as.data.table(make_em_ice_scm(n = 2500, seed = 52))
   set.seed(520)
   drop_em <- which(
-    d_em$time == 1L & d_em$A == 1L &
-      stats::runif(nrow(d_em)) < 0.3
+    d_em$time == 1L & d_em$A == 1L & stats::runif(nrow(d_em)) < 0.3
   )
   d_em <- d_em[-drop_em]
   f_em <- function(dd) {
-    causat(dd, outcome = "Y", treatment = "A", confounders = ~ L0 + sex,
-      confounders_tv = ~L, id = "id", time = "time", estimator = "aipw",
-      propensity_model_fn = stats::glm, family = "gaussian")
+    causat(
+      dd,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~ L0 + sex,
+      confounders_tv = ~L,
+      id = "id",
+      time = "time",
+      estimator = "aipw",
+      propensity_model_fn = stats::glm,
+      family = "gaussian"
+    )
   }
   ivs <- list(a1 = static(1), a0 = static(0))
-  res_em <- contrast(f_em(d_em), interventions = ivs, reference = "a0",
-    by = "sex", type = "difference", ci_method = "sandwich")
+  res_em <- contrast(
+    f_em(d_em),
+    interventions = ivs,
+    reference = "a0",
+    by = "sex",
+    type = "difference",
+    ci_method = "sandwich"
+  )
   set.seed(53)
-  res_em_b <- contrast(f_em(d_em), interventions = ivs, reference = "a0",
-    by = "sex", type = "difference", ci_method = "bootstrap", n_boot = 250)
+  res_em_b <- contrast(
+    f_em(d_em),
+    interventions = ivs,
+    reference = "a0",
+    by = "sex",
+    type = "difference",
+    ci_method = "bootstrap",
+    n_boot = 250
+  )
   ratio_em <- res_em$contrasts$se / res_em_b$contrasts$se
   expect_equal(unname(ratio_em), rep(1, length(ratio_em)), tolerance = 0.2)
 
@@ -1196,31 +1291,53 @@ test_that("T-long-aipw-unb-mv-em: multivariate + effect-modification unbalanced 
   d_mv <- data.table::as.data.table(make_em_mv_long_scm(n = 700, seed = 2502))
   set.seed(250)
   drop_mv <- which(
-    d_mv$time == 1L & d_mv$A1 == 1L &
-      stats::runif(nrow(d_mv)) < 0.3
+    d_mv$time == 1L & d_mv$A1 == 1L & stats::runif(nrow(d_mv)) < 0.3
   )
   d_mv <- d_mv[-drop_mv]
   f_mv <- function(dd) {
-    causat(dd, outcome = "Y", treatment = c("A1", "A2"),
-      confounders = ~ L0 + sex, confounders_tv = ~L, id = "id",
-      time = "time", estimator = "aipw", propensity_model_fn = stats::glm,
-      family = "gaussian")
+    causat(
+      dd,
+      outcome = "Y",
+      treatment = c("A1", "A2"),
+      confounders = ~ L0 + sex,
+      confounders_tv = ~L,
+      id = "id",
+      time = "time",
+      estimator = "aipw",
+      propensity_model_fn = stats::glm,
+      family = "gaussian"
+    )
   }
   mv_ivs <- list(
     a = list(A1 = static(1), A2 = static(1)),
     z = list(A1 = static(0), A2 = static(0))
   )
-  res_mv <- contrast(f_mv(d_mv), interventions = mv_ivs, reference = "z",
-    type = "difference", ci_method = "sandwich")
+  res_mv <- contrast(
+    f_mv(d_mv),
+    interventions = mv_ivs,
+    reference = "z",
+    type = "difference",
+    ci_method = "sandwich"
+  )
   set.seed(251)
-  res_mv_b <- contrast(f_mv(d_mv), interventions = mv_ivs, reference = "z",
-    type = "difference", ci_method = "bootstrap", n_boot = 200)
+  res_mv_b <- contrast(
+    f_mv(d_mv),
+    interventions = mv_ivs,
+    reference = "z",
+    type = "difference",
+    ci_method = "bootstrap",
+    n_boot = 200
+  )
   expect_equal(
-    res_mv$contrasts$se[1] / res_mv_b$contrasts$se[1], 1, tolerance = 0.22
+    res_mv$contrasts$se[1] / res_mv_b$contrasts$se[1],
+    1,
+    tolerance = 0.22
   )
   jk_mv <- jackknife_aipw_long_var(d_mv, f_mv, mv_ivs, "z", "a")
   expect_equal(
-    res_mv$contrasts$se[1] / sqrt(jk_mv), 1, tolerance = 0.22
+    res_mv$contrasts$se[1] / sqrt(jk_mv),
+    1,
+    tolerance = 0.22
   )
 })
 
@@ -1234,17 +1351,40 @@ test_that("T-long-aipw-unb-weights: external weights on an unbalanced panel matc
   w_id <- stats::setNames(stats::runif(length(ids), 0.5, 1.6), ids)
   d_w[, wt := w_id[as.character(id)]]
   f_w <- function(dd) {
-    causat(dd, outcome = "Y", treatment = "A", confounders = ~1,
-      confounders_tv = ~L, id = "id", time = "time", estimator = "aipw",
-      propensity_model_fn = stats::glm, family = "gaussian", weights = dd$wt)
+    causat(
+      dd,
+      outcome = "Y",
+      treatment = "A",
+      confounders = ~1,
+      confounders_tv = ~L,
+      id = "id",
+      time = "time",
+      estimator = "aipw",
+      propensity_model_fn = stats::glm,
+      family = "gaussian",
+      weights = dd$wt
+    )
   }
-  res_w <- contrast(f_w(d_w), interventions = ivs, reference = "z",
-    type = "difference", ci_method = "sandwich")
+  res_w <- contrast(
+    f_w(d_w),
+    interventions = ivs,
+    reference = "z",
+    type = "difference",
+    ci_method = "sandwich"
+  )
   set.seed(71)
-  res_w_b <- contrast(f_w(d_w), interventions = ivs, reference = "z",
-    type = "difference", ci_method = "bootstrap", n_boot = 300)
+  res_w_b <- contrast(
+    f_w(d_w),
+    interventions = ivs,
+    reference = "z",
+    type = "difference",
+    ci_method = "bootstrap",
+    n_boot = 300
+  )
   expect_equal(
-    res_w$contrasts$se[1] / res_w_b$contrasts$se[1], 1, tolerance = 0.15
+    res_w$contrasts$se[1] / res_w_b$contrasts$se[1],
+    1,
+    tolerance = 0.15
   )
 })
 
@@ -1274,19 +1414,39 @@ test_that("T-long-aipw-multinom: categorical (multinomial) propensity sandwich m
   Y[time == 1] <- rnorm(n, 2 + L[time == 1] + as.integer(A[time == 1]))
   dcat <- data.table::data.table(id = id, time = time, A = A, L = L, Y = Y)
   fit <- causat(
-    dcat, outcome = "Y", treatment = "A", confounders = ~1,
-    confounders_tv = ~L, id = "id", time = "time", estimator = "aipw",
-    propensity_model_fn = nnet::multinom, family = "gaussian"
+    dcat,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~1,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    estimator = "aipw",
+    propensity_model_fn = nnet::multinom,
+    family = "gaussian"
   )
   ivs <- list(hi = static("high"), lo = static("low"))
-  res_s <- contrast(fit, interventions = ivs, reference = "lo",
-    type = "difference", ci_method = "sandwich")
+  res_s <- contrast(
+    fit,
+    interventions = ivs,
+    reference = "lo",
+    type = "difference",
+    ci_method = "sandwich"
+  )
   set.seed(5)
-  res_b <- contrast(fit, interventions = ivs, reference = "lo",
-    type = "difference", ci_method = "bootstrap", n_boot = 250)
+  res_b <- contrast(
+    fit,
+    interventions = ivs,
+    reference = "lo",
+    type = "difference",
+    ci_method = "bootstrap",
+    n_boot = 250
+  )
   expect_true(is.finite(res_s$contrasts$se[1]) && res_s$contrasts$se[1] > 0)
   expect_equal(
-    res_s$contrasts$se[1] / res_b$contrasts$se[1], 1, tolerance = 0.18
+    res_s$contrasts$se[1] / res_b$contrasts$se[1],
+    1,
+    tolerance = 0.18
   )
 })
 
@@ -1300,16 +1460,24 @@ test_that("R-long-aipw-gam-sandwich: GAM nuisance sandwich is an explicit limita
   # mirrors the longitudinal ICE betareg path (bootstrap-only).
   d <- make_linear_scm(n = 600, n_times = 2, seed = 77)
   fit <- causat(
-    d, outcome = "Y", treatment = "A", confounders = ~L0,
-    confounders_tv = ~L, id = "id", time = "time", estimator = "aipw",
-    model_fn = mgcv::gam, propensity_model_fn = stats::glm,
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~L0,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    estimator = "aipw",
+    model_fn = mgcv::gam,
+    propensity_model_fn = stats::glm,
     family = "gaussian"
   )
   expect_error(
     contrast(
       fit,
       interventions = list(a1 = static(1), a0 = static(0)),
-      reference = "a0", ci_method = "sandwich"
+      reference = "a0",
+      ci_method = "sandwich"
     ),
     class = "causatr_longitudinal_aipw_sandwich_model"
   )
@@ -1317,7 +1485,9 @@ test_that("R-long-aipw-gam-sandwich: GAM nuisance sandwich is an explicit limita
     contrast(
       fit,
       interventions = list(a1 = static(1), a0 = static(0)),
-      reference = "a0", ci_method = "bootstrap", n_boot = 30
+      reference = "a0",
+      ci_method = "bootstrap",
+      n_boot = 30
     )
   )
 })
@@ -1340,14 +1510,23 @@ test_that("R-long-aipw-missing-covariate: missing time-varying covariate is reje
   L[5] <- NA_real_ # MCAR missingness in a time-varying confounder
   d <- data.table::data.table(id = id, time = time, A = A, L = L, Y = Y)
   fit <- causat(
-    d, outcome = "Y", treatment = "A", confounders = ~1, confounders_tv = ~L,
-    id = "id", time = "time", estimator = "aipw",
-    propensity_model_fn = stats::glm, family = "gaussian"
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~1,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    estimator = "aipw",
+    propensity_model_fn = stats::glm,
+    family = "gaussian"
   )
   expect_error(
     contrast(
-      fit, interventions = list(a = static(1), z = static(0)),
-      reference = "z", ci_method = "sandwich"
+      fit,
+      interventions = list(a = static(1), z = static(0)),
+      reference = "z",
+      ci_method = "sandwich"
     ),
     class = "causatr_longitudinal_aipw_missing_covariate"
   )
