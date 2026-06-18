@@ -29,6 +29,17 @@ residual correction, giving a consistent estimator if *either* the outcome
 regression *or* the propensity model at each time point is correctly specified.
 The same `causat()` + `contrast()` API applies; sandwich and bootstrap
 variance are both supported.
+
+The `"sandwich"` variance is the full stacked-estimating-equation
+M-estimation sandwich (per-period propensity scores + per-step outcome
+scores + the marginal-mean equation), so it is correct on **both balanced and
+unbalanced** panels — including monotone dropout or a censoring row-filter. It
+covers GLM-family and `MASS::glm.nb` outcome / propensity models and
+multinomial (categorical-treatment) propensities. **Limitation:** when an
+outcome or propensity nuisance is fit with a *penalised* / non-likelihood
+learner (`mgcv::gam`, `betareg::betareg`), the analytic sandwich is not
+available — `ci_method = "sandwich"` raises a clear error and you should use
+`ci_method = "bootstrap"`, which is valid for every configuration.
 :::
 
 This vignette demonstrates ICE g-computation in causatr, covering:

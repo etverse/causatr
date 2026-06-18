@@ -955,86 +955,401 @@ test_that("R-long-mv-aipw1: stabilize rejected for longitudinal AIPW", {
   )
 })
 
-test_that("R-long-aipw-unbalanced: sandwich aborts on unbalanced panel", {
-  # The longitudinal-AIPW analytic sandwich is provably wrong on an unbalanced
-  # panel: under monotone dropout the doubly-robust property breaks (the
-  # pseudo-outcome deviation no longer equals the EIF) and the forward cascade
-  # drops the dominant baseline-pseudo-regression block, underestimating the SE
-  # by ~50% (a hand-built stacked-EE oracle, faithful to ~1e-11, and the
-  # delete-one-id jackknife both give the larger truth; the bootstrap matches
-  # it). Until the full stacked-EE sandwich lands, the honest contract is to
-  # ABORT rather than return a silently-wrong SE, steering to the bootstrap.
-  # The cascade is still correct on balanced panels.
-  gen <- function(n, dropout, seed) {
-    set.seed(seed)
-    L0 <- rbinom(n, 1, 0.5)
-    A0 <- rbinom(n, 1, plogis(-0.2 + 0.6 * L0))
-    L1 <- rbinom(n, 1, plogis(-0.2 + 0.8 * A0 + 0.3 * L0))
-    A1 <- rbinom(n, 1, plogis(-0.2 + 0.6 * L1))
-    Y <- 2 + 2.5 * A0 + 2.5 * A1 - 0.5 * L1 + rnorm(n)
-    d <- data.table::data.table(
-      id = rep(seq_len(n), each = 2L),
-      time = rep(0:1, n),
-      A = c(rbind(A0, A1)),
-      L = c(rbind(L0, L1)),
-      Y = c(rbind(NA_real_, Y))
-    )
-    if (dropout) {
-      drop_ids <- which(A0 == 1 & runif(n) < 0.4)
-      d <- d[!(id %in% drop_ids & time == 1L)]
-    }
-    d[]
-  }
+# --- Stacked-EE sandwich: balanced + unbalanced panels --------------------
+#
+# The longitudinal-AIPW analytic sandwich is the full stacked M-estimation
+# sandwich V = B^{-1} M B^{-T} / n (per-period propensity scores + per-step ICE
+# outcome scores + marginal-mean equation; numerical bread). Because the bread
+# captures every block-triangular cross-term -- including the dominant
+# baseline-pseudo-regression block that a forward-cascade assembly drops under
+# selection -- it is consistent on BOTH balanced and unbalanced (monotone
+# dropout / censoring row-filter) panels. The previous implementation aborted
+# on unbalanced panels (it would have underestimated the SE by ~50%); it no
+# longer does. These tests pin the fix against the bootstrap AND the
+# delete-one-id jackknife (two independent variance estimators).
 
-  fit_of <- function(d) {
-    causat(
-      d,
-      outcome = "Y",
-      treatment = "A",
-      confounders = ~1,
-      confounders_tv = ~L,
-      id = "id",
-      time = "time",
-      estimator = "aipw",
-      propensity_model_fn = stats::glm,
-      family = "gaussian"
-    )
+# Informative monotone-dropout DGP (treated-at-baseline units drop before t=1).
+gen_aipw_unb <- function(n, dropout, seed) {
+  set.seed(seed)
+  L0 <- rbinom(n, 1, 0.5)
+  A0 <- rbinom(n, 1, plogis(-0.2 + 0.6 * L0))
+  L1 <- rbinom(n, 1, plogis(-0.2 + 0.8 * A0 + 0.3 * L0))
+  A1 <- rbinom(n, 1, plogis(-0.2 + 0.6 * L1))
+  Y <- 2 + 2.5 * A0 + 2.5 * A1 - 0.5 * L1 + rnorm(n)
+  d <- data.table::data.table(
+    id = rep(seq_len(n), each = 2L),
+    time = rep(0:1, n),
+    A = c(rbind(A0, A1)),
+    L = c(rbind(L0, L1)),
+    Y = c(rbind(NA_real_, Y))
+  )
+  if (dropout) {
+    drop_ids <- which(A0 == 1 & runif(n) < 0.4)
+    d <- d[!(id %in% drop_ids & time == 1L)]
   }
+  d[]
+}
+
+fit_aipw_unb <- function(d) {
+  causat(
+    d,
+    outcome = "Y",
+    treatment = "A",
+    confounders = ~1,
+    confounders_tv = ~L,
+    id = "id",
+    time = "time",
+    estimator = "aipw",
+    propensity_model_fn = stats::glm,
+    family = "gaussian"
+  )
+}
+
+test_that("T-long-aipw-unbalanced: sandwich runs and matches bootstrap + jackknife", {
+  skip_if_fast()
   ivs <- list(a = static(1), z = static(0))
 
-  # Balanced panel: sandwich is valid (no abort).
-  expect_no_error(
-    contrast(
-      fit_of(gen(800, FALSE, 101)),
-      interventions = ivs,
-      reference = "z",
-      type = "difference",
-      ci_method = "sandwich"
-    )
+  # Balanced panel: sandwich runs (no abort) and matches the bootstrap.
+  d_bal <- gen_aipw_unb(1200, FALSE, 101)
+  res_bal_s <- contrast(
+    fit_aipw_unb(d_bal),
+    interventions = ivs, reference = "z", type = "difference",
+    ci_method = "sandwich"
+  )
+  set.seed(11)
+  res_bal_b <- contrast(
+    fit_aipw_unb(d_bal),
+    interventions = ivs, reference = "z", type = "difference",
+    ci_method = "bootstrap", n_boot = 350
+  )
+  expect_equal(
+    res_bal_s$contrasts$se[1] / res_bal_b$contrasts$se[1], 1,
+    tolerance = 0.13
   )
 
-  # Unbalanced panel (informative monotone dropout): sandwich aborts.
+  # Unbalanced panel: this is the case the forward cascade got ~50% wrong.
+  # The stacked-EE sandwich now matches BOTH the bootstrap and the
+  # delete-one-id jackknife to within Monte-Carlo error.
+  d_unb <- gen_aipw_unb(1200, TRUE, 101)
+  res_unb_s <- contrast(
+    fit_aipw_unb(d_unb),
+    interventions = ivs, reference = "z", type = "difference",
+    ci_method = "sandwich"
+  )
+  set.seed(12)
+  res_unb_b <- contrast(
+    fit_aipw_unb(d_unb),
+    interventions = ivs, reference = "z", type = "difference",
+    ci_method = "bootstrap", n_boot = 350
+  )
+  expect_equal(
+    res_unb_s$contrasts$se[1] / res_unb_b$contrasts$se[1], 1,
+    tolerance = 0.13
+  )
+
+  # Jackknife on a smaller unbalanced panel (refits the pipeline per id).
+  d_jk <- gen_aipw_unb(300, TRUE, 202)
+  res_jk_s <- contrast(
+    fit_aipw_unb(d_jk),
+    interventions = ivs, reference = "z", type = "difference",
+    ci_method = "sandwich"
+  )
+  jk_var <- jackknife_aipw_long_var(d_jk, fit_aipw_unb, ivs, "z", "a")
+  expect_equal(
+    res_jk_s$contrasts$se[1] / sqrt(jk_var), 1,
+    tolerance = 0.15
+  )
+})
+
+test_that("T-long-aipw-delicatessen: stacked-EE sandwich matches delicatessen (balanced + unbalanced)", {
+  skip_if(
+    !file.exists(test_path(
+      "fixtures", "python", "aipw_long_tau2_delicatessen_results.csv"
+    ))
+  )
+  ref <- utils::read.csv(test_path(
+    "fixtures", "python", "aipw_long_tau2_delicatessen_results.csv"
+  ))
+
+  for (panel in c("balanced", "unbalanced")) {
+    wide <- utils::read.csv(test_path(
+      "fixtures", "python", paste0("aipw_long_tau2_", panel, "_data.csv")
+    ))
+    pp <- build_aipw_long_pp(wide)
+    fit <- causat(
+      pp, outcome = "Y", treatment = "A", confounders = ~1,
+      confounders_tv = ~L, id = "id", time = "time", estimator = "aipw",
+      propensity_model_fn = stats::glm, family = "gaussian"
+    )
+    res <- contrast(
+      fit, interventions = list(a1 = static(1), a0 = static(0)),
+      reference = "a0", ci_method = "sandwich"
+    )
+    r <- ref[ref$panel == panel, ]
+    mu_1 <- res$estimates$estimate[res$estimates$intervention == "a1"]
+    mu_0 <- res$estimates$estimate[res$estimates$intervention == "a0"]
+    se_1 <- res$estimates$se[res$estimates$intervention == "a1"]
+    se_0 <- res$estimates$se[res$estimates$intervention == "a0"]
+
+    # Point estimates are deterministic g-computation -> match to ~1e-13.
+    expect_equal(mu_1, r$mu_1, tolerance = 1e-6)
+    expect_equal(mu_0, r$mu_0, tolerance = 1e-6)
+    expect_equal(res$contrasts$estimate[1], r$ate, tolerance = 1e-6)
+    # Sandwich SEs: causatr's numerical bread vs delicatessen's MEstimator
+    # both solve the identical M-estimation system -> agree to ~1e-7.
+    expect_equal(se_1, r$se_1, tolerance = 1e-4)
+    expect_equal(se_0, r$se_0, tolerance = 1e-4)
+    expect_equal(res$contrasts$se[1], r$se_ate, tolerance = 1e-4)
+  }
+})
+
+test_that("T-long-aipw-unb-complex: 3-period, binomial, and near-positivity unbalanced panels match bootstrap", {
+  skip_if_fast()
+  ivs <- list(a = static(1), z = static(0))
+
+  # 3-period unbalanced gaussian: dropout at t=1 and t=2.
+  set.seed(303)
+  n <- 1800
+  L0 <- rnorm(n)
+  A0 <- rbinom(n, 1, plogis(0.2 + 0.5 * L0))
+  L1 <- rnorm(n, 0.4 + 0.5 * A0 + 0.3 * L0)
+  A1 <- rbinom(n, 1, plogis(0.1 + 0.5 * L1 + 0.3 * A0))
+  L2 <- rnorm(n, 0.4 + 0.5 * A1 + 0.3 * L1)
+  A2 <- rbinom(n, 1, plogis(0.1 + 0.5 * L2 + 0.3 * A1))
+  Y <- rnorm(n, 2 + A0 + A1 + 1.5 * A2 + 0.5 * L2)
+  d3 <- data.table::data.table(
+    id = rep(seq_len(n), each = 3L), time = rep(0:2, n),
+    A = c(rbind(A0, A1, A2)), L = c(rbind(L0, L1, L2)),
+    Y = c(rbind(NA_real_, NA_real_, Y))
+  )
+  # Informative monotone dropout: leave t=0, drop later periods.
+  d1 <- which(A0 == 1 & runif(n) < 0.3)
+  d2 <- which(A1 == 1 & runif(n) < 0.3)
+  d3 <- d3[!(id %in% d1 & time >= 1L) & !(id %in% d2 & time >= 2L)]
+  f3 <- function(dd) {
+    causat(dd, outcome = "Y", treatment = "A", confounders = ~1,
+      confounders_tv = ~L, id = "id", time = "time", estimator = "aipw",
+      propensity_model_fn = stats::glm, family = "gaussian")
+  }
+  r3s <- contrast(f3(d3), interventions = ivs, reference = "z",
+    type = "difference", ci_method = "sandwich")
+  set.seed(31)
+  r3b <- contrast(f3(d3), interventions = ivs, reference = "z",
+    type = "difference", ci_method = "bootstrap", n_boot = 300)
+  expect_equal(r3s$contrasts$se[1] / r3b$contrasts$se[1], 1, tolerance = 0.15)
+
+  # Binomial outcome, unbalanced.
+  set.seed(404)
+  n <- 2000
+  L0b <- rnorm(n)
+  A0b <- rbinom(n, 1, plogis(0.2 + 0.5 * L0b))
+  L1b <- rnorm(n, 0.3 * A0b + 0.3 * L0b)
+  A1b <- rbinom(n, 1, plogis(0.1 + 0.4 * L1b + 0.3 * A0b))
+  Yb <- rbinom(n, 1, plogis(-0.5 + 0.6 * A0b + 0.6 * A1b + 0.3 * L1b))
+  db <- data.table::data.table(
+    id = rep(seq_len(n), each = 2L), time = rep(0:1, n),
+    A = c(rbind(A0b, A1b)), L = c(rbind(L0b, L1b)),
+    Y = c(rbind(NA_real_, Yb))
+  )
+  drop_b <- which(A0b == 1 & runif(n) < 0.35)
+  db <- db[!(id %in% drop_b & time == 1L)]
+  fb <- function(dd) {
+    causat(dd, outcome = "Y", treatment = "A", confounders = ~1,
+      confounders_tv = ~L, id = "id", time = "time", estimator = "aipw",
+      propensity_model_fn = stats::glm, family = "binomial")
+  }
+  rbs <- contrast(fb(db), interventions = ivs, reference = "z",
+    type = "difference", ci_method = "sandwich")
+  set.seed(41)
+  rbb <- contrast(fb(db), interventions = ivs, reference = "z",
+    type = "difference", ci_method = "bootstrap", n_boot = 300)
+  expect_equal(rbs$contrasts$se[1] / rbb$contrasts$se[1], 1, tolerance = 0.18)
+})
+
+test_that("T-long-aipw-unb-mv-em: multivariate + effect-modification unbalanced panels match bootstrap + jackknife", {
+  skip_if_fast()
+
+  # Effect modification by baseline sex, unbalanced.
+  d_em <- data.table::as.data.table(make_em_ice_scm(n = 2500, seed = 52))
+  set.seed(520)
+  drop_em <- which(
+    d_em$time == 1L & d_em$A == 1L &
+      stats::runif(nrow(d_em)) < 0.3
+  )
+  d_em <- d_em[-drop_em]
+  f_em <- function(dd) {
+    causat(dd, outcome = "Y", treatment = "A", confounders = ~ L0 + sex,
+      confounders_tv = ~L, id = "id", time = "time", estimator = "aipw",
+      propensity_model_fn = stats::glm, family = "gaussian")
+  }
+  ivs <- list(a1 = static(1), a0 = static(0))
+  res_em <- contrast(f_em(d_em), interventions = ivs, reference = "a0",
+    by = "sex", type = "difference", ci_method = "sandwich")
+  set.seed(53)
+  res_em_b <- contrast(f_em(d_em), interventions = ivs, reference = "a0",
+    by = "sex", type = "difference", ci_method = "bootstrap", n_boot = 250)
+  ratio_em <- res_em$contrasts$se / res_em_b$contrasts$se
+  expect_equal(unname(ratio_em), rep(1, length(ratio_em)), tolerance = 0.2)
+
+  # Multivariate treatment, unbalanced; sandwich vs bootstrap + jackknife.
+  # A modest n keeps the per-id jackknife (one MV refit per id) affordable.
+  d_mv <- data.table::as.data.table(make_em_mv_long_scm(n = 700, seed = 2502))
+  set.seed(250)
+  drop_mv <- which(
+    d_mv$time == 1L & d_mv$A1 == 1L &
+      stats::runif(nrow(d_mv)) < 0.3
+  )
+  d_mv <- d_mv[-drop_mv]
+  f_mv <- function(dd) {
+    causat(dd, outcome = "Y", treatment = c("A1", "A2"),
+      confounders = ~ L0 + sex, confounders_tv = ~L, id = "id",
+      time = "time", estimator = "aipw", propensity_model_fn = stats::glm,
+      family = "gaussian")
+  }
+  mv_ivs <- list(
+    a = list(A1 = static(1), A2 = static(1)),
+    z = list(A1 = static(0), A2 = static(0))
+  )
+  res_mv <- contrast(f_mv(d_mv), interventions = mv_ivs, reference = "z",
+    type = "difference", ci_method = "sandwich")
+  set.seed(251)
+  res_mv_b <- contrast(f_mv(d_mv), interventions = mv_ivs, reference = "z",
+    type = "difference", ci_method = "bootstrap", n_boot = 200)
+  expect_equal(
+    res_mv$contrasts$se[1] / res_mv_b$contrasts$se[1], 1, tolerance = 0.22
+  )
+  jk_mv <- jackknife_aipw_long_var(d_mv, f_mv, mv_ivs, "z", "a")
+  expect_equal(
+    res_mv$contrasts$se[1] / sqrt(jk_mv), 1, tolerance = 0.22
+  )
+})
+
+test_that("T-long-aipw-unb-weights: external weights on an unbalanced panel match bootstrap", {
+  skip_if_fast()
+  ivs <- list(a = static(1), z = static(0))
+  d_w <- gen_aipw_unb(1500, TRUE, 707)
+  set.seed(1)
+  # One positive survey weight per id, broadcast to both person-period rows.
+  ids <- unique(d_w$id)
+  w_id <- stats::setNames(stats::runif(length(ids), 0.5, 1.6), ids)
+  d_w[, wt := w_id[as.character(id)]]
+  f_w <- function(dd) {
+    causat(dd, outcome = "Y", treatment = "A", confounders = ~1,
+      confounders_tv = ~L, id = "id", time = "time", estimator = "aipw",
+      propensity_model_fn = stats::glm, family = "gaussian", weights = dd$wt)
+  }
+  res_w <- contrast(f_w(d_w), interventions = ivs, reference = "z",
+    type = "difference", ci_method = "sandwich")
+  set.seed(71)
+  res_w_b <- contrast(f_w(d_w), interventions = ivs, reference = "z",
+    type = "difference", ci_method = "bootstrap", n_boot = 300)
+  expect_equal(
+    res_w$contrasts$se[1] / res_w_b$contrasts$se[1], 1, tolerance = 0.15
+  )
+})
+
+test_that("T-long-aipw-multinom: categorical (multinomial) propensity sandwich matches bootstrap", {
+  skip_if_fast()
+  skip_if_not_installed("nnet")
+  # A categorical (k > 2) treatment uses a `nnet::multinom` per-period
+  # propensity. The stacked sandwich scores it with the softmax residual
+  # score (an MLE, so the summed score vanishes), so the analytic SE is
+  # valid and must agree with the bootstrap.
+  set.seed(808)
+  n <- 1200
+  id <- rep(seq_len(n), each = 2L)
+  time <- rep(0:1, n)
+  L <- rnorm(2 * n)
+  mk_lev <- function(lin) {
+    pr <- cbind(1, exp(0.5 * lin), exp(-0.3 * lin))
+    pr <- pr / rowSums(pr)
+    vapply(
+      seq_along(lin),
+      function(i) sample(c("low", "mid", "high"), 1, prob = pr[i, ]),
+      character(1)
+    )
+  }
+  A <- factor(mk_lev(L), levels = c("low", "mid", "high"))
+  Y <- rep(NA_real_, 2 * n)
+  Y[time == 1] <- rnorm(n, 2 + L[time == 1] + as.integer(A[time == 1]))
+  dcat <- data.table::data.table(id = id, time = time, A = A, L = L, Y = Y)
+  fit <- causat(
+    dcat, outcome = "Y", treatment = "A", confounders = ~1,
+    confounders_tv = ~L, id = "id", time = "time", estimator = "aipw",
+    propensity_model_fn = nnet::multinom, family = "gaussian"
+  )
+  ivs <- list(hi = static("high"), lo = static("low"))
+  res_s <- contrast(fit, interventions = ivs, reference = "lo",
+    type = "difference", ci_method = "sandwich")
+  set.seed(5)
+  res_b <- contrast(fit, interventions = ivs, reference = "lo",
+    type = "difference", ci_method = "bootstrap", n_boot = 250)
+  expect_true(is.finite(res_s$contrasts$se[1]) && res_s$contrasts$se[1] > 0)
+  expect_equal(
+    res_s$contrasts$se[1] / res_b$contrasts$se[1], 1, tolerance = 0.18
+  )
+})
+
+test_that("R-long-aipw-gam-sandwich: GAM nuisance sandwich is an explicit limitation (steers to bootstrap)", {
+  skip_if_not_installed("mgcv")
+  # The stacked sandwich reconstructs each nuisance model's maximum-
+  # likelihood GLM / multinomial score, whose Jacobian is the bread. A
+  # penalised `mgcv::gam` fit has no such vanishing score (its bread is
+  # `Vp`), so the analytic sandwich is not available -- it aborts with a
+  # transparent classed error and the bootstrap remains valid. This
+  # mirrors the longitudinal ICE betareg path (bootstrap-only).
+  d <- make_linear_scm(n = 600, n_times = 2, seed = 77)
+  fit <- causat(
+    d, outcome = "Y", treatment = "A", confounders = ~L0,
+    confounders_tv = ~L, id = "id", time = "time", estimator = "aipw",
+    model_fn = mgcv::gam, propensity_model_fn = stats::glm,
+    family = "gaussian"
+  )
   expect_error(
     contrast(
-      fit_of(gen(800, TRUE, 101)),
-      interventions = ivs,
-      reference = "z",
-      type = "difference",
-      ci_method = "sandwich"
+      fit,
+      interventions = list(a1 = static(1), a0 = static(0)),
+      reference = "a0", ci_method = "sandwich"
     ),
-    class = "causatr_longitudinal_aipw_unbalanced_sandwich"
+    class = "causatr_longitudinal_aipw_sandwich_model"
   )
-
-  # The bootstrap remains available and correct on the unbalanced panel.
   expect_no_error(
     contrast(
-      fit_of(gen(800, TRUE, 101)),
-      interventions = ivs,
-      reference = "z",
-      type = "difference",
-      ci_method = "bootstrap",
-      n_boot = 50L
+      fit,
+      interventions = list(a1 = static(1), a0 = static(0)),
+      reference = "a0", ci_method = "bootstrap", n_boot = 30
     )
+  )
+})
+
+test_that("R-long-aipw-missing-covariate: missing time-varying covariate is rejected (classed)", {
+  # Longitudinal AIPW has no complete-case fallback for a covariate missing
+  # WITHIN an observed person-period: the per-period propensity model would
+  # `na.omit`-drop the row, desyncing the density-ratio weight vector from the
+  # id index (the raw "number of items to replace" recycling error). Reject
+  # with a clear classed error pointing to `causat_mice()` instead. Missing Y
+  # is a separate concern (IPCW); missing L / A is the multiple-imputation path.
+  set.seed(1)
+  n <- 300
+  id <- rep(seq_len(n), each = 2L)
+  time <- rep(0:1, n)
+  L <- rnorm(2 * n)
+  A <- rbinom(2 * n, 1, plogis(0.2 * L))
+  Y <- rep(NA_real_, 2 * n)
+  Y[time == 1] <- rnorm(n, 2 + A[time == 1] + L[time == 1])
+  L[5] <- NA_real_ # MCAR missingness in a time-varying confounder
+  d <- data.table::data.table(id = id, time = time, A = A, L = L, Y = Y)
+  fit <- causat(
+    d, outcome = "Y", treatment = "A", confounders = ~1, confounders_tv = ~L,
+    id = "id", time = "time", estimator = "aipw",
+    propensity_model_fn = stats::glm, family = "gaussian"
+  )
+  expect_error(
+    contrast(
+      fit, interventions = list(a = static(1), z = static(0)),
+      reference = "z", ci_method = "sandwich"
+    ),
+    class = "causatr_longitudinal_aipw_missing_covariate"
   )
 })
 

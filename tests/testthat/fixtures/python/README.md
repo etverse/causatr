@@ -7,21 +7,26 @@ IF variance engine.
 ## Requirements
 
 ```
-python >= 3.9
-numpy  >= 1.24
-pandas >= 2.0
-scipy  >= 1.10
+python       >= 3.9
+numpy        >= 1.24
+pandas       >= 2.0
+scipy        >= 1.10
+delicatessen >= 4.0   # only for aipw_long_tau2_delicatessen.py
 ```
 
 Install:
 
 ```bash
-pip install numpy pandas scipy
+pip install numpy pandas scipy delicatessen
 ```
 
-`delicatessen` is **not** used in these scripts — the sandwich is computed
-directly from the estimating-equation Jacobian (scipy linear solve) to avoid
-an additional dependency. The math is identical to `delicatessen.MEstimator`.
+Most scripts do **not** import `delicatessen` — they compute the sandwich
+directly from the estimating-equation Jacobian (scipy linear solve), which is
+identical to `delicatessen.MEstimator`. The one exception is
+`aipw_long_tau2_delicatessen.py`, which uses `delicatessen.MEstimator` directly
+as a genuine external M-estimation oracle for the longitudinal-AIPW sandwich
+(the case where causatr's own stacked-EE rewrite replaced a biased
+forward-cascade assembly, so an independent package is the strongest check).
 
 ## Files
 
@@ -31,6 +36,7 @@ an additional dependency. The math is identical to `delicatessen.MEstimator`.
 | `ice_poisson_tau2.py` | `ice_poisson_tau2_results.csv` | ICE Poisson, static(1)/static(0), tau=2, n=300, seed=2025 |
 | `multinom_gcomp_sandwich.py` | `multinom_gcomp_sandwich_results.csv` | Multinomial-outcome point g-comp, static(1)/static(0), K=3, n=2000, seed=2025 (means + diff/ratio/OR SEs) |
 | `multinom_gcomp_weighted_sandwich.py` | `multinom_gcomp_weighted_sandwich_results.csv` | **Weighted** (survey/external) multinomial-outcome point g-comp, static(1)/static(0), K=3, n=2000, seed=2025 + weight seed=4242 (weighted means + diff/ratio/OR SEs) |
+| `aipw_long_tau2_delicatessen.py` | `aipw_long_tau2_delicatessen_results.csv` | **Longitudinal AIPW** (ICE-AIPW) full stacked-EE sandwich via `delicatessen.MEstimator`, tau=2, binary treatment, Gaussian outcome, static(1)/static(0), n=4000, seed=2025; **balanced and unbalanced (monotone-dropout)** panels (means + per-arm and ATE SEs) |
 
 ## Regenerating
 
@@ -41,6 +47,7 @@ python tests/testthat/fixtures/python/glmtp_sandwich_tau2.py
 python tests/testthat/fixtures/python/ice_poisson_tau2.py
 python tests/testthat/fixtures/python/multinom_gcomp_sandwich.py
 python tests/testthat/fixtures/python/multinom_gcomp_weighted_sandwich.py
+python tests/testthat/fixtures/python/aipw_long_tau2_delicatessen.py
 ```
 
 ### G-LMTP sandwich fixture
@@ -116,4 +123,22 @@ d <- sim_multinom_binary(n=2000L, seed=2025L)
 set.seed(4242L)
 d$w <- stats::runif(nrow(d), 0.4, 2.5)
 write.csv(d, "tests/testthat/fixtures/python/multinom_gcomp_weighted_data.csv", row.names=FALSE)
+```
+
+### Longitudinal-AIPW delicatessen fixture
+
+The script reads `aipw_long_tau2_balanced_data.csv` and
+`aipw_long_tau2_unbalanced_data.csv` (wide format: `id, L0, A0, L1, A1, Y`; the
+unbalanced file has NA at t=1 for dropped-out units) and writes
+`aipw_long_tau2_delicatessen_results.csv`. It stacks the two-arm ICE-AIPW
+estimating equation (per-period propensity logits + final outcome model +
+arm-specific pseudo-regression + marginal mean = 19 parameters) and solves it
+with `delicatessen.MEstimator`, returning the sandwich means and per-arm / ATE
+SEs for both panels. This is the cross-language oracle for
+`variance_if_aipw_longitudinal()`.
+
+Regenerate the data CSVs from R:
+
+```r
+Rscript tests/testthat/fixtures/python/aipw_long_tau2_gen.R
 ```

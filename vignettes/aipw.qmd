@@ -181,8 +181,12 @@ continuous, categorical, and multivariate treatments; `static` / `shift` /
 `scale_by` / `dynamic` / `stochastic` interventions; difference / ratio / OR
 contrasts; `by`-stratified estimands; stabilized weights; and transportability.
 For the **longitudinal** doubly-robust estimator (ICE-AIPW) [@bang2005doubly],
-see `vignette("longitudinal")`. For the triangulation workflow across all three
-estimators, see `vignette("triangulation")`.
+see `vignette("longitudinal")`. Its `"sandwich"` variance is a full stacked
+M-estimation sandwich that is valid on unbalanced panels (monotone dropout /
+censoring) and covers GLM-family and multinomial nuisances; penalised
+learners (`mgcv::gam`, `betareg`) fall back to `ci_method = "bootstrap"`. For
+the triangulation workflow across all three estimators, see
+`vignette("triangulation")`.
 
 ## References
 

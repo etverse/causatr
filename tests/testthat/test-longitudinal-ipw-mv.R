@@ -488,19 +488,38 @@ test_that("T-long-mv-stab3: stabilized MV shift SE close to bootstrap and natura
     up = list(A1 = shift(0.5), A2 = shift(0.3)),
     nc = NULL
   )
-  res_sw <- contrast(
-    fit,
-    interventions = ivs,
-    reference = "nc",
-    type = "difference",
-    ci_method = "sandwich"
+  # This stabilized MV shift deliberately produces extreme per-period
+  # density-ratio weights (>100), so causatr's `causatr_longitudinal_seq_positivity`
+  # warning fires here as incidental noise. Its correct firing-above-threshold /
+  # silence-below-threshold is asserted directly in test-longitudinal-ipw.R
+  # (T-long-ipw5/6); muffle that single class here -- a targeted class handler,
+  # not blanket suppression, matching the inline pattern in test-mi-coverage.R --
+  # so this SE-parity test stays warning-clean regardless of the 8-hour throttle
+  # state. The warning is signalled once every 8 hours, so without this the test
+  # leaks it on the first run of the day.
+  res_sw <- withCallingHandlers(
+    contrast(
+      fit,
+      interventions = ivs,
+      reference = "nc",
+      type = "difference",
+      ci_method = "sandwich"
+    ),
+    causatr_longitudinal_seq_positivity = function(w) {
+      invokeRestart("muffleWarning")
+    }
   )
-  res_bs <- contrast(
-    fit,
-    interventions = ivs,
-    reference = "nc",
-    type = "difference",
-    ci_method = "bootstrap"
+  res_bs <- withCallingHandlers(
+    contrast(
+      fit,
+      interventions = ivs,
+      reference = "nc",
+      type = "difference",
+      ci_method = "bootstrap"
+    ),
+    causatr_longitudinal_seq_positivity = function(w) {
+      invokeRestart("muffleWarning")
+    }
   )
 
   se_ratio <- res_sw$contrasts$se / res_bs$contrasts$se
