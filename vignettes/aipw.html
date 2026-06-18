@@ -950,7 +950,7 @@ window.Quarto = {
 <li>you want a single estimate that is robust to misspecifying <em>one</em> of the two nuisance models, or</li>
 <li>you are triangulating: agreement between gcomp, IPW, and AIPW is reassuring, and AIPW disagreeing with both flags a likely misspecification in one of them.</li>
 </ul>
-<p>causatr’s AIPW supports the same surface as the other estimators — binary, continuous, categorical, and multivariate treatments; <code>static</code> / <code>shift</code> / <code>scale_by</code> / <code>dynamic</code> / <code>stochastic</code> interventions; difference / ratio / OR contrasts; <code>by</code>-stratified estimands; stabilized weights; and transportability. For the <strong>longitudinal</strong> doubly-robust estimator (ICE-AIPW) <span class="citation" data-cites="bang2005doubly">(<a href="#ref-bang2005doubly" role="doc-biblioref">Bang and Robins 2005</a>)</span>, see <code>vignette("longitudinal")</code>. For the triangulation workflow across all three estimators, see <code>vignette("triangulation")</code>.</p>
+<p>causatr’s AIPW supports the same surface as the other estimators — binary, continuous, categorical, and multivariate treatments; <code>static</code> / <code>shift</code> / <code>scale_by</code> / <code>dynamic</code> / <code>stochastic</code> interventions; difference / ratio / OR contrasts; <code>by</code>-stratified estimands; stabilized weights; and transportability. For the <strong>longitudinal</strong> doubly-robust estimator (ICE-AIPW) <span class="citation" data-cites="bang2005doubly">(<a href="#ref-bang2005doubly" role="doc-biblioref">Bang and Robins 2005</a>)</span>, see <code>vignette("longitudinal")</code>. Its <code>"sandwich"</code> variance is a full stacked M-estimation sandwich that is valid on unbalanced panels (monotone dropout / censoring) and covers GLM-family and multinomial nuisances; penalised learners (<code>mgcv::gam</code>, <code>betareg</code>) fall back to <code>ci_method = "bootstrap"</code>. For the triangulation workflow across all three estimators, see <code>vignette("triangulation")</code>.</p>
 </section>
 <section id="references" class="level2">
 <h2 class="anchored" data-anchor-id="references">References</h2>
@@ -1606,13 +1606,17 @@ Robins, James M., Andrea Rotnitzky, and Lue Ping Zhao. 1994. <span>“Estimation
 <span id="cb6-193"><a href="#cb6-193" aria-hidden="true" tabindex="-1"></a><span class="in">`scale_by`</span> / <span class="in">`dynamic`</span> / <span class="in">`stochastic`</span> interventions; difference / ratio / OR</span>
 <span id="cb6-194"><a href="#cb6-194" aria-hidden="true" tabindex="-1"></a>contrasts; <span class="in">`by`</span>-stratified estimands; stabilized weights; and transportability.</span>
 <span id="cb6-195"><a href="#cb6-195" aria-hidden="true" tabindex="-1"></a>For the **longitudinal** doubly-robust estimator (ICE-AIPW) <span class="co">[</span><span class="ot">@bang2005doubly</span><span class="co">]</span>,</span>
-<span id="cb6-196"><a href="#cb6-196" aria-hidden="true" tabindex="-1"></a>see <span class="in">`vignette("longitudinal")`</span>. For the triangulation workflow across all three</span>
-<span id="cb6-197"><a href="#cb6-197" aria-hidden="true" tabindex="-1"></a>estimators, see <span class="in">`vignette("triangulation")`</span>.</span>
-<span id="cb6-198"><a href="#cb6-198" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-199"><a href="#cb6-199" aria-hidden="true" tabindex="-1"></a><span class="fu">## References</span></span>
-<span id="cb6-200"><a href="#cb6-200" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-201"><a href="#cb6-201" aria-hidden="true" tabindex="-1"></a>::: {#refs}</span>
-<span id="cb6-202"><a href="#cb6-202" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb6-196"><a href="#cb6-196" aria-hidden="true" tabindex="-1"></a>see <span class="in">`vignette("longitudinal")`</span>. Its <span class="in">`"sandwich"`</span> variance is a full stacked</span>
+<span id="cb6-197"><a href="#cb6-197" aria-hidden="true" tabindex="-1"></a>M-estimation sandwich that is valid on unbalanced panels (monotone dropout /</span>
+<span id="cb6-198"><a href="#cb6-198" aria-hidden="true" tabindex="-1"></a>censoring) and covers GLM-family and multinomial nuisances; penalised</span>
+<span id="cb6-199"><a href="#cb6-199" aria-hidden="true" tabindex="-1"></a>learners (<span class="in">`mgcv::gam`</span>, <span class="in">`betareg`</span>) fall back to <span class="in">`ci_method = "bootstrap"`</span>. For</span>
+<span id="cb6-200"><a href="#cb6-200" aria-hidden="true" tabindex="-1"></a>the triangulation workflow across all three estimators, see</span>
+<span id="cb6-201"><a href="#cb6-201" aria-hidden="true" tabindex="-1"></a><span class="in">`vignette("triangulation")`</span>.</span>
+<span id="cb6-202"><a href="#cb6-202" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-203"><a href="#cb6-203" aria-hidden="true" tabindex="-1"></a><span class="fu">## References</span></span>
+<span id="cb6-204"><a href="#cb6-204" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-205"><a href="#cb6-205" aria-hidden="true" tabindex="-1"></a>::: {#refs}</span>
+<span id="cb6-206"><a href="#cb6-206" aria-hidden="true" tabindex="-1"></a>:::</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->
