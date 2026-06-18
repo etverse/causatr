@@ -44,30 +44,6 @@ a delete-one-id jackknife helper, and bootstrap parity across static / shift /
 dynamic / scale_by, gaussian / binomial, `T = 2/3`, multivariate treatment,
 categorical (multinomial) propensity, effect modification, and external weights.
 
-## 2026-06-17 — Longitudinal AIPW sandwich aborts on unbalanced panels (was silently ~50% low)
-
-The longitudinal AIPW analytic sandwich (`ci_method = "sandwich"`) previously
-returned a **silently low** standard error on an unbalanced panel (monotone
-dropout / censoring row-filter) — documented as "~15% low" but in fact up to
-**~50% low**, scaling with the dropout fraction. Diagnosis: on a *balanced*
-panel the doubly-robust property makes Channel 1 (the pseudo-outcome deviation)
-equal the efficient influence function, so the analytic sandwich is exactly
-correct (now asserted by a tight bootstrap-agreement test, replacing a former
-"finite and positive" smoke test and a factor-of-2 tolerance band that let the
-bug hide). Under the selected sub-sample of an unbalanced panel that property
-breaks, and the forward-cascade approximation of the block-triangular bread
-inverse drops the dominant baseline-pseudo-regression block. This was confirmed
-to be a real, fixable bug — not a fundamental limitation — by a hand-built
-stacked-EE M-estimation sandwich (faithful to ~1e-11) and the delete-one-id
-jackknife, both of which recover the larger truth that the bootstrap matches.
-
-Until the full fix lands (replacing the forward cascade with the stacked-EE
-sandwich, which is correct and consistent on balanced and unbalanced panels),
-`variance_if_aipw_longitudinal()` now **aborts** on an unbalanced panel
-(`causatr_longitudinal_aipw_unbalanced_sandwich`) and steers users to
-`ci_method = "bootstrap"` (correct here) rather than return a wrong SE. The
-analytic sandwich on **balanced** panels is unchanged and correct.
-
 ## 2026-06-17 — Fix: ICE analytic sandwich under time-varying covariate missingness
 
 `contrast(..., ci_method = "sandwich")` on a longitudinal ICE (gcomp) fit with
@@ -566,19 +542,14 @@ in `fit_aipw_longitudinal()` has been removed.
   single-call oracle exists for longitudinal AIPW (lmtp's SDR uses a different
   nuisance-fixing convention), so triangulation + DR + truth recovery stand in.
 
-### Unbalanced-panel sandwich caveat
+### Unbalanced-panel sandwich caveat (superseded)
 
-The longitudinal AIPW sandwich SE now emits a classed warning
-(`causatr_longitudinal_aipw_unbalanced_sandwich`) when the panel is
-unbalanced (some individuals are not observed at every period, e.g. monotone
-dropout or a censoring row-filter). A Monte-Carlo study (300 reps) showed the
-per-period rescaled sandwich underestimates the true SE by ~15% under
-informative dropout, because dropped ids contribute exactly zero to
-later-period channels rather than their unobserved counterfactual
-contribution — a limitation of the row-filtering influence function that a
-constant rescale cannot repair. The bootstrap reproduces the truth, so the
-warning steers users to `ci_method = "bootstrap"`. Affects both univariate
-and multivariate longitudinal AIPW.
+This release first shipped an unbalanced-panel caveat for the longitudinal
+AIPW sandwich (a classed warning, then an abort steering to the bootstrap).
+Both were **superseded within this development cycle** by the full stacked-EE
+M-estimation sandwich, which is consistent on balanced *and* unbalanced panels
+— see the "Longitudinal AIPW sandwich: full stacked-EE rewrite" entry at the
+top of this file. There is no longer any unbalanced-panel limitation or abort.
 
 ## 2026-05-29 — Phase 19c: Effect modification for multivariate longitudinal IPW
 
