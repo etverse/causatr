@@ -833,7 +833,7 @@ Composes Phase 2 gcomp + Phase 4 IPW into the classical analytical doubly-robust
 | binary | gaussian | longitudinal static + EM (by=sex) | ATE | diff | sandwich | ✅ per-sex ATE ≈ 5,8 | test-aipw.R |
 | binary | gaussian | longitudinal cross-method ICE vs AIPW vs long-IPW | ATE | diff | — | ✅ | test-aipw.R |
 | binary | gaussian | longitudinal 3-period AIPW vs IPW | ATE | diff | sandwich | ✅ | test-aipw.R |
-| — | — | longitudinal sandwich vs bootstrap SE agreement | ATE | — | — | ✅ ratio ∈ (0.5, 2) | test-aipw.R |
+| — | — | longitudinal sandwich vs bootstrap SE agreement | ATE | — | — | ✅ ratio ≈ 1.0 (±0.12) | test-aipw.R |
 | binary | gaussian | longitudinal lmtp cross-check (binary static) | ATE | diff | — | ✅ vs lmtp_sdr | test-aipw.R |
 | continuous | gaussian | longitudinal lmtp cross-check (continuous shift) | ATE | diff | — | ✅ vs lmtp_sdr | test-aipw.R |
 | binary | binomial | longitudinal static (always vs never) | ATE | diff | sandwich | ✅ | test-aipw.R |
@@ -858,7 +858,21 @@ Composes Phase 2 gcomp + Phase 4 IPW into the classical analytical doubly-robust
 
 **Rejections (longitudinal AIPW):** multivariate longitudinal AIPW → supported (Phase 25) ✅ (see the MV longitudinal AIPW block below); ATT/ATC → rejected ✅; `stabilize = "marginal"` → rejected ✅ (`causatr_stabilize_longitudinal_aipw`; use `estimator = "ipw"` for stabilized longitudinal weights).
 
-**Known bug — longitudinal AIPW sandwich on UNBALANCED panels (`ci_method = "sandwich"` aborts):** on a balanced panel the analytic sandwich is the correct full M-estimation variance (the doubly-robust pseudo-outcome deviation equals the EIF — tightly validated vs bootstrap, `test-aipw-longitudinal.R`). Under monotone dropout / censoring row-filter the DR property breaks and the forward cascade drops the dominant baseline-pseudo-regression block, underestimating the SE by ~50% (diagnosed; scales with dropout). Rather than return a silently-wrong SE, the sandwich **aborts** (`causatr_longitudinal_aipw_unbalanced_sandwich`) and steers to the **bootstrap** (correct ✅). The validated fix is a full stacked-EE sandwich (faithful oracle ~1e-11; jackknife/bootstrap confirm the truth) replacing the cascade — pending. | ✅ abort + bootstrap | test-aipw-longitudinal.R |
+**Longitudinal AIPW sandwich — full stacked-EE M-estimation sandwich (balanced + UNBALANCED panels):** `ci_method = "sandwich"` builds `V = B⁻¹ M B⁻ᵀ / n` where `ψ(θ)` stacks the per-period propensity scores, the per-step ICE outcome / pseudo-outcome scores, and the marginal-mean equation; the numerical bread (`numDeriv`) captures every block-triangular cross-term (including the baseline-pseudo-regression block), so it is consistent under monotone dropout / censoring row-filter. This replaced the forward-cascade assembly that underestimated the SE by ~50% on unbalanced panels and aborted (`causatr_longitudinal_aipw_unbalanced_sandwich`, removed). The EE is faithful by construction (`~1e-11` summed-score vanishing); `causatr_longitudinal_aipw_sandwich_unfaithful` steers to bootstrap if it does not.
+
+**Sandwich nuisance-model coverage (explicit):** GLM families (gaussian / binomial / poisson / Gamma / quasi-* / inverse-gaussian) + `MASS::glm.nb` + multinomial (`nnet::multinom`, categorical treatment) are scored analytically. **Penalised / non-likelihood fitters `mgcv::gam` and `betareg::betareg` are an explicit limitation** — they abort with `causatr_longitudinal_aipw_sandwich_model` and route to the bootstrap (their bread is not the score Jacobian; mirrors the longitudinal-ICE betareg bootstrap-only path).
+
+| Treatment | Outcome | Intervention | Panel | Variance | Status | Test |
+|---|---|---|---|---|---|---|
+| binary | gaussian | static | balanced + unbalanced | sandwich | ✅ vs bootstrap + jackknife (ratio ≈ 1.0) | test-aipw-longitudinal.R |
+| binary | gaussian | static | balanced + unbalanced | sandwich | ✅ vs `delicatessen` MEstimator (SE ~1e-7, point ~1e-13) | test-aipw-longitudinal.R |
+| binary | gaussian | static | unbalanced, T=3 | sandwich | ✅ vs bootstrap | test-aipw-longitudinal.R |
+| binary | binomial | static | unbalanced | sandwich | ✅ vs bootstrap | test-aipw-longitudinal.R |
+| binary | gaussian | static + EM (by=sex) | unbalanced | sandwich | ✅ vs bootstrap | test-aipw-longitudinal.R |
+| mv (A1,A2) | gaussian | static | unbalanced | sandwich | ✅ vs bootstrap + jackknife | test-aipw-longitudinal.R |
+| binary | gaussian | static + external weights | unbalanced | sandwich | ✅ vs bootstrap | test-aipw-longitudinal.R |
+| categorical (multinom) | gaussian | static | balanced | sandwich | ✅ vs bootstrap (softmax score) | test-aipw-longitudinal.R |
+| binary | gaussian | static, `mgcv::gam` nuisance | any | sandwich | ✅ explicit limitation → bootstrap (`causatr_longitudinal_aipw_sandwich_model`) | test-aipw-longitudinal.R |
 
 **Chunk 25 — Multivariate longitudinal AIPW**
 

@@ -132,25 +132,37 @@ Project-specific rules that override / extend the etverse-wide rules at
 - **Effect modifier in IPW / matching must be a baseline covariate.** Not
   enforced at runtime (time-varying status isn't inferable from data) — doc-
   level constraint only. Do not flag this as a "missing check".
-- **Longitudinal AIPW sandwich ABORTS on unbalanced panels (known bug, fixable
-  — not "by design").** When the panel is unbalanced (monotone dropout /
-  censoring row-filter), `variance_if_aipw_longitudinal()` aborts with class
-  `causatr_longitudinal_aipw_unbalanced_sandwich`, steering to the bootstrap.
-  Mechanism (diagnosed, not speculative): on a *balanced* panel the doubly-robust
-  property makes Channel 1 (the pseudo-outcome deviation) equal the efficient
-  influence function, so the analytic sandwich is exactly correct. Under the
-  selected sub-sample of an unbalanced panel that property breaks, and the
-  forward-cascade approximation of the block-triangular bread inverse drops the
-  dominant baseline-pseudo-regression block — underestimating the SE by ~50%
-  (the magnitude scales with the dropout fraction; the old "~15%" was a mild
-  single-DGP figure). This is a REAL, FIXABLE bug, not a fundamental limitation:
-  a hand-built stacked-EE M-estimation sandwich (faithful to ~1e-11, validated
-  in the unbalanced-panel test) and the delete-one-id jackknife both recover the
-  larger truth, which the bootstrap matches. The correct fix is to replace the
-  forward cascade with the full stacked-EE sandwich (general, consistent for
-  balanced and unbalanced); until that lands the abort + bootstrap is the honest
-  contract. Do NOT re-document this as "by design" or restore the silent ~15%
-  warning. The balanced-panel cascade is correct and unchanged.
+- **Longitudinal AIPW sandwich uses the full stacked-EE M-estimation sandwich
+  (FIXED; valid on balanced AND unbalanced panels).**
+  `variance_if_aipw_longitudinal()` (+ `R/variance_if_aipw_longitudinal_ee.R`)
+  builds the variance as `V = B^{-1} M B^{-T} / n` where `psi(theta)` stacks the
+  per-period propensity scores, the per-step ICE outcome / pseudo-outcome scores,
+  and the marginal-mean equation; the bread is the numerical Jacobian
+  (`numDeriv`) of the summed score. The numerical bread captures every
+  block-triangular cross-term — including the dominant baseline-pseudo-regression
+  block `B^{-1}[mu, beta_1]` — so the SE is consistent under monotone dropout /
+  censoring row-filter. This REPLACED an earlier forward-cascade assembly that
+  aborted on unbalanced panels (class
+  `causatr_longitudinal_aipw_unbalanced_sandwich`, now removed) because it
+  dropped that block and underestimated the SE by ~50%. The EE is faithful by
+  construction (designs / weights / masks extracted from causatr's own fitted
+  models); `aipw_long_stacked_if()` guards on `max|colSums(psi(theta_hat))|`
+  (class `causatr_longitudinal_aipw_sandwich_unfaithful`) and steers to the
+  bootstrap if the reconstructed score does not vanish. **Supported nuisance
+  models (analytic sandwich):** GLM families (gaussian / binomial / poisson /
+  Gamma / quasi-* / inverse-gaussian), `MASS::glm.nb`, and multinomial
+  (categorical) propensities via `nnet::multinom` (softmax residual score). **NOT
+  supported (explicit limitation → bootstrap):** penalised / non-likelihood
+  fitters — `mgcv::gam` and `betareg::betareg` — abort with class
+  `causatr_longitudinal_aipw_sandwich_model` (their bread is not the score
+  Jacobian; this mirrors the longitudinal-ICE betareg bootstrap-only path). Do NOT
+  silently compute a sandwich for a GAM/betareg nuisance. Validated to ~1e-11
+  faithfulness, ~1e-7 against the `delicatessen` M-estimation oracle
+  (`aipw_long_tau2_delicatessen.py`, balanced + unbalanced), and to ratio ~1.0
+  against the bootstrap and delete-one-id jackknife across static / shift /
+  dynamic / scale_by, gaussian / binomial, T = 2 / 3, multivariate, effect
+  modification, and external weights. Do NOT re-introduce a forward-cascade
+  shortcut or an unbalanced-panel abort.
 
 ### Implementation conventions
 

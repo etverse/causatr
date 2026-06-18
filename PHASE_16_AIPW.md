@@ -152,48 +152,60 @@ where $\tilde Y_{k+1}$ is the pseudo-outcome from the $(k+1)$-th AIPW step and $
 
 **Depends on Phase 10 (longitudinal IPW) and Phase 5 (ICE).** Chunk 16g.
 
-### Longitudinal AIPW sandwich on unbalanced panels (bug + planned full fix)
+### Longitudinal AIPW sandwich — full stacked-EE rewrite (shipped)
 
-**Status: safe interim shipped; full fix pending.** On a **balanced** panel the
-longitudinal-AIPW analytic sandwich is exactly correct: the doubly-robust
-property makes Channel 1 (the pseudo-outcome deviation $\tilde Y_{0,i}-\hat\mu$)
-equal the efficient influence function, so the forward-cascade assembly recovers
-the full M-estimation variance (now asserted by tight sandwich-vs-bootstrap
-agreement tests, `test-aipw-longitudinal.R`).
+**Status: fixed via the full stacked-EE M-estimation sandwich.** The
+longitudinal-AIPW analytic sandwich (`variance_if_aipw_longitudinal()` +
+`R/variance_if_aipw_longitudinal_ee.R`) is the full stacked M-estimation
+sandwich $V = B^{-1} M B^{-\top}/n$, where $\psi(\theta)$ stacks the per-period
+propensity scores, the per-step ICE outcome / pseudo-outcome scores, and the
+marginal-mean equation $\tilde Y_{0,i}-\mu$. The bread $B = -\frac1n\,
+\partial(\sum_i\psi)/\partial\theta$ is a numerical Jacobian (`numDeriv`) of the
+summed score; it captures **every** block-triangular cross-term and is consistent
+on **both balanced and unbalanced** panels (monotone dropout / censoring
+row-filter) — one consistent, general variance path. The per-id influence
+function for the marginal mean is $\mathrm{IF}_i = e_\mu^\top B^{-1}\psi_i$, and
+`vcov_from_if()` aggregates it (cluster-on-id by construction).
 
-On an **unbalanced** panel (monotone dropout / censoring row-filter) it was
-**wrong** — silently underestimating the SE by up to ~50% (the magnitude scales
-with the dropout fraction; an earlier note's "~15%" was a mild single-DGP
-figure). **Diagnosis** (validated, not speculative): under the *selected*
-sub-sample the DR property breaks, so $\tilde Y_{0,i}-\hat\mu$ no longer equals
-the EIF; the forward-cascade approximation of the block-triangular bread inverse
-then drops the **dominant baseline-pseudo-regression block** ($B^{-1}[\mu,
-\beta_1]\,\psi_{\beta_1}$, the largest term under censoring). A hand-built
-**stacked-EE M-estimation sandwich** (faithful to $\sim10^{-11}$: it reproduces
-causatr's exact fitted $\hat\theta$ and $\hat\mu$, and its summed estimating
-equations vanish there) and the **delete-one-id jackknife** both recover the
-larger truth that the bootstrap matches — confirming a real, fixable bug, not a
-fundamental limitation.
+**What this replaced.** The earlier assembly used a forward-cascade
+approximation of the block-triangular bread inverse. On a *balanced* panel that
+was exactly correct (the DR property makes the pseudo-outcome deviation
+$\tilde Y_{0,i}-\hat\mu$ the EIF), but under the *selected* sub-sample of an
+**unbalanced** panel the DR property breaks and the cascade dropped the
+**dominant baseline-pseudo-regression block** $B^{-1}[\mu,\beta_1]\,\psi_{\beta_1}$,
+underestimating the SE by ~50% (scaling with the dropout fraction). The interim
+fix aborted on unbalanced panels (class
+`causatr_longitudinal_aipw_unbalanced_sandwich`); that abort is **removed** — the
+stacked-EE sandwich now handles unbalanced panels directly.
 
-**Safe interim (shipped):** `variance_if_aipw_longitudinal()` now **aborts** on
-an unbalanced panel (class `causatr_longitudinal_aipw_unbalanced_sandwich`) and
-steers to `ci_method = "bootstrap"` (correct here), rather than return a
-silently-wrong SE. The balanced-panel cascade is unchanged.
+**Faithfulness by construction.** Designs, weights, and fit masks are extracted
+from causatr's own fitted models (the `ice_aipw_iterate()` result and
+`fit$details$treatment_models_by_time`), so $\sum_i\psi(\hat\theta)$ vanishes
+(to GLM convergence) and the reconstructed recursion reproduces the stored
+`mu_hat` exactly. `aipw_long_stacked_if()` guards on
+`max|colSums(psi(theta_hat))|` relative to the score scale (class
+`causatr_longitudinal_aipw_sandwich_unfaithful`) and steers to the bootstrap if
+the reconstructed score does not vanish.
 
-**Full fix (planned):** replace the forward-cascade IF assembly with the full
-**stacked-EE sandwich** $V = B^{-1} M B^{-\top}/n$, where $\psi(\theta)$ stacks
-the per-period propensity scores, the per-step outcome scores, and the
-marginal-mean equation $\tilde Y_{0,i}-\mu$; the numerical bread (Jacobian of the
-summed $\psi$) captures every block-triangular cross-term — including the
-baseline-pseudo-regression block — correctly for **both** balanced and
-unbalanced panels, i.e. one consistent, general variance path. This follows
-Zivich et al. (2024, *Stat. Med.*) for the ICE outcome-model chain composed with
-the AIPW propensity correction. A validated 2-period oracle and a generic
-T-period prototype (matching the bootstrap on balanced + unbalanced, $T=2,3$)
-de-risk the rewrite; the production implementation must generalise across
-intervention types (shift / dynamic / scale_by / MV), effect modification,
-binary-outcome clipping, external weights and families, and keep all existing
-longitudinal-AIPW tests green.
+**Supported nuisance models (analytic sandwich).** Each model's score is
+reconstructed from its maximum-likelihood GLM / multinomial form, so the analytic
+sandwich covers GLM-family outcome and propensity models (gaussian, binomial,
+poisson, Gamma, quasi-*, inverse-gaussian, `MASS::glm.nb`) and multinomial
+(categorical) propensities (`nnet::multinom`, softmax residual score).
+**Explicit limitation:** penalised / non-likelihood fitters — `mgcv::gam` and
+`betareg::betareg` — have no vanishing GLM score whose Jacobian is the sandwich
+bread (the GAM bread is `Vp`), so they abort with class
+`causatr_longitudinal_aipw_sandwich_model` and steer to the bootstrap (consistent
+with the longitudinal-ICE betareg bootstrap-only path).
+
+**Validation.** Faithfulness $\sim10^{-11}$; agreement with the `delicatessen`
+M-estimation sandwich oracle (`aipw_long_tau2_delicatessen.py`, balanced +
+unbalanced) to $\sim10^{-7}$ on the SE and $\sim10^{-13}$ on the point; and
+ratio $\sim1.0$ against the bootstrap **and** the delete-one-id jackknife across
+static / shift / dynamic / scale_by interventions, gaussian / binomial outcomes,
+$T=2,3$, multivariate treatment, effect modification, and external weights
+(`test-aipw-longitudinal.R`). Follows Zivich et al. (2024, *Stat. Med.*) for the
+ICE outcome-model chain composed with the AIPW propensity correction.
 
 ## Composition with pending phases
 
@@ -233,7 +245,7 @@ longitudinal-AIPW tests green.
 - AIPW sandwich SE MUST be ≤ IPW sandwich SE and ≤ gcomp sandwich SE when both nuisances are correctly specified on a large-$n$ DGP (chunk 16f). Violations indicate either a sandwich bug or misspecification.
 - AIPW MUST reject the same intervention / treatment / estimand combinations that IPW rejects — the outcome-model augmentation does not rescue Dirac-style point-mass interventions on continuous treatment.
 - AIPW MUST NOT hard-abort when the outcome model is a GAM (`mgcv::gam`); the sandwich cross-derivative uses `numDeriv::jacobian` as the IPW engine already does.
-- The longitudinal-AIPW analytic sandwich MUST abort (class `causatr_longitudinal_aipw_unbalanced_sandwich`) on an unbalanced panel until the stacked-EE rewrite lands — never return the forward-cascade SE there (it underestimates by ~50%). On a balanced panel the cascade sandwich MUST agree tightly with the bootstrap (the DR pseudo-outcome deviation is the EIF). See the unbalanced-panel subsection above.
+- The longitudinal-AIPW analytic sandwich is the full stacked-EE M-estimation sandwich and MUST agree tightly with the bootstrap, the delete-one-id jackknife, and the `delicatessen` oracle on **both** balanced and unbalanced panels. Never re-introduce the forward-cascade shortcut or the `causatr_longitudinal_aipw_unbalanced_sandwich` abort (the cascade dropped the baseline-pseudo-regression block and underestimated the SE by ~50% under dropout). The analytic sandwich covers GLM-family + `glm.nb` + multinomial (`nnet::multinom`) nuisances; penalised / non-likelihood fitters (`mgcv::gam`, `betareg`) are an explicit limitation that routes to the bootstrap (`causatr_longitudinal_aipw_sandwich_model`). See the stacked-EE subsection above.
 
 ## DGP for truth-based tests
 

@@ -1,5 +1,37 @@
 # causatr (development version)
 
+## 2026-06-17 — Longitudinal AIPW sandwich: full stacked-EE rewrite (correct on unbalanced panels)
+
+The longitudinal AIPW analytic sandwich (`ci_method = "sandwich"`) is now the
+full stacked M-estimation sandwich `V = B⁻¹ M B⁻ᵀ / n`, replacing the
+forward-cascade assembly that aborted on unbalanced panels. The stacked
+estimating equation `ψ(θ)` concatenates the per-period propensity scores, the
+per-step ICE outcome / pseudo-outcome scores, and the marginal-mean equation;
+the bread is the numerical Jacobian (`numDeriv`) of the summed score, so it
+captures every block-triangular cross-term — including the dominant
+baseline-pseudo-regression block the cascade dropped. The result is **one
+consistent variance path that is correct on both balanced and unbalanced
+panels** (monotone dropout / censoring row-filter); the
+`causatr_longitudinal_aipw_unbalanced_sandwich` abort is removed.
+
+The estimating equation is faithful by construction — designs, weights, and fit
+masks are extracted from causatr's own fitted models, so the summed score
+vanishes at the fitted estimate (`~1e-11`) and the recursion reproduces the
+point estimate exactly. New error classes:
+`causatr_longitudinal_aipw_sandwich_unfaithful` (the reconstructed score does
+not vanish → steers to bootstrap) and
+`causatr_longitudinal_aipw_sandwich_model` (a penalised / non-likelihood
+nuisance fit is bootstrap-only). The analytic sandwich covers GLM-family +
+`MASS::glm.nb` + multinomial (`nnet::multinom`, categorical-treatment)
+nuisances; `mgcv::gam` and `betareg::betareg` nuisances are an explicit,
+transparent limitation that routes to the bootstrap (their bread is not the
+score Jacobian — mirroring the longitudinal-ICE betareg bootstrap-only path).
+New validation: a `delicatessen.MEstimator` cross-language oracle
+(`aipw_long_tau2_delicatessen.py`, balanced + unbalanced; SE agreement `~1e-7`),
+a delete-one-id jackknife helper, and bootstrap parity across static / shift /
+dynamic / scale_by, gaussian / binomial, `T = 2/3`, multivariate treatment,
+categorical (multinomial) propensity, effect modification, and external weights.
+
 ## 2026-06-17 — Longitudinal AIPW sandwich aborts on unbalanced panels (was silently ~50% low)
 
 The longitudinal AIPW analytic sandwich (`ci_method = "sandwich"`) previously
