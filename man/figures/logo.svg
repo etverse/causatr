@@ -1,0 +1,54 @@
+<svg viewBox="0 0 524 604" width="524" height="604" xmlns="http://www.w3.org/2000/svg">
+  <!-- causatr hex sticker: methodological-triangulation forest plot -->
+  <!-- sticker body + border -->
+  <polygon points="262,10 514.88,156 514.88,448 262,594 9.12,448 9.12,156" fill="#F2E8D2" stroke="#342A1D" stroke-width="10" stroke-linejoin="round"></polygon>
+  <polygon points="262,32 495.83,167 495.83,437 262,572 28.17,437 28.17,167" fill="none" stroke="#342A1D" stroke-width="2" stroke-linejoin="round" opacity="0.32"></polygon>
+
+  <!-- triangulation: converging lines from each method to the pooled estimate (drawn behind) -->
+  <g stroke="#342A1D" stroke-width="2" opacity="0.26">
+    <line x1="300" y1="198" x2="306" y2="362"></line>
+    <line x1="314" y1="250" x2="306" y2="362"></line>
+    <line x1="302" y1="302" x2="306" y2="362"></line>
+  </g>
+
+  <!-- effect-size axis -->
+  <line x1="138" y1="402" x2="384" y2="402" stroke="#342A1D" stroke-width="3.5" stroke-linecap="round"></line>
+  <polygon points="396,402 382,396.5 382,407.5" fill="#342A1D"></polygon>
+  <!-- null-effect reference line -->
+  <line x1="150" y1="170" x2="150" y2="396" stroke="#342A1D" stroke-width="3" opacity="0.5" stroke-dasharray="6 7"></line>
+  <text x="150" y="426" fill="#342A1D" opacity="0.6" font-family="'Spectral',Georgia,serif" font-style="italic" font-size="21" text-anchor="middle">0</text>
+
+  <!-- confidence intervals (whiskers with end caps) -->
+  <g stroke="#342A1D" stroke-width="4" stroke-linecap="round">
+    <line x1="250" y1="198" x2="348" y2="198"></line>
+    <line x1="250" y1="190" x2="250" y2="206"></line>
+    <line x1="348" y1="190" x2="348" y2="206"></line>
+
+    <line x1="264" y1="250" x2="360" y2="250"></line>
+    <line x1="264" y1="242" x2="264" y2="258"></line>
+    <line x1="360" y1="242" x2="360" y2="258"></line>
+
+    <line x1="256" y1="302" x2="350" y2="302"></line>
+    <line x1="256" y1="294" x2="256" y2="310"></line>
+    <line x1="350" y1="294" x2="350" y2="310"></line>
+
+    <line x1="280" y1="362" x2="340" y2="362"></line>
+    <line x1="280" y1="354" x2="280" y2="370"></line>
+    <line x1="340" y1="354" x2="340" y2="370"></line>
+  </g>
+
+  <!-- method estimates: distinct marker per estimator -->
+  <!-- g-computation: circle -->
+  <circle cx="300" cy="198" r="11" fill="#F2E8D2" stroke="#342A1D" stroke-width="4"></circle>
+  <!-- IPW: square -->
+  <rect x="303" y="239" width="22" height="22" rx="2" fill="#F2E8D2" stroke="#342A1D" stroke-width="4"></rect>
+  <!-- AIPW: triangle -->
+  <polygon points="302,289 314,313 290,313" fill="#F2E8D2" stroke="#342A1D" stroke-width="4" stroke-linejoin="round"></polygon>
+  <!-- pooled / triangulated estimate: filled diamond (accent) -->
+  <polygon points="306,346 322,362 306,378 290,362" fill="#BC5A34" stroke="#342A1D" stroke-width="3" stroke-linejoin="round"></polygon>
+
+  <!-- wordmark -->
+  <g opacity="1">
+    <text x="262" y="506" fill="#342A1D" font-family="'Spectral',Georgia,serif" font-weight="500" font-size="54" letter-spacing="1.5" text-anchor="middle">causatr</text>
+  </g>
+</svg>

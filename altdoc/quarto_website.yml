@@ -7,8 +7,13 @@ execute:
 
 website:
   title: "$ALTDOC_PACKAGE_NAME"
+  favicon: man/figures/logo.png
   code-links: true
   navbar:
+    # man/ (including man/figures/) is copied into the _quarto build dir by
+    # altdoc's .import_man() before Quarto renders, so this path resolves from
+    # the Quarto project root — the same reference the README image uses.
+    logo: man/figures/logo.png
     search: true
     right:
       - icon: github

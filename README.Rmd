@@ -13,7 +13,7 @@ knitr::opts_chunk$set(
 )
 ```
 
-# causatr
+# causatr <img src="man/figures/logo.png" align="right" height="139" alt="causatr hex sticker: a forest plot of g-computation, IPW, and AIPW estimates converging on a pooled triangulated estimate" />
 
 <!-- badges: start -->
 [![R-CMD-check](https://github.com/etverse/causatr/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/etverse/causatr/actions/workflows/R-CMD-check.yaml)
