@@ -8,6 +8,10 @@
 [![R-CMD-check](https://github.com/etverse/causatr/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/etverse/causatr/actions/workflows/R-CMD-check.yaml)
 [![Codecov test
 coverage](https://codecov.io/gh/etverse/causatr/graph/badge.svg)](https://app.codecov.io/gh/etverse/causatr)
+[![Lifecycle:
+experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
+[![License:
+MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/license/mit)
 <!-- badges: end -->
 
 **causatr** provides a unified interface for causal effect estimation
@@ -181,13 +185,14 @@ Intervention means
 
 Contrasts
 
-For longitudinal data, causatr also supports **natural-history** modified
-treatment policies — grace periods / delays (`grace_period()`), carry-forward
-(`carry_forward()`), and dose-escalation caps (`cap_escalation()`) — whose
-intervened treatment depends on the counterfactual natural-value *history* of
-treatment. These use the augmented-data sequential regression of Díaz et al.
-(2026) and are not expressible as ordinary `dynamic()` rules. See the
-longitudinal vignette.
+For longitudinal data, causatr also supports **natural-history**
+modified treatment policies — grace periods / delays (`grace_period()`),
+carry-forward (`carry_forward()`), and dose-escalation caps
+(`cap_escalation()`) — whose intervened treatment depends on the
+counterfactual natural-value *history* of treatment. These use the
+augmented-data sequential regression of Díaz et al. (2026) and are not
+expressible as ordinary `dynamic()` rules. See the longitudinal
+vignette.
 
 ## Diagnostics
 
