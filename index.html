@@ -68,6 +68,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="site_libs/quarto-search/fuse.min.js"></script>
 <script src="site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="./">
+<link href="./man/figures/logo.png" rel="icon" type="image/png">
 <script src="site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
 <script src="site_libs/quarto-html/popper.min.js"></script>
@@ -116,6 +117,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
       <div class="navbar-container container-fluid">
       <div class="navbar-brand-container mx-auto">
+    <a href="./index.html" class="navbar-brand navbar-brand-logo">
+    <img src="./man/figures/logo.png" alt="" class="navbar-logo light-content">
+    <img src="./man/figures/logo.png" alt="" class="navbar-logo dark-content">
+    </a>
     <a class="navbar-brand" href="./index.html">
     <span class="navbar-title">causatr</span>
     </a>
@@ -542,7 +547,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#causatr" id="toc-causatr" class="nav-link active" data-scroll-target="#causatr">causatr</a>
+  <li><a href="#causatr" id="toc-causatr" class="nav-link active" data-scroll-target="#causatr">causatr <img src="man/figures/logo.png" align="right" height="139" alt="causatr hex sticker: a forest plot of g-computation, IPW, and AIPW estimates converging on a pooled triangulated estimate"></a>
   <ul class="collapse">
   <li><a href="#installation" id="toc-installation" class="nav-link" data-scroll-target="#installation">Installation</a></li>
   <li><a href="#quick-example" id="toc-quick-example" class="nav-link" data-scroll-target="#quick-example">Quick example</a></li>
@@ -564,7 +569,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 <section id="causatr" class="level1">
-<h1>causatr</h1>
+<h1>causatr <img src="man/figures/logo.png" align="right" height="139" alt="causatr hex sticker: a forest plot of g-computation, IPW, and AIPW estimates converging on a pooled triangulated estimate"></h1>
 <!-- badges: start -->
 <p><a href="https://github.com/etverse/causatr/actions/workflows/R-CMD-check.yaml"><img src="https://github.com/etverse/causatr/actions/workflows/R-CMD-check.yaml/badge.svg" class="img-fluid" alt="R-CMD-check"></a> <a href="https://app.codecov.io/gh/etverse/causatr"><img src="https://codecov.io/gh/etverse/causatr/graph/badge.svg" class="img-fluid" alt="Codecov test coverage"></a> <!-- badges: end --></p>
 <p><strong>causatr</strong> provides a unified interface for causal effect estimation via five complementary methods: g-computation (parametric g-formula + ICE), inverse probability weighting (IPW with a self-contained density-ratio engine), augmented IPW (AIPW — doubly robust), structural nested mean models (SNM — g-estimation for time-varying effect modification), and propensity score matching (via <a href="https://kosukeimai.github.io/MatchIt/">MatchIt</a>). When multiple methods agree, you can be more confident in your findings — this is called <strong>methodological triangulation</strong>.</p>
