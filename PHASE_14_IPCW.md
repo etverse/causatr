@@ -275,26 +275,16 @@ cross-language reference):
 | Point AIPW + IPCW | propensity IPCW-weighted, DR-orthogonal → SE ~ok (sandwich/bootstrap 1.00–1.02) | non-standard estimator; SE acceptable |
 | SNM longitudinal + IPCW (18g) | runs, produces a censoring-block sandwich; not independently re-validated against an oracle in this audit | validate in the deferred effort |
 
-### Deferred: the point IPW IPCW sandwich fix
+### Deferred: the point IPW IPCW sandwich fix → **Phase 27**
 
-Fixing it *properly* means standardizing the estimator: fit the propensity
-**unweighted on all rows** (the textbook estimator, matching the now-standardized
-longitudinal path). That is deeper than the IF alone — `make_weight_fn()`
-(`R/ipw_weights.R`) and the point contrast assembly are hard-coupled to the
-propensity being fit on the **same** rows as the MSM (they read
-`treatment_model$fit_rows` / `$X_prop`), so the standardized estimator needs a
-gated parallel point-IPW-IPCW estimation + variance path (propensity unweighted
-on all rows; variance via a stacked-EE numerical-bread sandwich, α + γ + Hájek μ,
-matching delicatessen), with the validated non-IPCW point IPW path left
-byte-identical. Point AIPW gets the same propensity standardization (its SE is
-already orthogonal-correct). The loose NHEFS IPCW test
-(`test-delicatessen-nhefs.R`, tolerance 0.1) should be tightened once the
-standardized estimator matches the delicatessen oracle.
-
-This is scoped as its own focused effort (run via the `implement-feature`
-workflow), not a rushed extension of the longitudinal PR — the re-architecture
-touches a heavily-validated engine and must be re-validated combination by
-combination.
+The point IPW + IPCW fix (standardize the propensity to unweighted-on-all-rows +
+a gated stacked-EE sandwich + tighten the NHEFS test), the point AIPW propensity
+standardization, and the SNM + IPCW validation are **scoped as their own phase**
+so they do not get lost inside this completed phase. See
+**`PHASE_27_POINT_IPCW_PROPENSITY.md`** for the full plan, chunk breakdown, and
+oracle strategy. Run it via the `implement-feature` workflow — the
+re-architecture touches a heavily-validated engine and must be re-validated
+combination by combination.
 
 ## References
 
