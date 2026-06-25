@@ -624,6 +624,106 @@ prepare_point_variance <- function(
 }
 
 
+#' Gamma-independent ingredients of the IPCW direct-path mean gradient
+#'
+#' @description
+#' The IPCW-weighted marginal mean
+#' \eqn{\hat\mu_j = \sum_i w_i p_{ij} / \sum_i w_i} carries the censoring
+#' parameter \eqn{\gamma} in its weights \eqn{w_i(\gamma)}, contributing a
+#' direct sensitivity
+#' \deqn{\partial\hat\mu_j/\partial\gamma = \frac{1}{\sum w}\sum_i
+#'       (dw_i/d\gamma)\,(p_{ij} - \hat\mu_j),\qquad
+#'       dw_i/d\gamma = -w_i\,(1 - p_{\mathrm{unc},i})\,X_{\mathrm{cens},i}}
+#' alongside the indirect path \eqn{A_{\beta,\gamma}^\top h} that flows through
+#' the outcome model. This helper precomputes the pieces that do not depend on
+#' the intervention -- the censoring design \eqn{X_{\mathrm{cens}}} and the
+#' weight derivative scalar \eqn{dw_i/d\gamma} on the rows that enter the
+#' target-only average (target rows with a positive weight) plus the weight
+#' total \eqn{\sum w} -- so the per-intervention gradient is one `crossprod()`
+#' in `ipcw_direct_grad()`. Omitting the direct path leaves the marginal-mean
+#' SE at its conservative known-weights value; including it recovers the
+#' efficiency gain from estimating the censoring model (Robins, Rotnitzky &
+#' Zhao 1994). The term cancels in contrasts.
+#'
+#' @param fit A `causatr_fit` with `details$ipcw == TRUE` and a point censoring
+#'   model in `details$censoring_model`.
+#' @param fit_idx Integer vector. Outcome-model fit rows (uncensored,
+#'   model-complete) in `1..n`.
+#' @param target_idx Logical vector (length `n`) flagging the target rows the
+#'   marginal mean is averaged over.
+#'
+#' @return A named list with `Xc_direct` (the censoring design on the direct
+#'   rows), `dw_direct` (the matching weight derivative scalar), `direct_rows`
+#'   (their indices in `1..n`), and `sum_w` (the target weight total).
+#'
+#' @seealso `ipcw_direct_grad()`, `compute_ipcw_if_correction()`.
+#' @noRd
+ipcw_direct_grad_setup <- function(fit, fit_idx, target_idx) {
+  cens_model <- fit$details$censoring_model
+  ext_w <- fit$details$weights
+  sum_w <- sum(ext_w[target_idx])
+
+  # Direct rows = target rows that also carry a positive IPCW weight (i.e. the
+  # uncensored, model-complete target rows). Censored target rows have w = 0,
+  # hence dw/dgamma = 0, so excluding them is exact; restricting to the target
+  # keeps ATT / by / subset aligned with the target-only mean.
+  cm_fit_rows <- which(cens_model$fit_rows)
+  direct_rows <- intersect(fit_idx, which(target_idx))
+  sel <- match(direct_rows, cm_fit_rows)
+  if (anyNA(sel)) {
+    rlang::abort(
+      paste0(
+        "ipcw_direct_grad_setup(): target fit rows are not a subset of the ",
+        "censoring model fit set; cannot align the direct-path design."
+      ),
+      class = "causatr_variance_row_mismatch"
+    )
+  }
+  Xc_direct <- stats::model.matrix(cens_model$model)[sel, , drop = FALSE]
+  p_unc_direct <- cens_model$p_uncensored[sel]
+  # Total (survey x IPCW) weight on the direct rows; the survey factor is
+  # constant in gamma, so dw_i/dgamma keeps the full w_i.
+  dw_direct <- -ext_w[direct_rows] * (1 - p_unc_direct)
+
+  list(
+    Xc_direct = Xc_direct,
+    dw_direct = dw_direct,
+    direct_rows = direct_rows,
+    sum_w = sum_w
+  )
+}
+
+
+#' Per-intervention IPCW direct-path mean gradient
+#'
+#' @description
+#' Evaluates the direct sensitivity \eqn{\partial\hat\mu_j/\partial\gamma} for
+#' one intervention from the `ipcw_direct_grad_setup()` pieces and the
+#' counterfactual values \eqn{p_{ij}} on the direct rows. For g-computation
+#' \eqn{p_{ij}} is the counterfactual prediction; for IPW it is the observed
+#' outcome \eqn{Y_i} (the Hajek MSM mean residual).
+#'
+#' @param setup Output of `ipcw_direct_grad_setup()`.
+#' @param value_full Numeric vector (length `n`). The per-row counterfactual
+#'   value whose target-average is the estimand (predictions or observed `Y`);
+#'   sliced internally to `setup$direct_rows`.
+#' @param mu_j Numeric scalar. The marginal mean for this intervention.
+#'
+#' @return Numeric `q`-vector, the direct gradient in the censoring-parameter
+#'   space.
+#'
+#' @seealso `ipcw_direct_grad_setup()`.
+#' @noRd
+ipcw_direct_grad <- function(setup, value_full, mu_j) {
+  v_direct <- value_full[setup$direct_rows]
+  as.numeric(crossprod(
+    setup$Xc_direct,
+    setup$dw_direct * (v_direct - mu_j)
+  )) /
+    setup$sum_w
+}
+
+
 #' IPCW Channel 2 correction for the outcome/MSM model
 #'
 #' @description
@@ -651,6 +751,11 @@ prepare_point_variance <- function(
 #'   \eqn{A_{\beta\beta}^{-1} J}. For gcomp, this is
 #'   `apply_model_correction(prep, grad)$h`; for IPW, `n_fit * msm_res$h`.
 #' @param n_fit Integer. Number of rows in the outcome model fit.
+#' @param direct_grad Numeric `q`-vector or `NULL`. The direct sensitivity
+#'   \eqn{\partial\hat\mu_j/\partial\gamma} of the IPCW-weighted marginal mean
+#'   (from `ipcw_direct_grad()`), subtracted from the indirect cross-term so
+#'   the total \eqn{d\hat\mu_j/d\gamma} is projected through the censoring IF.
+#'   `NULL` (the default) reproduces the indirect-only (known-weights) form.
 #'
 #' @return A named list:
 #'   \describe{
@@ -663,7 +768,8 @@ compute_ipcw_if_correction <- function(
   outcome_model,
   outcome_prep,
   h_outcome,
-  n_fit
+  n_fit,
+  direct_grad = NULL
 ) {
   cens_model <- fit$details$censoring_model
   n_total <- outcome_prep$n_total
@@ -721,10 +827,18 @@ compute_ipcw_if_correction <- function(
   # M-estimation bread (Stefanski & Boos 2002, eq. 8).
   A_beta_gamma <- -numDeriv::jacobian(phi_bar_cens, x = gamma_hat)
 
-  # g_cens = A_{beta,gamma}^T h: projects the outcome-model sensitivity h
-  # onto the censoring-parameter space, giving the gradient of mu_hat
-  # w.r.t. gamma via the chain rule through the stacked system.
+  # Total sensitivity d mu_hat / d gamma stacks the indirect and direct paths:
+  #   * Indirect: g_cens = A_{beta,gamma}^T h projects the outcome-model
+  #     sensitivity h onto the censoring-parameter space (chain rule through
+  #     the stacked system).
+  #   * Direct: the IPCW-weighted average carries gamma in its weights, adding
+  #     -d mu_hat / d gamma (= -direct_grad). Omitting it leaves the SE at its
+  #     conservative known-weights value; including it recovers the efficiency
+  #     gain from estimating the censoring model. NULL -> indirect-only.
   g_cens <- as.numeric(crossprod(A_beta_gamma, h_outcome))
+  if (!is.null(direct_grad)) {
+    g_cens <- g_cens - direct_grad
+  }
 
   cens_prep <- prepare_model_if(
     cens_model$model,
@@ -879,6 +993,13 @@ variance_if_gcomp <- function(
 
   has_ipcw <- isTRUE(fit$details$ipcw)
   n_fit <- nrow(prep$X_fit)
+  # Gamma-independent ingredients of the direct-path mean gradient (the IPCW
+  # weights' dependence on the censoring parameter). Reused across interventions.
+  ipcw_direct <- if (has_ipcw) {
+    ipcw_direct_grad_setup(fit, prep$fit_idx, target_idx)
+  } else {
+    NULL
+  }
 
   IF_list <- lapply(seq_along(pieces$grad_list), function(j) {
     res <- apply_model_correction(prep, pieces$grad_list[[j]])
@@ -888,13 +1009,16 @@ variance_if_gcomp <- function(
       # The IPCW cross-term needs h = A_{bb}^{-1} J in M-estimation
       # scaling. `res$h` = (X'WX)^{-1} J is the bread-projected gradient
       # in GLM scaling; A_{bb} = (1/n) X'WX so A_{bb}^{-1} = n (X'WX)^{-1},
-      # hence h_outcome = n_fit * res$h.
+      # hence h_outcome = n_fit * res$h. `direct_grad` adds the marginal
+      # average's own gamma-dependence (through the IPCW weights).
+      direct_grad <- ipcw_direct_grad(ipcw_direct, preds_list[[j]], mu_hat[j])
       ipcw_corr <- compute_ipcw_if_correction(
         fit,
         model,
         prep,
         h_outcome = n_fit * res$h,
-        n_fit = n_fit
+        n_fit = n_fit,
+        direct_grad = direct_grad
       )
       if_j <- if_j - ipcw_corr$correction
     }

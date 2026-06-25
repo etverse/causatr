@@ -36,6 +36,7 @@ forward-cascade assembly, so an independent package is the strongest check).
 | `ice_poisson_tau2.py` | `ice_poisson_tau2_results.csv` | ICE Poisson, static(1)/static(0), tau=2, n=300, seed=2025 |
 | `multinom_gcomp_sandwich.py` | `multinom_gcomp_sandwich_results.csv` | Multinomial-outcome point g-comp, static(1)/static(0), K=3, n=2000, seed=2025 (means + diff/ratio/OR SEs) |
 | `multinom_gcomp_weighted_sandwich.py` | `multinom_gcomp_weighted_sandwich_results.csv` | **Weighted** (survey/external) multinomial-outcome point g-comp, static(1)/static(0), K=3, n=2000, seed=2025 + weight seed=4242 (weighted means + diff/ratio/OR SEs) |
+| `multinom_gcomp_ipcw_sandwich.py` | `multinom_gcomp_ipcw_sandwich_results.csv` | **IPCW** (missing-Y) multinomial-outcome point g-comp, static(1)/static(0), K=3, n=2000, seed=2025; stacks the logistic censoring score (gamma) + IPCW-weighted multinomial outcome score (beta) + IPCW-weighted marginal-mean equations (mu), so the mu SEs carry the censoring-model estimation uncertainty through both the outcome model and the weighted average (means + diff/ratio/OR SEs). Reads `multinom_gcomp_ipcw_data.csv` |
 | `aipw_long_tau2_delicatessen.py` | `aipw_long_tau2_delicatessen_results.csv` | **Longitudinal AIPW** (ICE-AIPW) full stacked-EE sandwich via `delicatessen.MEstimator`, tau=2, binary treatment, Gaussian outcome, static(1)/static(0), n=4000, seed=2025; **balanced and unbalanced (monotone-dropout)** panels (means + per-arm and ATE SEs) |
 
 ## Regenerating
@@ -47,6 +48,7 @@ python tests/testthat/fixtures/python/glmtp_sandwich_tau2.py
 python tests/testthat/fixtures/python/ice_poisson_tau2.py
 python tests/testthat/fixtures/python/multinom_gcomp_sandwich.py
 python tests/testthat/fixtures/python/multinom_gcomp_weighted_sandwich.py
+python tests/testthat/fixtures/python/multinom_gcomp_ipcw_sandwich.py
 python tests/testthat/fixtures/python/aipw_long_tau2_delicatessen.py
 ```
 
