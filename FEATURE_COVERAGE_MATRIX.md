@@ -888,6 +888,9 @@ Composes Phase 2 gcomp + Phase 4 IPW into the classical analytical doubly-robust
 | mv (A1,A2) | gaussian | static | unbalanced | sandwich | ✅ vs bootstrap + jackknife | test-aipw-longitudinal.R |
 | binary | gaussian | static + external weights | unbalanced | sandwich | ✅ vs bootstrap | test-aipw-longitudinal.R |
 | categorical (multinom) | gaussian | static | balanced | sandwich | ✅ vs bootstrap (softmax score) | test-aipw-longitudinal.R |
+| binary | gaussian | static | IPCW (missing Y) | sandwich | ✅ MC SE-vs-empirical-SD ≈ 1.0 + bootstrap parity + EE faithful w/ γ block | test-aipw-longitudinal-ipcw.R |
+
+**IPCW (missing-Y) sandwich:** under `ipcw = TRUE` the stacked EE gains a per-period censoring γ block (`make_ipcw_weight_fn_longitudinal()`); the IPCW weight is threaded into each outcome score as `external × ipcw(γ)`, so the numerical bread captures the censoring cross-terms (γ → β → μ). By double-robust orthogonality the AIPW censoring cross-term is near-zero (it moves the SE ~0.03%); the block is wired (`B[β,γ] ≠ 0`, verified) and carried for an exactly correct sandwich. Validated by MC empirical-SD calibration, bootstrap parity, EE faithfulness, the cross-term wiring, a non-IPCW no-γ anchor, and the orthogonality property.
 | binary | gaussian | static, `mgcv::gam` nuisance | any | sandwich | ✅ explicit limitation → bootstrap (`causatr_longitudinal_aipw_sandwich_model`) | test-aipw-longitudinal.R |
 
 **Chunk 25 — Multivariate longitudinal AIPW**

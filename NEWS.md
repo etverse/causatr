@@ -1,5 +1,27 @@
 # causatr (development version)
 
+## 2026-06-25 — Longitudinal AIPW IPCW sandwich: per-period censoring γ block
+
+The longitudinal AIPW (ICE-AIPW) analytic sandwich now carries the per-period
+censoring model in its stacked estimating equation under IPCW: θ gains a γ block
+(the per-period logistic censoring scores), and the stabilized IPCW weight is
+threaded into each per-step outcome score as a function of γ. The numerical
+bread therefore captures the censoring-model estimation cross-terms
+(γ → outcome β → marginal mean) mechanically, with no hand-derived
+cross-derivative — the same construction that makes the sandwich correct on
+unbalanced panels now also accounts for the estimated censoring weights. A new
+shared helper `make_ipcw_weight_fn_longitudinal()` (the per-period generalization
+of `make_ipcw_weight_fn()`) supplies the censoring scores and the γ→weight
+closure; it reproduces `details$ipcw_weights` exactly at the fitted γ.
+
+Because the augmented (doubly-robust) estimator is first-order insensitive to the
+censoring nuisance, this cross-term is **near-zero in practice** (it moves the
+marginal-mean SE by ~0.03%); the block is carried for an exactly correct
+sandwich, not to fix a sizeable bias. This also adds the first test coverage for
+the longitudinal AIPW + IPCW sandwich (previously untested): the EE faithfulness
+with the γ block, the cross-term wiring, a non-IPCW no-γ anchor, the orthogonality
+property, Monte-Carlo SE-vs-empirical-SD calibration, and bootstrap parity.
+
 ## 2026-06-24 — IPCW sandwich for multinomial-outcome g-computation (23a-2c) + a g-formula direct-censoring-term fix
 
 The analytic sandwich for a categorical (multinomial) outcome point

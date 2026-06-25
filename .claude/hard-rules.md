@@ -163,6 +163,20 @@ Project-specific rules that override / extend the etverse-wide rules at
   dynamic / scale_by, gaussian / binomial, T = 2 / 3, multivariate, effect
   modification, and external weights. Do NOT re-introduce a forward-cascade
   shortcut or an unbalanced-panel abort.
+- **Under IPCW the stacked EE gains a per-period censoring (gamma) block**
+  (`theta = (alpha, beta, gamma, mu)`), built by the shared
+  `make_ipcw_weight_fn_longitudinal()` (`R/censoring.R`): per-period logistic
+  censoring scores pin gamma, and the stabilized IPCW weight is threaded into
+  each outcome score as `external x ipcw(gamma)` at the step's fit rows, so the
+  numerical bread captures the censoring cross-terms (gamma -> beta -> mu)
+  mechanically. The closure reproduces `details$ipcw_weights` at gamma_hat to
+  ~1e-16. **The AIPW censoring cross-term is near-zero by double-robust
+  orthogonality** — `B[beta, gamma]` is non-zero (the block is wired) but
+  `B[mu, gamma] = 0` and the with-gamma vs known-gamma marginal-mean SE differ
+  by only ~0.03%. Do NOT flag the tiny SE change as "the gamma block does
+  nothing": it is wired (verified by `test-aipw-longitudinal-ipcw.R`) and
+  orthogonality is the correct, expected behaviour. Do NOT remove the gamma
+  block to "simplify" — it is required for an exactly correct sandwich.
 - **Longitudinal AIPW rejects a covariate missing WITHIN an observed
   person-period (classed, by design).** `ice_aipw_iterate()` aborts with
   `causatr_longitudinal_aipw_missing_covariate` when a per-period propensity

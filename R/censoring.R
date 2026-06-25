@@ -480,6 +480,117 @@ make_ipcw_weight_fn <- function(
 }
 
 
+#' Per-period censoring estimating-equation block for the longitudinal sandwich
+#'
+#' @description
+#' Assembles the reusable censoring (γ) block consumed by the longitudinal
+#' stacked-EE M-estimation sandwiches (ICE, IPW, AIPW). Each period with a
+#' fitted censoring model contributes (a) a logistic-score column block —
+#' \eqn{X_{\mathrm{cens},k}\,(C^{0}_{i,k} - \pi_{C,k}(\gamma_k))} on that
+#' period's fit rows — that pins \eqn{\gamma} in the stacked parameter vector,
+#' and (b) a closure mapping the perturbed \eqn{\gamma_k} to that period's
+#' stabilized IPCW weight (reusing the point `make_ipcw_weight_fn()`). The
+#' full-length weight closure scatters the per-period weights into a row vector
+#' that reproduces `fit$details$ipcw_weights` at \eqn{\hat\gamma} (each
+#' person-period row carries its own period's stabilized weight; periods with no
+#' censoring variation stay 1). Including γ in the stacked score lets the
+#' numerical bread capture the censoring cross-terms (γ↔β, γ↔α) mechanically,
+#' so no cross-derivative is hand-derived.
+#'
+#' @details
+#' The cumulative reweighting in `fit_censoring_models_longitudinal()` multiplies
+#' each period's rows by that period's weight once (`cum_w[rows_k] *= w_k` with
+#' `cum_w` initialised to 1), so `details$ipcw_weights` holds the per-period
+#' stabilized weight at each row's period; the across-period composition is
+#' carried by the ICE/AIPW recursion, not by a per-row product. The closure here
+#' mirrors that exactly.
+#'
+#' @param fit A `causatr_fit` with `details$ipcw == TRUE`, `type =
+#'   "longitudinal"`, and `details$censoring_models` (the per-period list).
+#'
+#' @returns A list with:
+#'   \describe{
+#'     \item{`gamma_hat`}{Stacked censoring coefficients (per non-NULL period, in
+#'       time order); length-0 numeric if no period has a censoring model.}
+#'     \item{`n_gamma`}{Integer, `length(gamma_hat)`.}
+#'     \item{`blocks`}{List of per-period records, each with `model` (the
+#'       censoring GLM), `rows_global` (period person-period row indices in
+#'       `1..nrow(data)`), `score_rows_global` (the model's fit rows, global),
+#'       `wfn` (closure `gamma_k -> length(rows_global)` weight), and
+#'       `gamma_cols` (its columns in the stacked γ).}
+#'     \item{`weight_full_fn`}{Closure `function(gamma)` returning the full-length
+#'       per-row IPCW weight vector; reproduces `details$ipcw_weights` at
+#'       `gamma_hat`.}
+#'   }
+#'
+#' @seealso `make_ipcw_weight_fn()` (the point single-period analog).
+#' @family variance
+#' @noRd
+make_ipcw_weight_fn_longitudinal <- function(fit) {
+  data <- fit$data
+  censoring <- fit$censoring
+  time_col <- fit$time
+  time_points <- fit$details$time_points
+  cens_models <- fit$details$censoring_models
+  n_total <- nrow(data)
+
+  blocks <- list()
+  gamma_blocks <- list()
+  offset <- 0L
+
+  for (k in seq_along(time_points)) {
+    cm_k <- cens_models[[k]]
+    # Periods with no censoring variation carry NULL models and weight 1; they
+    # contribute no gamma parameters and no score column.
+    if (is.null(cm_k)) {
+      next
+    }
+    rows_k <- which(data[[time_col]] == time_points[k])
+    cens_col_k <- as.integer(data[[censoring]][rows_k])
+    # Per-period weight closure: reuse the point engine on the period subset.
+    wfn_k <- make_ipcw_weight_fn(
+      cm_k,
+      n_total = length(rows_k),
+      censoring_col = cens_col_k,
+      stabilize = TRUE
+    )
+    gk <- cm_k$alpha_hat
+    p_k <- length(gk)
+    blocks[[length(blocks) + 1L]] <- list(
+      model = cm_k$model,
+      rows_global = rows_k,
+      score_rows_global = rows_k[which(cm_k$fit_rows)],
+      wfn = wfn_k,
+      gamma_cols = (offset + 1L):(offset + p_k)
+    )
+    gamma_blocks[[length(gamma_blocks) + 1L]] <- gk
+    offset <- offset + p_k
+  }
+
+  gamma_hat <- unlist(gamma_blocks, use.names = FALSE)
+  if (is.null(gamma_hat)) {
+    gamma_hat <- numeric(0)
+  }
+
+  # Full-length per-row weight as a function of the stacked gamma: scatter each
+  # period's weight into its rows; non-censoring periods stay 1.
+  weight_full_fn <- function(gamma) {
+    w <- rep(1, n_total)
+    for (b in blocks) {
+      w[b$rows_global] <- b$wfn(gamma[b$gamma_cols])
+    }
+    w
+  }
+
+  list(
+    gamma_hat = gamma_hat,
+    n_gamma = length(gamma_hat),
+    blocks = blocks,
+    weight_full_fn = weight_full_fn
+  )
+}
+
+
 # ── S3 print ─────────────────────────────────────────────��──────────
 
 #' @export

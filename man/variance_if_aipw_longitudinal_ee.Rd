@@ -8,7 +8,8 @@ Machinery for the full M-estimation sandwich variance of the
 ICE-AIPW estimator (Bang & Robins 2005), valid on \strong{both balanced
 and unbalanced} panels. The estimator solves a stacked system of
 estimating equations \eqn{\sum_i \psi(O_i; \theta) = 0} where
-\eqn{\theta = (\alpha, \beta, \mu)} concatenates:
+\eqn{\theta = (\alpha, \beta, \gamma, \mu)} concatenates (the
+\eqn{\gamma} block is present only under IPCW):
 
 \itemize{
 \item \eqn{\alpha}: the per-period propensity coefficients (one
@@ -23,6 +24,16 @@ score \eqn{X_i (\mathrm{resp}_{k,i} - m_k(\beta_k))} gated by
 step \eqn{k}'s observed/uncensored fit mask, with
 \eqn{\mathrm{resp}_k = Y} at the final step and the
 \emph{previous step's pseudo-outcome} otherwise.
+\item \eqn{\gamma} (IPCW only): the per-period censoring-model
+coefficients (one block per period with censoring variation).
+Estimated by the logistic score \eqn{X_{\mathrm{cens},i}\,
+    (C^{0}_{i,k} - \pi_{C,k}(\gamma_k))}. The per-period stabilized IPCW
+weight \eqn{w_{C,k}(\gamma_k)} is threaded into each outcome score's
+prior weight, so the numerical bread captures the censoring
+cross-terms (\eqn{\gamma \to \beta \to \mu}) mechanically -- no
+hand-derived cross-derivative. By the double-robust orthogonality of
+the augmented estimator this cross-term is near-zero, but it is
+carried for an exactly correct sandwich.
 \item \eqn{\mu}: the marginal mean, estimated by
 \eqn{w_i t_i (\tilde Y_{0,i} - \mu)} over the target population.
 }

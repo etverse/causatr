@@ -5,7 +5,8 @@
 #' ICE-AIPW estimator (Bang & Robins 2005), valid on **both balanced
 #' and unbalanced** panels. The estimator solves a stacked system of
 #' estimating equations \eqn{\sum_i \psi(O_i; \theta) = 0} where
-#' \eqn{\theta = (\alpha, \beta, \mu)} concatenates:
+#' \eqn{\theta = (\alpha, \beta, \gamma, \mu)} concatenates (the
+#' \eqn{\gamma} block is present only under IPCW):
 #'
 #' \itemize{
 #'   \item \eqn{\alpha}: the per-period propensity coefficients (one
@@ -20,6 +21,16 @@
 #'     step \eqn{k}'s observed/uncensored fit mask, with
 #'     \eqn{\mathrm{resp}_k = Y} at the final step and the
 #'     \emph{previous step's pseudo-outcome} otherwise.
+#'   \item \eqn{\gamma} (IPCW only): the per-period censoring-model
+#'     coefficients (one block per period with censoring variation).
+#'     Estimated by the logistic score \eqn{X_{\mathrm{cens},i}\,
+#'     (C^{0}_{i,k} - \pi_{C,k}(\gamma_k))}. The per-period stabilized IPCW
+#'     weight \eqn{w_{C,k}(\gamma_k)} is threaded into each outcome score's
+#'     prior weight, so the numerical bread captures the censoring
+#'     cross-terms (\eqn{\gamma \to \beta \to \mu}) mechanically -- no
+#'     hand-derived cross-derivative. By the double-robust orthogonality of
+#'     the augmented estimator this cross-term is near-zero, but it is
+#'     carried for an exactly correct sandwich.
 #'   \item \eqn{\mu}: the marginal mean, estimated by
 #'     \eqn{w_i t_i (\tilde Y_{0,i} - \mu)} over the target population.
 #' }
@@ -252,9 +263,9 @@ nuisance_score_matrix <- function(model, alpha) {
 #' @param trim Numeric upper-quantile weight truncation (1 = none).
 #'
 #' @returns A list with `psi_fn`, `theta_hat`, `mu_index`,
-#'   `total_alpha`, `total_beta`, and `unsupported` (NULL, or a string
-#'   naming an unsupported nuisance model class that should route to the
-#'   bootstrap).
+#'   `total_alpha`, `total_beta`, `total_gamma` (the censoring block size, 0
+#'   without IPCW), and `unsupported` (NULL, or a string naming an unsupported
+#'   nuisance model class that should route to the bootstrap).
 #'
 #' @noRd
 build_aipw_long_psi <- function(
@@ -398,6 +409,33 @@ build_aipw_long_psi <- function(
       alpha_offsets[pk] - 1L + prop_terms[[t_i]]$local_cols
   }
 
+  # ---- Censoring side (IPCW only): per-period gamma block ------------
+  # Under IPCW the per-step outcome models are fit weighted by the per-period
+  # stabilized IPCW weight (carried in `details$weights`). Including the
+  # censoring coefficients gamma in theta -- with the per-period logistic score
+  # pinning gamma and the IPCW weight threaded into each outcome score as a
+  # function of gamma -- lets the numerical bread capture the censoring
+  # cross-terms (gamma -> outcome beta -> mu) mechanically. `cens_block`'s
+  # gamma columns are appended after beta; `cens_score_terms` map each period's
+  # logistic score to first-period id positions, mirroring `prop_terms`.
+  has_ipcw <- isTRUE(details$ipcw)
+  cens_block <- if (has_ipcw) make_ipcw_weight_fn_longitudinal(fit) else NULL
+  total_gamma <- if (has_ipcw) cens_block$n_gamma else 0L
+  weights_pre_ipcw <- details$weights_pre_ipcw
+  cens_score_terms <- list()
+  if (has_ipcw) {
+    for (b in cens_block$blocks) {
+      ids_b <- as.character(data[[id_col]][b$score_rows_global])
+      cens_score_terms[[length(cens_score_terms) + 1L]] <- list(
+        model = b$model,
+        pos = match(ids_b, all_ids),
+        # gamma columns are offset past the alpha and beta blocks below once
+        # total_beta is known; store the within-gamma local columns for now.
+        local_cols = b$gamma_cols
+      )
+    }
+  }
+
   # ---- Outcome side: per-step fixed designs and fit masks -----------
   # Step ordering for the theta vector is ascending (step 1 .. n_times);
   # the recursion below processes descending. NULL models contribute no
@@ -436,6 +474,24 @@ build_aipw_long_psi <- function(
     fit_ids_k <- fit_ids_list[[step_i]]
     fit_idx <- unname(id_to_idx[fit_ids_k])
 
+    # IPCW weight threading: the step's fit-row global person-period indices
+    # (in model.matrix / fit_ids_k order) and the survey-weight part of
+    # `prior_w_fit` that does NOT vary with gamma. `prior_w_fit = external x
+    # ipcw(gamma)`, so the perturbed score uses `external x ipcw_full(gamma)`
+    # at these rows. With no survey weights `external` is all ones.
+    fit_global_rows <- NULL
+    external_part <- NULL
+    if (has_ipcw) {
+      period_rows <- which(data[[time_col]] == current_time)
+      period_ids <- as.character(data[[id_col]][period_rows])
+      fit_global_rows <- period_rows[match(fit_ids_k, period_ids)]
+      external_part <- if (is.null(weights_pre_ipcw)) {
+        rep(1, length(fit_global_rows))
+      } else {
+        weights_pre_ipcw[fit_global_rows]
+      }
+    }
+
     if (is_final) {
       pred_mask <- (data[[time_col]] == current_time) & uncens
       y_fit <- stats::model.response(stats::model.frame(model_k))
@@ -458,6 +514,8 @@ build_aipw_long_psi <- function(
       X_obs_fit = X_obs_fit,
       prior_w_fit = prior_w_fit,
       fit_idx = fit_idx,
+      fit_global_rows = fit_global_rows,
+      external_part = external_part,
       y_fit = y_fit,
       X_obs_pred = X_obs_pred,
       X_iv_pred = X_iv_pred,
@@ -473,9 +531,14 @@ build_aipw_long_psi <- function(
     beta_hat_stacked <- numeric(0)
   }
 
-  mu_index <- total_alpha + total_beta + 1L
+  gamma_hat <- if (has_ipcw) cens_block$gamma_hat else numeric(0)
+
+  # theta = (alpha, beta, gamma, mu); the gamma block sits between the outcome
+  # coefficients and the marginal mean so the bread's block-triangular cross
+  # terms (gamma -> beta -> mu) are captured by the numerical Jacobian.
+  mu_index <- total_alpha + total_beta + total_gamma + 1L
   mu_hat <- sum(w_t * aipw_result$pseudo_final[target_idx]) / sum_w_target
-  theta_hat <- c(alpha_hat_stacked, beta_hat_stacked, mu_hat)
+  theta_hat <- c(alpha_hat_stacked, beta_hat_stacked, gamma_hat, mu_hat)
 
   clip_lo <- 1e-5
   clip_hi <- 1 - 1e-5
@@ -485,7 +548,13 @@ build_aipw_long_psi <- function(
   psi_fn <- function(theta) {
     alpha <- theta[seq_len(total_alpha)]
     beta_all <- theta[total_alpha + seq_len(total_beta)]
+    gamma <- theta[total_alpha + total_beta + seq_len(total_gamma)]
     mu <- theta[mu_index]
+
+    # Full-length per-row IPCW weight under the perturbed gamma. Each outcome
+    # step's prior weight is then `external x ipcw(gamma)` at its fit rows, so
+    # the bread differentiates the outcome score through the censoring model.
+    w_ipcw_full <- if (has_ipcw) cens_block$weight_full_fn(gamma) else NULL
 
     # Per-period density-ratio weights under the perturbed alpha.
     W_new <- matrix(1, nrow = n, ncol = K)
@@ -523,7 +592,16 @@ build_aipw_long_psi <- function(
       mu_eta_fit <- fam$mu.eta(eta_fit)
       v_fit <- fam$variance(mu_fit)
       resp_fit <- if (st$is_final) st$y_fit else pseudo_reg[st$fit_idx]
-      fac <- st$prior_w_fit * mu_eta_fit * (resp_fit - mu_fit) / v_fit
+      # Recompute the outcome model's prior weight at the perturbed gamma:
+      # `external x ipcw(gamma)` on the step's fit rows. At gamma_hat this is
+      # exactly the fitted `prior_w_fit`, so the score still vanishes (the
+      # faithfulness gate holds). With no IPCW the stored weight is used.
+      pw_fit <- if (has_ipcw) {
+        st$external_part * w_ipcw_full[st$fit_global_rows]
+      } else {
+        st$prior_w_fit
+      }
+      fac <- pw_fit * mu_eta_fit * (resp_fit - mu_fit) / v_fit
       psi_beta[st$fit_idx, st$beta_cols] <- st$X_obs_fit * fac
 
       # Augmented pseudo-outcome update on the prediction rows, producing
@@ -559,11 +637,20 @@ build_aipw_long_psi <- function(
       psi_alpha[term$pos, term$alpha_cols] <- s
     }
 
+    # Per-period censoring scores (uncensoring response fixed; depend on gamma
+    # only). The logistic score pins gamma in the stacked system so the bread
+    # picks up the gamma cross-terms.
+    psi_gamma <- matrix(0, nrow = n, ncol = total_gamma)
+    for (term in cens_score_terms) {
+      s <- glm_score_matrix(term$model, gamma[term$local_cols])
+      psi_gamma[term$pos, term$local_cols] <- s
+    }
+
     # Marginal-mean estimating equation over the target population.
     psi_mu <- numeric(n)
     psi_mu[target_idx] <- w_t * (pseudo[target_idx] - mu)
 
-    cbind(psi_alpha, psi_beta, psi_mu)
+    cbind(psi_alpha, psi_beta, psi_gamma, psi_mu)
   }
 
   list(
@@ -572,6 +659,7 @@ build_aipw_long_psi <- function(
     mu_index = mu_index,
     total_alpha = total_alpha,
     total_beta = total_beta,
+    total_gamma = total_gamma,
     unsupported = unsupported
   )
 }
