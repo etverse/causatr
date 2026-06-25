@@ -38,6 +38,7 @@ forward-cascade assembly, so an independent package is the strongest check).
 | `multinom_gcomp_weighted_sandwich.py` | `multinom_gcomp_weighted_sandwich_results.csv` | **Weighted** (survey/external) multinomial-outcome point g-comp, static(1)/static(0), K=3, n=2000, seed=2025 + weight seed=4242 (weighted means + diff/ratio/OR SEs) |
 | `multinom_gcomp_ipcw_sandwich.py` | `multinom_gcomp_ipcw_sandwich_results.csv` | **IPCW** (missing-Y) multinomial-outcome point g-comp, static(1)/static(0), K=3, n=2000, seed=2025; stacks the logistic censoring score (gamma) + IPCW-weighted multinomial outcome score (beta) + IPCW-weighted marginal-mean equations (mu), so the mu SEs carry the censoring-model estimation uncertainty through both the outcome model and the weighted average (means + diff/ratio/OR SEs). Reads `multinom_gcomp_ipcw_data.csv` |
 | `aipw_long_tau2_delicatessen.py` | `aipw_long_tau2_delicatessen_results.csv` | **Longitudinal AIPW** (ICE-AIPW) full stacked-EE sandwich via `delicatessen.MEstimator`, tau=2, binary treatment, Gaussian outcome, static(1)/static(0), n=4000, seed=2025; **balanced and unbalanced (monotone-dropout)** panels (means + per-arm and ATE SEs) |
+| `longitudinal_ipw_ipcw_delicatessen.py` | `longitudinal_ipw_ipcw_delicatessen_results.csv` | **Longitudinal IPW + IPCW** Hájek sandwich via `delicatessen.MEstimator`, tau=2, binary treatment, Gaussian outcome, static(1)/static(0), informative final-period censoring, n=2000, seed=2025. Stacks the two per-period propensity scores (unweighted), the period-1 censoring score (gamma), and the IPCW-weighted Hájek marginal-mean equations (mu), so the mu SEs carry the censoring-model estimation uncertainty (the gamma→beta cross-term). Also emits the **known-weights** SEs (gamma held fixed) to pin the efficiency gain the cross-term recovers. Reads `longitudinal_ipw_ipcw_data.csv` (wide reshape of `simulate_longitudinal_mar_outcome(n=2000, seed=2025)`, written by `longitudinal_ipw_ipcw_gen.R`). |
 
 ## Regenerating
 
@@ -50,6 +51,15 @@ python tests/testthat/fixtures/python/multinom_gcomp_sandwich.py
 python tests/testthat/fixtures/python/multinom_gcomp_weighted_sandwich.py
 python tests/testthat/fixtures/python/multinom_gcomp_ipcw_sandwich.py
 python tests/testthat/fixtures/python/aipw_long_tau2_delicatessen.py
+python tests/testthat/fixtures/python/longitudinal_ipw_ipcw_delicatessen.py
+```
+
+The longitudinal-IPW-IPCW script needs its data CSV first (a wide reshape of
+causatr's `simulate_longitudinal_mar_outcome()` DGP):
+
+```bash
+Rscript tests/testthat/fixtures/python/longitudinal_ipw_ipcw_gen.R
+python tests/testthat/fixtures/python/longitudinal_ipw_ipcw_delicatessen.py
 ```
 
 ### G-LMTP sandwich fixture

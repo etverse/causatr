@@ -1,5 +1,42 @@
 # causatr (development version)
 
+## 2026-06-25 — Longitudinal IPW IPCW sandwich: censoring γ correction + propensity-weighting fix
+
+Two changes to longitudinal IPW under built-in IPCW (`estimator = "ipw"`,
+`type = "longitudinal"`, `ipcw = TRUE`).
+
+**Estimator fix — the IPCW weight no longer enters the propensity.** Previously
+`causat()` folded the censoring weights into the master weight vector that fed
+the per-period treatment-density models, so the propensity was fit
+IPCW-weighted on the uncensored rows. The standard IPW+IPCW construction
+estimates the treatment and censoring models *separately* and multiplies their
+weights — the censoring weight reweights the marginal structural model only, not
+the propensity (Hernán & Robins, *Causal Inference: What If*, 2020, Ch. 12.6 &
+17). The per-period treatment-density (and stabilization-numerator) models are
+now ordinary regressions on all observed rows; the IPCW weight is applied to the
+final-period Hájek MSM alone. This shifts the IPCW longitudinal IPW point
+estimate onto the textbook estimator (non-IPCW fits are byte-identical).
+
+**Sandwich — the censoring cross-term is now propagated.** The id-level analytic
+sandwich (`compute_ipw_ipcw_correction_longitudinal()`, new
+`R/variance_if_ipw_longitudinal_ipcw.R`) propagates the per-period censoring
+model's estimation uncertainty through the MSM (the γ → β cross-term), reusing
+the shared `make_ipcw_weight_fn_longitudinal()` γ block and the same
+`apply_model_correction()` per-period projection the propensity correction uses.
+Treating the estimated IPCW weights as fixed (the prior behaviour) over-stated
+the treated-arm SE; the correction recovers the Robins-Rotnitzky-Zhao (1994)
+censoring-estimation efficiency gain. Unlike the doubly-robust AIPW case (where
+the cross-term is ~0.03% by orthogonality), the IPW cross-term is large and
+load-bearing — ~5% of the treated-arm SE on an informatively-censored DGP.
+
+Validated to ~1e-13 (point) / ~1e-4 (SE) against a `delicatessen` M-estimation
+oracle that stacks the per-period propensity scores, the censoring γ score, and
+the IPCW-weighted Hájek marginal-mean equations
+(`fixtures/python/longitudinal_ipw_ipcw_delicatessen.py`); the oracle's
+companion "known-weights" sandwich (γ held fixed) pins the efficiency-gain
+magnitude two-sided. Also checked by Monte-Carlo SE-vs-empirical-SD calibration,
+bootstrap parity, and a propensity-is-unweighted regression anchor.
+
 ## 2026-06-25 — Longitudinal AIPW IPCW sandwich: per-period censoring γ block
 
 The longitudinal AIPW (ICE-AIPW) analytic sandwich now carries the per-period

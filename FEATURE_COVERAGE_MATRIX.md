@@ -252,6 +252,12 @@ Per-period treatment density chain $f(A_k \mid \bar A_{k-1}, \bar L_k)$ + cumula
 | bin | gauss | `ipsi($\delta$=2)` (per-period Kennedy product) | 2 | sandwich | — | ✅ +oracle (manual per-period Kennedy product) | test-longitudinal-ipw.R |
 | bin | gauss | `ipsi($\delta$=2)` | 2 | bootstrap | — | ✅ vs sandwich (within 15%) | test-longitudinal-ipw.R |
 | bin | gauss | `ipsi($\delta$=2)` vs `ipsi($\delta$=1)` (difference) | 2 | sandwich | — | ✅ +oracle | test-longitudinal-ipw.R |
+| bin | gauss | static (always vs never) | 2 | sandwich | IPCW (missing Y) | ✅ delicatessen γ-block stack ~1e-13 / ~1e-4 (means + per-arm/ATE SE) | test-longitudinal-ipw-ipcw.R |
+| bin | gauss | static (always vs never) | 2 | sandwich | IPCW | ✅ censoring cross-term load-bearing (full < known-γ; ~5% on treated arm, vs known-γ oracle) | test-longitudinal-ipw-ipcw.R |
+| bin | gauss | static (always vs never) | 2 | sandwich | IPCW | ✅ propensity unweighted (prior weights ≡ 1; = unweighted GLM ~1e-8) | test-longitudinal-ipw-ipcw.R |
+| bin | gauss | static (always vs never) | 2 | sandwich + bootstrap | IPCW | ✅ MC SE-vs-empirical-SD ≈ 1.0 + bootstrap parity | test-longitudinal-ipw-ipcw.R |
+
+**Longitudinal IPW + IPCW (missing Y):** the IPCW weight reweights the final-period Hájek MSM only — the per-period treatment-density models are ordinary (unweighted) regressions on all observed rows, matching the standard separate-then-multiply IPW+IPCW construction (Hernán & Robins 2020, Ch. 12.6 & 17). The id-level analytic sandwich propagates the per-period censoring model's estimation uncertainty through the MSM (the γ → β cross-term, `compute_ipw_ipcw_correction_longitudinal()` in `R/variance_if_ipw_longitudinal_ipcw.R`), reusing the shared `make_ipcw_weight_fn_longitudinal()` γ block. The cross-term is **load-bearing** for IPW (~5% of the treated-arm SE on an informatively-censored DGP), unlike the AIPW orthogonal ~0.03% case. Validated against the `delicatessen` M-estimation oracle (`longitudinal_ipw_ipcw_delicatessen.py`), its known-weights (γ-fixed) companion, MC calibration, and the bootstrap.
 
 **Per-period IPSI (Phase 20):** univariate `ipsi(delta)` extends Kennedy's (2019) closed-form weight to a per-period product $W_i = \prod_t (\delta A_{t} + (1 - A_{t})) / (\delta p_{t} + (1 - p_{t}))$. No new density-evaluation path — each period reuses `compute_density_ratio_weights()`'s IPSI branch; the stacked sandwich reuses `make_weight_fn()`'s IPSI sub-closure per period.
 
@@ -515,6 +521,8 @@ remain in this matrix.
 | Built-in IPCW: point estimators | gcomp/IPW/matching (14b) | ✅ | test-ipcw.R |
 | Built-in IPCW: lmtp cross-check | point + longitudinal (14d) | ✅ | test-ipcw-lmtp-oracle.R |
 | Built-in IPCW: ICE longitudinal | ICE + long IPW (14c) | ✅ | test-ipcw.R, test-ipcw-lmtp-oracle.R |
+| Built-in IPCW: longitudinal IPW sandwich (γ→β cross-term) | long IPW + delicatessen oracle | ✅ | test-longitudinal-ipw-ipcw.R |
+| Built-in IPCW: longitudinal AIPW sandwich (γ block) | long AIPW (orthogonal cross-term) | ✅ | test-aipw-longitudinal-ipcw.R |
 | Built-in IPCW: variance regression | sandwich + bootstrap (14e) | ✅ | test-ipcw-variance.R |
 | Built-in IPCW: diagnose integration | point + longitudinal (14f) | ✅ | test-diagnose.R |
 

@@ -177,6 +177,34 @@ Project-specific rules that override / extend the etverse-wide rules at
   nothing": it is wired (verified by `test-aipw-longitudinal-ipcw.R`) and
   orthogonality is the correct, expected behaviour. Do NOT remove the gamma
   block to "simplify" — it is required for an exactly correct sandwich.
+- **Built-in IPCW reweights the OUTCOME side only; the propensity is NOT
+  IPCW-weighted.** `causat()` keeps the external (pre-IPCW) weights for the
+  treatment-density models via `propensity_weights` (`causat()` →
+  `fit_ipw()` → `fit_longitudinal_ipw()`, and `refit_ipw()` for the bootstrap);
+  only the folded `weights` (= external × IPCW) feed the MSM / outcome models.
+  This is the standard separate-then-multiply IPW+IPCW construction (Hernán &
+  Robins 2020, Ch. 12.6 & 17: `W = 1/P(A|H) × 1/P(C=0|H)`, the two weights
+  estimated separately). Do NOT "simplify" by routing the folded `weights` into
+  the propensity fit — that re-introduces the non-standard IPCW-weighted
+  propensity the longitudinal IPW fix removed (verified by the
+  propensity-unweighted anchor in `test-longitudinal-ipw-ipcw.R`:
+  `prior.weights ≡ 1`, coefs = unweighted GLM ~1e-8). Point IPW still routes the
+  folded weights to its propensity (a pre-existing separate issue, out of the
+  longitudinal-IPCW scope) — do not "fix" it here without the IF row-set
+  decoupling and a tightened point oracle.
+- **The longitudinal IPW IPCW censoring cross-term is LARGE and load-bearing
+  (NOT orthogonal like AIPW).** `compute_ipw_ipcw_correction_longitudinal()`
+  (`R/variance_if_ipw_longitudinal_ipcw.R`) propagates the censoring model's
+  estimation uncertainty through the MSM (γ → β), reusing the shared
+  `make_ipcw_weight_fn_longitudinal()` γ block and the per-period
+  `apply_model_correction()` projection. It is SUBTRACTED (same sign as the
+  propensity/transport corrections) and recovers the Robins-Rotnitzky-Zhao
+  (1994) efficiency gain — ~5% of the treated-arm SE on an informatively-
+  censored DGP. Do NOT drop it as negligible (that is the AIPW case, not IPW),
+  and do NOT add a γ→α term: with the propensity IPCW-unweighted, γ reaches μ
+  only through the MSM. Validated to ~1e-13/~1e-4 vs `delicatessen`
+  (`longitudinal_ipw_ipcw_delicatessen.py`) + its known-weights companion + MC
+  calibration + bootstrap.
 - **Longitudinal AIPW rejects a covariate missing WITHIN an observed
   person-period (classed, by design).** `ice_aipw_iterate()` aborts with
   `causatr_longitudinal_aipw_missing_covariate` when a per-period propensity

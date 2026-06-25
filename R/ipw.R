@@ -88,6 +88,7 @@ fit_ipw <- function(
   time = NULL,
   call,
   target = NULL,
+  propensity_weights = weights,
   confounders_outcome = NULL,
   confounders_outcome_raw = NULL,
   confounders_treatment_raw = NULL,
@@ -97,6 +98,15 @@ fit_ipw <- function(
   confounders_tv_treatment_raw = NULL,
   ...
 ) {
+  # `propensity_weights` carries the external (pre-IPCW) observation weights for
+  # the treatment-density models. Under built-in IPCW the censoring weight is
+  # folded into `weights` for the OUTCOME side (the MSM), but the standard
+  # IPW+IPCW construction estimates the treatment and censoring models
+  # separately and multiplies their weights (Hernan & Robins 2020, Ch. 12.6 &
+  # 17) -- the censoring weight must not enter the propensity fit. IPCW callers
+  # pass the external weights here (NULL when there are none); the default keeps
+  # the propensity on `weights` when no IPCW separation is needed.
+
   # Longitudinal IPW dispatch. The full point-treatment
   # body below is preserved unchanged; longitudinal data takes a
   # dedicated path through `fit_longitudinal_ipw()` that builds the
@@ -123,6 +133,7 @@ fit_ipw <- function(
       time = time,
       call = call,
       target = target,
+      propensity_weights = propensity_weights,
       confounders_outcome = confounders_outcome,
       confounders_outcome_raw = confounders_outcome_raw,
       confounders_treatment_raw = confounders_treatment_raw,

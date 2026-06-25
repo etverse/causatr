@@ -178,6 +178,23 @@ variance_if_ipw_longitudinal <- function(
       final_to_first = final_to_first
     )
 
+    # Built-in IPCW: the final-period MSM is weighted by the estimated
+    # censoring weights w^C(gamma) (folded into `details$weights`). Propagate
+    # the censoring model's estimation uncertainty by subtracting the
+    # projection of the MSM score onto the per-period censoring scores. Unlike
+    # the AIPW case this cross-term is load-bearing (not orthogonal).
+    if (isTRUE(fit$details$ipcw)) {
+      if_vec <- if_vec -
+        compute_ipw_ipcw_correction_longitudinal(
+          fit = fit,
+          msm_model = msm_model,
+          J = J,
+          ids_first = ids_first,
+          n_final = n_final,
+          n_id = n_id
+        )
+    }
+
     if (isTRUE(fit$details$transport)) {
       if_vec <- if_vec -
         compute_ipw_sampling_correction_longitudinal(

@@ -2422,26 +2422,47 @@ Two off-diagonal blocks feed into the MSM score: $A_{\beta\gamma}$ (IPCW
 weights) and $A_{\beta\alpha}$ (propensity weights). Each generates an
 independent Channel 2 correction.
 
-### 6.5 Longitudinal IPCW: the conservative approximation
+### 6.5 Longitudinal IPCW: the per-period censoring block
 
-For longitudinal treatments with per-period censoring models $\gamma_1,
-\ldots, \gamma_K$, the full correction requires cross-derivatives
-$A_{\beta_k, \gamma_j}$ for all $k \geq j$, projected through the ICE
-cascade's accumulated sensitivity $d_k$. This is technically supported by
-stacked M-estimation theory [@stefanski2002mestimation; @tsiatis2006semiparametric, Ch. 10],
-but the cascade's $d_k$ vectors are built incrementally during the
-backward loop and cannot be evaluated inside a `numDeriv` closure.
+For longitudinal treatments the censoring model is fit per period, with
+coefficients $\gamma_1, \ldots, \gamma_K$. Whether — and how — that block
+enters the sandwich depends on the estimator.
 
-causatr currently **omits** the longitudinal censoring Channel 2 correction.
-This makes the sandwich SE conservative (larger than the true asymptotic SE).
-Empirically the ratio is $\approx 0.94$ (sandwich/bootstrap), confirming the
-omission is small.
+**Longitudinal IPW.** The final-period Hájek MSM is weighted by the cumulative
+IPCW weight, so the censoring block contributes a single cross-derivative
+$A_{\beta\gamma}$ exactly as in the point IPW case (Section 6.4), with the
+per-period censoring scores stacked. causatr propagates it
+(`compute_ipw_ipcw_correction_longitudinal()`): the MSM-score sensitivity is
+formed against the stacked $\gamma$ via `numDeriv::jacobian()`, then projected
+through each period's censoring-model influence function. This term is
+**load-bearing** — when censoring depends on treatment it can move the
+treated-arm SE by several percent (recovering the @robins1994aipw efficiency
+gain). Crucially, the per-period propensity models are estimated *unweighted*
+(the IPCW weight reweights the MSM only — the standard separate-then-multiply
+construction, @hernan_whatif Ch. 12.6 & 17), so $\gamma$ reaches $\mu$ only
+through the MSM (a $\gamma \to \beta$ path); there is no $\gamma \to \alpha$
+term. Validated to $\sim 10^{-4}$ against a `delicatessen` M-estimation stack.
 
-**Recommendation:** For longitudinal IPCW, use `ci_method = "bootstrap"` for
-the tightest CIs. The sandwich remains valid for coverage guarantees.
+**Longitudinal AIPW.** The stacked-EE sandwich (Section 5) carries the
+per-period $\gamma$ block in $\theta = (\alpha, \beta, \gamma, \mu)$, threading
+the IPCW weight into each outcome score so the numerical bread captures
+$\gamma \to \beta \to \mu$ mechanically. By the double-robust orthogonality of
+the augmented estimator this cross-term is **near-zero** (it moves the marginal
+mean SE by $\sim 0.03\%$): the block is wired and carried for an exactly correct
+sandwich, not to fix a sizeable bias.
 
-No existing package (`lmtp`, `ltmle`, `gfoRmula`) implements the longitudinal
-censoring Channel 2 correction — all use bootstrap variance in this setting.
+**Longitudinal ICE (g-computation).** The pooled-ICE sandwich does *not* yet
+carry the censoring Channel 2 correction: the full term requires
+cross-derivatives $A_{\beta_k, \gamma_j}$ projected through the cascade's
+incrementally-built sensitivity $d_k$, which is not available inside a single
+`numDeriv` closure. The ICE sandwich is therefore conservative under IPCW
+(larger than the true asymptotic SE). **Recommendation:** for longitudinal ICE
+with IPCW use `ci_method = "bootstrap"` for the tightest CIs; the sandwich
+remains valid for coverage guarantees.
+
+No existing package (`lmtp`, `ltmle`, `gfoRmula`) implements an analytic
+longitudinal censoring Channel 2 correction — all use bootstrap variance in
+this setting.
 
 
 ## 7. Summary
