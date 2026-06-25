@@ -1159,6 +1159,263 @@ test_that("weighted multinomial sandwich SE agrees with the weighted bootstrap",
   expect_equal(rs$contrasts$se / rb$contrasts$se, rep(1, 3L), tolerance = 0.1)
 })
 
+# --- IPCW analytic sandwich (23a-2c) ---------------------------------------
+
+# The tight SE oracle is the full IPCW M-estimation stack in
+# `fixtures/python/multinom_gcomp_ipcw_sandwich.py`: it stacks the logistic
+# censoring score (gamma), the IPCW-weighted multinomial outcome score (beta),
+# and the IPCW-weighted per-(intervention, class) marginal-mean equations (mu),
+# then reads the sandwich off the joint EE Jacobian -- so the mu SEs carry the
+# censoring-model estimation uncertainty through BOTH the outcome model and the
+# weighted average. causatr's per-class IF sandwich (the indirect A_{beta,gamma}
+# cross-term plus the direct d mu / d gamma weight term) must match it to the
+# precision of the shared MLE, on the per-class means and on every contrast.
+test_that("IPCW multinomial sandwich matches the IPCW M-estimation stack", {
+  data_csv <- test_path("fixtures", "python", "multinom_gcomp_ipcw_data.csv")
+  res_csv <- test_path(
+    "fixtures",
+    "python",
+    "multinom_gcomp_ipcw_sandwich_results.csv"
+  )
+  skip_if(!file.exists(data_csv) || !file.exists(res_csv))
+
+  d <- utils::read.csv(data_csv)
+  d$Y <- factor(d$Y, levels = mo_labels3) # "NA" strings -> NA (censored rows)
+  # Tight convergence so causatr's IPCW-weighted `nnet::multinom` MLE coincides
+  # with the Python weighted-score root; the censoring `glm` and the Python
+  # logistic score agree to ~1e-9, so the IPCW weights coincide.
+  fit <- causat(
+    d,
+    "Y",
+    "A",
+    confounders = ~L,
+    estimator = "gcomp",
+    model_fn = nnet::multinom,
+    trace = FALSE,
+    censoring = "C",
+    ipcw = TRUE,
+    reltol = 1e-13,
+    maxit = 2000
+  )
+  py <- utils::read.csv(res_csv, stringsAsFactors = FALSE)
+
+  # Per-(intervention, class) IPCW-weighted marginal means + sandwich SE.
+  res_d <- contrast(
+    fit,
+    list(a1 = static(1), a0 = static(0)),
+    type = "difference",
+    ci_method = "sandwich"
+  )
+  pm <- py[py$kind == "mean", ]
+  for (i in seq_len(nrow(res_d$estimates))) {
+    row <- res_d$estimates[i, ]
+    k <- which(pm$intervention == row$intervention & pm$class == row$class)
+    expect_equal(row$estimate, pm$estimate[k], tolerance = 1e-5)
+    # SEs carry a numerical Jacobian on both sides (numDeriv vs scipy
+    # central differences), so the agreement floor is the ~1e-5 step error,
+    # not the ~1e-12 of the analytic complete-case stack.
+    expect_equal(row$se, pm$se[k], tolerance = 1e-4)
+  }
+
+  # Difference / ratio / OR contrast point + linear-scale delta SE per class.
+  for (ty in c("difference", "ratio", "or")) {
+    kind <- switch(ty, difference = "diff", ratio = "ratio", or = "or")
+    pc <- py[py$kind == kind, ]
+    res_c <- contrast(
+      fit,
+      list(a1 = static(1), a0 = static(0)),
+      type = ty,
+      ci_method = "sandwich"
+    )
+    for (i in seq_len(nrow(res_c$contrasts))) {
+      row <- res_c$contrasts[i, ]
+      k <- which(pc$class == row$class)
+      expect_equal(row$estimate, pc$estimate[k], tolerance = 1e-5)
+      expect_equal(row$se, pc$se[k], tolerance = 1e-4)
+    }
+  }
+})
+
+# Dropping the censoring cross-term (treating the IPCW weights as known) leaves
+# the SE at its conservative known-gamma value; the full cross-term recovers the
+# efficiency gain from estimating the censoring model. The two must therefore
+# differ, and the full sandwich must be the one that matches the M-estimation
+# oracle (pinned above) -- a guard that the direct + indirect channels are wired
+# and materially active, not silently zero.
+test_that("IPCW multinomial cross-term is active (estimated vs known gamma)", {
+  d <- sim_multinom_binary(n = 2000, seed = 23)
+  d$Cens <- stats::rbinom(
+    nrow(d),
+    1L,
+    stats::plogis(-0.6 + 0.5 * d$A + 0.7 * d$L)
+  )
+  d$Yobs <- d$Y
+  d$Yobs[d$Cens == 1L] <- NA
+  fit <- causat(
+    d,
+    "Yobs",
+    "A",
+    confounders = ~L,
+    estimator = "gcomp",
+    model_fn = nnet::multinom,
+    trace = FALSE,
+    censoring = "Cens",
+    ipcw = TRUE
+  )
+  ivs <- list(a1 = static(1), a0 = static(0))
+  res_full <- contrast(fit, ivs, type = "difference", ci_method = "sandwich")
+
+  # Flip the ipcw flag off to suppress Channel 3 (known-gamma sandwich). The
+  # point estimates are invariant; only the per-class mean SEs move.
+  fit_known <- fit
+  fit_known$details$ipcw <- FALSE
+  res_known <- contrast(
+    fit_known,
+    ivs,
+    type = "difference",
+    ci_method = "sandwich"
+  )
+
+  expect_equal(
+    res_full$estimates$estimate,
+    res_known$estimates$estimate,
+    tolerance = 1e-10
+  )
+  # Estimating the censoring model reduces the marginal-mean SE (the efficiency
+  # gain), so the full sandwich SE is strictly below the known-gamma one for at
+  # least some classes, by a non-trivial margin.
+  ratio <- res_full$estimates$se / res_known$estimates$se
+  expect_true(all(ratio <= 1 + 1e-8))
+  expect_true(min(ratio) < 0.99)
+  # The cross-term cancels in contrasts: the difference SEs are unchanged.
+  expect_equal(
+    res_full$contrasts$se,
+    res_known$contrasts$se,
+    tolerance = 1e-3
+  )
+})
+
+# End-to-end calibration of the IPCW multinomial sandwich: under repeated
+# sampling from a MAR-censored multinomial DGP, the mean per-(intervention,
+# class) sandwich SE must track the empirical sampling SD of the point estimate.
+# This is the design-doc's MC oracle for the MAR-debiased estimand, exercising
+# the full pipeline (censoring fit, IPCW weighting, multinom fit, indirect +
+# direct cross-terms). SE-vs-empirical-SD is the variance-targeted form of the
+# coverage check -- it isolates the quantity the direct cross-term changed
+# without conflating it with the multinom MLE's finite-sample point bias (which
+# depresses Wald coverage to ~0.93 at this n regardless of SE accuracy).
+test_that("IPCW multinomial sandwich SE tracks the empirical sampling SD", {
+  skip_if_fast()
+  gen <- function(n) {
+    L <- stats::rnorm(n)
+    A <- stats::rbinom(n, 1, stats::plogis(0.4 * L))
+    e2 <- -0.5 + 0.8 * A + 0.5 * L
+    e3 <- -0.8 + 1.2 * A - 0.4 * L
+    den <- 1 + exp(e2) + exp(e3)
+    p1 <- 1 / den
+    p2 <- exp(e2) / den
+    U <- stats::runif(n)
+    Yc <- ifelse(U < p1, "none", ifelse(U < p1 + p2, "mild", "severe"))
+    Y <- factor(Yc, levels = mo_labels3)
+    C <- stats::rbinom(n, 1, stats::plogis(-0.6 + 0.5 * A + 0.7 * L))
+    Y[C == 1L] <- NA
+    data.frame(L = L, A = A, Y = Y, C = C)
+  }
+  ivs <- list(a1 = static(1), a0 = static(0))
+  R <- 300L
+  nn <- 3000L
+  est <- matrix(NA_real_, R, 6L)
+  se <- matrix(NA_real_, R, 6L)
+  set.seed(7)
+  for (r in seq_len(R)) {
+    dat <- gen(nn)
+    fit <- tryCatch(
+      causat(
+        dat,
+        "Y",
+        "A",
+        ~L,
+        estimator = "gcomp",
+        model_fn = nnet::multinom,
+        trace = FALSE,
+        censoring = "C",
+        ipcw = TRUE
+      ),
+      error = function(e) NULL
+    )
+    if (is.null(fit)) {
+      next
+    }
+    sw <- tryCatch(
+      contrast(
+        fit,
+        interventions = ivs,
+        type = "difference",
+        ci_method = "sandwich"
+      ),
+      error = function(e) NULL
+    )
+    if (is.null(sw)) {
+      next
+    }
+    est[r, ] <- sw$estimates$estimate
+    se[r, ] <- sw$estimates$se
+  }
+  ok <- stats::complete.cases(est)
+  ratio <- colMeans(se[ok, ]) / apply(est[ok, ], 2L, stats::sd)
+  # Two-sided: the sandwich SE neither over- nor under-states the truth. The
+  # overall mean ratio is the tight check (~0.6% off); each per-class ratio
+  # stays within ~2 Monte-Carlo SEs of 1.
+  expect_equal(mean(ratio), 1, tolerance = 0.05)
+  expect_true(all(ratio > 0.88 & ratio < 1.12))
+})
+
+# Survey weights compose with IPCW for the multinomial outcome: the combined
+# survey x IPCW weight drives both the censoring-aware sandwich and the
+# bootstrap (which refits the censoring model and the weighted multinom). The
+# two variance paths must agree within Monte-Carlo error -- a smoke-plus
+# calibration check on the weighted IPCW multinomial path.
+test_that("weighted IPCW multinomial sandwich agrees with the weighted bootstrap", {
+  skip_if_fast()
+  d <- sim_multinom_binary(n = 4000, seed = 31)
+  d$Cens <- stats::rbinom(
+    nrow(d),
+    1L,
+    stats::plogis(-0.6 + 0.5 * d$A + 0.7 * d$L)
+  )
+  d$Yobs <- d$Y
+  d$Yobs[d$Cens == 1L] <- NA
+  set.seed(41)
+  d$w <- stats::runif(nrow(d), 0.5, 2)
+  fit <- causat(
+    d,
+    "Yobs",
+    "A",
+    confounders = ~L,
+    estimator = "gcomp",
+    model_fn = nnet::multinom,
+    trace = FALSE,
+    censoring = "Cens",
+    ipcw = TRUE,
+    weights = d$w
+  )
+  ivs <- list(a1 = static(1), a0 = static(0))
+  rs <- contrast(fit, ivs, type = "difference", ci_method = "sandwich")
+  set.seed(7)
+  rb <- contrast(
+    fit,
+    ivs,
+    type = "difference",
+    ci_method = "bootstrap",
+    n_boot = 600
+  )
+  # Same weighted IPCW fit -> identical point estimates on both paths.
+  expect_equal(rs$estimates$estimate, rb$estimates$estimate, tolerance = 1e-10)
+  # The contrast SEs (the term the censoring cross-term leaves invariant) agree
+  # within the Monte-Carlo error of the weighted multinomial bootstrap.
+  expect_equal(rs$contrasts$se / rb$contrasts$se, rep(1, 3L), tolerance = 0.15)
+})
+
 # A NULL weight vector must reproduce the complete-case sandwich byte-for-byte:
 # the weighted formulas collapse (w_i = 1, sum_w = n_t) to the 23a-2a path, so
 # routing through the new weighted code on an unweighted fit cannot perturb it.
@@ -1331,8 +1588,8 @@ test_that("categorical outcome gates IPCW sandwich and stochastic", {
     model_fn = nnet::multinom,
     trace = FALSE
   )
-  # Complete-case (23a-2a) and weighted (23a-2b) sandwiches are supported; only
-  # the IPCW sandwich stays gated until its slice (23a-2c) lands.
+  # Complete-case (23a-2a), weighted (23a-2b), and IPCW (23a-2c) sandwiches all
+  # run; no transitional gate remains for the multinomial point-gcomp sandwich.
   expect_no_error(
     contrast(fit, list(a1 = static(1), a0 = static(0)), ci_method = "sandwich")
   )
@@ -1356,8 +1613,10 @@ test_that("categorical outcome gates IPCW sandwich and stochastic", {
     )
   )
 
-  # IPCW + sandwich is still routed to the bootstrap via the classed gate. The
-  # MAR-censored DGP mirrors the IPCW bootstrap test above.
+  # IPCW + sandwich now runs (23a-2c): the censoring cross-term is wired, so no
+  # classed abort fires. The MAR-censored DGP mirrors the IPCW bootstrap test
+  # above; numerical agreement with the M-estimation oracle is pinned in the
+  # dedicated oracle test below.
   d_c <- sim_multinom_binary(n = 1500, seed = 11)
   d_c$Cens <- stats::rbinom(nrow(d_c), 1L, stats::plogis(-0.5 - 0.8 * d_c$L))
   d_c$Yobs <- d_c$Y
@@ -1374,13 +1633,12 @@ test_that("categorical outcome gates IPCW sandwich and stochastic", {
     ipcw = TRUE,
     confounders_censoring = ~L
   )
-  expect_error(
+  expect_no_error(
     contrast(
       fit_ipcw,
       list(a1 = static(1), a0 = static(0)),
       ci_method = "sandwich"
-    ),
-    class = "causatr_categorical_outcome_sandwich"
+    )
   )
 
   expect_error(

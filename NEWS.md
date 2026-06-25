@@ -1,5 +1,32 @@
 # causatr (development version)
 
+## 2026-06-24 — IPCW sandwich for multinomial-outcome g-computation (23a-2c) + a g-formula direct-censoring-term fix
+
+The analytic sandwich for a categorical (multinomial) outcome point
+g-computation now covers the **IPCW** (missing-Y) path: the last transitional
+gate (`causatr_categorical_outcome_sandwich`) is removed and
+`ci_method = "sandwich"` runs for an IPCW multinomial fit. The censoring model's
+estimation uncertainty enters the per-class influence function through two
+channels carried by its own influence function: an **indirect** path (the
+censoring parameter γ → the IPCW-weighted outcome model β → the marginal mean,
+the `A_{β,γ}ᵀh` cross-term) and a **direct** path (the IPCW-weighted marginal
+average carries γ in its own weights, contributing `∂μ/∂γ`). The full sandwich
+matches a Python `delicatessen`-style M-estimation stack that carries the
+censoring block (`fixtures/python/multinom_gcomp_ipcw_sandwich.py`) to ~1e-7 on
+the per-class means and every diff/ratio/OR contrast.
+
+Building that first tight IPCW oracle surfaced a **pre-existing conservatism in
+the scalar g-computation IPCW sandwich**: it captured only the indirect path, so
+its per-class marginal-mean SEs sat ~1–1.5% above the truth (the efficiency gain
+from estimating the censoring model; Robins, Rotnitzky & Zhao 1994). The direct
+∂μ/∂γ term is now added there too (shared `ipcw_direct_grad_setup()` /
+`ipcw_direct_grad()` helpers), so the gcomp IPCW marginal-mean SE matches the
+full estimated-γ M-estimation sandwich exactly. The term **cancels in
+contrasts**, so reported ATE difference/ratio/OR SEs are unchanged. Point IPW
+and point AIPW were verified (Monte Carlo) to already be well-calibrated — their
+marginal mean is the model parameter, so the γ-dependence is already captured;
+no change there.
+
 ## 2026-06-18 — Longitudinal AIPW: classed rejection for a within-period missing covariate
 
 A time-varying covariate missing *within an observed person-period* previously

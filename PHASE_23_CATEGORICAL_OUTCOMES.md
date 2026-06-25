@@ -5,7 +5,9 @@
 > into three dependency-ordered sub-chunks that together cover **every**
 > variance scenario the multinomial point-gcomp surface can present:
 > **23a-2a** (complete-case, SHIPPED), **23a-2b** (survey/external weights,
-> SHIPPED), **23a-2c** (IPCW, PENDING). All other chunks below are PENDING.
+> SHIPPED), **23a-2c** (IPCW, **SHIPPED**). The full analytic sandwich for the
+> multinomial point-gcomp surface is now complete. All other chunks below are
+> PENDING.
 >
 > **Depends on:** Phase 2 (point gcomp), Phase 13 (extended outcome types)
 
@@ -55,7 +57,7 @@ S3 layer.
 
 | Estimator | Timing | Decision | Chunk |
 |---|---|---|---|
-| gcomp | point | **Supported** — bootstrap (23a-1); sandwich complete-case (23a-2a) + weighted (23a-2b); IPCW sandwich pending (23a-2c) | 23a-1 / 23a-2a–c |
+| gcomp | point | **Supported** — bootstrap (23a-1); sandwich complete-case (23a-2a) + weighted (23a-2b) + IPCW (23a-2c). Full analytic sandwich complete. | 23a-1 / 23a-2a–c |
 | gcomp | longitudinal (ICE) | Deferred (per-class pseudo-outcome recursion) | 23a-5 |
 | ipw | point | Deferred (per-class Hájek mean of `I(Y=k)`) | 23a-3 |
 | ipw | longitudinal | Deferred | 23a-6 |
@@ -102,12 +104,29 @@ S3 layer.
     weighted `delicatessen`-style stack (`multinom_gcomp_weighted_sandwich.py`),
     matched to ~1e-7 (estimates) / ~1e-8 (SEs), plus weighted sandwich-vs-bootstrap
     parity. [23a-2a]
-  - **23a-2c (IPCW)** — multinomial-aware censoring cross-term: a
-    `phi_bar_cens(gamma)` closure built on the stacked weighted multinomial
-    score, its Jacobian in `gamma`, projected through the stacked outcome
-    `h`. Lifts the IPCW + sandwich gate. Oracle: Monte-Carlo coverage (no
-    clean external M-estimation oracle stacks a multinomial outcome with an
-    IPCW censoring model — documented in the test). [23a-2b]
+  - **23a-2c (IPCW) — SHIPPED.** Multinomial-aware censoring cross-term with
+    **two** paths, both carried through the censoring model's IF: the
+    **indirect** path is a `phi_bar_cens(gamma)` closure built on the stacked
+    weighted multinomial score, its Jacobian in `gamma`, projected through the
+    stacked outcome `h` (`multinom_ipcw_cross_setup()`); the **direct** path is
+    the IPCW-weighted average's own `gamma`-dependence
+    `d mu_{k,a}/d gamma = (1/sum_w) sum_i (dw_i/dgamma)(p_{k,i}(a) - mu)`,
+    `dw_i/dgamma = -w_i(1 - p_unc_i) X_cens_i`, summed over the target rows
+    that carry a positive weight (shared `ipcw_direct_grad_setup()` /
+    `ipcw_direct_grad()`). Total sensitivity `g_cens = A_{beta,gamma}^T h -
+    d mu/d gamma`; the direct term recovers the censoring-estimation efficiency
+    gain (Robins, Rotnitzky & Zhao 1994) and cancels in contrasts. Lifts the
+    IPCW + sandwich gate. Oracle: it turns out `delicatessen`-style stacks
+    **do** cover the multinomial+IPCW estimand if the logistic censoring score
+    is stacked alongside the IPCW-weighted multinomial score and marginal-mean
+    equations — `fixtures/python/multinom_gcomp_ipcw_sandwich.py` is exactly
+    that stack, matched to ~1e-7 on means and every diff/ratio/OR contrast
+    (Monte-Carlo coverage of the MAR-debiased estimand cross-checks it). The
+    same direct-`d mu/d gamma` term was found missing from the **scalar** gcomp
+    IPCW sandwich (`compute_ipcw_if_correction()`) and added there too; point
+    IPW / AIPW IPCW were MC-verified to already be well-calibrated (their
+    marginal mean is the model parameter, so the `gamma`-dependence is already
+    in the indirect term). [23a-2b]
 - **23a-3** — IPW point, per-class Hájek (`I(Y=k) ~ 1` MSM per class). [23a-1]
 - **23a-4** — AIPW point, per class (DR: probs + `I(Y=k) − p_k` correction).
   [23a-1, 23a-3]

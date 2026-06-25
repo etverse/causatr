@@ -96,12 +96,22 @@ fit_censoring_model <- function(
   # model is Bernoulli/logistic. The treatment family (Gaussian, Poisson,
   # etc.) describes a completely different variable and has no bearing
   # on how the 0/1 censoring indicator is modeled.
+  #
+  # With external (survey) weights, use quasibinomial() rather than binomial()
+  # to suppress base R's benign "non-integer #successes" warning, mirroring the
+  # propensity-model convention in `fit_bernoulli_density()`. Coefficients, SEs,
+  # fitted probabilities, and hence the IPCW weights / sandwich IF are identical
+  # (the dispersion quasibinomial estimates does not enter the score or bread).
+  weights_fit <- if (is.null(weights)) NULL else weights[fit_rows]
   model_args <- list(
     formula = cens_formula,
     data = fit_data,
-    family = stats::binomial()
+    family = if (is.null(weights_fit)) {
+      stats::binomial()
+    } else {
+      stats::quasibinomial()
+    }
   )
-  weights_fit <- if (is.null(weights)) NULL else weights[fit_rows]
   if (!is.null(weights_fit)) {
     model_args$weights <- weights_fit
   }

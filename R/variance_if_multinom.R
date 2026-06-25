@@ -49,9 +49,24 @@
 #' \eqn{w_i = 1}, \eqn{\sum w = n_t}, and the whole derivation collapses to the
 #' complete-case sandwich byte-for-byte.
 #'
-#' IPCW multinomial sandwiches are gated upstream in
-#' `compute_contrast_multinom()` (raising
-#' `causatr_categorical_outcome_sandwich`) until that chunk lands.
+#' Under IPCW (missing Y), a third channel is added: the censoring model's
+#' estimation uncertainty propagates into \eqn{\hat\mu} through the IPCW
+#' weights via two paths, both carried through the censoring model's own
+#' influence function. (1) \emph{Indirect} -- the stacked multinomial score
+#' \eqn{s_i} depends on \eqn{\gamma} via the weight \eqn{w_i(\gamma)}, so the
+#' bread cross-block \eqn{A_{\beta,\gamma} = -\partial\bar\Phi/\partial\gamma}
+#' (with \eqn{\bar\Phi(\gamma) = n^{-1}\sum_i w_{\mathrm{ext},i}\,w_i(\gamma)\,
+#' s_i^{(0)}} the weighted score at \eqn{\hat\beta}) projects each
+#' class/intervention gradient onto the censoring-parameter space. (2)
+#' \emph{Direct} -- the IPCW-weighted marginal average itself carries
+#' \eqn{\gamma} in its weights, contributing
+#' \eqn{\partial\mu_{k,a}/\partial\gamma = (\sum w)^{-1}\sum_i
+#' (dw_i/d\gamma)(p_{k,i}(a) - \mu_{k,a})}. The total sensitivity
+#' \eqn{d\mu/d\gamma} stacks both before the projection; the direct path
+#' recovers the efficiency gain from estimating the censoring model (Robins,
+#' Rotnitzky & Zhao 1994), cancels in contrasts, and matters for the per-class
+#' means. With `ipcw = FALSE` this channel is skipped and the sandwich is
+#' byte-identical to the complete-case / weighted form.
 #'
 #' @param fit A `causatr_fit` with a `nnet::multinom` outcome model.
 #' @param data_a_list Named list of counterfactual data.tables (one per
@@ -128,6 +143,21 @@ variance_if_gcomp_multinom <- function(
   # Design columns per non-reference class block. `prep$X_fit` is the
   # n_fit x ((K-1) * p) stacked design, so dividing by K-1 recovers p.
   p <- ncol(prep$X_fit) %/% Km1
+  n_fit <- nrow(prep$X_fit)
+
+  # IPCW (missing-Y) censoring cross-term. The outcome multinom is fit on the
+  # uncensored rows with the total weight (survey x IPCW), so Channel 1 / 2
+  # above are already correct for the *fitted* nuisance; what is missing is the
+  # third term -- the censoring model's own estimation uncertainty, which feeds
+  # mu_hat through the IPCW weights. The bread cross-block A_{beta,gamma} and the
+  # censoring-model prep do not depend on the outcome class or the intervention,
+  # so build them once and project per (class, intervention) inside the loop.
+  has_ipcw <- isTRUE(fit$details$ipcw)
+  ipcw_cross <- if (has_ipcw) {
+    multinom_ipcw_cross_setup(fit, prep, target_idx)
+  } else {
+    NULL
+  }
 
   # Counterfactual design matrices are built directly from the model terms
   # (not via `iv_design_matrix()`): a multinom `coef()` is a matrix, so that
@@ -189,7 +219,47 @@ variance_if_gcomp_multinom <- function(
       # Channel 2: nuisance correction. `apply_model_correction()` applies the
       # M-estimation x n rescale; prep$r_score carries the prior weight w_i
       # (1 in the complete-case fit), so the stacked score is weighted once.
-      corr <- apply_model_correction(prep, g)$correction
+      res <- apply_model_correction(prep, g)
+      corr <- res$correction
+
+      # Channel 3 (IPCW only): subtract the censoring-model estimation
+      # cross-term. The IPCW-weighted marginal mean mu_{k,a}(gamma, beta)
+      # depends on the censoring parameter gamma through two paths, so the
+      # total sensitivity d mu / d gamma stacks both before projecting through
+      # the censoring-model IF:
+      #   * Indirect (gamma -> outcome beta -> mu): g_cens = A_{beta,gamma}^T h,
+      #     with h = A_{bb}^{-1} g = n_fit * res$h in M-estimation scaling
+      #     (A_{bb}^{-1} = n_fit * B_inv). This mirrors the scalar gcomp IPCW
+      #     path (`compute_ipcw_if_correction()`), generalised to the stacked
+      #     multinomial score.
+      #   * Direct (gamma -> IPCW weights -> covariate average): the weighted
+      #     mean carries gamma in its weights, so
+      #       d mu_{k,a} / d gamma = (1/sum_w) sum_i (dw_i/dgamma)(p_{k,i}(a) - mu),
+      #     with dw_i/dgamma = -w_i (1 - p_unc_i) X_cens_i. Omitting this term
+      #     leaves the SE at its known-weights (conservative) value; including
+      #     it recovers the efficiency gain from estimating the censoring model
+      #     (Robins, Rotnitzky & Zhao 1994). It cancels in contrasts but
+      #     matters for the per-class marginal means.
+      if (has_ipcw) {
+        g_cens <- as.numeric(crossprod(
+          ipcw_cross$A_beta_gamma,
+          n_fit * res$h
+        ))
+        # Direct path: the IPCW-weighted average's own gamma-dependence, summed
+        # over the target rows that carry a positive weight (`ipcw_direct_grad()`
+        # restricts to the target so ATT / by / subset stay aligned). The
+        # per-class column `preds_list[[a]][, ci]` plays the role of p_{ij}.
+        grad_mu_gamma <- ipcw_direct_grad(
+          ipcw_cross$direct,
+          preds_list[[a]][, ci],
+          mu_mat[a, ci]
+        )
+        corr <- corr -
+          apply_model_correction(
+            ipcw_cross$cens_prep,
+            g_cens - grad_mu_gamma
+          )$correction
+      }
 
       # Channel 1: empirical-distribution sampling term on target rows.
       # Weighted form (n / sum_w) w_i (p_{k,i} - mu); with unit weights this is
@@ -204,4 +274,113 @@ variance_if_gcomp_multinom <- function(
   }
 
   vcov_by_class
+}
+
+
+#' Precompute the IPCW censoring cross-block for the multinomial sandwich
+#'
+#' @description
+#' Builds the intervention- and class-independent ingredients of the
+#' multinomial IPCW Channel-3 correction: the bread cross-block
+#' \eqn{A_{\beta,\gamma}} (indirect path), the censoring-model
+#' `prepare_model_if()` output, and the direct-path pieces (the censoring
+#' design \eqn{X_{\mathrm{cens}}} and the weight derivative
+#' \eqn{dw_i/d\gamma} on the outcome fit rows). All are reused across every
+#' outcome class and every intervention, so they are computed once and the
+#' per-class loop only assembles the total sensitivity
+#' \eqn{d\mu/d\gamma = A_{\beta,\gamma}^\top h - \partial\mu/\partial\gamma}
+#' and projects it through `apply_model_correction()`.
+#'
+#' @details
+#' The fitted multinomial-logit score for observation `i` is
+#' \eqn{s_i = w_{\mathrm{ext},i}\, w_i(\gamma)\, s_i^{(0)}}, where
+#' \eqn{s_i^{(0)} = (I(Y_i = l) - p_{l,i})_l \otimes X_i} is the unweighted
+#' stacked residual score (the rows of `prep$X_fit`) held fixed at
+#' \eqn{\hat\beta}, \eqn{w_{\mathrm{ext},i}} is the survey weight that does not
+#' depend on \eqn{\gamma} (`weights_pre_ipcw`, 1 when absent), and
+#' \eqn{w_i(\gamma)} is the stabilized IPCW weight from `make_ipcw_weight_fn()`.
+#' Only \eqn{w_i(\gamma)} varies with the censoring parameter, so
+#' \deqn{\bar\Phi(\gamma) = \frac{1}{n_{\mathrm{fit}}}\sum_i
+#'       w_{\mathrm{ext},i}\, w_i(\gamma)\, s_i^{(0)}, \qquad
+#'       A_{\beta,\gamma} = -\,\partial\bar\Phi/\partial\gamma}
+#' is a \eqn{((K-1)p) \times q} cross-block (numerically differentiated with
+#' `numDeriv::jacobian()`). At \eqn{\hat\gamma} the per-row scale
+#' \eqn{w_{\mathrm{ext},i} w_i(\hat\gamma)} equals the total fit weight
+#' `prep$r_score`, so \eqn{\bar\Phi(\hat\gamma)} is the vanishing MLE score --
+#' the closure is faithful to the fitted model by construction.
+#'
+#' @param fit A `causatr_fit` with `details$ipcw == TRUE` and a point censoring
+#'   model in `details$censoring_model`.
+#' @param prep Output of `prepare_model_if_multinom()` for the outcome model
+#'   (carries the stacked score `X_fit`, the prior weight `r_score`, the fit
+#'   indices `fit_idx`, and the total denominator `n_total`).
+#' @param target_idx Logical vector (length `n`) flagging the target-population
+#'   rows the marginal mean is averaged over (already NA-pruned by the caller).
+#'   The direct path is summed over the target rows with a positive IPCW weight.
+#'
+#' @return A named list with `A_beta_gamma` (the \eqn{((K-1)p) \times q}
+#'   indirect-path cross-block), `cens_prep` (the censoring-model
+#'   `prepare_model_if()` output, reused for every projection), and `direct`
+#'   (the shared `ipcw_direct_grad_setup()` output feeding `ipcw_direct_grad()`
+#'   for the per-class direct gradient).
+#'
+#' @seealso `compute_ipcw_if_correction()` for the scalar-outcome analogue,
+#'   `make_ipcw_weight_fn()` for the IPCW weight closure.
+#' @family variance
+#' @noRd
+multinom_ipcw_cross_setup <- function(fit, prep, target_idx) {
+  cens_model <- fit$details$censoring_model
+  n_total <- prep$n_total
+  fit_idx <- prep$fit_idx
+  n_fit <- nrow(prep$X_fit)
+
+  # Survey weight that does NOT vary with gamma. `weights_pre_ipcw` is the
+  # external weight stashed before IPCW composition (NULL when there are no
+  # survey weights), so the gamma-varying factor is exactly the IPCW weight.
+  w_ext <- fit$details$weights_pre_ipcw
+  w_ext_fit <- if (is.null(w_ext)) rep(1, n_fit) else w_ext[fit_idx]
+
+  # Rows of the stacked design ARE the unweighted per-obs multinomial score
+  # (residual tensor X_i), held fixed at beta_hat; the weight enters only as
+  # the scalar `w_ext_i * w_ipcw_i(gamma)` per row.
+  X_stacked <- prep$X_fit
+
+  # IPCW weight closure: gamma -> full-length stabilized weight vector.
+  ipcw_wfn <- make_ipcw_weight_fn(
+    cens_model,
+    n_total = n_total,
+    censoring_col = as.integer(fit$data[[fit$censoring]]),
+    stabilize = TRUE
+  )
+
+  # phi_bar(gamma): the weighted stacked score as a function of the censoring
+  # parameter, holding beta fixed. crossprod(X_stacked, scale) sums
+  # scale_i * X_stacked[i, ] over the fit rows, giving the ((K-1)*p) score.
+  phi_bar_cens <- function(gamma) {
+    w_ipcw_fit <- ipcw_wfn(gamma)[fit_idx]
+    as.numeric(crossprod(X_stacked, w_ext_fit * w_ipcw_fit)) / n_fit
+  }
+
+  gamma_hat <- cens_model$alpha_hat
+  # A_{beta,gamma} = -d phi_bar / d gamma (the M-estimation bread convention
+  # A = -E[d psi / d theta]; Stefanski & Boos 2002).
+  A_beta_gamma <- -numDeriv::jacobian(phi_bar_cens, x = gamma_hat)
+
+  cens_prep <- prepare_model_if(
+    cens_model$model,
+    which(cens_model$fit_rows),
+    n_total
+  )
+
+  # Direct-path ingredients (censoring design + dw_i/dgamma on the target rows
+  # that carry a positive weight, plus the weight total) are shared with the
+  # scalar gcomp IPCW path, so they come from the common helper. The per-class
+  # gradient is then `ipcw_direct_grad()` in the loop.
+  direct <- ipcw_direct_grad_setup(fit, fit_idx, target_idx)
+
+  list(
+    A_beta_gamma = A_beta_gamma,
+    cens_prep = cens_prep,
+    direct = direct
+  )
 }

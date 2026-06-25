@@ -1970,9 +1970,9 @@ percentile_contrast_override <- function(
 #' probability per class), so the returned `causatr_result` carries a `class`
 #' column on its `estimates` / `contrasts` tables and a per-class list of vcov
 #' blocks. Variance is the analytic per-class IF sandwich
-#' (`variance_if_gcomp_multinom()`) for the complete-case and external-weighted
-#' (survey) paths, or the bootstrap (`variance_bootstrap_multinom()`); the IPCW
-#' sandwich is still routed to the bootstrap via a classed gate.
+#' (`variance_if_gcomp_multinom()`) -- complete-case, external-weighted
+#' (survey), and IPCW (missing Y, with the stacked censoring cross-term) -- or
+#' the bootstrap (`variance_bootstrap_multinom()`).
 #'
 #' @param fit A `causatr_fit` with a multinomial outcome model.
 #' @param model The fitted `nnet::multinom` outcome model (`fit$model`).
@@ -1983,8 +1983,8 @@ percentile_contrast_override <- function(
 #' @param type Contrast type (`"difference"`, `"ratio"`, `"or"`).
 #' @param reference Character or `NULL`. Reference intervention.
 #' @param conf_level Numeric confidence level.
-#' @param ci_method `"sandwich"` (analytic per-class IF; complete-case and
-#'   external-weighted paths) or `"bootstrap"`.
+#' @param ci_method `"sandwich"` (analytic per-class IF; complete-case,
+#'   external-weighted, and IPCW paths) or `"bootstrap"`.
 #' @param n_boot Number of bootstrap replicates.
 #' @param est Estimand string.
 #' @param subset Quoted subset expression or `NULL`.
@@ -2041,22 +2041,6 @@ compute_contrast_multinom <- function(
       call = call
     )
   }
-  # The analytic sandwich is available for the complete-case and the
-  # external-weighted (survey) paths. IPCW still needs a stacked censoring
-  # cross-term and stays on the bootstrap until that slice lands. Note IPCW
-  # also populates `fit$details$weights` (the combined survey x IPCW weight),
-  # so the gate keys on the explicit `ipcw` flag, not on weight presence.
-  if (ci_method == "sandwich" && isTRUE(fit$details$ipcw)) {
-    rlang::abort(
-      c(
-        "Analytic sandwich variance for a categorical outcome is not yet available with IPCW.",
-        i = "Use `ci_method = \"bootstrap\"` for an IPCW multinomial g-computation."
-      ),
-      class = "causatr_categorical_outcome_sandwich",
-      call = call
-    )
-  }
-
   class_labels <- multinom_class_labels(model)
   k_class <- length(class_labels)
 
