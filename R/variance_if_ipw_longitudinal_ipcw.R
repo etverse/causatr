@@ -98,6 +98,28 @@ compute_ipw_ipcw_correction_longitudinal <- function(
   msm_res <- apply_model_correction(msm_prep, J)
   h_msm <- n_final * msm_res$h
 
+  # The MSM-score ingredients below (X_msm, r_msm, mu_eta_msm) live on the MSM's
+  # model.matrix rows, while `final_global_rows`/`other_w` index the n_final
+  # final-period fit rows; the per-row products in `phi_bar_cens` require the two
+  # to be the same length and aligned. They coincide for the supported `Y ~ 1`
+  # (and baseline-EM) MSM, where `model.frame()` drops nothing. Guard the
+  # invariant explicitly -- the same row-alignment contract the point IPW
+  # primitive enforces -- so any future MSM that drops rows fails loudly here
+  # rather than silently misaligning the censoring correction.
+  if (nrow(msm_prep$X_fit) != n_final) {
+    rlang::abort(
+      paste0(
+        "compute_ipw_ipcw_correction_longitudinal(): MSM model rows (",
+        nrow(msm_prep$X_fit),
+        ") != n_final (",
+        n_final,
+        "). The longitudinal IPW IPCW correction assumes the final-period MSM ",
+        "fits on every final-period row. Drop NA rows before the MSM is built."
+      ),
+      class = "causatr_variance_row_mismatch"
+    )
+  }
+
   beta_hat <- coef_clean(msm_model)
   X_msm <- msm_prep$X_fit
   fam <- msm_model$family
