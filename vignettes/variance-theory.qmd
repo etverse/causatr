@@ -2422,6 +2422,19 @@ Two off-diagonal blocks feed into the MSM score: $A_{\beta\gamma}$ (IPCW
 weights) and $A_{\beta\alpha}$ (propensity weights). Each generates an
 independent Channel 2 correction.
 
+::: {.callout-note}
+## Implementation note (point IPW + IPCW)
+
+The block structure above assumes the propensity is estimated *without* the
+censoring weight, so $\gamma$ reaches the MSM only through $A_{\beta\gamma}$. The
+current point IPW implementation instead fits the propensity IPCW-weighted on the
+uncensored rows, which adds a $\gamma \to \alpha$ coupling the analytic sandwich
+does not yet carry — the point IPW + IPCW SE is therefore off by ~3–7% per arm
+(the point estimate is consistent). The standardized estimator (unweighted
+propensity, matching the longitudinal path of §6.5) is a scoped follow-up. For
+correct point IPW + IPCW standard errors today, use `ci_method = "bootstrap"`.
+:::
+
 ### 6.5 Longitudinal IPCW: the per-period censoring block
 
 For longitudinal treatments the censoring model is fit per period, with

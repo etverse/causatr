@@ -205,6 +205,21 @@ Project-specific rules that override / extend the etverse-wide rules at
   only through the MSM. Validated to ~1e-13/~1e-4 vs `delicatessen`
   (`longitudinal_ipw_ipcw_delicatessen.py`) + its known-weights companion + MC
   calibration + bootstrap.
+- **Point IPW + IPCW has a KNOWN, DEFERRED sandwich bug — do not "rediscover" it
+  as new, and do not patch it ad hoc.** Point IPW (and point AIPW) still fit the
+  propensity IPCW-weighted on uncensored rows (`fit_ipw()` passes
+  `weights[fit_rows]`, folded IPCW, to the propensity). For point IPW this makes
+  the analytic sandwich omit the γ→α cross-term → SE off by **3–7%** per arm
+  (delicatessen-verified; point estimate is consistent). The fix is **scoped and
+  deferred** to a focused `implement-feature` effort: standardize the propensity
+  to unweighted-on-all-rows + a gated stacked-EE sandwich (it is deeper than the
+  IF because `make_weight_fn()` / the point contrast are row-coupled to the
+  uncensored-fit propensity), then tighten the loose NHEFS IPCW test
+  (`test-delicatessen-nhefs.R`, tol 0.1). See `PHASE_14_IPCW.md` "Post-shipment
+  audit". Point AIPW + IPCW is non-standard but DR-orthogonal (SE acceptable, do
+  not flag). Until the deferred fix lands, do NOT tighten the NHEFS IPCW
+  tolerance and do NOT bolt a γ→α term onto the point sandwich without the
+  estimator standardization.
 - **Longitudinal AIPW rejects a covariate missing WITHIN an observed
   person-period (classed, by design).** `ice_aipw_iterate()` aborts with
   `causatr_longitudinal_aipw_missing_covariate` when a per-period propensity

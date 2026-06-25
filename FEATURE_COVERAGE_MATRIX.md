@@ -525,6 +525,9 @@ remain in this matrix.
 | Built-in IPCW: longitudinal AIPW sandwich (γ block) | long AIPW (orthogonal cross-term) | ✅ | test-aipw-longitudinal-ipcw.R |
 | Built-in IPCW: variance regression | sandwich + bootstrap (14e) | ✅ | test-ipcw-variance.R |
 | Built-in IPCW: diagnose integration | point + longitudinal (14f) | ✅ | test-diagnose.R |
+| Built-in IPCW: longitudinal IPW/AIPW/ICE sandwich audit | γ→β (IPW, fixed PR #16), γ-block (AIPW), orthogonal (ICE) | ✅ | test-longitudinal-ipw-ipcw.R, test-aipw-longitudinal-ipcw.R |
+
+**Known limitation — point IPW + IPCW sandwich (deferred, see PHASE_14 audit).** Built-in IPCW fits the per-period/point propensity IPCW-weighted (folded into `weights`), which is non-standard (the textbook construction estimates treatment and censoring models separately and multiplies the weights). Longitudinal IPW was fixed in PR #16. **Point IPW + IPCW** still has a confirmed analytic-sandwich error of **3–7%** per arm (the propensity depends on γ, so the sandwich omits the γ→α cross-term; delicatessen-verified). The point estimate is consistent. Fix (standardize the propensity to unweighted-on-all-rows + a gated stacked-EE sandwich, tighten the loose NHEFS test) is scoped as a focused `implement-feature` effort. Point AIPW + IPCW is non-standard but DR-orthogonal (SE acceptable); SNM + IPCW (18g) carries a censoring block but is not oracle-validated.
 
 ---
 
