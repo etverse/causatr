@@ -687,7 +687,7 @@ window.Quarto = {
   <li><a href="#the-block-triangular-bread-1" id="toc-the-block-triangular-bread-1" class="nav-link" data-scroll-target="#the-block-triangular-bread-1">6.2 The block-triangular bread</a></li>
   <li><a href="#the-channel-2-correction-for-censoring" id="toc-the-channel-2-correction-for-censoring" class="nav-link" data-scroll-target="#the-channel-2-correction-for-censoring">6.3 The Channel 2 correction for censoring</a></li>
   <li><a href="#point-treatment-ipw-with-ipcw" id="toc-point-treatment-ipw-with-ipcw" class="nav-link" data-scroll-target="#point-treatment-ipw-with-ipcw">6.4 Point-treatment IPW with IPCW</a></li>
-  <li><a href="#longitudinal-ipcw-the-conservative-approximation" id="toc-longitudinal-ipcw-the-conservative-approximation" class="nav-link" data-scroll-target="#longitudinal-ipcw-the-conservative-approximation">6.5 Longitudinal IPCW: the conservative approximation</a></li>
+  <li><a href="#longitudinal-ipcw-the-per-period-censoring-block" id="toc-longitudinal-ipcw-the-per-period-censoring-block" class="nav-link" data-scroll-target="#longitudinal-ipcw-the-per-period-censoring-block">6.5 Longitudinal IPCW: the per-period censoring block</a></li>
   </ul></li>
   <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary">7. Summary</a></li>
   <li><a href="#numeric-variance-tiers-custom-model_fn" id="toc-numeric-variance-tiers-custom-model_fn" class="nav-link" data-scroll-target="#numeric-variance-tiers-custom-model_fn">8. Numeric variance tiers (custom <code>model_fn</code>)</a>
@@ -3422,14 +3422,27 @@ A_{\beta\gamma} &amp; A_{\beta\alpha} &amp; A_{\beta\beta} &amp; 0 \\
 \end{pmatrix}
 \]</span></p>
 <p>Two off-diagonal blocks feed into the MSM score: <span class="math inline">\(A_{\beta\gamma}\)</span> (IPCW weights) and <span class="math inline">\(A_{\beta\alpha}\)</span> (propensity weights). Each generates an independent Channel 2 correction.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Implementation note (point IPW + IPCW)
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>The block structure above assumes the propensity is estimated <em>without</em> the censoring weight, so <span class="math inline">\(\gamma\)</span> reaches the MSM only through <span class="math inline">\(A_{\beta\gamma}\)</span>. The current point IPW implementation instead fits the propensity IPCW-weighted on the uncensored rows, which adds a <span class="math inline">\(\gamma \to \alpha\)</span> coupling the analytic sandwich does not yet carry — the point IPW + IPCW SE is therefore off by ~3–7% per arm (the point estimate is consistent). The standardized estimator (unweighted propensity, matching the longitudinal path of §6.5) is a scoped follow-up. For correct point IPW + IPCW standard errors today, use <code>ci_method = "bootstrap"</code>.</p>
+</div>
+</div>
 </section>
-<section id="longitudinal-ipcw-the-conservative-approximation" class="level3">
-<h3 class="anchored" data-anchor-id="longitudinal-ipcw-the-conservative-approximation">6.5 Longitudinal IPCW: the conservative approximation</h3>
-<p>For longitudinal treatments with per-period censoring models <span class="math inline">\(\gamma_1,
-\ldots, \gamma_K\)</span>, the full correction requires cross-derivatives <span class="math inline">\(A_{\beta_k, \gamma_j}\)</span> for all <span class="math inline">\(k \geq j\)</span>, projected through the ICE cascade’s accumulated sensitivity <span class="math inline">\(d_k\)</span>. This is technically supported by stacked M-estimation theory <span class="citation" data-cites="stefanski2002mestimation tsiatis2006semiparametric">(<a href="#ref-stefanski2002mestimation" role="doc-biblioref">Stefanski and Boos 2002</a>; <a href="#ref-tsiatis2006semiparametric" role="doc-biblioref">Tsiatis 2006</a>, Ch. 10)</span>, but the cascade’s <span class="math inline">\(d_k\)</span> vectors are built incrementally during the backward loop and cannot be evaluated inside a <code>numDeriv</code> closure.</p>
-<p>causatr currently <strong>omits</strong> the longitudinal censoring Channel 2 correction. This makes the sandwich SE conservative (larger than the true asymptotic SE). Empirically the ratio is <span class="math inline">\(\approx 0.94\)</span> (sandwich/bootstrap), confirming the omission is small.</p>
-<p><strong>Recommendation:</strong> For longitudinal IPCW, use <code>ci_method = "bootstrap"</code> for the tightest CIs. The sandwich remains valid for coverage guarantees.</p>
-<p>No existing package (<code>lmtp</code>, <code>ltmle</code>, <code>gfoRmula</code>) implements the longitudinal censoring Channel 2 correction — all use bootstrap variance in this setting.</p>
+<section id="longitudinal-ipcw-the-per-period-censoring-block" class="level3">
+<h3 class="anchored" data-anchor-id="longitudinal-ipcw-the-per-period-censoring-block">6.5 Longitudinal IPCW: the per-period censoring block</h3>
+<p>For longitudinal treatments the censoring model is fit per period, with coefficients <span class="math inline">\(\gamma_1, \ldots, \gamma_K\)</span>. Whether — and how — that block enters the sandwich depends on the estimator.</p>
+<p><strong>Longitudinal IPW.</strong> The final-period Hájek MSM is weighted by the cumulative IPCW weight, so the censoring block contributes a single cross-derivative <span class="math inline">\(A_{\beta\gamma}\)</span> exactly as in the point IPW case (Section 6.4), with the per-period censoring scores stacked. causatr propagates it (<code>compute_ipw_ipcw_correction_longitudinal()</code>): the MSM-score sensitivity is formed against the stacked <span class="math inline">\(\gamma\)</span> via <code>numDeriv::jacobian()</code>, then projected through each period’s censoring-model influence function. This term is <strong>load-bearing</strong> — when censoring depends on treatment it can move the treated-arm SE by several percent (recovering the <span class="citation" data-cites="robins1994aipw">Robins et al. (<a href="#ref-robins1994aipw" role="doc-biblioref">1994</a>)</span> efficiency gain). Crucially, the per-period propensity models are estimated <em>unweighted</em> (the IPCW weight reweights the MSM only — the standard separate-then-multiply construction, <span class="citation" data-cites="hernan_whatif">Hernán and Robins (<a href="#ref-hernan_whatif" role="doc-biblioref">2025</a>)</span> Ch. 12.6 &amp; 17), so <span class="math inline">\(\gamma\)</span> reaches <span class="math inline">\(\mu\)</span> only through the MSM (a <span class="math inline">\(\gamma \to \beta\)</span> path); there is no <span class="math inline">\(\gamma \to \alpha\)</span> term. Validated to <span class="math inline">\(\sim 10^{-4}\)</span> against a <code>delicatessen</code> M-estimation stack.</p>
+<p><strong>Longitudinal AIPW.</strong> The stacked-EE sandwich (Section 5) carries the per-period <span class="math inline">\(\gamma\)</span> block in <span class="math inline">\(\theta = (\alpha, \beta, \gamma, \mu)\)</span>, threading the IPCW weight into each outcome score so the numerical bread captures <span class="math inline">\(\gamma \to \beta \to \mu\)</span> mechanically. By the double-robust orthogonality of the augmented estimator this cross-term is <strong>near-zero</strong> (it moves the marginal mean SE by <span class="math inline">\(\sim 0.03\%\)</span>): the block is wired and carried for an exactly correct sandwich, not to fix a sizeable bias.</p>
+<p><strong>Longitudinal ICE (g-computation).</strong> The pooled-ICE sandwich does <em>not</em> yet carry the censoring Channel 2 correction: the full term requires cross-derivatives <span class="math inline">\(A_{\beta_k, \gamma_j}\)</span> projected through the cascade’s incrementally-built sensitivity <span class="math inline">\(d_k\)</span>, which is not available inside a single <code>numDeriv</code> closure. The ICE sandwich is therefore conservative under IPCW (larger than the true asymptotic SE). <strong>Recommendation:</strong> for longitudinal ICE with IPCW use <code>ci_method = "bootstrap"</code> for the tightest CIs; the sandwich remains valid for coverage guarantees.</p>
+<p>No existing package (<code>lmtp</code>, <code>ltmle</code>, <code>gfoRmula</code>) implements an analytic longitudinal censoring Channel 2 correction — all use bootstrap variance in this setting.</p>
 </section>
 </section>
 <section id="summary" class="level2">
@@ -6475,166 +6488,200 @@ Zivich, Paul N., Rachael K. Ross, Bonnie E. Shook-Sa, Stephen R. Cole, and Jessi
 <span id="cb15-2470"><a href="#cb15-2470" aria-hidden="true" tabindex="-1"></a>weights) and $A_{\beta\alpha}$ (propensity weights). Each generates an</span>
 <span id="cb15-2471"><a href="#cb15-2471" aria-hidden="true" tabindex="-1"></a>independent Channel 2 correction.</span>
 <span id="cb15-2472"><a href="#cb15-2472" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-2473"><a href="#cb15-2473" aria-hidden="true" tabindex="-1"></a><span class="fu">### 6.5 Longitudinal IPCW: the conservative approximation</span></span>
-<span id="cb15-2474"><a href="#cb15-2474" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-2475"><a href="#cb15-2475" aria-hidden="true" tabindex="-1"></a>For longitudinal treatments with per-period censoring models $\gamma_1,</span>
-<span id="cb15-2476"><a href="#cb15-2476" aria-hidden="true" tabindex="-1"></a>\ldots, \gamma_K$, the full correction requires cross-derivatives</span>
-<span id="cb15-2477"><a href="#cb15-2477" aria-hidden="true" tabindex="-1"></a>$A_{\beta_k, \gamma_j}$ for all $k \geq j$, projected through the ICE</span>
-<span id="cb15-2478"><a href="#cb15-2478" aria-hidden="true" tabindex="-1"></a>cascade's accumulated sensitivity $d_k$. This is technically supported by</span>
-<span id="cb15-2479"><a href="#cb15-2479" aria-hidden="true" tabindex="-1"></a>stacked M-estimation theory <span class="co">[</span><span class="ot">@stefanski2002mestimation; @tsiatis2006semiparametric, Ch. 10</span><span class="co">]</span>,</span>
-<span id="cb15-2480"><a href="#cb15-2480" aria-hidden="true" tabindex="-1"></a>but the cascade's $d_k$ vectors are built incrementally during the</span>
-<span id="cb15-2481"><a href="#cb15-2481" aria-hidden="true" tabindex="-1"></a>backward loop and cannot be evaluated inside a <span class="in">`numDeriv`</span> closure.</span>
-<span id="cb15-2482"><a href="#cb15-2482" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-2483"><a href="#cb15-2483" aria-hidden="true" tabindex="-1"></a>causatr currently **omits** the longitudinal censoring Channel 2 correction.</span>
-<span id="cb15-2484"><a href="#cb15-2484" aria-hidden="true" tabindex="-1"></a>This makes the sandwich SE conservative (larger than the true asymptotic SE).</span>
-<span id="cb15-2485"><a href="#cb15-2485" aria-hidden="true" tabindex="-1"></a>Empirically the ratio is $\approx 0.94$ (sandwich/bootstrap), confirming the</span>
-<span id="cb15-2486"><a href="#cb15-2486" aria-hidden="true" tabindex="-1"></a>omission is small.</span>
+<span id="cb15-2473"><a href="#cb15-2473" aria-hidden="true" tabindex="-1"></a>::: {.callout-note}</span>
+<span id="cb15-2474"><a href="#cb15-2474" aria-hidden="true" tabindex="-1"></a><span class="fu">## Implementation note (point IPW + IPCW)</span></span>
+<span id="cb15-2475"><a href="#cb15-2475" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-2476"><a href="#cb15-2476" aria-hidden="true" tabindex="-1"></a>The block structure above assumes the propensity is estimated *without* the</span>
+<span id="cb15-2477"><a href="#cb15-2477" aria-hidden="true" tabindex="-1"></a>censoring weight, so $\gamma$ reaches the MSM only through $A_{\beta\gamma}$. The</span>
+<span id="cb15-2478"><a href="#cb15-2478" aria-hidden="true" tabindex="-1"></a>current point IPW implementation instead fits the propensity IPCW-weighted on the</span>
+<span id="cb15-2479"><a href="#cb15-2479" aria-hidden="true" tabindex="-1"></a>uncensored rows, which adds a $\gamma \to \alpha$ coupling the analytic sandwich</span>
+<span id="cb15-2480"><a href="#cb15-2480" aria-hidden="true" tabindex="-1"></a>does not yet carry — the point IPW + IPCW SE is therefore off by ~3–7% per arm</span>
+<span id="cb15-2481"><a href="#cb15-2481" aria-hidden="true" tabindex="-1"></a>(the point estimate is consistent). The standardized estimator (unweighted</span>
+<span id="cb15-2482"><a href="#cb15-2482" aria-hidden="true" tabindex="-1"></a>propensity, matching the longitudinal path of §6.5) is a scoped follow-up. For</span>
+<span id="cb15-2483"><a href="#cb15-2483" aria-hidden="true" tabindex="-1"></a>correct point IPW + IPCW standard errors today, use <span class="in">`ci_method = "bootstrap"`</span>.</span>
+<span id="cb15-2484"><a href="#cb15-2484" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb15-2485"><a href="#cb15-2485" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-2486"><a href="#cb15-2486" aria-hidden="true" tabindex="-1"></a><span class="fu">### 6.5 Longitudinal IPCW: the per-period censoring block</span></span>
 <span id="cb15-2487"><a href="#cb15-2487" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-2488"><a href="#cb15-2488" aria-hidden="true" tabindex="-1"></a>**Recommendation:** For longitudinal IPCW, use <span class="in">`ci_method = "bootstrap"`</span> for</span>
-<span id="cb15-2489"><a href="#cb15-2489" aria-hidden="true" tabindex="-1"></a>the tightest CIs. The sandwich remains valid for coverage guarantees.</span>
-<span id="cb15-2490"><a href="#cb15-2490" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-2491"><a href="#cb15-2491" aria-hidden="true" tabindex="-1"></a>No existing package (<span class="in">`lmtp`</span>, <span class="in">`ltmle`</span>, <span class="in">`gfoRmula`</span>) implements the longitudinal</span>
-<span id="cb15-2492"><a href="#cb15-2492" aria-hidden="true" tabindex="-1"></a>censoring Channel 2 correction — all use bootstrap variance in this setting.</span>
-<span id="cb15-2493"><a href="#cb15-2493" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-2494"><a href="#cb15-2494" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-2495"><a href="#cb15-2495" aria-hidden="true" tabindex="-1"></a><span class="fu">## 7. Summary</span></span>
-<span id="cb15-2496"><a href="#cb15-2496" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-2497"><a href="#cb15-2497" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**One method**: the influence function. For any causal estimand $\hat\mu$,</span>
-<span id="cb15-2498"><a href="#cb15-2498" aria-hidden="true" tabindex="-1"></a>   write down the complete estimating equations (nuisance models + target</span>
-<span id="cb15-2499"><a href="#cb15-2499" aria-hidden="true" tabindex="-1"></a>   estimand), compute each individual's $\text{IF}_i$, and take</span>
-<span id="cb15-2500"><a href="#cb15-2500" aria-hidden="true" tabindex="-1"></a>   $\widehat{\text{Var}}(\hat\mu) = \frac{1}{n^2}\sum_i \text{IF}_i^2$.</span>
-<span id="cb15-2501"><a href="#cb15-2501" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-2502"><a href="#cb15-2502" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**The IF is the sandwich**: the IF formula is the sandwich</span>
-<span id="cb15-2503"><a href="#cb15-2503" aria-hidden="true" tabindex="-1"></a>   $\color{#3182BD}{A^{-1}} \color{#E6550D}{B} \color{#3182BD}{(A^{-1})^T}$</span>
-<span id="cb15-2504"><a href="#cb15-2504" aria-hidden="true" tabindex="-1"></a>   applied to the stacked estimating equations, with the block-triangular</span>
-<span id="cb15-2505"><a href="#cb15-2505" aria-hidden="true" tabindex="-1"></a>   bread inverted by back-substitution. The bread, meat, and scores are all</span>
-<span id="cb15-2506"><a href="#cb15-2506" aria-hidden="true" tabindex="-1"></a>   present — the IF just computes $A^{-1}\psi_i$ per individual instead of</span>
-<span id="cb15-2507"><a href="#cb15-2507" aria-hidden="true" tabindex="-1"></a>   forming the full matrices.</span>
-<span id="cb15-2508"><a href="#cb15-2508" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-2509"><a href="#cb15-2509" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**Two channels**: the IF always decomposes into a **direct term**</span>
-<span id="cb15-2510"><a href="#cb15-2510" aria-hidden="true" tabindex="-1"></a>   (Channel 1: covariate sampling) and **model corrections** (Channel 2:</span>
-<span id="cb15-2511"><a href="#cb15-2511" aria-hidden="true" tabindex="-1"></a>   one per nuisance model). What varies across methods is only which models</span>
-<span id="cb15-2512"><a href="#cb15-2512" aria-hidden="true" tabindex="-1"></a>   contribute to Channel 2.</span>
-<span id="cb15-2513"><a href="#cb15-2513" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-2514"><a href="#cb15-2514" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>**G-computation**: one model correction (outcome model). Channel 1 nonzero.</span>
-<span id="cb15-2515"><a href="#cb15-2515" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-2516"><a href="#cb15-2516" aria-hidden="true" tabindex="-1"></a><span class="ss">5. </span>**IPW**: two model corrections (MSM + propensity). The propensity</span>
-<span id="cb15-2517"><a href="#cb15-2517" aria-hidden="true" tabindex="-1"></a>   correction captures weight estimation uncertainty via the cross-derivative</span>
-<span id="cb15-2518"><a href="#cb15-2518" aria-hidden="true" tabindex="-1"></a>   $A_{\beta\alpha}$.</span>
-<span id="cb15-2519"><a href="#cb15-2519" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-2520"><a href="#cb15-2520" aria-hidden="true" tabindex="-1"></a><span class="ss">6. </span>**Matching**: one model correction (outcome model), same as g-comp.</span>
-<span id="cb15-2521"><a href="#cb15-2521" aria-hidden="true" tabindex="-1"></a>   Aggregation is cluster-robust (sum IFs within matched subclasses).</span>
-<span id="cb15-2522"><a href="#cb15-2522" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-2523"><a href="#cb15-2523" aria-hidden="true" tabindex="-1"></a><span class="ss">7. </span>**User-supplied cluster** (<span class="in">`contrast(cluster = ...)`</span>): the same</span>
-<span id="cb15-2524"><a href="#cb15-2524" aria-hidden="true" tabindex="-1"></a>   sum-within-cluster-then-square aggregation matching uses internally is</span>
-<span id="cb15-2525"><a href="#cb15-2525" aria-hidden="true" tabindex="-1"></a>   exposed directly on gcomp, IPW, and ICE. Numerically equivalent to</span>
-<span id="cb15-2526"><a href="#cb15-2526" aria-hidden="true" tabindex="-1"></a>   <span class="in">`sandwich::vcovCL(type = "HC0")`</span> on the final predict-then-average step;</span>
-<span id="cb15-2527"><a href="#cb15-2527" aria-hidden="true" tabindex="-1"></a>   rejected on matching because subclass clustering is already structural.</span>
+<span id="cb15-2488"><a href="#cb15-2488" aria-hidden="true" tabindex="-1"></a>For longitudinal treatments the censoring model is fit per period, with</span>
+<span id="cb15-2489"><a href="#cb15-2489" aria-hidden="true" tabindex="-1"></a>coefficients $\gamma_1, \ldots, \gamma_K$. Whether — and how — that block</span>
+<span id="cb15-2490"><a href="#cb15-2490" aria-hidden="true" tabindex="-1"></a>enters the sandwich depends on the estimator.</span>
+<span id="cb15-2491"><a href="#cb15-2491" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-2492"><a href="#cb15-2492" aria-hidden="true" tabindex="-1"></a>**Longitudinal IPW.** The final-period Hájek MSM is weighted by the cumulative</span>
+<span id="cb15-2493"><a href="#cb15-2493" aria-hidden="true" tabindex="-1"></a>IPCW weight, so the censoring block contributes a single cross-derivative</span>
+<span id="cb15-2494"><a href="#cb15-2494" aria-hidden="true" tabindex="-1"></a>$A_{\beta\gamma}$ exactly as in the point IPW case (Section 6.4), with the</span>
+<span id="cb15-2495"><a href="#cb15-2495" aria-hidden="true" tabindex="-1"></a>per-period censoring scores stacked. causatr propagates it</span>
+<span id="cb15-2496"><a href="#cb15-2496" aria-hidden="true" tabindex="-1"></a>(<span class="in">`compute_ipw_ipcw_correction_longitudinal()`</span>): the MSM-score sensitivity is</span>
+<span id="cb15-2497"><a href="#cb15-2497" aria-hidden="true" tabindex="-1"></a>formed against the stacked $\gamma$ via <span class="in">`numDeriv::jacobian()`</span>, then projected</span>
+<span id="cb15-2498"><a href="#cb15-2498" aria-hidden="true" tabindex="-1"></a>through each period's censoring-model influence function. This term is</span>
+<span id="cb15-2499"><a href="#cb15-2499" aria-hidden="true" tabindex="-1"></a>**load-bearing** — when censoring depends on treatment it can move the</span>
+<span id="cb15-2500"><a href="#cb15-2500" aria-hidden="true" tabindex="-1"></a>treated-arm SE by several percent (recovering the @robins1994aipw efficiency</span>
+<span id="cb15-2501"><a href="#cb15-2501" aria-hidden="true" tabindex="-1"></a>gain). Crucially, the per-period propensity models are estimated *unweighted*</span>
+<span id="cb15-2502"><a href="#cb15-2502" aria-hidden="true" tabindex="-1"></a>(the IPCW weight reweights the MSM only — the standard separate-then-multiply</span>
+<span id="cb15-2503"><a href="#cb15-2503" aria-hidden="true" tabindex="-1"></a>construction, @hernan_whatif Ch. 12.6 &amp; 17), so $\gamma$ reaches $\mu$ only</span>
+<span id="cb15-2504"><a href="#cb15-2504" aria-hidden="true" tabindex="-1"></a>through the MSM (a $\gamma \to \beta$ path); there is no $\gamma \to \alpha$</span>
+<span id="cb15-2505"><a href="#cb15-2505" aria-hidden="true" tabindex="-1"></a>term. Validated to $\sim 10^{-4}$ against a <span class="in">`delicatessen`</span> M-estimation stack.</span>
+<span id="cb15-2506"><a href="#cb15-2506" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-2507"><a href="#cb15-2507" aria-hidden="true" tabindex="-1"></a>**Longitudinal AIPW.** The stacked-EE sandwich (Section 5) carries the</span>
+<span id="cb15-2508"><a href="#cb15-2508" aria-hidden="true" tabindex="-1"></a>per-period $\gamma$ block in $\theta = (\alpha, \beta, \gamma, \mu)$, threading</span>
+<span id="cb15-2509"><a href="#cb15-2509" aria-hidden="true" tabindex="-1"></a>the IPCW weight into each outcome score so the numerical bread captures</span>
+<span id="cb15-2510"><a href="#cb15-2510" aria-hidden="true" tabindex="-1"></a>$\gamma \to \beta \to \mu$ mechanically. By the double-robust orthogonality of</span>
+<span id="cb15-2511"><a href="#cb15-2511" aria-hidden="true" tabindex="-1"></a>the augmented estimator this cross-term is **near-zero** (it moves the marginal</span>
+<span id="cb15-2512"><a href="#cb15-2512" aria-hidden="true" tabindex="-1"></a>mean SE by $\sim 0.03\%$): the block is wired and carried for an exactly correct</span>
+<span id="cb15-2513"><a href="#cb15-2513" aria-hidden="true" tabindex="-1"></a>sandwich, not to fix a sizeable bias.</span>
+<span id="cb15-2514"><a href="#cb15-2514" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-2515"><a href="#cb15-2515" aria-hidden="true" tabindex="-1"></a>**Longitudinal ICE (g-computation).** The pooled-ICE sandwich does *not* yet</span>
+<span id="cb15-2516"><a href="#cb15-2516" aria-hidden="true" tabindex="-1"></a>carry the censoring Channel 2 correction: the full term requires</span>
+<span id="cb15-2517"><a href="#cb15-2517" aria-hidden="true" tabindex="-1"></a>cross-derivatives $A_{\beta_k, \gamma_j}$ projected through the cascade's</span>
+<span id="cb15-2518"><a href="#cb15-2518" aria-hidden="true" tabindex="-1"></a>incrementally-built sensitivity $d_k$, which is not available inside a single</span>
+<span id="cb15-2519"><a href="#cb15-2519" aria-hidden="true" tabindex="-1"></a><span class="in">`numDeriv`</span> closure. The ICE sandwich is therefore conservative under IPCW</span>
+<span id="cb15-2520"><a href="#cb15-2520" aria-hidden="true" tabindex="-1"></a>(larger than the true asymptotic SE). **Recommendation:** for longitudinal ICE</span>
+<span id="cb15-2521"><a href="#cb15-2521" aria-hidden="true" tabindex="-1"></a>with IPCW use <span class="in">`ci_method = "bootstrap"`</span> for the tightest CIs; the sandwich</span>
+<span id="cb15-2522"><a href="#cb15-2522" aria-hidden="true" tabindex="-1"></a>remains valid for coverage guarantees.</span>
+<span id="cb15-2523"><a href="#cb15-2523" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-2524"><a href="#cb15-2524" aria-hidden="true" tabindex="-1"></a>No existing package (<span class="in">`lmtp`</span>, <span class="in">`ltmle`</span>, <span class="in">`gfoRmula`</span>) implements an analytic</span>
+<span id="cb15-2525"><a href="#cb15-2525" aria-hidden="true" tabindex="-1"></a>longitudinal censoring Channel 2 correction — all use bootstrap variance in</span>
+<span id="cb15-2526"><a href="#cb15-2526" aria-hidden="true" tabindex="-1"></a>this setting.</span>
+<span id="cb15-2527"><a href="#cb15-2527" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb15-2528"><a href="#cb15-2528" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-2529"><a href="#cb15-2529" aria-hidden="true" tabindex="-1"></a><span class="ss">8. </span>**Chained estimators** (ICE): $K<span class="sc">\!</span>+<span class="sc">\!</span>1$ model corrections computed by</span>
-<span id="cb15-2530"><a href="#cb15-2530" aria-hidden="true" tabindex="-1"></a>   backward recursion of sensitivities.</span>
-<span id="cb15-2531"><a href="#cb15-2531" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-2532"><a href="#cb15-2532" aria-hidden="true" tabindex="-1"></a><span class="ss">9. </span>**IPCW** adds a censoring-model block to the stacked equations. The</span>
-<span id="cb15-2533"><a href="#cb15-2533" aria-hidden="true" tabindex="-1"></a>   censoring Channel 2 correction **reduces** variance by accounting for</span>
-<span id="cb15-2534"><a href="#cb15-2534" aria-hidden="true" tabindex="-1"></a>   weight estimation uncertainty. For longitudinal IPCW, the correction is</span>
-<span id="cb15-2535"><a href="#cb15-2535" aria-hidden="true" tabindex="-1"></a>   omitted (conservative); use bootstrap for tighter CIs.</span>
-<span id="cb15-2536"><a href="#cb15-2536" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-2537"><a href="#cb15-2537" aria-hidden="true" tabindex="-1"></a><span class="ss">10. </span>**The delta method** ($\color{#31A354}{J} V_\beta</span>
-<span id="cb15-2538"><a href="#cb15-2538" aria-hidden="true" tabindex="-1"></a>    \color{#31A354}{J^T}$) is a shortcut that captures Channel 2 only. It is</span>
-<span id="cb15-2539"><a href="#cb15-2539" aria-hidden="true" tabindex="-1"></a>    exact when Channel 1 = 0 (constant predictions), but underestimates</span>
-<span id="cb15-2540"><a href="#cb15-2540" aria-hidden="true" tabindex="-1"></a>    otherwise. The full IF avoids this limitation.</span>
-<span id="cb15-2541"><a href="#cb15-2541" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-2529"><a href="#cb15-2529" aria-hidden="true" tabindex="-1"></a><span class="fu">## 7. Summary</span></span>
+<span id="cb15-2530"><a href="#cb15-2530" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-2531"><a href="#cb15-2531" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**One method**: the influence function. For any causal estimand $\hat\mu$,</span>
+<span id="cb15-2532"><a href="#cb15-2532" aria-hidden="true" tabindex="-1"></a>   write down the complete estimating equations (nuisance models + target</span>
+<span id="cb15-2533"><a href="#cb15-2533" aria-hidden="true" tabindex="-1"></a>   estimand), compute each individual's $\text{IF}_i$, and take</span>
+<span id="cb15-2534"><a href="#cb15-2534" aria-hidden="true" tabindex="-1"></a>   $\widehat{\text{Var}}(\hat\mu) = \frac{1}{n^2}\sum_i \text{IF}_i^2$.</span>
+<span id="cb15-2535"><a href="#cb15-2535" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-2536"><a href="#cb15-2536" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**The IF is the sandwich**: the IF formula is the sandwich</span>
+<span id="cb15-2537"><a href="#cb15-2537" aria-hidden="true" tabindex="-1"></a>   $\color{#3182BD}{A^{-1}} \color{#E6550D}{B} \color{#3182BD}{(A^{-1})^T}$</span>
+<span id="cb15-2538"><a href="#cb15-2538" aria-hidden="true" tabindex="-1"></a>   applied to the stacked estimating equations, with the block-triangular</span>
+<span id="cb15-2539"><a href="#cb15-2539" aria-hidden="true" tabindex="-1"></a>   bread inverted by back-substitution. The bread, meat, and scores are all</span>
+<span id="cb15-2540"><a href="#cb15-2540" aria-hidden="true" tabindex="-1"></a>   present — the IF just computes $A^{-1}\psi_i$ per individual instead of</span>
+<span id="cb15-2541"><a href="#cb15-2541" aria-hidden="true" tabindex="-1"></a>   forming the full matrices.</span>
 <span id="cb15-2542"><a href="#cb15-2542" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-2543"><a href="#cb15-2543" aria-hidden="true" tabindex="-1"></a><span class="fu">## 8. Numeric variance tiers (custom `model_fn`)</span></span>
-<span id="cb15-2544"><a href="#cb15-2544" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-2545"><a href="#cb15-2545" aria-hidden="true" tabindex="-1"></a>The analytic IF engine in <span class="in">`variance_if()`</span> requires access to the model's</span>
-<span id="cb15-2546"><a href="#cb15-2546" aria-hidden="true" tabindex="-1"></a>score residuals and bread matrix. Standard GLMs (<span class="in">`stats::glm`</span>) and GAMs</span>
-<span id="cb15-2547"><a href="#cb15-2547" aria-hidden="true" tabindex="-1"></a>(<span class="in">`mgcv::gam`</span>) expose these via <span class="in">`family$mu.eta`</span> / <span class="in">`family$variance`</span> and</span>
-<span id="cb15-2548"><a href="#cb15-2548" aria-hidden="true" tabindex="-1"></a><span class="in">`$Vp`</span>, respectively. But users can pass any fitting function via</span>
-<span id="cb15-2549"><a href="#cb15-2549" aria-hidden="true" tabindex="-1"></a><span class="in">`model_fn =`</span> (e.g. <span class="in">`MASS::glm.nb`</span>, <span class="in">`betareg::betareg`</span>), and those</span>
-<span id="cb15-2550"><a href="#cb15-2550" aria-hidden="true" tabindex="-1"></a>models may not expose the standard GLM internals.</span>
-<span id="cb15-2551"><a href="#cb15-2551" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-2552"><a href="#cb15-2552" aria-hidden="true" tabindex="-1"></a>causatr handles this with a two-tier numeric fallback (<span class="in">`variance_if_numeric()`</span>):</span>
+<span id="cb15-2543"><a href="#cb15-2543" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**Two channels**: the IF always decomposes into a **direct term**</span>
+<span id="cb15-2544"><a href="#cb15-2544" aria-hidden="true" tabindex="-1"></a>   (Channel 1: covariate sampling) and **model corrections** (Channel 2:</span>
+<span id="cb15-2545"><a href="#cb15-2545" aria-hidden="true" tabindex="-1"></a>   one per nuisance model). What varies across methods is only which models</span>
+<span id="cb15-2546"><a href="#cb15-2546" aria-hidden="true" tabindex="-1"></a>   contribute to Channel 2.</span>
+<span id="cb15-2547"><a href="#cb15-2547" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-2548"><a href="#cb15-2548" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>**G-computation**: one model correction (outcome model). Channel 1 nonzero.</span>
+<span id="cb15-2549"><a href="#cb15-2549" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-2550"><a href="#cb15-2550" aria-hidden="true" tabindex="-1"></a><span class="ss">5. </span>**IPW**: two model corrections (MSM + propensity). The propensity</span>
+<span id="cb15-2551"><a href="#cb15-2551" aria-hidden="true" tabindex="-1"></a>   correction captures weight estimation uncertainty via the cross-derivative</span>
+<span id="cb15-2552"><a href="#cb15-2552" aria-hidden="true" tabindex="-1"></a>   $A_{\beta\alpha}$.</span>
 <span id="cb15-2553"><a href="#cb15-2553" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-2554"><a href="#cb15-2554" aria-hidden="true" tabindex="-1"></a><span class="fu">### Tier 1: `sandwich::estfun` available</span></span>
-<span id="cb15-2555"><a href="#cb15-2555" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-2556"><a href="#cb15-2556" aria-hidden="true" tabindex="-1"></a>If <span class="in">`sandwich::estfun(model)`</span> returns the per-observation score matrix</span>
-<span id="cb15-2557"><a href="#cb15-2557" aria-hidden="true" tabindex="-1"></a>$\psi_i$ and <span class="in">`sandwich::bread(model)`</span> returns the bread, the fallback</span>
-<span id="cb15-2558"><a href="#cb15-2558" aria-hidden="true" tabindex="-1"></a>recovers the **full IF** (Channel 1 + Channel 2 + cross-term) exactly,</span>
-<span id="cb15-2559"><a href="#cb15-2559" aria-hidden="true" tabindex="-1"></a>matching the analytic main path. The marginal-mean Jacobian $J$ is</span>
-<span id="cb15-2560"><a href="#cb15-2560" aria-hidden="true" tabindex="-1"></a>computed via <span class="in">`numDeriv::jacobian()`</span> on <span class="in">`predict()`</span> instead of</span>
-<span id="cb15-2561"><a href="#cb15-2561" aria-hidden="true" tabindex="-1"></a>analytically.</span>
+<span id="cb15-2554"><a href="#cb15-2554" aria-hidden="true" tabindex="-1"></a><span class="ss">6. </span>**Matching**: one model correction (outcome model), same as g-comp.</span>
+<span id="cb15-2555"><a href="#cb15-2555" aria-hidden="true" tabindex="-1"></a>   Aggregation is cluster-robust (sum IFs within matched subclasses).</span>
+<span id="cb15-2556"><a href="#cb15-2556" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-2557"><a href="#cb15-2557" aria-hidden="true" tabindex="-1"></a><span class="ss">7. </span>**User-supplied cluster** (<span class="in">`contrast(cluster = ...)`</span>): the same</span>
+<span id="cb15-2558"><a href="#cb15-2558" aria-hidden="true" tabindex="-1"></a>   sum-within-cluster-then-square aggregation matching uses internally is</span>
+<span id="cb15-2559"><a href="#cb15-2559" aria-hidden="true" tabindex="-1"></a>   exposed directly on gcomp, IPW, and ICE. Numerically equivalent to</span>
+<span id="cb15-2560"><a href="#cb15-2560" aria-hidden="true" tabindex="-1"></a>   <span class="in">`sandwich::vcovCL(type = "HC0")`</span> on the final predict-then-average step;</span>
+<span id="cb15-2561"><a href="#cb15-2561" aria-hidden="true" tabindex="-1"></a>   rejected on matching because subclass clustering is already structural.</span>
 <span id="cb15-2562"><a href="#cb15-2562" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-2563"><a href="#cb15-2563" aria-hidden="true" tabindex="-1"></a>This applies to <span class="in">`MASS::glm.nb`</span> (negative binomial) and most model</span>
-<span id="cb15-2564"><a href="#cb15-2564" aria-hidden="true" tabindex="-1"></a>classes with a <span class="in">`sandwich`</span> method.</span>
+<span id="cb15-2563"><a href="#cb15-2563" aria-hidden="true" tabindex="-1"></a><span class="ss">8. </span>**Chained estimators** (ICE): $K<span class="sc">\!</span>+<span class="sc">\!</span>1$ model corrections computed by</span>
+<span id="cb15-2564"><a href="#cb15-2564" aria-hidden="true" tabindex="-1"></a>   backward recursion of sensitivities.</span>
 <span id="cb15-2565"><a href="#cb15-2565" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-2566"><a href="#cb15-2566" aria-hidden="true" tabindex="-1"></a><span class="fu">### Tier 2: plain delta shortcut</span></span>
-<span id="cb15-2567"><a href="#cb15-2567" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-2568"><a href="#cb15-2568" aria-hidden="true" tabindex="-1"></a>If no <span class="in">`estfun`</span> method exists (e.g. <span class="in">`betareg::betareg`</span>), the fallback</span>
-<span id="cb15-2569"><a href="#cb15-2569" aria-hidden="true" tabindex="-1"></a>computes $V_1 + V_2$ where $V_1 = (1/n^2) \sum_i \text{Ch.1}_i^2$ is</span>
-<span id="cb15-2570"><a href="#cb15-2570" aria-hidden="true" tabindex="-1"></a>the Channel 1 variance and $V_2 = J \, V_\beta \, J^T$ is the delta-method</span>
-<span id="cb15-2571"><a href="#cb15-2571" aria-hidden="true" tabindex="-1"></a>approximation for Channel 2. This **drops the cross-term**</span>
-<span id="cb15-2572"><a href="#cb15-2572" aria-hidden="true" tabindex="-1"></a>$(1/n^2)(\text{Ch.1}^T \text{Ch.2} + \text{Ch.2}^T \text{Ch.1})$ and emits</span>
-<span id="cb15-2573"><a href="#cb15-2573" aria-hidden="true" tabindex="-1"></a>a <span class="in">`causatr_tier2_fallback`</span> warning so the user knows the SE is slightly</span>
-<span id="cb15-2574"><a href="#cb15-2574" aria-hidden="true" tabindex="-1"></a>miscalibrated.</span>
+<span id="cb15-2566"><a href="#cb15-2566" aria-hidden="true" tabindex="-1"></a><span class="ss">9. </span>**IPCW** adds a censoring-model block to the stacked equations. The</span>
+<span id="cb15-2567"><a href="#cb15-2567" aria-hidden="true" tabindex="-1"></a>   censoring Channel 2 correction **reduces** variance by accounting for</span>
+<span id="cb15-2568"><a href="#cb15-2568" aria-hidden="true" tabindex="-1"></a>   weight estimation uncertainty. For longitudinal IPCW, the correction is</span>
+<span id="cb15-2569"><a href="#cb15-2569" aria-hidden="true" tabindex="-1"></a>   omitted (conservative); use bootstrap for tighter CIs.</span>
+<span id="cb15-2570"><a href="#cb15-2570" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-2571"><a href="#cb15-2571" aria-hidden="true" tabindex="-1"></a><span class="ss">10. </span>**The delta method** ($\color{#31A354}{J} V_\beta</span>
+<span id="cb15-2572"><a href="#cb15-2572" aria-hidden="true" tabindex="-1"></a>    \color{#31A354}{J^T}$) is a shortcut that captures Channel 2 only. It is</span>
+<span id="cb15-2573"><a href="#cb15-2573" aria-hidden="true" tabindex="-1"></a>    exact when Channel 1 = 0 (constant predictions), but underestimates</span>
+<span id="cb15-2574"><a href="#cb15-2574" aria-hidden="true" tabindex="-1"></a>    otherwise. The full IF avoids this limitation.</span>
 <span id="cb15-2575"><a href="#cb15-2575" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-2576"><a href="#cb15-2576" aria-hidden="true" tabindex="-1"></a>For Tier 2 models, <span class="in">`ci_method = "bootstrap"`</span> gives exact coverage.</span>
-<span id="cb15-2577"><a href="#cb15-2577" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-2578"><a href="#cb15-2578" aria-hidden="true" tabindex="-1"></a><span class="fu">### Which tier does my `model_fn` use?</span></span>
-<span id="cb15-2579"><a href="#cb15-2579" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-2580"><a href="#cb15-2580" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`model_fn`</span> <span class="pp">|</span> Tier <span class="pp">|</span> Exact? <span class="pp">|</span></span>
-<span id="cb15-2581"><a href="#cb15-2581" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|</span></span>
-<span id="cb15-2582"><a href="#cb15-2582" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`stats::glm`</span> <span class="pp">|</span> Analytic (main path) <span class="pp">|</span> Yes <span class="pp">|</span></span>
-<span id="cb15-2583"><a href="#cb15-2583" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`mgcv::gam`</span> <span class="pp">|</span> Analytic (GAM path) <span class="pp">|</span> Yes <span class="pp">|</span></span>
-<span id="cb15-2584"><a href="#cb15-2584" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`MASS::glm.nb`</span> <span class="pp">|</span> Tier 1 (numeric + estfun) <span class="pp">|</span> Yes <span class="pp">|</span></span>
-<span id="cb15-2585"><a href="#cb15-2585" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`betareg::betareg`</span> <span class="pp">|</span> Tier 2 (delta shortcut) <span class="pp">|</span> Approximate (use bootstrap for exact) <span class="pp">|</span></span>
-<span id="cb15-2586"><a href="#cb15-2586" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-2587"><a href="#cb15-2587" aria-hidden="true" tabindex="-1"></a>If unsure, run with <span class="in">`ci_method = "sandwich"`</span> first — if you see a</span>
-<span id="cb15-2588"><a href="#cb15-2588" aria-hidden="true" tabindex="-1"></a><span class="in">`causatr_tier2_fallback`</span> warning, the model is on Tier 2.</span>
+<span id="cb15-2576"><a href="#cb15-2576" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-2577"><a href="#cb15-2577" aria-hidden="true" tabindex="-1"></a><span class="fu">## 8. Numeric variance tiers (custom `model_fn`)</span></span>
+<span id="cb15-2578"><a href="#cb15-2578" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-2579"><a href="#cb15-2579" aria-hidden="true" tabindex="-1"></a>The analytic IF engine in <span class="in">`variance_if()`</span> requires access to the model's</span>
+<span id="cb15-2580"><a href="#cb15-2580" aria-hidden="true" tabindex="-1"></a>score residuals and bread matrix. Standard GLMs (<span class="in">`stats::glm`</span>) and GAMs</span>
+<span id="cb15-2581"><a href="#cb15-2581" aria-hidden="true" tabindex="-1"></a>(<span class="in">`mgcv::gam`</span>) expose these via <span class="in">`family$mu.eta`</span> / <span class="in">`family$variance`</span> and</span>
+<span id="cb15-2582"><a href="#cb15-2582" aria-hidden="true" tabindex="-1"></a><span class="in">`$Vp`</span>, respectively. But users can pass any fitting function via</span>
+<span id="cb15-2583"><a href="#cb15-2583" aria-hidden="true" tabindex="-1"></a><span class="in">`model_fn =`</span> (e.g. <span class="in">`MASS::glm.nb`</span>, <span class="in">`betareg::betareg`</span>), and those</span>
+<span id="cb15-2584"><a href="#cb15-2584" aria-hidden="true" tabindex="-1"></a>models may not expose the standard GLM internals.</span>
+<span id="cb15-2585"><a href="#cb15-2585" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-2586"><a href="#cb15-2586" aria-hidden="true" tabindex="-1"></a>causatr handles this with a two-tier numeric fallback (<span class="in">`variance_if_numeric()`</span>):</span>
+<span id="cb15-2587"><a href="#cb15-2587" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-2588"><a href="#cb15-2588" aria-hidden="true" tabindex="-1"></a><span class="fu">### Tier 1: `sandwich::estfun` available</span></span>
 <span id="cb15-2589"><a href="#cb15-2589" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-2590"><a href="#cb15-2590" aria-hidden="true" tabindex="-1"></a><span class="fu">## Bootstrap confidence-interval flavour</span></span>
-<span id="cb15-2591"><a href="#cb15-2591" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-2592"><a href="#cb15-2592" aria-hidden="true" tabindex="-1"></a>When <span class="in">`ci_method = "bootstrap"`</span>, <span class="in">`contrast()`</span> resamples the whole pipeline and</span>
-<span id="cb15-2593"><a href="#cb15-2593" aria-hidden="true" tabindex="-1"></a>stores the per-intervention replicate matrix. Two standard intervals can be</span>
-<span id="cb15-2594"><a href="#cb15-2594" aria-hidden="true" tabindex="-1"></a>read off those replicates <span class="co">[</span><span class="ot">@efron1993bootstrap, ch. 13; @davison1997bootstrap, sec. 5.2</span><span class="co">]</span>,</span>
-<span id="cb15-2595"><a href="#cb15-2595" aria-hidden="true" tabindex="-1"></a>selected with <span class="in">`boot_ci`</span>:</span>
+<span id="cb15-2590"><a href="#cb15-2590" aria-hidden="true" tabindex="-1"></a>If <span class="in">`sandwich::estfun(model)`</span> returns the per-observation score matrix</span>
+<span id="cb15-2591"><a href="#cb15-2591" aria-hidden="true" tabindex="-1"></a>$\psi_i$ and <span class="in">`sandwich::bread(model)`</span> returns the bread, the fallback</span>
+<span id="cb15-2592"><a href="#cb15-2592" aria-hidden="true" tabindex="-1"></a>recovers the **full IF** (Channel 1 + Channel 2 + cross-term) exactly,</span>
+<span id="cb15-2593"><a href="#cb15-2593" aria-hidden="true" tabindex="-1"></a>matching the analytic main path. The marginal-mean Jacobian $J$ is</span>
+<span id="cb15-2594"><a href="#cb15-2594" aria-hidden="true" tabindex="-1"></a>computed via <span class="in">`numDeriv::jacobian()`</span> on <span class="in">`predict()`</span> instead of</span>
+<span id="cb15-2595"><a href="#cb15-2595" aria-hidden="true" tabindex="-1"></a>analytically.</span>
 <span id="cb15-2596"><a href="#cb15-2596" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-2597"><a href="#cb15-2597" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**`"percentile"` (default)** — the empirical $\alpha/2$ and $1-\alpha/2$</span>
-<span id="cb15-2598"><a href="#cb15-2598" aria-hidden="true" tabindex="-1"></a>  quantiles of the replicates. It is transformation-respecting and bounded by</span>
-<span id="cb15-2599"><a href="#cb15-2599" aria-hidden="true" tabindex="-1"></a>  the estimand's support, so a relative risk or odds ratio gets a strictly</span>
-<span id="cb15-2600"><a href="#cb15-2600" aria-hidden="true" tabindex="-1"></a>  positive interval and a probability stays in $<span class="co">[</span><span class="ot">0, 1</span><span class="co">]</span>$. Contrast intervals use</span>
-<span id="cb15-2601"><a href="#cb15-2601" aria-hidden="true" tabindex="-1"></a>  the quantiles of the contrast evaluated on each replicate's per-intervention</span>
-<span id="cb15-2602"><a href="#cb15-2602" aria-hidden="true" tabindex="-1"></a>  means, so difference / ratio / odds-ratio are all handled by the one recipe.</span>
-<span id="cb15-2603"><a href="#cb15-2603" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**`"normal"`** — the Wald interval from the bootstrap standard error,</span>
-<span id="cb15-2604"><a href="#cb15-2604" aria-hidden="true" tabindex="-1"></a>  $\hat\theta \pm z_{1-\alpha/2}\,\widehat{sd}$. Symmetric; best when the</span>
-<span id="cb15-2605"><a href="#cb15-2605" aria-hidden="true" tabindex="-1"></a>  bootstrap distribution is roughly Gaussian.</span>
-<span id="cb15-2606"><a href="#cb15-2606" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-2607"><a href="#cb15-2607" aria-hidden="true" tabindex="-1"></a>Both come from the same replicates, so the choice costs nothing extra and</span>
-<span id="cb15-2608"><a href="#cb15-2608" aria-hidden="true" tabindex="-1"></a>leaves the point estimate, SE, and vcov untouched — only the interval bounds</span>
-<span id="cb15-2609"><a href="#cb15-2609" aria-hidden="true" tabindex="-1"></a>move. Every surface (<span class="in">`print()`</span>, <span class="in">`plot()`</span>, the <span class="in">`estimates`</span> / <span class="in">`contrasts`</span></span>
-<span id="cb15-2610"><a href="#cb15-2610" aria-hidden="true" tabindex="-1"></a>tables, <span class="in">`tidy()`</span>) honours the recorded choice; <span class="in">`confint(res, boot_ci = ...)`</span></span>
-<span id="cb15-2611"><a href="#cb15-2611" aria-hidden="true" tabindex="-1"></a>overrides it on demand.</span>
-<span id="cb15-2612"><a href="#cb15-2612" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-2615"><a href="#cb15-2615" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb15-2616"><a href="#cb15-2616" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: false</span></span>
-<span id="cb15-2617"><a href="#cb15-2617" aria-hidden="true" tabindex="-1"></a>res_perc <span class="ot">&lt;-</span> <span class="fu">contrast</span>(</span>
-<span id="cb15-2618"><a href="#cb15-2618" aria-hidden="true" tabindex="-1"></a>  fit,</span>
-<span id="cb15-2619"><a href="#cb15-2619" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
-<span id="cb15-2620"><a href="#cb15-2620" aria-hidden="true" tabindex="-1"></a>  <span class="at">ci_method =</span> <span class="st">"bootstrap"</span>,</span>
-<span id="cb15-2621"><a href="#cb15-2621" aria-hidden="true" tabindex="-1"></a>  <span class="at">boot_ci =</span> <span class="st">"percentile"</span></span>
-<span id="cb15-2622"><a href="#cb15-2622" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb15-2623"><a href="#cb15-2623" aria-hidden="true" tabindex="-1"></a><span class="co"># pull the symmetric interval from the same fit without re-bootstrapping</span></span>
-<span id="cb15-2624"><a href="#cb15-2624" aria-hidden="true" tabindex="-1"></a><span class="fu">confint</span>(res_perc, <span class="at">boot_ci =</span> <span class="st">"normal"</span>)</span>
-<span id="cb15-2625"><a href="#cb15-2625" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb15-2626"><a href="#cb15-2626" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-2627"><a href="#cb15-2627" aria-hidden="true" tabindex="-1"></a>For the SNM blip parameters and the pooled population-averaged blip, <span class="in">`boot_ci`</span></span>
-<span id="cb15-2628"><a href="#cb15-2628" aria-hidden="true" tabindex="-1"></a>applies the same way; the <span class="in">`by`</span>-stratified averaged blip keeps its delta-method</span>
-<span id="cb15-2629"><a href="#cb15-2629" aria-hidden="true" tabindex="-1"></a>(normal) interval because it has no per-stratum replicates.</span>
+<span id="cb15-2597"><a href="#cb15-2597" aria-hidden="true" tabindex="-1"></a>This applies to <span class="in">`MASS::glm.nb`</span> (negative binomial) and most model</span>
+<span id="cb15-2598"><a href="#cb15-2598" aria-hidden="true" tabindex="-1"></a>classes with a <span class="in">`sandwich`</span> method.</span>
+<span id="cb15-2599"><a href="#cb15-2599" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-2600"><a href="#cb15-2600" aria-hidden="true" tabindex="-1"></a><span class="fu">### Tier 2: plain delta shortcut</span></span>
+<span id="cb15-2601"><a href="#cb15-2601" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-2602"><a href="#cb15-2602" aria-hidden="true" tabindex="-1"></a>If no <span class="in">`estfun`</span> method exists (e.g. <span class="in">`betareg::betareg`</span>), the fallback</span>
+<span id="cb15-2603"><a href="#cb15-2603" aria-hidden="true" tabindex="-1"></a>computes $V_1 + V_2$ where $V_1 = (1/n^2) \sum_i \text{Ch.1}_i^2$ is</span>
+<span id="cb15-2604"><a href="#cb15-2604" aria-hidden="true" tabindex="-1"></a>the Channel 1 variance and $V_2 = J \, V_\beta \, J^T$ is the delta-method</span>
+<span id="cb15-2605"><a href="#cb15-2605" aria-hidden="true" tabindex="-1"></a>approximation for Channel 2. This **drops the cross-term**</span>
+<span id="cb15-2606"><a href="#cb15-2606" aria-hidden="true" tabindex="-1"></a>$(1/n^2)(\text{Ch.1}^T \text{Ch.2} + \text{Ch.2}^T \text{Ch.1})$ and emits</span>
+<span id="cb15-2607"><a href="#cb15-2607" aria-hidden="true" tabindex="-1"></a>a <span class="in">`causatr_tier2_fallback`</span> warning so the user knows the SE is slightly</span>
+<span id="cb15-2608"><a href="#cb15-2608" aria-hidden="true" tabindex="-1"></a>miscalibrated.</span>
+<span id="cb15-2609"><a href="#cb15-2609" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-2610"><a href="#cb15-2610" aria-hidden="true" tabindex="-1"></a>For Tier 2 models, <span class="in">`ci_method = "bootstrap"`</span> gives exact coverage.</span>
+<span id="cb15-2611"><a href="#cb15-2611" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-2612"><a href="#cb15-2612" aria-hidden="true" tabindex="-1"></a><span class="fu">### Which tier does my `model_fn` use?</span></span>
+<span id="cb15-2613"><a href="#cb15-2613" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-2614"><a href="#cb15-2614" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`model_fn`</span> <span class="pp">|</span> Tier <span class="pp">|</span> Exact? <span class="pp">|</span></span>
+<span id="cb15-2615"><a href="#cb15-2615" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|</span></span>
+<span id="cb15-2616"><a href="#cb15-2616" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`stats::glm`</span> <span class="pp">|</span> Analytic (main path) <span class="pp">|</span> Yes <span class="pp">|</span></span>
+<span id="cb15-2617"><a href="#cb15-2617" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`mgcv::gam`</span> <span class="pp">|</span> Analytic (GAM path) <span class="pp">|</span> Yes <span class="pp">|</span></span>
+<span id="cb15-2618"><a href="#cb15-2618" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`MASS::glm.nb`</span> <span class="pp">|</span> Tier 1 (numeric + estfun) <span class="pp">|</span> Yes <span class="pp">|</span></span>
+<span id="cb15-2619"><a href="#cb15-2619" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`betareg::betareg`</span> <span class="pp">|</span> Tier 2 (delta shortcut) <span class="pp">|</span> Approximate (use bootstrap for exact) <span class="pp">|</span></span>
+<span id="cb15-2620"><a href="#cb15-2620" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-2621"><a href="#cb15-2621" aria-hidden="true" tabindex="-1"></a>If unsure, run with <span class="in">`ci_method = "sandwich"`</span> first — if you see a</span>
+<span id="cb15-2622"><a href="#cb15-2622" aria-hidden="true" tabindex="-1"></a><span class="in">`causatr_tier2_fallback`</span> warning, the model is on Tier 2.</span>
+<span id="cb15-2623"><a href="#cb15-2623" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-2624"><a href="#cb15-2624" aria-hidden="true" tabindex="-1"></a><span class="fu">## Bootstrap confidence-interval flavour</span></span>
+<span id="cb15-2625"><a href="#cb15-2625" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-2626"><a href="#cb15-2626" aria-hidden="true" tabindex="-1"></a>When <span class="in">`ci_method = "bootstrap"`</span>, <span class="in">`contrast()`</span> resamples the whole pipeline and</span>
+<span id="cb15-2627"><a href="#cb15-2627" aria-hidden="true" tabindex="-1"></a>stores the per-intervention replicate matrix. Two standard intervals can be</span>
+<span id="cb15-2628"><a href="#cb15-2628" aria-hidden="true" tabindex="-1"></a>read off those replicates <span class="co">[</span><span class="ot">@efron1993bootstrap, ch. 13; @davison1997bootstrap, sec. 5.2</span><span class="co">]</span>,</span>
+<span id="cb15-2629"><a href="#cb15-2629" aria-hidden="true" tabindex="-1"></a>selected with <span class="in">`boot_ci`</span>:</span>
 <span id="cb15-2630"><a href="#cb15-2630" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-2631"><a href="#cb15-2631" aria-hidden="true" tabindex="-1"></a><span class="fu">## References</span></span>
-<span id="cb15-2632"><a href="#cb15-2632" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-2633"><a href="#cb15-2633" aria-hidden="true" tabindex="-1"></a>::: {#refs}</span>
-<span id="cb15-2634"><a href="#cb15-2634" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb15-2631"><a href="#cb15-2631" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**`"percentile"` (default)** — the empirical $\alpha/2$ and $1-\alpha/2$</span>
+<span id="cb15-2632"><a href="#cb15-2632" aria-hidden="true" tabindex="-1"></a>  quantiles of the replicates. It is transformation-respecting and bounded by</span>
+<span id="cb15-2633"><a href="#cb15-2633" aria-hidden="true" tabindex="-1"></a>  the estimand's support, so a relative risk or odds ratio gets a strictly</span>
+<span id="cb15-2634"><a href="#cb15-2634" aria-hidden="true" tabindex="-1"></a>  positive interval and a probability stays in $<span class="co">[</span><span class="ot">0, 1</span><span class="co">]</span>$. Contrast intervals use</span>
+<span id="cb15-2635"><a href="#cb15-2635" aria-hidden="true" tabindex="-1"></a>  the quantiles of the contrast evaluated on each replicate's per-intervention</span>
+<span id="cb15-2636"><a href="#cb15-2636" aria-hidden="true" tabindex="-1"></a>  means, so difference / ratio / odds-ratio are all handled by the one recipe.</span>
+<span id="cb15-2637"><a href="#cb15-2637" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**`"normal"`** — the Wald interval from the bootstrap standard error,</span>
+<span id="cb15-2638"><a href="#cb15-2638" aria-hidden="true" tabindex="-1"></a>  $\hat\theta \pm z_{1-\alpha/2}\,\widehat{sd}$. Symmetric; best when the</span>
+<span id="cb15-2639"><a href="#cb15-2639" aria-hidden="true" tabindex="-1"></a>  bootstrap distribution is roughly Gaussian.</span>
+<span id="cb15-2640"><a href="#cb15-2640" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-2641"><a href="#cb15-2641" aria-hidden="true" tabindex="-1"></a>Both come from the same replicates, so the choice costs nothing extra and</span>
+<span id="cb15-2642"><a href="#cb15-2642" aria-hidden="true" tabindex="-1"></a>leaves the point estimate, SE, and vcov untouched — only the interval bounds</span>
+<span id="cb15-2643"><a href="#cb15-2643" aria-hidden="true" tabindex="-1"></a>move. Every surface (<span class="in">`print()`</span>, <span class="in">`plot()`</span>, the <span class="in">`estimates`</span> / <span class="in">`contrasts`</span></span>
+<span id="cb15-2644"><a href="#cb15-2644" aria-hidden="true" tabindex="-1"></a>tables, <span class="in">`tidy()`</span>) honours the recorded choice; <span class="in">`confint(res, boot_ci = ...)`</span></span>
+<span id="cb15-2645"><a href="#cb15-2645" aria-hidden="true" tabindex="-1"></a>overrides it on demand.</span>
+<span id="cb15-2646"><a href="#cb15-2646" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-2649"><a href="#cb15-2649" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb15-2650"><a href="#cb15-2650" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: false</span></span>
+<span id="cb15-2651"><a href="#cb15-2651" aria-hidden="true" tabindex="-1"></a>res_perc <span class="ot">&lt;-</span> <span class="fu">contrast</span>(</span>
+<span id="cb15-2652"><a href="#cb15-2652" aria-hidden="true" tabindex="-1"></a>  fit,</span>
+<span id="cb15-2653"><a href="#cb15-2653" aria-hidden="true" tabindex="-1"></a>  <span class="at">interventions =</span> <span class="fu">list</span>(<span class="at">a1 =</span> <span class="fu">static</span>(<span class="dv">1</span>), <span class="at">a0 =</span> <span class="fu">static</span>(<span class="dv">0</span>)),</span>
+<span id="cb15-2654"><a href="#cb15-2654" aria-hidden="true" tabindex="-1"></a>  <span class="at">ci_method =</span> <span class="st">"bootstrap"</span>,</span>
+<span id="cb15-2655"><a href="#cb15-2655" aria-hidden="true" tabindex="-1"></a>  <span class="at">boot_ci =</span> <span class="st">"percentile"</span></span>
+<span id="cb15-2656"><a href="#cb15-2656" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb15-2657"><a href="#cb15-2657" aria-hidden="true" tabindex="-1"></a><span class="co"># pull the symmetric interval from the same fit without re-bootstrapping</span></span>
+<span id="cb15-2658"><a href="#cb15-2658" aria-hidden="true" tabindex="-1"></a><span class="fu">confint</span>(res_perc, <span class="at">boot_ci =</span> <span class="st">"normal"</span>)</span>
+<span id="cb15-2659"><a href="#cb15-2659" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb15-2660"><a href="#cb15-2660" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-2661"><a href="#cb15-2661" aria-hidden="true" tabindex="-1"></a>For the SNM blip parameters and the pooled population-averaged blip, <span class="in">`boot_ci`</span></span>
+<span id="cb15-2662"><a href="#cb15-2662" aria-hidden="true" tabindex="-1"></a>applies the same way; the <span class="in">`by`</span>-stratified averaged blip keeps its delta-method</span>
+<span id="cb15-2663"><a href="#cb15-2663" aria-hidden="true" tabindex="-1"></a>(normal) interval because it has no per-stratum replicates.</span>
+<span id="cb15-2664"><a href="#cb15-2664" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-2665"><a href="#cb15-2665" aria-hidden="true" tabindex="-1"></a><span class="fu">## References</span></span>
+<span id="cb15-2666"><a href="#cb15-2666" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-2667"><a href="#cb15-2667" aria-hidden="true" tabindex="-1"></a>::: {#refs}</span>
+<span id="cb15-2668"><a href="#cb15-2668" aria-hidden="true" tabindex="-1"></a>:::</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->
