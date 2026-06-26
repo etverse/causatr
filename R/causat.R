@@ -852,6 +852,17 @@ causat <- function(
     check_weights(weights, nrow(data))
   }
 
+  # External (pre-IPCW) weights for the IPW treatment-density models. The
+  # IPCW factor is folded into `weights` for the OUTCOME side (the MSM), but
+  # the standard IPW+IPCW construction estimates the treatment and censoring
+  # models separately and multiplies their weights (Hernan & Robins 2020,
+  # Ch. 12.6 & 17), so the censoring weight must not enter the propensity fit.
+  propensity_weights <- if (!is.null(ipcw_details)) {
+    ipcw_details$weights_pre_ipcw
+  } else {
+    weights
+  }
+
   # Dispatch to the estimator-specific fitter. Each returns a
   # `causatr_fit` with the same S3 class and slot structure, which
   # contrast() and diagnose() then consume uniformly.
@@ -913,6 +924,7 @@ causat <- function(
       time = time,
       call = call,
       target = target,
+      propensity_weights = propensity_weights,
       confounders_outcome = conf_outcome,
       confounders_outcome_raw = confounders_outcome,
       confounders_treatment_raw = confounders_treatment,

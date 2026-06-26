@@ -251,6 +251,41 @@ The sandwich variance gains a third block (censoring model) in the stacked syste
 
 **Chunk 18g** in Phase 18 implements this integration. It depends on Phase 14's `fit_censoring_model()` for the censoring model fitting and weight computation.
 
+## Post-shipment audit (2026-06-25): IPCW propensity-weighting
+
+A package-wide audit (triggered while building the longitudinal IPCW *sandwich*,
+PR #16) found a single root cause with several downstream effects. `causat()`
+folds the IPCW weights into the master `weights` vector, which then feeds **every
+nuisance fit** — including the treatment-density (propensity) models. The
+textbook construction estimates the treatment and censoring models *separately*
+and multiplies their weights (Hernán & Robins 2025, Ch. 12.6 & 17:
+`W = 1/P(A|H) × 1/P(C=0|H)`); the censoring weight must reweight the
+outcome/MSM side only, never the propensity. (Sampling/transport weights are
+**not** folded — `causat()` applies them per-estimator — so they are clean.)
+
+Status of each IPCW combination (delicatessen M-estimation oracle = the
+cross-language reference):
+
+| Combination | Finding | Status |
+|---|---|---|
+| Longitudinal IPW + IPCW | propensity was IPCW-weighted; sandwich also omitted the γ→β cross-term (~5% of the treated-arm SE) | **FIXED** (PR #16): `propensity_weights` keeps the propensity unweighted; `compute_ipw_ipcw_correction_longitudinal()` adds γ→β. delicatessen 1e-13/1e-4 |
+| Longitudinal AIPW + IPCW | propensity IPCW-weighted, but DR-orthogonal → SE ~0.03% effect | correct (chunk 1); γ block carried |
+| ICE longitudinal + IPCW | no propensity; IPCW-weighted outcome regression is orthogonal under correct spec → mildly conservative (a0 MC ratio ~1.08) | valid (safe direction); bootstrap for tightest CIs |
+| **Point IPW + IPCW (14b)** | propensity IPCW-weighted on uncensored rows; analytic sandwich **omits the γ→α cross-term** → SE wrong by **3–7%** per arm (delicatessen 0.0435 vs causatr 0.0452). Point estimate is consistent (matches delicatessen 1e-12). | **CONFIRMED BUG — deferred** (see below) |
+| Point AIPW + IPCW | propensity IPCW-weighted, DR-orthogonal → SE ~ok (sandwich/bootstrap 1.00–1.02) | non-standard estimator; SE acceptable |
+| SNM longitudinal + IPCW (18g) | runs, produces a censoring-block sandwich; not independently re-validated against an oracle in this audit | validate in the deferred effort |
+
+### Deferred: the point IPW IPCW sandwich fix → **Phase 27**
+
+The point IPW + IPCW fix (standardize the propensity to unweighted-on-all-rows +
+a gated stacked-EE sandwich + tighten the NHEFS test), the point AIPW propensity
+standardization, and the SNM + IPCW validation are **scoped as their own phase**
+so they do not get lost inside this completed phase. See
+**`PHASE_27_POINT_IPCW_PROPENSITY.md`** for the full plan, chunk breakdown, and
+oracle strategy. Run it via the `implement-feature` workflow — the
+re-architecture touches a heavily-validated engine and must be re-validated
+combination by combination.
+
 ## References
 
 - Bang H, Robins JM (2005). Doubly robust estimation in missing data

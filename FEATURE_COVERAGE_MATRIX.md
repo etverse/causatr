@@ -252,6 +252,12 @@ Per-period treatment density chain $f(A_k \mid \bar A_{k-1}, \bar L_k)$ + cumula
 | bin | gauss | `ipsi($\delta$=2)` (per-period Kennedy product) | 2 | sandwich | — | ✅ +oracle (manual per-period Kennedy product) | test-longitudinal-ipw.R |
 | bin | gauss | `ipsi($\delta$=2)` | 2 | bootstrap | — | ✅ vs sandwich (within 15%) | test-longitudinal-ipw.R |
 | bin | gauss | `ipsi($\delta$=2)` vs `ipsi($\delta$=1)` (difference) | 2 | sandwich | — | ✅ +oracle | test-longitudinal-ipw.R |
+| bin | gauss | static (always vs never) | 2 | sandwich | IPCW (missing Y) | ✅ delicatessen γ-block stack ~1e-13 / ~1e-4 (means + per-arm/ATE SE) | test-longitudinal-ipw-ipcw.R |
+| bin | gauss | static (always vs never) | 2 | sandwich | IPCW | ✅ censoring cross-term load-bearing (full < known-γ; ~5% on treated arm, vs known-γ oracle) | test-longitudinal-ipw-ipcw.R |
+| bin | gauss | static (always vs never) | 2 | sandwich | IPCW | ✅ propensity unweighted (prior weights ≡ 1; = unweighted GLM ~1e-8) | test-longitudinal-ipw-ipcw.R |
+| bin | gauss | static (always vs never) | 2 | sandwich + bootstrap | IPCW | ✅ MC SE-vs-empirical-SD ≈ 1.0 + bootstrap parity | test-longitudinal-ipw-ipcw.R |
+
+**Longitudinal IPW + IPCW (missing Y):** the IPCW weight reweights the final-period Hájek MSM only — the per-period treatment-density models are ordinary (unweighted) regressions on all observed rows, matching the standard separate-then-multiply IPW+IPCW construction (Hernán & Robins 2020, Ch. 12.6 & 17). The id-level analytic sandwich propagates the per-period censoring model's estimation uncertainty through the MSM (the γ → β cross-term, `compute_ipw_ipcw_correction_longitudinal()` in `R/variance_if_ipw_longitudinal_ipcw.R`), reusing the shared `make_ipcw_weight_fn_longitudinal()` γ block. The cross-term is **load-bearing** for IPW (~5% of the treated-arm SE on an informatively-censored DGP), unlike the AIPW orthogonal ~0.03% case. Validated against the `delicatessen` M-estimation oracle (`longitudinal_ipw_ipcw_delicatessen.py`), its known-weights (γ-fixed) companion, MC calibration, and the bootstrap.
 
 **Per-period IPSI (Phase 20):** univariate `ipsi(delta)` extends Kennedy's (2019) closed-form weight to a per-period product $W_i = \prod_t (\delta A_{t} + (1 - A_{t})) / (\delta p_{t} + (1 - p_{t}))$. No new density-evaluation path — each period reuses `compute_density_ratio_weights()`'s IPSI branch; the stacked sandwich reuses `make_weight_fn()`'s IPSI sub-closure per period.
 
@@ -515,8 +521,13 @@ remain in this matrix.
 | Built-in IPCW: point estimators | gcomp/IPW/matching (14b) | ✅ | test-ipcw.R |
 | Built-in IPCW: lmtp cross-check | point + longitudinal (14d) | ✅ | test-ipcw-lmtp-oracle.R |
 | Built-in IPCW: ICE longitudinal | ICE + long IPW (14c) | ✅ | test-ipcw.R, test-ipcw-lmtp-oracle.R |
+| Built-in IPCW: longitudinal IPW sandwich (γ→β cross-term) | long IPW + delicatessen oracle | ✅ | test-longitudinal-ipw-ipcw.R |
+| Built-in IPCW: longitudinal AIPW sandwich (γ block) | long AIPW (orthogonal cross-term) | ✅ | test-aipw-longitudinal-ipcw.R |
 | Built-in IPCW: variance regression | sandwich + bootstrap (14e) | ✅ | test-ipcw-variance.R |
 | Built-in IPCW: diagnose integration | point + longitudinal (14f) | ✅ | test-diagnose.R |
+| Built-in IPCW: longitudinal IPW/AIPW/ICE sandwich audit | γ→β (IPW, fixed PR #16), γ-block (AIPW), orthogonal (ICE) | ✅ | test-longitudinal-ipw-ipcw.R, test-aipw-longitudinal-ipcw.R |
+
+**Known limitation — point IPW + IPCW sandwich (deferred, see PHASE_14 audit).** Built-in IPCW fits the per-period/point propensity IPCW-weighted (folded into `weights`), which is non-standard (the textbook construction estimates treatment and censoring models separately and multiplies the weights). Longitudinal IPW was fixed in PR #16. **Point IPW + IPCW** still has a confirmed analytic-sandwich error of **3–7%** per arm (the propensity depends on γ, so the sandwich omits the γ→α cross-term; delicatessen-verified). The point estimate is consistent. Fix (standardize the propensity to unweighted-on-all-rows + a gated stacked-EE sandwich, tighten the loose NHEFS test) is scoped as a focused `implement-feature` effort. Point AIPW + IPCW is non-standard but DR-orthogonal (SE acceptable); SNM + IPCW (18g) carries a censoring block but is not oracle-validated.
 
 ---
 
@@ -888,6 +899,9 @@ Composes Phase 2 gcomp + Phase 4 IPW into the classical analytical doubly-robust
 | mv (A1,A2) | gaussian | static | unbalanced | sandwich | ✅ vs bootstrap + jackknife | test-aipw-longitudinal.R |
 | binary | gaussian | static + external weights | unbalanced | sandwich | ✅ vs bootstrap | test-aipw-longitudinal.R |
 | categorical (multinom) | gaussian | static | balanced | sandwich | ✅ vs bootstrap (softmax score) | test-aipw-longitudinal.R |
+| binary | gaussian | static | IPCW (missing Y) | sandwich | ✅ MC SE-vs-empirical-SD ≈ 1.0 + bootstrap parity + EE faithful w/ γ block | test-aipw-longitudinal-ipcw.R |
+
+**IPCW (missing-Y) sandwich:** under `ipcw = TRUE` the stacked EE gains a per-period censoring γ block (`make_ipcw_weight_fn_longitudinal()`); the IPCW weight is threaded into each outcome score as `external × ipcw(γ)`, so the numerical bread captures the censoring cross-terms (γ → β → μ). By double-robust orthogonality the AIPW censoring cross-term is near-zero (it moves the SE ~0.03%); the block is wired (`B[β,γ] ≠ 0`, verified) and carried for an exactly correct sandwich. Validated by MC empirical-SD calibration, bootstrap parity, EE faithfulness, the cross-term wiring, a non-IPCW no-γ anchor, and the orthogonality property.
 | binary | gaussian | static, `mgcv::gam` nuisance | any | sandwich | ✅ explicit limitation → bootstrap (`causatr_longitudinal_aipw_sandwich_model`) | test-aipw-longitudinal.R |
 
 **Chunk 25 — Multivariate longitudinal AIPW**

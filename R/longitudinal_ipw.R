@@ -104,6 +104,7 @@ fit_longitudinal_ipw <- function(
   time,
   call,
   target = NULL,
+  propensity_weights = weights,
   confounders_outcome = NULL,
   confounders_outcome_raw = NULL,
   confounders_treatment_raw = NULL,
@@ -114,6 +115,13 @@ fit_longitudinal_ipw <- function(
   ...
 ) {
   is_multivariate <- length(treatment) > 1L
+
+  # External (pre-IPCW) weights for the per-period treatment-density and
+  # numerator models. The censoring weight is carried in `weights` for the
+  # final-period MSM only; the propensity / stabilization-numerator densities
+  # are estimated on all observed rows with the external weights, so the
+  # estimated censoring weights never enter their fit (Hernan & Robins 2020,
+  # Ch. 17). `propensity_weights` is NULL when there are no external weights.
 
   # `numerator =` is the user-facing knob for a custom numerator
   # formula. Under `stabilize = "none"` it has no meaning -- the
@@ -283,8 +291,8 @@ fit_longitudinal_ipw <- function(
         model_fn = prop_model_fn,
         propensity_family = propensity_family
       )
-      if (!is.null(weights)) {
-        tm_args$weights <- weights[rows_k]
+      if (!is.null(propensity_weights)) {
+        tm_args$weights <- propensity_weights[rows_k]
       }
       tm_k <- do.call(fit_treatment_models, c(tm_args, dots))
     } else {
@@ -295,8 +303,8 @@ fit_longitudinal_ipw <- function(
         model_fn = prop_model_fn,
         propensity_family = propensity_family
       )
-      if (!is.null(weights)) {
-        tm_args$weights <- weights[rows_k]
+      if (!is.null(propensity_weights)) {
+        tm_args$weights <- propensity_weights[rows_k]
       }
       tm_k <- do.call(fit_treatment_model, c(tm_args, dots))
     }
@@ -350,8 +358,8 @@ fit_longitudinal_ipw <- function(
         model_fn = prop_model_fn,
         propensity_family = propensity_family
       )
-      if (!is.null(weights)) {
-        num_args$weights <- weights[data[[time]] == time_points[k]]
+      if (!is.null(propensity_weights)) {
+        num_args$weights <- propensity_weights[data[[time]] == time_points[k]]
       }
       if (is_multivariate) {
         # Per-component numerator chain. `build_longitudinal_numerator_ps_formula()`

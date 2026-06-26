@@ -789,7 +789,10 @@ refit_gcomp <- function(fit, d_b, weights = NULL) {
 #' @noRd
 refit_ipw <- function(fit, d_b, weights = NULL) {
   # IPCW: refit censoring model and compose weights before the
-  # full IPW pipeline replay
+  # full IPW pipeline replay. The external (pre-IPCW) weights drive the
+  # treatment-density models; the folded `weights` reweight the MSM only
+  # (matching the main pipeline's propensity / MSM weight separation).
+  propensity_weights_b <- weights
   if (isTRUE(fit$details$ipcw)) {
     ipcw_w_b <- refit_censoring_weights(fit, d_b)
     weights <- if (is.null(weights)) ipcw_w_b else weights * ipcw_w_b
@@ -829,7 +832,8 @@ refit_ipw <- function(fit, d_b, weights = NULL) {
     propensity_family = fit$details$propensity_family,
     stabilize = fit$details$stabilize %||% "none",
     call = NULL,
-    target = fit$target
+    target = fit$target,
+    propensity_weights = propensity_weights_b
   )
   # Longitudinal IPW needs the id / time slots threaded through to
   # `fit_longitudinal_ipw()`; point IPW ignores them.
