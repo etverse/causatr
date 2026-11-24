@@ -5,7 +5,6 @@
 ^LICENSE\.md$
 ^README\.Rmd$
 ^[.]?air[.]toml$
-^\.vscode$
 ^\.github$
 ^docs$
 ^altdoc$
