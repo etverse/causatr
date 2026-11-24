@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "deny": [
+      "Read(.Renviron)",
+      "Read(.env)",
+      "Read(man/**)",
+      "Read(docs/**)",
+      "Read(_quarto/**)",
+      "Read(data/*.rda)",
+      "Read(data-raw/*_venv/**)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=$(jq -r '.tool_input.file_path // empty'); case \"$f\" in *.R|*.r) air format \"$f\" ;; esac; exit 0",
+            "statusMessage": "Formatting with Air"
+          }
+        ]
+      }
+    ]
+  }
+}
