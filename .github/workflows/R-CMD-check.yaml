@@ -9,10 +9,7 @@ on:
     paths-ignore:
       - "altdoc/**"
       - "docs/**"
-  # Nightly full-tier, full-matrix safety net: runs the heavy tests PRs skip
-  # (full tier) and the cross-platform / oldrel configs PRs skip, every day.
-  schedule:
-    - cron: "0 6 * * *"
+  # Manual dispatch runs the full tier and full matrix on demand.
   workflow_dispatch:
 
 name: R-CMD-check.yaml
@@ -23,7 +20,7 @@ jobs:
   # Pull requests run a single, fast Linux config for quick feedback; the full
   # suite still runs on every PR (no tests are skipped), just on one OS. The
   # full three-config matrix (macOS + ubuntu release + ubuntu oldrel) runs on
-  # push to the default branch, on the weekly cron, and on manual dispatch.
+  # push to the default branch and on manual dispatch.
   # The package is pure R (no compiled code), so cross-platform divergence is
   # low-risk and verifying it at merge cadence rather than per-PR-push is a
   # sound trade.
@@ -56,7 +53,7 @@ jobs:
       R_KEEP_PKG_SOURCE: yes
       # Pull requests run the fast test tier (heavy bootstrap / external-oracle /
       # large-n blocks call skip_if_fast() and are skipped); push to the default
-      # branch, the nightly cron, and manual dispatch run the full tier. The
+      # branch and manual dispatch run the full tier. The
       # variable is inherited by the test subprocess R CMD check spawns.
       CAUSATR_TEST_TIER: ${{ github.event_name == 'pull_request' && 'fast' || 'full' }}
 
@@ -75,11 +72,11 @@ jobs:
           extra-packages: any::rcmdcheck, any::mice
           needs: check
       # Pull requests: skip the vignette rebuild for speed (vignettes are still
-      # built + checked on push to the default branch and the nightly cron).
+      # built + checked on push to the default branch and manual dispatch).
       # `error-on: error` tolerates the two WARNINGs that --no-build-vignettes
       # intentionally produces (vignette sources present but not built); genuine
       # ERRORs still fail the PR, and the full strict warning-level check runs on
-      # push to the default branch and the nightly cron.
+      # push to the default branch and manual dispatch.
       - uses: r-lib/actions/check-r-package@v2
         with:
           upload-snapshots: true
@@ -87,7 +84,7 @@ jobs:
           args: 'c("--no-manual", "--no-vignettes")'
           error-on: '"error"'
         if: github.event_name == 'pull_request'
-      # Push to default branch / nightly cron / manual dispatch: full check
+      # Push to default branch / manual dispatch: full check
       # including vignette build + re-build check.
       - uses: r-lib/actions/check-r-package@v2
         with:
