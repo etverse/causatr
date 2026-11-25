@@ -1,4 +1,4 @@
-# Chunk 3g: Non-static IPW variance regression tests.
+# Non-static IPW variance regression tests.
 #
 # Two test families:
 #
@@ -26,9 +26,7 @@
 #    replays the full fit_ipw() -> compute_ipw_contrast_point()
 #    pipeline on resampled data and does not touch the IF engine,
 #    so agreement is an end-to-end consistency check on the
-#    Phase 4 runtime pipeline.
-#
-# See PHASE_4_INTERVENTIONS_SELF_IPW.md, sections 9 and 11.
+#    IPW runtime pipeline.
 
 # T-non-static (shift): propensity correction is non-trivial
 

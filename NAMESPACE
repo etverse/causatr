@@ -36,20 +36,26 @@ export(target_trial)
 export(threshold)
 export(tidy)
 export(to_person_period)
-importFrom(data.table,":=")
-importFrom(data.table,.BY)
-importFrom(data.table,.GRP)
-importFrom(data.table,.I)
-importFrom(data.table,.N)
-importFrom(data.table,.SD)
-importFrom(data.table,as.data.table)
-importFrom(data.table,copy)
-importFrom(data.table,is.data.table)
-importFrom(data.table,setkeyv)
-importFrom(data.table,shift)
-importFrom(data.table,uniqueN)
-importFrom(generics,glance)
-importFrom(generics,tidy)
+importFrom(data.table,
+  ":=",
+  .BY,
+  .GRP,
+  .I,
+  .N,
+  .SD,
+  as.data.table,
+  copy,
+  is.data.table,
+  setkeyv,
+  shift,
+  uniqueN
+)
+importFrom(generics,
+  glance,
+  tidy
+)
 importFrom(rlang,"%||%")
-importFrom(stats,predict)
-importFrom(stats,vcov)
+importFrom(stats,
+  predict,
+  vcov
+)

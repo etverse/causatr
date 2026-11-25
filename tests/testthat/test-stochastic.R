@@ -1,4 +1,4 @@
-# -- Chunk 1: Constructor + rejection paths ------------------------------------
+# -- Constructor + rejection paths ------------------------------------
 
 test_that("stochastic() creates a causatr_intervention", {
   sampler <- \(data, trt) rbinom(nrow(data), 1, 0.5)
@@ -124,7 +124,7 @@ test_that("stochastic() rejected under matching", {
   )
 })
 
-# -- Chunk 2: Point gcomp MC integration ------------------------------------
+# -- Point gcomp MC integration ------------------------------------
 
 test_that("stochastic gcomp: binary treatment, gaussian outcome", {
   skip_on_cran()
@@ -582,7 +582,7 @@ test_that("stochastic gcomp: mixed interventions (stochastic + static)", {
   expect_equal(unname(mu["a0"]), 2, tolerance = 0.05)
 })
 
-# -- Chunk 4: ICE (longitudinal) MC integration ------------------------------
+# -- ICE (longitudinal) MC integration ------------------------------
 
 test_that("stochastic ICE: binary treatment, gaussian, 2 periods", {
   skip_on_cran()
@@ -720,7 +720,7 @@ test_that("stochastic ICE: mixed interventions (stochastic vs static)", {
   expect_true(mu["never"] < mu["g"] && mu["g"] < mu["always"])
 })
 
-# -- Chunk 3: Sandwich vs bootstrap agreement ---------------------------------
+# -- Sandwich vs bootstrap agreement ---------------------------------
 
 test_that("stochastic gcomp: sandwich and bootstrap SEs agree (point)", {
   skip_if_fast()
@@ -930,7 +930,7 @@ test_that("stochastic gcomp: sandwich and bootstrap SEs agree (multivariate)", {
   expect_lt(ratio, 2.0)
 })
 
-# -- Chunk 5: Sandwich vs bootstrap agreement (ICE) ---------------------------
+# -- Sandwich vs bootstrap agreement (ICE) ---------------------------
 
 test_that("stochastic ICE: sandwich and bootstrap SEs agree", {
   skip_if_fast()

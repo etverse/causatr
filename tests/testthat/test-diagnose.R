@@ -622,14 +622,12 @@ test_that("compute_positivity_binary() returns NULL for non-{0,1} IPW treatment"
 })
 
 # ============================================================
-# CHUNK 11A: PER-INTERVENTION DISPATCH
+# PER-INTERVENTION DISPATCH
 # ============================================================
 
-# The chunk 11a rewrite of diagnose() introduced a per-intervention
-# panel architecture. Default `diagnose(fit)` produces a single panel
-# keyed `obs` using the observed-treatment Horvitz-Thompson view (the
-# pre-chunk-11a default behaviour, preserved here as a regression
-# anchor). User-supplied `interventions =` produces one panel per key,
+# diagnose() builds one panel per intervention. Default `diagnose(fit)`
+# produces a single panel keyed `obs` using the observed-treatment
+# Horvitz-Thompson view, pinned here as a regression anchor. User-supplied `interventions =` produces one panel per key,
 # each with a per-intervention density-ratio weight summary.
 
 test_that("diagnose() default returns a single `obs` panel matching the legacy view", {
@@ -785,7 +783,7 @@ test_that("print.causatr_diag handles multi-panel output", {
 })
 
 # ============================================================
-# CHUNK 11A: PENDING REJECTION GATES
+# REJECTION GATES
 # ============================================================
 
 # Each unsupported combination must abort with its `causatr_diag_*_pending`
@@ -902,11 +900,10 @@ test_that("diagnose() ATT weight sanity: ESS_treated = n_treated", {
 })
 
 # ============================================================
-# CHUNK 11B: TREATMENT-TYPE DISPATCH
+# TREATMENT-TYPE DISPATCH
 # ============================================================
 
-# Chunk 11b lifts the four treatment-type pending gates and adds
-# density-range positivity, per-level categorical positivity, and
+# Non-binary treatment types get density-range positivity, per-level categorical positivity, and
 # overall weight summaries for non-binary treatment types.
 
 test_that("diagnose() works for continuous-treatment IPW", {
@@ -1282,7 +1279,7 @@ test_that("plot.causatr_diag weights warns for gcomp (no weights)", {
 })
 
 
-# ── Censoring diagnostics (Phase 14f) ──────────────────────────
+# ── Censoring diagnostics ──────────────────────────
 
 test_that("censoring panel present for point IPCW fit", {
   d <- simulate_mar_outcome_complex(n = 1000, seed = 700)
@@ -1558,7 +1555,7 @@ test_that("pct_intervened works for longitudinal ICE", {
 })
 
 
-# ── Sampling-model diagnostics (Phase 17f) ─────────────────────
+# ── Sampling-model diagnostics ─────────────────────
 
 test_that("sampling panel present for gcomp transport fit", {
   d <- simulate_transport(n = 1000, seed = 800)

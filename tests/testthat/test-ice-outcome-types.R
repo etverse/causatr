@@ -1,6 +1,6 @@
 # Tests for non-gaussian/non-binomial outcome families with longitudinal ICE.
-# Phase 13 added Poisson / Gamma / NB / betareg for point gcomp and IPW;
-# this file covers their longitudinal (ICE backward-recursion) paths.
+# Poisson / Gamma / NB / betareg are tested for point gcomp and IPW
+# elsewhere; this file covers their longitudinal (ICE backward-recursion) paths.
 #
 # Source change: `family_pseudo` switch in `fit_ice()` (`R/ice.R`) now maps
 # "poisson" -> quasipoisson so that intermediate pseudo-outcome steps do not

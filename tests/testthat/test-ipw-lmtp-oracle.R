@@ -15,8 +15,6 @@
 # robust) with `SL.glm` learners and `folds = 1` is consistent for the
 # same target parameter under correct specification of both treatment
 # and outcome models (guaranteed by the linear DGPs used here).
-#
-# See PHASE_4_INTERVENTIONS_SELF_IPW.md §9 for the oracle design rationale.
 
 test_that("T-oracle5: causatr shift(1) ≈ lmtp::lmtp_sdr shift (continuous trt)", {
   skip_if_fast()

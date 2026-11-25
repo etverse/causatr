@@ -1,4 +1,4 @@
-# Tests for the censoring model primitive (Phase 14a).
+# Tests for the censoring model primitive.
 #
 # Validates:
 #   - fit_censoring_model() coefficient recovery on DGP-M2

@@ -1,4 +1,4 @@
-# Hand-derived cross-derivative tests for the Phase 4 IPW weight closures.
+# Hand-derived cross-derivative tests for the IPW weight closures.
 #
 # The variance engine's Branch B body will compute the cross-derivative
 #

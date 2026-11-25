@@ -1,7 +1,6 @@
 # WeightIt contrast-level oracle tests for the static-binary IPW path.
 #
-# See PHASE_4_INTERVENTIONS_SELF_IPW.md §9 for the design rationale.
-# Summary: causatr's self-contained density-ratio engine and
+# causatr's self-contained density-ratio engine and
 # `WeightIt::glm_weightit()` implement the same M-estimation functional
 # (ATE / ATT / ATC under static binary IPW) via different internal
 # decompositions. On the same data with the same propensity-score
@@ -12,13 +11,11 @@
 # the IF engine's cross-derivative term.
 #
 # All tests gate on `skip_if_not_installed("WeightIt")` so the package
-# installs without WeightIt — chunk 3d moves it from Imports to
-# Suggests for exactly this reason.
+# installs without WeightIt, which is in Suggests.
 
 # DGP with heterogeneous treatment effect in L so ATT / ATC diverge
 # from ATE. Without this, the T-oracle2 / T-oracle3 tests would pass
-# even if causatr silently returned the ATE (the latent bug that
-# chunk 3d's ATT/ATC weight fix addresses).
+# even if causatr silently returned the ATE for an ATT or ATC fit.
 make_het_binary_dgp <- function(n = 2000, seed = 1) {
   set.seed(seed)
   L <- stats::rnorm(n)

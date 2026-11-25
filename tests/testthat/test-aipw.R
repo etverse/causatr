@@ -94,7 +94,7 @@ test_that("AIPW bootstrap agrees with sandwich (within 30%)", {
   expect_lt(ratio, 1.3)
 })
 
-# --- Double robustness (chunk 16d) ------------------------------------------
+# --- Double robustness: misspecified outcome model ---------------------------
 
 test_that("AIPW DR: wrong outcome model, correct propensity => ATE ~ 3", {
   set.seed(16004)
@@ -125,7 +125,7 @@ test_that("AIPW DR: wrong outcome model, correct propensity => ATE ~ 3", {
   expect_gt(result$contrasts$ci_upper[1], 3)
 })
 
-# --- Double robustness (chunk 16e) ------------------------------------------
+# --- Double robustness: misspecified propensity ------------------------------
 
 test_that("AIPW DR: correct outcome model, wrong propensity => ATE ~ 3", {
   set.seed(16050)
@@ -156,7 +156,7 @@ test_that("AIPW DR: correct outcome model, wrong propensity => ATE ~ 3", {
   expect_gt(result$contrasts$ci_upper[1], 3)
 })
 
-# --- Efficiency (chunk 16f) -------------------------------------------------
+# --- Efficiency -------------------------------------------------
 
 test_that("AIPW SE <= gcomp SE and IPW SE (both correct, large n)", {
   d <- simulate_binary_continuous(n = 3000, seed = 789)
@@ -311,7 +311,7 @@ test_that("AIPW works with continuous treatment and shift intervention", {
   expect_true(is.finite(result$contrasts$se[1]) && result$contrasts$se[1] > 0)
 })
 
-# --- Full intervention set (chunk 16g) --------------------------------------
+# --- Full intervention set --------------------------------------
 
 test_that("AIPW works with scale_by intervention (continuous treatment)", {
   d <- simulate_continuous_continuous(n = 2000, seed = 42)
@@ -424,7 +424,7 @@ test_that("AIPW rejects threshold on continuous treatment", {
   )
 })
 
-# --- ATT/ATC (chunk 16h) ----------------------------------------------------
+# --- ATT/ATC ----------------------------------------------------
 
 test_that("AIPW recovers ATT on linear DGP (static binary)", {
   d <- simulate_binary_continuous(n = 3000, seed = 42)
@@ -468,7 +468,7 @@ test_that("AIPW recovers ATC on linear DGP (static binary)", {
   expect_true(is.finite(result$contrasts$se[1]) && result$contrasts$se[1] > 0)
 })
 
-# --- Effect modification (chunk 16h) -----------------------------------------
+# --- Effect modification -----------------------------------------
 
 test_that("AIPW recovers sex-stratified ATE with effect modification", {
   d <- simulate_het_effect(n = 3000, seed = 42)
@@ -493,7 +493,7 @@ test_that("AIPW recovers sex-stratified ATE with effect modification", {
   expect_equal(est_sex1, 4.5, tolerance = 0.05)
 })
 
-# --- Categorical treatment (chunk 16j) --------------------------------------
+# --- Categorical treatment --------------------------------------
 
 test_that("AIPW works with categorical treatment", {
   set.seed(16020)

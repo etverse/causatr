@@ -23,14 +23,26 @@
 #'    - `static(value)` on binary / categorical treatments
 #'    - `dynamic(rule)` on binary / categorical treatments
 #'
-#' 2. **Smooth density ratio** -- used for MTPs on continuous
-#'    treatments where both the fitted density and the intervened
-#'    density are absolutely continuous w.r.t. Lebesgue measure.
-#'    \deqn{w_i = \frac{f(d(A_i, L_i) \mid L_i)}{f(A_i \mid L_i)}.}
-#'    Covers:
-#'    - `shift(delta)` on continuous treatments
-#'    - `scale_by(factor)` on continuous treatments
-#'    - `threshold(lower, upper)` on continuous treatments
+#' 2. **Pushforward density ratio** -- used for modified treatment
+#'    policies on continuous and count treatments. The intervened
+#'    density is the pushforward \eqn{f_d} of the fitted density
+#'    under the map \eqn{d}, so for an invertible map
+#'    \deqn{w_i = \frac{f(d^{-1}(A_i, L_i) \mid L_i)\,|J_{d^{-1}}|}{f(A_i \mid L_i)}.}
+#'    The naive form \eqn{f(d(A_i, L_i) \mid L_i) / f(A_i \mid L_i)}
+#'    estimates \eqn{E[Y^{shift(-\delta)}]} instead of
+#'    \eqn{E[Y^{shift(\delta)}]}: it has the wrong sign for a shift and
+#'    lacks the Jacobian for a scale. Covers:
+#'    - `shift(delta)`: evaluate at \eqn{A_i - \delta}, Jacobian 1
+#'    - `scale_by(factor)`: evaluate at \eqn{A_i / c}, Jacobian \eqn{1/|c|}
+#'
+#'    Count treatments (Poisson, negative binomial) are opt-in through
+#'    `causat(propensity_family =)` rather than detected from the data,
+#'    because many non-negative integer variables (age in years, income
+#'    in thousands) should keep a Gaussian density. On a count treatment
+#'    a non-integer shift, or a scale that leaves the integer support, is
+#'    rejected, because `dpois()` and `dnbinom()` are zero off the
+#'    integers. The negative-binomial `theta` is held fixed in the
+#'    sandwich, as the Gaussian `sigma` is.
 #'
 #' 3. **IPSI closed form** -- Kennedy (2019):
 #'    \deqn{w_i = \frac{\delta A_i + (1 - A_i)}{\delta p_i + (1 - p_i)}.}
@@ -50,7 +62,12 @@
 #'   per-individual rule is a Dirac per individual, and the density
 #'   ratio is degenerate. Users should use `estimator = "gcomp"` for
 #'   continuous dynamic rules, or rewrite the rule as a smooth
-#'   `shift()` / `scale_by()` / `threshold()`.
+#'   `shift()` / `scale_by()`.
+#' - `threshold(lower, upper)`: the pushforward of a continuous density
+#'   under a clamp is a mixed measure, a density on `(lower, upper)`
+#'   plus point masses at the bounds, so no density ratio against the
+#'   fitted density exists. g-computation handles it by predicting at
+#'   the clamped values.
 #'
 #'   **Terminology note.** The causal-inference literature uses
 #'   "dynamic regime" loosely. Two distinct objects share the name:
@@ -232,8 +249,8 @@ compute_density_ratio_weights <- function(
   # which is what the naive "evaluate the density at the intervened
   # treatment" formula gives. The difference is a sign (for shift)
   # and a Jacobian (for scale_by), and using the naive form gives
-  # E[Y^{shift(-delta)}] instead of E[Y^{shift(delta)}]. Verified
-  # analytically in the design notes.
+  # E[Y^{shift(-delta)}] instead of E[Y^{shift(delta)}]; the
+  # truth-based Hajek tests in test-ipw-weights.R catch the sign.
   #
   # For count treatments (Poisson / NB) the same pushforward formula
   # applies. `check_intervention_family_compat()` has already verified

@@ -1,4 +1,4 @@
-# Tests for the effect-modification infrastructure (Phase 6, chunk 6a).
+# Tests for the effect-modification infrastructure.
 #
 # This file tests:
 #   - parse_effect_mod() — formula parsing and classification
@@ -195,7 +195,7 @@ test_that("build_ps_formula handles EM-only confounders", {
   expect_length(f_terms, 0L)
 })
 
-# IPW effect modification (chunk 6b) ----------------------------------------
+# IPW effect modification ----------------------------------------
 
 test_that("IPW rejects bare treatment in confounders", {
   d <- simulate_binary_continuous(n = 200, seed = 2)
@@ -419,7 +419,7 @@ test_that("IPW without EM terms is unaffected by EM infrastructure", {
   expect_false(fit$details$em_info$has_em)
 })
 
-# Matching effect modification (chunk 6c) ------------------------------------
+# Matching effect modification ------------------------------------
 
 test_that("matching rejects bare treatment in confounders", {
   skip_if_not_installed("MatchIt")
@@ -602,7 +602,7 @@ test_that("matching without EM terms is unaffected by EM infrastructure", {
   expect_false(fit$details$em_info$has_em)
 })
 
-# ICE effect modification (chunk 6d) ------------------------------------------
+# ICE effect modification ------------------------------------------
 
 # expand_em_lag_terms() unit tests.
 
@@ -894,7 +894,7 @@ test_that("ICE without EM terms is unaffected by EM lag expansion", {
   expect_gte(res$contrasts$ci_upper[1], 5.0)
 })
 
-# ICE EM x continuous treatment x shift (chunk 6d) ----------------------------
+# ICE EM x continuous treatment x shift ----------------------------
 
 # Truth-based: ICE x continuous trt x shift(1) x binary modifier.
 #
@@ -1251,11 +1251,11 @@ test_that("ICE EM binary: causatr agrees with lmtp per-stratum (DGP-EM-ICE)", {
   }
 })
 
-# Cross-method triangulation (chunk 6e) ----------------------------------------
+# Cross-method triangulation ----------------------------------------
 
 # All three point-treatment methods (gcomp, IPW, matching) run on the same
 # EM DGP and must agree on stratum-specific ATEs within cross-method
-# tolerance. This is the capstone test for Phase 6: if the three methods
+# tolerance. If the three methods
 # agree with each other and with the analytical truth, the EM infrastructure
 # is wired correctly across all estimation engines.
 #

@@ -336,7 +336,8 @@ print.causatr_diag <- function(x, ...) {
       header = NULL
     )
   } else if (length(panels) == 1L) {
-    # Single-panel layout matches the pre-chunk-11a flat output: no
+    # Single-panel layout keeps the flat output of a fit without
+    # interventions: no
     # intervention header, just the three sub-tables. Existing
     # `expect_output(print(diag), "Positivity")` style tests continue
     # to pass without change.

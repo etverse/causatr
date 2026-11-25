@@ -571,7 +571,7 @@ diag$match_quality
 | Binary | Binary | Static | ATT | Ratio | Bootstrap | none | ✅ |
 | Binary | Gaussian | Static | ATE (with `A:modifier`) | Difference | Sandwich / Bootstrap | none | ✅ |
 | Categorical (k>2) / Continuous | — | — | — | — | — | — | ⛔ binary only |
-| Any | — | Dynamic / Shift / Scale / Threshold / IPSI | — | — | — | — | ⛔ Phase 4 |
+| Any | — | Dynamic / Shift / Scale / Threshold / IPSI | — | — | — | — | ⛔ static only |
 
 See `FEATURE_COVERAGE_MATRIX.md`
 for the authoritative coverage status of every method × treatment × outcome

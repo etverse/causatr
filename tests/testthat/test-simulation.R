@@ -2675,7 +2675,7 @@ test_that("to_person_period() aborts on time_name collision", {
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Phase 13 — Extended Outcome Type Coverage
+# Extended outcome type coverage (Poisson, Gamma, NB, beta)
 # ──────────────────────────────────────────────────────────────────────────────
 
 # --- Poisson outcome (expanding beyond the single existing ratio test) --------

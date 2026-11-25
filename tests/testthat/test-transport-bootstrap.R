@@ -1,4 +1,4 @@
-# Bootstrap variance tests for gcomp and IPW transport (chunk 17d).
+# Bootstrap variance tests for gcomp and IPW transport.
 #
 # DGP (simulate_transport, helper-dgp.R):
 #   L ~ N(0,1)

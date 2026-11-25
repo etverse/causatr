@@ -226,6 +226,15 @@ check_em_compat <- function(em_info, treatment, estimator, data = NULL) {
 #' separated interaction; other components (modifiers, `I()` wrappers)
 #' are kept verbatim.
 #'
+#' The expansion makes the interaction apply uniformly across time: the
+#' modifier is assumed time-invariant, and every lag of the treatment
+#' carries the same `lag:modifier` term. Without it, ICE captured only the
+#' current-period interaction and compressed the stratum-specific contrast
+#' by about 30 to 50% on a two-period DGP. A modifier whose effect takes a
+#' different form in each period is not expressible here; fit it in wide
+#' format with point g-computation. A modifier whose lag column is all
+#' `NA` at a step is dropped there by `ice_build_formula()`.
+#'
 #' @param em_term A single EM term list from `parse_effect_mod()$em_terms`,
 #'   with `$term`, `$treatment_var`, and `$modifier_vars`.
 #' @param available_lags Integer. Number of lags available at the current

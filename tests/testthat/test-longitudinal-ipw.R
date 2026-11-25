@@ -1,4 +1,4 @@
-# Longitudinal IPW (Phase 10 chunk 10a)
+# Longitudinal IPW
 #
 # Per-period density chain + cumulative product weight + final-period
 # weighted Hajek MSM + stacked sandwich + id-clustered bootstrap.
@@ -412,8 +412,8 @@ test_that("R-long-ipw3: numerator = formula without stabilize = 'marginal' is re
 
 test_that("R-long-ipw4: bare treatment in confounders (~ L + A) is rejected under longitudinal IPW", {
   # `check_em_compat()` rejects `~ L + A` because it puts A on both
-  # sides of the propensity model. True EM (`A:sex`) is supported in
-  # chunk 10c; bare treatment is invalid by construction and stays
+  # sides of the propensity model. True EM (`A:sex`) is supported;
+  # bare treatment is invalid by construction and stays
   # rejected with a `causatr_bare_treatment_in_confounders` error.
   set.seed(7103)
   d <- make_linear_scm(n = 200, seed = 7103)
@@ -668,7 +668,7 @@ test_that("R-long-ipw7: single-period data is rejected with a clear error", {
 
 
 # ----------------------------------------------------------------------
-# Chunk 10b: stabilized weights
+# Stabilized weights
 # ----------------------------------------------------------------------
 
 test_that("T-long-ipw-stab1: stabilize = 'marginal' fits per-period numerator models with the right structure", {
@@ -717,7 +717,7 @@ test_that("T-long-ipw-stab2: stabilized + static binary recovers identical estim
   # the same evaluation point (numerator and denominator densities
   # coincide because the indicator pins A to the static target). The
   # marginal-mean Hájek therefore agrees exactly with unstabilized.
-  # This is the same equality Phase 8e asserts for multivariate IPW.
+  # test-multivariate-ipw.R asserts the same equality for multivariate IPW.
   set.seed(7601)
   d <- make_linear_scm(n = 1500, seed = 7601)
   d <- data.table::as.data.table(d)
@@ -972,7 +972,7 @@ test_that("T-long-ipw-stab6: stabilized scale_by + trim sandwich matches bootstr
 
 
 # ----------------------------------------------------------------------
-# Chunk 10c: effect modification (baseline modifier)
+# Effect modification (baseline modifier)
 # ----------------------------------------------------------------------
 
 test_that("T-long-ipw-em1: stratified ATE recovers analytical truth on EM-ICE DGP", {
@@ -1133,7 +1133,7 @@ test_that("T-long-ipw-em3: longitudinal IPW EM agrees with ICE EM cross-method",
 })
 
 
-# ---- Weight truncation (Phase 19-trim) ---------------------------------
+# ---- Weight truncation ---------------------------------
 
 test_that("longitudinal IPW: trim reduces cumulative max weight", {
   d <- data.table::as.data.table(make_continuous_scm(n = 500, seed = 7200))

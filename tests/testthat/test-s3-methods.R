@@ -771,7 +771,7 @@ test_that("ICE × bootstrap × external weights gives finite SE matching sandwic
 })
 
 
-# SNM S3 dispatch (chunk 18j) -------------------------------------------
+# SNM S3 dispatch -------------------------------------------
 
 test_that("print.causatr_result shows 'Blip parameters' for SNM Path A", {
   set.seed(42)

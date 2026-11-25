@@ -27,8 +27,7 @@ and should agree to high precision:
 - `stdReg2::standardize_glm()` uses the same g-formula influence function as
   causatr's point-gcomp engine, so the point estimate should match to ~1e-6 and
   the SE to within rounding of the covariance inverse.
-- `WeightIt::glm_weightit()` uses the same M-estimator sandwich as causatr's
-  IPW Branch A, so the SE should match within rounding.
+- `WeightIt::glm_weightit()` solves the same stacked M-estimation system as causatr's IPW engine for a static binary treatment, so the SE should match within rounding.
 - `marginaleffects::avg_comparisons()` on a `MatchIt::matchit()` output with
   `vcov = ~subclass` uses the same cluster-robust aggregation as causatr's
   matching branch, so point estimate and SE should match closely.
@@ -368,10 +367,7 @@ compare_row(
 
 ## 2. IPW vs `WeightIt::glm_weightit`
 
-causatr's IPW Branch A wraps `WeightIt::glm_weightit` for the propensity
-fit and applies the Mparts correction to the marginal structural model.
-Comparing against `glm_weightit` directly verifies that the bookkeeping
-matches: point estimate and SE should agree.
+causatr's IPW engine fits its own propensity model and builds the density-ratio weights and the stacked sandwich itself; `WeightIt` is not on its runtime path. For a static binary treatment `WeightIt::glm_weightit` solves the same M-estimation system with its own code, so comparing the two checks the bookkeeping: point estimate and SE should agree.
 
 ```{r}
 fit_ipw <- causat(

@@ -618,8 +618,8 @@ make_em_ice_binom_scm <- function(n = 5000, seed = 42) {
 # 2 periods x 2 binary treatment components per period, with the per-period
 # treatment effect modified by a baseline binary covariate `sex`. This is
 # the multivariate analogue of make_em_ice_scm() and exercises the
-# composition of per-component EM stripping (Phase 8b) with per-period EM
-# stripping (Phase 10c) under longitudinal IPW.
+# composition of per-component EM stripping (multivariate IPW) with
+# per-period EM stripping (longitudinal IPW).
 #
 # DGP (2 periods, components A1 and A2 each period):
 #   L0  ~ N(0, 1);  sex ~ Bern(0.5)
@@ -977,7 +977,7 @@ simulate_transport <- function(n = 3000, seed = 42) {
 }
 
 
-# DGP for multivariate IPW × transport (chunk 17j).
+# DGP for multivariate IPW × transport.
 #
 # Y = 1 + 2*A1 + 1.5*A2 + L + A1*L + eps,  eps ~ N(0,1)
 # A1 | L, S=1 ~ Bernoulli(expit(0.2 + 0.3*L))
@@ -1012,7 +1012,7 @@ simulate_mv_transport <- function(n = 6000, seed = 42) {
 }
 
 
-# DGP for IPCW × transport (chunk 17k).
+# DGP for IPCW × transport.
 #
 # Combines differential MAR censoring with sampling selection.
 # Study rows (S=1) have treatment, outcome (possibly censored), and covariates.
@@ -1221,11 +1221,10 @@ simulate_naimi_longitudinal <- function(n = 5000, seed = 42) {
 }
 
 
-# --- SNM DGPs (Phase 18) ---------------------------------------------------
+# --- SNM DGPs ----------------------------------------------------------------
 
 #' Point-treatment SNM DGP with effect modification
 #'
-#' From PHASE_18_SNMS.md design doc:
 #'   L ~ N(0, 1), M = I(L > 0)
 #'   A | L ~ N(0.5 * L, 1)   (continuous treatment)
 #'   Y = 2 + 3*A + 1.5*L + 2*A*M + eps, eps ~ N(0, 1)
@@ -1484,7 +1483,7 @@ simulate_snm_longitudinal_continuous <- function(n = 2000, seed = 42) {
 
 #' Longitudinal SNM DGP: 2-period, binary treatment, time-varying EM
 #'
-#' Headline Phase 18 demonstration: the stage-1 blip includes a
+#' The case SNM exists for: the stage-1 blip includes a
 #' time-varying modifier \eqn{M_1 = 1\{L_1 > 0\}} that is
 #' post-treatment (L_1 depends on A_0). SNMs handle this correctly;
 #' IPW-MSM conditioning on M_1 introduces collider bias.
@@ -1832,7 +1831,7 @@ simulate_mi_uncongenial <- function(n = 2000, seed = 42) {
 }
 
 # ---------------------------------------------------------------------------
-# Longitudinal outcome-family DGPs (Phase 13 extended to ICE)
+# Longitudinal outcome-family DGPs (Poisson, Gamma, NB, beta under ICE)
 # ---------------------------------------------------------------------------
 
 # DGP-ICE-POIS: Longitudinal Poisson ICE — binary treatment, tau = 2.

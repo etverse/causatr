@@ -1,4 +1,4 @@
-# Unit tests for R/treatment_model.R (Phase 4 foundation layer).
+# Unit tests for R/treatment_model.R.
 #
 # The treatment density model + density evaluator underpin the
 # self-contained IPW engine. These tests pin down:
@@ -8,10 +8,8 @@
 #   - the "categorical not yet" abort
 #   - sigma extraction across GLM / LM fit shapes
 #
-# The categorical branch is explicitly deferred in this first Phase 4
-# chunk, and the test locks in the abort message so a future PR that
-# lands the multinomial branch has to remove this test alongside the
-# abort.
+# The test of the "categorical not yet" abort locks in its message, so a
+# change to the multinomial branch has to update the test with it.
 
 test_that("detect_treatment_family() classifies each input type", {
   expect_identical(detect_treatment_family(c(0L, 1L, 0L, 1L)), "bernoulli")

@@ -1,4 +1,4 @@
-# Tests for IPCW × transportability composition (Phase 17, chunk 17k).
+# Tests for IPCW × transportability composition.
 #
 # Uses simulate_ipcw_transport() DGP:
 #   L ~ N(0,1)

@@ -1,4 +1,4 @@
-# --- Chunk 18a: routing, validation, and rejection tests --------------------
+# --- Routing, validation, and rejection tests --------------------
 
 test_that("causat() accepts estimator = 'snm' and returns causatr_fit", {
   d <- simulate_binary_continuous(n = 500, seed = 42)
@@ -268,7 +268,7 @@ test_that("build_blip_spec handles multiple modifiers", {
   expect_equal(spec$n_params, 3L)
 })
 
-# --- Chunk 18b: point estimation + contrast + sandwich -----------------------
+# --- Point estimation + contrast + sandwich -----------------------
 
 # --- Truth-based tests -------------------------------------------------------
 
@@ -1160,7 +1160,7 @@ test_that("TF model vcov is positive semi-definite", {
   expect_true(all(eig >= -1e-10))
 })
 
-# --- Chunk 18c: time-varying (post-treatment) modifiers ----------------------
+# --- Time-varying (post-treatment) modifiers ----------------------
 # SNMs identify the blip under treatment-model correctness alone, so
 # modifiers that depend on treatment (post-treatment) are valid — unlike
 # IPW-MSM, which conditions on a descendant of A (collider bias).
@@ -1501,7 +1501,7 @@ test_that("Vcov is PSD for TV modifier DGP (with TF)", {
 })
 
 
-# --- Chunk 18d: longitudinal SNMM -------------------------------------------
+# --- Longitudinal SNMM -------------------------------------------
 
 test_that("Longitudinal SNM: binary treatment, per-stage estimation", {
   dgp <- simulate_snm_longitudinal(n = 10000, seed = 123)
@@ -2013,7 +2013,7 @@ test_that("Longitudinal SNM: sandwich SE matches cluster bootstrap SE", {
 })
 
 
-# --- Chunk 18e: longitudinal TV-EM truth-based test ----------------------------
+# --- Longitudinal TV-EM truth-based test ----------------------------
 # Headline scientific demonstration: SNMs correctly handle time-varying
 # effect modification (M_1 = 1{L_1 > 0}, post-treatment because L_1
 # depends on A_0), while IPW-MSM conditioning on M_1 is biased.

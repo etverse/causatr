@@ -284,7 +284,7 @@ test_that("mv AIPW: stabilize = 'marginal' produces finite results", {
 
 
 # ============================================================
-# CHUNK 16p — AIPW TEST COVERAGE PARITY
+# AIPW COVERAGE PARITY WITH GCOMP AND IPW
 # ============================================================
 
 # --- Gap 1: Extended outcome families -----------------------------------------

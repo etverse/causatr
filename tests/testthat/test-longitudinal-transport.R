@@ -1,6 +1,6 @@
 # test-longitudinal-transport.R
 #
-# Truth-based tests for longitudinal IPW × transport (chunk 17i).
+# Truth-based tests for longitudinal IPW × transport.
 #
 # DGP (2 periods, binary treatment, biased study selection by L):
 #   L ~ N(0, 1)                                          (individual baseline)

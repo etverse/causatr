@@ -329,6 +329,14 @@ ipsi <- function(delta) {
 #' of `n_mc` draws, the sampler assigns counterfactual treatments, the
 #' outcome model predicts, and the predictions are averaged across draws.
 #'
+#' The influence function is the Monte Carlo average of the per-draw
+#' g-computation influence functions. Its first term is the averaged
+#' prediction minus the estimate, and its model term uses the averaged
+#' prediction gradient, because the average of the gradients is the
+#' gradient of the averaged predictions. The sandwich holds the draws
+#' fixed, so Monte Carlo noise is not in its SE; the bootstrap redraws in
+#' every replicate and includes it.
+#'
 #' @param sampler A function with signature `function(data, treatment)`
 #'   that returns a vector of treatment values of length `nrow(data)`.
 #'   `data` is the full counterfactual data.table (same as [dynamic()]);

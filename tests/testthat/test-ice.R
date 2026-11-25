@@ -611,9 +611,9 @@ test_that("ICE accepts shift / scale_by / threshold interventions on time-varyin
 })
 
 
-test_that("ipsi() is explicitly rejected by ICE/contrast() (Phase 4 placeholder)", {
-  # Lock in the not-yet-implemented abort so a future Phase-4
-  # implementation can't silently regress while wiring it up.
+test_that("ipsi() is rejected by contrast() on an ICE fit", {
+  # IPSI shifts the propensity, not the treatment value, so g-computation
+  # has no counterfactual treatment to predict at.
   long <- make_table201(scale = 1 / 100)
   fit <- causat(
     long,

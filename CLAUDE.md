@@ -48,9 +48,9 @@ Rscript -e 'devtools::load_all(quiet = TRUE); testthat::test_file("tests/testtha
 
 `CAUSATR_TEST_TIER=fast` skips the blocks guarded by `skip_if_fast()`; the default tier is `full`, which takes over an hour on four processes. Python oracle fixtures are regenerated with the virtual environments in `data-raw/` (`deli_venv` for `delicatessen`, `zepid_venv` for zEpid).
 
-## Planning files
+## Planned work
 
-`PHASE_*.md` hold the design of each feature, and `FEATURE_COVERAGE_MATRIX.md` records which combinations are tested.
+Planned work and known bugs are GitHub issues (`gh issue list`, `gh issue view <n>`), grouped in `ROADMAP.md`; the reason behind shipped code is in the roxygen of the function it explains. `FEATURE_COVERAGE_MATRIX.md` records which combinations are tested.
 
 ## Dependencies
 

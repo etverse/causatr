@@ -837,10 +837,7 @@ weighted final-period MSM. Both target the same counterfactual mean
 $E[Y^d]$; agreement between them is the methodological-triangulation
 test causatr is built around.
 
-The mathematical structure is the same chain rule we used for
-multivariate IPW (Phase 8) but indexed by **time** rather than
-treatment component. For an intervention $d$ applied at every period
-$k = 0, 1, \ldots, K$:
+The mathematical structure is the same chain rule we used for multivariate IPW but indexed by **time** rather than treatment component. For an intervention $d$ applied at every period $k = 0, 1, \ldots, K$:
 
 $$
 W_i = \prod_{k=0}^{K} \frac{f_k\bigl(d(A_{k,i}, L_{k,i}) \mid \bar A_{k-1,i}^{\mathrm{obs}}, \bar L_{k,i}\bigr) \cdot \lvert \mathrm{Jac}\,d^{-1} \rvert}{f_k\bigl(A_{k,i} \mid \bar A_{k-1,i}^{\mathrm{obs}}, \bar L_{k,i}\bigr)}.
@@ -960,10 +957,7 @@ formula adds baseline-only covariates on top of the lags, which
 typically gives the most stable contrast estimate when the structural
 treatment generation depends on baseline characteristics.
 
-Sandwich variance treats the numerator parameters as fixed (same
-nuisance-fixed convention as Phase 8e for multivariate IPW); bootstrap
-refits both numerator and denominator per replicate and captures the
-full uncertainty.
+Sandwich variance treats the numerator parameters as fixed (the same nuisance-fixed convention as multivariate IPW); the bootstrap refits both numerator and denominator per replicate and captures the full uncertainty.
 
 ### Effect modification (baseline modifier)
 

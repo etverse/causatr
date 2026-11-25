@@ -1,4 +1,4 @@
-# Tests for the built-in IPCW integration (Phase 14b).
+# Tests for the built-in IPCW integration.
 #
 # Uses DGP-M2b (non-linear outcome with interaction, 2 confounders,
 # differential censoring) for point-estimate tests because IPCW

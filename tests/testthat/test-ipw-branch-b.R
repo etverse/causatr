@@ -12,7 +12,7 @@
 #   outcome Y. See `helper-dgp.R` for the true parameters.
 # - Propensity model: `glm(A ~ L, family = binomial)`.
 # - Intervention: `static(1)`. HT weights `w_i = I(A_i = 1) / p_i`
-#   (what `compute_density_ratio_weights()` returns under Phase 4's
+#   (what `compute_density_ratio_weights()` returns under its
 #   HT form for `static` on binary).
 # - MSM: intercept-only weighted Gaussian GLM `glm(Y ~ 1, weights = w,
 #   family = gaussian)`, whose intercept is the Hájek mean of Y among
