@@ -231,7 +231,9 @@ ice_if_setup <- function(fit, ice_result, target) {
 #' point estimate (whose baseline pseudo-outcome is still defined for them).
 #'
 #' With no missing data every row is complete, so the result is all-`TRUE` and
-#' the cascade is byte-identical to the historical path.
+#' the cascade is unchanged. The correction is valid when the time-varying
+#' covariate is missing completely at random; under MAR use `causat_mice()`
+#' or IPCW.
 #'
 #' @param model A fitted model (GLM or GAM) used for the step.
 #' @param frame A `data.table`/`data.frame` of candidate prediction rows.

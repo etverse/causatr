@@ -1,4 +1,4 @@
-# Multivariate IPW × transport (chunk 17j).
+# Multivariate IPW × transport.
 #
 # DGP: see simulate_mv_transport() in helper-dgp.R.
 #   Y = 1 + 2*A1 + 1.5*A2 + L + A1*L + eps

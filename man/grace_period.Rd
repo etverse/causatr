@@ -60,8 +60,8 @@ policies that depend on the natural history of treatment. arXiv:2605.24167.
 \seealso{
 \code{\link[=carry_forward]{carry_forward()}}, \code{\link[=contrast]{contrast()}}, \code{\link[=dynamic]{dynamic()}}
 
-Other glmtp: 
-\code{\link{cap_escalation}()},
-\code{\link{carry_forward}()}
+Other glmtp:
+\code{\link[=cap_escalation]{cap_escalation()}},
+\code{\link[=carry_forward]{carry_forward()}}
 }
 \concept{glmtp}

@@ -5,7 +5,8 @@
 # uses the EIF, not the M-estimation sandwich, so only point estimates
 # are compared. The manual IPSI oracle computes Kennedy (2019) closed-
 # form weights from the same propensity model causatr fits internally.
-# See PHASE_4_INTERVENTIONS_SELF_IPW.md §9 for the design rationale.
+# The comparison is at the contrast level, because the two packages
+# decompose the estimating equations differently.
 
 #' Run lmtp::lmtp_sdr() for a point-treatment shift and extract E[Y(A+delta)]
 #'

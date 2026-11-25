@@ -10,6 +10,9 @@ paths:
 
 These are deliberate. Do not report them as bugs without a numerical reproducer.
 
+- Point AIPW takes the outcome model from `model_fn` and the treatment model from `propensity_model_fn`; it never reuses `model_fn` for the propensity, and `causat()` warns when either is left at its default (`causatr_model_fn_default`, `causatr_propensity_fn_default`).
+- On a DGP where both nuisances are correct, the g-computation, IPW and AIPW point estimates agree up to Monte Carlo noise, and at large n the AIPW sandwich SE is no larger than either. With one nuisance deliberately misspecified AIPW stays consistent. A test that fails one of these points to the augmentation term, not to the tolerance.
+
 - The longitudinal AIPW sandwich is the full stacked-estimating-equation sandwich, `V = B⁻¹ M B⁻ᵀ / n`, in `variance_if_aipw_longitudinal()` and `R/variance_if_aipw_longitudinal_ee.R`. `ψ(θ)` stacks the per-period propensity scores, the per-step outcome and pseudo-outcome scores and the marginal-mean equation, and the bread is the numerical Jacobian (`numDeriv`) of the summed score. That captures every cross-term, including the baseline pseudo-regression block `B⁻¹[μ, β₁]`, so the SE is consistent on balanced and unbalanced panels (monotone dropout, censoring row filter). A forward-cascade assembly that drops that block underestimates the SE by about 50% under dropout; do not reintroduce one, or an abort for unbalanced panels.
 - `aipw_long_stacked_if()` checks that the reconstructed score vanishes (`max|colSums(ψ(θ̂))|`) and otherwise raises `causatr_longitudinal_aipw_sandwich_unfaithful` and points to the bootstrap.
 - The analytic sandwich covers GLM nuisance models, `MASS::glm.nb` and `nnet::multinom` propensities. `mgcv::gam` and `betareg::betareg` nuisance models raise `causatr_longitudinal_aipw_sandwich_model` and use the bootstrap, because their bread is not the score Jacobian.

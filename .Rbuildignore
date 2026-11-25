@@ -9,7 +9,7 @@
 ^docs$
 ^altdoc$
 ^CLAUDE\.md$
-^PHASE_.*\.md$
+^ROADMAP\.md$
 ^Makefile$
 ^\.claude$
 ^\.worktreeinclude$

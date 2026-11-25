@@ -78,7 +78,7 @@ test_that("IPW continuous treatment fits and contrasts", {
   expect_equal(fit$details$treatment_model$family, "gaussian")
 })
 
-test_that("causat(estimator = 'ipw') accepts longitudinal data (Phase 10)", {
+test_that("causat(estimator = 'ipw') accepts longitudinal data", {
   # Longitudinal IPW lights up via `fit_longitudinal_ipw()` -- a 2-row
   # per id person-period frame should fit a per-period density chain
   # without aborting. Numerical correctness is exercised in
@@ -135,7 +135,7 @@ test_that("IPW rejects static(1) on a continuous treatment", {
 
 test_that("IPW accepts A:modifier interaction terms in confounders", {
   # EM terms expand the per-intervention MSM from `Y ~ 1` to
-  # `Y ~ 1 + modifier` (chunk 6b). The propensity formula strips the
+  # `Y ~ 1 + modifier`. The propensity formula strips the
   # EM term automatically via `build_ps_formula()`.
   d <- simulate_binary_continuous(n = 200, seed = 1)
   d$sex <- rbinom(nrow(d), 1, 0.5)
@@ -166,7 +166,7 @@ test_that("IPW rejects bare treatment in confounders", {
 
 # `fit_ipw()` rejects scientifically out-of-scope combinations up
 # front. Multivariate treatment is the historically-rejected path
-# preserved here; longitudinal IPW now ships (Phase 10) and is
+# preserved here; longitudinal IPW is
 # exercised in test-longitudinal-ipw.R. Matching is rejected for
 # longitudinal data via `check_causat_inputs()`.
 test_that("matching is rejected for longitudinal data", {

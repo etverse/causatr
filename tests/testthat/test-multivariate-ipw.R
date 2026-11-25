@@ -434,7 +434,7 @@ test_that("mv IPW: EM cross-checks against gcomp", {
 
 test_that("mv IPW: bare treatment in confounders (`~ L + A1`) still rejected", {
   # `A:modifier` is fine; bare A is always wrong (puts A on both sides
-  # of the propensity model). Phase 6's `check_em_compat()` catches it.
+  # of the propensity model). `check_em_compat()` catches it.
   df <- sim_bb()
   expect_error(
     causat(df, "Y", c("A1", "A2"), ~ L + A1, estimator = "ipw"),

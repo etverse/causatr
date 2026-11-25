@@ -90,6 +90,12 @@
 #' *bias* the causal estimate and so defeat both pooling rules.
 #' `causat_mice()` warns when an analysis variable is absent or unused.
 #'
+#' The other order, a bootstrap within each imputation with the bootstrap
+#' variances then pooled by Rubin's rules ("MI boot Rubin" in Schomaker and
+#' Heumann 2018), is not offered: its Rubin step reintroduces the
+#' uncongeniality bias. Boot MI bootstraps first, so the bootstrap and not
+#' Rubin's formula estimates the variance.
+#'
 #' ## What this does not do
 #' It does not perform the imputation (call `mice::mice()` first), impute the
 #' outcome, handle MNAR mechanisms, or pool omnibus tests across contrasts.
@@ -109,6 +115,9 @@
 #' Bartlett JW, Hughes RA (2020). Bootstrap inference for multiple imputation
 #' under uncongeniality and misspecification. *Statistical Methods in Medical
 #' Research* 29(12):3533-3546.
+#'
+#' Schomaker M, Heumann C (2018). Bootstrap inference when using multiple
+#' imputation. *Statistics in Medicine* 37(14):2252-2266.
 #'
 #' @examples
 #' if (requireNamespace("mice", quietly = TRUE)) {

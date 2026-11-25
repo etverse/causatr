@@ -5,23 +5,26 @@
 #' the joint density-ratio weight under sequential factorisation
 #' \eqn{f(A_1, \ldots, A_K \mid L) = \prod_k f(A_k \mid A_{1..k-1}, L)}.
 #'
-#' For each component `k = 1..K`:
+#' The weight implements the sequential modified treatment policy of
+#' Díaz, Williams, Hoffman and Schenck (2023), whose estimand is
+#' \deqn{E[Y^d] = \int E[Y \mid a, l] \prod_k f_k(d_k^{-1}(a_k) \mid a_{1..k-1}, l)\, |J_{d_k^{-1}}|\, da\, dP(l).}
+#' For each component `k = 1..K` the factor is
+#' \deqn{w_k = \frac{f^{num}_k(d_k^{-1}(A_k) \mid A_{1..k-1}, L)\, |J_{d_k^{-1}}|}{f_k(A_k \mid A_{1..k-1}, L)},}
+#' where both numerator and denominator condition on the **observed**
+#' upstream treatments; only the k-th argument changes. Static and
+#' dynamic components use the Horvitz-Thompson indicator form, shift
+#' and scale components the pushforward form of
+#' `compute_density_ratio_weights()`.
 #'
-#' 1. Build a per-component `newdata` where the upstream treatment
-#'    columns `A_1, ..., A_{k-1}` are set to their **intervened**
-#'    evaluation values `a_{j,eval}` (for shift / scale this is
-#'    `d_j^{-1}(A_j_obs)`; for static it is the static value). This is
-#'    the conditioning the k-th factor of the chain-rule numerator
-#'    requires:
-#'    \deqn{f^*_k(A_k \mid a_{1,eval}, \ldots, a_{k-1,eval}, L).}
-#'    For all-static interventions the I-indicator collapses surviving
-#'    rows so observed = intervened on those columns and the extra
-#'    machinery is a no-op; the routine does it uniformly so the same
-#'    code path covers shift-then-anything correctly.
-#' 2. Compute the per-component weight by reusing the univariate
-#'    `compute_density_ratio_weights()` against a temporarily
-#'    rebound `treatment_model` whose `fit_rows` is full (we have
-#'    already filtered to the analysis subset).
+#' Under `stabilize = "none"` the numerator is the same full model
+#' \eqn{f_k}, so a natural-course component has weight 1. Under
+#' `stabilize = "marginal"` the numerator is a separately fitted
+#' \eqn{g_k(A_k \mid A_{1..k-1})} without `L`, so a natural-course
+#' component has weight \eqn{g_k / f_k}, not 1.
+#'
+#' This is a different estimand from multivariate g-computation, which
+#' substitutes every component at once (a joint deterministic
+#' transformation). The two coincide when every component is static.
 #'
 #' The joint weight is the product across `k`. IPSI components are
 #' rejected upstream by `check_intervention_family_compat_mv()` because
@@ -40,6 +43,11 @@
 #'   rejected upstream by `check_estimand_trt_compat()`.
 #'
 #' @return Numeric weight vector of length `nrow(data)`.
+#'
+#' @references
+#' Díaz I, Williams N, Hoffman KL, Schenck EJ (2023). Nonparametric
+#' causal effects based on longitudinal modified treatment policies.
+#' *Journal of the American Statistical Association* 118:846-857.
 #'
 #' @noRd
 compute_density_ratio_weights_mv <- function(

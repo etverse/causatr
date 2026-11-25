@@ -82,8 +82,8 @@ policies that depend on the natural history of treatment. arXiv:2605.24167.
 \seealso{
 \code{\link[=grace_period]{grace_period()}}, \code{\link[=carry_forward]{carry_forward()}}, \code{\link[=contrast]{contrast()}}
 
-Other glmtp: 
-\code{\link{carry_forward}()},
-\code{\link{grace_period}()}
+Other glmtp:
+\code{\link[=carry_forward]{carry_forward()}},
+\code{\link[=grace_period]{grace_period()}}
 }
 \concept{glmtp}

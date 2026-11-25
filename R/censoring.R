@@ -7,7 +7,11 @@
 #' implementation is substantially simpler than `fit_treatment_model()`.
 #'
 #' **Point treatments:** A single censoring model conditions on treatment
-#' and confounders: \eqn{P(C = 0 \mid A, L)}.
+#' and confounders: \eqn{P(C = 0 \mid A, L)}. Treatment is in the model
+#' because the censoring exchangeability assumption is
+#' \eqn{Y^a \perp C \mid A, L}: censoring may depend on the treatment
+#' received (side effects causing dropout in one arm), and a model in
+#' `L` alone would miss that source of informative censoring.
 #'
 #' **Longitudinal treatments:** Per-period censoring models condition on
 #' treatment and covariate history up to that period:

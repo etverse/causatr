@@ -1,4 +1,4 @@
-# Tests for MTP (modified treatment policy) + transportability (Phase 17l).
+# Tests for MTP (modified treatment policy) + transportability.
 #
 # MTP interventions (shift, scale_by, threshold, dynamic) combined with
 # transportability require MC marginalization: target rows (S=0) have no

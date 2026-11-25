@@ -1,4 +1,4 @@
-# Stratified ICE (Phase 22a)
+# Stratified ICE (`stratified =`)
 #
 # `causat(..., stratified = "G")` fits a separate per-step outcome /
 # pseudo-outcome model for each level of a baseline stratum G, then merges

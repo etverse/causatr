@@ -2,17 +2,11 @@
 #
 # This gate protects users from silently getting the wrong estimand
 # when they combine ATT / ATC with a non-static intervention on the
-# IPW or matching engine. See `PHASE_4_INTERVENTIONS_SELF_IPW.md §8`
-# for the rationale.
+# IPW or matching engine: ATT and ATC are defined only for static
+# interventions on a binary treatment.
 #
-# The tests exercise the helper directly rather than going through
-# `contrast()` because the Phase-3 `check_interventions_compat()` gate
-# still rejects any non-static intervention under IPW / matching
-# upstream of this check — so until the Phase 4 `fit_ipw()` rewrite
-# lands, the new gate is only reachable via the internal helper. Once
-# `fit_ipw()` is rewritten, the existing integration tests (e.g.
-# `test-contrast.R`) will pick up the same gate through the full
-# pipeline.
+# The tests exercise the helper directly; the integration tests (e.g.
+# `test-contrast.R`) reach the same gate through `contrast()`.
 
 # ---- g-comp: no-op regardless of (estimand, intervention) ----------
 
@@ -70,10 +64,9 @@ test_that("ATE allows every intervention under IPW and matching", {
 # ---- ATT + non-static: the core rejection case ---------------------
 
 test_that("ATT rejects shift under IPW with `causatr_bad_estimand_intervention`", {
-  # This is the primary enforcement path. The error class is how
-  # the Phase 4 doc pins this test, and downstream code that wants to
-  # react programmatically (e.g. a future "auto-promote ATT to ATE"
-  # pathway) can trap on it.
+  # This is the primary enforcement path. The error class lets
+  # downstream code react programmatically (e.g. a future
+  # "auto-promote ATT to ATE" pathway) by trapping on it.
   expect_error(
     check_estimand_intervention_compat(
       "ATT",

@@ -1,4 +1,4 @@
-# ipsi() is explicitly rejected by ICE/contrast() (Phase 4 placeholder)
+# ipsi() is rejected by contrast() on an ICE fit
 
     Code
       contrast(fit, interventions = list(boost = ipsi(2), nat = ipsi(1)), ci_method = "sandwich")

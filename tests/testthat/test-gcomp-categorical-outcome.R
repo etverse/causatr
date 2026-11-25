@@ -1,4 +1,4 @@
-# Multinomial-outcome g-computation (Phase 23a-1).
+# Multinomial-outcome g-computation.
 #
 # The estimand is the K-vector P(Y = k | do(A = a)) per intervention. Tests
 # validate every step of the pipeline (fit -> per-class marginal means ->

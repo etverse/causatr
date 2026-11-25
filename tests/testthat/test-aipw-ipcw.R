@@ -1,4 +1,4 @@
-# Tests for AIPW + IPCW composition (Phase 16o).
+# Tests for AIPW + IPCW composition.
 #
 # Uses DGP-M2b (non-linear outcome with interaction, differential
 # censoring) where IPCW genuinely matters: differential censoring

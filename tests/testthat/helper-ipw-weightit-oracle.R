@@ -1,13 +1,12 @@
 # WeightIt contrast-level oracle helpers for the static-binary IPW path.
 #
 # These helpers power the T-oracle1..4 tests in test-ipw-weightit-oracle.R
-# and are the sole reason `WeightIt` remains as a test-only dependency
-# after chunk 3d removes it from the runtime path. Everything below is
+# and are the sole reason `WeightIt` is a test-only dependency; it is
+# never on the runtime path. Everything below is
 # called behind `testthat::skip_if_not_installed("WeightIt")` so the
 # package can install without `WeightIt` available.
 #
-# Design: contrast-level, not IF-level. PHASE_4_INTERVENTIONS_SELF_IPW.md
-# §9 spells out why — causatr and WeightIt use different internal
+# Design: contrast-level, not IF-level, because causatr and WeightIt use different internal
 # decompositions of the same M-estimation system (causatr: HT indicator
 # weights with `Y ~ 1` Hájek per arm; WeightIt: full IPW weights with
 # saturated `Y ~ A` in a single `glm_weightit`). The per-observation

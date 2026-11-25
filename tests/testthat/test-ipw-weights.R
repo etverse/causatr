@@ -1,4 +1,4 @@
-# Unit tests for R/ipw_weights.R (Phase 4 foundation layer).
+# Unit tests for R/ipw_weights.R.
 #
 # The weight builder has three branches, all of which must be pinned:
 #
@@ -96,9 +96,8 @@ test_that("shift(delta) on continuous returns the pushforward density ratio", {
   # Pushforward of f under d(a) = a + delta: f_d(y|l) = f(y - delta|l).
   # Weight at A_obs: f(A_obs - delta|l) / f(A_obs|l).
   # NOTE: this is NOT `f(A_obs + delta|l) / f(A_obs|l)` — that naive
-  # form (the one our first-pass code carried) gives E[Y^{shift(-delta)}]
-  # instead of E[Y^{shift(delta)}]. Verified analytically during the
-  # Phase 4 foundation-chunk review.
+  # form gives E[Y^{shift(-delta)}] instead of E[Y^{shift(delta)}]
+  # (the pushforward derivation is in compute_density_ratio_weights()).
   expected <- stats::dnorm(fit_data$A - delta, mu, sigma) /
     stats::dnorm(fit_data$A, mu, sigma)
   expect_equal(w, unname(expected), tolerance = 1e-12)
@@ -836,7 +835,7 @@ test_that("apply_intervention_to_values() rejects an unknown intervention type",
 })
 
 
-# ---- Weight truncation (Phase 19-trim) ---------------------------------
+# ---- Weight truncation ---------------------------------
 
 test_that("contrast() rejects invalid trim values", {
   d <- data.table::data.table(
@@ -1107,7 +1106,7 @@ test_that("trim on AIPW: doubly-robust property preserved", {
 })
 
 
-# ---- lmtp cross-checks for trim (Phase 19-trim) -------------------------
+# ---- lmtp cross-checks for trim -------------------------
 
 test_that("multivariate IPW + trim: point estimates agree with lmtp_sdr", {
   skip_if_fast()

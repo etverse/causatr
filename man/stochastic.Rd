@@ -32,6 +32,14 @@ Only supported under \code{estimator = "gcomp"} (point and longitudinal).
 The g-formula evaluates \eqn{E[Y^g]} via Monte Carlo integration: for each
 of \code{n_mc} draws, the sampler assigns counterfactual treatments, the
 outcome model predicts, and the predictions are averaged across draws.
+
+The influence function is the Monte Carlo average of the per-draw
+g-computation influence functions. Its first term is the averaged
+prediction minus the estimate, and its model term uses the averaged
+prediction gradient, because the average of the gradients is the
+gradient of the averaged predictions. The sandwich holds the draws
+fixed, so Monte Carlo noise is not in its SE; the bootstrap redraws in
+every replicate and includes it.
 }
 \examples{
 \dontrun{

@@ -66,7 +66,7 @@ parallelism; the estimand coverage and the rows below are unchanged.
 
 Rejections: invalid family string ✅, missing outcome/treatment col ✅ (test-gcomp.R, test-causat.R).
 
-### Categorical (multinomial) outcome — point g-comp (Phase 23a-1 / 23a-2a / 23a-2b / 23a-2c)
+### Categorical (multinomial) outcome — point g-comp
 
 Single K-level factor outcome via `model_fn = nnet::multinom`. Estimand is the
 K-vector `P(Y = k | do(A = a))` per intervention; `estimates` / `contrasts` gain
@@ -99,7 +99,7 @@ weighted `multinom_gcomp_weighted_sandwich.py`, and the IPCW
 S3 layer (coef / confint / tidy / glance / print / plot per-class) ✅.
 Scalar byte-identical guard ✅. Bootstrap reproducibility + SE-vs-delta sanity ✅.
 
-#### Analytic sandwich (Phase 23a-2a, complete-case)
+#### Analytic sandwich (complete-case)
 
 | Trt | Outcome | Intervention | Estimand | Contrast | Extra | Status |
 |---|---|---|---|---|---|---|
@@ -116,7 +116,7 @@ Sandwich SE is the full M-estimation IF (Channel 1 empirical-distribution +
 Channel 2 nuisance); `marginaleffects` omits Channel 1, so the tight SE oracle is
 the Python `delicatessen`-style stack.
 
-#### Analytic sandwich — survey / external weights (Phase 23a-2b)
+#### Analytic sandwich — survey / external weights
 
 The outcome `nnet::multinom` is a weighted MLE, so the sandwich generalises by
 weighting the stacked bread `H = Σ wᵢ (diag(pᵢ) − pᵢpᵢᵀ) ⊗ XᵢXᵢᵀ`, the score
@@ -130,7 +130,7 @@ all four collapse to the 23a-2a complete-case formulas byte-for-byte.
 | bin | 3-class | static | ATE | diff | survey wts | ✅ weighted sandwich vs weighted bootstrap (≤10%) |
 | bin | 3-class | static | ATE | diff | `weights = NULL` ≡ ones | ✅ byte-identical to complete-case vcov (1e-12) |
 
-#### Analytic sandwich — IPCW missing Y (Phase 23a-2c)
+#### Analytic sandwich — IPCW missing Y
 
 The IPCW path adds a third channel: the censoring model's estimation uncertainty
 enters the per-class IF via its own influence function through an **indirect**
@@ -218,7 +218,7 @@ Rejections (all ✅ tested):
 
 ---
 
-## Longitudinal IPW (Phase 10)
+## Longitudinal IPW
 
 Per-period treatment density chain $f(A_k \mid \bar A_{k-1}, \bar L_k)$ + cumulative product weights + final-period intercept-only Hájek MSM + stacked sandwich (block-diagonal propensity bread across periods) + id-clustered bootstrap.
 
@@ -259,9 +259,9 @@ Per-period treatment density chain $f(A_k \mid \bar A_{k-1}, \bar L_k)$ + cumula
 
 **Longitudinal IPW + IPCW (missing Y):** the IPCW weight reweights the final-period Hájek MSM only — the per-period treatment-density models are ordinary (unweighted) regressions on all observed rows, matching the standard separate-then-multiply IPW+IPCW construction (Hernán & Robins 2020, Ch. 12.6 & 17). The id-level analytic sandwich propagates the per-period censoring model's estimation uncertainty through the MSM (the γ → β cross-term, `compute_ipw_ipcw_correction_longitudinal()` in `R/variance_if_ipw_longitudinal_ipcw.R`), reusing the shared `make_ipcw_weight_fn_longitudinal()` γ block. The cross-term is **load-bearing** for IPW (~5% of the treated-arm SE on an informatively-censored DGP), unlike the AIPW orthogonal ~0.03% case. Validated against the `delicatessen` M-estimation oracle (`longitudinal_ipw_ipcw_delicatessen.py`), its known-weights (γ-fixed) companion, MC calibration, and the bootstrap.
 
-**Per-period IPSI (Phase 20):** univariate `ipsi(delta)` extends Kennedy's (2019) closed-form weight to a per-period product $W_i = \prod_t (\delta A_{t} + (1 - A_{t})) / (\delta p_{t} + (1 - p_{t}))$. No new density-evaluation path — each period reuses `compute_density_ratio_weights()`'s IPSI branch; the stacked sandwich reuses `make_weight_fn()`'s IPSI sub-closure per period.
+**Per-period IPSI:** univariate `ipsi(delta)` extends Kennedy's (2019) closed-form weight to a per-period product $W_i = \prod_t (\delta A_{t} + (1 - A_{t})) / (\delta p_{t} + (1 - p_{t}))$. No new density-evaluation path — each period reuses `compute_density_ratio_weights()`'s IPSI branch; the stacked sandwich reuses `make_weight_fn()`'s IPSI sub-closure per period.
 
-**Known limitation (Phase 6, Robins 2000):** under longitudinal IPW the modifier MUST be a **baseline** covariate. A time-varying modifier in an MSM conditions on a post-treatment variable, biasing the estimand via mediator + collider paths. Not enforced at runtime (time-varying status isn't inferable from data); doc-level constraint only. The scientifically correct tool for time-varying effect modification is a structural nested model (Phase 18).
+**Known limitation (Robins 2000):** under longitudinal IPW the modifier MUST be a **baseline** covariate. A time-varying modifier in an MSM conditions on a post-treatment variable, biasing the estimand via mediator + collider paths. Not enforced at runtime (time-varying status isn't inferable from data); doc-level constraint only. The scientifically correct tool for time-varying effect modification is a structural nested model (`estimator = "snm"`).
 
 Sequential positivity warning (`causatr_longitudinal_seq_positivity`): fires when any per-period weight max exceeds 100 (default threshold); silent below threshold. Tested directly on `warn_seq_positivity()`.
 
@@ -336,11 +336,9 @@ Rejections (all ✅ tested):
 | bin | glm.nb | static | 2 | sandwich | — | ✅ vs analytical truth + lmtp cross-check | test-ice-outcome-types.R |
 | bin | betareg | static | 2 | boot | — | 🟡 smoke (betareg coef structure not sandwich-compatible) | test-ice-outcome-types.R |
 
-### Stratified ICE (`stratified = "G"`, Phase 22a)
+### Stratified ICE (`stratified = "G"`)
 
-Per-baseline-stratum outcome models at each backward step. **Both** the ID-cluster
-bootstrap and the analytic per-stratum × per-time stacked-EE sandwich are supported
-(`R/variance_if_ice_stratified.R`; derivation in `PHASE_22_ICE_ENHANCEMENTS.md` §1.6).
+Per-baseline-stratum outcome models at each backward step. **Both** the ID-cluster bootstrap and the analytic per-stratum × per-time stacked-EE sandwich are supported (`R/variance_if_ice_stratified.R`, whose header holds the derivation).
 
 | Trt | Outcome | Intervention | Periods | Variance | Wt | Status | Test |
 |---|---|---|---|---|---|---|---|
@@ -362,7 +360,7 @@ $\to$ `causatr_stratified_not_ice`; missing column $\to$ `causatr_stratified_not
 time-varying column $\to$ `causatr_stratified_not_baseline`; continuous column $\to$
 `causatr_stratified_too_many`.
 
-### Flexible-treatment ICE term (`treatment_form = ~ factor(A)` / `~ ns(A)`, Phase 22b-5)
+### Flexible-treatment ICE term (`treatment_form = ~ factor(A)` / `~ ns(A)`)
 
 By default the treatment enters every per-step ICE outcome model as a bare numeric main effect, so a
 non-monotone or curved counterfactual dose-response is misspecified. `treatment_form` lets the treatment
@@ -383,7 +381,7 @@ Rejections (all ✅ tested, `test-ice-treatment-form.R`): non-ICE estimator / po
 `causatr_treatment_form_bad`; intervention leaving the observed `factor(A)` support $\to$ native
 `predict()` "new level" error (documented constraint; `ns(A)` extrapolates).
 
-### Natural-history MTPs (G-LMTPs, `grace_period()` / `carry_forward()` / `cap_escalation()`, Phase 22b)
+### Natural-history MTPs (G-LMTPs, `grace_period()` / `carry_forward()` / `cap_escalation()`)
 
 Modified treatment policies whose intervened value at time $t$ depends on the
 **natural-value history of treatment** (delays, grace periods, carry-forward). The
@@ -420,20 +418,7 @@ Variance: ID-cluster **bootstrap** and analytic **M-estimation sandwich**
 | bin (absorbing) | poisson | `grace_period(1)` | 4 | sandwich | — | ✅ bootstrap parity | test-glmtp.R |
 | bin (absorbing) | gamma | `grace_period(1)` | 4 | (point) | — | ✅ vs forward-MC truth | test-glmtp.R |
 
-The engine handles **any single discrete treatment** ($|\mathcal{A}| \ge 2$); the ordinal rows pin the
-`|A|^t` label machinery. Public policy constructors: `grace_period` (binary delay), `carry_forward`
-(any-discrete LOCF), and `cap_escalation` (ordered-dose increase cap, 22b-6). The **flexible-treatment
-ICE term** (`treatment_form =`, Phase 22b-5) lets the dose enter the per-step model as `factor(A)` /
-`splines::ns(A)`, removing the bare-numeric misspecification of a kinked capped-dose response (the
-cap-policy gap closes from $\approx0.034$ to $\approx0.0015$ vs the forward-MC truth) — which is what
-makes `cap_escalation()` a consistent public estimator. The **augmented-data sandwich** (22b-4,
-`R/variance_if_glmtp.R`) stacks per-(step, label) GLM scores + the estimand EE in the same
-block-triangular M-estimation structure as the ICE chain; validated against a Python M-estimation
-oracle (SE agreement ~1e-4) and against ID-cluster bootstrap parity (~0.7% at n=1500, ~4.4% for
-`cap_escalation + factor(A)`). **Rejected by design** (`PHASE_22` §3.7):
-**multivariate** (vector-treatment) G-LMTP (22b-7) — the paper develops the augmented-data
-enumeration for a scalar discrete exposure only, and the joint-support blow-up
-$|\mathcal{A}^{(1)}\times\cdots\times\mathcal{A}^{(K)}|^{\tau-1}$ is intractable.
+The engine handles **any single discrete treatment** ($|\mathcal{A}| \ge 2$); the ordinal rows pin the `|A|^t` label machinery. Public policy constructors: `grace_period` (binary delay), `carry_forward` (any-discrete LOCF), and `cap_escalation` (ordered-dose increase cap). The **flexible-treatment ICE term** (`treatment_form =`) lets the dose enter the per-step model as `factor(A)` / `splines::ns(A)`, removing the bare-numeric misspecification of a kinked capped-dose response (the cap-policy gap closes from $\approx0.034$ to $\approx0.0015$ vs the forward-MC truth), which is what makes `cap_escalation()` a consistent public estimator. The **augmented-data sandwich** (`R/variance_if_glmtp.R`) stacks per-(step, label) GLM scores + the estimand EE in the same block-triangular M-estimation structure as the ICE chain; validated against a Python M-estimation oracle (SE agreement ~1e-4) and against ID-cluster bootstrap parity (~0.7% at n=1500, ~4.4% for `cap_escalation + factor(A)`). **Rejected by design** (see `.claude/rules/ice.md`): **multivariate** (vector-treatment) G-LMTP, because the paper develops the augmented-data enumeration for a scalar discrete exposure only, and the joint-support blow-up $|\mathcal{A}^{(1)}\times\cdots\times\mathcal{A}^{(K)}|^{\tau-1}$ is intractable.
 
 Augment helpers (`glmtp_support`, `glmtp_enumerate_labels`, `glmtp_label_key`,
 `glmtp_check_tractable`) — all ✅ unit-tested (`test-glmtp.R`).
@@ -527,7 +512,7 @@ remain in this matrix.
 | Built-in IPCW: diagnose integration | point + longitudinal (14f) | ✅ | test-diagnose.R |
 | Built-in IPCW: longitudinal IPW/AIPW/ICE sandwich audit | γ→β (IPW, fixed PR #16), γ-block (AIPW), orthogonal (ICE) | ✅ | test-longitudinal-ipw-ipcw.R, test-aipw-longitudinal-ipcw.R |
 
-**Known limitation — point IPW + IPCW sandwich (deferred, see PHASE_14 audit).** Built-in IPCW fits the per-period/point propensity IPCW-weighted (folded into `weights`), which is non-standard (the textbook construction estimates treatment and censoring models separately and multiplies the weights). Longitudinal IPW was fixed in PR #16. **Point IPW + IPCW** still has a confirmed analytic-sandwich error of **3–7%** per arm (the propensity depends on γ, so the sandwich omits the γ→α cross-term; delicatessen-verified). The point estimate is consistent. Fix (standardize the propensity to unweighted-on-all-rows + a gated stacked-EE sandwich, tighten the loose NHEFS test) is scoped as a focused `implement-feature` effort. Point AIPW + IPCW is non-standard but DR-orthogonal (SE acceptable); SNM + IPCW (18g) carries a censoring block but is not oracle-validated.
+**Known limitation — point IPW + IPCW sandwich.** Point IPW with built-in IPCW fits the propensity IPCW-weighted, and its analytic sandwich is 3–7% off per arm against delicatessen; the point estimate is consistent. This is a known bug tracked in the GitHub issues. Point AIPW + IPCW is non-standard but DR-orthogonal (SE acceptable); longitudinal SNM + IPCW carries a censoring block but is not oracle-validated.
 
 ---
 
@@ -635,22 +620,22 @@ Supplementary: `test-weights-edge-cases.R` (external weights edge cases), `test-
 
 ---
 
-## Planned (future phases)
+## Further features
 
-### Phase 6 — Effect modification
-Unified `A:modifier` API across gcomp / IPW / matching / ICE. IPW MSM expansion ✅ (chunk 6b). Matching MSM expansion ✅ (chunk 6c). ICE lag auto-expansion ✅ (chunk 6d). Cross-method triangulation ✅ (chunk 6e). **Phase complete.** **Known limitation** (documented in `PHASE_6_INTERACTIONS.md` § "Known limitation: modifier must be **baseline**"): under IPW / matching / longitudinal IPW, the modifier must be baseline because the MSM conditions on post-treatment variables otherwise (silent bias; Robins 2000). Time-varying effect modification is deferred to Phase 18 (SNMs). Currently doc-level only; a `check_em_baseline_only()` runtime guard via an explicit `baseline_cols =` contract is a follow-up.
+### Effect modification
+Unified `A:modifier` API across gcomp / IPW / matching / ICE: IPW and matching MSM expansion, ICE lag auto-expansion and a cross-method triangulation test. **Known limitation:** under IPW / matching / longitudinal IPW the modifier must be baseline, because the MSM otherwise conditions on post-treatment variables (silent bias; Robins 2000). Time-varying effect modification is what `estimator = "snm"` is for. The restriction is documented, not checked at runtime.
 
-### Phase 8 — Multivariate treatment IPW
-Joint density via sequential factorisation, product density-ratio weights under sequential-MTP semantics (Díaz et al. 2023), multi-model propensity sandwich (block-diagonal bread). **Done** (chunks 8a, 8a-fix, 8b, 8c, 8d, 8e). Supports binary / continuous / categorical / count components, mixed types, K = 2..K, effect modification (`A_k:modifier`), and optional stabilized weights (`stabilize = "marginal"` with per-component numerator models $g_k(A_k \mid A_{1..k-1})$). Rejects IPSI. See multi rows in the IPW table above.
+### Multivariate treatment IPW
+Joint density via sequential factorisation, product density-ratio weights under sequential-MTP semantics (Díaz et al. 2023), multi-model propensity sandwich (block-diagonal bread). Supports binary / continuous / categorical / count components, mixed types, K = 2..K, effect modification (`A_k:modifier`), and optional stabilized weights (`stabilize = "marginal"` with per-component numerator models $g_k(A_k \mid A_{1..k-1})$). Rejects IPSI. See multi rows in the IPW table above.
 
-### Phase 9 — Inference infrastructure
-Survey design integration, general cluster-robust sandwich, `future` backend. **All shipped.** General cluster-robust sandwich ✅ (`cluster =` on `causat()` and `contrast()`; `sandwich::vcovCL` oracle). `svydesign` integration ✅ (`causat(weights = svydesign_obj)`). Parallel bootstrap ✅. `future` backend ✅ (`parallel = "future"`).
+### Inference infrastructure
+Survey design integration, general cluster-robust sandwich, `future` backend. General cluster-robust sandwich ✅ (`cluster =` on `causat()` and `contrast()`; `sandwich::vcovCL` oracle). `svydesign` integration ✅ (`causat(weights = svydesign_obj)`). Parallel bootstrap ✅. `future` backend ✅ (`parallel = "future"`).
 
-### Phase 10 — Longitudinal IPW
-Sequential density-ratio weights, cumulative product weights, stabilized weights, time-varying MSM. **All shipped.**
+### Longitudinal IPW
+Sequential density-ratio weights, cumulative product weights, stabilized weights, time-varying MSM.
 
-### Phase 11 — diagnose() rewrite
-Intervention-aware, treatment-type-aware, estimand-aware, longitudinal-aware diagnostics. **All chunks shipped (11a–11e).** 11a (foundation): nested per-intervention `causatr_diag` shape, `interventions =` argument, binary IPW per-intervention weight summary. 11b (treatment-type dispatch): density-range positivity for continuous/count, per-level positivity for categorical, per-component positivity for multivariate, overall weight summaries for all non-binary types, truth-based weight reconstruction test. 11c (longitudinal dispatch): per-period positivity/balance/weight diagnostics for longitudinal IPW, per-period balance for ICE, cumulative weight summary. 11d (estimand + EM): IPW ATT/ATC observed-treatment weights, `by =` stratified balance via cobalt `cluster`. 11e (plot overhaul + vignette): `plot.causatr_diag()` with `which = c("balance", "weights", "positivity")`, `diagnostics.qmd` vignette.
+### diagnose()
+Intervention-aware, treatment-type-aware, estimand-aware, longitudinal-aware diagnostics: a nested per-intervention `causatr_diag` shape with an `interventions =` argument; density-range positivity for continuous and count treatments, per-level positivity for categorical, per-component positivity for multivariate, and weight summaries for every treatment type, with a truth-based weight reconstruction test; per-period positivity, balance and weight diagnostics for longitudinal IPW, per-period balance for ICE and a cumulative weight summary; ATT/ATC observed-treatment weights and `by =` stratified balance through cobalt's `cluster`; `plot.causatr_diag()` with `which = c("balance", "weights", "positivity")` and the `diagnostics.qmd` vignette.
 
 | Feature | Status | Test |
 |---|---|---|
@@ -663,7 +648,7 @@ Intervention-aware, treatment-type-aware, estimand-aware, longitudinal-aware dia
 | plot(diag, which="balance") errors for gcomp | ⛔ | test-diagnose.R |
 | plot(diag, which="weights") warns for gcomp (no wts) | ⛔ | test-diagnose.R |
 
-### Phase 12 — Stochastic interventions
+### Stochastic interventions
 `stochastic()` under gcomp (point + ICE), MC g-formula, MC-averaged IFs. IPW/matching rejected.
 
 | Feature | Status | Test file |
@@ -709,7 +694,7 @@ Intervention-aware, treatment-type-aware, estimand-aware, longitudinal-aware dia
 | lmtp_sdr cross-check (point treatment) | ✅ | test-stochastic.R |
 | lmtp_sdr cross-check (longitudinal) | ✅ | test-stochastic.R |
 
-### Phase 13 — Extended outcome type coverage
+### Extended outcome type coverage
 
 Comprehensive truth-based + cross-estimator tests for Poisson, Gamma, quasibinomial, negative binomial, and beta regression outcomes.
 
@@ -799,13 +784,13 @@ Comprehensive truth-based + cross-estimator tests for Poisson, Gamma, quasibinom
 | `resolve_family("beta")` extension | ✅ | test-checks.R |
 | betareg Jacobian fix in `variance_if_numeric()` | ✅ | test-simulation.R (beta SE tests) |
 
-#### Not in scope (Phase 13)
-Multinomial/ordinal outcomes — requires structural extensions beyond GLM families.
+#### Not covered by these outcome types
+Multinomial outcomes are in their own section above; ordinal outcomes are not supported.
 
-### Phase 14 — Built-in IPCW
-Scalar-outcome IPCW for MAR censoring: internal censoring model, stabilized IPCW weights, weighted fit, stacked EE sandwich extension for censoring model blocks. Point + ICE scalar final outcome. Survival-specific IPCW (per-period cumulative weights + hazard MSM) is owned by the separate survival package. **All shipped** (chunks 14a–14f).
+### Built-in IPCW
+Scalar-outcome IPCW for MAR censoring: internal censoring model, stabilized IPCW weights, weighted fit, stacked EE sandwich extension for censoring model blocks. Point + ICE scalar final outcome. Survival-specific IPCW (per-period cumulative weights + hazard MSM) is owned by survatr.
 
-### Phase 15 — Polish and documentation
+### Polish and documentation
 
 | Feature | Status | Test |
 |---|---|---|
@@ -824,11 +809,11 @@ Scalar-outcome IPCW for MAR censoring: internal censoring model, stabilized IPCW
 | ICE lmtp cross-check: poly() on linear DGP vs lmtp_sdr | ✅ | test-ice.R |
 | Grace period / delay / carry-forward (natural-history MTPs) — boot + sandwich | ✅ | test-glmtp.R |
 | Stratified ICE | ✅ | test-ice-stratified.R |
-| Multinomial outcomes | → Phase 23 | — |
-| Ordinal outcomes | → Phase 23 | — |
+| Multinomial outcomes | point gcomp only (see above) | test-gcomp-categorical-outcome.R |
+| Ordinal outcomes | planned (GitHub issue) | — |
 
-### Phase 16 — AIPW / doubly-robust estimator
-Composes Phase 2 gcomp + Phase 4 IPW into the classical analytical doubly-robust estimator: $\hat\psi_{\mathrm{AIPW}}(a) = E[\hat{m}(a, L)] + E[W \cdot (Y - \hat{m}(A, L))]$. Stacked EE sandwich (outcome block + propensity block + plug-in); distinct from `lmtp` (TMLE/SDR with ML + cross-fitting). Double-robustness + efficiency tests; ICE-AIPW longitudinal extension (Bang & Robins 2005).
+### AIPW / doubly-robust estimator
+Composes point gcomp and IPW into the classical analytical doubly-robust estimator: $\hat\psi_{\mathrm{AIPW}}(a) = E[\hat{m}(a, L)] + E[W \cdot (Y - \hat{m}(A, L))]$. Stacked EE sandwich (outcome block + propensity block + plug-in); distinct from `lmtp` (TMLE/SDR with ML + cross-fitting). Double-robustness + efficiency tests; ICE-AIPW longitudinal extension (Bang & Robins 2005).
 
 | Treatment | Outcome | Intervention | Estimand | Contrast | Variance | Status | Test file |
 |---|---|---|---|---|---|---|---|
@@ -866,7 +851,7 @@ Composes Phase 2 gcomp + Phase 4 IPW into the classical analytical doubly-robust
 | binary | binomial | longitudinal static (always vs never) | ATE | diff | sandwich | ✅ | test-aipw.R |
 | binary | binomial | longitudinal lmtp cross-check (binary outcome) | ATE | diff | — | ✅ vs lmtp_sdr | test-aipw.R |
 
-**Chunk 16m — Multivariate point AIPW**
+**Multivariate point AIPW**
 
 | Feature | Status | Test |
 |---|---|---|
@@ -881,9 +866,9 @@ Composes Phase 2 gcomp + Phase 4 IPW into the classical analytical doubly-robust
 | AIPW rejects stabilize for univariate treatment | ✅ | test-aipw.R |
 | AIPW warns when propensity_model_fn not specified | ✅ | test-aipw.R (implicit) |
 
-**Rejections (point, same as IPW):** static/threshold/dynamic on continuous → Dirac rejection ✅; stochastic (without `density`) → rejected ✅; stochastic (with `density`) → Phase 24.
+**Rejections (point, same as IPW):** static/threshold/dynamic on continuous → Dirac rejection ✅; stochastic → rejected ✅ (a user-supplied `density` is planned; see the GitHub issues).
 
-**Rejections (longitudinal AIPW):** multivariate longitudinal AIPW → supported (Phase 25) ✅ (see the MV longitudinal AIPW block below); ATT/ATC → rejected ✅; `stabilize = "marginal"` → rejected ✅ (`causatr_stabilize_longitudinal_aipw`; use `estimator = "ipw"` for stabilized longitudinal weights).
+**Rejections (longitudinal AIPW):** multivariate longitudinal AIPW → supported ✅ (see the MV longitudinal AIPW block below); ATT/ATC → rejected ✅; `stabilize = "marginal"` → rejected ✅ (`causatr_stabilize_longitudinal_aipw`; use `estimator = "ipw"` for stabilized longitudinal weights).
 
 **Longitudinal AIPW sandwich — full stacked-EE M-estimation sandwich (balanced + UNBALANCED panels):** `ci_method = "sandwich"` builds `V = B⁻¹ M B⁻ᵀ / n` where `ψ(θ)` stacks the per-period propensity scores, the per-step ICE outcome / pseudo-outcome scores, and the marginal-mean equation; the numerical bread (`numDeriv`) captures every block-triangular cross-term (including the baseline-pseudo-regression block), so it is consistent under monotone dropout / censoring row-filter. This replaced the forward-cascade assembly that underestimated the SE by ~50% on unbalanced panels and aborted (`causatr_longitudinal_aipw_unbalanced_sandwich`, removed). The EE is faithful by construction (`~1e-11` summed-score vanishing); `causatr_longitudinal_aipw_sandwich_unfaithful` steers to bootstrap if it does not.
 
@@ -904,15 +889,9 @@ Composes Phase 2 gcomp + Phase 4 IPW into the classical analytical doubly-robust
 **IPCW (missing-Y) sandwich:** under `ipcw = TRUE` the stacked EE gains a per-period censoring γ block (`make_ipcw_weight_fn_longitudinal()`); the IPCW weight is threaded into each outcome score as `external × ipcw(γ)`, so the numerical bread captures the censoring cross-terms (γ → β → μ). By double-robust orthogonality the AIPW censoring cross-term is near-zero (it moves the SE ~0.03%); the block is wired (`B[β,γ] ≠ 0`, verified) and carried for an exactly correct sandwich. Validated by MC empirical-SD calibration, bootstrap parity, EE faithfulness, the cross-term wiring, a non-IPCW no-γ anchor, and the orthogonality property.
 | binary | gaussian | static, `mgcv::gam` nuisance | any | sandwich | ✅ explicit limitation → bootstrap (`causatr_longitudinal_aipw_sandwich_model`) | test-aipw-longitudinal.R |
 
-**Chunk 25 — Multivariate longitudinal AIPW**
+**Multivariate longitudinal AIPW**
 
-Joint time-varying treatments `treatment = c("A1", "A2")` with `id =`/`time =`
-under the doubly-robust ICE-AIPW estimator. The outcome side reuses the ICE
-backward recursion (already loops over vector treatment); the propensity side
-reuses the Phase 19 per-period × per-component density chain
-(`fit_treatment_models()`, `compute_density_ratio_weights_mv()`,
-`make_weight_fn_mv()`). The sandwich stacks T×K block-diagonal propensity
-corrections in `variance_if_aipw_long_one()` Channel 2b.
+Joint time-varying treatments `treatment = c("A1", "A2")` with `id =`/`time =` under the doubly-robust ICE-AIPW estimator. The outcome side reuses the ICE backward recursion (already loops over vector treatment); the propensity side reuses the multivariate longitudinal IPW per-period × per-component density chain (`fit_treatment_models()`, `compute_density_ratio_weights_mv()`, `make_weight_fn_mv()`). The sandwich stacks T×K block-diagonal propensity corrections in `variance_if_aipw_long_one()` Channel 2b.
 
 | Feature | Status | Test |
 |---|---|---|
@@ -923,9 +902,9 @@ corrections in `variance_if_aipw_long_one()` Channel 2b.
 | MV longitudinal AIPW: continuous shift finite + SE parity | ✅ | test-aipw.R (`T-long-mv-aipw5`) |
 | `stabilize = "marginal"` rejected for longitudinal AIPW (univ + MV) | ✅ | test-aipw.R (`R-long-mv-aipw1`) |
 
-**Rejections (MV longitudinal AIPW):** `ipsi()` components → rejected ✅ (`causatr_longitudinal_ipsi_pending`, inherited from the univariate path); transport (`target =`) → owned by Phase 26 (design doc).
+**Rejections (MV longitudinal AIPW):** `ipsi()` components → rejected ✅ (`causatr_longitudinal_ipsi_pending`, inherited from the univariate path); transport (`target =`) → not supported, and not yet rejected (a known bug in the GitHub issues).
 
-**Chunk 16o — AIPW + IPCW (triply-weighted DR)**
+**AIPW + IPCW (triply-weighted DR)**
 
 | Feature | Status | Test |
 |---|---|---|
@@ -937,7 +916,7 @@ corrections in `variance_if_aipw_long_one()` Channel 2b.
 | AIPW + IPCW + external weights composes correctly | ✅ | test-aipw-ipcw.R |
 | AIPW + IPCW stashes correct details | ✅ | test-aipw-ipcw.R |
 
-**Chunk 16p — AIPW test coverage parity**
+**AIPW test coverage parity**
 
 | Feature | Status | Test |
 |---|---|---|
@@ -967,7 +946,7 @@ corrections in `variance_if_aipw_long_one()` Channel 2b.
 | AIPW × GAM propensity DR (wrong outcome, correct GAM) | ✅ | test-aipw.R |
 | AIPW × GAM outcome+propensity × sandwich vs bootstrap SE | ✅ | test-aipw.R |
 
-**Chunk 16q — model_fn / propensity_model_fn default warnings audit**
+**model_fn / propensity_model_fn default warnings**
 
 | Feature | Status | Test |
 |---|---|---|
@@ -978,10 +957,10 @@ corrections in `variance_if_aipw_long_one()` Channel 2b.
 | No `model_fn` warning for matching | ✅ | test-checks.R |
 | Explicit `model_fn` suppresses warning | ✅ | test-checks.R |
 
-### Phase 17 — Transportability / Generalizability
+### Transportability / Generalizability
 Sampling model `P(S=1 | L)` + sampling-odds weights multiply into IPW Hájek MSM; gcomp / IPW / AIPW transport paths; stacked EE extends with sampling-model block. References: Dahabreh et al. 2020; Westreich et al. 2017. Cross-check against `transport` / `transported` R packages.
 
-**Chunk 17a — sampling model primitive**
+**Sampling model primitive**
 
 | Feature | Status | Test |
 |---|---|---|
@@ -995,7 +974,7 @@ Sampling model `P(S=1 | L)` + sampling-odds weights multiply into IPW Hájek MSM
 | Validation: extreme selection rate → warning | ✅ | test-sampling-model.R |
 | Target column preserved in `fit$data` | ✅ | test-sampling-model.R |
 
-**Chunk 17b — gcomp transport**
+**gcomp transport**
 
 | Feature | Status | Test |
 |---|---|---|
@@ -1012,7 +991,7 @@ Sampling model `P(S=1 | L)` + sampling-odds weights multiply into IPW Hájek MSM
 | `target = NULL` (non-transport): behaviour unchanged | ✅ | test-gcomp-transport.R |
 | Treatment-covariate interactions stripped from sampling model formula | ✅ | test-gcomp-transport.R |
 
-**Chunk 17c — IPW transport**
+**IPW transport**
 
 | Feature | Status | Test file |
 |---|---|---|
@@ -1027,7 +1006,7 @@ Sampling model `P(S=1 | L)` + sampling-odds weights multiply into IPW Hájek MSM
 | Bootstrap refits sampling + propensity models per replicate | ✅ | test-ipw-transport.R |
 | `target = NULL` (non-transport): behaviour unchanged | ✅ | test-ipw-transport.R |
 
-**Chunk 17d — Bootstrap (standalone)**
+**Bootstrap (standalone)**
 
 | Feature | Status | Test |
 |---|---|---|
@@ -1041,7 +1020,7 @@ Sampling model `P(S=1 | L)` + sampling-odds weights multiply into IPW Hájek MSM
 | IPW bootstrap: sampling model refitted per replicate (`gamma_hat` differs) | ✅ | test-transport-bootstrap.R |
 | Cross-estimator: gcomp vs IPW bootstrap transport estimates agree | ✅ | test-transport-bootstrap.R |
 
-**Chunk 17e — AIPW transport**
+**AIPW transport**
 
 | Feature | Status | Test |
 |---|---|---|
@@ -1068,7 +1047,7 @@ Sampling model `P(S=1 | L)` + sampling-odds weights multiply into IPW Hájek MSM
 | AIPW transport: target rows with NA outcome/treatment handled | ✅ | test-aipw-transport.R |
 | AIPW without transport unaffected (target=NULL) | ✅ | test-aipw-transport.R |
 
-**Chunk 17f — Sampling-model diagnostics**
+**Sampling-model diagnostics**
 
 | Feature | Status | Test |
 |---|---|---|
@@ -1080,7 +1059,7 @@ Sampling model `P(S=1 | L)` + sampling-odds weights multiply into IPW Hájek MSM
 | Per-intervention panels carry shared sampling panel | ✅ | test-diagnose.R |
 | `print(diagnose(...))` renders sampling panel | ✅ | test-diagnose.R |
 
-**Chunk 17g — Sampling model predictor-set validation**
+**Sampling model predictor-set validation**
 
 | Feature | Status | Test |
 |---|---|---|
@@ -1088,14 +1067,14 @@ Sampling model `P(S=1 | L)` + sampling-odds weights multiply into IPW Hájek MSM
 | No warning when covariate has a main effect alongside interaction | ✅ | test-sampling-model.R |
 | `causat()` propagates warning end-to-end | ✅ | test-sampling-model.R |
 
-**Chunk 17h — External cross-check (TransportHealth oracle)**
+**External cross-check (TransportHealth oracle)**
 
 | Feature | Status | Test |
 |---|---|---|
 | gcomp transport TATE matches `TransportHealth::transportGC()` (tolerance 1e-4) | ✅ | test-gcomp-transport.R |
 | IPW transport TATE matches `TransportHealth::transportIP()` (tolerance 1e-4) | ✅ | test-ipw-transport.R |
 
-**Chunk 17i — Longitudinal IPW × transport**
+**Longitudinal IPW × transport**
 
 | Feature | Status | Test |
 |---|---|---|
@@ -1112,7 +1091,7 @@ Sampling model `P(S=1 | L)` + sampling-odds weights multiply into IPW Hájek MSM
 | `target=NULL` longitudinal IPW (non-transport): behaviour unchanged | ✅ | test-longitudinal-transport.R |
 | ICE gcomp + longitudinal + transport: NA lag columns filled for target individuals under static interventions | ✅ | test-longitudinal-transport.R |
 
-**Chunk 17j — Multivariate IPW × transport**
+**Multivariate IPW × transport**
 
 | Feature | Status | Test |
 |---|---|---|
@@ -1125,9 +1104,9 @@ Sampling model `P(S=1 | L)` + sampling-odds weights multiply into IPW Hájek MSM
 | `target=NULL`: behaviour unchanged | ✅ | test-multivariate-ipw-transport.R |
 | `stabilize="marginal"` + transport: recovers target ATE, finite SE | ✅ | test-multivariate-ipw-transport.R |
 
-**Implementation note.** The only source change was removing the early `return()` in the multivariate branch of `variance_if_ipw()` and applying `compute_ipw_sampling_correction()` when `fit$details$transport == TRUE`. Weight multiplication and bootstrap already handled multivariate transport correctly; only the sandwich gamma-block correction was missing.
+The multivariate branch of `variance_if_ipw()` applies `compute_ipw_sampling_correction()` when `fit$details$transport == TRUE`.
 
-**Chunk 17k — IPCW × transport**
+**IPCW × transport**
 
 | Feature | Status | Test |
 |---|---|---|
@@ -1149,9 +1128,9 @@ Sampling model `P(S=1 | L)` + sampling-odds weights multiply into IPW Hájek MSM
 | delicatessen stacked-EE cross-check: IPW point + SE | ✅ | test-ipcw-transport.R |
 | Longitudinal IPW + IPCW + transport: smoke test (finite output) | ✅ | test-ipcw-transport.R |
 
-**Implementation note.** No source code changes were required. The runtime path in `causat.R` already composes transport (sampling model) and IPCW (censoring model) independently and sequentially; the sandwich variance engines (`variance_if_ipw`, `variance_if_gcomp`, `variance_if_aipw`) already apply both the IPCW and sampling-model corrections when the respective flags are active. This chunk is purely test coverage validating the four-block composition.
+`causat()` composes transport (sampling model) and IPCW (censoring model) independently and sequentially, and the sandwich engines (`variance_if_ipw`, `variance_if_gcomp`, `variance_if_aipw`) apply both corrections when the respective flags are set; these tests validate the four-block composition.
 
-**Chunk 17l — MTP + transportability (MC marginalization)**
+**MTP + transportability (MC marginalization)**
 
 For MTP interventions (shift, scale_by, threshold, dynamic) combined with transportability, target rows (S=0) have no observed treatment. MC marginalization integrates $E_{A|L,S=1}[\hat{m}(d(A,L), L)]$ over the study treatment distribution: exact enumeration for binary treatment, Monte Carlo draws for continuous. Sandwich variance is rejected (classed error `causatr_mtp_transport_sandwich`) for gcomp and AIPW because the MC marginalization introduces treatment-model dependence not captured by the current IF chain; bootstrap is supported. IPW + MTP + transport does not require MC marginalization (density-ratio weights operate on study rows only) so sandwich works.
 
@@ -1174,8 +1153,6 @@ For MTP interventions (shift, scale_by, threshold, dynamic) combined with transp
 | IPW + shift + transport: sandwich works (no MC marginalization) | ✅ | test-mtp-transport.R |
 | gcomp + static + transport: sandwich still works (no MC needed) | ✅ | test-mtp-transport.R |
 | gcomp + dynamic + binary treatment + transport: exact marginalization | ✅ | test-mtp-transport.R |
-
-**Phase 17 complete.** Chunk 17m (documentation, vignette, coverage matrix) shipped 2026-05-20.
 
 ---
 
@@ -1237,10 +1214,10 @@ Test file: test-combinatorial-stress.R
 
 ---
 
-### Phase 18 — G-estimation of Structural Nested Mean Models
-Third leg of the Robins triangle. Motivating use case: **correct handling of time-varying effect modification** — SNMs parameterise the per-stage blip $\gamma_k(a_k, \bar{l}_k, \bar{a}_{k-1}; \psi)$ directly and identify it via a moment condition that uses the treatment model as instrument, so time-varying modifiers are supported by design (closes the Phase 6 limitation under MSM-based estimators). Scope: linear-blip additive SNMMs for point + longitudinal, stacked EE sandwich ($K$ treatment blocks + blip block), bootstrap, `DTRreg` + `delicatessen` cross-checks. Survival SNMs (SNFTMs/SNCFTMs) out of scope.
+### G-estimation of Structural Nested Mean Models
+Third leg of the Robins triangle. Motivating use case: **correct handling of time-varying effect modification** — SNMs parameterise the per-stage blip $\gamma_k(a_k, \bar{l}_k, \bar{a}_{k-1}; \psi)$ directly and identify it via a moment condition that uses the treatment model as instrument, so time-varying modifiers are supported by design (the case MSM-based estimators cannot handle). Scope: linear-blip additive SNMMs for point + longitudinal, stacked EE sandwich ($K$ treatment blocks + blip block), bootstrap, `DTRreg` + `delicatessen` cross-checks. Survival SNMs (SNFTMs/SNCFTMs) out of scope.
 
-**Chunk 18a — Routing and validation (shipped)**
+**Routing and validation**
 
 | Feature | Status | Test |
 |---|---|---|
@@ -1258,7 +1235,7 @@ Third leg of the Robins triangle. Motivating use case: **correct handling of tim
 | No `model_fn` default warning for SNM | ✅ | test-snm.R |
 | `build_blip_spec()` — no EM / single / multiple modifiers | ✅ | test-snm.R |
 
-**Chunk 18b — Point estimation, contrast, and sandwich variance (shipped)**
+**Point estimation, contrast, and sandwich variance**
 
 | Feature | Status | Test |
 |---|---|---|
@@ -1277,12 +1254,12 @@ Third leg of the Robins triangle. Motivating use case: **correct handling of tim
 | delicatessen cross-check — continuous trt, 2 modifiers | ✅ | test-snm.R |
 | DTRreg cross-check — binary trt, no EM (point + SE) | ✅ | test-snm.R |
 | `contrast(interventions=)` → rejection | ✅ | test-snm.R |
-| `ci_method = "bootstrap"` accepted (point + longitudinal) | ✅ | test-snm-bootstrap.R (see Chunk 18i) |
+| `ci_method = "bootstrap"` accepted (point + longitudinal) | ✅ | test-snm-bootstrap.R |
 | `treatment_values` on non-SNM → rejection | ✅ | test-snm.R |
 | `treatment_values` length ≠ 2 → rejection | ✅ | test-snm.R |
 | Vcov dimensions and PSD | ✅ | test-snm.R |
 
-**Chunk 18b½ — Treatment-free outcome model for efficiency augmentation (shipped)**
+**Treatment-free outcome model for efficiency augmentation**
 
 Joint estimation of (β, ψ) following Vansteelandt & Joffe (2014) and DTRreg's `tf.mod`. The treatment-free model E[Y | L] absorbs the L→Y variance, reducing SEs by 30–45% with unchanged point estimates.
 
@@ -1306,7 +1283,7 @@ Joint estimation of (β, ψ) following Vansteelandt & Joffe (2014) and DTRreg's 
 | `treatment_free` non-formula → rejection (`causatr_snm_bad_treatment_free`) | ✅ | test-snm.R |
 | Vcov PSD with TF model | ✅ | test-snm.R |
 
-**Chunk 18c — Time-varying (post-treatment) effect modification (shipped)**
+**Time-varying (post-treatment) effect modification**
 
 SNMs identify the blip under treatment-model correctness alone, so modifiers that depend on treatment (post-treatment) are valid — unlike IPW-MSM, which conditions on a descendant of A (collider bias; Robins 2000). This chunk adds truth-based tests, delicatessen cross-checks, DTRreg cross-checks, and an IPW bias demonstration on DGPs with genuinely post-treatment modifiers.
 
@@ -1325,7 +1302,7 @@ SNMs identify the blip under treatment-model correctness alone, so modifiers tha
 | Vcov PSD for TV modifier (no TF) | ✅ | test-snm.R |
 | Vcov PSD for TV modifier (with TF) | ✅ | test-snm.R |
 
-**Chunk 18d — Longitudinal SNMM with per-stage blip estimation (shipped)**
+**Longitudinal SNMM with per-stage blip estimation**
 
 Backward sequential g-estimation (Robins 1994): per-stage blip parameters estimated by backward induction from stage K to stage 0. Cluster-robust sandwich with cross-stage derivatives. DTRreg cross-check validates point estimates.
 
@@ -1349,7 +1326,7 @@ Backward sequential g-estimation (Robins 1994): per-stage blip parameters estima
 
 **delicatessen reference CSV:** `tests/testthat/fixtures/snm_delicatessen_reference.csv` (10 scenarios, generated by `data-raw/snm_reference.py`).
 
-**Chunk 18e — Longitudinal time-varying EM truth-based test (shipped)**
+**Longitudinal time-varying EM truth-based test**
 
 Headline scientific demonstration: time-varying modifier $M_1 = 1\{L_1 > 0\}$ is post-treatment ($L_1$ depends on $A_0$). SNMs identify blip parameters correctly; IPW-MSM conditioning on $M_1$ is biased (collider bias). DGP: `simulate_snm_longitudinal_tv_em()` with truth $\psi_{00} = 1.15$, $\psi_{0M} = 2$, $\psi_{10} = 2$, $\psi_{1M} = 2$.
 
@@ -1362,7 +1339,7 @@ Headline scientific demonstration: time-varying modifier $M_1 = 1\{L_1 > 0\}$ is
 | Vcov PSD and correct size (4×4) for TV-EM | ✅ | test-snm.R |
 | Sandwich SE vs cluster bootstrap for TV-EM | ✅ | test-snm.R |
 
-**Chunk 18f — Triangulation tests + delicatessen cross-check + `history = 0` (shipped)**
+**Triangulation tests + delicatessen cross-check + `history = 0`**
 
 Validates the Robins triangle invariant: under correct specification and no TV-EM, SNM blip sum = IPW-MSM ATE = ICE g-comp ATE for binary static interventions. Also adds `delicatessen` cross-language reference values and `history = 0` (no-lag) support for all longitudinal estimators.
 
@@ -1382,7 +1359,7 @@ Validates the Robins triangle invariant: under correct specification and no TV-E
 
 **delicatessen fixtures:** `tests/testthat/fixtures/snm_longitudinal_delicatessen.csv` (base), `snm_longitudinal_tf_delicatessen.csv` (TF), `snm_longitudinal_tv_em_delicatessen.csv` (TV-EM + TF). Generated by `data-raw/snm_longitudinal_reference.py` from shared fixtures in `data-raw/`.
 
-**Chunk 18i — Bootstrap variance for SNM (shipped)**
+**Bootstrap variance for SNM**
 
 Bootstrap variance for point and longitudinal SNM estimators. Point bootstrap resamples rows and re-solves the g-estimating equation (with or without treatment-free model). Longitudinal bootstrap uses ID-clustered resampling + full `fit_snm()` refit. Forwards per-component confounders (`confounders_outcome`, `confounders_tv_*`) to ensure correct blip spec on bootstrap replicates. `treatment_values` path bootstraps the averaged blip effect directly (scalar statistic, no delta method needed).
 
@@ -1398,7 +1375,7 @@ Bootstrap variance for point and longitudinal SNM estimators. Point bootstrap re
 | Longitudinal bootstrap with TV-EM (`confounders_outcome`) | ✅ | test-snm-bootstrap.R |
 | Bootstrap accepted (previously rejected) smoke test | ✅ | test-snm-bootstrap.R |
 
-**Chunk 18h — Categorical and count treatment extensions (shipped)**
+**Categorical and count treatment extensions**
 
 Extends SNM g-estimation to categorical (k>2, multinomial residualisation via `nnet::multinom`) and count (Poisson/NB, scalar residual R = A − λ̂) treatment types. `snm_treatment_design()` abstracts treatment design matrices (AM, RM) uniformly across all treatment types. For categorical, psi expands to (K−1) blocks with per-level indicators and multinomial residuals. `treatment_values` is rejected for categorical SNM (per-level blip parameters are the estimand).
 
@@ -1418,7 +1395,7 @@ Extends SNM g-estimation to categorical (k>2, multinomial residualisation via `n
 | `treatment_values` rejected for categorical (`causatr_snm_cat_no_treatment_values`) | ✅ | test-snm.R |
 | Longitudinal categorical — per-stage per-level truth | ✅ | test-snm.R |
 
-**Chunk 18j — S3 dispatch for SNM results (shipped)**
+**S3 dispatch for SNM results**
 
 | Feature | Status | Test |
 |---|---|---|
@@ -1433,9 +1410,7 @@ Extends SNM g-estimation to categorical (k>2, multinomial residualisation via `n
 | `plot.causatr_result()` — forest plot with "Parameter" header + ref_line = 0 | ✅ | test-s3-methods.R |
 | `plot.causatr_result()` — longitudinal SNM title variation | ✅ | test-s3-methods.R |
 
-**Chunk 18b-ext — Combination matrix follow-ups (shipped 2026-05-27)**
-
-Groups 1–6 from the Phase 18 combination matrix audit. Addresses all 🟡 items deferred from the initial shipping.
+**Combination follow-ups**
 
 | Feature | Status | Test |
 |---|---|---|
@@ -1473,9 +1448,7 @@ Groups 1–6 from the Phase 18 combination matrix audit. Addresses all 🟡 item
 | Longitudinal × TV-EM: blip params within 0.20 of truth | ✅ | test-snm-dtrreg-oracle.R |
 | Sandwich fallback: `variance_if_snm()` throws `causatr_snm_no_estfun` | ✅ | test-snm-dtrreg-oracle.R |
 
-**Phase 18 COMPLETE.** All chunks shipped (18a–18f, 18h–18k, 18b-ext). 18g dropped (gesttools archived).
-
-### Phase 19-trim — Cross-cutting weight truncation (shipped)
+### Cross-cutting weight truncation
 
 `trim =` argument on `contrast()`. Winsorizes per-component density ratios at the `trim`-th quantile before products (Cole & Hernan 2008; lmtp default 0.999).
 
@@ -1530,8 +1503,7 @@ Hippel two-stage bootstrap-then-impute).
 | Reject Boot MI with `B < 2` or `M < 2` | ✅ | test-pool-boot-mi.R |
 | Boot MI warns on floored (non-positive) variance component | ✅ | test-pool-boot-mi.R |
 
-Transport (`target =`) + MI is not yet validated (owned by the pending Phase
-17i / 26 transport work).
+Transport (`target =`) with multiple imputation has not been validated.
 
 ---
 

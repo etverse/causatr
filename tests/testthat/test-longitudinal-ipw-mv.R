@@ -2,7 +2,7 @@
 # Split from test-longitudinal-ipw.R for test-file-level parallelism.
 
 # -----------------------------------------------------------------------
-# Multivariate longitudinal IPW (Phase 19a)
+# Multivariate longitudinal IPW
 # -----------------------------------------------------------------------
 # T × K propensity factorisation: W_i = prod_t prod_k w_{t,k,i}
 # with block-diagonal stacked sandwich.
@@ -377,7 +377,7 @@ test_that("T-long-mv-stab1: stabilized MV fits per-period, per-component chain n
 
 test_that("T-long-mv-stab2: stabilized + static binary MV recovers identical estimate as unstabilized", {
   # Same invariant as the univariate T-long-ipw-stab2 and the
-  # multivariate point Phase 8e: under static interventions on discrete
+  # multivariate point test: under static interventions on discrete
   # treatments the per-period, per-component weight is
   # `prod_k I(A_k = a_k) * f^*_k / f_k`. On the surviving rows every
   # conditioning variable (prior components + lags) is pinned to the
@@ -610,10 +610,10 @@ test_that("R-long-mv-ipw1: MV IPSI under longitudinal IPW is rejected", {
 
 
 # -----------------------------------------------------------------------
-# Multivariate longitudinal IPW + effect modification (Phase 19c)
+# Multivariate longitudinal IPW + effect modification
 # -----------------------------------------------------------------------
-# Composes per-component EM stripping (Phase 8b) with per-period EM
-# stripping (Phase 10c). `make_em_mv_long_scm()` is a 2-period x
+# Composes per-component EM stripping (multivariate IPW) with per-period
+# EM stripping (longitudinal IPW). `make_em_mv_long_scm()` is a 2-period x
 # 2-component binary DGP with effect modification by baseline `sex`;
 # its static (1,1) -> (0,0) contrast has analytical truth 9 (sex = 0)
 # and 15 (sex = 1). See the helper for the derivation.

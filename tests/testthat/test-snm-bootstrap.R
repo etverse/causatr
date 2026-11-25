@@ -1,4 +1,4 @@
-# Bootstrap variance tests for SNM estimator (chunk 18i).
+# Bootstrap variance tests for SNM estimator.
 # Validates that bootstrap SEs agree with sandwich SEs across
 # point / longitudinal / treatment-free / treatment_values paths.
 

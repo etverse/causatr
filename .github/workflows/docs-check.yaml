@@ -1,0 +1,35 @@
+# Fails when the committed man/ pages or NAMESPACE differ from what
+# roxygen2 generates from R/. roxygen2 output changes between versions, so
+# the job installs the exact version DESCRIPTION records rather than the
+# latest one.
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+name: docs-check
+
+jobs:
+  roxygen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::remotes
+      - name: Install the roxygen2 version DESCRIPTION records
+        shell: Rscript {0}
+        run: |
+          d <- read.dcf("DESCRIPTION")
+          field <- intersect(c("Config/roxygen2/version", "RoxygenNote"), colnames(d))[1]
+          if (is.na(field)) stop("DESCRIPTION records no roxygen2 version.")
+          remotes::install_version("roxygen2", version = d[1, field], upgrade = "never")
+      - name: Regenerate the documentation
+        shell: Rscript {0}
+        run: roxygen2::roxygenise()
+      - name: Fail if man/ or NAMESPACE changed
+        run: git diff --exit-code -- man NAMESPACE

@@ -60,7 +60,14 @@ local({
   # that report 3+ physical cores.
   limit_cores <- tolower(Sys.getenv("_R_CHECK_LIMIT_CORES_", ""))
   max_cores <- if (limit_cores %in% c("true", "warn")) 2L else 6L
-  ncpus <- max(1L, min(max_cores, parallel::detectCores(logical = FALSE) - 1L))
+  # detectCores() returns NA where the OS hides the core count (sandboxes,
+  # some containers); fall back to one core rather than an NA ncpus, which
+  # makes boot::boot() fail on its `ncpus > 1L` test.
+  ncpus <- max(
+    1L,
+    min(max_cores, parallel::detectCores(logical = FALSE) - 1L),
+    na.rm = TRUE
+  )
   options(boot.ncpus = ncpus)
   if (.Platform$OS.type != "windows") {
     options(boot.parallel = "multicore")

@@ -3,7 +3,7 @@
 # Under correct specification and no time-varying EM, all three
 # approaches — SNM blip sum, longitudinal IPW Hájek MSM, and ICE
 # g-comp — must agree on the total causal effect. Disagreement is
-# a bug, not a method difference (Phase 18 design doc invariant).
+# a bug, not a method difference (see .claude/rules/snm.md).
 #
 # Continuous-treatment shift is NOT included: the IPW sequential MTP
 # estimand accounts for the A_0 -> L_1 -> A_1 cascade, making it

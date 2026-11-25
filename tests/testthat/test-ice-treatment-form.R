@@ -1,4 +1,4 @@
-# Tests for the flexible-treatment ICE term (Phase 22b-5, `treatment_form =`).
+# Tests for the flexible-treatment ICE term (`treatment_form =`).
 # By default the treatment enters every per-step ICE outcome model as a bare
 # numeric main effect; a kinked or non-monotone counterfactual dose-response is
 # then misspecified. `treatment_form = ~ factor(A)` / `~ splines::ns(A, df)` lets

@@ -21,7 +21,11 @@
 #'   (joint) treatments, e.g. `treatment = c("A1", "A2")`.
 #' @param confounders A one-sided formula specifying baseline (time-invariant)
 #'   confounders, e.g. `~ L1 + L2`. Interactions and transformations are
-#'   allowed, e.g. `~ L1 * L2 + splines::ns(age, 4)`. For longitudinal data,
+#'   allowed, e.g. `~ L1 * L2 + splines::ns(age, 4)`. An interaction with the
+#'   treatment, such as `~ L1 + A:sex`, requests effect modification by
+#'   `sex`; under IPW, matching and longitudinal IPW the modifier must be a
+#'   baseline covariate, and a time-varying modifier needs
+#'   `estimator = "snm"`. For longitudinal data,
 #'   these confounders are constant within each individual (measured at
 #'   baseline) and enter every time-step outcome model. **Soft-deprecated:**
 #'   prefer the per-component formulas (`confounders_outcome`,
@@ -95,12 +99,14 @@
 #'   row-filter-only behaviour. For IPW under MAR censoring this is
 #'   essential; for g-comp it provides doubly-robust protection.
 #'
-#'   **Variance note:** For point treatments the sandwich SE fully accounts
-#'   for censoring-model estimation uncertainty (Channel 2 correction). For
-#'   longitudinal treatments (ICE, longitudinal IPW) the Channel 2 correction
-#'   for per-period censoring models is omitted, making the sandwich SE
-#'   conservative. Use `ci_method = "bootstrap"` for tighter CIs in
-#'   longitudinal IPCW settings.
+#'   **Variance note:** The sandwich SE carries the censoring-model
+#'   uncertainty for point g-computation, longitudinal IPW and longitudinal
+#'   AIPW. For longitudinal g-computation (ICE) the correction for the
+#'   per-period censoring models is omitted; the IPCW-weighted outcome
+#'   regressions are orthogonal to them under a correct model, so the SE is
+#'   mildly conservative (about 8% too large in simulation). Use
+#'   `ci_method = "bootstrap"` for the tightest intervals there. Point IPW
+#'   with `ipcw = TRUE` has a known SE error; see the package issues.
 #' @param censoring_model_fn Function or `NULL`. The fitting function
 #'   for the censoring model when `ipcw = TRUE`. Must accept
 #'   `(formula, data, family, weights, ...)`. Default `NULL` uses

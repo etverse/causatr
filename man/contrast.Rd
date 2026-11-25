@@ -49,8 +49,8 @@ every treatment variable specified in \code{causat()}.
 \code{gcomp} supports \code{static()} / \code{shift()} / \code{scale_by()} / \code{threshold()} /
 \code{dynamic()} / \code{stochastic()}. IPW supports \code{static()} / \code{shift()} /
 \code{scale_by()} / \code{dynamic()}, plus \code{ipsi()} on binary treatment (point and
-univariate longitudinal) and \code{stochastic()} when a \code{density} is supplied.
-\code{matching} supports \code{static()} only. \code{ipsi()} requires a fitted
+univariate longitudinal); it rejects \code{stochastic()}, which is
+g-computation only. \code{matching} supports \code{static()} only. \code{ipsi()} requires a fitted
 propensity model and a binary treatment; multivariate / stabilized
 longitudinal IPSI and longitudinal AIPW IPSI are rejected with classed
 errors.}
@@ -107,7 +107,7 @@ level of \code{by}.}
 \item{parallel}{Character. Parallelisation backend for bootstrap
 (\code{ci_method = "bootstrap"} only). \code{"no"} (default) runs sequentially;
 \code{"multicore"} uses forked processes via \code{\link[parallel:mclapply]{parallel::mclapply()}} (Unix
-only); \code{"snow"} uses socket clusters via \code{\link[parallel:clusterApply]{parallel::parLapply()}}
+only); \code{"snow"} uses socket clusters via \code{\link[parallel:parLapply]{parallel::parLapply()}}
 (cross-platform); \code{"future"} dispatches replicates through
 \code{\link[future.apply:future_lapply]{future.apply::future_lapply()}} so any active \code{\link[future:plan]{future::plan()}} is
 honoured (local multisession, remote cluster, \code{future.batchtools},
@@ -140,7 +140,7 @@ resamples entire individual trajectories.}
 for \code{estimator = "snm"}.} When supplied, \code{contrast()} returns the
 population-averaged blip effect
 \eqn{(1/n)\sum_i [\gamma(a_1, L_i; \hat\psi) - \gamma(a_0, L_i;
-  \hat\psi)]} at treatment values \code{c(a0, a1)}, with delta-method SE.
+\hat\psi)]} at treatment values \code{c(a0, a1)}, with delta-method SE.
 When \code{NULL} (the default), returns the raw blip parameter table.
 Rejected for non-SNM estimators.}
 

@@ -52,8 +52,8 @@ policies that depend on the natural history of treatment. arXiv:2605.24167.
 \seealso{
 \code{\link[=grace_period]{grace_period()}}, \code{\link[=static]{static()}}, \code{\link[=contrast]{contrast()}}
 
-Other glmtp: 
-\code{\link{cap_escalation}()},
-\code{\link{grace_period}()}
+Other glmtp:
+\code{\link[=cap_escalation]{cap_escalation()}},
+\code{\link[=grace_period]{grace_period()}}
 }
 \concept{glmtp}

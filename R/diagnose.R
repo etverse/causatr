@@ -266,7 +266,7 @@ check_diag_by_arg <- function(fit, by, call) {
 #'     weight-distribution concept).
 #'  2. Default-obs flag: when `is_default_obs = TRUE`, the panel uses the
 #'     observed-treatment Horvitz-Thompson view (`1/p` and `1/(1-p)`),
-#'     preserving the pre-chunk-11a default behaviour. Otherwise the panel
+#'     the panel `diagnose(fit)` shows without interventions. Otherwise the panel
 #'     uses `compute_density_ratio_weights()` for the per-intervention
 #'     density-ratio weight.
 #'  3. NULL intervention with `is_default_obs = FALSE`: a literal natural-

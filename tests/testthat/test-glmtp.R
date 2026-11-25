@@ -9,7 +9,7 @@
 # limiting-case equivalences against the existing engine.
 
 # ---------------------------------------------------------------------------
-# Chunk 1 -- augmented-frame infrastructure (R/glmtp_augment.R)
+# Augmented-frame infrastructure (R/glmtp_augment.R)
 # ---------------------------------------------------------------------------
 
 test_that("glmtp_support returns the sorted discrete support and drops censored rows", {
@@ -92,7 +92,7 @@ test_that("glmtp_check_tractable caps the worst-step blow-up", {
 })
 
 # ---------------------------------------------------------------------------
-# Chunk 2/3 -- the augmented engine: constructors, truth, limiting cases
+# The augmented engine: constructors, truth, limiting cases
 # ---------------------------------------------------------------------------
 
 # Fit a standard longitudinal-ICE object on a glmtp DGP. The augmented engine
@@ -390,7 +390,7 @@ test_that("the engine matches an independent hand-coded recursion for an ordinal
   }
 })
 
-# Flexible-treatment ICE term (Phase 22b-5): the bare-numeric per-step model
+# Flexible-treatment ICE term (`treatment_form =`): the bare-numeric per-step model
 # misspecifies the kinked capped-dose pseudo-response (~0.8-1.1% asymptotic bias
 # when the cap binds), whereas `treatment_form = ~ factor(A)` lets each dose
 # level carry its own coefficient and recovers the forward-MC truth to sampling
@@ -689,7 +689,7 @@ test_that("glmtp rejects mixing and a continuous treatment", {
 })
 
 # ---------------------------------------------------------------------------
-# Chunk 4 -- sandwich variance (R/variance_if_glmtp.R)
+# Sandwich variance (R/variance_if_glmtp.R)
 # ---------------------------------------------------------------------------
 
 test_that("sandwich and bootstrap SEs agree for grace_period (binary, tau=4)", {

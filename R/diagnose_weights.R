@@ -1,9 +1,10 @@
 #' Observed-treatment IPW weight distribution summary
 #'
 #' @description
-#' For binary treatments, reconstructs the Horvitz-Thompson weights
-#' `1/p` on treated rows and `1/(1-p)` on controls and summarises by
-#' arm. For non-binary treatments (continuous, categorical, count),
+#' For binary treatments, reconstructs the Horvitz-Thompson weights of
+#' the fit's estimand and summarises by arm: `1/p` on treated rows and
+#' `1/(1-p)` on controls for the ATE, `1` and `p/(1-p)` for the ATT, and
+#' `(1-p)/p` and `1` for the ATC. For non-binary treatments (continuous, categorical, count),
 #' the observed-treatment density-ratio weight is identically 1
 #' (natural-course view), so the summary reports unit weights. For
 #' multivariate treatments, computes the product of per-component

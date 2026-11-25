@@ -6,8 +6,8 @@
 # (treating the estimated IPCW weights as fixed over-states the treated arm SE).
 #
 # The headline oracle is the delicatessen M-estimation stack carrying the
-# censoring gamma block (fixtures/python/longitudinal_ipw_ipcw_delicatessen.py),
-# which the chunk-1 (AIPW) work reserved for this chunk. The companion
+# censoring gamma block (fixtures/python/longitudinal_ipw_ipcw_delicatessen.py).
+# The companion
 # "known-weights" sandwich in the same fixture (gamma held fixed) pins the
 # efficiency gain the cross-term recovers (Robins-Rotnitzky-Zhao 1994).
 #

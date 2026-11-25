@@ -53,7 +53,11 @@ treatment variable(s). Pass a character vector for multivariate
 
 \item{confounders}{A one-sided formula specifying baseline (time-invariant)
 confounders, e.g. \code{~ L1 + L2}. Interactions and transformations are
-allowed, e.g. \code{~ L1 * L2 + splines::ns(age, 4)}. For longitudinal data,
+allowed, e.g. \code{~ L1 * L2 + splines::ns(age, 4)}. An interaction with the
+treatment, such as \code{~ L1 + A:sex}, requests effect modification by
+\code{sex}; under IPW, matching and longitudinal IPW the modifier must be a
+baseline covariate, and a time-varying modifier needs
+\code{estimator = "snm"}. For longitudinal data,
 these confounders are constant within each individual (measured at
 baseline) and enter every time-step outcome model. \strong{Soft-deprecated:}
 prefer the per-component formulas (\code{confounders_outcome},
@@ -141,12 +145,14 @@ are composed multiplicatively with any external \code{weights}. Requires
 row-filter-only behaviour. For IPW under MAR censoring this is
 essential; for g-comp it provides doubly-robust protection.
 
-\strong{Variance note:} For point treatments the sandwich SE fully accounts
-for censoring-model estimation uncertainty (Channel 2 correction). For
-longitudinal treatments (ICE, longitudinal IPW) the Channel 2 correction
-for per-period censoring models is omitted, making the sandwich SE
-conservative. Use \code{ci_method = "bootstrap"} for tighter CIs in
-longitudinal IPCW settings.}
+\strong{Variance note:} The sandwich SE carries the censoring-model
+uncertainty for point g-computation, longitudinal IPW and longitudinal
+AIPW. For longitudinal g-computation (ICE) the correction for the
+per-period censoring models is omitted; the IPCW-weighted outcome
+regressions are orthogonal to them under a correct model, so the SE is
+mildly conservative (about 8\% too large in simulation). Use
+\code{ci_method = "bootstrap"} for the tightest intervals there. Point IPW
+with \code{ipcw = TRUE} has a known SE error; see the package issues.}
 
 \item{censoring_model_fn}{Function or \code{NULL}. The fitting function
 for the censoring model when \code{ipcw = TRUE}. Must accept
@@ -221,7 +227,7 @@ numerator density in each per-component weight factor.
 \item \code{"none"} (default): numerator conditions on the same
 covariates as the denominator. Per-component weight is
 \eqn{f_k(d_k^{-1}(A_k) \mid A_{1..k-1}^{\mathrm{obs}}, L) \cdot
-      |\mathrm{Jac}| / f_k(A_k \mid A_{1..k-1}^{\mathrm{obs}}, L)}.
+    |\mathrm{Jac}| / f_k(A_k \mid A_{1..k-1}^{\mathrm{obs}}, L)}.
 \item \code{"marginal"}: numerator drops \eqn{L}, conditioning only
 on prior treatments (Robins, Hernán, Brumback 2000). Fits a
 second per-component density model \eqn{g_k(A_k \mid A_{1..k-1})}

@@ -272,7 +272,7 @@ test_that("variance_if_numeric() Tier 1 matches the analytic IF on a logistic gl
 })
 
 
-# ── correct_propensity() Branch A — IPW WeightIt path ──
+# ── IPW propensity correction against the WeightIt oracle ──
 
 test_that("IPW sandwich matches WeightIt stacked-M oracle on static binary", {
   skip_if_fast()

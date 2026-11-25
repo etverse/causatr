@@ -1,5 +1,4 @@
 # Tests for count treatment (Poisson / negative binomial) IPW engine.
-# Chunk 3j of Phase 4.
 #
 # DGP (simulate_count_treatment):
 #   L ~ N(0, 1)

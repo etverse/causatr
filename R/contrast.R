@@ -49,8 +49,8 @@
 #'   `gcomp` supports `static()` / `shift()` / `scale_by()` / `threshold()` /
 #'   `dynamic()` / `stochastic()`. IPW supports `static()` / `shift()` /
 #'   `scale_by()` / `dynamic()`, plus `ipsi()` on binary treatment (point and
-#'   univariate longitudinal) and `stochastic()` when a `density` is supplied.
-#'   `matching` supports `static()` only. `ipsi()` requires a fitted
+#'   univariate longitudinal); it rejects `stochastic()`, which is
+#'   g-computation only. `matching` supports `static()` only. `ipsi()` requires a fitted
 #'   propensity model and a binary treatment; multivariate / stabilized
 #'   longitudinal IPSI and longitudinal AIPW IPSI are rejected with classed
 #'   errors.

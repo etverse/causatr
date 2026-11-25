@@ -16,6 +16,42 @@
 #' where \eqn{\hat{m}} is the outcome model and \eqn{W_i(g)} is the
 #' density-ratio weight produced by the self-contained IPW engine.
 #'
+#' @details
+#' The estimating function for \eqn{\psi} is
+#' \eqn{\hat{m}_\beta(g(L, A), L) + W_\alpha(g; L, A)(Y - \hat{m}_\beta(A, L)) - \psi}.
+#' If the outcome model is correct, the residual term has mean zero by
+#' iterated expectation over \eqn{A \mid L}; if the treatment model is
+#' correct, the weighted residual has the right mean by the IPW
+#' density-ratio argument. When both are correct the centred estimating
+#' function is the efficient influence function, so asymptotically the
+#' AIPW variance is no larger than the g-computation or IPW variance.
+#'
+#' Under transport the first term averages over the target rows and the
+#' augmentation over the study rows reweighted by the sampling weights,
+#' both divided by the target size (Dahabreh et al. 2020, section 4.2).
+#' The estimator is then consistent when the outcome model is correct, or
+#' when both the treatment and the sampling models are correct.
+#'
+#' ATT and ATC use the same Bayes-rule numerator as IPW
+#' (`compute_density_ratio_weights()`), so the weight closure stays a
+#' function of the propensity parameters and the sandwich carries the
+#' cross-derivative. With an `mgcv::gam` outcome or propensity the
+#' cross-derivatives come from `numDeriv::jacobian()` of the augmentation
+#' term, as in IPW, so point AIPW does not abort on a GAM.
+#'
+#' AIPW rejects exactly the interventions IPW rejects: the augmentation
+#' needs the density-ratio weight, and a point mass on a continuous
+#' treatment has none.
+#'
+#' @references
+#' Robins JM, Rotnitzky A, Zhao LP (1994). Estimation of regression
+#' coefficients when some regressors are not always observed. *Journal of
+#' the American Statistical Association* 89:846-866.
+#'
+#' Dahabreh IJ, Robertson SE, Steingrimsson JA, Stuart EA, Hernán MA
+#' (2020). Extending inferences from a randomized trial to a new target
+#' population. *Statistics in Medicine* 39:1999-2014.
+#'
 #' @param data data.table from `prepare_data()`.
 #' @param outcome Character. Outcome column name.
 #' @param treatment Character scalar or vector. Treatment column name(s).
